@@ -289,3 +289,5 @@ h4 { margin: 4px 0; font-size: 16px; }
   #title .hero { gap: 4px; }
   #title .hero canvas { width: 150px !important; height: 142px !important; }
 }
+.vol { display: flex; align-items: center; gap: 10px; font-size: 20px; padding: 0 6px; }
+.vol input { flex: 1; height: 28px; accent-color: var(--pink); touch-action: pan-x; }

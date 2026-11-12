@@ -1,13 +1,14 @@
 // Запуск игры: заставка, главный цикл, ввод, HUD.
-import { G, newGame, load, save, hasSave, wipe, cal } from './game.js';
+import { G, newGame, load, save, hasSave, wipe, cal, darkness } from './game.js';
 import { el, fmtMoney, makeCanvas } from './util.js';
 import { drawHamster, defaultLook } from './hamster.js';
 import { resolveLook, START_OUTFIT, NPC_BY_ID } from './data.js';
-import { sfx, unlockAudio, isMuted, setMuted } from './audio.js';
+import { sfx, unlockAudio, isMuted, setMuted, isMusicOn, setMusicOn, getMusicVolume, setMusicVolume, setMusic, setAmbience } from './audio.js';
 import { toast, openPanel, message, confirmBox } from './ui.js';
 import WorldScene, * as World from './world.js';
 import * as Villa from './villa.js';
 import * as F from './features.js';
+import * as Audio_ from './audio.js';
 
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
@@ -109,7 +110,12 @@ function openSettings() {
     render(body, tab, panel) {
       const c = cal();
       body.appendChild(el('p', 'center', `<b>${G.state.name}</b> · ${c.year}-й год на вилле<br><span class="muted">Игра сохраняется сама.</span>`));
-      const snd = el('button', 'btn blue', isMuted() ? '🔇 Звук выключен' : '🔊 Звук включён');
+      const mus = el('button', 'btn ' + (isMusicOn() ? 'green' : 'ghost'), isMusicOn() ? '🎵 Музыка включена' : '🎵 Музыка выключена');
+      mus.onclick = () => { setMusicOn(!isMusicOn()); sfx('tap'); panel.refresh(); };
+      const vol = el('label', 'vol', '<span>🔈</span><input type="range" min="0" max="100" step="5" aria-label="Громкость музыки"><span>🔊</span>');
+      const rng = vol.querySelector('input'); rng.value = Math.round(getMusicVolume() * 100); rng.disabled = !isMusicOn();
+      rng.oninput = () => setMusicVolume(rng.value / 100);
+      const snd = el('button', 'btn ' + (isMuted() ? 'ghost' : 'blue'), isMuted() ? '🔇 Звуки выключены' : '🔊 Звуки включены');
       snd.onclick = () => { setMuted(!isMuted()); sfx('ok'); panel.refresh(); };
       const help = el('button', 'btn yellow', '❓ Как играть');
       help.onclick = () => showHelp();
@@ -118,7 +124,7 @@ function openSettings() {
         if (await confirmBox('Начать заново?', '<p class="center">Вся игра сотрётся: наряды, мебель, друзья и наклейки. Точно?</p>', 'Да, стереть', 'Нет-нет!')) { wipe(); location.reload(); }
       };
       const col = el('div'); col.style.cssText = 'display:flex;flex-direction:column;gap:12px;align-items:stretch';
-      col.append(snd, help, reset); body.appendChild(col);
+      col.append(mus, vol, snd, help, reset); body.appendChild(col);
     },
   });
 }
@@ -138,11 +144,27 @@ function showHelp() {
   });
 }
 
+// ---------- какая музыка и какие звуки вокруг ----------
+function updateSound() {
+  const playing = G.state && G.scene && !document.getElementById('title');
+  if (!playing) { setMusic('title'); setAmbience({ sea: 0, rain: 0, birds: false, night: false }); return; }
+  const mg = !!document.getElementById('mg'), c = cal(), night = darkness() > 0.75, world = G.sceneName === 'world';
+  setMusic(mg ? 'minigame' : !world && Villa.isParty() ? 'party' : night ? 'night' : world ? 'town_' + c.season : 'villa');
+  const rain = G.state.weather === 'rain';
+  setAmbience({
+    sea: world && !mg ? World.seaLevel() : 0,
+    rain: rain && !mg ? (world ? 1 : 0.3) : 0,
+    birds: world && !mg && !night && !rain && (c.season === 'spring' || c.season === 'summer'),
+    night: world && !mg && night && c.season !== 'winter',
+  });
+}
+
 // ---------- главный цикл ----------
-let last = performance.now(), hudT = 0, saveT = 0;
+let last = performance.now(), hudT = 0, saveT = 0, sndT = 0;
 function frame(now) {
   const dt = Math.min(0.05, (now - last) / 1000); last = now;
   G.time += dt;
+  sndT += dt; if (sndT > 0.25) { sndT = 0; updateSound(); }
   if (G.state && G.scene) {
     if (!G.modal) {
       const s = G.state;
@@ -151,7 +173,7 @@ function frame(now) {
       // гость, который приходит сам
       if (s.visitor && G.sceneName === 'villa' && s.minutes >= 11 * 60 && !Villa.isDecor()) {
         const id = s.visitor; s.visitor = null;
-        if (!s.guests.includes(id) && s.guests.length < 3 && s.friends[id].met) { s.guests.push(id); Villa.syncGuests(); sfx('door'); toast(`Тук-тук! ${NPC_BY_ID[id].name} заглянул${NPC_BY_ID[id].fem ? 'а' : ''} в гости 🚪`, 'good'); }
+        if (!s.guests.includes(id) && s.guests.length < 3 && s.friends[id].met) { s.guests.push(id); Villa.syncGuests(); sfx('bell'); toast(`Тук-тук! ${NPC_BY_ID[id].name} заглянул${NPC_BY_ID[id].fem ? 'а' : ''} в гости 🚪`, 'good'); }
       }
       G.scene.update(dt);
     }
@@ -226,6 +248,8 @@ function titleScreen() {
   document.body.appendChild(t);
 }
 
-window.__G = G; window.__F = F; window.__World = World; window.__Villa = Villa; // для отладки и тестов
+document.addEventListener('pointerdown', unlockAudio, { passive: true });
+document.addEventListener('keydown', unlockAudio);
+window.__Audio = Audio_; window.__G = G; window.__F = F; window.__World = World; window.__Villa = Villa; // для отладки и тестов
 titleScreen();
 requestAnimationFrame(frame);

@@ -74,7 +74,7 @@ export function syncGuests() {
     if (!V.guests.find((g) => g.id === id)) V.guests.push({ id, x: 300 + V.guests.length * 70, f: 0, tx: rnd(420, 880), wait: 1, dir: 1, walkT: 0, happy: 0 });
   }
 }
-export function guestHappy(id) { const g = V.guests.find((q) => q.id === id); if (g) { g.happy = 2.5; burst(g.x, fy(g.f) - 130, 'heart', 6); } }
+export function guestHappy(id) { const g = V.guests.find((q) => q.id === id); if (g) { sfx('heart'); g.happy = 2.5; burst(g.x, fy(g.f) - 130, 'heart', 6); } }
 export function playerHappy() { V.p.happy = 2; burst(V.p.x, fy(V.p.f) - 130, 'heart', 5); }
 
 // ---------- камера ----------
@@ -222,7 +222,8 @@ function actItem(it) {
     case 'fridge': sfx('door'); F.openFridge(); break;
     case 'sit': p.state = 'sit'; p.item = it; p.x = it.x; sfx('pop'); break;
     case 'tv': case 'lamp': case 'music': case 'disco': case 'fire':
-      it.on = it.on === undefined ? d.act !== 'fire' : !it.on; sfx('tap');
+      it.on = it.on === undefined ? d.act !== 'fire' : !it.on;
+      sfx(d.act === 'tv' && it.on ? 'tvOn' : d.act === 'lamp' ? 'click' : 'tap');
       if (d.act === 'music' && it.on) { sfx('note', 523); setTimeout(() => sfx('note', 659), 150); setTimeout(() => sfx('note', 784), 300); }
       break;
     case 'plant': case 'toy': it.on = true; it.onT = 1.2; sfx('pop'); burst(it.x, y - d.h, 'spark', 4); break;
@@ -247,7 +248,7 @@ function actBuilt(b) {
     case 'wash': sfx('splash'); burst(b.x, y - 100, 'bubble', 6); toast('Лапки чистые! 🫧'); break;
     case 'cook': F.openCooking(); break;
     case 'bath': p.state = 'bath'; p.x = b.x; sfx('splash'); G.emit('spa', { what: 'bath' }); toast('Ванна с пеной! 🛁'); break;
-    case 'sauna': p.state = 'sauna'; p.x = b.x + 20; sfx('pop'); G.emit('spa', { what: 'sauna' }); toast('Ух, жарко! 🧖'); break;
+    case 'sauna': p.state = 'sauna'; p.x = b.x + 20; sfx('hiss'); G.emit('spa', { what: 'sauna' }); toast('Ух, жарко! 🧖'); break;
     case 'jacuzzi': p.state = 'jacuzzi'; p.x = b.x; sfx('bubble'); G.emit('spa', { what: 'jacuzzi' }); toast('Буль-буль-буль! 🫧'); break;
     case 'pool': p.state = 'swim'; p.x = clamp(p.x, b.x - b.w / 2 + 60, b.x + b.w / 2 - 60); sfx('splash'); G.emit('homeswim'); break;
     default: break;
@@ -339,13 +340,17 @@ export function update(dt) {
       else { p.x += Math.sign(dx) * step; p.dir = Math.sign(dx); }
     } else if (st.t === 'lift') {
       p.moving = false;
-      if (!p.lift) { p.lift = { to: st.f }; sfx('door'); }
+      if (!p.lift) { p.lift = { to: st.f }; sfx('door'); sfx('lift'); }
       const ty = fy(st.f), dy = ty - V.liftY, step = 460 * dt;
-      if (Math.abs(dy) <= step) { V.liftY = ty; p.f = st.f; p.lift = null; p.path.shift(); sfx('tick'); }
+      if (Math.abs(dy) <= step) { V.liftY = ty; p.f = st.f; p.lift = null; p.path.shift(); sfx('ding'); }
       else V.liftY += Math.sign(dy) * step;
     }
   } else if (!p.lift) V.liftY = lerp(V.liftY, fy(p.f), Math.min(1, dt * 8));
   if (p.happy > 0) p.happy -= dt;
+  // звуки шагов и колеса
+  p.stepT = (p.stepT || 0) + dt;
+  if (p.state === 'wheel') { if (p.stepT > 0.22) { p.stepT = 0; sfx('wheel'); } }
+  else if (p.moving && !p.lift && p.stepT > 0.3) { p.stepT = 0; sfx(p.state === 'swim' ? 'paddle' : 'stepWood'); }
   if (p.state === 'wheel') { p.walkT += dt * 4; if (V.stateT > 2.5 && !p.wheelDone) { p.wheelDone = true; G.emit('wheel'); } } else p.wheelDone = false;
   if (p.state === 'swim') {
     const b = BUILT.find((q) => q.id === 'pool');
@@ -599,4 +604,8 @@ export function draw(ctx) {
   ctx.restore();
 }
 
+/** Включена колонка или диско-шар — значит, на вилле вечеринка (и музыка другая). */
+export function isParty() {
+  return G.state.villa.some((i) => i.on === true && FURN_BY_ID[i.id] && (FURN_BY_ID[i.id].act === 'music' || FURN_BY_ID[i.id].act === 'disco'));
+}
 export function playerInBed() { /* зарезервировано для анимации сна */ }

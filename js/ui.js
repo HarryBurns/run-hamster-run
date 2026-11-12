@@ -9,6 +9,7 @@ import { G, playerLook } from './game.js';
 let toastBox = null;
 export function toast(msg, kind = '') {
   if (!toastBox) { toastBox = el('div'); toastBox.id = 'toasts'; document.body.appendChild(toastBox); }
+  if (msg.startsWith('Новая наклейка')) sfx('sticker');
   const t = el('div', 'toast ' + kind, msg);
   toastBox.appendChild(t);
   while (toastBox.children.length > 3) toastBox.firstChild.remove();
@@ -143,7 +144,9 @@ export function dialog({ look, name, text, options = [{ text: 'Пока!' }], ha
     shade.addEventListener('pointerdown', () => fin(-1));
     document.body.append(shade, d);
     G.modal++;
-    sfx('pop');
+    // у каждого хомячка свой голосок
+    let hsh = 0; for (const ch of String(name)) hsh = (hsh * 31 + ch.charCodeAt(0)) % 997;
+    sfx('squeak', 0.8 + (hsh % 6) * 0.11);
   });
 }
 

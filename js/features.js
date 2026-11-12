@@ -514,7 +514,7 @@ function addPts(id, n) {
   S().friends[id].pts += n;
   const after = friendHearts(id), npc = NPC_BY_ID[id];
   if (after > before) {
-    toast(`${npc.name}: дружба выросла! ${'❤️'.repeat(after)}`, 'good');
+    toast(`${npc.name}: дружба выросла! ${'❤️'.repeat(after)}`, 'good'); sfx('heart');
     if (after >= 2 && before < 2) {
       const unknown = SECRET_RECIPES.filter((r) => !S().recipes.includes(r));
       const rec = unknown.includes(npc.fav) ? npc.fav : pick(unknown);
@@ -606,7 +606,7 @@ export function openPhone() {
         if (fr.met) {
           const b = el('button', 'btn small ' + (here ? 'ghost' : 'green'), here ? 'В гостях' : night ? 'Спит' : 'Позвать');
           b.disabled = here || night || S().guests.length >= 3;
-          b.onclick = () => { if (invite(n.id)) { sfx('ok'); toast(`${n.name} уже бежит к тебе на виллу! 🏡`, 'good'); panel.refresh(); } };
+          b.onclick = () => { if (invite(n.id)) { sfx('bell'); toast(`${n.name} уже бежит к тебе на виллу! 🏡`, 'good'); panel.refresh(); } };
           li.appendChild(b);
         }
         body.appendChild(li);
@@ -640,7 +640,7 @@ export function gardenBed(i) {
         const card = el('div', 'card tap');
         card.appendChild(el('div', 'e', ing.e)); card.appendChild(el('div', 'nm', sd.name)); card.appendChild(el('span', 'cnt', '×' + count('seeds', sd.id)));
         card.appendChild(el('div', 'muted', `${sd.days} ${plural(sd.days, 'ночь', 'ночи', 'ночей')}`));
-        card.onclick = () => { addTo('seeds', sd.id, -1); bed.seed = sd.id; bed.age = 0; sfx('pop'); toast(`Посажено: ${sd.name} 🌱`, 'good'); G.emit('plant'); save(); panel.close(); };
+        card.onclick = () => { addTo('seeds', sd.id, -1); bed.seed = sd.id; bed.age = 0; sfx('dig'); toast(`Посажено: ${sd.name} 🌱`, 'good'); G.emit('plant'); save(); panel.close(); };
         grid.appendChild(card);
       }
       body.appendChild(grid);
@@ -702,6 +702,7 @@ export function showLetter() {
   const m = S().mail;
   if (!m) { toast('Сегодня писем нет 📭'); return; }
   if (!m.read) { toast('Письмо ждёт в почтовом ящике у двери виллы ✉️'); return; }
+  sfx('paper');
   message({ title: 'Письмо', icon: '✉️', cls: '', html: letterHtml(), buttons: [{ text: m.done ? 'Отлично!' : 'Вперёд!' }] });
 }
 
@@ -738,7 +739,7 @@ function completeTask() {
   G.emit('hud'); save();
   const show = () => {
     if (G.modal > 0) { setTimeout(show, 500); return; }
-    sfx('win');
+    sfx('fanfare');
     message({
       title: 'Задание выполнено!', icon: '🎉',
       html: `<div class="center"><div class="sticker got">${t.sticker}</div><p><b>${t.title}</b></p><p>${isNew ? 'Новая наклейка в альбоме!' : 'Такая наклейка у тебя уже есть — молодец!'}</p>${surprise ? '<p>И это ещё не всё… 🎁</p>' : ''}</div>`,
@@ -801,6 +802,7 @@ export async function askSleep() {
   Villa.enter('wake'); G.emit('hud'); save();
   release();
   setTimeout(() => {
+    sfx(c.season !== before.season ? 'fanfare' : 'morning');
     if (c.season !== before.season) message({ title: `${c.seasonName}!`, icon: c.seasonIcon, html: `<div class="center big-emoji">${c.seasonIcon}</div><p class="center">Наступил${c.season === 'winter' || c.season === 'spring' ? 'а' : c.season === 'summer' ? 'о' : 'а'} ${c.seasonName.toLowerCase()}! Сегодня ${c.monthName.toLowerCase()}, день ${c.dom}.<br>${{ winter: 'Доставай тёплую куртку и шапку!', spring: 'Пора сажать грядки и гулять в лёгкой курточке.', summer: 'Купальник, панамка — и на пляж!', autumn: 'Самое время для дождевика и резиновых сапожек.' }[c.season]}</p>` });
     else toast(`Доброе утро! ${c.seasonIcon} ${c.monthName}, день ${c.dom}. В ящике новое письмо ✉️`);
   }, 600);

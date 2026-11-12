@@ -335,6 +335,15 @@ export function update(dt) {
   } else if (moveAlong(p, sp, dt)) arrive();
   // на чём стоим
   const surf = ch(tileOf(p.x), tileOf(p.y));
+  // шаги: звук зависит от поверхности
+  if (p.moving) {
+    p.stepT = (p.stepT || 0) + dt;
+    const water = surf === 'o' || surf === 'h';
+    if (p.stepT > (water ? 0.5 : surf === 'd' ? 0.45 : 0.3)) {
+      p.stepT = 0;
+      sfx(water ? 'paddle' : surf === 'd' ? 'skate' : surf === 's' ? 'stepSand' : surf === 'i' ? 'stepWood' : surf === 'g' ? (cal().season === 'winter' ? 'stepSnow' : 'step') : 'stepStone');
+    }
+  } else p.stepT = 0.2;
   if (surf !== p.surf) {
     if (surf === 'o' || surf === 'h') { sfx('splash'); G.emit('swim', { where: surf === 'h' ? 'sea' : 'pool' }); }
     if (surf === 'd') G.emit('skate');
@@ -755,6 +764,8 @@ export function walkToPlace(id) {
   p.pending = { b };
   return true;
 }
+/** Насколько хорошо слышно море там, где стоит хомячок: 0..1 */
+export function seaLevel() { return clamp((W.p.y / T - 29) / 11, 0, 1); }
 export function debugScreen(wx, wy) { const { w, h } = G.view, z = W.cam.zoom; return { x: (wx - W.cam.x) * z + w / 2, y: (wy - W.cam.y) * z + h / 2 }; }
 export function debugNpc(id) { const n = W.npcs.find((q) => q.id === id); return { ...debugScreen(n.x, n.y - 20), tx: Math.floor(n.x / T), ty: Math.floor(n.y / T), hidden: n.hidden }; }
 export function debugTeleport(tx, ty) { W.p.x = (tx + 0.5) * T; W.p.y = (ty + 0.5) * T; W.p.path = []; W.cam.x = W.p.x; W.cam.y = W.p.y; }
