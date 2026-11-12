@@ -61,7 +61,7 @@ export function enter(from) {
   snapCam();
 }
 export function leave() { setDecor(false); storePos(); }
-function storePos() { G.state.pos = { scene: 'villa', floor: V.p.f, x: V.p.x }; }
+export function storePos() { G.state.pos = { scene: 'villa', floor: V.p.f, x: V.p.x }; }
 function findBed() {
   const beds = G.state.villa.filter((i) => FURN_BY_ID[i.id] && FURN_BY_ID[i.id].act === 'sleep');
   return beds.find((b) => b.floor === 1 && b.x < 520) || beds[0] || null;

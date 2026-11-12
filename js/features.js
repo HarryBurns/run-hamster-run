@@ -283,6 +283,37 @@ export async function enterBuilding(id) {
 }
 export function goOutside() { G.go('world', 'villa'); }
 
+/** Карта города: нажми на место — хомячок сам туда дойдёт. */
+export function openMap() {
+  let raf = 0;
+  const go = (id, name, panel) => {
+    if (G.sceneName !== 'world') G.go('world', 'villa');
+    if (World.walkToPlace(id)) { sfx('ok'); toast(`Идём: ${name} 🐾`); panel.close(); } else toast('Туда сейчас не пройти');
+  };
+  openPanel({
+    title: 'Карта города', icon: '🗺️', cls: 'wide',
+    onClose: () => cancelAnimationFrame(raf),
+    render(body, tab, panel) {
+      const k = Math.max(4, Math.min(11, Math.floor(((Math.min(window.innerWidth, 980) - 60) / World.MW) * 2) / 2));
+      const { canvas, ctx } = makeCanvas(World.MW * k, World.MH * k);
+      canvas.style.cssText += ';display:block;margin:0 auto;border-radius:14px;max-width:100%;height:auto;touch-action:manipulation';
+      const loop = () => { World.drawMiniMap(ctx, k); raf = requestAnimationFrame(loop); };
+      cancelAnimationFrame(raf); loop();
+      canvas.onclick = (e) => {
+        const r = canvas.getBoundingClientRect();
+        const b = World.mapHit(((e.clientX - r.left) / r.width) * World.MW, ((e.clientY - r.top) / r.height) * World.MH);
+        if (b) go(b.id, b.npc ? `домик (${NPC_BY_ID[b.npc].name})` : b.name, panel);
+      };
+      body.appendChild(canvas);
+      body.appendChild(el('p', 'muted center', 'Розовая точка — это ты. Нажми на место на карте или на кнопку — и хомячок сама туда дойдёт.'));
+      const row = el('div', 'opt-row'); row.style.justifyContent = 'center';
+      const places = [...World.BUILDINGS.filter((b) => !b.npc).map((b) => [b.id, `${b.kind === 'villa' ? '🏡' : b.icon} ${b.name}`]), ['beach', '🏖️ Пляж'], ['pier', '🎣 Пирс']];
+      for (const [id, name] of places) { const bt = el('button', 'opt', name); bt.onclick = () => go(id, name, panel); row.appendChild(bt); }
+      body.appendChild(row);
+    },
+  });
+}
+
 function openPanorama() {
   G.emit('visit', { place: 'tower' });
   openPanel({

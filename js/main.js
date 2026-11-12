@@ -64,7 +64,7 @@ window.addEventListener('keyup', (e) => G.keys.delete(e.code));
 window.addEventListener('blur', () => G.keys.clear());
 
 // ---------- HUD ----------
-let chipDate, chipMoney, chipTask, btnLeft;
+let chipDate, chipMoney, chipTask, btnLeft, btnMap;
 function rbtn(icon, label, fn) {
   const b = el('button', 'rbtn', `${icon}<span class="lbl">${label}</span>`);
   b.onclick = () => { unlockAudio(); sfx('tap'); fn(); };
@@ -80,7 +80,8 @@ function buildHud() {
   right.append(rbtn('🎒', 'Рюкзак', F.openBackpack), rbtn('📖', 'Альбом', F.openAlbum), rbtn('📱', 'Гости', F.openPhone), rbtn('⚙️', 'Меню', openSettings));
   const left = el('div', 'hud-btns left');
   btnLeft = rbtn('🔨', 'Обустроить', leftAction);
-  left.appendChild(btnLeft);
+  btnMap = rbtn('🗺️', 'Карта', F.openMap);
+  left.append(btnMap, btnLeft);
   hud.append(top, right, left);
 }
 async function leftAction() {
@@ -127,7 +128,7 @@ function showHelp() {
     html: `<ul class="help">
       <li>👆 <b>Нажми</b> на любое место — хомячок пойдёт туда. На компьютере можно стрелками или WASD, а <b>E</b> — «потрогать» то, что рядом.</li>
       <li>✉️ Каждое утро в <b>почтовом ящике</b> у двери виллы лежит письмо с заданием. За него дают наклейку и иногда подарок.</li>
-      <li>⭐ Звёздочка и стрелка показывают, куда идти по заданию.</li>
+      <li>⭐ Звёздочка и стрелка показывают, куда идти по заданию. А на <b>🗺️ карте</b> можно нажать на любое место — и хомячок сама туда дойдёт.</li>
       <li>🏡 На вилле нажимай на всё подряд: шкаф, плиту, холодильник, ванну, сауну, джакузи, бассейн, телевизор… Лифт справа возит между этажами.</li>
       <li>🔨 Кнопка <b>«Обустроить»</b> — перетаскивай мебель, доставай новую из кладовки.</li>
       <li>🛍️ В городе — магазины одежды и мебели, продукты, салон красоты, кафе и мини-игры: бассейн, школа, больница, ресторан, Дом моды.</li>
@@ -163,7 +164,7 @@ function frame(now) {
 }
 function persist() {
   if (!G.state || !G.scene) return;
-  if (G.sceneName === 'world') World.storePos(); else if (G.scene.leave && G.sceneName === 'villa') G.state.pos = { ...G.state.pos, scene: 'villa' };
+  if (G.sceneName === 'world') World.storePos(); else Villa.storePos();
   save();
 }
 document.addEventListener('visibilitychange', () => { if (document.hidden) persist(); });

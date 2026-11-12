@@ -112,9 +112,11 @@ function build() {
 }
 
 function ch(tx, ty) { return W.ground[ty] ? W.ground[ty][tx] : undefined; }
+let DRY = false; // true — искать путь только по суше (для жителей)
 function walkable(tx, ty) {
   const c = ch(tx, ty);
   if (c === undefined || c === 'w') return false;
+  if (DRY && (c === 'h' || c === 'o' || c === 'd')) return false;
   if (c === 'd') return cal().season === 'winter';
   return !W.solid[ty][tx];
 }
@@ -322,7 +324,7 @@ export function update(dt) {
   const p = W.p, keys = G.keys;
   const kx = (keys.has('ArrowRight') || keys.has('KeyD') ? 1 : 0) - (keys.has('ArrowLeft') || keys.has('KeyA') ? 1 : 0);
   const ky = (keys.has('ArrowDown') || keys.has('KeyS') ? 1 : 0) - (keys.has('ArrowUp') || keys.has('KeyW') ? 1 : 0);
-  const sp = p.surf === 'o' || p.surf === 'h' ? 130 : p.surf === 'd' ? 250 : 200;
+  const sp = p.surf === 'o' || p.surf === 'h' ? 140 : p.surf === 'd' ? 270 : 225;
   if (kx || ky) {
     p.path = []; p.pending = null;
     const k = sp * dt / Math.hypot(kx, ky);
@@ -358,7 +360,7 @@ export function update(dt) {
     const tx = far ? ax : tileOf(n.x) + Math.round(rnd(-2, 2)), ty = far ? ay : tileOf(n.y) + Math.round(rnd(-2, 2));
     if (!far && dist((tx + 0.5) * T, (ty + 0.5) * T, (ax + 0.5) * T, (ay + 0.5) * T) > T * 3.5) continue;
     if (ch(tx, ty) === 'o' || ch(tx, ty) === 'h' || ch(tx, ty) === 'd') continue;
-    walkTo(n, (tx + 0.5) * T, (ty + 0.5) * T, false);
+    DRY = true; walkTo(n, (tx + 0.5) * T, (ty + 0.5) * T, false); DRY = false;
   }
   // камера
   layout();
@@ -635,16 +637,14 @@ function drawBuilding(ctx, b, sea, dark) {
   const wy = aw + 34, wh = bot - wy - 16;
   if (mall) {
     for (const sx of [-1, 1]) { fillRR(ctx, cx + sx * (Wd * 0.3) - Wd * 0.14, wy, Wd * 0.28, wh, 6, win, OUT, 2); line(ctx, cx + sx * (Wd * 0.3), wy, cx + sx * (Wd * 0.3), wy + wh, OUT, 1.5); }
-    if (b.h >= 6) for (const sx of [-1, 0, 1]) fillRR(ctx, cx + sx * (Wd * 0.3) - 26, Y + roofH + 26 - 8, 52, 0, 0, null);
     fillRR(ctx, cx - 34, bot - wh - 22, 68, wh + 22, 8, '#fff', OUT, 2.5); fillRR(ctx, cx - 28, bot - wh - 16, 26, wh + 16, 4, win, OUT, 1.5); fillRR(ctx, cx + 2, bot - wh - 16, 26, wh + 16, 4, win, OUT, 1.5);
-    if (b.id === 'hospital') { ctx.fillStyle = '#fa5252'; ctx.fillRect(cx - 7, Y + 6, 14, 40); ctx.fillRect(cx - 20, Y + 19, 40, 14); }
   } else {
     fillRR(ctx, X + 14, wy, Wd * 0.36, wh, 6, win, OUT, 2);
     if (b.w >= 5) fillRR(ctx, X + Wd - 14 - Wd * 0.26, wy, Wd * 0.26, wh, 6, win, OUT, 2);
     fillRR(ctx, cx - 14 + (b.w < 5 ? 26 : 0), bot - 62, 34, 62, 7, shade(b.roof, -0.1), OUT, 2);
     fillRR(ctx, cx - 8 + (b.w < 5 ? 26 : 0), bot - 54, 22, 26, 4, win, OUT, 1.5);
   }
-  label(ctx, `${b.icon} ${b.name}`, cx, Y + roofH * 0.5 - (b.id === 'hospital' ? -30 : 2), Wd + 30, mall ? 19 : 15, '#fff');
+  label(ctx, `${b.icon} ${b.name}`, cx, Y + roofH * 0.5 - 2, Wd + 30, mall ? 19 : 15, '#fff');
 }
 
 function drawChar(ctx, look, ent, t, small, isPlayer) {
@@ -715,6 +715,48 @@ export function draw(ctx) {
   }
 }
 
+// ---------- карта города ----------
+const MAP_COL = { r: '#eadcc0', y: '#ead9b5', p: '#f1f3f5', h: '#7fdcf7', w: '#3fb0ea', o: '#58c6f2', i: '#c98b5a', b: '#8d5a3a' };
+export function drawMiniMap(ctx, k) {
+  if (!W.built) build();
+  const sea = cal().season, pal = PAL[sea];
+  for (let y = 0; y < MH; y++) for (let x = 0; x < MW; x++) {
+    const c = W.ground[y][x];
+    ctx.fillStyle = c === 'g' ? pal.g1 : c === 's' ? pal.s : c === 'd' ? (sea === 'winter' ? '#d9f1ff' : '#5db6dc') : MAP_COL[c] || '#000';
+    ctx.fillRect(x * k, y * k, k + 0.6, k + 0.6);
+  }
+  for (const o of W.objs) if (o.type === 'tree' || o.type === 'palm' || o.type === 'pine') ell(ctx, (o.tx + 0.5) * k, (o.ty + 0.5) * k, k * 0.42, k * 0.42, sea === 'winter' ? '#cfe3f0' : sea === 'autumn' ? '#f08c00' : '#40c057');
+  ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5; ctx.strokeRect(1.5 * k, 1.5 * k, 23 * k, 21 * k);
+  for (const b of BUILDINGS) {
+    fillRR(ctx, b.x * k, b.y * k, b.w * k, b.h * k, k * 0.5, b.wall, OUT, 1.2);
+    if (b.kind === 'house') { ctx.fillStyle = b.roof; ctx.fillRect(b.x * k + 1, b.y * k + 1, b.w * k - 2, b.h * k * 0.4); }
+    else emoji(ctx, b.kind === 'villa' ? '🏡' : b.icon, (b.x + b.w / 2) * k, (b.y + b.h / 2) * k, Math.max(11, k * 2.3));
+  }
+  emoji(ctx, '🎣', 51 * k, 46 * k, Math.max(10, k * 2));
+  const tg = targetPx();
+  if (tg) star(ctx, (tg.x / T) * k, (tg.y / T) * k, k * 1.3 + 2, '#ffd43b', OUT, 1.5);
+  const pr = k * 0.9 + 3 + Math.sin(G.time * 5) * 1.2;
+  ell(ctx, (W.p.x / T) * k, (W.p.y / T) * k, pr, pr, '#ff3d7f', '#fff', 2.5);
+}
+/** Какое здание под точкой карты (в клетках); null — если рядом ничего нет. */
+export function mapHit(tx, ty) {
+  let best = null, bd = 3.2;
+  for (const b of BUILDINGS) { const dx = Math.max(b.x - tx, 0, tx - (b.x + b.w)), dy = Math.max(b.y - ty, 0, ty - (b.y + b.h)), d = Math.hypot(dx, dy); if (d < bd) { bd = d; best = b; } }
+  return best;
+}
+/** Отправить хомячка к зданию (или к пирсу / на пляж). */
+export function walkToPlace(id) {
+  const p = W.p; p.pending = null;
+  if (id === 'pier') { if (walkTo(p, 50.5 * T, 46.5 * T, true)) p.pending = { act: 'fish', spot: 'pier' }; return true; }
+  if (id === 'beach') return walkTo(p, 40.5 * T, 39.5 * T, true);
+  const b = B_BY_ID[id]; if (!b) return false;
+  const d = doorPx(b);
+  if (!walkTo(p, d.x, d.y, true)) return false;
+  p.pending = { b };
+  return true;
+}
+export function debugScreen(wx, wy) { const { w, h } = G.view, z = W.cam.zoom; return { x: (wx - W.cam.x) * z + w / 2, y: (wy - W.cam.y) * z + h / 2 }; }
+export function debugNpc(id) { const n = W.npcs.find((q) => q.id === id); return { ...debugScreen(n.x, n.y - 20), tx: Math.floor(n.x / T), ty: Math.floor(n.y / T), hidden: n.hidden }; }
 export function debugTeleport(tx, ty) { W.p.x = (tx + 0.5) * T; W.p.y = (ty + 0.5) * T; W.p.path = []; W.cam.x = W.p.x; W.cam.y = W.p.y; }
 const api = { enter, leave, update, draw, pointerDown, pointerMove, pointerUp, interactNearest };
 export default api;
