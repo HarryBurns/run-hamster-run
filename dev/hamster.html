@@ -1,0 +1,34 @@
+<!doctype html><meta charset="utf-8"><body style="margin:0;background:#bfe3a0">
+<canvas id="c" width="1200" height="700"></canvas>
+<script type="module">
+import { drawHamster, defaultLook, drawPortrait } from '../js/hamster.js';
+const ctx = document.getElementById('c').getContext('2d');
+const base = defaultLook();
+const mk = (outfit, beauty = {}, extra = {}) => ({ ...base, ...extra, outfit: { ...base.outfit, ...outfit }, beauty: { ...base.beauty, ...beauty } });
+const looks = [
+  mk({}),
+  mk({ body: { kind: 'tee', c: '#ff6b9d', print: 'heart' }, legs: { kind: 'shorts', c: '#4dabf7' }, feet: { kind: 'sneakers', c: '#ff6b6b' }, head: { kind: 'cap', c: '#ffd43b' } }, { tuft: 1 }),
+  mk({ body: { kind: 'dress', c: '#c77dff', pattern: 'dots' }, feet: { kind: 'sandals', c: '#ffd43b' }, head: { kind: 'sunhat', c: '#ffe8a1', c2: '#ff6b9d' } }, { lashes: true, bow: '#ff5c8a' }),
+  mk({ body: { kind: 'jacketW', c: '#4dabf7' }, legs: { kind: 'pants', c: '#495057' }, feet: { kind: 'wboots', c: '#c98b5a' }, head: { kind: 'beanie', c: '#ff6b6b', c2: '#fff', pattern: 'stripes' }, acc: { kind: 'scarf', c: '#ffd43b', c2: '#ff6b6b' } }),
+  mk({ body: { kind: 'jacketA', c: '#ffd43b' }, legs: { kind: 'pants', c: '#1c7ed6' }, feet: { kind: 'rainboots', c: '#e03131' }, head: { kind: 'panama', c: '#69db7c', pattern: 'dots' } }),
+  mk({ body: { kind: 'jacketS', c: '#63e6be', c2: '#fff' }, legs: { kind: 'skirt', c: '#ff8fab', pattern: 'check' }, feet: { kind: 'boots', c: '#8d5524' }, acc: { kind: 'glasses', c: '#e03131' } }, { tuft: 2 }),
+  mk({ body: { kind: 'swim', c: '#ff5c8a', pattern: 'dots' }, feet: { kind: 'flippers', c: '#20c997' }, acc: { kind: 'sunglasses', c: '#ffd43b' } }, { tuft: 4 }),
+  mk({ body: { kind: 'sweater', c: '#ff922b', pattern: 'stripes' }, legs: { kind: 'shorts', c: '#845ef7', pattern: 'stars' }, feet: { kind: 'slippers', c: '#ffc9de' }, head: { kind: 'earmuffs', c: '#ffc9de' }, acc: { kind: 'bag', c: '#e64980' } }, { tuft: 3, nails: '#e64980' }),
+  mk({ body: { kind: 'princess', c: '#ffa8d9' }, head: { kind: 'crown', c: '#ffd43b' }, acc: { kind: 'wings', c: '#d0ebff' } }, { lashes: true }),
+  mk({ body: { kind: 'robe', c: '#74c0fc' }, head: { kind: 'wreath', c: '#fff' }, acc: { kind: 'necklace', c: '#ffd43b', pendant: 'heart' } }, { tuft: 5 }),
+  mk({ body: { kind: 'pajama', c: '#b197fc', pattern: 'stars' }, head: { kind: 'tophat', c: '#343a40', c2: '#e03131' }, acc: { kind: 'bowtie', c: '#e03131' } }),
+  { ...base, fur: '#f2b34c', spots: null, belly: '#fff3d6', mask: '#fff3d6', outfit: { body: { kind: 'tee', c: '#4dabf7', pattern: 'stripes' } }, beauty: {} },
+  { ...base, fur: '#b9bcc6', spots: null, belly: '#f1f3f5', outfit: { acc: { kind: 'medal', c: '#ffd43b' } }, beauty: { tuft: 1, hair: '#868e96' } },
+  { ...base, fur: '#a8703f', spots: null, mask: '#f6dfb8', belly: '#f6dfb8', outfit: { head: { kind: 'cap', c: '#e03131', print: 'star' } }, beauty: {} },
+];
+looks.forEach((l, i) => {
+  const x = 90 + (i % 7) * 165, y = 190 + Math.floor(i / 7) * 230;
+  drawHamster(ctx, x, y, 1.8, l, { time: 1, walk: i % 3 === 1 ? 0.2 : null, happy: i === 8, armsUp: i === 8, sleep: i === 10, dir: i === 5 ? -1 : 1 });
+});
+drawHamster(ctx, 100, 620, 0.75, looks[1], { walk: 0.3 });
+drawHamster(ctx, 180, 620, 0.75, looks[3], {});
+drawHamster(ctx, 260, 620, 1, looks[6], { clipBelow: -30 });
+drawPortrait(ctx, 400, 600, 90, looks[2]);
+drawPortrait(ctx, 520, 600, 90, looks[11], { happy: true });
+window.__done = true;
+</script>

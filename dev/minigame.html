@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="ru"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>Тест мини-игры</title><link rel="stylesheet" href="../css/style.css"></head>
+<body>
+<div style="padding:20px;display:flex;gap:8px;flex-wrap:wrap" id="menu"></div>
+<pre id="out" style="padding:20px;white-space:pre-wrap"></pre>
+<script type="module">
+// Страница для разработки: /dev/minigame.html?g=swim&level=0&season=summer
+import { runMinigame } from '../js/minigames/host.js';
+import { NPCS, npcLook, resolveLook, START_OUTFIT } from '../js/data.js';
+import { defaultLook } from '../js/hamster.js';
+import { unlockAudio } from '../js/audio.js';
+const q = new URLSearchParams(location.search);
+const look = resolveLook({ ...defaultLook(), outfit: { ...START_OUTFIT, body: 'swim_pink', head: null, acc: null, legs: null, feet: null } });
+const friends = NPCS.map((n) => ({ id: n.id, name: n.name, look: npcLook(n.id) }));
+async function run(g) {
+  unlockAudio();
+  const res = await runMinigame(g, { look, name: 'Буся', friends, season: q.get('season') || 'summer', level: +(q.get('level') || 0) });
+  window.__result = res;
+  document.getElementById('out').textContent = 'Результат: ' + JSON.stringify(res, null, 2);
+}
+for (const g of ['swim', 'fishing', 'teacher', 'doctor', 'chef', 'fashion']) {
+  const b = document.createElement('button'); b.className = 'btn'; b.textContent = g; b.onclick = () => run(g);
+  document.getElementById('menu').appendChild(b);
+}
+if (q.get('g')) run(q.get('g'));
+</script></body></html>
