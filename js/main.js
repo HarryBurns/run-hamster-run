@@ -30,9 +30,13 @@ G.go = (name, from) => {
 };
 
 // ---------- размер экрана ----------
+// Больше пикселей на канве — дороже каждый кадр. 4 млн: телефоны и окно 1280×720 при плотности 2 остаются чёткими,
+// а большие планшеты и мониторы с плотностью 2 рисуются чуть мягче (ревью советует 2,5–3 млн — можно ужать).
+const MAX_CANVAS_PX = 4e6;
 function resize() {
-  dpr = Math.min(window.devicePixelRatio || 1, 2);
-  const w = window.innerWidth, h = window.innerHeight;
+  const w = window.innerWidth, h = window.innerHeight, real = window.devicePixelRatio || 1;
+  // плотность канвы: не больше 2 и не больше MAX_CANVAS_PX пикселей всего, но и не грубее экрана с плотностью 1
+  dpr = Math.max(Math.min(1, real), Math.min(real, 2, Math.sqrt(MAX_CANVAS_PX / Math.max(1, w * h))));
   G.view.w = w; G.view.h = h; G.view.dpr = dpr;
   canvas.width = Math.round(w * dpr); canvas.height = Math.round(h * dpr);
   redraw = true; // смена размера стирает канву
