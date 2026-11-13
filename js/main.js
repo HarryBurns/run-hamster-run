@@ -1,5 +1,5 @@
 // Запуск игры: заставка, главный цикл, ввод, HUD.
-import { G, newGame, load, save, repair, hasSave, wipe, cal, darkness } from './game.js';
+import { G, newGame, load, loadProblem, backupSave, save, repair, hasSave, wipe, cal, darkness } from './game.js';
 import { el, fmtMoney, makeCanvas } from './util.js';
 import { drawHamster, defaultLook, blinkAt } from './hamster.js';
 import { resolveLook, START_OUTFIT, NPC_BY_ID } from './data.js';
@@ -303,7 +303,17 @@ function titleScreen() {
     const b2 = el('button', 'btn ghost', 'Новая игра');
     b2.onclick = async () => { if (await confirmBox('Новая игра?', `<p class="center">Сохранённая игра (${G.state.name}) сотрётся. Начать заново?</p>`, 'Да', 'Нет')) { wipe(); G.state = null; newForm(); } };
     form.append(el('div', 'sub', `С возвращением, ${G.state.name}!`), b1, b2);
-  } else newForm();
+  } else if (loadProblem === 'newer') {
+    // сохранение от более новой версии игры: не затираем, предлагаем обновить страницу
+    const b1 = el('button', 'btn big green', 'Обновить 🔄');
+    b1.onclick = () => location.reload();
+    const b2 = el('button', 'btn ghost', 'Новая игра');
+    b2.onclick = async () => { if (await confirmBox('Новая игра?', '<p class="center">Сохранённая игра сотрётся. Начать заново?</p>', 'Да', 'Нет')) { backupSave(); wipe(); newForm(); } };
+    form.append(el('div', 'sub', 'Игра обновилась, а страница — ещё нет.<br>Нажми «Обновить», чтобы продолжить свою игру.'), b1, b2);
+  } else {
+    newForm();
+    if (loadProblem === 'broken') form.prepend(el('div', 'sub', '<small>Старую игру не получилось открыть 😿<br>Мы её не выбросили, а отложили про запас.</small>'));
+  }
   t.appendChild(form);
   document.body.appendChild(t);
 }

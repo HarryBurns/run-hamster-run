@@ -5,7 +5,19 @@ import {
 } from './data.js';
 import { defaultLook } from './hamster.js';
 
-const KEY = 'rhr-save-v1';
+const KEY = 'rhr-save-v1';             // ключ хранилища («v1» в имени — исторически; версия сохранения лежит в поле v)
+const BACKUP_KEY = 'rhr-save-backup';  // копия сохранения: перед миграцией и когда его не удалось прочитать
+
+/**
+ * Миграции сохранения. MIGRATIONS[n](s) переводит сохранение версии n в версию n + 1 (меняет s на месте).
+ * Версия игры считается сама: 1 + число миграций. Чтобы изменить формат — добавить функцию под следующим
+ * номером, например для новой экономики (v1 → v2):
+ *   1: (s) => { s.money = Math.min(s.money, 20000); s.flags.bankLetter = 1; },
+ * Перед миграцией исходная строка копируется в BACKUP_KEY; после неё repair() дополняет и чистит состояние.
+ * Миграция видит сохранение как есть, до repair(): полей может не хватать.
+ */
+export const MIGRATIONS = {};
+export const saveVersion = () => 1 + Object.keys(MIGRATIONS).length;
 
 export const G = {
   state: null,
@@ -36,7 +48,7 @@ export function newGame(name) {
   const look = defaultLook();
   look.outfit = { ...START_OUTFIT };
   G.state = {
-    v: 1, name: name || 'Хомка', money: START_MONEY, spent: 0,
+    v: saveVersion(), name: name || 'Хомка', money: START_MONEY, spent: 0,
     day: 0, minutes: 7 * 60 + 30,
     look,
     clothes: [...START_CLOTHES],
@@ -63,17 +75,31 @@ export function save() {
   if (!G.state) return;
   try { localStorage.setItem(KEY, JSON.stringify(G.state)); } catch (e) { /* хранилище недоступно */ }
 }
+/** Почему не удалась последняя load(): 'broken' — сохранение не прочитать, 'newer' — оно от более новой версии игры. */
+export let loadProblem = null;
 export function load() {
+  loadProblem = null;
+  let raw = null;
+  try { raw = localStorage.getItem(KEY); } catch (e) { return false; }
+  if (!raw) return false;
+  let s = null;
+  try { s = JSON.parse(raw); } catch (e) { /* разберёмся ниже */ }
+  if (!s || typeof s !== 'object' || !Number.isInteger(s.v) || s.v < 1) { backup(raw); loadProblem = 'broken'; return false; }
+  // сохранение новее кода (в кэше браузера остался старый game.js): не трогаем и не перезаписываем
+  if (s.v > saveVersion()) { loadProblem = 'newer'; return false; }
   try {
-    const raw = localStorage.getItem(KEY);
-    if (!raw) return false;
-    const s = JSON.parse(raw);
-    if (!s || s.v !== 1) return false;
+    if (s.v < saveVersion()) {
+      backup(raw);
+      while (s.v < saveVersion()) { MIGRATIONS[s.v](s); s.v++; }
+    }
     repair(s);
-    G.state = s;
-    return true;
-  } catch (e) { return false; }
+  } catch (e) { console.warn('Сохранение не прочитано:', e); backup(raw); loadProblem = 'broken'; return false; }
+  G.state = s;
+  return true;
 }
+function backup(raw) { try { localStorage.setItem(BACKUP_KEY, raw); } catch (e) { /* хранилище недоступно */ } }
+/** Отложить копию текущего сохранения (перед тем как стереть то, что прочитать не смогли). */
+export function backupSave() { try { const raw = localStorage.getItem(KEY); if (raw) backup(raw); } catch (e) { /* ignore */ } }
 
 /**
  * Привести сохранение в порядок: дополнить недостающие поля и выбросить всё, чего игра не знает.
