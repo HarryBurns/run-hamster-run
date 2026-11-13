@@ -1,6 +1,6 @@
 // Интерфейс поверх игры: подсказки, окна, диалоги, значки вещей.
 import { el, makeCanvas, fmtMoney } from './util.js';
-import { drawHamster, drawPortrait, defaultLook } from './hamster.js';
+import { drawHamster, drawPortrait, defaultLook, blinkAt } from './hamster.js';
 import { drawFurn } from './props.js';
 import { sfx } from './audio.js';
 import { G, playerLook } from './game.js';
@@ -128,7 +128,7 @@ export function dialog({ look, name, text, options = [{ text: 'Пока!' }], ha
     const loop = () => {
       const t = (performance.now() - t0) / 1000;
       ctx.clearRect(0, 0, 72, 72);
-      drawPortrait(ctx, 36, 36, 72, look, { time: t, talk: t < 1.6, happy, blink: t % 3.2 > 3.05 });
+      drawPortrait(ctx, 36, 36, 72, look, { time: t, talk: t < 1.6, happy, blink: blinkAt(t) });
       raf = requestAnimationFrame(loop);
     };
     loop();

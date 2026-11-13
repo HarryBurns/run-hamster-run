@@ -1,6 +1,6 @@
 // Город, двор виллы и пляж: вид сверху, хомячок ходит сам.
 import { clamp, lerp, rnd, pick, seeded, ell, fillRR, line, poly, shade, mix, rr, star, emoji, TAU, dist } from './util.js';
-import { drawHamster } from './hamster.js';
+import { drawHamster, blinkAt } from './hamster.js';
 import { NPCS, NPC_BY_ID, npcLook, ING_BY_ID, SEED_BY_ID, TASK_BY_ID } from './data.js';
 import { G, playerLook, cal, darkness, addSticker, save, addTo } from './game.js';
 import { toast } from './ui.js';
@@ -120,7 +120,9 @@ function build() {
   // деревья, кусты, цветы
   const rng = seeded(20261112);
   const nearDoor = (x, y) => BUILDINGS.some((b) => x >= b.x - 1 && x <= b.x + b.w && y >= b.y + b.h && y <= b.y + b.h + 1);
-  const isG = (x, y) => g[y] && g[y][x] === 'g' && !solid[y][x];
+  const taken = new Set(objs.map((o) => o.tx + ',' + o.ty)); // где уже что-то стоит (лежаки, зонтики…) — зелень не сажаем
+  const isG = (x, y) => g[y] && g[y][x] === 'g' && !solid[y][x] && !taken.has(x + ',' + y);
+  const bush = Array.from({ length: MH }, () => Array(MW).fill(false));
   for (let y = 0; y < 37; y++) for (let x = 0; x < MW; x++) {
     if (!isG(x, y) || nearDoor(x, y)) continue;
     const yard = x > 1 && x < 24 && y > 1 && y < 22;
@@ -130,18 +132,18 @@ function build() {
     if (yard) {
       if (y >= 2 && y <= 7 && x >= 7 && x <= 18) continue; // перед виллой чисто
       if (r < 0.07 && lonely) { solid[y][x] = true; add(rng() < 0.5 ? 'palm' : 'tree', x, y, { v: Math.floor(rng() * 3) }); }
-      else if (r < 0.16) { solid[y][x] = true; add('bush', x, y, { v: Math.floor(rng() * 3) }); }
+      else if (r < 0.16) { bush[y][x] = true; add('bush', x, y, { v: Math.floor(rng() * 3) }); }
       else if (r < 0.34) add('flowers', x, y, { v: Math.floor(rng() * 4) });
     } else {
       if (r < 0.2 && lonely) { solid[y][x] = true; add(y >= 27 ? (rng() < 0.75 ? 'palm' : 'tree') : (rng() < 0.3 ? 'pine' : 'tree'), x, y, { v: Math.floor(rng() * 3) }); }
-      else if (r < 0.26) { solid[y][x] = true; add('bush', x, y, { v: Math.floor(rng() * 3) }); }
+      else if (r < 0.26) { bush[y][x] = true; add('bush', x, y, { v: Math.floor(rng() * 3) }); }
       else if (r < 0.36) add('flowers', x, y, { v: Math.floor(rng() * 4) });
     }
   }
-  W.solid = solid; W.objs = objs; W.built = true;
+  W.solid = solid; W.bush = bush; W.objs = objs; W.built = true;
   initSea();
   // жители
-  W.npcs = NPCS.map((n) => { const [hx, hy] = HANG[n.id]; return { id: n.id, x: (hx + 0.5) * T, y: (hy + 0.5) * T, dir: 1, path: [], wait: rnd(0, 3), walkT: 0, moving: false, hidden: false }; });
+  W.npcs = NPCS.map((n) => { const [hx, hy] = HANG[n.id]; return { id: n.id, ph: 1 + NPCS.indexOf(n) * 2.3, x: (hx + 0.5) * T, y: (hy + 0.5) * T, dir: 1, path: [], wait: rnd(0, 3), walkT: 0, moving: false, hidden: false }; });
 }
 
 function ch(tx, ty) { return W.ground[ty] ? W.ground[ty][tx] : undefined; }
@@ -357,8 +359,10 @@ export function interactNearest() {
 }
 
 // ---------- обновление ----------
+const inBush = (px, py) => !!(W.bush[tileOf(py)] && W.bush[tileOf(py)][tileOf(px)]);
 function moveAlong(ent, speed, dt) {
   if (!ent.path.length) { ent.moving = false; return false; }
+  if (inBush(ent.x, ent.y)) speed *= 0.5; // через кусты можно, но медленнее
   const t = ent.path[0], dx = t.x - ent.x, dy = t.y - ent.y, d = Math.hypot(dx, dy), step = speed * dt;
   ent.moving = true; ent.walkT += dt * 2.4;
   if (Math.abs(dx) > 2) ent.dir = dx > 0 ? 1 : -1;
@@ -378,7 +382,7 @@ export function update(dt) {
   const sp = p.boat ? 330 : p.surf === 'w' ? 170 : p.surf === 'o' || p.surf === 'h' ? 140 : p.surf === 'd' ? 270 : 225;
   if (kx || ky) {
     p.path = []; p.pending = null;
-    const k = sp * dt / Math.hypot(kx, ky);
+    const k = (inBush(p.x, p.y) ? 0.5 : 1) * sp * dt / Math.hypot(kx, ky);
     if (canStand(p.x + kx * k, p.y)) p.x += kx * k;
     if (canStand(p.x, p.y + ky * k)) p.y += ky * k;
     if (kx) p.dir = kx;
@@ -387,6 +391,7 @@ export function update(dt) {
   if (p.boat) { const bt = boatState(); bt.x = p.x; bt.y = p.y; }
   // на чём стоим
   const surf = ch(tileOf(p.x), tileOf(p.y));
+  { const nb = inBush(p.x, p.y); if (nb && !p.inBush) sfx('paper'); p.inBush = nb; }
   // шаги: звук зависит от поверхности
   if (p.moving) {
     p.stepT = (p.stepT || 0) + dt;
@@ -752,7 +757,7 @@ function leafCol(sea, v) {
   return ['#40c057', '#2f9e44', '#51cf66'][v % 3];
 }
 function drawObj(ctx, o, t, sea) {
-  const x = o.x, y = o.y, v = o.v || 0;
+  let x = o.x; const y = o.y, v = o.v || 0;
   switch (o.type) {
     case 'tree': {
       ell(ctx, x, y + 14, 20, 7, 'rgba(0,0,0,.14)');
@@ -785,6 +790,7 @@ function drawObj(ctx, o, t, sea) {
     }
     case 'bush': {
       const c = leafCol(sea, v + 1);
+      if (Math.abs(W.p.x - x) < 26 && Math.abs(W.p.y - y) < 26) x += Math.sin(t * 22) * 1.8; // шуршит, когда сквозь него идут
       ell(ctx, x, y + 12, 18, 5, 'rgba(0,0,0,.12)');
       ell(ctx, x - 9, y + 2, 12, 11, c, OUT); ell(ctx, x + 9, y + 2, 12, 11, c, OUT); ell(ctx, x, y - 6, 13, 12, c, OUT); ell(ctx, x, y + 3, 10, 8, c);
       if (sea === 'summer' || sea === 'spring') { ell(ctx, x - 6, y - 4, 2.5, 2.5, v ? '#ff6b9d' : '#fff'); ell(ctx, x + 7, y + 2, 2.5, 2.5, v ? '#ff6b9d' : '#fff'); }
@@ -1009,7 +1015,7 @@ function drawBoat(ctx, x, y, dir, t, look, moving) {
   poly(ctx, [-2, -92, -30, -30, -2, -26], '#ffe066', OUT, 2);
   poly(ctx, [2, -104, -16, -98 + Math.sin(t * 6) * 2, 2, -92], '#fa5252', OUT, 1.5);
   ctx.restore();
-  if (look) drawHamster(ctx, x - dir * 6, y + 8 + bob, PS, look, { dir, time: t, clipBelow: -26, shadow: false, blink: t % 3.6 > 3.45, happy: moving });
+  if (look) drawHamster(ctx, x - dir * 6, y + 8 + bob, PS, look, { dir, time: t, clipBelow: -26, shadow: false, blink: blinkAt(t), happy: moving });
   ctx.save(); ctx.translate(x, y + bob); ctx.scale(dir, 1); // борт — перед хомячком
   ctx.beginPath(); ctx.moveTo(-54, -12); ctx.lineTo(60, -12); ctx.quadraticCurveTo(52, 16, 28, 20); ctx.lineTo(-34, 20); ctx.quadraticCurveTo(-52, 16, -54, -12); ctx.closePath();
   ctx.fillStyle = '#e8590c'; ctx.fill(); ctx.strokeStyle = OUT; ctx.lineWidth = 2.5; ctx.stroke();
@@ -1021,7 +1027,7 @@ function drawChar(ctx, look, ent, t, small, isPlayer) {
   if (isPlayer && ent.boat) { drawBoat(ctx, ent.x, ent.y, ent.dir, t, look, ent.moving); return; }
   const surf = isPlayer ? ent.surf : 'g';
   const water = surf === 'o' || surf === 'h' || surf === 'w';
-  const pose = { time: t + ent.x * 0.01, dir: ent.dir, walk: ent.moving ? ent.walkT : null, blink: (t + ent.x) % 3.6 > 3.45 };
+  const pose = { time: t + (ent.ph || 0), dir: ent.dir, walk: ent.moving ? ent.walkT : null, blink: blinkAt(t, ent.ph || 0) };
   if (water) { pose.clipBelow = surf === 'w' ? -38 : -30; pose.walk = ent.walkT; ell(ctx, ent.x, ent.y - 20, 26, 9, 'rgba(255,255,255,.55)'); }
   if (surf === 'd') pose.walk = null;
   drawHamster(ctx, ent.x, ent.y + (water ? 4 : 10), PS * (small ? 0.8 : 1), look, pose);

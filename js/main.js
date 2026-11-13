@@ -1,7 +1,7 @@
 // Запуск игры: заставка, главный цикл, ввод, HUD.
 import { G, newGame, load, save, hasSave, wipe, cal, darkness } from './game.js';
 import { el, fmtMoney, makeCanvas } from './util.js';
-import { drawHamster, defaultLook } from './hamster.js';
+import { drawHamster, defaultLook, blinkAt } from './hamster.js';
 import { resolveLook, START_OUTFIT, NPC_BY_ID } from './data.js';
 import { sfx, unlockAudio, isMuted, setMuted, isMusicOn, setMusicOn, getMusicVolume, setMusicVolume, setMusic, setAmbience } from './audio.js';
 import { toast, openPanel, message, confirmBox } from './ui.js';
@@ -244,7 +244,7 @@ function titleScreen() {
   const { canvas: cv, ctx: c2 } = makeCanvas(200, 190);
   const look = resolveLook({ ...defaultLook(), outfit: { ...START_OUTFIT }, beauty: { ...defaultLook().beauty, bow: '#ff5c8a' } });
   let raf = 0; const t0 = performance.now();
-  const loop = () => { const tt = (performance.now() - t0) / 1000; c2.clearRect(0, 0, 200, 190); drawHamster(c2, 100, 172, 1.9, look, { time: tt, happy: tt % 4 > 3, armsUp: tt % 4 > 3 && Math.sin(tt * 10) > 0, blink: tt % 3 > 2.85 }); raf = requestAnimationFrame(loop); };
+  const loop = () => { const tt = (performance.now() - t0) / 1000; c2.clearRect(0, 0, 200, 190); drawHamster(c2, 100, 172, 1.9, look, { time: tt, happy: tt % 4 > 3, armsUp: tt % 4 > 3 && Math.sin(tt * 10) > 0, blink: blinkAt(tt) }); raf = requestAnimationFrame(loop); };
   loop();
   const hero = el('div', 'hero');
   hero.appendChild(el('h1', '', 'Run, Hamster, Run!'));

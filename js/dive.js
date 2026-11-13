@@ -1,7 +1,7 @@
 // Под водой: хомячок ныряет в глубоком море и свободно плавает во все стороны.
 // Вид сбоку. Положение по горизонтали совпадает с местом на карте, где нырнули.
 import { clamp, lerp, rnd, seeded, ell, fillRR, line, poly, mix, star, text, emoji, TAU, dist } from './util.js';
-import { drawHamster } from './hamster.js';
+import { drawHamster, blinkAt } from './hamster.js';
 import { G, playerLook, darkness, addSticker, addClothes, hasClothes, save } from './game.js';
 import { sfx } from './audio.js';
 import { toast } from './ui.js';
@@ -336,7 +336,7 @@ export function draw(ctx) {
   // хомячок в маске
   const sp = Math.hypot(p.vx, p.vy), tilt = clamp(p.vy / 240, -1, 1) * 0.35 * p.dir + (sp > 40 ? 0.18 * p.dir : 0);
   ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(tilt);
-  drawHamster(ctx, 0, 34, HS, playerLook(), { time: t, dir: p.dir, walk: p.swimT, shadow: false, happy: p.happy > 0, armsUp: p.happy > 0 || (sp > 40 && Math.sin(p.swimT * TAU) > 0.3), blink: t % 3.4 > 3.25 });
+  drawHamster(ctx, 0, 34, HS, playerLook(), { time: t, dir: p.dir, walk: p.swimT, shadow: false, happy: p.happy > 0, armsUp: p.happy > 0 || (sp > 40 && Math.sin(p.swimT * TAU) > 0.3), blink: blinkAt(t) });
   ctx.scale(HS * p.dir, HS);
   line(ctx, -27, -26, -27, -62, OUT, 7); line(ctx, -27, -26, -27, -62, '#ffd43b', 4); fillRR(ctx, -32, -70, 10, 12, 3, '#ff922b', OUT, 1.5); // трубка
   line(ctx, -27, -26, -24, -19, '#343a40', 3);

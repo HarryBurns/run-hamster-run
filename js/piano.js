@@ -1,6 +1,6 @@
 // Пианино во весь экран: нажимай на клавиши сам, играй что хочешь или учи песенки по подсветке.
 import { el, makeCanvas, ell, fillRR, rnd } from './util.js';
-import { drawHamster } from './hamster.js';
+import { drawHamster, blinkAt } from './hamster.js';
 import { G, playerLook, addSticker, save } from './game.js';
 import { sfx, playNote, isMuted, setMuted, unlockAudio } from './audio.js';
 import { toast } from './ui.js';
@@ -54,7 +54,7 @@ export function openPiano() {
     const g = ctx.createRadialGradient(w / 2, h, 10, w / 2, h, Math.max(w, h)); g.addColorStop(0, 'rgba(255,236,153,.55)'); g.addColorStop(1, 'rgba(255,236,153,0)');
     ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
     const s = Math.min(2.2, (h - 8) / 80); // чтобы голова с шапкой помещалась целиком
-    drawHamster(ctx, w / 2, h + 30 * s, s, playerLook(), { time: t, shadow: false, happy: t - lastHit < 1.2, blink: t % 3.3 > 3.15, dir: hot ? lastSide : 1, armsUp: hot });
+    drawHamster(ctx, w / 2 + (hot ? lastSide * 5 * s : 0), h + 30 * s, s, playerLook(), { time: t, shadow: false, happy: t - lastHit < 1.2, blink: blinkAt(t), armsUp: hot });
     fillRR(ctx, w / 2 - 70 * s, h - 12 * s, 140 * s, 30 * s, 6 * s, '#343a40', '#4a3728', 2); // крышка пианино
     for (const n of notes) {
       n.t += 1 / 60; n.x += n.vx / 60; n.y -= n.vy / 60;

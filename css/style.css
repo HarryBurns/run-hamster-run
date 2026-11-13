@@ -180,8 +180,10 @@ p { margin: 8px 0; line-height: 1.35; }
 .dialog {
   position: fixed; left: 50%; bottom: calc(12px + env(safe-area-inset-bottom)); transform: translateX(-50%);
   width: min(96vw, 640px); z-index: 40; background: var(--paper); border-radius: 24px; padding: 12px 14px 14px;
-  box-shadow: 0 6px 0 rgba(74, 55, 40, .25), 0 20px 50px rgba(0, 0, 0, .25); animation: pop-in .2s cubic-bezier(.2, 1.4, .4, 1);
+  box-shadow: 0 6px 0 rgba(74, 55, 40, .25), 0 20px 50px rgba(0, 0, 0, .25); animation: dialog-in .2s cubic-bezier(.2, 1.4, .4, 1);
 }
+/* своя анимация: общая pop-in затирала сдвиг translateX(-50%), и окно появлялось не по центру */
+@keyframes dialog-in { from { transform: translateX(-50%) scale(.85); opacity: 0; } to { transform: translateX(-50%); opacity: 1; } }
 .dialog .who { display: flex; align-items: center; gap: 10px; }
 .dialog .who canvas { border-radius: 18px; background: #ffe3ec; flex: none; }
 .dialog .name { font-weight: 900; font-size: 18px; color: var(--pink-d); }

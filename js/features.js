@@ -9,7 +9,7 @@ import {
   G, cal, save, spend, hasClothes, addClothes, addTo, count, canCook, friendHearts, addSticker, playerLook, outfitTags, rollDay, darkness,
 } from './game.js';
 import { toast, openPanel, message, confirmBox, dialog, clothesIcon, furnIcon, hamsterStage, fadeTo } from './ui.js';
-import { drawPortrait, drawHamster } from './hamster.js';
+import { drawPortrait, drawHamster, blinkAt } from './hamster.js';
 import { sfx } from './audio.js';
 import { runMinigame } from './minigames/host.js';
 import * as World from './world.js';
@@ -42,7 +42,7 @@ export function clothesPanel(mode, opts = {}) {
     return resolveLook({ ...l, outfit: { ...l.outfit, ...tryOn } });
   };
   let raf = 0; const t0 = performance.now();
-  const loop = () => { st.redraw(lookNow(), { time: (performance.now() - t0) / 1000, blink: ((performance.now() - t0) / 1000) % 3 > 2.85 }); raf = requestAnimationFrame(loop); };
+  const loop = () => { st.redraw(lookNow(), { time: (performance.now() - t0) / 1000, blink: blinkAt(((performance.now() - t0) / 1000)) }); raf = requestAnimationFrame(loop); };
   loop();
   const season = cal().season;
   return openPanel({

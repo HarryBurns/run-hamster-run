@@ -1,6 +1,6 @@
 // Вилла внутри: вид «в разрезе», как кукольный домик. 3 этажа + лифт.
 import { clamp, lerp, rnd, pick, ell, fillRR, line, poly, shade, mix, rr, heart, TAU, el } from './util.js';
-import { drawHamster } from './hamster.js';
+import { drawHamster, blinkAt } from './hamster.js';
 import { drawFurn, furnRect } from './props.js';
 import { FURN_BY_ID, NPC_BY_ID, npcLook } from './data.js';
 import { G, playerLook, cal, darkness, save, addTo } from './game.js';
@@ -72,7 +72,7 @@ export function syncGuests() {
   const ids = G.state.guests;
   V.guests = V.guests.filter((g) => ids.includes(g.id));
   for (const id of ids) {
-    if (!V.guests.find((g) => g.id === id)) V.guests.push({ id, x: 300 + V.guests.length * 70, f: 0, tx: rnd(420, 880), wait: 1, dir: 1, walkT: 0, happy: 0 });
+    if (!V.guests.find((g) => g.id === id)) V.guests.push({ id, ph: 1 + V.guests.length * 2.3, x: 300 + V.guests.length * 70, f: 0, tx: rnd(420, 880), wait: 1, dir: 1, walkT: 0, happy: 0 });
   }
 }
 export function guestHappy(id) { const g = V.guests.find((q) => q.id === id); if (g) { sfx('heart'); g.happy = 2.5; burst(g.x, fy(g.f) - 130, 'heart', 6); } }
@@ -503,7 +503,7 @@ function drawBuiltFront(ctx, t) {
 
 function drawPlayer(ctx, t) {
   const p = V.p, look = playerLook();
-  const base = { time: t, dir: p.dir, blink: t % 3.4 > 3.25, happy: p.happy > 0, armsUp: p.happy > 0 && Math.sin(t * 10) > 0 };
+  const base = { time: t, dir: p.dir, blink: blinkAt(t), happy: p.happy > 0, armsUp: p.happy > 0 && Math.sin(t * 10) > 0 };
   let x = p.x, y = fy(p.f), pose = { ...base, walk: p.moving ? p.walkT : null };
   if (p.lift) y = V.liftY;
   switch (p.state) {
@@ -580,7 +580,7 @@ export function draw(ctx) {
   // гости и игрок
   for (const g of V.guests) {
     const n = NPC_BY_ID[g.id];
-    drawHamster(ctx, g.x, fy(g.f), HS * (n.small ? 0.78 : 1), npcLook(g.id), { time: t + g.x, dir: g.dir, walk: g.moving ? g.walkT : null, happy: g.happy > 0, armsUp: g.happy > 0 && Math.sin(t * 10) > 0, blink: (t + g.x) % 3.7 > 3.55 });
+    drawHamster(ctx, g.x, fy(g.f), HS * (n.small ? 0.78 : 1), npcLook(g.id), { time: t + g.ph, dir: g.dir, walk: g.moving ? g.walkT : null, happy: g.happy > 0, armsUp: g.happy > 0 && Math.sin(t * 10) > 0, blink: blinkAt(t, g.ph) });
     ctx.font = '800 15px ui-rounded, "Trebuchet MS", sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     const tw = ctx.measureText(n.name).width + 14;
     fillRR(ctx, g.x - tw / 2, fy(g.f) - 152 * (n.small ? 0.8 : 1), tw, 20, 10, 'rgba(255,255,255,.9)'); ctx.fillStyle = OUT; ctx.fillText(n.name, g.x, fy(g.f) - 142 * (n.small ? 0.8 : 1) + (n.small ? 2 : 0));

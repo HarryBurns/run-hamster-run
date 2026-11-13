@@ -1,6 +1,6 @@
 // Хомяк-Тауэр изнутри: холл → лифт → смотровая площадка на 101-м этаже, по которой можно гулять.
 import { clamp, lerp, rnd, seeded, ell, fillRR, line, poly, shade, mix, rr, star, text, emoji, TAU, makeCanvas, el } from './util.js';
-import { drawHamster } from './hamster.js';
+import { drawHamster, blinkAt } from './hamster.js';
 import { vendorLook, VENDORS } from './data.js';
 import { G, playerLook, cal, darkness, addSticker, save } from './game.js';
 import { sfx } from './audio.js';
@@ -284,7 +284,7 @@ function liftDoors(ctx, x, open, label) {
   ell(ctx, x + 96, -110, 8, 8, '#fa5252', OUT, 2);
 }
 function drawPlayer(ctx, t) {
-  const p = S.p, pose = { time: t, dir: p.dir, walk: p.moving ? p.walkT : null, blink: t % 3.4 > 3.25, happy: p.happy > 0, armsUp: p.happy > 0 && Math.sin(t * 10) > 0 };
+  const p = S.p, pose = { time: t, dir: p.dir, walk: p.moving ? p.walkT : null, blink: blinkAt(t), happy: p.happy > 0, armsUp: p.happy > 0 && Math.sin(t * 10) > 0 };
   if (p.state === 'aim') pose.armsUp = true;
   if (p.state === 'sit') drawHamster(ctx, p.x, -36, HS, playerLook(), { ...pose, sit: true, shadow: false });
   else drawHamster(ctx, p.x, 0, HS, playerLook(), pose);
@@ -315,7 +315,7 @@ function drawLobby(ctx, t) {
   poly(ctx, [470, 0, 510, 0, 504, -36, 476, -36], '#e8590c', OUT, 2); line(ctx, 490, -36, 494, -130, '#a8703f', 7);
   for (let i = 0; i < 6; i++) { ctx.save(); ctx.translate(494, -130); ctx.rotate(-Math.PI * (0.05 + i * 0.18)); ell(ctx, 32, 0, 34, 9, i % 2 ? '#37b24d' : '#2f9e44', OUT, 1.6); ctx.restore(); }
   // лифтёр за стойкой
-  drawHamster(ctx, 610, -66, HS * 0.95, vendorLook('tower'), { time: t, blink: t % 3.1 > 2.95, shadow: false });
+  drawHamster(ctx, 610, -66, HS * 0.95, vendorLook('tower'), { time: t, blink: blinkAt(t), shadow: false });
   fillRR(ctx, 520, -92, 180, 92, 8, '#ffd8a8', OUT, 2.5); fillRR(ctx, 512, -102, 196, 16, 6, '#e8590c', OUT, 2); ell(ctx, 668, -110, 9, 7, '#ffd43b', OUT, 1.5); line(ctx, 668, -117, 668, -122, OUT, 2);
   emoji(ctx, '🔭', 560, -50, 30);
   liftDoors(ctx, 940, 0, '▲ 101');
@@ -416,7 +416,7 @@ function drawRide(ctx, t) {
   fillRR(ctx, -70, -214, 140, 50, 10, '#212529', OUT, 3);
   text(ctx, `${r.dir > 0 ? '▲' : '▼'} ${floor}`, 0, -188, 30, '#ffe066');
   for (let i = 0; i < 5; i++) ell(ctx, 120, 70 + i * 22, 7, 7, i === Math.floor(prog * 4.99) ? '#ffe066' : '#dee2e6', OUT, 1.5);
-  drawHamster(ctx, 0, 176, 1.75, playerLook(), { time: t, happy: k > 0.2 && k < 0.85, armsUp: k > 0.3 && k < 0.7 && Math.sin(t * 9) > 0, blink: t % 3 > 2.85 });
+  drawHamster(ctx, 0, 176, 1.75, playerLook(), { time: t, happy: k > 0.2 && k < 0.85, armsUp: k > 0.3 && k < 0.7 && Math.sin(t * 9) > 0, blink: blinkAt(t) });
   // двери: закрываются в начале и открываются в конце
   // (в пути кабина показана «в разрезе», чтобы было видно хомячка)
   const shut = k < 0.1 ? k / 0.1 : k > 0.9 ? 1 - (k - 0.9) / 0.1 : 1;

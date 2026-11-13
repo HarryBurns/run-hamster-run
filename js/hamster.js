@@ -4,6 +4,16 @@ import { ell, rr, fillRR, line, poly, star, shade, TAU } from './util.js';
 
 const OUT = '#4a3728'; // цвет контура
 
+/**
+ * Насколько закрыты глаза в момент времени t: 0 — открыты, 1 — закрыты.
+ * Моргание длится около 0.2 с и плавно закрывает и открывает глаз. phase — свой сдвиг у каждого
+ * персонажа (чтобы не моргали хором); от положения на карте моргание не зависит.
+ */
+export function blinkAt(t, phase = 0) {
+  const c = (t + phase * 1.37) % 3.7;
+  return c > 3.5 ? Math.sin(((c - 3.5) / 0.2) * Math.PI) : 0;
+}
+
 export function defaultLook() {
   return {
     fur: '#ffffff', spots: '#2f2a2a', belly: null, ear: '#ffb3c1',
@@ -470,7 +480,8 @@ export function drawHamster(ctx, x, y, s, look, pose = {}) {
     ctx.globalAlpha = 1;
   }
   // глаза
-  const closed = pose.sleep || pose.blink;
+  const bl = pose.sleep || pose.blink === true ? 1 : typeof pose.blink === 'number' ? pose.blink : 0; // 0..1
+  const closed = bl > 0.72;
   for (const sx of [-1, 1]) {
     const ex = sx * 10, ey = -55;
     const onSpot = look.spots && sx === 1;
@@ -482,8 +493,9 @@ export function drawHamster(ctx, x, y, s, look, pose = {}) {
       ctx.beginPath(); ctx.arc(ex, ey + 2, 4.5, 1.15 * Math.PI, 1.85 * Math.PI);
       ctx.strokeStyle = onSpot ? '#fff' : '#1d1b1b'; ctx.lineWidth = 2.4; ctx.lineCap = 'round'; ctx.stroke();
     } else {
-      ell(ctx, ex, ey, 4.3, 5.3, '#1d1b1b');
-      ell(ctx, ex - 1.4, ey - 2, 1.7, 1.7, '#fff'); ell(ctx, ex + 1.3, ey + 1.6, 0.8, 0.8, '#fff');
+      const k = 1 - bl * 0.9; // глаз плавно «сплющивается», пока закрывается
+      ell(ctx, ex, ey + (1 - k) * 2, 4.3, Math.max(0.9, 5.3 * k), '#1d1b1b');
+      if (k > 0.5) { ell(ctx, ex - 1.4, ey - 2 * k, 1.7, 1.7 * k, '#fff'); ell(ctx, ex + 1.3, ey + 1.6 * k, 0.8, 0.8 * k, '#fff'); }
     }
     if (b.lashes && !closed) {
       const lc = onSpot ? '#fff' : '#1d1b1b';
