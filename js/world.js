@@ -547,7 +547,7 @@ function landOnIsle() {
   ISLES.forEach((is, i) => { const d = dist(p.x / T, p.y / T, is.x, is.y); if (d < bd) { bd = d; bi = i; } });
   s.flags.isles = s.flags.isles || {};
   if (s.flags.isles[bi]) return;
-  if (ISLES[bi].treasure) setTimeout(() => F.giveSurprise('Клад с Острова Сокровищ!'), 1600);
+  if (ISLES[bi].treasure) F.giveSurprise('Клад с Острова Сокровищ!', 1600);
   s.flags.isles[bi] = 1;
   const n = Object.keys(s.flags.isles).length;
   if (addSticker('x_island')) toast('Новая наклейка: 🏝️ Необитаемый остров!', 'good');

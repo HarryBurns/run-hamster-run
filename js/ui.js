@@ -17,6 +17,33 @@ export function toast(msg, kind = '') {
   setTimeout(() => t.remove(), 3100);
 }
 
+// ---------- очередь отложенных окон ----------
+// Подарок, новый рецепт, «задание выполнено», смена сезона появляются не сразу, а чуть погодя. Если в этот
+// момент открыт диалог или другое окно, новое окно ждёт: раньше оно открывалось под диалогом жителя.
+const queue = [];
+let queueTimer = 0, freeSince = 0;
+/** Вызвать fn (она открывает окно), когда на экране ничего не открыто. delay — пауза перед показом, мс. */
+export function whenFree(fn, delay = 0) {
+  queue.push({ fn, at: performance.now() + delay });
+  if (!queueTimer) { freeSince = 0; queueTimer = setInterval(pumpQueue, 150); }
+}
+function pumpQueue() {
+  const now = performance.now();
+  if (G.modal > 0) { freeSince = 0; return; }
+  if (!freeSince) freeSince = now;
+  if (now - freeSince < 250) return; // окно только что закрылось: цепочка диалогов может тут же открыть следующее
+  const i = queue.findIndex((q) => q.at <= now);
+  if (i < 0) return;
+  const q = queue.splice(i, 1)[0];
+  if (!queue.length) { clearInterval(queueTimer); queueTimer = 0; }
+  freeSince = 0;
+  try { q.fn(); } catch (e) { console.error(e); }
+}
+
+// Первые мгновения после появления окна нажатия мимо него не считаются: ребёнок продолжает нажимать
+// на экран, пока хомячок идёт, и окно закрывалось, не успев показаться.
+const TAP_GUARD = 350; // мс
+
 // ---------- окна ----------
 /**
  * openPanel({ title, icon, cls, money, tabs:[{id,name}], tab, render(body, tabId, panel), foot:[{text, cls, fn}], onClose })
@@ -83,7 +110,8 @@ export function openPanel(o) {
     setTab(id) { api.tab = id; body.scrollTop = 0; api.refresh(); },
   };
   x.onclick = () => { sfx('tap'); api.close(); };
-  ov.addEventListener('pointerdown', (e) => { if (e.target === ov && !o.sticky) api.close(); });
+  const born = performance.now();
+  ov.addEventListener('pointerdown', (e) => { if (e.target === ov && !o.sticky && performance.now() - born > TAP_GUARD) api.close(); });
   api.refresh();
   return api;
 }
@@ -124,7 +152,7 @@ export function dialog({ look, name, text, options = [{ text: 'Пока!' }], ha
     const opts = el('div', 'opts');
     d.appendChild(opts);
     let raf = 0, closed = false;
-    const t0 = performance.now();
+    const t0 = performance.now(), ready = () => performance.now() - t0 > TAP_GUARD;
     const loop = () => {
       const t = (performance.now() - t0) / 1000;
       ctx.clearRect(0, 0, 72, 72);
@@ -138,10 +166,11 @@ export function dialog({ look, name, text, options = [{ text: 'Пока!' }], ha
     };
     options.forEach((o, i) => {
       const b = el('button', 'btn ' + (o.cls || (i === options.length - 1 ? 'ghost' : '')), o.text);
-      b.onclick = () => { sfx('tap'); fin(i); };
+      b.onclick = () => { if (!ready()) return; sfx('tap'); fin(i); };
       opts.appendChild(b);
     });
-    shade.addEventListener('pointerdown', () => fin(-1));
+    // диалог с выбором закрывается только кнопкой; с одной кнопкой — ещё и нажатием мимо
+    shade.addEventListener('pointerdown', () => { if (options.length <= 1 && ready()) fin(-1); });
     document.body.append(shade, d);
     G.modal++;
     // у каждого хомячка свой голосок

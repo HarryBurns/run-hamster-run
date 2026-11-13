@@ -119,6 +119,10 @@ export function plural(n, one, few, many) {
   if (b === 1) return one;
   return many;
 }
+/** Экранировать строку, которую набрал игрок (имя), перед вставкой в HTML. */
+export function esc(str) {
+  return String(str).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
 export function el(tag, cls, html) {
   const e = document.createElement(tag);
   if (cls) e.className = cls;

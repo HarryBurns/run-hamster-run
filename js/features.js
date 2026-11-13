@@ -1,5 +1,5 @@
 // Всё, чем можно заняться: магазины, гардероб, салон, готовка, гости, почта, сад, рыбалка, сон.
-import { el, fmtMoney, pick, rnd, shuffle, plural, makeCanvas, ell, fillRR, poly, mix, star, text as ctext, emoji, clamp } from './util.js';
+import { el, esc, fmtMoney, pick, rnd, shuffle, plural, makeCanvas, ell, fillRR, poly, mix, star, text as ctext, emoji, clamp } from './util.js';
 import {
   CLOTHES, CLOTHES_BY_ID, SLOTS, BEAUTY, FURNITURE, FURN_BY_ID, FURN_CATS, INGREDIENTS, ING_BY_ID, SEEDS, SEED_BY_ID,
   DISHES, DISH_BY_ID, SECRET_RECIPES, NPCS, NPC_BY_ID, npcLook, vendorLook, VENDORS, TASKS, TASK_BY_ID, EXTRA_STICKERS,
@@ -8,7 +8,7 @@ import {
 import {
   G, cal, save, spend, hasClothes, addClothes, addTo, count, canCook, friendHearts, addSticker, playerLook, outfitTags, rollDay, darkness,
 } from './game.js';
-import { toast, openPanel, message, confirmBox, dialog, clothesIcon, furnIcon, hamsterStage, fadeTo } from './ui.js';
+import { toast, openPanel, message, confirmBox, dialog, clothesIcon, furnIcon, hamsterStage, fadeTo, whenFree } from './ui.js';
 import { drawPortrait, drawHamster, blinkAt } from './hamster.js';
 import { sfx } from './audio.js';
 import { runMinigame } from './minigames/host.js';
@@ -374,7 +374,7 @@ export async function playMinigame(id, extra = {}) {
       friends: shuffle(NPCS).map((n) => ({ id: n.id, name: n.name, look: npcLook(n.id), small: n.small })),
       ...extra,
     });
-  } catch (e) { console.error(e); }
+  } catch (e) { console.error(e); toast('Не получилось открыть игру. Попробуй ещё раз!'); }
   G.modal--; G.cover--;
   if (!res) return null;
   s.plays[id] = plays + 1;
@@ -513,9 +513,9 @@ function addPts(id, n) {
     if (after >= 2 && before < 2) {
       const unknown = SECRET_RECIPES.filter((r) => !S().recipes.includes(r));
       const rec = unknown.includes(npc.fav) ? npc.fav : pick(unknown);
-      if (rec) { S().recipes.push(rec); const d = DISH_BY_ID[rec]; setTimeout(() => message({ title: 'Секретный рецепт!', icon: '📜', html: `<div class="center big-emoji">${d.e}</div><p class="center"><b>${npc.name}</b> ${npc.fem ? 'рассказала' : 'рассказал'} тебе секретный рецепт:<br><b>${d.name}</b>!</p>` }), 500); }
+      if (rec) { S().recipes.push(rec); const d = DISH_BY_ID[rec]; whenFree(() => message({ title: 'Секретный рецепт!', icon: '📜', html: `<div class="center big-emoji">${d.e}</div><p class="center"><b>${npc.name}</b> ${npc.fem ? 'рассказала' : 'рассказал'} тебе секретный рецепт:<br><b>${d.name}</b>!</p>` }), 500); }
     }
-    if (after >= 5 && before < 5) { if (addSticker('x_friend')) setTimeout(() => toast('Новая наклейка: 💖 Лучшие друзья!', 'good'), 900); setTimeout(() => giveSurprise(`${npc.name} дарит тебе подарок в знак дружбы!`), 1200); }
+    if (after >= 5 && before < 5) { if (addSticker('x_friend')) setTimeout(() => toast('Новая наклейка: 💖 Лучшие друзья!', 'good'), 900); giveSurprise(`${npc.name} дарит тебе подарок в знак дружбы!`, 1200); }
   }
 }
 function chatLine(npc) {
@@ -534,8 +534,8 @@ function chatLine(npc) {
 export async function npcDialog(id) {
   const npc = NPC_BY_ID[id], fr = S().friends[id], look = npcLook(id);
   let text;
-  if (!fr.met) { fr.met = true; text = `Привет! Я ${npc.name}. А ты, наверное, ${S().name} с большой виллы? Будем дружить!`; addPts(id, 1); fr.chat = S().day; G.emit('talk', { id }); }
-  else text = pick([`Привет, ${S().name}!`, 'О, привет!', `${S().name}! Рад${npc.fem ? 'а' : ''} тебя видеть!`]);
+  if (!fr.met) { fr.met = true; text = `Привет! Я ${npc.name}. А ты, наверное, ${esc(S().name)} с большой виллы? Будем дружить!`; addPts(id, 1); fr.chat = S().day; G.emit('talk', { id }); }
+  else text = pick([`Привет, ${esc(S().name)}!`, 'О, привет!', `${esc(S().name)}! Рад${npc.fem ? 'а' : ''} тебя видеть!`]);
   for (;;) {
     const i = await dialog({ look, name: npc.name, text, options: [{ text: '💬 Поболтать', cls: 'blue' }, { text: '🏡 Позвать в гости', cls: 'green' }, { text: '🎁 Угостить', cls: 'yellow' }, { text: 'Пока!' }] });
     if (i === 0) {
@@ -679,7 +679,7 @@ export function taskChip() {
 function letterHtml() {
   const m = S().mail, t = TASK_BY_ID[m.task], c = cal();
   const where = PLACES[t.where] || (t.where === 'beach' ? 'Пляж' : t.where === 'town' ? 'Город' : '');
-  return `<div class="letter"><h3>${t.sticker} ${t.title}</h3><p>Дорог${'ая'} ${S().name}!</p><p>${t.text}</p>
+  return `<div class="letter"><h3>${t.sticker} ${t.title}</h3><p>Дорогая ${esc(S().name)}!</p><p>${t.text}</p>
     <p class="muted">${c.seasonIcon} ${c.monthName}, день ${c.dom}${where ? ` · Куда идти: <b>${where}</b>` : ''}</p></div>
     <p class="center">${m.done ? '✅ <b>Задание выполнено!</b>' : `Награда: наклейка ${t.sticker} и, может быть, сюрприз 🎁${taskProgress() ? '<br>Сделано' + taskProgress() : ''}`}</p>`;
 }
@@ -709,7 +709,15 @@ function giftPool() {
   for (const r of SECRET_RECIPES) if (!s.recipes.includes(r)) pool.push({ kind: 'recipe', def: DISH_BY_ID[r] });
   return pool;
 }
-export function giveSurprise(title) {
+/**
+ * Сюрприз. Сам подарок выдаётся сразу (так он не потеряется, если вкладку закроют), а окно с ним
+ * показывается через delay мс и только когда на экране ничего не открыто.
+ */
+export function giveSurprise(title, delay = 0) {
+  const gift = grantSurprise();
+  whenFree(() => showSurprise(title, gift), delay);
+}
+function grantSurprise() {
   const s = S(), pool = giftPool();
   let html, icon = null;
   if (!pool.length) { s.money += 100000; html = '<div class="big-emoji">💰</div><p>Мешочек монет: +100 000!</p>'; }
@@ -719,7 +727,11 @@ export function giveSurprise(title) {
     else if (g.kind === 'furn') { addTo('storage', g.def.id, 1); s.flags['gift_' + g.def.id] = true; icon = furnIcon(g.def, 110); html = `<p><b>${g.def.name}</b><br>Лежит в кладовке — поставь дома через 🔨!</p>`; }
     else { s.recipes.push(g.def.id); html = `<div class="big-emoji">${g.def.e}</div><p>Секретный рецепт: <b>${g.def.name}</b>!</p>`; }
   }
-  sfx('magic'); save();
+  save();
+  return { html, icon };
+}
+function showSurprise(title, { html, icon }) {
+  sfx('magic');
   openPanel({
     title: title || 'Сюрприз!', icon: '🎁', cls: 'narrow',
     render(body) { body.classList.add('center'); if (icon) { icon.style.margin = '0 auto'; body.appendChild(icon); } body.appendChild(el('div', '', html)); },
@@ -732,17 +744,16 @@ function completeTask() {
   m.done = true; s.tasksDone++;
   const isNew = addSticker(t.id);
   const surprise = s.tasksDone <= 2 || Math.random() < 0.5;
+  const gift = surprise ? grantSurprise() : null; // подарок выдаём сразу, окно — когда освободится экран
   G.emit('hud'); save();
-  const show = () => {
-    if (G.modal > 0) { setTimeout(show, 500); return; }
+  whenFree(() => {
     sfx('fanfare');
     message({
       title: 'Задание выполнено!', icon: '🎉',
       html: `<div class="center"><div class="sticker got">${t.sticker}</div><p><b>${t.title}</b></p><p>${isNew ? 'Новая наклейка в альбоме!' : 'Такая наклейка у тебя уже есть — молодец!'}</p>${surprise ? '<p>И это ещё не всё… 🎁</p>' : ''}</div>`,
       buttons: [{ text: surprise ? 'Открыть сюрприз!' : 'Ура!' }],
-    }).then(() => { if (surprise) giveSurprise(); });
-  };
-  setTimeout(show, 700);
+    }).then(() => { if (gift) showSurprise(null, gift); });
+  }, 700);
 }
 function onEvent(type, d = {}) {
   const m = S() && S().mail;
@@ -805,7 +816,7 @@ export async function askSleep() {
   release();
   setTimeout(() => {
     sfx(c.season !== before.season ? 'fanfare' : 'morning');
-    if (c.season !== before.season) message({ title: `${c.seasonName}!`, icon: c.seasonIcon, html: `<div class="center big-emoji">${c.seasonIcon}</div><p class="center">Наступил${c.season === 'winter' || c.season === 'spring' ? 'а' : c.season === 'summer' ? 'о' : 'а'} ${c.seasonName.toLowerCase()}! Сегодня ${c.monthName.toLowerCase()}, день ${c.dom}.<br>${{ winter: 'Доставай тёплую куртку и шапку!', spring: 'Пора сажать грядки и гулять в лёгкой курточке.', summer: 'Купальник, панамка — и на пляж!', autumn: 'Самое время для дождевика и резиновых сапожек.' }[c.season]}</p>` });
+    if (c.season !== before.season) whenFree(() => message({ title: `${c.seasonName}!`, icon: c.seasonIcon, html: `<div class="center big-emoji">${c.seasonIcon}</div><p class="center">Наступил${c.season === 'winter' || c.season === 'spring' ? 'а' : c.season === 'summer' ? 'о' : 'а'} ${c.seasonName.toLowerCase()}! Сегодня ${c.monthName.toLowerCase()}, день ${c.dom}.<br>${{ winter: 'Доставай тёплую куртку и шапку!', spring: 'Пора сажать грядки и гулять в лёгкой курточке.', summer: 'Купальник, панамка — и на пляж!', autumn: 'Самое время для дождевика и резиновых сапожек.' }[c.season]}</p>` }));
     else toast(`Доброе утро! ${c.seasonIcon} ${c.monthName}, день ${c.dom}. В ящике новое письмо ✉️`);
   }, 600);
 }
