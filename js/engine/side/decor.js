@@ -1,7 +1,7 @@
 // «Движок домов», часть 5: режим «Обустроить» — перетаскивание мебели и кладовка.
 // Работает в любом доме, у которого мебель своя (в описании furniture: { key, editable }): мебель лежит
 // в сохранении под ключом дома, кладовка — общая на все дома (state.storage).
-import { G, houseItems } from '../../core/state.js';
+import { G } from '../../core/state.js';
 import { placeFurn, stashFurn, moveFurn, touchState, countFurnAct } from '../../core/actions.js';
 import { emit } from '../../core/events.js';
 import { clamp, el } from '../../core/util.js';
@@ -141,6 +141,3 @@ export function decorUp(sc) {
   dc.drag = null;
   dc.pan = null;
 }
-
-/** Есть ли в доме мебель с таким uid (выбранный предмет могли убрать). */
-export const hasItem = (sc, uid) => houseItems(sc.houseKey).some((i) => i.uid === uid);

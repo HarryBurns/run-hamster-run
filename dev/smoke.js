@@ -690,6 +690,52 @@ async function extra({ page, step, ev, wait, closeAll, hold }) {
         window.__dev.Villa.setDecor(false);
       });
     });
+    await step('вилла: мебель и встроенные предметы зовут занятия через реестр действий', async () => {
+      const open = () =>
+        ev(() => [...document.querySelectorAll('.overlay .panel-head .title')].map((e) => e.textContent).join());
+      for (const [floor, x, title] of [
+        [1, 82, 'Мой шкаф'],
+        [0, 978, 'Холодильник'],
+        [0, 1120, 'Плита'],
+        [1, 270, 'Пора спать?'],
+      ]) {
+        await ev(([floor, x]) => window.__dev.villaAt(floor, x), [floor, x]);
+        await wait(250);
+        await page.keyboard.press('KeyE');
+        await wait(450);
+        const t = await open();
+        if (t !== title) throw new Error(`ожидалось окно «${title}», открыто: «${t}»`);
+        await page.click('.overlay .panel-foot .btn:last-child, .overlay .xbtn');
+        await wait(300);
+        await closeAll();
+      }
+    });
+    await step('гость приходит сам', async () => {
+      await ev(() => {
+        const d = window.__dev;
+        d.villaAt(0, 600);
+        d.actions.meetFriend('bob');
+        d.actions.mutate((s) => {
+          s.visitor = 'bob';
+          s.minutes = 11 * 60 + 5;
+        });
+      });
+      await wait(500);
+      const r = await ev(() => ({
+        guests: window.__dev.G.state.guests.join(),
+        actors: window.__dev.Villa.actors.map((a) => a.id).join(),
+        visitor: window.__dev.G.state.visitor,
+      }));
+      if (r.guests !== 'bob' || r.actors !== 'bob' || r.visitor)
+        throw new Error('гость не пришёл: ' + JSON.stringify(r));
+      await ev(() => {
+        const d = window.__dev;
+        d.actions.removeGuest('bob');
+        d.actions.mutate((s) => {
+          s.minutes = 8 * 60;
+        });
+      });
+    });
     await step('город: ходьба', async () => {
       await ev(() => {
         window.__dev.go('world');
@@ -768,6 +814,33 @@ async function extra({ page, step, ev, wait, closeAll, hold }) {
       });
       await wait(400);
     });
+    await step('башня: вход через дверь здания и выход обратно к двери', async () => {
+      await ev(() => {
+        window.__dev.enterBuilding('tower');
+      });
+      await wait(400);
+      await hold('ArrowLeft', 500); // к двери «Выход»
+      await page.keyboard.press('KeyE');
+      await wait(400);
+      const r = await ev(() => {
+        const d = window.__dev,
+          door = d.World.doorOf('tower'),
+          p = d.World.playerPos();
+        return { scene: d.sceneName, dx: Math.abs(p.x - door.x), dy: Math.abs(p.y - door.y) };
+      });
+      if (r.scene !== 'world' || r.dx > 2 || r.dy > 2) throw new Error('выход из башни: ' + JSON.stringify(r));
+    });
+    await step('HUD: «Домой» из города', async () => {
+      await page.click('.hud-btns.left .rbtn:last-child');
+      await wait(450);
+      await page.click('.panel-foot .btn.green');
+      await wait(400);
+      if ((await ev(() => window.__dev.sceneName)) !== 'villa') throw new Error('кнопка «Домой» не привела на виллу');
+      await ev(() => {
+        window.__dev.go('world');
+      });
+      await wait(300);
+    });
     await step('море: плавание и ныряние', async () => {
       await ev(() => window.__dev.World.debugTeleport(40, 50));
       await wait(400);
@@ -806,9 +879,11 @@ async function extra({ page, step, ev, wait, closeAll, hold }) {
     // ---------- «движок домов»: пробный дом (interiors/demo_house.js) ----------
     await step('пробный дом: дом жителя — мебель из описания, хозяйка внутри, выход назад', async () => {
       await ev(() => {
-        window.__dev.go('world');
-        window.__dev.World.debugTeleport(44, 14);
-        window.__dev.go('demo_house');
+        const d = window.__dev;
+        d.go('world');
+        d.World.debugTeleport(44, 14);
+        // так же, как вошёл бы хомячок через дверь здания с act: 'scene:demo_house'
+        d.run('scene:demo_house', { back: { scene: 'world', x: 44.5 * 48, y: 14.5 * 48 } });
       });
       await wait(500);
       const house = () =>

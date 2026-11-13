@@ -8,14 +8,19 @@
 <script type="module">
 // Страница для разработки: /dev/minigame.html?g=swim&level=0&season=summer
 import { runMinigame } from '../js/minigames/host.js';
-import { NPCS, npcLook, resolveLook, START_OUTFIT, defaultLook } from '../js/data/index.js';
+import { NPCS, npcLook, resolveLook, START_OUTFIT, defaultLook, FASHION_THEMES } from '../js/data/index.js';
+import { newGame, playerLook } from '../js/core/state.js';
+import { clothesPanel, scoreOutfit } from '../js/features/wardrobe.js';
 import { unlockAudio } from '../js/core/audio.js';
 const q = new URLSearchParams(location.search);
 const look = resolveLook({ ...defaultLook(), outfit: { ...START_OUTFIT, body: 'swim_pink', head: null, acc: null, legs: null, feet: null } });
 const friends = NPCS.map((n) => ({ id: n.id, name: n.name, look: npcLook(n.id) }));
+// «Показ мод» работает со шкафом игрока: заводим игру в памяти (в сохранение она не пишется)
+newGame('Буся');
+const fashion = { clothesPanel, scoreOutfit, themes: FASHION_THEMES, getLook: playerLook };
 async function run(g) {
   unlockAudio();
-  const res = await runMinigame(g, { look, name: 'Буся', friends, season: q.get('season') || 'summer', level: +(q.get('level') || 0) });
+  const res = await runMinigame(g, { look, name: 'Буся', friends, fashion, season: q.get('season') || 'summer', level: +(q.get('level') || 0) });
   window.__result = res;
   document.getElementById('out').textContent = 'Результат: ' + JSON.stringify(res, null, 2);
 }

@@ -1,6 +1,7 @@
 // Мебель: каталог и разделы магазина.
-// kind — как предмет рисуется и что делает (см. props.js). wall: висит на стене.
-// act: sleep | wardrobe | fridge | sit | tv | lamp | plant | piano | wheel | music | toy | fish | fire | none
+// kind — как предмет рисуется (см. art/furniture.js). wall: висит на стене. layer: 0 — коврик (рисуется под всем).
+// act — что будет, если потрогать (см. engine/side/items.js):
+//   sleep | wardrobe | fridge | sit | tv | lamp | plant | piano | wheel | music | disco | toy | fish | fire | book | mirror | none
 const FU = [];
 function F(id, kind, name, price, w, h, o = {}) {
   FU.push({ id, kind, name, price, w, h, shop: 'home', act: 'none', c: '#ff8fab', ...o });

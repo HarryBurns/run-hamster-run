@@ -31,8 +31,7 @@ export function giveSurprise(title, delay = 0) {
 }
 
 export function grantSurprise() {
-  const s = S(),
-    pool = giftPool();
+  const pool = giftPool();
   let html,
     icon = null;
   if (!pool.length) {
