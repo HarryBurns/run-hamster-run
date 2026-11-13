@@ -172,6 +172,7 @@ const TRACKS = {
   town_winter: { bpm: 92, key: 69, scale: MAJ_PENTA, prog: ['I', 'iii', 'IV', 'V', 'vi', 'IV', 'ii', 'V'], lead: ['bell', 0.07, 1.8], arp: ['bell', 0.022, 1.0], arpPat: [0, 2, 1, 2, 0, 2, 1, 2], bass: 0.075, perc: 3, density: 0.5 },
   night: { bpm: 66, key: 57, scale: MIN_PENTA, prog: ['i', 'VI', 'III', 'VII'], lead: ['soft', 0.065, 2.4], arp: ['soft', 0.028, 1.6], arpPat: [0, -1, 1, -1, 2, -1, 1, -1], bass: 0.07, perc: 0, density: 0.3 },
   minigame: { bpm: 132, key: 60, scale: MAJ_PENTA, prog: ['I', 'IV', 'V', 'I', 'vi', 'IV', 'V', 'V'], lead: ['square', 0.045, 0.5], arp: ['pluck', 0.032, 0.3], arpPat: [0, 1, 2, 1, 0, 1, 2, 1], bass: 0.09, perc: 2, density: 0.8 },
+  underwater: { bpm: 70, key: 62, scale: MAJ_PENTA, prog: ['I', 'iii', 'IV', 'I', 'vi', 'IV', 'ii', 'V'], lead: ['bell', 0.06, 2.6], arp: ['soft', 0.03, 1.8], arpPat: [0, -1, 2, -1, 1, -1, 2, -1], bass: 0.06, perc: 0, density: 0.3 },
   party: { bpm: 122, key: 57, scale: MIN_PENTA, prog: ['i', 'VII', 'VI', 'VII'], lead: ['square', 0.042, 0.45], arp: ['pluck', 0.034, 0.25], arpPat: [0, 2, 1, 2, 0, 2, 1, 2], bass: 0.1, perc: 4, density: 0.75 },
 };
 const hz = (m) => 440 * 2 ** ((m - 69) / 12);

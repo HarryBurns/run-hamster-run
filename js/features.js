@@ -708,7 +708,7 @@ function giftPool() {
   for (const r of SECRET_RECIPES) if (!s.recipes.includes(r)) pool.push({ kind: 'recipe', def: DISH_BY_ID[r] });
   return pool;
 }
-function giveSurprise(title) {
+export function giveSurprise(title) {
   const s = S(), pool = giftPool();
   let html, icon = null;
   if (!pool.length) { s.money += 100000; html = '<div class="big-emoji">💰</div><p>Мешочек монет: +100 000!</p>'; }
@@ -763,6 +763,7 @@ function onEvent(type, d = {}) {
     case 'skate': ok = type === 'skate'; break;
     case 'feed': ok = type === 'feed'; break;
     case 'coconut': ok = type === 'coconut'; break;
+    case 'pearl': ok = type === 'pearl'; break;
     case 'swim':
       if (type === 'swim' && d.where === 'sea') {
         const b = S().look.outfit.body;
@@ -777,7 +778,7 @@ function onEvent(type, d = {}) {
   if (ok) completeTask();
 }
 export function initEvents() {
-  for (const ev of ['minigame', 'buy', 'cook', 'treat', 'gift', 'plant', 'harvest', 'salon', 'place', 'visit', 'wheel', 'skate', 'swim', 'collect', 'talk', 'spa', 'feed', 'coconut']) G.on(ev, (d) => onEvent(ev, d));
+  for (const ev of ['minigame', 'buy', 'cook', 'treat', 'gift', 'plant', 'harvest', 'salon', 'place', 'visit', 'wheel', 'skate', 'swim', 'collect', 'talk', 'spa', 'feed', 'coconut', 'pearl']) G.on(ev, (d) => onEvent(ev, d));
 }
 
 // =====================================================================
@@ -870,7 +871,7 @@ export function openAlbum() {
           li.appendChild(el('div', '', `<span style="font-size:22px">${'⭐'.repeat(b)}<span style="opacity:.25">${'⭐'.repeat(3 - b)}</span></span>`));
           body.appendChild(li);
         }
-        body.appendChild(el('p', 'muted center', `Выполнено заданий: ${s.tasksDone}`));
+        body.appendChild(el('p', 'muted center', `Выполнено заданий: ${s.tasksDone} · Найдено жемчужин: ⚪ ${s.pearls || 0}`));
       }
     },
   });

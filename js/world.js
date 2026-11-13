@@ -333,6 +333,7 @@ export function interactNearest() {
     for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) if (ch(tx + dx, ty + dy) === 'd' && cal().season !== 'winter') best = { act: 'fish', spot: 'pond' };
   }
   if (best) { p.path = []; p.pending = best; arrive(); }
+  else if (canDive()) G.go('dive', 'world');
 }
 
 // ---------- обновление ----------
@@ -379,7 +380,7 @@ export function update(dt) {
     if ((surf === 'o' || surf === 'h' || surf === 'w') && !wasWater) { sfx('splash'); G.emit('swim', { where: surf === 'o' ? 'pool' : 'sea' }); }
     if (surf === 's' && tileOf(p.y) > SEA_Y) landOnIsle();
     if (surf === 'd') G.emit('skate');
-    p.surf = surf;
+    p.surf = surf; G.emit('hud');
   }
   // предметы задания
   const m = G.state.mail;
@@ -991,6 +992,18 @@ export function walkToPlace(id) {
   if (!walkTo(p, d.x, d.y, true)) return false;
   p.pending = { b };
   return true;
+}
+export const playerPos = () => ({ x: W.p.x, y: W.p.y });
+/** Нырять можно только там, где глубоко. */
+export const canDive = () => W.built && ch(tileOf(W.p.x), tileOf(W.p.y)) === 'w';
+/** Где всплыть: ближайшая глубокая клетка к точке (x, y). */
+export function surfaceAt(x, y) {
+  const tx = clamp(tileOf(x), 0, MW - 1), ty = clamp(tileOf(y), SEA_Y, MH - 2);
+  for (let r = 0; r < 14; r++) for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
+    if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
+    if (ch(tx + dx, ty + dy) === 'w') return { x: (tx + dx + 0.5) * T, y: (ty + dy + 0.5) * T };
+  }
+  return { x: W.p.x, y: W.p.y };
 }
 /** Насколько хорошо слышно море там, где стоит хомячок: 0..1 */
 export function seaLevel() { return clamp((W.p.y / T - 29) / 11, 0, 1); }

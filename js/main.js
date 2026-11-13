@@ -8,6 +8,7 @@ import { toast, openPanel, message, confirmBox } from './ui.js';
 import WorldScene, * as World from './world.js';
 import * as Villa from './villa.js';
 import * as Tower from './tower.js';
+import * as Dive from './dive.js';
 import * as F from './features.js';
 import * as Audio_ from './audio.js';
 
@@ -16,13 +17,13 @@ const ctx = canvas.getContext('2d');
 const hud = document.getElementById('hud');
 let dpr = 1;
 
-G.scenes = { world: WorldScene, villa: Villa, tower: Tower };
+G.scenes = { world: WorldScene, villa: Villa, tower: Tower, dive: Dive };
 G.go = (name, from) => {
   if (G.scene && G.scene.leave) G.scene.leave();
   G.scene = G.scenes[name];
   G.sceneName = name;
   G.scene.enter(from);
-  if (name === 'tower') Tower.storePos(); else G.state.pos.scene = name;
+  if (name === 'tower') Tower.storePos(); else if (name === 'dive') Dive.storePos(); else G.state.pos.scene = name;
   G.emit('hud'); save();
 };
 
@@ -66,7 +67,7 @@ window.addEventListener('keyup', (e) => G.keys.delete(e.code));
 window.addEventListener('blur', () => G.keys.clear());
 
 // ---------- HUD ----------
-let chipDate, chipMoney, chipTask, btnLeft, btnMap;
+let chipDate, chipMoney, chipTask, btnLeft, btnMap, btnDive;
 function rbtn(icon, label, fn) {
   const b = el('button', 'rbtn', `${icon}<span class="lbl">${label}</span>`);
   b.onclick = () => { unlockAudio(); sfx('tap'); fn(); };
@@ -83,10 +84,13 @@ function buildHud() {
   const left = el('div', 'hud-btns left');
   btnLeft = rbtn('🔨', 'Обустроить', leftAction);
   btnMap = rbtn('🗺️', 'Карта', F.openMap);
-  left.append(btnMap, btnLeft);
+  btnDive = rbtn('🤿', 'Нырнуть', () => { if (World.canDive()) G.go('dive', 'world'); });
+  btnDive.classList.add('on');
+  left.append(btnDive, btnMap, btnLeft);
   hud.append(top, right, left);
 }
 async function leftAction() {
+  if (G.sceneName === 'dive') { Dive.surface(); return; }
   if (G.sceneName === 'villa') Villa.setDecor(!Villa.isDecor());
   else if (await confirmBox('Домой?', '<p class="center">Вернуться на виллу прямо сейчас?</p>', 'Да, домой 🏡', 'Нет')) G.go('villa', 'world');
 }
@@ -98,8 +102,11 @@ function updateHud() {
   const t = F.taskChip();
   chipTask.textContent = t.text; chipTask.className = 'chip task ' + t.cls;
   const villa = G.sceneName === 'villa';
-  btnLeft.firstChild.textContent = villa ? '🔨' : '🏡';
-  btnLeft.querySelector('.lbl').textContent = villa ? 'Обустроить' : 'Домой';
+  const dive = G.sceneName === 'dive';
+  btnLeft.firstChild.textContent = villa ? '🔨' : dive ? '⬆️' : '🏡';
+  btnLeft.querySelector('.lbl').textContent = villa ? 'Обустроить' : dive ? 'Всплыть' : 'Домой';
+  btnDive.style.display = G.sceneName === 'world' && World.canDive() ? '' : 'none';
+  btnMap.style.display = dive ? 'none' : '';
   btnLeft.classList.toggle('on', villa && Villa.isDecor());
   hud.classList.toggle('decor', villa && Villa.isDecor());
 }
@@ -139,6 +146,7 @@ function showHelp() {
       <li>🏡 На вилле нажимай на всё подряд: шкаф, плиту, холодильник, ванну, сауну, джакузи, бассейн, телевизор… Лифт справа возит между этажами.</li>
       <li>🔨 Кнопка <b>«Обустроить»</b> — перетаскивай мебель, доставай новую из кладовки.</li>
       <li>🛍️ В городе — магазины одежды и мебели, продукты, салон красоты, кафе и мини-игры: бассейн, школа, больница, ресторан, Дом моды.</li>
+      <li>🌊 В море можно заплывать далеко, а на глубине — <b>🤿 нырнуть</b>: под водой рыбы, кораллы, жемчужины и затонувший корабль.</li>
       <li>🛏️ Чтобы наступил следующий день, ложись спать в кровать. В месяце 3 дня, сезоны меняются.</li>
       <li>📱 Друзей можно звать в гости и угощать. Подружишься — узнаешь секретные рецепты!</li></ul>`,
     buttons: [{ text: 'Понятно!' }],
@@ -151,7 +159,7 @@ function updateSound() {
   if (!playing) { setMusic('title'); setAmbience({ sea: 0, rain: 0, birds: false, night: false }); return; }
   const mg = !!document.getElementById('mg'), c = cal(), night = darkness() > 0.75, world = G.sceneName === 'world';
   const tower = G.sceneName === 'tower', deck = tower && Tower.onDeck(), out = world || deck;
-  setMusic(mg ? 'minigame' : G.sceneName === 'villa' && Villa.isParty() ? 'party' : night ? 'night' : world || tower ? 'town_' + c.season : 'villa');
+  setMusic(mg ? 'minigame' : G.sceneName === 'dive' ? 'underwater' : G.sceneName === 'villa' && Villa.isParty() ? 'party' : night ? 'night' : world || tower ? 'town_' + c.season : 'villa');
   const rain = G.state.weather === 'rain';
   setAmbience({
     sea: mg ? 0 : world ? World.seaLevel() : deck ? 0.3 : 0,
@@ -188,7 +196,7 @@ function frame(now) {
 }
 function persist() {
   if (!G.state || !G.scene) return;
-  if (G.sceneName === 'world') World.storePos(); else if (G.sceneName === 'tower') Tower.storePos(); else Villa.storePos();
+  if (G.sceneName === 'world') World.storePos(); else if (G.sceneName === 'tower') Tower.storePos(); else if (G.sceneName === 'dive') Dive.storePos(); else Villa.storePos();
   save();
 }
 document.addEventListener('visibilitychange', () => { if (document.hidden) persist(); });

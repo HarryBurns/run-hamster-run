@@ -437,6 +437,8 @@ export const TASKS = [
     text: 'Сделай кому-нибудь приятное: найди друга в городе и подари ему любую вкусняшку.' },
   { id: 'feedfish', type: 'feed', sticker: '🐠', title: 'Обед для рыбок', where: 'beach',
     text: 'Рыбки проголодались! Заплыви в море и нажми на стайку рыбок, чтобы угостить их крошками. А можно покормить рыбок в аквариуме дома.' },
+  { id: 'pearl', type: 'pearl', sticker: '🦪', title: 'Жемчужина со дна', where: 'beach',
+    text: 'На морском дне лежат раковины с жемчугом. Заплыви туда, где глубоко, нажми 🤿 «Нырнуть» и найди на дне хотя бы одну жемчужину!' },
   { id: 'coconut', type: 'coconut', sticker: '🥥', title: 'Кокосовый день', where: 'beach',
     text: 'На пальмах созрели кокосы! Подойди к любой пальме и потряси её — кокос упадёт прямо в рюкзак.' },
   { id: 'cafe', type: 'buy', cat: 'dish', sticker: '🧁', title: 'Сладкий день', where: 'cafe',
@@ -455,6 +457,9 @@ export const EXTRA_STICKERS = [
   { id: 'x_island', sticker: '🏝️', title: 'Необитаемый остров' },
   { id: 'x_isles', sticker: '🧭', title: 'Все острова открыты' },
   { id: 'x_feed', sticker: '🐟', title: 'Друг рыбок' },
+  { id: 'x_dive', sticker: '🤿', title: 'Первое погружение' },
+  { id: 'x_pearl', sticker: '⚪', title: 'Ловец жемчуга' },
+  { id: 'x_treasure', sticker: '👑', title: 'Сокровище корабля' },
   { id: 'x_whale', sticker: '🐋', title: 'Встреча с китом' },
   { id: 'x_tower', sticker: '🛗', title: 'На 101-й этаж!' },
 ];
