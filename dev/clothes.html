@@ -1,0 +1,16 @@
+<!doctype html><meta charset="utf-8"><title>Вся одежда</title><body style="margin:0;background:#bfe3a0;font:12px sans-serif">
+<canvas id="c"></canvas>
+<script type="module">
+// Страница для разработки: показывает каждую вещь из каталога на хомячке.
+import { drawHamster, defaultLook } from '../js/hamster.js';
+import { CLOTHES } from '../js/data.js';
+const q = new URLSearchParams(location.search), from = +(q.get('from') || 0);
+const items = CLOTHES.slice(from), cols = 11, cw = 116, chh = 150;
+const cv = document.getElementById('c'); cv.width = cols * cw; cv.height = Math.ceil(items.length / cols) * chh;
+const ctx = cv.getContext('2d');
+items.forEach((it, i) => {
+  const x = (i % cols) * cw + cw / 2, y = Math.floor(i / cols) * chh + 126;
+  drawHamster(ctx, x, y, 1.15, { ...defaultLook(), outfit: { [it.slot]: it } }, { time: 1 });
+  ctx.fillStyle = '#333'; ctx.textAlign = 'center'; ctx.font = '10px sans-serif'; ctx.fillText(it.name.slice(0, 20), x, y + 16);
+});
+</script>

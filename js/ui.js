@@ -159,7 +159,7 @@ export function clothesIcon(item, size = 84) {
   let s = size / 100, dy = 0;
   if (item.slot === 'head') { s = size / 62; dy = 46 * s; }
   else if (item.slot === 'feet') { s = size / 56; dy = -22 * s; }
-  else if (item.slot === 'acc' && !['wings', 'backpack', 'bag'].includes(item.kind)) { s = size / 62; dy = 28 * s; }
+  else if (item.slot === 'acc' && !['wings', 'backpack', 'bag', 'cape', 'camera', 'tie', 'lei'].includes(item.kind)) { s = size / 62; dy = 28 * s; }
   ctx.save();
   ctx.beginPath(); ctx.rect(0, 0, size, size); ctx.clip();
   drawHamster(ctx, size / 2, size * 0.93 + dy, s, look, { shadow: false });

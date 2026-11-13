@@ -130,6 +130,39 @@ C('backpack', 'acc', 'backpack', 'Рюкзачок', 2400, '#4dabf7', { tags: ['
 C('wings', 'acc', 'wings', 'Крылышки феи', 0, '#d0ebff', { shop: 'gift', tags: ['fancy'] });
 C('medal', 'acc', 'medal', 'Золотая медаль', 0, '#ffd43b', { shop: 'gift', tags: ['sport'] });
 
+// --- новая коллекция
+C('tee_hawaii', 'body', 'tee', 'Гавайская рубашка', 1600, '#ff922b', { pattern: 'flowers', c2: '#fff', shop: 'beach', tags: ['summer', 'beach', 'cute'] });
+C('tee_hawaii_blue', 'body', 'tee', 'Рубашка «Лагуна»', 1600, '#15aabf', { pattern: 'flowers', c2: '#fff3bf', shop: 'beach', tags: ['summer', 'beach'] });
+C('dress_flowers', 'body', 'dress', 'Цветочное платье', 3800, '#f783ac', { pattern: 'flowers', c2: '#fff', tags: ['spring', 'summer', 'cute', 'fancy'] });
+C('overall_jeans', 'body', 'overall', 'Джинсовый комбинезон', 3200, '#4c6ef5', { c2: '#fff', tags: ['spring', 'autumn', 'sport', 'cute'] });
+C('overall_red', 'body', 'overall', 'Красный комбинезон', 3200, '#f03e3e', { c2: '#ffe066', tags: ['spring', 'autumn', 'cute'] });
+C('hoodie_grey', 'body', 'hoodie', 'Серое худи', 2900, '#adb5bd', { tags: ['warm', 'sport', 'autumn', 'spring', 'home'] });
+C('hoodie_violet', 'body', 'hoodie', 'Худи со звёздами', 3300, '#7950f2', { pattern: 'stars', c2: '#ffe066', tags: ['warm', 'sport', 'autumn', 'cute'] });
+C('tuxedo', 'body', 'tuxedo', 'Смокинг', 38000, '#212529', { c2: '#e03131', shop: 'boutique', tags: ['fancy'] });
+C('tuxedo_white', 'body', 'tuxedo', 'Белый смокинг', 42000, '#f8f9fa', { c2: '#1c7ed6', shop: 'boutique', tags: ['fancy', 'summer'] });
+C('tutu_pink', 'legs', 'tutu', 'Балетная пачка', 4500, '#ffa8d9', { shop: 'boutique', tags: ['fancy', 'cute'] });
+C('tutu_white', 'legs', 'tutu', 'Белая пачка', 4500, '#ffffff', { shop: 'boutique', tags: ['fancy', 'cute'] });
+C('heels_red', 'feet', 'heels', 'Красные туфельки', 5200, '#f03e3e', { shop: 'boutique', tags: ['fancy', 'cute'] });
+C('heels_black', 'feet', 'heels', 'Чёрные туфельки', 5200, '#343a40', { c2: '#ffd43b', shop: 'boutique', tags: ['fancy'] });
+C('rollers', 'feet', 'rollers', 'Ролики', 3600, '#20c997', { c2: '#ff6b9d', tags: ['sport', 'summer', 'spring'] });
+C('hat_cowboy', 'head', 'cowboy', 'Ковбойская шляпа', 3400, '#c98b5a', { c2: '#8d5524', tags: ['summer', 'sport'] });
+C('beret_red', 'head', 'beret', 'Красный берет', 2400, '#e03131', { c2: '#a51111', tags: ['fancy', 'autumn', 'spring', 'cute'] });
+C('beret_black', 'head', 'beret', 'Чёрный берет', 2400, '#343a40', { c2: '#212529', shop: 'boutique', tags: ['fancy', 'autumn'] });
+C('hat_chef', 'head', 'chef', 'Поварской колпак', 1800, '#fff', { tags: ['home'] });
+C('hat_pith', 'head', 'pith', 'Шлем исследователя', 2800, '#f1e0c5', { c2: '#d9a066', tags: ['summer', 'sport'] });
+C('catears', 'head', 'catears', 'Кошачьи ушки', 2200, '#343a40', { c2: '#ff6b9d', tags: ['cute', 'home'] });
+C('hair_flower', 'head', 'flower', 'Цветок в причёску', 1500, '#ff6b9d', { c2: '#ffd43b', shop: 'beach', tags: ['summer', 'beach', 'cute', 'fancy', 'spring'] });
+C('hat_party', 'head', 'party', 'Праздничный колпачок', 900, '#4dabf7', { c2: '#ffd43b', tags: ['cute', 'home'] });
+C('hat_pirate', 'head', 'pirate', 'Пиратская треуголка', 0, '#212529', { shop: 'gift', tags: ['fancy'] });
+C('hat_santa', 'head', 'santa', 'Новогодний колпак', 0, '#e03131', { shop: 'gift', season: 'winter', tags: ['warm', 'winter', 'cute'] });
+C('hat_witch', 'head', 'witch', 'Шляпа волшебницы', 0, '#5f3dc4', { c2: '#ff922b', shop: 'gift', tags: ['fancy', 'autumn'] });
+C('tie_red', 'acc', 'tie', 'Красный галстук', 1900, '#e03131', { c2: '#fff', tags: ['fancy'] });
+C('tie_blue', 'acc', 'tie', 'Синий галстук', 1900, '#1c7ed6', { c2: '#ffd43b', tags: ['fancy'] });
+C('lei', 'acc', 'lei', 'Гавайские бусы из цветов', 1700, '#ff6b9d', { c2: '#b197fc', shop: 'beach', tags: ['summer', 'beach', 'cute', 'fancy'] });
+C('camera', 'acc', 'camera', 'Фотоаппарат', 6500, '#495057', { c2: '#fa5252', tags: ['sport', 'summer', 'spring', 'autumn'] });
+C('cape_red', 'acc', 'cape', 'Плащ супергероя', 7500, '#e03131', { shop: 'boutique', tags: ['fancy', 'sport'] });
+C('cape_violet', 'acc', 'cape', 'Волшебная мантия', 0, '#7048e8', { shop: 'gift', tags: ['fancy'] });
+
 export const CLOTHES = CL;
 export const CLOTHES_BY_ID = Object.fromEntries(CL.map((c) => [c.id, c]));
 export const START_CLOTHES = CL.filter((c) => c.shop === 'start').map((c) => c.id);

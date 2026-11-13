@@ -3,6 +3,7 @@
 import { ell, rr, fillRR, line, poly, star, shade, TAU } from './util.js';
 
 const OUT = '#4a3728'; // цвет контура
+const BACK_ACC = ['wings', 'backpack', 'cape']; // аксессуары, которые рисуются за спиной
 
 /**
  * Насколько закрыты глаза в момент времени t: 0 — открыты, 1 — закрыты.
@@ -48,6 +49,14 @@ function pattern(ctx, item, x, y, w, h) {
     for (let yy = y + 7; yy < y + h; yy += 13, row++) {
       for (let xx = x + (row % 2 ? 11 : 4); xx < x + w; xx += 15) star(ctx, xx, yy, 3.6, c2);
     }
+  } else if (item.pattern === 'flowers') {
+    let row = 0;
+    for (let yy = y + 7; yy < y + h; yy += 13, row++) {
+      for (let xx = x + (row % 2 ? 11 : 4); xx < x + w; xx += 15) {
+        for (let k = 0; k < 5; k++) { ctx.beginPath(); ctx.arc(xx + Math.cos(k * 1.257) * 3, yy + Math.sin(k * 1.257) * 3, 2, 0, TAU); ctx.fill(); }
+        ctx.fillStyle = '#ffd43b'; ctx.beginPath(); ctx.arc(xx, yy, 1.5, 0, TAU); ctx.fill(); ctx.fillStyle = c2;
+      }
+    }
   } else if (item.pattern === 'check') {
     ctx.globalAlpha = 0.6;
     for (let xx = x + 3; xx < x + w; xx += 10) ctx.fillRect(xx, y, 3, h);
@@ -60,7 +69,8 @@ function pattern(ctx, item, x, y, w, h) {
 function sleevesOf(item) {
   if (!item) return null;
   switch (item.kind) {
-    case 'tee': return 'short';
+    case 'tee': case 'overall': return 'short';
+    case 'hoodie': case 'tuxedo': return 'long';
     case 'sweater': case 'jacketW': case 'jacketA': case 'jacketS': case 'pajama': case 'robe': return 'long';
     case 'dress': return item.sleeves || null;
     default: return null;
@@ -70,7 +80,12 @@ function sleevesOf(item) {
 function drawLegs(ctx, item) {
   if (!item) return;
   ctx.save();
-  if (item.kind === 'skirt') {
+  if (item.kind === 'tutu') {
+    for (let layer = 0; layer < 2; layer++) for (let i = -3; i <= 3; i++) {
+      ell(ctx, i * 8.5, -12 + Math.abs(i) * 1.2 + layer * 5, 9, 7, layer ? item.c : shade(item.c, 0.45), OUT, 1.2);
+    }
+    ctx.fillStyle = shade(item.c, -0.2); ctx.fillRect(-19, -22, 38, 4);
+  } else if (item.kind === 'skirt') {
     ctx.beginPath();
     ctx.moveTo(-20, -22); ctx.lineTo(20, -22);
     ctx.quadraticCurveTo(30, -10, 30, -4);
@@ -174,6 +189,38 @@ function drawBody(ctx, item) {
       bodyPath(ctx, g); ctx.strokeStyle = OUT; ctx.lineWidth = 2; ctx.stroke();
       break;
     }
+    case 'overall': {
+      bodyPath(ctx, 1.5); ctx.clip();
+      ctx.fillStyle = item.c2 || '#fff'; ctx.fillRect(-30, -50, 60, 30);                 // футболка под комбинезоном
+      ctx.fillStyle = c; ctx.fillRect(-30, -22, 60, 30); ctx.fillRect(-12, -40, 24, 20);  // штаны и нагрудник
+      ctx.fillRect(-15, -50, 5, 14); ctx.fillRect(10, -50, 5, 14);                        // лямки
+      ctx.fillStyle = dark; ctx.fillRect(-30, -22, 60, 2.5); ctx.fillRect(-1, -12, 2, 16);
+      ctx.fillStyle = '#ffd43b'; for (const bx of [-9, 9]) { ctx.beginPath(); ctx.arc(bx, -37, 2.2, 0, TAU); ctx.fill(); }
+      ctx.restore(); ctx.save();
+      bodyPath(ctx, 1.5); ctx.strokeStyle = OUT; ctx.lineWidth = 2; ctx.stroke();
+      break;
+    }
+    case 'hoodie': {
+      bodyPath(ctx, 2.5); ctx.fillStyle = c; ctx.fill();
+      ctx.save(); ctx.clip();
+      pattern(ctx, item, -30, -50, 60, 44);
+      ctx.fillStyle = dark; ctx.fillRect(-30, -7, 60, 5);
+      fillRR(ctx, -13, -20, 26, 12, 5, dark);
+      ctx.restore();
+      bodyPath(ctx, 2.5); ctx.strokeStyle = OUT; ctx.lineWidth = 2; ctx.stroke();
+      line(ctx, -5, -40, -6, -27, '#fff', 1.8); line(ctx, 5, -40, 6, -27, '#fff', 1.8);
+      break;
+    }
+    case 'tuxedo': {
+      bodyPath(ctx, 2); ctx.fillStyle = c; ctx.fill();
+      ctx.save(); ctx.clip();
+      poly(ctx, [-9, -50, 9, -50, 0, -14], '#fff');
+      ctx.fillStyle = OUT; for (let i = 0; i < 3; i++) { ctx.beginPath(); ctx.arc(0, -32 + i * 7, 1.4, 0, TAU); ctx.fill(); }
+      ctx.restore();
+      bodyPath(ctx, 2); ctx.strokeStyle = OUT; ctx.lineWidth = 2; ctx.stroke();
+      poly(ctx, [0, -39, -9, -44, -9, -34], item.c2 || '#e03131', OUT, 1.2); poly(ctx, [0, -39, 9, -44, 9, -34], item.c2 || '#e03131', OUT, 1.2);
+      break;
+    }
     default: break;
   }
   ctx.restore();
@@ -196,6 +243,8 @@ function collar(ctx, item) {
   } else if (item.kind === 'jacketA' || item.kind === 'jacketS') {
     poly(ctx, [-14, -43, -2, -38, -10, -33], shade(item.c, -0.15), OUT, 1.5);
     poly(ctx, [14, -43, 2, -38, 10, -33], shade(item.c, -0.15), OUT, 1.5);
+  } else if (item.kind === 'hoodie') {
+    ell(ctx, 0, -45, 25, 13, shade(item.c, -0.14), OUT, 2); // капюшон за головой
   } else if (item.kind === 'sweater') {
     ctx.beginPath(); ctx.ellipse(0, -41, 13, 4.5, 0, 0, Math.PI);
     ctx.strokeStyle = shade(item.c, -0.25); ctx.lineWidth = 4; ctx.stroke();
@@ -234,6 +283,14 @@ function drawShoe(ctx, item, x, y) {
     case 'flippers':
       poly(ctx, [x - 5, y - 8, x + 5, y - 8, x + 12, y + 3, x - 12, y + 3], c, OUT, 1.6);
       line(ctx, x - 3, y - 4, x - 6, y + 2, dark, 1.3); line(ctx, x + 3, y - 4, x + 6, y + 2, dark, 1.3);
+      break;
+    case 'heels':
+      fillRR(ctx, x - 8, y - 7, 17, 7, 3.5, c, OUT, 1.5); fillRR(ctx, x - 9, y - 3, 4, 5, 1, dark, OUT, 1);
+      ell(ctx, x + 4, y - 7, 2.2, 2.2, item.c2 || '#fff', OUT, 0.8);
+      break;
+    case 'rollers':
+      fillRR(ctx, x - 8, y - 17, 16, 13, 5, c, OUT, 1.6); line(ctx, x - 3, y - 12, x + 3, y - 12, '#fff', 1.4);
+      ell(ctx, x - 5, y - 2, 3.6, 3.6, item.c2 || '#ffd43b', OUT, 1.2); ell(ctx, x + 5, y - 2, 3.6, 3.6, item.c2 || '#ffd43b', OUT, 1.2);
       break;
     case 'slippers':
       fillRR(ctx, x - 9, y - 8, 18, 9, 5, c, OUT, 1.6);
@@ -288,6 +345,54 @@ function drawHat(ctx, item) {
       }
       break;
     }
+    case 'cowboy':
+      ctx.beginPath(); ctx.moveTo(-40, -70); ctx.quadraticCurveTo(-30, -58, 0, -62); ctx.quadraticCurveTo(30, -58, 40, -70); ctx.quadraticCurveTo(26, -70, 18, -72); ctx.lineTo(-18, -72); ctx.quadraticCurveTo(-26, -70, -40, -70); ctx.closePath();
+      ctx.fillStyle = c; ctx.fill(); ctx.strokeStyle = OUT; ctx.lineWidth = 1.8; ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(-18, -70); ctx.quadraticCurveTo(-18, -96, -6, -93); ctx.quadraticCurveTo(0, -88, 6, -93); ctx.quadraticCurveTo(18, -96, 18, -70); ctx.closePath(); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = c2; ctx.fillRect(-17, -77, 34, 5); star(ctx, 0, -74.5, 3.4, '#ffd43b');
+      break;
+    case 'beret':
+      ell(ctx, -3, -79, 25, 11, c, OUT, 1.8, -0.18); line(ctx, -2, -89, 0, -95, OUT, 3); line(ctx, -2, -89, 0, -95, c, 1.6);
+      ctx.fillStyle = c2; ctx.fillRect(-20, -73, 34, 3);
+      break;
+    case 'pirate':
+      poly(ctx, [-32, -66, -24, -84, 0, -93, 24, -84, 32, -66, 0, -72], c, OUT, 1.8);
+      ell(ctx, 0, -80, 5, 5, '#fff', OUT, 1); ell(ctx, -1.8, -81, 1.2, 1.4, OUT); ell(ctx, 1.8, -81, 1.2, 1.4, OUT);
+      line(ctx, -8, -72, 8, -66, '#fff', 2); line(ctx, 8, -72, -8, -66, '#fff', 2);
+      break;
+    case 'chef':
+      for (const [hx, hy, r] of [[-11, -91, 10], [0, -96, 11], [11, -91, 10]]) ell(ctx, hx, hy, r, r, '#fff', OUT, 1.8);
+      fillRR(ctx, -16, -90, 32, 22, 3, '#fff', null); line(ctx, -16, -86, -16, -70, OUT, 1.8); line(ctx, 16, -86, 16, -70, OUT, 1.8);
+      fillRR(ctx, -18, -74, 36, 8, 3, '#f1f3f5', OUT, 1.8);
+      break;
+    case 'santa':
+      ctx.beginPath(); ctx.moveTo(-22, -68); ctx.quadraticCurveTo(-14, -100, 14, -96); ctx.quadraticCurveTo(30, -92, 32, -74); ctx.quadraticCurveTo(22, -84, 22, -68); ctx.closePath();
+      ctx.fillStyle = c; ctx.fill(); ctx.strokeStyle = OUT; ctx.lineWidth = 1.8; ctx.stroke();
+      fillRR(ctx, -26, -72, 52, 10, 5, '#fff', OUT, 1.8); ell(ctx, 32, -72, 6.5, 6.5, '#fff', OUT, 1.6);
+      break;
+    case 'witch':
+      ell(ctx, 0, -68, 38, 8, c, OUT, 1.8);
+      ctx.beginPath(); ctx.moveTo(-18, -70); ctx.quadraticCurveTo(-8, -100, 12, -112); ctx.quadraticCurveTo(8, -96, 18, -70); ctx.closePath(); ctx.fillStyle = c; ctx.fill(); ctx.strokeStyle = OUT; ctx.lineWidth = 1.8; ctx.stroke();
+      ctx.fillStyle = c2; ctx.fillRect(-17, -77, 34, 5); fillRR(ctx, -5, -79, 10, 9, 2, '#ffd43b', OUT, 1.2);
+      break;
+    case 'party':
+      poly(ctx, [-14, -70, 0, -106, 14, -70], c, OUT, 1.8);
+      ctx.save(); ctx.beginPath(); ctx.moveTo(-14, -70); ctx.lineTo(0, -106); ctx.lineTo(14, -70); ctx.closePath(); ctx.clip(); ctx.fillStyle = c2; for (let yy = -100; yy < -70; yy += 12) ctx.fillRect(-16, yy, 32, 5); ctx.restore();
+      ell(ctx, 0, -107, 5, 5, '#ffd43b', OUT, 1.4);
+      break;
+    case 'pith':
+      ell(ctx, 0, -68, 32, 7, c2, OUT, 1.8);
+      ctx.beginPath(); ctx.ellipse(0, -69, 22, 21, 0, Math.PI, 0); ctx.closePath(); ctx.fillStyle = c; ctx.fill(); ctx.strokeStyle = OUT; ctx.lineWidth = 1.8; ctx.stroke();
+      ctx.fillStyle = shade(c, -0.25); ctx.fillRect(-21.5, -75, 43, 4); ell(ctx, 0, -90, 3, 2.4, c2, OUT, 1);
+      break;
+    case 'catears':
+      ctx.beginPath(); ctx.ellipse(0, -62, 27, 22, 0, Math.PI * 1.1, -0.1 * Math.PI); ctx.strokeStyle = c2; ctx.lineWidth = 4; ctx.stroke();
+      for (const sx of [-1, 1]) { poly(ctx, [sx * 8, -81, sx * 16, -100, sx * 25, -78], c, OUT, 1.8); poly(ctx, [sx * 12, -82, sx * 16, -93, sx * 21, -80], '#ffb3c1'); }
+      break;
+    case 'flower':
+      for (let k = 0; k < 6; k++) ell(ctx, -19 + Math.cos(k * 1.047) * 7, -73 + Math.sin(k * 1.047) * 7, 5.5, 5.5, c, OUT, 1.2);
+      ell(ctx, -19, -73, 4, 4, c2 === shade(c, -0.25) ? '#ffd43b' : c2, OUT, 1);
+      break;
     case 'tophat':
       ell(ctx, 0, -71, 26, 5, c, OUT, 1.8);
       fillRR(ctx, -16, -98, 32, 28, 3, c, OUT, 1.8);
@@ -311,6 +416,10 @@ function drawAccBack(ctx, item, t) {
     ctx.restore();
   } else if (item.kind === 'backpack') {
     fillRR(ctx, -27, -44, 54, 34, 12, item.c, OUT, 1.8);
+  } else if (item.kind === 'cape') {
+    const sw = Math.sin(t * 3) * 3;
+    ctx.beginPath(); ctx.moveTo(-17, -43); ctx.lineTo(17, -43); ctx.quadraticCurveTo(34, -24, 31 + sw, 0); ctx.quadraticCurveTo(0, 6, -31 + sw, 0); ctx.quadraticCurveTo(-34, -24, -17, -43); ctx.closePath();
+    ctx.fillStyle = item.c; ctx.fill(); ctx.strokeStyle = OUT; ctx.lineWidth = 2; ctx.stroke();
   }
 }
 
@@ -347,6 +456,20 @@ function drawAcc(ctx, item) {
     case 'bowtie':
       poly(ctx, [0, -37, -10, -43, -10, -31], c, OUT, 1.5); poly(ctx, [0, -37, 10, -43, 10, -31], c, OUT, 1.5);
       ell(ctx, 0, -37, 3, 3, c2, OUT, 1.2);
+      break;
+    case 'tie':
+      poly(ctx, [-4, -41, 4, -41, 2, -35, -2, -35], c, OUT, 1.2);
+      poly(ctx, [-2.5, -35, 2.5, -35, 5, -18, 0, -12, -5, -18], c, OUT, 1.4);
+      ctx.fillStyle = c2; ctx.fillRect(-3.5, -29, 7, 2.5); ctx.fillRect(-4.2, -23, 8.4, 2.5);
+      break;
+    case 'lei': {
+      const cols = [c, '#ffd43b', '#fff', c2, c, '#ffd43b', '#fff', c2, c];
+      for (let i = 0; i <= 8; i++) { const a = Math.PI * (0.08 + (0.84 * i) / 8), px = Math.cos(a) * 19, py = -41 + Math.sin(a) * 13; ell(ctx, px, py, 4.6, 4.6, cols[i], OUT, 1); ell(ctx, px, py, 1.5, 1.5, '#ffa94d'); }
+      break;
+    }
+    case 'camera':
+      line(ctx, -15, -42, -9, -24, shade(c, -0.3), 2); line(ctx, 15, -42, 9, -24, shade(c, -0.3), 2);
+      fillRR(ctx, -12, -28, 24, 16, 4, c, OUT, 1.6); ell(ctx, 0, -20, 5.5, 5.5, '#74c0fc', OUT, 1.4); fillRR(ctx, 4, -31, 6, 4, 1, c2, OUT, 1);
       break;
     case 'medal':
       line(ctx, -8, -42, 0, -28, '#e03131', 3); line(ctx, 8, -42, 0, -28, '#1c7ed6', 3);
@@ -425,7 +548,7 @@ export function drawHamster(ctx, x, y, s, look, pose = {}) {
   }
 
   ctx.translate(0, -bob);
-  if (o.acc && (o.acc.kind === 'wings' || o.acc.kind === 'backpack')) drawAccBack(ctx, o.acc, time);
+  if (o.acc && BACK_ACC.includes(o.acc.kind)) drawAccBack(ctx, o.acc, time);
 
   // --- тело
   bodyPath(ctx); ctx.fillStyle = fur; ctx.fill();
@@ -448,7 +571,7 @@ export function drawHamster(ctx, x, y, s, look, pose = {}) {
     else { ctx.translate(sx * 23, -30); ctx.rotate(sx * -0.35 + swing); }
     ell(ctx, 0, 4, 5.5, 9, fur, OUT, 1.6);
     if (sl) {
-      const col = o.body.c;
+      const col = o.body.kind === 'overall' ? (o.body.c2 || '#fff') : o.body.c;
       ctx.save(); ctx.beginPath(); ctx.rect(-8, -7, 16, sl === 'long' ? 15 : 9); ctx.clip();
       ell(ctx, 0, 4, 6.3, 9.8, col, OUT, 1.6);
       ctx.restore();
@@ -524,10 +647,11 @@ export function drawHamster(ctx, x, y, s, look, pose = {}) {
 
   // --- причёска, бантик, шапка, аксессуар
   const hat = o.head;
-  if (b.tuft && (!hat || hat.kind === 'earmuffs' || hat.kind === 'wreath')) drawTuft(ctx, b.tuft, b.hair || look.spots || shade(fur, -0.35));
+  if (b.tuft && (!hat || ['earmuffs', 'wreath', 'catears', 'flower'].includes(hat.kind))) drawTuft(ctx, b.tuft, b.hair || look.spots || shade(fur, -0.35));
   if (hat) drawHat(ctx, hat);
   if (b.bow) drawBow(ctx, b.bow, hat ? -24 : -15, hat ? -62 : -74);
-  if (o.acc && o.acc.kind !== 'wings' && o.acc.kind !== 'backpack') drawAcc(ctx, o.acc);
+  if (o.acc && !BACK_ACC.includes(o.acc.kind)) drawAcc(ctx, o.acc);
+  else if (o.acc && o.acc.kind === 'cape') { ell(ctx, -12, -41, 3.2, 3.2, '#ffd43b', OUT, 1); ell(ctx, 12, -41, 3.2, 3.2, '#ffd43b', OUT, 1); line(ctx, -12, -41, 12, -41, '#ffd43b', 2); }
 
   ctx.restore();
 }
