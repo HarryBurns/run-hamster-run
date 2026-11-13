@@ -3,7 +3,7 @@
 <script type="module">
 // Страница для разработки: показывает каждую вещь из каталога на хомячке.
 import { drawHamster } from '../js/art/hamster.js';
-import { CLOTHES, defaultLook } from '../js/data.js';
+import { CLOTHES, defaultLook } from '../js/data/index.js';
 const q = new URLSearchParams(location.search), from = +(q.get('from') || 0);
 const items = CLOTHES.slice(from), cols = 11, cw = 116, chh = 150;
 const cv = document.getElementById('c'); cv.width = cols * cw; cv.height = Math.ceil(items.length / cols) * chh;

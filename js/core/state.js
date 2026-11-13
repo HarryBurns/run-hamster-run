@@ -20,7 +20,7 @@ import {
   TASK_BY_ID,
   resolveLook,
   defaultLook,
-} from '../data.js';
+} from '../data/index.js';
 
 const KEY = 'rhr-save-v1'; // ключ хранилища («v1» в имени — исторически; версия сохранения лежит в поле v)
 const BACKUP_KEY = 'rhr-save-backup'; // копия сохранения: перед миграцией и когда его не удалось прочитать

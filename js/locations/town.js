@@ -1,8 +1,8 @@
 // Город, двор виллы и пляж: вид сверху, хомячок ходит сам.
-import { clamp, lerp, rnd, pick, seeded, TAU, dist } from '../core/util.js';
+import { clamp, rnd, seeded, TAU, dist } from '../core/util.js';
 import { ell, fillRR, line, poly, shade, mix, rr, star, emoji } from '../core/draw.js';
 import { drawHamster, blinkAt } from '../art/hamster.js';
-import { NPCS, NPC_BY_ID, npcLook, ING_BY_ID, SEED_BY_ID, TASK_BY_ID } from '../data.js';
+import { NPCS, NPC_BY_ID, npcLook, ING_BY_ID, SEED_BY_ID, TASK_BY_ID } from '../data/index.js';
 import { G, playerLook, cal, darkness } from '../core/state.js';
 import { award, addItem, setFlag, setDayFlag, collectMailItem, patchState, touchState } from '../core/actions.js';
 import { emit } from '../core/events.js';

@@ -642,6 +642,20 @@ async function extra({ page, step, ev, wait, closeAll, hold }) {
         await closeAll();
       });
     }
+    await step('карта: из виллы идём к месту в городе', async () => {
+      await ev(() => {
+        window.__dev.F.openMap();
+      });
+      await wait(350);
+      await page.click('.overlay .opt:nth-child(4)');
+      await wait(500);
+      const r = await ev(() => ({ scene: window.__dev.sceneName, open: document.querySelectorAll('.overlay').length }));
+      if (r.scene !== 'world' || r.open) throw new Error('карта не отправила хомячка в город: ' + JSON.stringify(r));
+      await ev(() => {
+        window.__dev.go('villa');
+      });
+      await wait(300);
+    });
     await step('вилла: ходьба и режим обустройства', async () => {
       await hold('ArrowRight', 500);
       await hold('ArrowDown', 200);

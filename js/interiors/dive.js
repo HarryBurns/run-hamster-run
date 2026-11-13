@@ -1,7 +1,7 @@
 // Под водой: хомячок ныряет в глубоком море и свободно плавает во все стороны.
 // Вид сбоку. Положение по горизонтали совпадает с местом на карте, где нырнули.
 import { clamp, lerp, rnd, seeded, TAU, dist } from '../core/util.js';
-import { ell, fillRR, line, poly, mix, star, text, emoji } from '../core/draw.js';
+import { ell, fillRR, line, poly, mix, star } from '../core/draw.js';
 import { drawHamster, blinkAt } from '../art/hamster.js';
 import { G, playerLook, darkness } from '../core/state.js';
 import * as A from '../core/actions.js';

@@ -12,7 +12,7 @@
 // Автотест (dev/smoke.js, шаг «состояние меняют только действия») ловит записи в состояние мимо этого файла.
 import { G, touch, cal, hasClothes, houseItems } from './state.js';
 import { emit } from './events.js';
-import { NPCS, FURN_BY_ID } from '../data.js';
+import { NPCS, FURN_BY_ID } from '../data/index.js';
 
 let depth = 0;
 /** Идёт ли сейчас действие (для проверки в тестах). */

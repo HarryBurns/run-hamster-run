@@ -1,6 +1,6 @@
 // Мини-игра «Показ мод»: оденься по теме и пройди по подиуму.
-import { clothesPanel, scoreOutfit, FASHION_THEMES } from '../features.js';
-import { playerLook } from '../core/state.js';
+// Шкаф, оценку наряда и темы показа игра получает снаружи — host.info.fashion (их даёт features/minigames.js):
+// { clothesPanel, scoreOutfit, themes, getLook }. Сами мини-игры занятия (features/) не импортируют.
 import { pick, el, clamp, TAU } from '../core/util.js';
 import { ell, fillRR, poly, star, text } from '../core/draw.js';
 import { drawPortrait } from '../art/hamster.js';
@@ -11,7 +11,8 @@ export default {
   icon: '👠',
   howTo: 'Жюри объявит тему показа. Подбери в шкафу наряд по теме — чем больше подходящих вещей, тем выше оценки!',
   start(host) {
-    const theme = host.info.theme || pick(FASHION_THEMES);
+    const { clothesPanel, scoreOutfit, themes, getLook } = host.info.fashion;
+    const theme = host.info.theme || pick(themes);
     const cv = host.canvas(),
       ctx = cv.ctx;
     const judges = host.friends.slice(0, 3);
@@ -138,7 +139,7 @@ export default {
       const k = phase === 'theme' ? 0 : walk;
       const hy = topY + 14 + (botY - topY - 30) * k,
         hs = (Math.min(w, h) / 420) * (0.75 + 1.25 * k);
-      host.drawHamster(ctx, w / 2 + (phase === 'walk' ? Math.sin(t * 5) * 6 * k : 0), hy, hs, playerLook(), {
+      host.drawHamster(ctx, w / 2 + (phase === 'walk' ? Math.sin(t * 5) * 6 * k : 0), hy, hs, getLook(), {
         time: t,
         walk: phase === 'walk' ? t * 1.6 : null,
         happy: phase !== 'theme',

@@ -2,7 +2,7 @@
 import { makeCanvas } from '../core/draw.js';
 import { drawHamster } from '../art/hamster.js';
 import { drawFurn } from '../art/furniture.js';
-import { defaultLook } from '../data.js';
+import { defaultLook } from '../data/index.js';
 import { playerLook } from '../core/state.js';
 import { cachedIcon } from '../core/sprites.js';
 

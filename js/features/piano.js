@@ -1,14 +1,14 @@
 // Пианино во весь экран: нажимай на клавиши сам, играй что хочешь или учи песенки по подсветке.
-import { el, rnd } from './core/util.js';
-import { makeCanvas, ell, fillRR } from './core/draw.js';
-import { drawHamster, blinkAt } from './art/hamster.js';
-import { G, playerLook } from './core/state.js';
-import { award } from './core/actions.js';
-import { emit } from './core/events.js';
-import { register } from './core/registry.js';
-import { sfx, playNote, isMuted, setMuted, unlockAudio } from './core/audio.js';
-import { toast } from './ui/toast.js';
-import { openLayer } from './ui/modals.js';
+import { el, rnd } from '../core/util.js';
+import { makeCanvas, ell, fillRR } from '../core/draw.js';
+import { drawHamster, blinkAt } from '../art/hamster.js';
+import { playerLook } from '../core/state.js';
+import { award } from '../core/actions.js';
+import { emit } from '../core/events.js';
+import { register } from '../core/registry.js';
+import { sfx, playNote, isMuted, setMuted, unlockAudio } from '../core/audio.js';
+import { toast } from '../ui/toast.js';
+import { openLayer } from '../ui/modals.js';
 
 const NAMES = ['До', '', 'Ре', '', 'Ми', 'Фа', '', 'Соль', '', 'Ля', '', 'Си'];
 const BLACK = [1, 3, 6, 8, 10];

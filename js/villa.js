@@ -3,7 +3,7 @@ import { clamp, lerp, rnd, pick, TAU, el } from './core/util.js';
 import { ell, fillRR, line, poly, shade, mix, rr, heart } from './core/draw.js';
 import { drawHamster, blinkAt } from './art/hamster.js';
 import { drawFurn, furnRect } from './art/furniture.js';
-import { FURN_BY_ID, NPC_BY_ID, npcLook } from './data.js';
+import { FURN_BY_ID, NPC_BY_ID, npcLook } from './data/index.js';
 import { G, playerLook, cal, darkness } from './core/state.js';
 import { placeFurn, stashFurn, moveFurn, setFurnOn, touchState } from './core/actions.js';
 import { emit, scope } from './core/events.js';

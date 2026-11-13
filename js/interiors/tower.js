@@ -1,8 +1,8 @@
 // Хомяк-Тауэр изнутри: холл → лифт → смотровая площадка на 101-м этаже, по которой можно гулять.
 import { clamp, rnd, seeded, TAU, el } from '../core/util.js';
-import { ell, fillRR, line, poly, shade, mix, rr, star, text, emoji, makeCanvas } from '../core/draw.js';
+import { ell, fillRR, line, poly, mix, rr, star, text, emoji, makeCanvas } from '../core/draw.js';
 import { drawHamster, blinkAt } from '../art/hamster.js';
-import { vendorLook, VENDORS } from '../data.js';
+import { vendorLook, VENDORS } from '../data/index.js';
 import { G, playerLook, cal, darkness } from '../core/state.js';
 import { award, bumpFlag } from '../core/actions.js';
 import { emit } from '../core/events.js';
@@ -273,8 +273,7 @@ function launch(tg) {
   sfx('whistle');
 }
 function updatePlanes(dt) {
-  const st = G.state,
-    top = -(S.floorY / S.cam.zoom) - 80,
+  const top = -(S.floorY / S.cam.zoom) - 80,
     vw = G.view.w / S.cam.zoom;
   // воздушные шарики поднимаются из города — в них можно попасть
   if (S.balloons.length < 4 && Math.random() < dt * 0.7)
