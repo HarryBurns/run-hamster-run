@@ -148,7 +148,7 @@ const SOUNDS = {
 
 /** Нота для пианино. midi: 60 — «до» первой октавы. inst: piano | bells | squeak */
 export function playNote(midi, inst = 'piano') {
-  if (muted) return;
+  if (muted || document.hidden) return; // в скрытой вкладке молчим: иначе resume() разбудит и музыку
   const a = ctx(); if (!a) return;
   if (a.state !== 'running') a.resume();
   const f = 440 * 2 ** ((midi - 69) / 12);
@@ -158,7 +158,7 @@ export function playNote(midi, inst = 'piano') {
 }
 
 export function sfx(name, arg) {
-  if (muted) return;
+  if (muted || document.hidden) return; // отложенный звук не должен будить звук в фоновой вкладке
   if (!ac || ac.state !== 'running') { if (ac) ac.resume(); else return; }
   const f = SOUNDS[name];
   if (f) { try { f(arg); } catch (e) { /* звук не критичен */ } }
