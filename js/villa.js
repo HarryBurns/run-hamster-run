@@ -7,6 +7,7 @@ import { G, playerLook, cal, darkness, save, addTo } from './game.js';
 import { sfx } from './audio.js';
 import { toast, furnIcon } from './ui.js';
 import * as F from './features.js';
+import { openPiano } from './piano.js';
 
 const RH = 250, SLAB = 26, FH = RH + SLAB;   // высота комнаты, толщина перекрытия
 const W = 1600, EX = 1660, WTOT = 1720;      // ширина жилой части, центр лифта, полная ширина
@@ -227,12 +228,7 @@ function actItem(it) {
       if (d.act === 'music' && it.on) { sfx('note', 523); setTimeout(() => sfx('note', 659), 150); setTimeout(() => sfx('note', 784), 300); }
       break;
     case 'plant': case 'toy': it.on = true; it.onT = 1.2; sfx('pop'); burst(it.x, y - d.h, 'spark', 4); break;
-    case 'piano': {
-      const notes = [523, 587, 659, 698, 784, 880, 988, 1047];
-      let i = 0; const n = 5;
-      const play = () => { sfx('note', pick(notes)); burst(it.x + rnd(-40, 40), y - d.h - 10, 'note', 1); if (++i < n) setTimeout(play, 190); };
-      play(); break;
-    }
+    case 'piano': openPiano(); break;
     case 'wheel': p.state = 'wheel'; p.item = it; p.x = it.x; it.on = true; V.stateT = 0; sfx('pop'); break;
     case 'fish': sfx('bubble'); sfx('heart'); burst(it.x, y - d.h + 20, 'bubble', 7); burst(it.x, y - d.h - 6, 'heart', 3); toast('Ты покормила рыбок. Они машут плавниками: «Спасибо!» 🐠'); G.emit('feed'); break;
     case 'book': toast(pick(['Ты прочитала сказку про храброго хомяка 📖', 'Книга рецептов: «100 блюд из семечек» 📖', 'Интересно! Хомяки запасают еду за щеками 📖', 'Стихи про море. Красиво! 📖'])); sfx('ok'); break;

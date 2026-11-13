@@ -146,6 +146,17 @@ const SOUNDS = {
   skate: () => noise(0, 0.22, 0.035, 5200, 'bandpass', sfxBus, 4),
 };
 
+/** Нота для пианино. midi: 60 — «до» первой октавы. inst: piano | bells | squeak */
+export function playNote(midi, inst = 'piano') {
+  if (muted) return;
+  const a = ctx(); if (!a) return;
+  if (a.state !== 'running') a.resume();
+  const f = 440 * 2 ** ((midi - 69) / 12);
+  if (inst === 'bells') { tone(f * 2, 0, 1.5, 'sine', 0.15); tone(f * 6.02, 0, 0.5, 'sine', 0.03); tone(f * 4, 0, 0.9, 'sine', 0.025); }
+  else if (inst === 'squeak') { tone(f * 2, 0, 0.16, 'sine', 0.15, f * 2.7); tone(f * 2.3, 0.11, 0.13, 'sine', 0.1, f * 3); }
+  else { tone(f, 0, 1.4, 'triangle', 0.2); tone(f * 2, 0, 0.8, 'sine', 0.06); tone(f * 3, 0, 0.4, 'sine', 0.025); noise(0, 0.03, 0.02, 2500, 'highpass'); }
+}
+
 export function sfx(name, arg) {
   if (muted) return;
   if (!ac || ac.state !== 'running') { if (ac) ac.resume(); else return; }

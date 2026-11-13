@@ -653,8 +653,8 @@ export function newDayMail() {
   if (s.day < FIRST_TASKS.length) id = FIRST_TASKS[s.day];
   else {
     const ripe = s.garden.some((b) => b.seed && b.age >= SEED_BY_ID[b.seed].days);
-    const hasWheel = s.villa.some((i) => i.id === 'wheel');
-    let pool = TASKS.filter((t) => (!t.seasons || t.seasons.includes(sea)) && !s.lastTasks.includes(t.id) && (!t.needsCrop || ripe) && (t.type !== 'wheel' || hasWheel));
+    const hasWheel = s.villa.some((i) => i.id === 'wheel'), hasPiano = s.villa.some((i) => i.id === 'piano');
+    let pool = TASKS.filter((t) => (!t.seasons || t.seasons.includes(sea)) && !s.lastTasks.includes(t.id) && (!t.needsCrop || ripe) && (t.type !== 'wheel' || hasWheel) && (t.type !== 'piano' || hasPiano));
     if (!pool.length) pool = TASKS.filter((t) => !t.seasons || t.seasons.includes(sea));
     id = pick(pool).id;
   }
@@ -764,6 +764,7 @@ function onEvent(type, d = {}) {
     case 'feed': ok = type === 'feed'; break;
     case 'coconut': ok = type === 'coconut'; break;
     case 'pearl': ok = type === 'pearl'; break;
+    case 'piano': ok = type === 'piano'; break;
     case 'swim':
       if (type === 'swim' && d.where === 'sea') {
         const b = S().look.outfit.body;
@@ -778,7 +779,7 @@ function onEvent(type, d = {}) {
   if (ok) completeTask();
 }
 export function initEvents() {
-  for (const ev of ['minigame', 'buy', 'cook', 'treat', 'gift', 'plant', 'harvest', 'salon', 'place', 'visit', 'wheel', 'skate', 'swim', 'collect', 'talk', 'spa', 'feed', 'coconut', 'pearl']) G.on(ev, (d) => onEvent(ev, d));
+  for (const ev of ['minigame', 'buy', 'cook', 'treat', 'gift', 'plant', 'harvest', 'salon', 'place', 'visit', 'wheel', 'skate', 'swim', 'collect', 'talk', 'spa', 'feed', 'coconut', 'pearl', 'piano']) G.on(ev, (d) => onEvent(ev, d));
 }
 
 // =====================================================================

@@ -144,6 +144,7 @@ function showHelp() {
       <li>✉️ Каждое утро в <b>почтовом ящике</b> у двери виллы лежит письмо с заданием. За него дают наклейку и иногда подарок.</li>
       <li>⭐ Звёздочка и стрелка показывают, куда идти по заданию. А на <b>🗺️ карте</b> можно нажать на любое место — и хомячок сама туда дойдёт.</li>
       <li>🏡 На вилле нажимай на всё подряд: шкаф, плиту, холодильник, ванну, сауну, джакузи, бассейн, телевизор… Лифт справа возит между этажами.</li>
+      <li>🎹 Нажми на <b>пианино</b> — оно откроется во весь экран, и можно играть самой или учить песенки по зелёным клавишам.</li>
       <li>🔨 Кнопка <b>«Обустроить»</b> — перетаскивай мебель, доставай новую из кладовки.</li>
       <li>🛍️ В городе — магазины одежды и мебели, продукты, салон красоты, кафе и мини-игры: бассейн, школа, больница, ресторан, Дом моды.</li>
       <li>🌊 В море можно заплывать далеко, а на глубине — <b>🤿 нырнуть</b>: под водой рыбы, кораллы, жемчужины и затонувший корабль.</li>
@@ -157,6 +158,7 @@ function showHelp() {
 function updateSound() {
   const playing = G.state && G.scene && !document.getElementById('title');
   if (!playing) { setMusic('title'); setAmbience({ sea: 0, rain: 0, birds: false, night: false }); return; }
+  if (document.getElementById('piano')) { setMusic(null); setAmbience({ sea: 0, rain: 0, birds: false, night: false }); return; } // за пианино фоновая музыка молчит
   const mg = !!document.getElementById('mg'), c = cal(), night = darkness() > 0.75, world = G.sceneName === 'world';
   const tower = G.sceneName === 'tower', deck = tower && Tower.onDeck(), out = world || deck;
   setMusic(mg ? 'minigame' : G.sceneName === 'dive' ? 'underwater' : G.sceneName === 'villa' && Villa.isParty() ? 'party' : night ? 'night' : world || tower ? 'town_' + c.season : 'villa');
@@ -212,6 +214,15 @@ function startGame(fresh) {
   G.scene = G.scenes[scene]; G.sceneName = scene;
   G.scene.enter(fresh ? 'wake' : 'load');
   updateHud();
+  // пианино в подарок (один раз), чтобы было на чём играть
+  if (!s.flags.pianoGift) {
+    s.flags.pianoGift = 1;
+    if (!s.villa.some((i) => i.id === 'piano') && !s.storage.piano) {
+      s.storage.piano = 1;
+      setTimeout(() => toast('🎹 В кладовке появилось пианино! Дома нажми 🔨 и поставь его.', 'good'), fresh ? 9000 : 1500);
+    }
+    save();
+  }
   if (fresh) {
     if (!s.stickers.includes('x_first')) s.stickers.push('x_first');
     message({
