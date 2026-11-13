@@ -222,6 +222,13 @@ export function enter(from) {
   if (from === 'villa') { const d = doorPx(B_BY_ID.villa); p.x = d.x; p.y = d.y; bt.x = BOAT_HOME.x; bt.y = BOAT_HOME.y; bt.on = false; } // кораблик возвращается к пирсу
   else if (s.pos && s.pos.scene === 'world') { p.x = s.pos.x; p.y = s.pos.y; }
   p.boat = !!bt.on;
+  // позиция из сохранения могла испортиться или оказаться в стене — тогда встаём рядом, а если никак — у двери виллы
+  const onMap = p.x >= 0 && p.x < MW * T && p.y >= 0 && p.y < MH * T;
+  if (!onMap || !walkable(tileOf(p.x), tileOf(p.y))) {
+    const nw = onMap ? nearestWalkable(tileOf(p.x), tileOf(p.y)) : null;
+    if (nw) { p.x = (nw[0] + 0.5) * T; p.y = (nw[1] + 0.5) * T; }
+    else { const d = doorPx(B_BY_ID.villa); p.x = d.x; p.y = d.y; p.boat = false; bt.on = false; }
+  }
   layout(); W.cam.x = p.x; W.cam.y = p.y; clampCam();
   initWeather();
 }
@@ -1168,5 +1175,5 @@ export function debugSeaShow(kind) { const c = W.sea.find((q) => q.kind === kind
 export function debugScreen(wx, wy) { const { w, h } = G.view, z = W.cam.zoom; return { x: (wx - W.cam.x) * z + w / 2, y: (wy - W.cam.y) * z + h / 2 }; }
 export function debugNpc(id) { const n = W.npcs.find((q) => q.id === id); return { ...debugScreen(n.x, n.y - 20), tx: Math.floor(n.x / T), ty: Math.floor(n.y / T), hidden: n.hidden }; }
 export function debugTeleport(tx, ty) { W.p.x = (tx + 0.5) * T; W.p.y = (ty + 0.5) * T; W.p.path = []; W.cam.x = W.p.x; W.cam.y = W.p.y; }
-const api = { enter, leave, update, draw, pointerDown, pointerMove, pointerUp, interactNearest };
+const api = { enter, leave, storePos, update, draw, pointerDown, pointerMove, pointerUp, interactNearest };
 export default api;

@@ -126,6 +126,10 @@ export function repair(s) {
     if (m.items && !Array.isArray(m.items)) m.items = null;
   }
   if (typeof s.weather !== 'string') s.weather = 'sun';
+  // позиция: только целая и из конечных чисел, иначе — у двери виллы (изнутри)
+  const p = s.pos, fin = Number.isFinite;
+  const okPos = p && typeof p === 'object' && (p.scene === 'world' ? fin(p.x) && fin(p.y) : p.scene === 'villa' && fin(p.x) && [0, 1, 2].includes(p.floor));
+  if (!okPos) s.pos = { scene: 'villa', floor: 0, x: 290 };
   return s;
 }
 export function hasSave() { try { return !!localStorage.getItem(KEY); } catch (e) { return false; } }

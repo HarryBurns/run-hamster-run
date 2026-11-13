@@ -23,7 +23,7 @@ G.go = (name, from) => {
   G.scene = G.scenes[name];
   G.sceneName = name;
   G.scene.enter(from);
-  if (name === 'tower') Tower.storePos(); else if (name === 'dive') Dive.storePos(); else G.state.pos.scene = name;
+  G.scene.storePos(); // позиция в сохранении — сразу целиком и от новой сцены (иначе там остаётся чужая)
   G.emit('hud'); save();
 };
 
@@ -237,7 +237,7 @@ function showBroken() {
 }
 function persist() {
   if (!G.state || !G.scene) return;
-  if (G.sceneName === 'world') World.storePos(); else if (G.sceneName === 'tower') Tower.storePos(); else if (G.sceneName === 'dive') Dive.storePos(); else Villa.storePos();
+  G.scene.storePos();
   save();
 }
 document.addEventListener('visibilitychange', () => { if (document.hidden) persist(); });
