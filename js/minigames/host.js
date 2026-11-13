@@ -17,7 +17,12 @@ const LOADERS = {
 };
 
 /** Подгрузить модули мини-игр заранее: тогда пропавшая сеть не помешает их открыть. */
-export function preloadMinigames() { for (const load of Object.values(LOADERS)) load().catch(() => { /* попробуем ещё раз при открытии */ }); }
+export function preloadMinigames() {
+  for (const load of Object.values(LOADERS))
+    load().catch(() => {
+      /* попробуем ещё раз при открытии */
+    });
+}
 
 /**
  * @param id    id мини-игры
@@ -27,7 +32,8 @@ export function preloadMinigames() { for (const load of Object.values(LOADERS)) 
 export async function runMinigame(id, info) {
   const mod = (await LOADERS[id]()).default;
   return new Promise((resolve) => {
-    const wrap = el('div'); wrap.id = 'mg';
+    const wrap = el('div');
+    wrap.id = 'mg';
     const head = el('div', 'mg-head', `<span>${mod.icon || '🎮'}</span><span class="title">${mod.title}</span>`);
     const close = el('button', 'xbtn', '✕');
     head.appendChild(close);
@@ -35,24 +41,52 @@ export async function runMinigame(id, info) {
     wrap.append(head, root);
     document.body.appendChild(wrap);
 
-    let game = null, ended = false;
-    const cleanup = () => { try { game && game.stop && game.stop(); } catch (e) { console.error(e); } game = null; };
-    const end = (res) => { if (ended) return; ended = true; cleanup(); wrap.remove(); resolve(res); };
-    close.onclick = () => { sfx('tap'); end(null); };
+    let game = null,
+      ended = false;
+    const cleanup = () => {
+      try {
+        game && game.stop && game.stop();
+      } catch (e) {
+        console.error(e);
+      }
+      game = null;
+    };
+    const end = (res) => {
+      if (ended) return;
+      ended = true;
+      cleanup();
+      wrap.remove();
+      resolve(res);
+    };
+    close.onclick = () => {
+      sfx('tap');
+      end(null);
+    };
 
     const card = (html, btnText, onBtn) => {
       const c = el('div', 'mg-card');
       const p = el('div', 'panel narrow', html);
       const b = el('button', 'btn big green', btnText);
-      b.onclick = () => { sfx('tap'); c.remove(); onBtn(); };
-      p.appendChild(b); c.appendChild(p); root.appendChild(c);
+      b.onclick = () => {
+        sfx('tap');
+        c.remove();
+        onBtn();
+      };
+      p.appendChild(b);
+      c.appendChild(p);
+      root.appendChild(c);
     };
 
     const host = {
       root,
-      look: info.look, name: info.name || 'Хомячок',
-      friends: info.friends || [], season: info.season || 'summer', level: info.level || 0,
-      info, drawHamster, sfx,
+      look: info.look,
+      name: info.name || 'Хомячок',
+      friends: info.friends || [],
+      season: info.season || 'summer',
+      level: info.level || 0,
+      info,
+      drawHamster,
+      sfx,
       /** Canvas на весь root, сам подстраивается под размер. draw-код работает в CSS-пикселях: cv.w × cv.h */
       canvas() {
         const canvas = document.createElement('canvas');
@@ -62,12 +96,15 @@ export async function runMinigame(id, info) {
         const fit = () => {
           const r = root.getBoundingClientRect();
           cv.dpr = Math.min(window.devicePixelRatio || 1, 2);
-          cv.w = Math.max(1, r.width); cv.h = Math.max(1, r.height);
-          canvas.width = Math.round(cv.w * cv.dpr); canvas.height = Math.round(cv.h * cv.dpr);
+          cv.w = Math.max(1, r.width);
+          cv.h = Math.max(1, r.height);
+          canvas.width = Math.round(cv.w * cv.dpr);
+          canvas.height = Math.round(cv.h * cv.dpr);
           cv.ctx.setTransform(cv.dpr, 0, 0, cv.dpr, 0, 0);
         };
         fit();
-        const ro = new ResizeObserver(fit); ro.observe(root);
+        const ro = new ResizeObserver(fit);
+        ro.observe(root);
         cv.destroy = () => ro.disconnect();
         return cv;
       },
@@ -78,12 +115,25 @@ export async function runMinigame(id, info) {
         sfx(stars === 3 ? 'win' : 'ok');
         const st = [1, 2, 3].map((i) => `<span class="${i <= stars ? '' : 'off'}">⭐</span>`).join('');
         const head2 = ['', 'Хорошо!', 'Здорово!', 'Великолепно!'][stars];
-        card(`<div class="stars">${st}</div><h2 style="margin:4px 0">${head2}</h2><p>${res.text || ''}</p>`, 'Ура!', () => end({ ...res, stars }));
+        card(
+          `<div class="stars">${st}</div><h2 style="margin:4px 0">${head2}</h2><p>${res.text || ''}</p>`,
+          'Ура!',
+          () => end({ ...res, stars }),
+        );
       },
     };
 
-    card(`<div class="big-emoji">${mod.icon || '🎮'}</div><h2 style="margin:4px 0">${mod.title}</h2><p>${mod.howTo || ''}</p>`, 'Начать!', () => {
-      try { game = mod.start(host) || null; } catch (e) { console.error(e); end(null); }
-    });
+    card(
+      `<div class="big-emoji">${mod.icon || '🎮'}</div><h2 style="margin:4px 0">${mod.title}</h2><p>${mod.howTo || ''}</p>`,
+      'Начать!',
+      () => {
+        try {
+          game = mod.start(host) || null;
+        } catch (e) {
+          console.error(e);
+          end(null);
+        }
+      },
+    );
   });
 }

@@ -58,14 +58,27 @@ function makeProblem(level) {
   const op = pick(kinds);
   let a, b, ans;
   if (op === '×') {
-    a = irnd(2, 9); b = irnd(2, 9); ans = a * b;
+    a = irnd(2, 9);
+    b = irnd(2, 9);
+    ans = a * b;
   } else if (level <= 0) {
-    if (op === '+') { a = irnd(2, 12); b = irnd(1, Math.min(9, 20 - a)); ans = a + b; }
-    else { a = irnd(5, 20); b = irnd(1, Math.min(10, a - 1)); ans = a - b; }
+    if (op === '+') {
+      a = irnd(2, 12);
+      b = irnd(1, Math.min(9, 20 - a));
+      ans = a + b;
+    } else {
+      a = irnd(5, 20);
+      b = irnd(1, Math.min(10, a - 1));
+      ans = a - b;
+    }
   } else if (op === '+') {
-    a = irnd(11, 65); b = irnd(5, Math.min(40, 100 - a)); ans = a + b;
+    a = irnd(11, 65);
+    b = irnd(5, Math.min(40, 100 - a));
+    ans = a + b;
   } else {
-    a = irnd(21, 99); b = irnd(5, Math.min(50, a - 5)); ans = a - b;
+    a = irnd(21, 99);
+    b = irnd(5, Math.min(50, a - 5));
+    ans = a - b;
   }
   return { a, b, op, ans, key: a + op + b };
 }
@@ -83,15 +96,20 @@ export default {
   id: 'teacher',
   title: 'Учительница',
   icon: '👩‍🏫',
-  howTo: 'Ученики приносят тетрадки с примерами. Посмотри на пример и реши: он решён <b>верно</b> или в нём <b>ошибка</b>? Всего 10 тетрадок.',
+  howTo:
+    'Ученики приносят тетрадки с примерами. Посмотри на пример и реши: он решён <b>верно</b> или в нём <b>ошибка</b>? Всего 10 тетрадок.',
 
   start(host) {
     const root = host.root;
     const level = host.level || 0;
-    let stopped = false, raf = 0;
+    let stopped = false,
+      raf = 0;
     const timers = new Set();
     const later = (fn, ms) => {
-      const id = setTimeout(() => { timers.delete(id); if (!stopped) fn(); }, ms);
+      const id = setTimeout(() => {
+        timers.delete(id);
+        if (!stopped) fn();
+      }, ms);
       timers.add(id);
     };
 
@@ -101,7 +119,10 @@ export default {
     const seen = new Set();
     const tasks = flags.map((isWrong) => {
       let p;
-      for (let i = 0; i < 30; i++) { p = makeProblem(level); if (!seen.has(p.key)) break; }
+      for (let i = 0; i < 30; i++) {
+        p = makeProblem(level);
+        if (!seen.has(p.key)) break;
+      }
       seen.add(p.key);
       return { ...p, shown: isWrong ? wrongAnswer(p) : p.ans, isWrong };
     });
@@ -124,39 +145,63 @@ export default {
       </div>`;
     root.appendChild(wrap);
     const $ = (s) => wrap.querySelector(s);
-    const countEl = $('.tch-count'), marksEl = $('.tch-marks');
-    const bTitle = $('.tch-b-title'), bLine = $('.tch-b-line'), bSub = $('.tch-b-sub');
+    const countEl = $('.tch-count'),
+      marksEl = $('.tch-marks');
+    const bTitle = $('.tch-b-title'),
+      bLine = $('.tch-b-line'),
+      bSub = $('.tch-b-sub');
     const desk = $('.tch-desk');
-    const btnYes = $('.tch-yes'), btnNo = $('.tch-no');
+    const btnYes = $('.tch-yes'),
+      btnNo = $('.tch-no');
 
-    const tea = makeCanvas(130, 140); tea.canvas.className = 'tch-tea'; tea.canvas.style.width = ''; tea.canvas.style.height = '';
+    const tea = makeCanvas(130, 140);
+    tea.canvas.className = 'tch-tea';
+    tea.canvas.style.width = '';
+    tea.canvas.style.height = '';
     $('.tch-boardwrap').appendChild(tea.canvas);
-    const stu = makeCanvas(150, 140); stu.canvas.className = 'tch-stu'; stu.canvas.style.width = ''; stu.canvas.style.height = '';
+    const stu = makeCanvas(150, 140);
+    stu.canvas.className = 'tch-stu';
+    stu.canvas.style.width = '';
+    stu.canvas.style.height = '';
     desk.appendChild(stu.canvas);
     let note = null;
 
     const marks = [];
-    for (let i = 0; i < TOTAL; i++) { const m = el('div', 'tch-mark'); marksEl.appendChild(m); marks.push(m); }
+    for (let i = 0; i < TOTAL; i++) {
+      const m = el('div', 'tch-mark');
+      marksEl.appendChild(m);
+      marks.push(m);
+    }
 
     // --- состояние
-    let idx = 0, correct = 0, phase = 'ask'; // ask | react | done
-    let react = null;        // 'happy' | 'oops' | null — реакция ученика
+    let idx = 0,
+      correct = 0,
+      phase = 'ask'; // ask | react | done
+    let react = null; // 'happy' | 'oops' | null — реакция ученика
     let teacherTalk = false;
-    let enterAt = 0;         // время появления ученика (для анимации)
+    let enterAt = 0; // время появления ученика (для анимации)
     let now = 0;
 
     const exText = (t, v) => `${t.a} ${t.op === '-' ? '−' : t.op} ${t.b} = ${v}`;
 
     function showTask() {
-      const t = tasks[idx], s = students[idx % students.length];
-      phase = 'ask'; react = null; teacherTalk = false; enterAt = now;
+      const t = tasks[idx],
+        s = students[idx % students.length];
+      phase = 'ask';
+      react = null;
+      teacherTalk = false;
+      enterAt = now;
       countEl.textContent = `Тетрадка ${idx + 1} из ${TOTAL}`;
       marks.forEach((m, i) => m.classList.toggle('cur', i === idx));
       bTitle.textContent = 'Проверь тетрадку!';
       bLine.textContent = '✔ или ✘ ?';
       bSub.textContent = '';
       if (note) note.remove();
-      note = el('div', 'tch-note', `<div class="tch-who">Тетрадь: ${s.name}</div><div class="tch-ex">${exText(t, t.shown)}</div>`);
+      note = el(
+        'div',
+        'tch-note',
+        `<div class="tch-who">Тетрадь: ${s.name}</div><div class="tch-ex">${exText(t, t.shown)}</div>`,
+      );
       desk.appendChild(note);
       btnYes.disabled = btnNo.disabled = false;
       host.sfx('pop');
@@ -173,7 +218,8 @@ export default {
       marks[idx].textContent = right ? '✔' : '✘';
       // оценка в тетрадке — как на самом деле
       const exEl = note.querySelector('.tch-ex');
-      if (t.isWrong) exEl.innerHTML = `${t.a} ${t.op === '-' ? '−' : t.op} ${t.b} = <s>${t.shown}</s> <span class="fix">${t.ans}</span>`;
+      if (t.isWrong)
+        exEl.innerHTML = `${t.a} ${t.op === '-' ? '−' : t.op} ${t.b} = <s>${t.shown}</s> <span class="fix">${t.ans}</span>`;
       note.appendChild(el('div', 'tch-stamp ' + (t.isWrong ? 'no' : 'ok'), t.isWrong ? '✘' : '✔'));
       teacherTalk = true;
       if (right) {
@@ -213,8 +259,13 @@ export default {
     const onKey = (e) => {
       if (e.repeat) return;
       const k = e.key.toLowerCase();
-      if (k === 'arrowleft' || k === 'v' || k === 'м') { e.preventDefault(); answer(true); }
-      else if (k === 'arrowright' || k === 'x' || k === 'ч') { e.preventDefault(); answer(false); }
+      if (k === 'arrowleft' || k === 'v' || k === 'м') {
+        e.preventDefault();
+        answer(true);
+      } else if (k === 'arrowright' || k === 'x' || k === 'ч') {
+        e.preventDefault();
+        answer(false);
+      }
     };
     window.addEventListener('keydown', onKey);
 
@@ -236,7 +287,8 @@ export default {
       wrap.style.setProperty('--bl', clamp(Math.min(ex * 0.85, boardW / 8), 14, 50) + 'px');
     };
     fit();
-    const ro = new ResizeObserver(fit); ro.observe(root);
+    const ro = new ResizeObserver(fit);
+    ro.observe(root);
 
     // --- анимация хомячков
     const t0 = performance.now();
@@ -257,7 +309,10 @@ export default {
       const slide = (1 - k) * (1 - k) * 150;
       const hop = react === 'happy' ? Math.abs(Math.sin(now * 9)) * 6 : 0;
       host.drawHamster(c2, 75 + slide, 118 - hop, 1.15, s.look, {
-        time: now, shadow: false, happy: react === 'happy', armsUp: react === 'happy',
+        time: now,
+        shadow: false,
+        happy: react === 'happy',
+        armsUp: react === 'happy',
         blink: react === 'oops' ? true : blink,
       });
       fillRR(c2, 6, 108, 138, 30, 8, '#c98b5a', '#4a3728', 2);
@@ -272,7 +327,8 @@ export default {
       stop() {
         stopped = true;
         cancelAnimationFrame(raf);
-        timers.forEach(clearTimeout); timers.clear();
+        timers.forEach(clearTimeout);
+        timers.clear();
         window.removeEventListener('keydown', onKey);
         ro.disconnect();
         wrap.remove();

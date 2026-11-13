@@ -3,7 +3,18 @@ import { G, newGame, load, loadProblem, backupSave, save, repair, hasSave, wipe,
 import { el, esc, fmtMoney, makeCanvas } from './util.js';
 import { drawHamster, defaultLook, blinkAt } from './hamster.js';
 import { resolveLook, START_OUTFIT, NPC_BY_ID } from './data.js';
-import { sfx, unlockAudio, isMuted, setMuted, isMusicOn, setMusicOn, getMusicVolume, setMusicVolume, setMusic, setAmbience } from './audio.js';
+import {
+  sfx,
+  unlockAudio,
+  isMuted,
+  setMuted,
+  isMusicOn,
+  setMusicOn,
+  getMusicVolume,
+  setMusicVolume,
+  setMusic,
+  setAmbience,
+} from './audio.js';
 import { toast, openPanel, message, confirmBox } from './ui.js';
 import WorldScene, * as World from './world.js';
 import * as Villa from './villa.js';
@@ -26,7 +37,8 @@ G.go = (name, from) => {
   G.sceneName = name;
   G.scene.enter(from);
   G.scene.storePos(); // позиция в сохранении — сразу целиком и от новой сцены (иначе там остаётся чужая)
-  G.emit('hud'); save();
+  G.emit('hud');
+  save();
 };
 
 // ---------- размер экрана ----------
@@ -34,11 +46,16 @@ G.go = (name, from) => {
 // а большие планшеты и мониторы с плотностью 2 рисуются чуть мягче (ревью советует 2,5–3 млн — можно ужать).
 const MAX_CANVAS_PX = 4e6;
 function resize() {
-  const w = window.innerWidth, h = window.innerHeight, real = window.devicePixelRatio || 1;
+  const w = window.innerWidth,
+    h = window.innerHeight,
+    real = window.devicePixelRatio || 1;
   // плотность канвы: не больше 2 и не больше MAX_CANVAS_PX пикселей всего, но и не грубее экрана с плотностью 1
   dpr = Math.max(Math.min(1, real), Math.min(real, 2, Math.sqrt(MAX_CANVAS_PX / Math.max(1, w * h))));
-  G.view.w = w; G.view.h = h; G.view.dpr = dpr;
-  canvas.width = Math.round(w * dpr); canvas.height = Math.round(h * dpr);
+  G.view.w = w;
+  G.view.h = h;
+  G.view.dpr = dpr;
+  canvas.width = Math.round(w * dpr);
+  canvas.height = Math.round(h * dpr);
   redraw = true; // смена размера стирает канву
 }
 window.addEventListener('resize', resize);
@@ -51,10 +68,16 @@ canvas.addEventListener('pointerdown', (e) => {
   unlockAudio();
   if (G.modal || !G.scene || activePointer !== null) return;
   activePointer = e.pointerId;
-  try { canvas.setPointerCapture(e.pointerId); } catch (err) { /* не критично */ }
+  try {
+    canvas.setPointerCapture(e.pointerId);
+  } catch (err) {
+    /* не критично */
+  }
   G.scene.pointerDown(e.clientX, e.clientY);
 });
-canvas.addEventListener('pointermove', (e) => { if (e.pointerId === activePointer && G.scene && !G.modal) G.scene.pointerMove(e.clientX, e.clientY); });
+canvas.addEventListener('pointermove', (e) => {
+  if (e.pointerId === activePointer && G.scene && !G.modal) G.scene.pointerMove(e.clientX, e.clientY);
+});
 const up = (e) => {
   if (e.pointerId !== activePointer) return;
   activePointer = null;
@@ -77,21 +100,37 @@ window.addEventListener('blur', () => G.keys.clear());
 let chipDate, chipMoney, chipTask, btnLeft, btnMap, btnDive, btnBoat;
 function rbtn(icon, label, fn) {
   const b = el('button', 'rbtn', `${icon}<span class="lbl">${label}</span>`);
-  b.onclick = () => { unlockAudio(); sfx('tap'); fn(); };
+  b.onclick = () => {
+    unlockAudio();
+    sfx('tap');
+    fn();
+  };
   return b;
 }
 function buildHud() {
   hud.innerHTML = '';
   const top = el('div', 'hud-top');
-  chipDate = el('div', 'chip'); chipMoney = el('div', 'chip'); chipTask = el('div', 'chip task');
-  chipTask.onclick = () => { sfx('tap'); F.showLetter(); };
+  chipDate = el('div', 'chip');
+  chipMoney = el('div', 'chip');
+  chipTask = el('div', 'chip task');
+  chipTask.onclick = () => {
+    sfx('tap');
+    F.showLetter();
+  };
   top.append(chipDate, chipMoney, chipTask);
   const right = el('div', 'hud-btns');
-  right.append(rbtn('🎒', 'Рюкзак', F.openBackpack), rbtn('📖', 'Альбом', F.openAlbum), rbtn('📱', 'Гости', F.openPhone), rbtn('⚙️', 'Меню', openSettings));
+  right.append(
+    rbtn('🎒', 'Рюкзак', F.openBackpack),
+    rbtn('📖', 'Альбом', F.openAlbum),
+    rbtn('📱', 'Гости', F.openPhone),
+    rbtn('⚙️', 'Меню', openSettings),
+  );
   const left = el('div', 'hud-btns left');
   btnLeft = rbtn('🔨', 'Обустроить', leftAction);
   btnMap = rbtn('🗺️', 'Карта', F.openMap);
-  btnDive = rbtn('🤿', 'Нырнуть', () => { if (World.canDive()) G.go('dive', 'world'); });
+  btnDive = rbtn('🤿', 'Нырнуть', () => {
+    if (World.canDive()) G.go('dive', 'world');
+  });
   btnDive.classList.add('on');
   btnBoat = rbtn('⚓', 'Сойти', () => World.leaveBoat());
   btnBoat.classList.add('on');
@@ -99,9 +138,13 @@ function buildHud() {
   hud.append(top, right, left);
 }
 async function leftAction() {
-  if (G.sceneName === 'dive') { Dive.surface(); return; }
+  if (G.sceneName === 'dive') {
+    Dive.surface();
+    return;
+  }
   if (G.sceneName === 'villa') Villa.setDecor(!Villa.isDecor());
-  else if (await confirmBox('Домой?', '<p class="center">Вернуться на виллу прямо сейчас?</p>', 'Да, домой 🏡', 'Нет')) G.go('villa', 'world');
+  else if (await confirmBox('Домой?', '<p class="center">Вернуться на виллу прямо сейчас?</p>', 'Да, домой 🏡', 'Нет'))
+    G.go('villa', 'world');
 }
 function updateHud() {
   if (!G.state || !chipDate) return;
@@ -109,7 +152,8 @@ function updateHud() {
   chipDate.innerHTML = `${c.seasonIcon} <b>${c.monthName}</b>, день ${c.dom} · ${c.phaseIcon} ${c.time}`;
   chipMoney.innerHTML = `🪙 <b>${fmtMoney(G.state.money)}</b>`;
   const t = F.taskChip();
-  chipTask.textContent = t.text; chipTask.className = 'chip task ' + t.cls;
+  chipTask.textContent = t.text;
+  chipTask.className = 'chip task ' + t.cls;
   const villa = G.sceneName === 'villa';
   const dive = G.sceneName === 'dive';
   btnLeft.firstChild.textContent = villa ? '🔨' : dive ? '⬆️' : '🏡';
@@ -120,35 +164,80 @@ function updateHud() {
   btnLeft.classList.toggle('on', villa && Villa.isDecor());
   hud.classList.toggle('decor', villa && Villa.isDecor());
 }
-G.on('hud', updateHud); G.on('money', updateHud);
+G.on('hud', updateHud);
+G.on('money', updateHud);
 
 function openSettings() {
   openPanel({
-    title: 'Меню', icon: '⚙️', cls: 'narrow',
+    title: 'Меню',
+    icon: '⚙️',
+    cls: 'narrow',
     render(body, tab, panel) {
       const c = cal();
-      body.appendChild(el('p', 'center', `<b>${esc(G.state.name)}</b> · ${c.year}-й год на вилле<br><span class="muted">Игра сохраняется сама.</span>`));
-      const mus = el('button', 'btn ' + (isMusicOn() ? 'green' : 'ghost'), isMusicOn() ? '🎵 Музыка включена' : '🎵 Музыка выключена');
-      mus.onclick = () => { setMusicOn(!isMusicOn()); sfx('tap'); panel.refresh(); };
-      const vol = el('label', 'vol', '<span>🔈</span><input type="range" min="0" max="100" step="5" aria-label="Громкость музыки"><span>🔊</span>');
-      const rng = vol.querySelector('input'); rng.value = Math.round(getMusicVolume() * 100); rng.disabled = !isMusicOn();
+      body.appendChild(
+        el(
+          'p',
+          'center',
+          `<b>${esc(G.state.name)}</b> · ${c.year}-й год на вилле<br><span class="muted">Игра сохраняется сама.</span>`,
+        ),
+      );
+      const mus = el(
+        'button',
+        'btn ' + (isMusicOn() ? 'green' : 'ghost'),
+        isMusicOn() ? '🎵 Музыка включена' : '🎵 Музыка выключена',
+      );
+      mus.onclick = () => {
+        setMusicOn(!isMusicOn());
+        sfx('tap');
+        panel.refresh();
+      };
+      const vol = el(
+        'label',
+        'vol',
+        '<span>🔈</span><input type="range" min="0" max="100" step="5" aria-label="Громкость музыки"><span>🔊</span>',
+      );
+      const rng = vol.querySelector('input');
+      rng.value = Math.round(getMusicVolume() * 100);
+      rng.disabled = !isMusicOn();
       rng.oninput = () => setMusicVolume(rng.value / 100);
-      const snd = el('button', 'btn ' + (isMuted() ? 'ghost' : 'blue'), isMuted() ? '🔇 Звуки выключены' : '🔊 Звуки включены');
-      snd.onclick = () => { setMuted(!isMuted()); sfx('ok'); panel.refresh(); };
+      const snd = el(
+        'button',
+        'btn ' + (isMuted() ? 'ghost' : 'blue'),
+        isMuted() ? '🔇 Звуки выключены' : '🔊 Звуки включены',
+      );
+      snd.onclick = () => {
+        setMuted(!isMuted());
+        sfx('ok');
+        panel.refresh();
+      };
       const help = el('button', 'btn yellow', '❓ Как играть');
       help.onclick = () => showHelp();
       const reset = el('button', 'btn ghost', '🗑️ Начать заново');
       reset.onclick = async () => {
-        if (await confirmBox('Начать заново?', '<p class="center">Вся игра сотрётся: наряды, мебель, друзья и наклейки. Точно?</p>', 'Да, стереть', 'Нет-нет!')) { wipe(); location.reload(); }
+        if (
+          await confirmBox(
+            'Начать заново?',
+            '<p class="center">Вся игра сотрётся: наряды, мебель, друзья и наклейки. Точно?</p>',
+            'Да, стереть',
+            'Нет-нет!',
+          )
+        ) {
+          wipe();
+          location.reload();
+        }
       };
-      const col = el('div'); col.style.cssText = 'display:flex;flex-direction:column;gap:12px;align-items:stretch';
-      col.append(mus, vol, snd, help, reset); body.appendChild(col);
+      const col = el('div');
+      col.style.cssText = 'display:flex;flex-direction:column;gap:12px;align-items:stretch';
+      col.append(mus, vol, snd, help, reset);
+      body.appendChild(col);
     },
   });
 }
 function showHelp() {
   return message({
-    title: 'Как играть', icon: '❓', cls: '',
+    title: 'Как играть',
+    icon: '❓',
+    cls: '',
     html: `<ul class="help">
       <li>👆 <b>Нажми</b> на любое место — хомячок пойдёт туда. На компьютере можно стрелками или WASD, а <b>E</b> — «потрогать» то, что рядом.</li>
       <li>✉️ Каждое утро в <b>почтовом ящике</b> у двери виллы лежит письмо с заданием. За него дают наклейку и иногда подарок.</li>
@@ -168,11 +257,36 @@ function showHelp() {
 // ---------- какая музыка и какие звуки вокруг ----------
 function updateSound() {
   const playing = G.state && G.scene && !document.getElementById('title');
-  if (!playing) { setMusic('title'); setAmbience({ sea: 0, rain: 0, birds: false, night: false }); return; }
-  if (document.getElementById('piano')) { setMusic(null); setAmbience({ sea: 0, rain: 0, birds: false, night: false }); return; } // за пианино фоновая музыка молчит
-  const mg = !!document.getElementById('mg'), c = cal(), night = darkness() > 0.75, world = G.sceneName === 'world';
-  const tower = G.sceneName === 'tower', deck = tower && Tower.onDeck(), out = world || deck;
-  setMusic(mg ? 'minigame' : G.sceneName === 'dive' ? 'underwater' : G.sceneName === 'villa' && Villa.isParty() ? 'party' : night ? 'night' : world || tower ? 'town_' + c.season : 'villa');
+  if (!playing) {
+    setMusic('title');
+    setAmbience({ sea: 0, rain: 0, birds: false, night: false });
+    return;
+  }
+  if (document.getElementById('piano')) {
+    setMusic(null);
+    setAmbience({ sea: 0, rain: 0, birds: false, night: false });
+    return;
+  } // за пианино фоновая музыка молчит
+  const mg = !!document.getElementById('mg'),
+    c = cal(),
+    night = darkness() > 0.75,
+    world = G.sceneName === 'world';
+  const tower = G.sceneName === 'tower',
+    deck = tower && Tower.onDeck(),
+    out = world || deck;
+  setMusic(
+    mg
+      ? 'minigame'
+      : G.sceneName === 'dive'
+        ? 'underwater'
+        : G.sceneName === 'villa' && Villa.isParty()
+          ? 'party'
+          : night
+            ? 'night'
+            : world || tower
+              ? 'town_' + c.season
+              : 'villa',
+  );
   const rain = G.state.weather === 'rain';
   setAmbience({
     sea: mg ? 0 : world ? World.seaLevel() : deck ? 0.3 : 0,
@@ -183,14 +297,21 @@ function updateSound() {
 }
 
 // ---------- главный цикл ----------
-let last = performance.now(), hudT = 0, saveT = 0, sndT = 0;
+let last = performance.now(),
+  hudT = 0,
+  saveT = 0,
+  sndT = 0;
 let frameNo = 0;
 let failStreak = 0; // сколько кадров подряд закончились ошибкой
 const FAIL_LIMIT = 30;
-const MAX_FRAME = 0.1, MAX_STEP = 0.05; // секунды
+const MAX_FRAME = 0.1,
+  MAX_STEP = 0.05; // секунды
 /** Выполнить часть кадра так, чтобы её ошибка не остановила игру. Возвращает false, если была ошибка. */
 function guard(fn) {
-  try { fn(); return true; } catch (e) {
+  try {
+    fn();
+    return true;
+  } catch (e) {
     if (failStreak < 3) console.error(e); // не засыпаем консоль одной и той же ошибкой 60 раз в секунду
     return false;
   }
@@ -198,11 +319,20 @@ function guard(fn) {
 function tick(dt) {
   const s = G.state;
   if (s.minutes < 23 * 60 + 59) s.minutes = Math.min(23 * 60 + 59, s.minutes + dt / 0.6);
-  if (s.minutes >= 22 * 60 && !s.dayFlags.late) { s.dayFlags.late = true; toast('Уже поздно. Пора в кроватку 😴'); }
+  if (s.minutes >= 22 * 60 && !s.dayFlags.late) {
+    s.dayFlags.late = true;
+    toast('Уже поздно. Пора в кроватку 😴');
+  }
   // гость, который приходит сам
   if (s.visitor && G.sceneName === 'villa' && s.minutes >= 11 * 60 && !Villa.isDecor()) {
-    const id = s.visitor; s.visitor = null;
-    if (!s.guests.includes(id) && s.guests.length < 3 && s.friends[id].met) { s.guests.push(id); Villa.syncGuests(); sfx('bell'); toast(`Тук-тук! ${NPC_BY_ID[id].name} заглянул${NPC_BY_ID[id].fem ? 'а' : ''} в гости 🚪`, 'good'); }
+    const id = s.visitor;
+    s.visitor = null;
+    if (!s.guests.includes(id) && s.guests.length < 3 && s.friends[id].met) {
+      s.guests.push(id);
+      Villa.syncGuests();
+      sfx('bell');
+      toast(`Тук-тук! ${NPC_BY_ID[id].name} заглянул${NPC_BY_ID[id].fem ? 'а' : ''} в гости 🚪`, 'good');
+    }
   }
   G.scene.update(dt);
 }
@@ -214,38 +344,66 @@ function frame(now) {
   requestAnimationFrame(frame); // первым делом: что бы ни случилось ниже, следующий кадр уже заказан
   // Кадр длиннее 100 мс обрезаем (вкладка вернулась из фона), а длинный делим на шаги логики не больше 50 мс:
   // на слабом устройстве игра идёт с той же скоростью, только реже рисуется.
-  const dtFrame = Math.min(MAX_FRAME, Math.max(0, (now - last) / 1000)); last = now;
-  const steps = Math.max(1, Math.ceil(dtFrame / MAX_STEP - 1e-6)), dt = dtFrame / steps;
-  let ok = true, drew = false;
+  const dtFrame = Math.min(MAX_FRAME, Math.max(0, (now - last) / 1000));
+  last = now;
+  const steps = Math.max(1, Math.ceil(dtFrame / MAX_STEP - 1e-6)),
+    dt = dtFrame / steps;
+  let ok = true,
+    drew = false;
   for (let i = 0; i < steps; i++) {
     G.time += dt;
     if (G.state && G.scene && !G.modal) ok = guard(() => tick(dt)) && ok;
   }
-  sndT += dtFrame; if (sndT > 0.25) { sndT = 0; ok = guard(updateSound) && ok; }
+  sndT += dtFrame;
+  if (sndT > 0.25) {
+    sndT = 0;
+    ok = guard(updateSound) && ok;
+  }
   if (G.state && G.scene) {
     // Под мини-игрой, пианино и затемнением сна сцену не видно — не рисуем вовсе.
     // Под окном с затемнением хватает каждого третьего кадра: мир на паузе, шевелятся только вода и дыхание.
     frameNo++;
     if (!G.cover && (redraw || !G.dim || frameNo % 3 === 0)) {
-      redraw = false; drew = true;
-      if (!guard(render)) { ok = false; canvas.width = canvas.width; } // сброс канвы: после ошибки на ней могли остаться clip и недозакрытые save()
+      redraw = false;
+      drew = true;
+      if (!guard(render)) {
+        ok = false;
+        canvas.width = canvas.width;
+      } // сброс канвы: после ошибки на ней могли остаться clip и недозакрытые save()
     }
-    hudT += dtFrame; if (hudT > 1) { hudT = 0; ok = guard(updateHud) && ok; }
-    saveT += dtFrame; if (saveT > 20) { saveT = 0; ok = guard(persist) && ok; }
+    hudT += dtFrame;
+    if (hudT > 1) {
+      hudT = 0;
+      ok = guard(updateHud) && ok;
+    }
+    saveT += dtFrame;
+    if (saveT > 20) {
+      saveT = 0;
+      ok = guard(persist) && ok;
+    }
   }
   // кадр, в котором сцену не рисовали (она под окном), ничего не доказывает — счёт сбоев не сбрасываем
-  if (!ok) { if (++failStreak === FAIL_LIMIT) showBroken(); } else if (drew || !G.scene) failStreak = 0;
+  if (!ok) {
+    if (++failStreak === FAIL_LIMIT) showBroken();
+  } else if (drew || !G.scene) failStreak = 0;
 }
 /** Игра спотыкается в каждом кадре: честно сказать об этом и предложить выход. */
 function showBroken() {
   message({
-    title: 'Ой! Что-то сломалось', icon: '🛠️', sticky: true,
+    title: 'Ой! Что-то сломалось',
+    icon: '🛠️',
+    sticky: true,
     html: '<p class="center big-emoji">🙈</p><p class="center">Игра споткнулась. Давай вернёмся домой — там всё починится. Твои вещи и друзья на месте!</p>',
     buttons: [{ text: 'Домой 🏡' }, { text: 'Перезапустить игру', cls: 'ghost' }],
   }).then((i) => {
-    if (i === 1) { location.reload(); return; }
+    if (i === 1) {
+      location.reload();
+      return;
+    }
     failStreak = 0; // если не помогло — окно появится снова
-    guard(() => { if (G.scene && G.scene.leave) G.scene.leave(); });
+    guard(() => {
+      if (G.scene && G.scene.leave) G.scene.leave();
+    });
     G.scene = null; // чтобы G.go не звал leave() сломанной сцены второй раз
     guard(() => {
       repair(G.state);
@@ -260,7 +418,9 @@ function persist() {
   G.scene.storePos();
   save();
 }
-document.addEventListener('visibilitychange', () => { if (document.hidden) persist(); });
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) persist();
+});
 window.addEventListener('pagehide', persist);
 
 // ---------- заставка ----------
@@ -270,7 +430,8 @@ function startGame(fresh) {
   const s = G.state;
   if (!s.mail) F.newDayMail();
   const scene = s.pos && s.pos.scene === 'world' ? 'world' : 'villa';
-  G.scene = G.scenes[scene]; G.sceneName = scene;
+  G.scene = G.scenes[scene];
+  G.sceneName = scene;
   G.scene.enter(fresh ? 'wake' : 'load');
   updateHud();
   setTimeout(preloadMinigames, 5000); // в простое, не мешая началу игры
@@ -279,61 +440,131 @@ function startGame(fresh) {
     s.flags.pianoGift = 1;
     if (!s.villa.some((i) => i.id === 'piano') && !s.storage.piano) {
       s.storage.piano = 1;
-      setTimeout(() => toast('🎹 В кладовке появилось пианино! Дома нажми 🔨 и поставь его.', 'good'), fresh ? 9000 : 1500);
+      setTimeout(
+        () => toast('🎹 В кладовке появилось пианино! Дома нажми 🔨 и поставь его.', 'good'),
+        fresh ? 9000 : 1500,
+      );
     }
     save();
   }
   if (fresh) {
     if (!s.stickers.includes('x_first')) s.stickers.push('x_first');
     message({
-      title: 'Добро пожаловать!', icon: '🏡', sticky: true,
+      title: 'Добро пожаловать!',
+      icon: '🏡',
+      sticky: true,
       html: `<p class="center big-emoji">🐹</p><p>Привет, <b>${esc(s.name)}</b>! Это твоя вилла: три этажа, сауна, джакузи, бассейн и целый <b>миллиард монет</b> в банке.</p>
         <p>На дворе <b>январь</b> и зима ❄️. Рядом — город у моря, там магазины, друзья и приключения.</p>
         <p>✉️ У входной двери висит <b>почтовый ящик</b> — в нём уже лежит первое письмо. Выходи через дверь на первом этаже!</p>`,
       buttons: [{ text: 'Поехали!' }, { text: '❓ Как играть', cls: 'yellow' }],
-    }).then((i) => { if (i === 1) showHelp(); });
+    }).then((i) => {
+      if (i === 1) showHelp();
+    });
     save();
   }
 }
 function titleScreen() {
-  const t = el('div'); t.id = 'title';
+  const t = el('div');
+  t.id = 'title';
   const { canvas: cv, ctx: c2 } = makeCanvas(200, 190);
-  const look = resolveLook({ ...defaultLook(), outfit: { ...START_OUTFIT }, beauty: { ...defaultLook().beauty, bow: '#ff5c8a' } });
-  let raf = 0; const t0 = performance.now();
-  const loop = () => { const tt = (performance.now() - t0) / 1000; c2.clearRect(0, 0, 200, 190); drawHamster(c2, 100, 172, 1.9, look, { time: tt, happy: tt % 4 > 3, armsUp: tt % 4 > 3 && Math.sin(tt * 10) > 0, blink: blinkAt(tt) }); raf = requestAnimationFrame(loop); };
+  const look = resolveLook({
+    ...defaultLook(),
+    outfit: { ...START_OUTFIT },
+    beauty: { ...defaultLook().beauty, bow: '#ff5c8a' },
+  });
+  let raf = 0;
+  const t0 = performance.now();
+  const loop = () => {
+    const tt = (performance.now() - t0) / 1000;
+    c2.clearRect(0, 0, 200, 190);
+    drawHamster(c2, 100, 172, 1.9, look, {
+      time: tt,
+      happy: tt % 4 > 3,
+      armsUp: tt % 4 > 3 && Math.sin(tt * 10) > 0,
+      blink: blinkAt(tt),
+    });
+    raf = requestAnimationFrame(loop);
+  };
   loop();
   const hero = el('div', 'hero');
   hero.appendChild(el('h1', '', 'Run, Hamster, Run!'));
   hero.appendChild(el('div', 'sub', 'Большая жизнь маленького хомячка'));
   hero.appendChild(cv);
   t.appendChild(hero);
-  const go = (fresh) => { cancelAnimationFrame(raf); t.remove(); unlockAudio(); sfx('win'); startGame(fresh); };
+  const go = (fresh) => {
+    cancelAnimationFrame(raf);
+    t.remove();
+    unlockAudio();
+    sfx('win');
+    startGame(fresh);
+  };
   const newForm = () => {
     form.innerHTML = '';
     form.appendChild(el('div', 'sub', 'Как зовут твою хомячку?'));
-    const inp = el('input'); inp.maxLength = 14; inp.value = 'Хомка'; inp.setAttribute('aria-label', 'Имя');
+    const inp = el('input');
+    inp.maxLength = 14;
+    inp.value = 'Хомка';
+    inp.setAttribute('aria-label', 'Имя');
     const b = el('button', 'btn big green', 'Играть! ▶');
-    b.onclick = () => { newGame((inp.value || '').trim() || 'Хомка'); go(true); };
-    inp.addEventListener('keydown', (e) => { if (e.key === 'Enter') b.click(); });
+    b.onclick = () => {
+      newGame((inp.value || '').trim() || 'Хомка');
+      go(true);
+    };
+    inp.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') b.click();
+    });
     form.append(inp, b);
   };
-  const form = el('div'); form.style.cssText = 'display:flex;flex-direction:column;gap:12px;align-items:center';
+  const form = el('div');
+  form.style.cssText = 'display:flex;flex-direction:column;gap:12px;align-items:center';
   if (hasSave() && load()) {
     const b1 = el('button', 'btn big green', `Продолжить ▶`);
     b1.onclick = () => go(false);
     const b2 = el('button', 'btn ghost', 'Новая игра');
-    b2.onclick = async () => { if (await confirmBox('Новая игра?', `<p class="center">Сохранённая игра (${esc(G.state.name)}) сотрётся. Начать заново?</p>`, 'Да', 'Нет')) { wipe(); G.state = null; newForm(); } };
+    b2.onclick = async () => {
+      if (
+        await confirmBox(
+          'Новая игра?',
+          `<p class="center">Сохранённая игра (${esc(G.state.name)}) сотрётся. Начать заново?</p>`,
+          'Да',
+          'Нет',
+        )
+      ) {
+        wipe();
+        G.state = null;
+        newForm();
+      }
+    };
     form.append(el('div', 'sub', `С возвращением, ${esc(G.state.name)}!`), b1, b2);
   } else if (loadProblem === 'newer') {
     // сохранение от более новой версии игры: не затираем, предлагаем обновить страницу
     const b1 = el('button', 'btn big green', 'Обновить 🔄');
     b1.onclick = () => location.reload();
     const b2 = el('button', 'btn ghost', 'Новая игра');
-    b2.onclick = async () => { if (await confirmBox('Новая игра?', '<p class="center">Сохранённая игра сотрётся. Начать заново?</p>', 'Да', 'Нет')) { backupSave(); wipe(); newForm(); } };
-    form.append(el('div', 'sub', 'Игра обновилась, а страница — ещё нет.<br>Нажми «Обновить», чтобы продолжить свою игру.'), b1, b2);
+    b2.onclick = async () => {
+      if (
+        await confirmBox('Новая игра?', '<p class="center">Сохранённая игра сотрётся. Начать заново?</p>', 'Да', 'Нет')
+      ) {
+        backupSave();
+        wipe();
+        newForm();
+      }
+    };
+    form.append(
+      el('div', 'sub', 'Игра обновилась, а страница — ещё нет.<br>Нажми «Обновить», чтобы продолжить свою игру.'),
+      b1,
+      b2,
+    );
   } else {
     newForm();
-    if (loadProblem === 'broken') form.prepend(el('div', 'sub', '<small>Старую игру не получилось открыть 😿<br>Мы её не выбросили, а отложили про запас.</small>'));
+    if (loadProblem === 'broken')
+      form.prepend(
+        el(
+          'div',
+          'sub',
+          '<small>Старую игру не получилось открыть 😿<br>Мы её не выбросили, а отложили про запас.</small>',
+        ),
+      );
   }
   t.appendChild(form);
   document.body.appendChild(t);
@@ -341,6 +572,11 @@ function titleScreen() {
 
 document.addEventListener('pointerdown', unlockAudio, { passive: true });
 document.addEventListener('keydown', unlockAudio);
-window.__Tower = Tower; window.__Audio = Audio_; window.__G = G; window.__F = F; window.__World = World; window.__Villa = Villa; // для отладки и тестов
+window.__Tower = Tower;
+window.__Audio = Audio_;
+window.__G = G;
+window.__F = F;
+window.__World = World;
+window.__Villa = Villa; // для отладки и тестов
 titleScreen();
 requestAnimationFrame(frame);

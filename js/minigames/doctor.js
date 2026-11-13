@@ -18,17 +18,52 @@ const CURES = {
 };
 
 const CASES = [
-  { e: '🤒', say: 'У меня, кажется, температура… Мне жарко и грустно.', cure: 'thermo', hint: 'Сначала нужно измерить температуру.' },
+  {
+    e: '🤒',
+    say: 'У меня, кажется, температура… Мне жарко и грустно.',
+    cure: 'thermo',
+    hint: 'Сначала нужно измерить температуру.',
+  },
   { e: '😿', say: 'Ай! У меня царапина на лапке!', cure: 'plaster', hint: 'Царапину нужно чем-то заклеить.' },
-  { e: '🤧', say: 'Апчхи! У меня насморк, нос совсем не дышит.', cure: 'drops', hint: 'Носу помогут специальные капельки.' },
+  {
+    e: '🤧',
+    say: 'Апчхи! У меня насморк, нос совсем не дышит.',
+    cure: 'drops',
+    hint: 'Носу помогут специальные капельки.',
+  },
   { e: '😷', say: 'Кхе-кхе! Кашель замучил.', cure: 'syrup', hint: 'От кашля пьют сладкое лекарство с ложечки.' },
-  { e: '🤕', say: 'Колесо крутилось слишком быстро — и бух! У меня шишка!', cure: 'ice', hint: 'К шишке прикладывают что-нибудь холодное.' },
-  { e: '🤢', say: 'Болит животик… Слишком много семечек!', cure: 'tea', hint: 'Животик успокоит тёплый травяной напиток.' },
-  { e: '🦷', say: 'Ой-ой-ой, болит зуб! Я забываю его чистить.', cure: 'brush', hint: 'Зубы нужно чистить два раза в день.' },
-  { e: '🥱', say: 'Не могу уснуть уже третью ночь…', cure: 'milk', hint: 'Перед сном хорошо выпить что-нибудь тёплое и белое.' },
+  {
+    e: '🤕',
+    say: 'Колесо крутилось слишком быстро — и бух! У меня шишка!',
+    cure: 'ice',
+    hint: 'К шишке прикладывают что-нибудь холодное.',
+  },
+  {
+    e: '🤢',
+    say: 'Болит животик… Слишком много семечек!',
+    cure: 'tea',
+    hint: 'Животик успокоит тёплый травяной напиток.',
+  },
+  {
+    e: '🦷',
+    say: 'Ой-ой-ой, болит зуб! Я забываю его чистить.',
+    cure: 'brush',
+    hint: 'Зубы нужно чистить два раза в день.',
+  },
+  {
+    e: '🥱',
+    say: 'Не могу уснуть уже третью ночь…',
+    cure: 'milk',
+    hint: 'Перед сном хорошо выпить что-нибудь тёплое и белое.',
+  },
   { e: '😵', say: 'Болят глазки. Весь день — одни мультики!', cure: 'glasses', hint: 'Глазкам нужен отдых от экрана.' },
   { e: '🥵', say: 'У меня обгорел нос на пляже. Щиплет!', cure: 'cream', hint: 'Обгоревшую кожу нужно намазать.' },
-  { e: '😪', say: 'Что-то я совсем без сил, всё время хочу спать.', cure: 'vit', hint: 'Для сил нужны полезные оранжевые фрукты.' },
+  {
+    e: '😪',
+    say: 'Что-то я совсем без сил, всё время хочу спать.',
+    cure: 'vit',
+    hint: 'Для сил нужны полезные оранжевые фрукты.',
+  },
 ];
 
 const CSS = `
@@ -70,21 +105,27 @@ const CSS = `
 .doc.short .doc-top{padding:5px 12px 3px}
 `;
 
-const CW = 340, CH = 200; // логический размер сцены
+const CW = 340,
+  CH = 200; // логический размер сцены
 
 export default {
   id: 'doctor',
   title: 'Доктор',
   icon: '🩺',
-  howTo: 'К тебе пришли пациенты. Послушай, что болит у каждого, и выбери, что ему поможет. Если ошибёшься — получишь подсказку и сможешь выбрать ещё раз.',
+  howTo:
+    'К тебе пришли пациенты. Послушай, что болит у каждого, и выбери, что ему поможет. Если ошибёшься — получишь подсказку и сможешь выбрать ещё раз.',
 
   start(host) {
     const root = host.root;
     const optCount = (host.level || 0) >= 2 ? 6 : 4;
-    let stopped = false, raf = 0;
+    let stopped = false,
+      raf = 0;
     const timers = new Set();
     const later = (fn, ms) => {
-      const id = setTimeout(() => { timers.delete(id); if (!stopped) fn(); }, ms);
+      const id = setTimeout(() => {
+        timers.delete(id);
+        if (!stopped) fn();
+      }, ms);
       timers.add(id);
     };
 
@@ -108,18 +149,29 @@ export default {
       </div>`;
     root.appendChild(wrap);
     const $ = (s) => wrap.querySelector(s);
-    const countEl = $('.doc-count'), missEl = $('.doc-miss');
-    const bubble = $('.doc-bubble'), hintEl = $('.doc-hint'), btnsEl = $('.doc-btns');
-    const cv = makeCanvas(CW, CH); cv.canvas.className = 'doc-cv'; cv.canvas.style.width = ''; cv.canvas.style.height = '';
+    const countEl = $('.doc-count'),
+      missEl = $('.doc-miss');
+    const bubble = $('.doc-bubble'),
+      hintEl = $('.doc-hint'),
+      btnsEl = $('.doc-btns');
+    const cv = makeCanvas(CW, CH);
+    cv.canvas.className = 'doc-cv';
+    cv.canvas.style.width = '';
+    cv.canvas.style.height = '';
     $('.doc-left').prepend(cv.canvas);
     const ctx = cv.ctx;
 
     // --- состояние
-    let idx = 0, mistakes = 0, now = 0;
+    let idx = 0,
+      mistakes = 0,
+      now = 0;
     let phase = 'enter'; // enter | wait | wrong | happy | exit
     let phaseAt = 0;
 
-    const setPhase = (p) => { phase = p; phaseAt = now; };
+    const setPhase = (p) => {
+      phase = p;
+      phaseAt = now;
+    };
     const updTop = () => {
       countEl.textContent = `Пациент ${Math.min(idx + 1, TOTAL)} из ${TOTAL}`;
       missEl.textContent = mistakes ? `Ошибок: ${mistakes}` : 'Без ошибок 💚';
@@ -137,21 +189,27 @@ export default {
         btnsEl.appendChild(b);
       }
     }
-    const lockButtons = (v) => btnsEl.querySelectorAll('.doc-b').forEach((b) => { b.disabled = v; });
+    const lockButtons = (v) =>
+      btnsEl.querySelectorAll('.doc-b').forEach((b) => {
+        b.disabled = v;
+      });
 
     function startPatient() {
-      const c = cases[idx], p = patients[idx % patients.length];
+      const c = cases[idx],
+        p = patients[idx % patients.length];
       updTop();
       hintEl.textContent = '';
       bubble.classList.add('hide');
-      buildButtons(); lockButtons(true);
+      buildButtons();
+      lockButtons(true);
       setPhase('enter');
       later(() => {
         bubble.querySelector('.em').textContent = c.e;
         bubble.querySelector('.nm').textContent = p.name;
         bubble.querySelector('.tx').textContent = c.say;
         bubble.classList.remove('hide');
-        setPhase('wait'); lockButtons(false);
+        setPhase('wait');
+        lockButtons(false);
         host.sfx('pop');
       }, 550);
     }
@@ -161,7 +219,8 @@ export default {
       if (phase !== 'wait' || stopped) return;
       const c = cases[idx];
       if (k === c.cure) {
-        btn.classList.add('good'); lockButtons(true);
+        btn.classList.add('good');
+        lockButtons(true);
         host.sfx('ok');
         hintEl.textContent = '';
         bubble.querySelector('.em').textContent = '😊';
@@ -177,19 +236,23 @@ export default {
           }, 480);
         }, 1300);
       } else {
-        mistakes++; updTop();
+        mistakes++;
+        updTop();
         btn.classList.add('bad');
         host.sfx('bad');
         hintEl.textContent = '💡 ' + c.hint;
         setPhase('wrong');
-        later(() => { if (phase === 'wrong') setPhase('wait'); }, 600);
+        later(() => {
+          if (phase === 'wrong') setPhase('wait');
+        }, 600);
       }
     }
     function finish() {
       const stars = mistakes <= 1 ? 3 : mistakes <= 4 ? 2 : 1;
-      const text = mistakes === 0
-        ? 'Все пациенты здоровы, и ни одной ошибки! Ты настоящий доктор!'
-        : `Все ${TOTAL} пациентов вылечены! Ошибок: ${mistakes}.`;
+      const text =
+        mistakes === 0
+          ? 'Все пациенты здоровы, и ни одной ошибки! Ты настоящий доктор!'
+          : `Все ${TOTAL} пациентов вылечены! Ошибок: ${mistakes}.`;
       host.finish({ stars, text, extra: { mistakes } });
     }
 
@@ -207,26 +270,36 @@ export default {
       wrap.style.setProperty('--cv', clamp(w, 150, 460) + 'px');
     };
     fit();
-    const ro = new ResizeObserver(fit); ro.observe(root);
+    const ro = new ResizeObserver(fit);
+    ro.observe(root);
 
     // --- сцена
     function drawRoom() {
-      ctx.fillStyle = '#e6fcf5'; ctx.fillRect(0, 0, CW, CH);
-      ctx.fillStyle = '#c3fae8'; for (let x = 0; x < CW; x += 34) ctx.fillRect(x, 0, 17, 150);
-      ctx.fillStyle = '#ffe8cc'; ctx.fillRect(0, 150, CW, 50);
-      ctx.fillStyle = '#ffd8a8'; ctx.fillRect(0, 150, CW, 5);
+      ctx.fillStyle = '#e6fcf5';
+      ctx.fillRect(0, 0, CW, CH);
+      ctx.fillStyle = '#c3fae8';
+      for (let x = 0; x < CW; x += 34) ctx.fillRect(x, 0, 17, 150);
+      ctx.fillStyle = '#ffe8cc';
+      ctx.fillRect(0, 150, CW, 50);
+      ctx.fillStyle = '#ffd8a8';
+      ctx.fillRect(0, 150, CW, 5);
       // плакат с крестом
       fillRR(ctx, 150, 18, 50, 50, 10, '#fff', '#4a3728', 2);
-      ctx.fillStyle = '#fa5252'; ctx.fillRect(169, 27, 12, 32); ctx.fillRect(159, 37, 32, 12);
+      ctx.fillStyle = '#fa5252';
+      ctx.fillRect(169, 27, 12, 32);
+      ctx.fillRect(159, 37, 32, 12);
       // кушетка
       fillRR(ctx, 196, 150, 130, 16, 6, '#74c0fc', '#4a3728', 2);
-      ctx.fillStyle = '#4a3728'; ctx.fillRect(206, 166, 5, 18); ctx.fillRect(311, 166, 5, 18);
+      ctx.fillStyle = '#4a3728';
+      ctx.fillRect(206, 166, 5, 18);
+      ctx.fillRect(311, 166, 5, 18);
     }
     function drawCap(x, y, s) {
       // шапочка доктора
       fillRR(ctx, x - 20 * s, y - 92 * s, 40 * s, 22 * s, 8 * s, '#fff', '#4a3728', 2);
       ctx.fillStyle = '#fa5252';
-      ctx.fillRect(x - 2.5 * s, y - 88 * s, 5 * s, 14 * s); ctx.fillRect(x - 7 * s, y - 83.5 * s, 14 * s, 5 * s);
+      ctx.fillRect(x - 2.5 * s, y - 88 * s, 5 * s, 14 * s);
+      ctx.fillRect(x - 7 * s, y - 83.5 * s, 14 * s, 5 * s);
     }
 
     const t0 = performance.now();
@@ -238,25 +311,37 @@ export default {
       ctx.clearRect(0, 0, CW, CH);
       drawRoom();
       // доктор
-      host.drawHamster(ctx, 70, 182, 1.15, docLook, { time: now, blink, talk: phase === 'wrong', happy: phase === 'happy' });
+      host.drawHamster(ctx, 70, 182, 1.15, docLook, {
+        time: now,
+        blink,
+        talk: phase === 'wrong',
+        happy: phase === 'happy',
+      });
       drawCap(70, 182 - Math.sin(now * 2.2) * 0.7 * 1.15, 1.15);
       // пациент
       const p = patients[idx % patients.length];
-      let px = 258, py = 150, pose = { time: now, blink, dir: -1 };
+      let px = 258,
+        py = 150,
+        pose = { time: now, blink, dir: -1 };
       if (phase === 'enter') {
         const k = clamp(dt / 0.5, 0, 1);
-        px = 258 + (1 - k) * 130; py = 182 - k * 32;
+        px = 258 + (1 - k) * 130;
+        py = 182 - k * 32;
         pose.walk = (dt * 3) % 1;
       } else if (phase === 'exit') {
         const k = clamp(dt / 0.45, 0, 1);
-        px = 258 + k * 130; py = 150 + k * 32;
-        pose.walk = (dt * 3) % 1; pose.dir = 1; pose.happy = true;
+        px = 258 + k * 130;
+        py = 150 + k * 32;
+        pose.walk = (dt * 3) % 1;
+        pose.dir = 1;
+        pose.happy = true;
       } else if (phase === 'wrong') {
         px += Math.sin(dt * 34) * 5 * (1 - clamp(dt / 0.6, 0, 1));
         pose.blink = true;
       } else if (phase === 'happy') {
         py -= Math.abs(Math.sin(dt * 8)) * 8;
-        pose.happy = true; pose.armsUp = true;
+        pose.happy = true;
+        pose.armsUp = true;
       } else {
         pose.sit = true;
       }
@@ -278,7 +363,8 @@ export default {
       stop() {
         stopped = true;
         cancelAnimationFrame(raf);
-        timers.forEach(clearTimeout); timers.clear();
+        timers.forEach(clearTimeout);
+        timers.clear();
         ro.disconnect();
         wrap.remove();
       },

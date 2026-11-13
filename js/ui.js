@@ -9,7 +9,11 @@ import { cachedIcon } from './sprites.js';
 // ---------- подсказки ----------
 let toastBox = null;
 export function toast(msg, kind = '') {
-  if (!toastBox) { toastBox = el('div'); toastBox.id = 'toasts'; document.body.appendChild(toastBox); }
+  if (!toastBox) {
+    toastBox = el('div');
+    toastBox.id = 'toasts';
+    document.body.appendChild(toastBox);
+  }
   if (msg.startsWith('Новая наклейка')) sfx('sticker');
   const t = el('div', 'toast ' + kind, msg);
   toastBox.appendChild(t);
@@ -22,23 +26,37 @@ export function toast(msg, kind = '') {
 // Подарок, новый рецепт, «задание выполнено», смена сезона появляются не сразу, а чуть погодя. Если в этот
 // момент открыт диалог или другое окно, новое окно ждёт: раньше оно открывалось под диалогом жителя.
 const queue = [];
-let queueTimer = 0, freeSince = 0;
+let queueTimer = 0,
+  freeSince = 0;
 /** Вызвать fn (она открывает окно), когда на экране ничего не открыто. delay — пауза перед показом, мс. */
 export function whenFree(fn, delay = 0) {
   queue.push({ fn, at: performance.now() + delay });
-  if (!queueTimer) { freeSince = 0; queueTimer = setInterval(pumpQueue, 150); }
+  if (!queueTimer) {
+    freeSince = 0;
+    queueTimer = setInterval(pumpQueue, 150);
+  }
 }
 function pumpQueue() {
   const now = performance.now();
-  if (G.modal > 0) { freeSince = 0; return; }
+  if (G.modal > 0) {
+    freeSince = 0;
+    return;
+  }
   if (!freeSince) freeSince = now;
   if (now - freeSince < 250) return; // окно только что закрылось: цепочка диалогов может тут же открыть следующее
   const i = queue.findIndex((q) => q.at <= now);
   if (i < 0) return;
   const q = queue.splice(i, 1)[0];
-  if (!queue.length) { clearInterval(queueTimer); queueTimer = 0; }
+  if (!queue.length) {
+    clearInterval(queueTimer);
+    queueTimer = 0;
+  }
   freeSince = 0;
-  try { q.fn(); } catch (e) { console.error(e); }
+  try {
+    q.fn();
+  } catch (e) {
+    console.error(e);
+  }
 }
 
 // Первые мгновения после появления окна нажатия мимо него не считаются: ребёнок продолжает нажимать
@@ -62,25 +80,40 @@ export function openPanel(o) {
   } else if (o.icon) head.appendChild(el('span', '', o.icon));
   head.appendChild(el('span', 'title', o.title || ''));
   let moneyEl = null;
-  if (o.money) { moneyEl = el('span', 'money'); head.appendChild(moneyEl); }
+  if (o.money) {
+    moneyEl = el('span', 'money');
+    head.appendChild(moneyEl);
+  }
   const x = el('button', 'xbtn', '✕');
   head.appendChild(x);
   p.appendChild(head);
   let tabsEl = null;
-  if (o.tabs && o.tabs.length) { tabsEl = el('div', 'tabs'); p.appendChild(tabsEl); }
+  if (o.tabs && o.tabs.length) {
+    tabsEl = el('div', 'tabs');
+    p.appendChild(tabsEl);
+  }
   const body = el('div', 'panel-body');
   p.appendChild(body);
   let foot = null;
-  if (o.foot) { foot = el('div', 'panel-foot'); p.appendChild(foot); }
+  if (o.foot) {
+    foot = el('div', 'panel-foot');
+    p.appendChild(foot);
+  }
   ov.appendChild(p);
   document.body.appendChild(ov);
-  G.modal++; G.dim++;
+  G.modal++;
+  G.dim++;
 
   const api = {
-    body, tab: o.tab || (o.tabs && o.tabs[0].id) || null, closed: false,
+    body,
+    tab: o.tab || (o.tabs && o.tabs[0].id) || null,
+    closed: false,
     close() {
       if (api.closed) return;
-      api.closed = true; ov.remove(); G.modal--; G.dim--;
+      api.closed = true;
+      ov.remove();
+      G.modal--;
+      G.dim--;
       if (o.onClose) o.onClose();
     },
     refresh() {
@@ -90,7 +123,10 @@ export function openPanel(o) {
         tabsEl.innerHTML = '';
         for (const t of o.tabs) {
           const b = el('button', 'tab' + (t.id === api.tab ? ' on' : ''), t.name);
-          b.onclick = () => { sfx('tap'); api.setTab(t.id); };
+          b.onclick = () => {
+            sfx('tap');
+            api.setTab(t.id);
+          };
           tabsEl.appendChild(b);
         }
       }
@@ -103,29 +139,65 @@ export function openPanel(o) {
         const list = typeof o.foot === 'function' ? o.foot(api) : o.foot;
         for (const f of list) {
           const b = el('button', 'btn ' + (f.cls || ''), f.text);
-          b.onclick = () => { sfx('tap'); f.fn(api); };
+          b.onclick = () => {
+            sfx('tap');
+            f.fn(api);
+          };
           foot.appendChild(b);
         }
       }
     },
-    setTab(id) { api.tab = id; body.scrollTop = 0; api.refresh(); },
+    setTab(id) {
+      api.tab = id;
+      body.scrollTop = 0;
+      api.refresh();
+    },
   };
-  x.onclick = () => { sfx('tap'); api.close(); };
+  x.onclick = () => {
+    sfx('tap');
+    api.close();
+  };
   const born = performance.now();
-  ov.addEventListener('pointerdown', (e) => { if (e.target === ov && !o.sticky && performance.now() - born > TAP_GUARD) api.close(); });
+  ov.addEventListener('pointerdown', (e) => {
+    if (e.target === ov && !o.sticky && performance.now() - born > TAP_GUARD) api.close();
+  });
   api.refresh();
   return api;
 }
 
 /** Простое сообщение с кнопками. Возвращает Promise с индексом кнопки (-1 — закрыли). */
-export function message({ title = '', icon = '', html = '', buttons = [{ text: 'Хорошо' }], cls = 'narrow', sticky = false }) {
+export function message({
+  title = '',
+  icon = '',
+  html = '',
+  buttons = [{ text: 'Хорошо' }],
+  cls = 'narrow',
+  sticky = false,
+}) {
   return new Promise((resolve) => {
     let done = false;
-    const fin = (i) => { if (!done) { done = true; resolve(i); } };
+    const fin = (i) => {
+      if (!done) {
+        done = true;
+        resolve(i);
+      }
+    };
     openPanel({
-      title, icon, cls, sticky,
-      render: (b) => { b.innerHTML = html; },
-      foot: buttons.map((bt, i) => ({ text: bt.text, cls: bt.cls || (i === 0 ? 'green' : 'ghost'), fn: (p) => { fin(i); p.close(); } })),
+      title,
+      icon,
+      cls,
+      sticky,
+      render: (b) => {
+        b.innerHTML = html;
+      },
+      foot: buttons.map((bt, i) => ({
+        text: bt.text,
+        cls: bt.cls || (i === 0 ? 'green' : 'ghost'),
+        fn: (p) => {
+          fin(i);
+          p.close();
+        },
+      })),
       onClose: () => fin(-1),
     });
   });
@@ -152,8 +224,10 @@ export function dialog({ look, name, text, options = [{ text: 'Пока!' }], ha
     d.appendChild(who);
     const opts = el('div', 'opts');
     d.appendChild(opts);
-    let raf = 0, closed = false;
-    const t0 = performance.now(), ready = () => performance.now() - t0 > TAP_GUARD;
+    let raf = 0,
+      closed = false;
+    const t0 = performance.now(),
+      ready = () => performance.now() - t0 > TAP_GUARD;
     const loop = () => {
       const t = (performance.now() - t0) / 1000;
       ctx.clearRect(0, 0, 72, 72);
@@ -162,20 +236,32 @@ export function dialog({ look, name, text, options = [{ text: 'Пока!' }], ha
     };
     loop();
     const fin = (i) => {
-      if (closed) return; closed = true;
-      cancelAnimationFrame(raf); d.remove(); shade.remove(); G.modal--; resolve(i);
+      if (closed) return;
+      closed = true;
+      cancelAnimationFrame(raf);
+      d.remove();
+      shade.remove();
+      G.modal--;
+      resolve(i);
     };
     options.forEach((o, i) => {
       const b = el('button', 'btn ' + (o.cls || (i === options.length - 1 ? 'ghost' : '')), o.text);
-      b.onclick = () => { if (!ready()) return; sfx('tap'); fin(i); };
+      b.onclick = () => {
+        if (!ready()) return;
+        sfx('tap');
+        fin(i);
+      };
       opts.appendChild(b);
     });
     // диалог с выбором закрывается только кнопкой; с одной кнопкой — ещё и нажатием мимо
-    shade.addEventListener('pointerdown', () => { if (options.length <= 1 && ready()) fin(-1); });
+    shade.addEventListener('pointerdown', () => {
+      if (options.length <= 1 && ready()) fin(-1);
+    });
     document.body.append(shade, d);
     G.modal++;
     // у каждого хомячка свой голосок
-    let hsh = 0; for (const ch of String(name)) hsh = (hsh * 31 + ch.charCodeAt(0)) % 997;
+    let hsh = 0;
+    for (const ch of String(name)) hsh = (hsh * 31 + ch.charCodeAt(0)) % 997;
     sfx('squeak', 0.8 + (hsh % 6) * 0.11);
   });
 }
@@ -188,12 +274,25 @@ const MANNEQUIN = { ...defaultLook(), fur: '#f3ede4', spots: null, ear: '#e6d5c3
 export function clothesIcon(item, size = 84) {
   return cachedIcon('clothes:' + item.id, size, size, (ctx) => {
     const look = { ...MANNEQUIN, outfit: { [item.slot]: item } };
-    let s = size / 100, dy = 0;
-    if (item.slot === 'head') { s = size / 62; dy = 46 * s; }
-    else if (item.slot === 'feet') { s = size / 56; dy = -22 * s; }
-    else if (item.slot === 'acc' && !['wings', 'backpack', 'bag', 'cape', 'camera', 'tie', 'lei'].includes(item.kind)) { s = size / 62; dy = 28 * s; }
+    let s = size / 100,
+      dy = 0;
+    if (item.slot === 'head') {
+      s = size / 62;
+      dy = 46 * s;
+    } else if (item.slot === 'feet') {
+      s = size / 56;
+      dy = -22 * s;
+    } else if (
+      item.slot === 'acc' &&
+      !['wings', 'backpack', 'bag', 'cape', 'camera', 'tie', 'lei'].includes(item.kind)
+    ) {
+      s = size / 62;
+      dy = 28 * s;
+    }
     ctx.save();
-    ctx.beginPath(); ctx.rect(0, 0, size, size); ctx.clip();
+    ctx.beginPath();
+    ctx.rect(0, 0, size, size);
+    ctx.clip();
     drawHamster(ctx, size / 2, size * 0.93 + dy, s, look, { shadow: false });
     ctx.restore();
   });
@@ -227,12 +326,19 @@ export function fadeTo(msg, ms = 1500) {
     G.modal++;
     requestAnimationFrame(() => f.classList.add('on'));
     let covered = false;
-    const tc = setTimeout(() => { covered = true; G.cover++; }, 450); // экран уже тёмный — сцену под ним не рисуем
+    const tc = setTimeout(() => {
+      covered = true;
+      G.cover++;
+    }, 450); // экран уже тёмный — сцену под ним не рисуем
     setTimeout(() => {
       resolve(() => {
-        clearTimeout(tc); if (covered) G.cover--;
+        clearTimeout(tc);
+        if (covered) G.cover--;
         f.classList.remove('on');
-        setTimeout(() => { f.remove(); G.modal--; }, 380);
+        setTimeout(() => {
+          f.remove();
+          G.modal--;
+        }, 380);
       });
     }, ms);
   });

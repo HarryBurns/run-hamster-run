@@ -30,7 +30,12 @@ const ING = {
 const DISHES = [
   { e: '🍔', name: 'Бургер', acc: 'бургер', seq: ['bun', 'carrot', 'cheese', 'salad', 'tomato'], close: true },
   { e: '🍕', name: 'Пицца', acc: 'пиццу', seq: ['pancake', 'tomato', 'cheese', 'mushroom', 'greens', 'corn'] },
-  { e: '🍨', name: 'Мороженое', acc: 'мороженое', seq: ['icecream', 'strawberry', 'choco', 'cherry', 'nuts', 'banana'] },
+  {
+    e: '🍨',
+    name: 'Мороженое',
+    acc: 'мороженое',
+    seq: ['icecream', 'strawberry', 'choco', 'cherry', 'nuts', 'banana'],
+  },
   { e: '🥗', name: 'Салат', acc: 'салат', seq: ['salad', 'tomato', 'cucumber', 'cheese', 'corn', 'greens'] },
   { e: '🥞', name: 'Блинчики', acc: 'блинчики', seq: ['pancake', 'honey', 'banana', 'strawberry', 'nuts', 'choco'] },
   { e: '🥤', name: 'Коктейль', acc: 'коктейль', seq: ['milk', 'banana', 'strawberry', 'honey', 'icecream', 'cherry'] },
@@ -97,19 +102,27 @@ export default {
   id: 'chef',
   title: 'Шеф-повар',
   icon: '👩‍🍳',
-  howTo: 'Гость делает заказ. <b>Запомни</b>, какие продукты и в каком порядке нужны, — табличка скоро спрячется! Потом собери блюдо, нажимая продукты на полке по порядку.',
+  howTo:
+    'Гость делает заказ. <b>Запомни</b>, какие продукты и в каком порядке нужны, — табличка скоро спрячется! Потом собери блюдо, нажимая продукты на полке по порядку.',
 
   start(host) {
     const root = host.root;
     const level = host.level || 0;
-    let stopped = false, raf = 0;
+    let stopped = false,
+      raf = 0;
     const timers = new Set();
     const later = (fn, ms) => {
-      const id = setTimeout(() => { timers.delete(id); if (!stopped) fn(); }, ms);
+      const id = setTimeout(() => {
+        timers.delete(id);
+        if (!stopped) fn();
+      }, ms);
       timers.add(id);
       return id;
     };
-    const cancel = (id) => { clearTimeout(id); timers.delete(id); };
+    const cancel = (id) => {
+      clearTimeout(id);
+      timers.delete(id);
+    };
 
     const fallback = [{ id: 'me', name: 'Гость', look: host.look }];
     const guests = shuffle(host.friends && host.friends.length ? host.friends : fallback);
@@ -136,28 +149,59 @@ export default {
       </div>`;
     root.appendChild(wrap);
     const $ = (s) => wrap.querySelector(s);
-    const countEl = $('.chf-count'), marksEl = $('.chf-marks');
-    const ttlEl = $('.chf-order .ttl'), seqEl = $('.chf-seq'), timerBar = $('.chf-timer i'), timerEl = $('.chf-timer');
-    const stackEl = $('.chf-stack'), msgEl = $('.chf-msg'), skipBtn = $('.chf-skip'), shelfEl = $('.chf-shelf');
+    const countEl = $('.chf-count'),
+      marksEl = $('.chf-marks');
+    const ttlEl = $('.chf-order .ttl'),
+      seqEl = $('.chf-seq'),
+      timerBar = $('.chf-timer i'),
+      timerEl = $('.chf-timer');
+    const stackEl = $('.chf-stack'),
+      msgEl = $('.chf-msg'),
+      skipBtn = $('.chf-skip'),
+      shelfEl = $('.chf-shelf');
 
-    const gcv = makeCanvas(130, 130); gcv.canvas.className = 'chf-cv chf-guest'; gcv.canvas.style.width = ''; gcv.canvas.style.height = '';
+    const gcv = makeCanvas(130, 130);
+    gcv.canvas.className = 'chf-cv chf-guest';
+    gcv.canvas.style.width = '';
+    gcv.canvas.style.height = '';
     $('.chf-guestrow').prepend(gcv.canvas);
-    const mcv = makeCanvas(120, 140); mcv.canvas.className = 'chf-cv chf-me'; mcv.canvas.style.width = ''; mcv.canvas.style.height = '';
+    const mcv = makeCanvas(120, 140);
+    mcv.canvas.className = 'chf-cv chf-me';
+    mcv.canvas.style.width = '';
+    mcv.canvas.style.height = '';
     $('.chf-platerow').prepend(mcv.canvas);
 
     const marks = [];
-    for (let i = 0; i < ORDERS; i++) { const m = el('div', 'chf-mark'); marksEl.appendChild(m); marks.push(m); }
+    for (let i = 0; i < ORDERS; i++) {
+      const m = el('div', 'chf-mark');
+      marksEl.appendChild(m);
+      marks.push(m);
+    }
 
     // --- состояние
-    let idx = 0, perfect = 0, now = 0;
-    let seq = [], pos = 0, hinted = false;
+    let idx = 0,
+      perfect = 0,
+      now = 0;
+    let seq = [],
+      pos = 0,
+      hinted = false;
     let phase = 'show'; // show | build | peek | yum
-    let enterAt = 0, hideTimer = 0, yumAt = 0;
+    let enterAt = 0,
+      hideTimer = 0,
+      yumAt = 0;
 
-    const setMsg = (t, cls = '') => { msgEl.textContent = t; msgEl.className = 'chf-msg ' + cls; };
-    const lockShelf = (v) => shelfEl.querySelectorAll('.chf-b').forEach((b) => { b.disabled = v; });
+    const setMsg = (t, cls = '') => {
+      msgEl.textContent = t;
+      msgEl.className = 'chf-msg ' + cls;
+    };
+    const lockShelf = (v) =>
+      shelfEl.querySelectorAll('.chf-b').forEach((b) => {
+        b.disabled = v;
+      });
 
-    function orderLen(i) { return clamp(3 + level + (i >= 3 ? 1 : 0), 3, 6); }
+    function orderLen(i) {
+      return clamp(3 + level + (i >= 3 ? 1 : 0), 3, 6);
+    }
     function makeSeq(d, n) {
       if (d.close) return [...d.seq.slice(0, n - 1), d.seq[0]];
       return d.seq.slice(0, n);
@@ -167,22 +211,32 @@ export default {
       seqEl.innerHTML = '';
       seq.forEach((k, i) => {
         const done = i < pos;
-        const c = el('div', 'chf-ing' + (done ? ' done' : visible ? '' : ' hid'), (visible || done ? ING[k].e : '?') + `<span class="n">${i + 1}</span>`);
+        const c = el(
+          'div',
+          'chf-ing' + (done ? ' done' : visible ? '' : ' hid'),
+          (visible || done ? ING[k].e : '?') + `<span class="n">${i + 1}</span>`,
+        );
         if (visible) c.dataset.k = k;
         seqEl.appendChild(c);
       });
     }
     function runTimer(ms) {
       timerEl.style.visibility = 'visible';
-      timerBar.style.transition = 'none'; timerBar.style.width = '100%';
+      timerBar.style.transition = 'none';
+      timerBar.style.width = '100%';
       void timerBar.offsetWidth;
-      timerBar.style.transition = `width ${ms}ms linear`; timerBar.style.width = '0%';
+      timerBar.style.transition = `width ${ms}ms linear`;
+      timerBar.style.width = '0%';
     }
 
     function startOrder() {
-      const d = dishes[idx], g = guests[idx % guests.length];
-      seq = makeSeq(d, orderLen(idx)); pos = 0; hinted = false;
-      phase = 'show'; enterAt = now;
+      const d = dishes[idx],
+        g = guests[idx % guests.length];
+      seq = makeSeq(d, orderLen(idx));
+      pos = 0;
+      hinted = false;
+      phase = 'show';
+      enterAt = now;
       countEl.textContent = `Заказ ${idx + 1} из ${ORDERS}`;
       marks.forEach((m, i) => m.classList.toggle('cur', i === idx));
       ttlEl.innerHTML = `<small>${g.name} просит:</small>${d.e} «Мне, пожалуйста, ${d.acc}!»`;
@@ -223,14 +277,17 @@ export default {
       if (k === seq[pos]) {
         pos++;
         host.sfx('pop');
-        const s = el('span', '', ING[k].e); stackEl.appendChild(s);
+        const s = el('span', '', ING[k].e);
+        stackEl.appendChild(s);
         renderSeq(false);
         if (pos >= seq.length) return orderDone();
         setMsg(pick(['Так держать!', 'Верно!', 'Отлично!', 'Дальше!']), 'good');
       } else {
         hinted = true;
         host.sfx('bad');
-        btn.classList.remove('shake'); void btn.offsetWidth; btn.classList.add('shake');
+        btn.classList.remove('shake');
+        void btn.offsetWidth;
+        btn.classList.add('shake');
         phase = 'peek';
         lockShelf(true);
         renderSeq(true);
@@ -241,7 +298,8 @@ export default {
     }
 
     function orderDone() {
-      phase = 'yum'; yumAt = now;
+      phase = 'yum';
+      yumAt = now;
       lockShelf(true);
       renderSeq(true);
       if (!hinted) perfect++;
@@ -255,8 +313,10 @@ export default {
           const stars = perfect >= 4 ? 3 : perfect >= 2 ? 2 : 1;
           host.finish({
             stars,
-            text: perfect === ORDERS ? 'Все заказы собраны по памяти! Ты лучший шеф-повар города!'
-              : `Все ${ORDERS} заказов готовы! Без подсказок: ${perfect}.`,
+            text:
+              perfect === ORDERS
+                ? 'Все заказы собраны по памяти! Ты лучший шеф-повар города!'
+                : `Все ${ORDERS} заказов готовы! Без подсказок: ${perfect}.`,
             extra: { perfect },
           });
           return;
@@ -265,7 +325,12 @@ export default {
       }, 1500);
     }
 
-    skipBtn.onclick = () => { if (phase === 'show') { host.sfx('tap'); beginBuild(); } };
+    skipBtn.onclick = () => {
+      if (phase === 'show') {
+        host.sfx('tap');
+        beginBuild();
+      }
+    };
 
     // --- подгонка размеров
     const fit = () => {
@@ -274,12 +339,14 @@ export default {
       const short = r.height < 420;
       wrap.classList.toggle('wide', wide);
       wrap.classList.toggle('short', short);
-      const u = wide ? clamp(Math.min((r.height - 40) / 330, r.width / 2 / 400), 0.6, 1.25)
+      const u = wide
+        ? clamp(Math.min((r.height - 40) / 330, r.width / 2 / 400), 0.6, 1.25)
         : clamp(Math.min(r.width / 400, (r.height - 290) / 400), 0.62, 1.3);
       wrap.style.setProperty('--u', u.toFixed(3));
     };
     fit();
-    const ro = new ResizeObserver(fit); ro.observe(root);
+    const ro = new ResizeObserver(fit);
+    ro.observe(root);
 
     // --- хомячки
     function drawToque(ctx, x, y, s) {
@@ -295,16 +362,22 @@ export default {
       const yum = phase === 'yum';
       // гость
       const g = guests[idx % guests.length];
-      const c1 = gcv.ctx; c1.clearRect(0, 0, 130, 130);
+      const c1 = gcv.ctx;
+      c1.clearRect(0, 0, 130, 130);
       const k = clamp((now - enterAt) / 0.4, 0, 1);
       const slide = -(1 - k) * (1 - k) * 130;
       const hop = yum ? Math.abs(Math.sin((now - yumAt) * 9)) * 6 : 0;
       host.drawHamster(c1, 65 + slide, 124 - hop, 1.12, g.look, {
-        time: now, blink, happy: yum, armsUp: yum, talk: phase === 'show',
+        time: now,
+        blink,
+        happy: yum,
+        armsUp: yum,
+        talk: phase === 'show',
         walk: k < 1 ? (now * 3) % 1 : null,
       });
       // шеф (игрок)
-      const c2 = mcv.ctx; c2.clearRect(0, 0, 120, 140);
+      const c2 = mcv.ctx;
+      c2.clearRect(0, 0, 120, 140);
       const bob = Math.sin(now * 2.2) * 0.7 * 1.1;
       host.drawHamster(c2, 60, 134, 1.1, chefLook, { time: now, blink, happy: yum });
       drawToque(c2, 60, 134 - bob, 1.1);
@@ -318,7 +391,8 @@ export default {
       stop() {
         stopped = true;
         cancelAnimationFrame(raf);
-        timers.forEach(clearTimeout); timers.clear();
+        timers.forEach(clearTimeout);
+        timers.clear();
         ro.disconnect();
         wrap.remove();
       },
