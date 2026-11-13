@@ -239,6 +239,7 @@ export const INGREDIENTS = [
   { id: 'apple', name: 'Яблоко', e: '🍎', price: 50, src: 'shop' },
   { id: 'banana', name: 'Банан', e: '🍌', price: 60, src: 'shop' },
   { id: 'honey', name: 'Мёд', e: '🍯', price: 350, src: 'shop' },
+  { id: 'coconut', name: 'Кокос', e: '🥥', price: 450, src: 'shop' },
   { id: 'carrot', name: 'Морковка', e: '🥕', price: 40, src: 'garden' },
   { id: 'strawberry', name: 'Клубника', e: '🍓', price: 120, src: 'garden' },
   { id: 'seeds', name: 'Семечки', e: '🌻', price: 90, src: 'garden' },
@@ -267,6 +268,8 @@ export const DISHES = [
   { id: 'pizza', name: 'Пицца', e: '🍕', needs: { flour: 1, cheese: 1, tomato: 1 }, start: true, cafe: 'rest', price: 1800 },
   { id: 'fish_soup', name: 'Уха', e: '🍲', needs: { fish: 1, carrot: 1 }, start: true },
   { id: 'cookies', name: 'Ореховое печенье', e: '🍪', needs: { nuts: 1, flour: 1, butter: 1 }, start: true, cafe: 'cafe', price: 600 },
+  { id: 'coco_shake', name: 'Кокосовый коктейль', e: '🥤', needs: { coconut: 1, milk: 1, banana: 1 }, start: true, cafe: 'beach', price: 650 },
+  { id: 'coco_candy', name: 'Кокосовые конфеты', e: '🍡', needs: { coconut: 1, choco: 1, sugar: 1 }, start: true },
   { id: 'icecream', name: 'Клубничное мороженое', e: '🍨', needs: { strawberry: 2, milk: 1, sugar: 1 }, cafe: 'beach', price: 500 },
   { id: 'sushi', name: 'Суши', e: '🍣', needs: { fish: 1, rice: 1 }, cafe: 'rest', price: 2500 },
   { id: 'pumpkin_pie', name: 'Тыквенный пирог', e: '🥧', needs: { pumpkin: 1, flour: 1, egg: 1 } },
@@ -432,6 +435,10 @@ export const TASKS = [
     text: 'Настоящий хомячок должен бегать в колесе! Пробеги круг-другой в беговом колесе на вилле.' },
   { id: 'gift', type: 'gift', sticker: '🎁', title: 'Подарок другу', where: 'town',
     text: 'Сделай кому-нибудь приятное: найди друга в городе и подари ему любую вкусняшку.' },
+  { id: 'feedfish', type: 'feed', sticker: '🐠', title: 'Обед для рыбок', where: 'beach',
+    text: 'Рыбки проголодались! Заплыви в море и нажми на стайку рыбок, чтобы угостить их крошками. А можно покормить рыбок в аквариуме дома.' },
+  { id: 'coconut', type: 'coconut', sticker: '🥥', title: 'Кокосовый день', where: 'beach',
+    text: 'На пальмах созрели кокосы! Подойди к любой пальме и потряси её — кокос упадёт прямо в рюкзак.' },
   { id: 'cafe', type: 'buy', cat: 'dish', sticker: '🧁', title: 'Сладкий день', where: 'cafe',
     text: 'В кафе «Семечка» сегодня пахнет особенно вкусно. Купи себе что-нибудь и съешь!' },
 ];
@@ -446,6 +453,10 @@ export const EXTRA_STICKERS = [
   { id: 'x_year', sticker: '🎆', title: 'Целый год!' },
   { id: 'x_rich', sticker: '💰', title: 'Потратила миллион' },
   { id: 'x_island', sticker: '🏝️', title: 'Необитаемый остров' },
+  { id: 'x_isles', sticker: '🧭', title: 'Все острова открыты' },
+  { id: 'x_feed', sticker: '🐟', title: 'Друг рыбок' },
+  { id: 'x_whale', sticker: '🐋', title: 'Встреча с китом' },
+  { id: 'x_tower', sticker: '🛗', title: 'На 101-й этаж!' },
 ];
 
 // Темы показа мод: какие теги одежды ценит жюри

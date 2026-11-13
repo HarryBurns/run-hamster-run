@@ -2,12 +2,12 @@
 import { clamp, lerp, rnd, pick, seeded, ell, fillRR, line, poly, shade, mix, rr, star, emoji, TAU, dist } from './util.js';
 import { drawHamster } from './hamster.js';
 import { NPCS, NPC_BY_ID, npcLook, ING_BY_ID, SEED_BY_ID, TASK_BY_ID } from './data.js';
-import { G, playerLook, cal, darkness, addSticker, save } from './game.js';
+import { G, playerLook, cal, darkness, addSticker, save, addTo } from './game.js';
 import { toast } from './ui.js';
 import { sfx } from './audio.js';
 import * as F from './features.js';
 
-export const T = 48, MW = 72, MH = 62;
+export const T = 48, MW = 72, MH = 76;
 const SEA_Y = 44; // с этой строки начинается глубокое море
 const OUT = '#4a3728';
 const PS = 0.78; // масштаб хомячка в городе
@@ -41,14 +41,24 @@ export const BUILDINGS = [
   B('house7', 'house', 19, 31, 4, 4, { wall: '#fff0f6', roof: '#f06595', npc: 'zefirka' }),
 ];
 const B_BY_ID = Object.fromEntries(BUILDINGS.map((b) => [b.id, b]));
+export const doorOf = (id) => doorPx(B_BY_ID[id]);
 const doorPx = (b) => ({ x: (b.x + b.w / 2) * T, y: (b.y + b.h) * T + T * 0.45 });
 
+// Необитаемые острова в море: центр (в клетках), размеры и что на них лежит
+const ISLES = [
+  { name: 'Остров Сундука', x: 22, y: 53, rx: 3.6, ry: 2.3, deco: [['palm', 0, -1], ['umbrella', -2, 0], ['chest', 2, 0]] },
+  { name: 'Пальмовый остров', x: 47, y: 57, rx: 4.6, ry: 2.8, deco: [['palm', -2, -1], ['palm', 1, -2], ['palm', 3, 0], ['starfish', -1, 1], ['crab', 1, 1]] },
+  { name: 'Крабий островок', x: 64, y: 51, rx: 2.4, ry: 1.7, deco: [['palm', 0, -1], ['crab', -1, 0], ['crab', 1, 0]] },
+  { name: 'Звёздный остров', x: 9, y: 63, rx: 3.4, ry: 2.5, deco: [['palm', -1, -1], ['starfish', 1, 0], ['starfish', -2, 1], ['starfish', 0, 1], ['flag', 2, -1]] },
+  { name: 'Остров Кораблика', x: 33, y: 68, rx: 5.2, ry: 2.9, deco: [['palm', -3, -1], ['palm', 3, -1], ['boat', 0, 0], ['chest', -2, 1], ['crab', 2, 1]] },
+  { name: 'Остров-крошка', x: 60, y: 67, rx: 1.9, ry: 1.5, deco: [['palm', 0, -1], ['starfish', 0, 0]] },
+];
 const HANG = { plusha: [30, 5], ponchik: [39, 35], senya: [56, 24], busya: [41, 12], prof: [47, 24], myata: [15, 27], bob: [50, 44], zefirka: [42, 39] };
 
 const W = {
   ground: [], solid: [], objs: [], cam: { x: 0, y: 0, zoom: 1 },
   p: { x: 12.5 * T, y: 7.6 * T, dir: 1, path: [], moving: false, walkT: 0, pending: null, surf: 'g' },
-  npcs: [], weather: [], built: false, down: null, sorted: [],
+  npcs: [], sea: [], drops: [], crumbs: null, weather: [], built: false, down: null, sorted: [],
 };
 
 // ---------- построение карты ----------
@@ -56,10 +66,10 @@ function build() {
   const g = Array.from({ length: MH }, () => Array(MW).fill('g'));
   const fill = (x0, y0, x1, y1, ch) => { for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) if (g[y] && g[y][x] !== undefined) g[y][x] = ch; };
   fill(0, 37, 71, 41, 's'); fill(0, 42, 71, 43, 'h'); fill(0, SEA_Y, 71, MH - 1, 'w');
-  // островок далеко в море: песок, а вокруг мелководье
-  for (let y = 49; y <= 57; y++) for (let x = 15; x <= 29; x++) {
-    const d = ((x + 0.5 - 22) / 3.6) ** 2 + ((y + 0.5 - 53) / 2.3) ** 2;
-    if (d <= 1) g[y][x] = 's'; else if (d <= 2.1) g[y][x] = 'h';
+  // необитаемые острова: песок, а вокруг мелководье
+  for (const is of ISLES) for (let y = Math.floor(is.y - is.ry - 2); y <= is.y + is.ry + 2; y++) for (let x = Math.floor(is.x - is.rx - 2); x <= is.x + is.rx + 2; x++) {
+    const d = ((x + 0.5 - is.x) / is.rx) ** 2 + ((y + 0.5 - is.y) / is.ry) ** 2;
+    if (d <= 1) g[y][x] = 's'; else if (d <= 2.1 && g[y][x] === 'w') g[y][x] = 'h';
   }
   fill(25, 12, 71, 13, 'r'); fill(0, 24, 71, 25, 'r'); fill(34, 0, 35, 36, 'r'); fill(52, 0, 53, 36, 'r'); fill(0, 35, 71, 36, 'r');
   fill(36, 14, 51, 16, 'r'); // площадь с фонтаном
@@ -86,7 +96,11 @@ function build() {
   add('icehole', 19, 17);
   add('fountain', 43, 15, { big: true }); solid[15][43] = true; solid[15][44] = true;
   add('fishsign', 51, 47);
-  solid[52][22] = true; add('palm', 22, 52); add('umbrella', 20, 53, { beach: true }); add('chest', 24, 53);
+  for (const is of ISLES) for (const [type, dx, dy] of is.deco) {
+    const ox = Math.floor(is.x) + dx, oy = Math.floor(is.y) + dy;
+    add(type, ox, oy, type === 'umbrella' ? { beach: true } : {});
+    if (type === 'palm') solid[oy][ox] = true;
+  }
   for (let x = 1; x < MW; x += 5) add('buoy', x, MH - 2);
   for (const [x, y] of [[4, 12], [6, 12], [8, 12]]) add('lounger', x, y);
   add('umbrella', 10, 12); solid[12][10] = true;
@@ -116,6 +130,7 @@ function build() {
     }
   }
   W.solid = solid; W.objs = objs; W.built = true;
+  initSea();
   // жители
   W.npcs = NPCS.map((n) => { const [hx, hy] = HANG[n.id]; return { id: n.id, x: (hx + 0.5) * T, y: (hy + 0.5) * T, dir: 1, path: [], wait: rnd(0, 3), walkT: 0, moving: false, hidden: false }; });
 }
@@ -262,6 +277,10 @@ export function pointerUp(sx, sy) {
     if (o.type === 'mailbox' && Math.abs(w.x - o.x) < 34 && w.y > o.y - 64 && w.y < o.y + 30) { if (walkTo(p, o.x, o.y + T, true)) p.pending = { act: 'mail' }; sfx('tap'); return; }
     if (o.type === 'icehole' && cal().season === 'winter' && dist(w.x, w.y, o.x, o.y) < 30) { if (walkTo(p, o.x + T, o.y, true)) p.pending = { act: 'fish', spot: 'pond' }; sfx('tap'); return; }
   }
+  // стайка рыбок — покормить
+  for (const f of W.sea) if (f.kind === 'fish' && dist(w.x, w.y, f.x, f.y) < 44) { if (walkTo(p, f.x - 30, f.y + 20, true)) p.pending = { act: 'feed', f }; sfx('tap'); return; }
+  // пальма — потрясти, упадёт кокос
+  for (const o of W.objs) if (o.type === 'palm' && Math.abs(w.x - o.x - 4) < 34 && w.y > o.y - 78 && w.y < o.y + 18) { goNear(o.x, o.y, { act: 'palm', o }); sfx('tap'); return; }
   const c = ch(tx, ty);
   if (c === 'b') { const i = (ty === 8 ? 0 : 4) + (tx - 17); if (walkTo(p, (tx + 0.5) * T, (ty + 1.5) * T, true)) p.pending = { act: 'bed', i }; sfx('tap'); return; }
   if (c === 'd' && cal().season !== 'winter') { goNear((tx + 0.5) * T, (ty + 0.5) * T, { act: 'fish', spot: 'pond' }); sfx('tap'); return; }
@@ -299,6 +318,8 @@ function arrive() {
   if (pd.act === 'mail') F.openMailbox();
   else if (pd.act === 'bed') F.gardenBed(pd.i);
   else if (pd.act === 'fish') F.goFishing(pd.spot);
+  else if (pd.act === 'palm') shakePalm(pd.o);
+  else if (pd.act === 'feed') feedFish();
 }
 export function interactNearest() {
   const p = W.p; let best = null, bd = T * 1.7;
@@ -356,7 +377,7 @@ export function update(dt) {
   if (surf !== p.surf) {
     const wasWater = p.surf === 'o' || p.surf === 'h' || p.surf === 'w';
     if ((surf === 'o' || surf === 'h' || surf === 'w') && !wasWater) { sfx('splash'); G.emit('swim', { where: surf === 'o' ? 'pool' : 'sea' }); }
-    if (surf === 's' && tileOf(p.y) > SEA_Y && addSticker('x_island')) { toast('Новая наклейка: 🏝️ Необитаемый остров!', 'good'); save(); }
+    if (surf === 's' && tileOf(p.y) > SEA_Y) landOnIsle();
     if (surf === 'd') G.emit('skate');
     p.surf = surf;
   }
@@ -387,6 +408,150 @@ export function update(dt) {
   W.cam.x = lerp(W.cam.x, p.x, Math.min(1, dt * 6)); W.cam.y = lerp(W.cam.y, p.y - 20, Math.min(1, dt * 6));
   clampCam();
   updateWeather(dt);
+  updateSea(dt);
+  for (const q of W.drops) q.t += dt;
+  W.drops = W.drops.filter((q) => q.t < 0.9);
+}
+
+// ---------- кокосы и корм для рыбок ----------
+function shakePalm(o) {
+  const s = G.state, key = o.tx + '_' + o.ty;
+  s.dayFlags.palms = s.dayFlags.palms || {};
+  o.shake = G.time + 0.8; sfx('paper');
+  if (s.dayFlags.palms[key]) { toast('На этой пальме кокосы на сегодня закончились. Попробуй другую! 🌴'); return; }
+  s.dayFlags.palms[key] = 1;
+  addTo('ing', 'coconut', 1);
+  W.drops.push({ x: o.x + 6, y: o.y - 58, t: 0, e: '🥥' });
+  setTimeout(() => { sfx('pop'); toast('Бум! +1 🥥 Кокос', 'good'); }, 450);
+  G.emit('coconut'); save();
+}
+function feedFish() {
+  const p = W.p, tx = tileOf(p.x), ty = tileOf(p.y);
+  const fx = p.x + p.dir * 46, fy = p.y + 6;
+  W.crumbs = { x: fx, y: fy, until: G.time + 7 };
+  let n = 0;
+  for (const f of W.sea) if (f.kind === 'fish' && dist(f.x, f.y, fx, fy) < T * 9) { f.feed = G.time + 7; f.timer = Math.min(f.timer, rnd(0.4, 1.6)); n++; }
+  sfx('paddle'); sfx('heart');
+  toast(n > 1 ? 'Рыбки со всех сторон плывут на угощение! 🐟🐠' : 'Рыбки пробуют крошки — вкусно! 🐟');
+  if (addSticker('x_feed')) setTimeout(() => toast('Новая наклейка: 🐟 Друг рыбок!', 'good'), 900);
+  G.emit('feed'); save();
+  void tx; void ty;
+}
+
+// ---------- острова ----------
+function landOnIsle() {
+  const p = W.p, s = G.state;
+  let bi = 0, bd = 1e9;
+  ISLES.forEach((is, i) => { const d = dist(p.x / T, p.y / T, is.x, is.y); if (d < bd) { bd = d; bi = i; } });
+  s.flags.isles = s.flags.isles || {};
+  if (s.flags.isles[bi]) return;
+  s.flags.isles[bi] = 1;
+  const n = Object.keys(s.flags.isles).length;
+  if (addSticker('x_island')) toast('Новая наклейка: 🏝️ Необитаемый остров!', 'good');
+  toast(`Открыт «${ISLES[bi].name}» — ${n} из ${ISLES.length} 🏝️`, 'good');
+  if (n >= ISLES.length && addSticker('x_isles')) setTimeout(() => toast('Новая наклейка: 🧭 Все острова открыты!', 'good'), 1200);
+  sfx('magic'); save();
+}
+
+// ---------- морские жители: рыбки, акулы и киты ----------
+const SEA_DUR = { fish: 0.85, shark: 2.4, whale: 5 };
+function initSea() {
+  const rng = seeded(777), list = [];
+  const spawn = (kind, n) => {
+    let guard = 0;
+    while (n > 0 && guard++ < 500) {
+      const tx = 2 + Math.floor(rng() * (MW - 4)), ty = SEA_Y + 2 + Math.floor(rng() * (MH - SEA_Y - 5));
+      let ok = true;
+      for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) if (ch(tx + dx, ty + dy) !== 'w') ok = false;
+      if (!ok) continue;
+      list.push({ kind, x: (tx + 0.5) * T, y: (ty + 0.5) * T, a: rng() * TAU, turn: rng() * 3, timer: 1 + rng() * 8, up: 0, v: Math.floor(rng() * 3) });
+      n--;
+    }
+  };
+  spawn('fish', 14); spawn('shark', 4); spawn('whale', 3);
+  W.sea = list;
+}
+function updateSea(dt) {
+  const p = W.p;
+  for (const c of W.sea) {
+    c.turn -= dt;
+    if (c.turn <= 0) { c.a += rnd(-0.9, 0.9); c.turn = rnd(2, 5); }
+    if (c.feed && W.crumbs && G.time < c.feed) { // плывём к угощению и чаще выпрыгиваем
+      const dd = dist(c.x, c.y, W.crumbs.x, W.crumbs.y);
+      c.a = dd > 34 ? Math.atan2(W.crumbs.y - c.y, W.crumbs.x - c.x) : c.a + dt * 2.5;
+      if (dd > 34) { c.x += Math.cos(c.a) * 60 * dt; c.y += Math.sin(c.a) * 60 * dt; }
+      c.timer -= dt * 2.5;
+    }
+    const sp = { fish: 42, shark: 58, whale: 24 }[c.kind] * (c.up > 0 && c.kind !== 'fish' ? 0.25 : 1);
+    const cs = Math.cos(c.a), sn = Math.sin(c.a);
+    const ax = c.x + cs * 90, ay = c.y + sn * 90; // смотрим вперёд: не заплываем на мель и за край
+    if (ch(tileOf(ax), tileOf(ay)) !== 'w' || ay > (MH - 3) * T || ay < (SEA_Y + 1) * T) c.a += Math.PI * 0.55 + rnd(0, 0.5);
+    else { c.x += cs * sp * dt; c.y += sn * sp * dt; }
+    if (c.up > 0) {
+      c.up -= dt;
+      if (c.kind === 'whale' && dist(c.x, c.y, p.x, p.y) < T * 6.5 && addSticker('x_whale')) { toast('Новая наклейка: 🐋 Встреча с китом!', 'good'); save(); }
+      if (c.kind === 'shark' && dist(c.x, c.y, p.x, p.y) < T * 3 && !G.state.dayFlags.shark) { G.state.dayFlags.shark = 1; toast('Акула улыбнулась тебе и поплыла дальше 🦈'); }
+      continue;
+    }
+    c.timer -= dt;
+    if (c.timer <= 0) {
+      c.up = SEA_DUR[c.kind]; c.dir = cs >= 0 ? 1 : -1;
+      c.timer = c.kind === 'fish' ? rnd(2.5, 7) : c.kind === 'shark' ? rnd(8, 15) : rnd(10, 18);
+      if (dist(c.x, c.y, p.x, p.y) < T * 7 && G.scene === api) sfx(c.kind === 'whale' ? 'spout' : 'paddle');
+    }
+  }
+}
+function drawSeaCreature(ctx, c, t) {
+  const x = c.x, y = c.y, k = c.up > 0 ? 1 - c.up / SEA_DUR[c.kind] : -1, dir = c.dir || (Math.cos(c.a) >= 0 ? 1 : -1);
+  const rise = k < 0 ? 0 : Math.sin(Math.min(1, k * (c.kind === 'fish' ? 1 : 1.15)) * Math.PI); // 0 → 1 → 0
+  if (c.kind === 'fish') {
+    ctx.fillStyle = 'rgba(15,55,120,.28)';
+    for (let i = 0; i < 4; i++) { ctx.beginPath(); ctx.ellipse(x + ((i * 23) % 40) - 20 + Math.sin(t * 3 + i) * 3, y + ((i * 17) % 26) - 13, 8, 3.5, c.a, 0, TAU); ctx.fill(); }
+    if (k >= 0) {
+      const jx = x + dir * (k - 0.5) * 70, jy = y - Math.sin(k * Math.PI) * 50, col = ['#ff922b', '#ffd43b', '#f783ac'][c.v];
+      ell(ctx, x - dir * 35, y, 12 * (1 - k) + 4, 4, 'rgba(255,255,255,.7)'); if (k > 0.7) ell(ctx, x + dir * 35, y, 14, 4.5, 'rgba(255,255,255,.7)');
+      ctx.save(); ctx.translate(jx, jy); ctx.scale(dir, 1); ctx.rotate(-Math.cos(k * Math.PI) * 0.9);
+      poly(ctx, [-9, 0, -18, -7, -18, 7], col, OUT, 1.5); ell(ctx, 0, 0, 12, 7, col, OUT, 1.8); ell(ctx, 6, -2, 1.6, 1.6, OUT); poly(ctx, [-2, -6, 4, -12, 5, -6], col, OUT, 1.2);
+      ctx.restore();
+    }
+    return;
+  }
+  ctx.save(); ctx.translate(x, y); ctx.scale(dir, 1);
+  if (c.kind === 'shark') {
+    ell(ctx, 0, 4, 44, 13, 'rgba(15,45,100,.28)');
+    ctx.strokeStyle = 'rgba(255,255,255,.7)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(-14, 2); ctx.quadraticCurveTo(-34, -2, -50, 6); ctx.moveTo(-14, 6); ctx.quadraticCurveTo(-32, 10, -46, 14); ctx.stroke();
+    if (rise < 0.25) poly(ctx, [-12, 4, 4, -24 + rise * 30, 12, 4], '#748ba0', OUT, 2); // плавник
+    if (rise > 0.02) {
+      ctx.beginPath(); ctx.rect(-90, -160, 180, 166); ctx.clip();
+      ctx.scale(1.4, 1.4);
+      const hy = 34 - rise * 66;
+      ctx.beginPath(); ctx.moveTo(-26, hy + 60); ctx.quadraticCurveTo(-30, hy + 10, 6, hy - 16); ctx.quadraticCurveTo(30, hy + 6, 28, hy + 60); ctx.closePath();
+      ctx.fillStyle = '#748ba0'; ctx.fill(); ctx.strokeStyle = OUT; ctx.lineWidth = 2; ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(-4, hy + 60); ctx.quadraticCurveTo(2, hy + 14, 20, hy + 8); ctx.quadraticCurveTo(28, hy + 20, 28, hy + 60); ctx.closePath(); ctx.fillStyle = '#f1f3f5'; ctx.fill();
+      ell(ctx, 2, hy + 4, 3.2, 3.6, '#1d1b1b'); ell(ctx, 1, hy + 3, 1.1, 1.1, '#fff');
+      ctx.beginPath(); ctx.arc(14, hy + 16, 10, 0.1 * Math.PI, 0.85 * Math.PI); ctx.strokeStyle = OUT; ctx.lineWidth = 2; ctx.stroke();
+      for (let i = 0; i < 3; i++) poly(ctx, [8 + i * 5, hy + 24 - i, 10.5 + i * 5, hy + 29 - i * 1.5, 13 + i * 5, hy + 23.5 - i * 1.6], '#fff', OUT, 1);
+      ctx.scale(1 / 1.4, 1 / 1.4); ell(ctx, 0, 6, 44, 7, 'rgba(255,255,255,.8)');
+    }
+  } else {
+    ell(ctx, 0, 6, 92, 30, 'rgba(15,45,100,.26)');
+    if (rise > 0.02) {
+      ctx.save(); ctx.beginPath(); ctx.rect(-140, -160, 280, 168); ctx.clip();
+      const by = 50 - rise * 74;
+      ctx.beginPath(); ctx.ellipse(0, by + 26, 90, 54, 0, Math.PI, 0); ctx.closePath(); ctx.fillStyle = '#34558f'; ctx.fill(); ctx.strokeStyle = OUT; ctx.lineWidth = 2.5; ctx.stroke();
+      ctx.beginPath(); ctx.ellipse(-6, by + 22, 62, 38, 0, Math.PI * 1.15, Math.PI * 1.75); ctx.strokeStyle = 'rgba(255,255,255,.4)'; ctx.lineWidth = 5; ctx.stroke();
+      ell(ctx, 58, by + 6, 4, 4.6, '#1d1b1b'); ell(ctx, 57, by + 5, 1.4, 1.4, '#fff');
+      ctx.beginPath(); ctx.arc(68, by + 8, 13, 0.25 * Math.PI, 0.8 * Math.PI); ctx.strokeStyle = OUT; ctx.lineWidth = 2; ctx.stroke();
+      if (k > 0.6) { const ty2 = by + 6 - (k - 0.6) * 60; poly(ctx, [-70, ty2 + 30, -84, ty2 - 6, -104, ty2 - 16, -92, ty2 + 2, -112, ty2 + 8, -90, ty2 + 14, -80, ty2 + 34], '#4c6ea8', OUT, 2); }
+      ctx.restore();
+      if (k > 0.1 && k < 0.6) { // фонтан
+        const top = 50 - rise * 74 - 28;
+        for (let i = 0; i < 9; i++) { const ph = (t * 1.6 + i / 9) % 1, sx = (i % 2 ? 1 : -1) * ph * (10 + (i % 3) * 7); ell(ctx, 14 + sx, top - ph * 70 + ph * ph * 46, 5 - ph * 2.4, 6 - ph * 2.4, 'rgba(255,255,255,.95)'); }
+      }
+      ell(ctx, 0, 9, 96, 8, 'rgba(255,255,255,.7)');
+    }
+  }
+  ctx.restore();
 }
 
 // ---------- погода ----------
@@ -533,7 +698,7 @@ function drawObj(ctx, o, t, sea) {
       ctx.beginPath(); ctx.moveTo(x - 6, y + 14); ctx.quadraticCurveTo(x - 10, y - 30, x + 2, y - 62); ctx.lineTo(x + 10, y - 60); ctx.quadraticCurveTo(x + 2, y - 28, x + 7, y + 14); ctx.closePath();
       ctx.fillStyle = '#c98b5a'; ctx.fill(); ctx.strokeStyle = OUT; ctx.lineWidth = 2; ctx.stroke();
       for (let i = 0; i < 4; i++) line(ctx, x - 6 + i, y + 2 - i * 14, x + 5 + i, y - i * 14, 'rgba(0,0,0,.2)', 1.5);
-      const sw = Math.sin(t * 1.4 + x * 0.1) * 0.06, col = sea === 'autumn' ? '#94d82d' : '#40c057';
+      const sw = Math.sin(t * 1.4 + x * 0.1) * 0.06 + (o.shake > t ? Math.sin(t * 34) * 0.16 : 0), col = sea === 'autumn' ? '#94d82d' : '#40c057';
       for (let i = 0; i < 6; i++) { const a = -Math.PI * (0.02 + i * 0.192) + sw; ctx.save(); ctx.translate(x + 6, y - 62); ctx.rotate(a); ell(ctx, 24, 0, 26, 7.5, i % 2 ? col : shade(col, -0.12), OUT, 1.6); if (sea === 'winter') ell(ctx, 24, -3, 18, 4, '#fff'); ctx.restore(); }
       ell(ctx, x + 2, y - 58, 5, 5, '#8d5524', OUT, 1.2); ell(ctx, x + 10, y - 56, 5, 5, '#8d5524', OUT, 1.2);
       break;
@@ -578,6 +743,27 @@ function drawObj(ctx, o, t, sea) {
       line(ctx, x, by - 13, x, by - 24, OUT, 2.5); ell(ctx, x, by - 26, 3.5, 3.5, '#ffd43b', OUT, 1.5);
       break;
     }
+    case 'crab': {
+      const cx = x + Math.sin(t * 1.3 + o.tx * 2) * 14, cy = y + 6;
+      for (const sx of [-1, 1]) { for (let i = 0; i < 3; i++) line(ctx, cx + sx * 6, cy + 2, cx + sx * (13 + i * 2), cy + 5 + (i - 1) * 4 + Math.sin(t * 12 + i) * 1.5, '#c92a2a', 2); ell(ctx, cx + sx * 12, cy - 7, 4.5, 3.5, '#fa5252', OUT, 1.2); }
+      ell(ctx, cx, cy, 10, 7, '#fa5252', OUT, 1.6); ell(ctx, cx - 3.5, cy - 6, 2, 2.5, '#fff', OUT, 1); ell(ctx, cx + 3.5, cy - 6, 2, 2.5, '#fff', OUT, 1);
+      break;
+    }
+    case 'starfish':
+      ctx.save(); ctx.translate(x + ((o.tx * 7) % 11) - 5, y + 8); ctx.rotate(o.tx); star(ctx, 0, 0, 10, ['#ff922b', '#f783ac', '#ffd43b'][o.tx % 3], OUT, 1.6); ctx.restore();
+      break;
+    case 'flag':
+      line(ctx, x, y + 12, x, y - 44, OUT, 3); poly(ctx, [x, y - 44, x + 26, y - 37 + Math.sin(t * 4) * 2, x, y - 28], '#fa5252', OUT, 1.8);
+      break;
+    case 'boat':
+      ell(ctx, x, y + 14, 44, 8, 'rgba(0,0,0,.14)');
+      ctx.save(); ctx.translate(x, y); ctx.rotate(-0.12);
+      ctx.beginPath(); ctx.moveTo(-46, -8); ctx.lineTo(46, -8); ctx.quadraticCurveTo(36, 16, 16, 16); ctx.lineTo(-22, 16); ctx.quadraticCurveTo(-40, 14, -46, -8); ctx.closePath();
+      ctx.fillStyle = '#a8703f'; ctx.fill(); ctx.strokeStyle = OUT; ctx.lineWidth = 2; ctx.stroke();
+      line(ctx, -38, 2, 38, 2, 'rgba(0,0,0,.25)', 2); line(ctx, 0, -8, 0, -58, OUT, 3);
+      poly(ctx, [2, -56, 30, -22, 2, -18], '#fff3bf', OUT, 1.8); ell(ctx, -22, 8, 5, 5, '#343a40');
+      ctx.restore();
+      break;
     case 'chest':
       ell(ctx, x, y + 12, 18, 5, 'rgba(0,0,0,.14)');
       fillRR(ctx, x - 16, y - 10, 32, 22, 4, '#a8703f', OUT, 2); fillRR(ctx, x - 17, y - 18, 34, 12, 6, '#c98b5a', OUT, 2);
@@ -716,12 +902,14 @@ export function draw(ctx) {
   for (const o of W.objs) if (o.x > mx0 && o.x < mx1 && o.y > my0 && o.y < my1) list.push({ y: o.y + (o.type === 'flowers' || o.type === 'lounger' || o.type === 'icehole' ? -40 : 14), o });
   for (const b of BUILDINGS) if ((b.x + b.w) * T > mx0 - 100 && b.x * T < mx1 + 100 && b.y * T < my1 && (b.y + b.h) * T > my0 - 100) list.push({ y: (b.y + b.h) * T, b });
   for (const n of W.npcs) if (!n.hidden) list.push({ y: n.y + 10, n });
+  for (const c of W.sea) if (c.x > mx0 && c.x < mx1 && c.y > my0 && c.y < my1) list.push({ y: c.y + 8, c });
   const m = G.state.mail;
   if (m && m.items && !m.done) for (const it of m.items) if (!it.got) list.push({ y: (it.y + 0.5) * T, it });
   list.push({ y: W.p.y + 10, p: true });
   list.sort((a, b2) => a.y - b2.y);
   for (const e of list) {
     if (e.o) drawObj(ctx, e.o, t, sea);
+    else if (e.c) drawSeaCreature(ctx, e.c, t);
     else if (e.b) drawBuilding(ctx, e.b, sea, dark);
     else if (e.n) {
       const nd = NPC_BY_ID[e.n.id];
@@ -732,6 +920,15 @@ export function draw(ctx) {
       ell(ctx, (e.it.x + 0.5) * T, (e.it.y + 0.5) * T + 12, 12, 4, 'rgba(0,0,0,.15)'); ell(ctx, (e.it.x + 0.5) * T, yy - 4, 20, 20, 'rgba(255,255,255,.45)');
       emoji(ctx, ic, (e.it.x + 0.5) * T, yy - 4, 26);
     } else if (e.p) drawChar(ctx, playerLook(), W.p, t, false, true);
+  }
+  // падающие кокосы и крошки для рыбок
+  for (const q of W.drops) { const k = Math.min(1, q.t / 0.45); emoji(ctx, q.e, q.x, q.y + k * k * 62, 22); }
+  if (W.crumbs && t < W.crumbs.until) {
+    const cr = W.crumbs, a = Math.min(1, (cr.until - t) / 2);
+    ctx.globalAlpha = a;
+    ell(ctx, cr.x, cr.y, 26 + Math.sin(t * 3) * 3, 9, null, 'rgba(255,255,255,.8)', 2);
+    for (let i = 0; i < 7; i++) ell(ctx, cr.x + Math.cos(i * 2.4) * (8 + (i % 3) * 6), cr.y + Math.sin(i * 2.4) * 4 + Math.sin(t * 4 + i) * 1.5, 2.2, 1.8, '#c98b5a');
+    ctx.globalAlpha = 1;
   }
   // звёздочка-цель
   const tg = targetPx();
@@ -797,6 +994,9 @@ export function walkToPlace(id) {
 }
 /** Насколько хорошо слышно море там, где стоит хомячок: 0..1 */
 export function seaLevel() { return clamp((W.p.y / T - 29) / 11, 0, 1); }
+export function debugSea() { const n = {}; for (const c of W.sea) n[c.kind] = (n[c.kind] || 0) + 1; return n; }
+/** Для тестов: перенести ближайшее существо этого вида к хомячку и заставить вынырнуть. */
+export function debugSeaShow(kind) { const c = W.sea.find((q) => q.kind === kind); c.x = W.p.x + 110; c.y = W.p.y + 60; c.up = SEA_DUR[kind]; c.dir = 1; c.feed = 0; return debugScreen(c.x, c.y); }
 export function debugScreen(wx, wy) { const { w, h } = G.view, z = W.cam.zoom; return { x: (wx - W.cam.x) * z + w / 2, y: (wy - W.cam.y) * z + h / 2 }; }
 export function debugNpc(id) { const n = W.npcs.find((q) => q.id === id); return { ...debugScreen(n.x, n.y - 20), tx: Math.floor(n.x / T), ty: Math.floor(n.y / T), hidden: n.hidden }; }
 export function debugTeleport(tx, ty) { W.p.x = (tx + 0.5) * T; W.p.y = (ty + 0.5) * T; W.p.path = []; W.cam.x = W.p.x; W.cam.y = W.p.y; }

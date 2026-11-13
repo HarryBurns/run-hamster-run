@@ -188,7 +188,7 @@ function openFoodMall() {
   openPanel({
     title: 'ТЦ «Вкусный»', portrait: vendorLook('food'), money: true, cls: 'wide',
     render(body, tab, panel) {
-      body.appendChild(el('p', 'muted', 'Морковку, клубнику, помидоры, тыкву и семечки вырасти на грядках, а рыбку поймай сама!'));
+      body.appendChild(el('p', 'muted', 'Морковку, клубнику, помидоры, тыкву и семечки вырасти на грядках, рыбку поймай сама. А кокосы можно стрясти с любой пальмы — бесплатно!'));
       const grid = el('div', 'grid');
       for (const ing of INGREDIENTS.filter((i) => i.src === 'shop')) {
         const card = el('div', 'card');
@@ -269,11 +269,7 @@ export async function enterBuilding(id) {
       if (i === 0) playMinigame('fashion');
       break;
     }
-    case 'tower': {
-      const i = await dialog({ ...v('tower'), text: 'Сто первый этаж, смотровая площадка! Едем наверх?', options: [{ text: '🔭 Наверх!', cls: 'green' }, { text: 'Не сейчас' }] });
-      if (i === 0) openPanorama();
-      break;
-    }
+    case 'tower': G.go('tower', 'world'); break;
     case 'bank': openBank(); break;
     default: {
       const b = World.BUILDINGS.find((q) => q.id === id);
@@ -287,7 +283,7 @@ export function goOutside() { G.go('world', 'villa'); }
 export function openMap() {
   let raf = 0;
   const go = (id, name, panel) => {
-    if (G.sceneName !== 'world') G.go('world', 'villa');
+    if (G.sceneName !== 'world') G.go('world', G.sceneName);
     if (World.walkToPlace(id)) { sfx('ok'); toast(`Идём: ${name} 🐾`); panel.close(); } else toast('Туда сейчас не пройти');
   };
   openPanel({
@@ -314,10 +310,9 @@ export function openMap() {
   });
 }
 
-function openPanorama() {
-  G.emit('visit', { place: 'tower' });
+export function openPanorama() {
   openPanel({
-    title: 'Смотровая площадка', icon: '🔭', cls: 'wide',
+    title: 'Подзорная труба: город', icon: '🔭', cls: 'wide',
     render(body) {
       const w = 900, h = 480;
       const { canvas, ctx } = makeCanvas(w, h);
@@ -766,6 +761,8 @@ function onEvent(type, d = {}) {
     case 'visit': ok = type === 'visit' && d.place === t.place; break;
     case 'wheel': ok = type === 'wheel'; break;
     case 'skate': ok = type === 'skate'; break;
+    case 'feed': ok = type === 'feed'; break;
+    case 'coconut': ok = type === 'coconut'; break;
     case 'swim':
       if (type === 'swim' && d.where === 'sea') {
         const b = S().look.outfit.body;
@@ -780,7 +777,7 @@ function onEvent(type, d = {}) {
   if (ok) completeTask();
 }
 export function initEvents() {
-  for (const ev of ['minigame', 'buy', 'cook', 'treat', 'gift', 'plant', 'harvest', 'salon', 'place', 'visit', 'wheel', 'skate', 'swim', 'collect', 'talk', 'spa']) G.on(ev, (d) => onEvent(ev, d));
+  for (const ev of ['minigame', 'buy', 'cook', 'treat', 'gift', 'plant', 'harvest', 'salon', 'place', 'visit', 'wheel', 'skate', 'swim', 'collect', 'talk', 'spa', 'feed', 'coconut']) G.on(ev, (d) => onEvent(ev, d));
 }
 
 // =====================================================================

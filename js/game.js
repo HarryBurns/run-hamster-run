@@ -70,6 +70,8 @@ export function load() {
     const s = JSON.parse(raw);
     if (!s || s.v !== 1) return false;
     G.state = s;
+    for (const r of START_RECIPES) if (!s.recipes.includes(r)) s.recipes.push(r);
+    s.flags = s.flags || {}; s.dayFlags = s.dayFlags || {};
     for (const n of NPCS) if (!s.friends[n.id]) s.friends[n.id] = { pts: 0, chat: -1, gift: -1, met: false };
     return true;
   } catch (e) { return false; }

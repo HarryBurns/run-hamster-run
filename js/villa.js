@@ -234,7 +234,7 @@ function actItem(it) {
       play(); break;
     }
     case 'wheel': p.state = 'wheel'; p.item = it; p.x = it.x; it.on = true; V.stateT = 0; sfx('pop'); break;
-    case 'fish': sfx('bubble'); burst(it.x, y - d.h + 20, 'bubble', 5); toast('Рыбки машут тебе плавниками 🐠'); break;
+    case 'fish': sfx('bubble'); sfx('heart'); burst(it.x, y - d.h + 20, 'bubble', 7); burst(it.x, y - d.h - 6, 'heart', 3); toast('Ты покормила рыбок. Они машут плавниками: «Спасибо!» 🐠'); G.emit('feed'); break;
     case 'book': toast(pick(['Ты прочитала сказку про храброго хомяка 📖', 'Книга рецептов: «100 блюд из семечек» 📖', 'Интересно! Хомяки запасают еду за щеками 📖', 'Стихи про море. Красиво! 📖'])); sfx('ok'); break;
     case 'mirror': toast(pick(['Свет мой, зеркальце… Да, ты красотка! 💖', 'Отличный наряд сегодня!'])); playerHappy(); sfx('magic'); break;
     default: break;

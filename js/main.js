@@ -7,6 +7,7 @@ import { sfx, unlockAudio, isMuted, setMuted, isMusicOn, setMusicOn, getMusicVol
 import { toast, openPanel, message, confirmBox } from './ui.js';
 import WorldScene, * as World from './world.js';
 import * as Villa from './villa.js';
+import * as Tower from './tower.js';
 import * as F from './features.js';
 import * as Audio_ from './audio.js';
 
@@ -15,13 +16,13 @@ const ctx = canvas.getContext('2d');
 const hud = document.getElementById('hud');
 let dpr = 1;
 
-G.scenes = { world: WorldScene, villa: Villa };
+G.scenes = { world: WorldScene, villa: Villa, tower: Tower };
 G.go = (name, from) => {
   if (G.scene && G.scene.leave) G.scene.leave();
   G.scene = G.scenes[name];
   G.sceneName = name;
   G.scene.enter(from);
-  G.state.pos.scene = name;
+  if (name === 'tower') Tower.storePos(); else G.state.pos.scene = name;
   G.emit('hud'); save();
 };
 
@@ -149,12 +150,13 @@ function updateSound() {
   const playing = G.state && G.scene && !document.getElementById('title');
   if (!playing) { setMusic('title'); setAmbience({ sea: 0, rain: 0, birds: false, night: false }); return; }
   const mg = !!document.getElementById('mg'), c = cal(), night = darkness() > 0.75, world = G.sceneName === 'world';
-  setMusic(mg ? 'minigame' : !world && Villa.isParty() ? 'party' : night ? 'night' : world ? 'town_' + c.season : 'villa');
+  const tower = G.sceneName === 'tower', deck = tower && Tower.onDeck(), out = world || deck;
+  setMusic(mg ? 'minigame' : G.sceneName === 'villa' && Villa.isParty() ? 'party' : night ? 'night' : world || tower ? 'town_' + c.season : 'villa');
   const rain = G.state.weather === 'rain';
   setAmbience({
-    sea: world && !mg ? World.seaLevel() : 0,
+    sea: mg ? 0 : world ? World.seaLevel() : deck ? 0.3 : 0,
     rain: rain && !mg ? (world ? 1 : 0.3) : 0,
-    birds: world && !mg && !night && !rain && (c.season === 'spring' || c.season === 'summer'),
+    birds: out && !mg && !night && !rain && (c.season === 'spring' || c.season === 'summer'),
     night: world && !mg && night && c.season !== 'winter',
   });
 }
@@ -186,7 +188,7 @@ function frame(now) {
 }
 function persist() {
   if (!G.state || !G.scene) return;
-  if (G.sceneName === 'world') World.storePos(); else Villa.storePos();
+  if (G.sceneName === 'world') World.storePos(); else if (G.sceneName === 'tower') Tower.storePos(); else Villa.storePos();
   save();
 }
 document.addEventListener('visibilitychange', () => { if (document.hidden) persist(); });

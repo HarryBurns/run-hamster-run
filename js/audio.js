@@ -128,6 +128,7 @@ const SOUNDS = {
   bubble: () => tone(300 + Math.random() * 400, 0, 0.12, 'sine', 0.06, 900),
   note: (f = 440) => { tone(f, 0, 0.5, 'triangle', 0.12); tone(f * 2, 0, 0.25, 'sine', 0.03); },
   flush: () => { noise(0, 1.1, 0.1, 400, 'lowpass'); tone(180, 0, 0.9, 'sine', 0.03, 70); },
+  spout: () => { noise(0, 0.9, 0.09, 2600, 'highpass'); noise(0.05, 0.4, 0.08, 800); },
   hiss: () => noise(0, 1.2, 0.07, 5000, 'highpass'),
   sleep: () => [659, 523, 440, 349].forEach((f, i) => tone(f, i * 0.22, 0.4, 'sine', 0.09)),
   morning: () => [392, 523, 659, 784, 659, 784, 1047].forEach((f, i) => tone(f, i * 0.13, i === 6 ? 0.5 : 0.14, 'triangle', 0.09)),
