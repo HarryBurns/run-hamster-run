@@ -130,7 +130,11 @@ export function repair(s) {
   }
   // мебель на вилле
   s.villa = s.villa.filter((i) => i && FURN_BY_ID[i.id] && Number.isFinite(i.x) && Number.isFinite(i.floor));
-  for (const i of s.villa) if (!Number.isFinite(i.y)) i.y = 0;
+  for (const i of s.villa) {
+    if (!Number.isFinite(i.y)) i.y = 0;
+    // «включено» у колеса, игрушек и растений раньше попадало в сохранение; теперь это состояние сцены
+    if (['wheel', 'plant', 'toy'].includes(FURN_BY_ID[i.id].act)) { delete i.on; delete i.onT; }
+  }
   s.uid = Math.max(Number.isFinite(s.uid) ? s.uid : 1, ...s.villa.map((i) => (i.uid || 0) + 1));
   // грядки: всегда восемь, семена — только известные
   s.garden = Array.from({ length: 8 }, (_, i) => {

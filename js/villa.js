@@ -51,13 +51,12 @@ const V = {
 
 // Временное состояние мебели (крутится колесо, качнулась игрушка, шелестит цветок) живёт в сцене,
 // а не в сохранении: иначе после перезагрузки колесо крутилось бы без хомячка.
+// (Следы такого состояния из старых сохранений стирает repair() в game.js.)
 const live = new WeakMap(); // предмет → { on, t: сколько секунд осталось (0 — пока не выключат) }
-const LIVE_ACTS = ['wheel', 'plant', 'toy'];
 
 // ---------- вход / выход ----------
 export function enter(from) {
   const s = G.state, p = V.p;
-  for (const it of s.villa) { const d = FURN_BY_ID[it.id]; if (d && LIVE_ACTS.includes(d.act)) { delete it.on; delete it.onT; } } // следы старых сохранений
   p.path = []; p.state = 'idle'; p.item = null; p.pending = null; p.lift = null;
   if (from === 'world') { p.f = 0; p.x = 290; p.dir = 1; }
   else if (from === 'wake') { const bed = findBed(); if (bed) { p.f = bed.floor; p.x = bed.x + 30; } }
