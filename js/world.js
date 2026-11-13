@@ -6,6 +6,7 @@ import { G, playerLook, cal, darkness, addSticker, save, addTo } from './game.js
 import { toast } from './ui.js';
 import { sfx } from './audio.js';
 import * as F from './features.js';
+import { SpriteSet } from './sprites.js';
 
 export const T = 48, MW = 72, MH = 106;
 const SEA_Y = 44;  // с этой строки начинается глубокое море
@@ -243,7 +244,14 @@ export function enter(from) {
 export function leave() { G.state.pos = { scene: 'world', x: W.p.x, y: W.p.y }; }
 export function storePos() { if (G.scene === api) G.state.pos = { scene: 'world', x: W.p.x, y: W.p.y }; }
 
-function layout() { const { w, h } = G.view; W.cam.zoom = clamp(Math.min(w, h) / (T * 9.4), 0.8, 1.4); }
+function layout() {
+  const { w, h } = G.view, dpr = G.view.dpr || 1;
+  const z = clamp(Math.min(w, h) / (T * 9.4), 0.8, 1.4);
+  // Клетка на экране — целое чётное число пикселей устройства. Тогда центры клеток попадают на целые пиксели,
+  // и спрайты из кэша ложатся 1:1 без швов (забор, соседние деревья). Масштаб от этого меняется на 1–2 %.
+  const tile = Math.max(2, Math.round((T * z * dpr) / 2) * 2);
+  W.cam.zoom = tile / (T * dpr);
+}
 function clampCam() {
   const { w, h } = G.view, z = W.cam.zoom, vw = w / z, vh = h / z;
   W.cam.x = vw >= MW * T ? (MW * T) / 2 : clamp(W.cam.x, vw / 2, MW * T - vw / 2);
@@ -778,74 +786,182 @@ function leafCol(sea, v) {
   if (sea === 'spring') return ['#8ce99a', '#69db7c', '#ffc9de'][v % 3];
   return ['#40c057', '#2f9e44', '#51cf66'][v % 3];
 }
+// Листья пальмы и два кокоса; sw — наклон листьев (радианы).
+function paintPalmTop(ctx, sea, sw) {
+  const col = sea === 'autumn' ? '#94d82d' : '#40c057', dark = shade(col, -0.12);
+  for (let i = 0; i < 6; i++) { const a = -Math.PI * (0.02 + i * 0.192) + sw; ctx.save(); ctx.translate(6, -62); ctx.rotate(a); ell(ctx, 24, 0, 26, 7.5, i % 2 ? col : dark, OUT, 1.6); if (sea === 'winter') ell(ctx, 24, -3, 18, 4, '#fff'); ctx.restore(); }
+  ell(ctx, 2, -58, 5, 5, '#8d5524', OUT, 1.2); ell(ctx, 10, -56, 5, 5, '#8d5524', OUT, 1.2);
+}
+const PALM_STEP = 0.015; // листья пальмы качаются готовыми кадрами: шаг наклона, радианы
+const FLOWER_COLS = ['#ff6b9d', '#ffd43b', '#fff', '#b197fc'], FLOWER_AT = [[-9, 4, 0], [7, -4, 1], [2, 10, 2]];
+
+// Рисунки для кэша спрайтов (js/sprites.js): имя → [рамка x0, y0, x1, y1 с запасом, функция рисования].
+// Функция рисует предмет вокруг точки (0, 0) — это центр его клетки; параметры (сезон, вариант…) входят в ключ
+// спрайта. Здесь только неподвижные части; всё, что шевелится, дорисовывает drawObj.
+// Новый предмет: дописать рисунок сюда и вызвать put('имя', x, y, параметры) в drawObj.
+const ART = {
+  treeBase: [[-28, -30, 28, 26], (ctx) => {
+    ell(ctx, 0, 14, 20, 7, 'rgba(0,0,0,.14)');
+    fillRR(ctx, -6, -24, 12, 40, 4, '#a8703f', OUT, 2);
+  }],
+  treeCrown: [[-44, -86, 44, -14], (ctx, sea, v) => {
+    const c = leafCol(sea, v);
+    ell(ctx, -16, -38, 20, 18, c, OUT); ell(ctx, 16, -38, 20, 18, c, OUT); ell(ctx, 0, -56, 24, 22, c, OUT); ell(ctx, 0, -38, 20, 16, c);
+    if (sea === 'spring') for (const [dx, dy] of [[-14, -44], [10, -60], [16, -36], [-2, -48]]) ell(ctx, dx, dy, 3.5, 3.5, '#fff0f6');
+    if (sea === 'summer' && v === 0) for (const [dx, dy] of [[-12, -40], [12, -54], [4, -34]]) ell(ctx, dx, dy, 4, 4, '#fa5252', OUT, 1);
+  }],
+  treeWinter: [[-34, -76, 34, 26], (ctx) => {
+    ell(ctx, 0, 14, 20, 7, 'rgba(0,0,0,.14)');
+    fillRR(ctx, -6, -24, 12, 40, 4, '#a8703f', OUT, 2);
+    line(ctx, 0, -20, -16, -44, '#a8703f', 5); line(ctx, 0, -22, 15, -48, '#a8703f', 5); line(ctx, 0, -24, 0, -58, '#a8703f', 5);
+    ell(ctx, -15, -46, 12, 8, '#fff', '#cfe3f0', 1.5); ell(ctx, 14, -50, 12, 8, '#fff', '#cfe3f0', 1.5); ell(ctx, 0, -60, 13, 9, '#fff', '#cfe3f0', 1.5);
+  }],
+  pine: [[-32, -84, 32, 26], (ctx, sea) => {
+    ell(ctx, 0, 14, 18, 6, 'rgba(0,0,0,.14)');
+    fillRR(ctx, -5, -4, 10, 20, 3, '#8d5524', OUT, 2);
+    for (let i = 0; i < 3; i++) { const w2 = 26 - i * 6, yy = -6 - i * 20; poly(ctx, [-w2, yy, 0, yy - 32, w2, yy], sea === 'autumn' ? '#2b8a3e' : '#2f9e44', OUT); if (sea === 'winter') poly(ctx, [-w2 * 0.5, yy - 14, 0, yy - 32, w2 * 0.5, yy - 14, w2 * 0.2, yy - 18, 0, yy - 13, -w2 * 0.25, yy - 18], '#fff'); }
+  }],
+  palmBase: [[-24, -68, 24, 26], (ctx) => {
+    ell(ctx, 0, 14, 18, 6, 'rgba(0,0,0,.14)');
+    ctx.beginPath(); ctx.moveTo(-6, 14); ctx.quadraticCurveTo(-10, -30, 2, -62); ctx.lineTo(10, -60); ctx.quadraticCurveTo(2, -28, 7, 14); ctx.closePath();
+    ctx.fillStyle = '#c98b5a'; ctx.fill(); ctx.strokeStyle = OUT; ctx.lineWidth = 2; ctx.stroke();
+    for (let i = 0; i < 4; i++) line(ctx, -6 + i, 2 - i * 14, 5 + i, -i * 14, 'rgba(0,0,0,.2)', 1.5);
+  }],
+  palmTop: [[-58, -124, 68, -34], (ctx, sea, q) => paintPalmTop(ctx, sea, q * PALM_STEP)],
+  bush: [[-26, -24, 26, 22], (ctx, sea, v) => {
+    const c = leafCol(sea, v + 1);
+    ell(ctx, 0, 12, 18, 5, 'rgba(0,0,0,.12)');
+    ell(ctx, -9, 2, 12, 11, c, OUT); ell(ctx, 9, 2, 12, 11, c, OUT); ell(ctx, 0, -6, 13, 12, c, OUT); ell(ctx, 0, 3, 10, 8, c);
+    if (sea === 'summer' || sea === 'spring') { ell(ctx, -6, -4, 2.5, 2.5, v ? '#ff6b9d' : '#fff'); ell(ctx, 7, 2, 2.5, 2.5, v ? '#ff6b9d' : '#fff'); }
+  }],
+  flowers: [[-20, -14, 20, 24], (ctx, sea, v) => {
+    if (sea === 'winter') { ell(ctx, 0, 6, 12, 7, '#fff', '#cfe3f0', 1.5); return; }
+    if (sea === 'autumn') { ell(ctx, -6, 4, 6, 3.5, '#e8590c', null, 1, 0.5); ell(ctx, 7, -3, 6, 3.5, '#fcc419', null, 1, -0.4); return; }
+    for (const [dx, dy, k] of FLOWER_AT) { line(ctx, dx, dy, dx, dy + 7, '#2f9e44', 2); for (let i = 0; i < 5; i++) ell(ctx, dx + Math.cos((i * TAU) / 5) * 3.5, dy + Math.sin((i * TAU) / 5) * 3.5, 2.6, 2.6, FLOWER_COLS[(v + k) % 4]); ell(ctx, dx, dy, 1.8, 1.8, '#ffa94d'); }
+  }],
+  fenceH: [[-28, -24, 28, 12], (ctx) => {
+    fillRR(ctx, -T / 2, -6, T, 6, 2, '#fff', '#cdbfae', 1.5);
+    for (const dx of [-16, 0, 16]) fillRR(ctx, dx - 4, -20, 8, 28, 3, '#fff', '#cdbfae', 1.5);
+  }],
+  fenceV: [[-10, -42, 10, 14], (ctx) => {
+    fillRR(ctx, -3, -T / 2 - 14, 6, T, 2, '#fff', '#cdbfae', 1.5); fillRR(ctx, -5, -22, 10, 30, 3, '#fff', '#cdbfae', 1.5);
+  }],
+  mailbox: [[-26, -58, 40, 24], (ctx, has) => {
+    ell(ctx, 0, 14, 14, 5, 'rgba(0,0,0,.14)');
+    fillRR(ctx, -4, -14, 8, 30, 2, '#8d5524', OUT, 2);
+    fillRR(ctx, -20, -40, 40, 28, 12, '#fa5252', OUT, 2.5);
+    fillRR(ctx, -12, -30, 24, 4, 2, '#7a1f1f');
+    if (has) { line(ctx, 20, -28, 20, -52, OUT, 3); poly(ctx, [20, -52, 34, -47, 20, -42], '#ffd43b', OUT, 1.5); }
+  }],
+  icehole: [[-22, -28, 36, 16], (ctx) => {
+    ell(ctx, 0, 0, 15, 10, '#3fa9e6', '#fff', 3); line(ctx, 18, 6, 30, -22, '#8d5524', 3); line(ctx, 30, -22, 4, -2, '#868e96', 1);
+  }],
+  starfish: [[-22, -8, 22, 24], (ctx, tx) => {
+    ctx.translate(((tx * 7) % 11) - 5, 8); ctx.rotate(tx); star(ctx, 0, 0, 10, ['#ff922b', '#f783ac', '#ffd43b'][tx % 3], OUT, 1.6);
+  }],
+  wreck: [[-56, -70, 56, 28], (ctx) => {
+    ell(ctx, 0, 14, 44, 8, 'rgba(0,0,0,.14)');
+    ctx.rotate(-0.12);
+    ctx.beginPath(); ctx.moveTo(-46, -8); ctx.lineTo(46, -8); ctx.quadraticCurveTo(36, 16, 16, 16); ctx.lineTo(-22, 16); ctx.quadraticCurveTo(-40, 14, -46, -8); ctx.closePath();
+    ctx.fillStyle = '#a8703f'; ctx.fill(); ctx.strokeStyle = OUT; ctx.lineWidth = 2; ctx.stroke();
+    line(ctx, -38, 2, 38, 2, 'rgba(0,0,0,.25)', 2); line(ctx, 0, -8, 0, -58, OUT, 3);
+    poly(ctx, [2, -56, 30, -22, 2, -18], '#fff3bf', OUT, 1.8); ell(ctx, -22, 8, 5, 5, '#343a40');
+  }],
+  igloo: [[-40, -34, 40, 26], (ctx) => {
+    ell(ctx, 0, 14, 34, 8, 'rgba(0,0,0,.1)');
+    ctx.beginPath(); ctx.ellipse(0, 14, 34, 42, 0, Math.PI, 0); ctx.closePath(); ctx.fillStyle = '#fff'; ctx.fill(); ctx.strokeStyle = OUT; ctx.lineWidth = 2.5; ctx.stroke();
+    for (const [ax, ay, bx, by] of [[-30, -2, 30, -2], [-24, -16, 24, -16], [-12, -27, 12, -27], [-12, 14, -12, -2], [12, 14, 12, -2], [0, -2, 0, -16]]) line(ctx, ax, ay, bx, by, 'rgba(120,170,210,.7)', 1.6);
+    ctx.beginPath(); ctx.ellipse(0, 14, 11, 16, 0, Math.PI, 0); ctx.closePath(); ctx.fillStyle = '#343a40'; ctx.fill(); ctx.strokeStyle = OUT; ctx.lineWidth = 2.5; ctx.stroke();
+  }],
+  lighthouse: [[-34, -158, 34, 26], (ctx, lit) => {
+    ell(ctx, 0, 14, 28, 7, 'rgba(0,0,0,.14)');
+    poly(ctx, [-22, 14, -14, -100, 14, -100, 22, 14], '#fff', OUT, 2.5);
+    ctx.save(); ctx.beginPath(); ctx.moveTo(-22, 14); ctx.lineTo(-14, -100); ctx.lineTo(14, -100); ctx.lineTo(22, 14); ctx.closePath(); ctx.clip(); ctx.fillStyle = '#fa5252'; ctx.fillRect(-30, -78, 60, 22); ctx.fillRect(-30, -34, 60, 22); ctx.restore();
+    fillRR(ctx, -7, -10, 14, 24, 6, '#8d5524', OUT, 2);
+    fillRR(ctx, -20, -108, 40, 10, 3, '#343a40', OUT, 2); fillRR(ctx, -13, -132, 26, 26, 3, lit ? '#ffe066' : '#d0ebff', OUT, 2);
+    poly(ctx, [-18, -132, 0, -152, 18, -132], '#fa5252', OUT, 2);
+  }],
+  volcano: [[-104, -118, 104, 36], (ctx) => {
+    ell(ctx, 0, 16, 92, 14, 'rgba(0,0,0,.14)');
+    poly(ctx, [-96, 18, -28, -104, 28, -104, 96, 18], '#8d6e53', OUT, 3);
+    poly(ctx, [-28, -104, -12, -70, -2, -92, 10, -62, 28, -104], '#ff922b', OUT, 2);
+    ell(ctx, 0, -104, 28, 8, '#ff6b6b', OUT, 2);
+    poly(ctx, [-60, -20, -44, -46, -30, -22], 'rgba(0,0,0,.12)'); poly(ctx, [30, -4, 48, -36, 62, -6], 'rgba(0,0,0,.12)');
+  }],
+  chest: [[-22, -24, 22, 22], (ctx) => {
+    ell(ctx, 0, 12, 18, 5, 'rgba(0,0,0,.14)');
+    fillRR(ctx, -16, -10, 32, 22, 4, '#a8703f', OUT, 2); fillRR(ctx, -17, -18, 34, 12, 6, '#c98b5a', OUT, 2);
+    ctx.fillStyle = '#ffd43b'; ctx.fillRect(-16, -3, 32, 3); fillRR(ctx, -4, -9, 8, 9, 2, '#ffd43b', OUT, 1.5);
+  }],
+  fishsign: [[-26, -52, 26, 16], (ctx) => {
+    fillRR(ctx, -3, -20, 6, 30, 2, '#8d5524', OUT, 1.5); fillRR(ctx, -20, -46, 40, 28, 6, '#fff3bf', OUT, 2); emoji(ctx, '🎣', 0, -32, 20);
+  }],
+  fountain: [[-32, -40, 80, 44], (ctx, winter) => {
+    const cx = T / 2;
+    ell(ctx, cx, 8, 50, 30, '#dee2e6', OUT, 2.5); ell(ctx, cx, 5, 42, 24, winter ? '#d9f1ff' : '#74c0fc', OUT, 2);
+    fillRR(ctx, cx - 8, -26, 16, 34, 5, '#dee2e6', OUT, 2); ell(ctx, cx, -26, 18, 8, '#dee2e6', OUT, 2);
+  }],
+  bench: [[-24, -22, 24, 16], (ctx) => {
+    fillRR(ctx, -20, -4, 40, 8, 3, '#c98b5a', OUT, 2); fillRR(ctx, -20, -18, 40, 10, 3, '#d9a066', OUT, 2); line(ctx, -15, 4, -15, 12, OUT, 3); line(ctx, 15, 4, 15, 12, OUT, 3);
+  }],
+  lounger: [[-16, -20, 16, 28], (ctx) => {
+    fillRR(ctx, -12, -16, 24, 40, 6, '#fff', OUT, 2); fillRR(ctx, -12, -16, 24, 14, 6, '#ffd43b', OUT, 2); ctx.fillStyle = '#ff8fab'; ctx.fillRect(-10, 4, 20, 5); ctx.fillRect(-10, 14, 20, 5);
+  }],
+  umbrella: [[-36, -66, 36, 46], (ctx, beach, ci) => {
+    if (beach) fillRR(ctx, -26, 2, 26, 40, 5, ['#ff8fab', '#74c0fc', '#ffd43b'][ci], OUT, 1.5);
+    line(ctx, 0, 14, 0, -40, OUT, 3);
+    const cols = beach ? ['#fa5252', '#fff'] : ['#4dabf7', '#fff'];
+    for (let i = 0; i < 6; i++) { ctx.beginPath(); ctx.moveTo(0, -44); ctx.arc(0, -30, 32, Math.PI + (i * Math.PI) / 6, Math.PI + ((i + 1) * Math.PI) / 6); ctx.closePath(); ctx.fillStyle = cols[i % 2]; ctx.fill(); }
+    ctx.beginPath(); ctx.arc(0, -30, 32, Math.PI, 0); ctx.closePath(); ctx.strokeStyle = OUT; ctx.lineWidth = 2; ctx.stroke();
+  }],
+};
+const SP = new SpriteSet(); // кэш спрайтов города
+/** Нарисовать рисунок из ART в точке мира (x, y) — копией из кэша. a, b — параметры рисунка (часть ключа). */
+function put(name, x, y, a, b) {
+  const key = b !== undefined ? `${name}:${a}:${b}` : a !== undefined ? `${name}:${a}` : name;
+  let s = SP.find(key);
+  if (!s) { const art = ART[name]; s = SP.get(key, art[0], (c) => art[1](c, a, b)); }
+  SP.draw(s, x, y);
+}
+/** Предмет на земле: неподвижное — спрайтами из кэша, подвижное — линиями поверх. */
 function drawObj(ctx, o, t, sea) {
-  let x = o.x; const y = o.y, v = o.v || 0;
+  const x = o.x, y = o.y, v = o.v || 0;
   switch (o.type) {
-    case 'tree': {
-      ell(ctx, x, y + 14, 20, 7, 'rgba(0,0,0,.14)');
-      fillRR(ctx, x - 6, y - 24, 12, 40, 4, '#a8703f', OUT, 2);
-      const c = leafCol(sea, v);
-      if (sea === 'winter') { line(ctx, x, y - 20, x - 16, y - 44, '#a8703f', 5); line(ctx, x, y - 22, x + 15, y - 48, '#a8703f', 5); line(ctx, x, y - 24, x, y - 58, '#a8703f', 5); ell(ctx, x - 15, y - 46, 12, 8, '#fff', '#cfe3f0', 1.5); ell(ctx, x + 14, y - 50, 12, 8, '#fff', '#cfe3f0', 1.5); ell(ctx, x, y - 60, 13, 9, '#fff', '#cfe3f0', 1.5); }
-      else {
-        const sw = Math.sin(t * 1.2 + x) * 1.5;
-        ell(ctx, x - 16 + sw, y - 38, 20, 18, c, OUT); ell(ctx, x + 16 + sw, y - 38, 20, 18, c, OUT); ell(ctx, x + sw, y - 56, 24, 22, c, OUT); ell(ctx, x + sw, y - 38, 20, 16, c);
-        if (sea === 'spring') for (const [dx, dy] of [[-14, -44], [10, -60], [16, -36], [-2, -48]]) ell(ctx, x + dx + sw, y + dy, 3.5, 3.5, '#fff0f6');
-        if (sea === 'summer' && v === 0) for (const [dx, dy] of [[-12, -40], [12, -54], [4, -34]]) ell(ctx, x + dx + sw, y + dy, 4, 4, '#fa5252', OUT, 1);
-      }
+    case 'tree':
+      if (sea === 'winter') { put('treeWinter', x, y); break; }
+      put('treeBase', x, y);
+      put('treeCrown', x + Math.sin(t * 1.2 + x) * 1.5, y, sea, v); // крона покачивается целиком, шагами в пиксель
       break;
-    }
-    case 'pine': {
-      ell(ctx, x, y + 14, 18, 6, 'rgba(0,0,0,.14)');
-      fillRR(ctx, x - 5, y - 4, 10, 20, 3, '#8d5524', OUT, 2);
-      for (let i = 0; i < 3; i++) { const w2 = 26 - i * 6, yy = y - 6 - i * 20; poly(ctx, [x - w2, yy, x, yy - 32, x + w2, yy], sea === 'autumn' ? '#2b8a3e' : '#2f9e44', OUT); if (sea === 'winter') poly(ctx, [x - w2 * 0.5, yy - 14, x, yy - 32, x + w2 * 0.5, yy - 14, x + w2 * 0.2, yy - 18, x, yy - 13, x - w2 * 0.25, yy - 18], '#fff'); }
-      break;
-    }
+    case 'pine': put('pine', x, y, sea); break;
     case 'palm': {
-      ell(ctx, x, y + 14, 18, 6, 'rgba(0,0,0,.14)');
-      ctx.beginPath(); ctx.moveTo(x - 6, y + 14); ctx.quadraticCurveTo(x - 10, y - 30, x + 2, y - 62); ctx.lineTo(x + 10, y - 60); ctx.quadraticCurveTo(x + 2, y - 28, x + 7, y + 14); ctx.closePath();
-      ctx.fillStyle = '#c98b5a'; ctx.fill(); ctx.strokeStyle = OUT; ctx.lineWidth = 2; ctx.stroke();
-      for (let i = 0; i < 4; i++) line(ctx, x - 6 + i, y + 2 - i * 14, x + 5 + i, y - i * 14, 'rgba(0,0,0,.2)', 1.5);
-      const sw = Math.sin(t * 1.4 + x * 0.1) * 0.06 + (o.shake > t ? Math.sin(t * 34) * 0.16 : 0), col = sea === 'autumn' ? '#94d82d' : '#40c057';
-      for (let i = 0; i < 6; i++) { const a = -Math.PI * (0.02 + i * 0.192) + sw; ctx.save(); ctx.translate(x + 6, y - 62); ctx.rotate(a); ell(ctx, 24, 0, 26, 7.5, i % 2 ? col : shade(col, -0.12), OUT, 1.6); if (sea === 'winter') ell(ctx, 24, -3, 18, 4, '#fff'); ctx.restore(); }
-      ell(ctx, x + 2, y - 58, 5, 5, '#8d5524', OUT, 1.2); ell(ctx, x + 10, y - 56, 5, 5, '#8d5524', OUT, 1.2);
+      const sw = Math.sin(t * 1.4 + x * 0.1) * 0.06;
+      if (o.shake > t) { // пальму трясут: это редко и недолго — рисуем линиями
+        SP.world(); ctx.save(); ctx.translate(x, y); ART.palmBase[1](ctx); paintPalmTop(ctx, sea, sw + Math.sin(t * 34) * 0.16); ctx.restore();
+        break;
+      }
+      put('palmBase', x, y);
+      put('palmTop', x, y, sea, Math.round(sw / PALM_STEP));
       break;
     }
-    case 'bush': {
-      const c = leafCol(sea, v + 1);
-      if (Math.abs(W.p.x - x) < 26 && Math.abs(W.p.y - y) < 26) x += Math.sin(t * 22) * 1.8; // шуршит, когда сквозь него идут
-      ell(ctx, x, y + 12, 18, 5, 'rgba(0,0,0,.12)');
-      ell(ctx, x - 9, y + 2, 12, 11, c, OUT); ell(ctx, x + 9, y + 2, 12, 11, c, OUT); ell(ctx, x, y - 6, 13, 12, c, OUT); ell(ctx, x, y + 3, 10, 8, c);
-      if (sea === 'summer' || sea === 'spring') { ell(ctx, x - 6, y - 4, 2.5, 2.5, v ? '#ff6b9d' : '#fff'); ell(ctx, x + 7, y + 2, 2.5, 2.5, v ? '#ff6b9d' : '#fff'); }
+    case 'bush': // шуршит, когда сквозь него идут
+      put('bush', Math.abs(W.p.x - x) < 26 && Math.abs(W.p.y - y) < 26 ? x + Math.sin(t * 22) * 1.8 : x, y, sea, v);
       break;
-    }
-    case 'flowers': {
-      if (sea === 'winter') { if (v === 0) { ell(ctx, x, y + 6, 12, 7, '#fff', '#cfe3f0', 1.5); } break; }
-      if (sea === 'autumn') { ell(ctx, x - 6, y + 4, 6, 3.5, '#e8590c', null, 1, 0.5); ell(ctx, x + 7, y - 3, 6, 3.5, '#fcc419', null, 1, -0.4); break; }
-      const cols = ['#ff6b9d', '#ffd43b', '#fff', '#b197fc'];
-      for (const [dx, dy, k] of [[-9, 4, 0], [7, -4, 1], [2, 10, 2]]) { line(ctx, x + dx, y + dy, x + dx, y + dy + 7, '#2f9e44', 2); for (let i = 0; i < 5; i++) ell(ctx, x + dx + Math.cos((i * TAU) / 5) * 3.5, y + dy + Math.sin((i * TAU) / 5) * 3.5, 2.6, 2.6, cols[(v + k) % 4]); ell(ctx, x + dx, y + dy, 1.8, 1.8, '#ffa94d'); }
+    case 'flowers':
+      if (sea === 'winter' && v !== 0) break;
+      put('flowers', x, y, sea, sea === 'winter' || sea === 'autumn' ? 0 : v);
       break;
-    }
-    case 'fenceH': case 'fenceV': {
-      const c = '#fff', s = '#cdbfae';
-      if (o.type === 'fenceH') { fillRR(ctx, x - T / 2, y - 6, T, 6, 2, c, s, 1.5); for (const dx of [-16, 0, 16]) { fillRR(ctx, x + dx - 4, y - 20, 8, 28, 3, c, s, 1.5); } }
-      else { fillRR(ctx, x - 3, y - T / 2 - 14, 6, T, 2, c, s, 1.5); fillRR(ctx, x - 5, y - 22, 10, 30, 3, c, s, 1.5); }
-      break;
-    }
+    case 'fenceH': put('fenceH', x, y); break;
+    case 'fenceV': put('fenceV', x, y); break;
     case 'mailbox': {
       const m = G.state.mail, has = m && !m.read;
-      ell(ctx, x, y + 14, 14, 5, 'rgba(0,0,0,.14)');
-      fillRR(ctx, x - 4, y - 14, 8, 30, 2, '#8d5524', OUT, 2);
-      fillRR(ctx, x - 20, y - 40, 40, 28, 12, '#fa5252', OUT, 2.5);
-      fillRR(ctx, x - 12, y - 30, 24, 4, 2, '#7a1f1f');
-      if (has) { line(ctx, x + 20, y - 28, x + 20, y - 52, OUT, 3); poly(ctx, [x + 20, y - 52, x + 34, y - 47, x + 20, y - 42], '#ffd43b', OUT, 1.5); emoji(ctx, '✉️', x, y - 64 + Math.sin(t * 5) * 5, 26); }
+      put('mailbox', x, y, has ? 1 : 0);
+      if (has) { SP.world(); emoji(ctx, '✉️', x, y - 64 + Math.sin(t * 5) * 5, 26); }
       break;
     }
-    case 'icehole':
-      if (sea !== 'winter') break;
-      ell(ctx, x, y, 15, 10, '#3fa9e6', '#fff', 3); line(ctx, x + 18, y + 6, x + 30, y - 22, '#8d5524', 3); line(ctx, x + 30, y - 22, x + 4, y - 2, '#868e96', 1);
-      break;
+    case 'icehole': if (sea === 'winter') put('icehole', x, y); break;
     case 'buoy': {
       const by = y + Math.sin(t * 2 + o.tx) * 4;
+      SP.world();
       ell(ctx, x, by + 8, 16, 5, 'rgba(255,255,255,.5)');
       ell(ctx, x, by, 13, 13, '#fa5252', OUT, 2); ctx.fillStyle = '#fff'; ctx.fillRect(x - 12, by - 3, 24, 6);
       line(ctx, x, by - 13, x, by - 24, OUT, 2.5); ell(ctx, x, by - 26, 3.5, 3.5, '#ffd43b', OUT, 1.5);
@@ -853,27 +969,20 @@ function drawObj(ctx, o, t, sea) {
     }
     case 'crab': {
       const cx = x + Math.sin(t * 1.3 + o.tx * 2) * 14, cy = y + 6;
+      SP.world();
       for (const sx of [-1, 1]) { for (let i = 0; i < 3; i++) line(ctx, cx + sx * 6, cy + 2, cx + sx * (13 + i * 2), cy + 5 + (i - 1) * 4 + Math.sin(t * 12 + i) * 1.5, '#c92a2a', 2); ell(ctx, cx + sx * 12, cy - 7, 4.5, 3.5, '#fa5252', OUT, 1.2); }
       ell(ctx, cx, cy, 10, 7, '#fa5252', OUT, 1.6); ell(ctx, cx - 3.5, cy - 6, 2, 2.5, '#fff', OUT, 1); ell(ctx, cx + 3.5, cy - 6, 2, 2.5, '#fff', OUT, 1);
       break;
     }
-    case 'starfish':
-      ctx.save(); ctx.translate(x + ((o.tx * 7) % 11) - 5, y + 8); ctx.rotate(o.tx); star(ctx, 0, 0, 10, ['#ff922b', '#f783ac', '#ffd43b'][o.tx % 3], OUT, 1.6); ctx.restore();
-      break;
+    case 'starfish': put('starfish', x, y, o.tx); break;
     case 'flag':
+      SP.world();
       line(ctx, x, y + 12, x, y - 44, OUT, 3); poly(ctx, [x, y - 44, x + 26, y - 37 + Math.sin(t * 4) * 2, x, y - 28], '#fa5252', OUT, 1.8);
       break;
-    case 'boat':
-      ell(ctx, x, y + 14, 44, 8, 'rgba(0,0,0,.14)');
-      ctx.save(); ctx.translate(x, y); ctx.rotate(-0.12);
-      ctx.beginPath(); ctx.moveTo(-46, -8); ctx.lineTo(46, -8); ctx.quadraticCurveTo(36, 16, 16, 16); ctx.lineTo(-22, 16); ctx.quadraticCurveTo(-40, 14, -46, -8); ctx.closePath();
-      ctx.fillStyle = '#a8703f'; ctx.fill(); ctx.strokeStyle = OUT; ctx.lineWidth = 2; ctx.stroke();
-      line(ctx, -38, 2, 38, 2, 'rgba(0,0,0,.25)', 2); line(ctx, 0, -8, 0, -58, OUT, 3);
-      poly(ctx, [2, -56, 30, -22, 2, -18], '#fff3bf', OUT, 1.8); ell(ctx, -22, 8, 5, 5, '#343a40');
-      ctx.restore();
-      break;
+    case 'boat': put('wreck', x, y); break;
     case 'penguin': {
       const px = x + Math.sin(t * 1.1 + o.tx * 3) * 16, py = y + 8, wob = Math.sin(t * 7 + o.tx) * 0.12;
+      SP.world();
       ctx.save(); ctx.translate(px, py); ctx.rotate(wob);
       ell(ctx, -6, 2, 6, 3, '#ff922b', OUT, 1.2); ell(ctx, 6, 2, 6, 3, '#ff922b', OUT, 1.2);
       ell(ctx, 0, -18, 14, 20, '#343a40', OUT, 2); ell(ctx, 0, -14, 9, 14, '#fff');
@@ -883,70 +992,52 @@ function drawObj(ctx, o, t, sea) {
       ctx.restore();
       break;
     }
-    case 'igloo':
-      ell(ctx, x, y + 14, 34, 8, 'rgba(0,0,0,.1)');
-      ctx.beginPath(); ctx.ellipse(x, y + 14, 34, 42, 0, Math.PI, 0); ctx.closePath(); ctx.fillStyle = '#fff'; ctx.fill(); ctx.strokeStyle = OUT; ctx.lineWidth = 2.5; ctx.stroke();
-      for (const [ax, ay, bx, by] of [[-30, -2, 30, -2], [-24, -16, 24, -16], [-12, -27, 12, -27], [-12, 14, -12, -2], [12, 14, 12, -2], [0, -2, 0, -16]]) line(ctx, x + ax, y + ay, x + bx, y + by, 'rgba(120,170,210,.7)', 1.6);
-      ctx.beginPath(); ctx.ellipse(x, y + 14, 11, 16, 0, Math.PI, 0); ctx.closePath(); ctx.fillStyle = '#343a40'; ctx.fill(); ctx.stroke();
-      break;
+    case 'igloo': put('igloo', x, y); break;
     case 'iceberg': {
       const by = y + Math.sin(t * 1.3 + o.tx) * 4;
+      SP.world();
       ell(ctx, x, by + 20, 44, 8, 'rgba(255,255,255,.5)');
       poly(ctx, [x - 40, by + 18, x - 24, by - 30, x - 6, by - 12, x + 10, by - 52, x + 30, by - 14, x + 42, by + 18], '#f4fbff', OUT, 2.5);
       poly(ctx, [x + 10, by - 52, x + 30, by - 14, x + 42, by + 18, x + 12, by + 18], '#cfe8f9');
       break;
     }
     case 'lighthouse': {
-      const dk = darkness();
-      if (dk > 0.3) { const a = t * 0.8; ctx.globalAlpha = 0.28; for (const s2 of [0, Math.PI]) poly(ctx, [x, y - 118, x + Math.cos(a + s2 - 0.16) * 420, y - 118 + Math.sin(a + s2 - 0.16) * 150, x + Math.cos(a + s2 + 0.16) * 420, y - 118 + Math.sin(a + s2 + 0.16) * 150], '#fff3bf'); ctx.globalAlpha = 1; }
-      ell(ctx, x, y + 14, 28, 7, 'rgba(0,0,0,.14)');
-      poly(ctx, [x - 22, y + 14, x - 14, y - 100, x + 14, y - 100, x + 22, y + 14], '#fff', OUT, 2.5);
-      ctx.save(); ctx.beginPath(); ctx.moveTo(x - 22, y + 14); ctx.lineTo(x - 14, y - 100); ctx.lineTo(x + 14, y - 100); ctx.lineTo(x + 22, y + 14); ctx.closePath(); ctx.clip(); ctx.fillStyle = '#fa5252'; ctx.fillRect(x - 30, y - 78, 60, 22); ctx.fillRect(x - 30, y - 34, 60, 22); ctx.restore();
-      fillRR(ctx, x - 7, y - 10, 14, 24, 6, '#8d5524', OUT, 2);
-      fillRR(ctx, x - 20, y - 108, 40, 10, 3, '#343a40', OUT, 2); fillRR(ctx, x - 13, y - 132, 26, 26, 3, dk > 0.3 ? '#ffe066' : '#d0ebff', OUT, 2);
-      poly(ctx, [x - 18, y - 132, x, y - 152, x + 18, y - 132], '#fa5252', OUT, 2);
+      const lit = darkness() > 0.3;
+      if (lit) { // луч вращается — рисуем его линиями под башней
+        const a = t * 0.8;
+        SP.world(); ctx.globalAlpha = 0.28;
+        for (const s2 of [0, Math.PI]) poly(ctx, [x, y - 118, x + Math.cos(a + s2 - 0.16) * 420, y - 118 + Math.sin(a + s2 - 0.16) * 150, x + Math.cos(a + s2 + 0.16) * 420, y - 118 + Math.sin(a + s2 + 0.16) * 150], '#fff3bf');
+        ctx.globalAlpha = 1;
+      }
+      put('lighthouse', x, y, lit ? 1 : 0);
       break;
     }
-    case 'volcano': {
-      ell(ctx, x, y + 16, 92, 14, 'rgba(0,0,0,.14)');
-      poly(ctx, [x - 96, y + 18, x - 28, y - 104, x + 28, y - 104, x + 96, y + 18], '#8d6e53', OUT, 3);
-      poly(ctx, [x - 28, y - 104, x - 12, y - 70, x - 2, y - 92, x + 10, y - 62, x + 28, y - 104], '#ff922b', OUT, 2);
-      ell(ctx, x, y - 104, 28, 8, '#ff6b6b', OUT, 2);
-      poly(ctx, [x - 60, y - 20, x - 44, y - 46, x - 30, y - 22], 'rgba(0,0,0,.12)'); poly(ctx, [x + 30, y - 4, x + 48, y - 36, x + 62, y - 6], 'rgba(0,0,0,.12)');
-      for (let i = 0; i < 4; i++) { const k = (t * 0.25 + i / 4) % 1; ctx.globalAlpha = 0.7 * (1 - k); ell(ctx, x + Math.sin(k * 5 + i) * 14, y - 116 - k * 90, 12 + k * 18, 10 + k * 14, '#dee2e6'); } ctx.globalAlpha = 1;
+    case 'volcano':
+      put('volcano', x, y);
+      SP.world(); // дым
+      for (let i = 0; i < 4; i++) { const k = (t * 0.25 + i / 4) % 1; ctx.globalAlpha = 0.7 * (1 - k); ell(ctx, x + Math.sin(k * 5 + i) * 14, y - 116 - k * 90, 12 + k * 18, 10 + k * 14, '#dee2e6'); }
+      ctx.globalAlpha = 1;
       break;
-    }
     case 'chest':
-      ell(ctx, x, y + 12, 18, 5, 'rgba(0,0,0,.14)');
-      fillRR(ctx, x - 16, y - 10, 32, 22, 4, '#a8703f', OUT, 2); fillRR(ctx, x - 17, y - 18, 34, 12, 6, '#c98b5a', OUT, 2);
-      ctx.fillStyle = '#ffd43b'; ctx.fillRect(x - 16, y - 3, 32, 3); fillRR(ctx, x - 4, y - 9, 8, 9, 2, '#ffd43b', OUT, 1.5);
-      star(ctx, x + 12, y - 24 + Math.sin(t * 4) * 2, 4, '#fff3bf');
+      put('chest', x, y);
+      SP.world(); star(ctx, x + 12, y - 24 + Math.sin(t * 4) * 2, 4, '#fff3bf');
       break;
-    case 'fishsign':
-      fillRR(ctx, x - 3, y - 20, 6, 30, 2, '#8d5524', OUT, 1.5); fillRR(ctx, x - 20, y - 46, 40, 28, 6, '#fff3bf', OUT, 2); emoji(ctx, '🎣', x, y - 32, 20);
-      break;
+    case 'fishsign': put('fishsign', x, y); break;
     case 'fountain': {
-      const cx = x + T / 2;
-      ell(ctx, cx, y + 8, 50, 30, '#dee2e6', OUT, 2.5); ell(ctx, cx, y + 5, 42, 24, sea === 'winter' ? '#d9f1ff' : '#74c0fc', OUT, 2);
-      fillRR(ctx, cx - 8, y - 26, 16, 34, 5, '#dee2e6', OUT, 2); ell(ctx, cx, y - 26, 18, 8, '#dee2e6', OUT, 2);
-      if (sea !== 'winter') for (let i = 0; i < 5; i++) { const ph = (t * 0.9 + i / 5) % 1, a = -Math.PI / 2 + (i - 2) * 0.35; ell(ctx, cx + Math.cos(a) * ph * 34, y - 30 + Math.sin(a) * ph * 40 + ph * ph * 44, 3.5, 3.5, 'rgba(255,255,255,.9)'); }
+      put('fountain', x, y, sea === 'winter' ? 1 : 0);
+      if (sea !== 'winter') { // струи
+        const cx = x + T / 2;
+        SP.world();
+        for (let i = 0; i < 5; i++) { const ph = (t * 0.9 + i / 5) % 1, a = -Math.PI / 2 + (i - 2) * 0.35; ell(ctx, cx + Math.cos(a) * ph * 34, y - 30 + Math.sin(a) * ph * 40 + ph * ph * 44, 3.5, 3.5, 'rgba(255,255,255,.9)'); }
+      }
       break;
     }
-    case 'bench':
-      fillRR(ctx, x - 20, y - 4, 40, 8, 3, '#c98b5a', OUT, 2); fillRR(ctx, x - 20, y - 18, 40, 10, 3, '#d9a066', OUT, 2); line(ctx, x - 15, y + 4, x - 15, y + 12, OUT, 3); line(ctx, x + 15, y + 4, x + 15, y + 12, OUT, 3);
-      break;
-    case 'lounger':
-      fillRR(ctx, x - 12, y - 16, 24, 40, 6, '#fff', OUT, 2); fillRR(ctx, x - 12, y - 16, 24, 14, 6, '#ffd43b', OUT, 2); ctx.fillStyle = '#ff8fab'; ctx.fillRect(x - 10, y + 4, 20, 5); ctx.fillRect(x - 10, y + 14, 20, 5);
-      break;
-    case 'umbrella': {
+    case 'bench': put('bench', x, y); break;
+    case 'lounger': put('lounger', x, y); break;
+    case 'umbrella':
       if (sea === 'winter' && o.beach) break;
-      if (o.beach) fillRR(ctx, x - 26, y + 2, 26, 40, 5, ['#ff8fab', '#74c0fc', '#ffd43b'][o.tx % 3], OUT, 1.5);
-      line(ctx, x, y + 14, x, y - 40, OUT, 3);
-      const cols = o.beach ? ['#fa5252', '#fff'] : ['#4dabf7', '#fff'];
-      for (let i = 0; i < 6; i++) { ctx.beginPath(); ctx.moveTo(x, y - 44); ctx.arc(x, y - 30, 32, Math.PI + (i * Math.PI) / 6, Math.PI + ((i + 1) * Math.PI) / 6); ctx.closePath(); ctx.fillStyle = cols[i % 2]; ctx.fill(); }
-      ctx.beginPath(); ctx.arc(x, y - 30, 32, Math.PI, 0); ctx.closePath(); ctx.strokeStyle = OUT; ctx.lineWidth = 2; ctx.stroke();
+      put('umbrella', x, y, o.beach ? 1 : 0, o.beach ? o.tx % 3 : 0);
       break;
-    }
     default: break;
   }
 }
@@ -958,9 +1049,24 @@ function label(ctx, text, cx, cy, maxW, size, bg, fg = OUT) {
   fillRR(ctx, cx - tw / 2 - 8, cy - size * 0.75, tw + 16, size * 1.5, size * 0.5, bg, OUT, 2);
   ctx.fillStyle = fg; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(text, cx, cy + 1);
 }
+/** Здание из кэша спрайтов. От времени зависят только снег на крыше и свет в окнах — они входят в ключ. */
 function drawBuilding(ctx, b, sea, dark) {
+  const snow = sea === 'winter' ? 1 : 0, lit = dark > 0.35 ? 1 : 0, key = `b:${b.id}:${snow}:${lit}`;
+  let s = SP.find(key);
+  if (!s) {
+    // рамка — вокруг левого верхнего угла «пятна» здания; башни высокие, у вывесок запас по бокам
+    const up = b.kind === 'tower' ? b.floors * T * 0.62 + T + 60 - b.h * T : 50;
+    s = SP.get(key, [-44, -up, b.w * T + 44, b.h * T + 12], (c) => { c.translate(-b.x * T, -b.y * T); paintBuilding(c, b, !!snow, !!lit); });
+  }
+  SP.draw(s, b.x * T, b.y * T);
+  if (b.kind === 'tower' && Math.sin(G.time * 4) > 0) { // огонёк на шпиле мигает
+    const cx = (b.x + b.w / 2) * T, top = (b.y + b.h) * T - b.floors * T * 0.62 - T;
+    SP.world(); ell(ctx, cx, top - 46, 5, 5, '#fa5252', OUT, 1.5);
+  }
+}
+function paintBuilding(ctx, b, snow, lit) {
   const X = b.x * T, Y = b.y * T, Wd = b.w * T, H = b.h * T, bot = Y + H, cx = X + Wd / 2;
-  const lit = dark > 0.35, win = lit ? '#ffe066' : '#d0ebff', snow = sea === 'winter';
+  const win = lit ? '#ffe066' : '#d0ebff';
   ctx.fillStyle = 'rgba(0,0,0,.13)'; ctx.fillRect(X + 2, bot - 6, Wd + 6, 12);
   if (b.kind === 'house') {
     fillRR(ctx, X + 8, Y + H * 0.42, Wd - 16, H * 0.58, 4, b.wall, OUT, 2.5);
@@ -984,7 +1090,7 @@ function drawBuilding(ctx, b, sea, dark) {
       fillRR(ctx, wx, wy, 22, 18, 3, on ? '#ffe066' : lit ? '#3b4a6b' : '#e7f5ff', OUT, 1.5);
     }
     fillRR(ctx, X + 4, top - 10, Wd - 8, 16, 5, snow ? '#fff' : shade(b.wall, -0.2), OUT, 2.5);
-    line(ctx, cx, top - 10, cx, top - 44, OUT, 3); ell(ctx, cx, top - 46, 5, 5, Math.sin(G.time * 4) > 0 ? '#fa5252' : '#7a1f1f', OUT, 1.5);
+    line(ctx, cx, top - 10, cx, top - 44, OUT, 3); ell(ctx, cx, top - 46, 5, 5, '#7a1f1f', OUT, 1.5); // погасший огонёк; горящий рисует drawBuilding
     fillRR(ctx, cx - 26, bot - 54, 52, 54, 6, '#fff', OUT, 2); fillRR(ctx, cx - 20, bot - 48, 18, 48, 3, win, OUT, 1.5); fillRR(ctx, cx + 2, bot - 48, 18, 48, 3, win, OUT, 1.5);
     label(ctx, `${b.icon} ${b.name}`, cx, bot - 74, Wd + 60, 15, '#fff');
     return;
@@ -1045,28 +1151,52 @@ function drawBoat(ctx, x, y, dir, t, look, moving) {
   ctx.restore();
   ell(ctx, x, y + 22 + bob * 0.3, 52, 5, 'rgba(255,255,255,.75)');
 }
-function drawChar(ctx, look, ent, t, small, isPlayer) {
-  if (isPlayer && ent.boat) { drawBoat(ctx, ent.x, ent.y, ent.dir, t, look, ent.moving); return; }
-  const surf = isPlayer ? ent.surf : 'g';
+/** Игрок: рисуется линиями каждый кадр — у него много поз (вода, лёд, кораблик) и любая одежда. */
+function drawPlayer(ctx, look, ent, t) {
+  if (ent.boat) { drawBoat(ctx, ent.x, ent.y, ent.dir, t, look, ent.moving); return; }
+  const surf = ent.surf;
   const water = surf === 'o' || surf === 'h' || surf === 'w';
-  const pose = { time: t + (ent.ph || 0), dir: ent.dir, walk: ent.moving ? ent.walkT : null, blink: blinkAt(t, ent.ph || 0) };
+  const pose = { time: t, dir: ent.dir, walk: ent.moving ? ent.walkT : null, blink: blinkAt(t, 0) };
   if (water) { pose.clipBelow = surf === 'w' ? -38 : -30; pose.walk = ent.walkT; ell(ctx, ent.x, ent.y - 20, 26, 9, 'rgba(255,255,255,.55)'); }
   if (surf === 'd') pose.walk = null;
-  drawHamster(ctx, ent.x, ent.y + (water ? 4 : 10), PS * (small ? 0.8 : 1), look, pose);
+  drawHamster(ctx, ent.x, ent.y + (water ? 4 : 10), PS, look, pose);
   if (water) { ctx.strokeStyle = 'rgba(255,255,255,.9)'; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.ellipse(ent.x, ent.y - 19, 24 + Math.sin(t * 4) * 3, 7, 0, 0, Math.PI); ctx.stroke(); }
 }
 
+const POOLS = [[3, 14, 8, 7], [60, 16, 9, 6]]; // бассейны: клетка, ширина, высота
+// Житель из кэша спрайтов. Вместо плавной анимации — готовые кадры: 8 кадров шага или 4 кадра «дыхания»,
+// глаза открыты или закрыты (моргание), смотрит влево или вправо. Игрок рисуется «вживую» (drawChar).
+const WALK_FRAMES = 8, IDLE_FRAMES = 4;
+function drawNpc(n, t, nd) {
+  const sc = PS * (nd.small ? 0.8 : 1), shut = blinkAt(t, n.ph) > 0.5 ? 1 : 0;
+  // кадр: 0..7 — шаг, 8..11 — стоит и дышит
+  const fr = n.moving ? Math.floor((n.walkT % 1) * WALK_FRAMES) : WALK_FRAMES + Math.min(IDLE_FRAMES - 1, Math.floor(((Math.sin((t + n.ph) * 2.2) + 1) / 2) * IDLE_FRAMES));
+  const key = `npc:${n.id}:${n.dir}:${fr}:${shut}`;
+  let s = SP.find(key);
+  if (!s) {
+    // поза кадра: для шага — середина его отрезка фазы; для «дыхания» — время, в которое тело на нужной высоте
+    const i = fr - WALK_FRAMES, time = i < 0 ? 0 : Math.asin((((i + 0.5) / IDLE_FRAMES) * 2 - 1) * 0.9) / 2.2;
+    const pose = { dir: n.dir, time, walk: i < 0 ? (fr + 0.5) / WALK_FRAMES : null, blink: shut };
+    s = SP.get(key, [-56 * sc, -124 * sc, 56 * sc, 12 * sc], (c) => drawHamster(c, 0, 0, sc, npcLook(n.id), pose));
+  }
+  SP.draw(s, n.x, n.y + 10);
+}
+
 export function draw(ctx) {
-  const { w, h } = G.view, t = G.time, z = W.cam.zoom, c = cal(), sea = c.season, pal = PAL[sea], dark = darkness();
+  layout(); // масштаб — по текущему размеру экрана, даже если мир на паузе под окном
+  const { w, h } = G.view, dpr = G.view.dpr || 1, t = G.time, z = W.cam.zoom, k = z * dpr, c = cal(), sea = c.season, pal = PAL[sea], dark = darkness();
   ctx.fillStyle = '#3fb0ea'; ctx.fillRect(0, 0, w, h);
   ctx.save();
-  ctx.translate(w / 2, h / 2); ctx.scale(z, z); ctx.translate(-W.cam.x, -W.cam.y);
+  // Сдвиг камеры — целое число пикселей устройства: земля и спрайты из кэша двигаются вместе, без дрожания.
+  const cw = ctx.canvas.width, chh = ctx.canvas.height;
+  const ox = Math.round(W.cam.x * k - cw / 2), oy = Math.round(W.cam.y * k - chh / 2);
+  SP.begin(ctx, k, ox, oy);
   ctx.lineJoin = 'round';
-  const x0 = Math.max(0, tileOf(W.cam.x - w / 2 / z)), x1 = Math.min(MW - 1, tileOf(W.cam.x + w / 2 / z));
-  const y0 = Math.max(0, tileOf(W.cam.y - h / 2 / z)), y1 = Math.min(MH - 1, tileOf(W.cam.y + h / 2 / z));
+  const x0 = Math.max(0, tileOf(ox / k)), x1 = Math.min(MW - 1, tileOf((ox + cw) / k));
+  const y0 = Math.max(0, tileOf(oy / k)), y1 = Math.min(MH - 1, tileOf((oy + chh) / k));
   for (let ty = y0; ty <= y1; ty++) for (let tx = x0; tx <= x1; tx++) drawTile(ctx, W.ground[ty][tx], tx, ty, t, pal, sea);
   // бортики бассейнов и дорожки
-  for (const [px, py, pw, ph] of [[3, 14, 8, 7], [60, 16, 9, 6]]) { rr(ctx, px * T - 3, py * T - 3, pw * T + 6, ph * T + 6, 10); ctx.strokeStyle = '#fff'; ctx.lineWidth = 6; ctx.stroke(); rr(ctx, px * T - 6, py * T - 6, pw * T + 12, ph * T + 12, 12); ctx.strokeStyle = OUT; ctx.lineWidth = 2; ctx.stroke(); }
+  for (const [px, py, pw, ph] of POOLS) { rr(ctx, px * T - 3, py * T - 3, pw * T + 6, ph * T + 6, 10); ctx.strokeStyle = '#fff'; ctx.lineWidth = 6; ctx.stroke(); rr(ctx, px * T - 6, py * T - 6, pw * T + 12, ph * T + 12, 12); ctx.strokeStyle = OUT; ctx.lineWidth = 2; ctx.stroke(); }
   for (let i = 1; i < 6; i++) { ctx.setLineDash([10, 8]); line(ctx, 60 * T + 6, (16 + i) * T, 69 * T - 6, (16 + i) * T, 'rgba(255,255,255,.85)', 3); ctx.setLineDash([]); }
 
   // всё, что стоит на земле, — по порядку «дальше → ближе»
@@ -1082,20 +1212,24 @@ export function draw(ctx) {
   if (!W.p.boat) list.push({ y: boatState().y + 12, boat: true });
   list.sort((a, b2) => a.y - b2.y);
   for (const e of list) {
-    if (e.o) drawObj(ctx, e.o, t, sea);
-    else if (e.c) drawSeaCreature(ctx, e.c, t);
-    else if (e.b) drawBuilding(ctx, e.b, sea, dark);
-    else if (e.n) {
+    if (e.o) { drawObj(ctx, e.o, t, sea); continue; }
+    if (e.b) { drawBuilding(ctx, e.b, sea, dark); continue; }
+    if (e.n) {
       const nd = NPC_BY_ID[e.n.id];
-      drawChar(ctx, npcLook(e.n.id), e.n, t, nd.small, false);
-      if (dist(e.n.x, e.n.y, W.p.x, W.p.y) < T * 3.2) label(ctx, nd.name, e.n.x, e.n.y - 66 * (nd.small ? 0.82 : 1), 200, 12, 'rgba(255,255,255,.92)');
-    } else if (e.it) {
+      drawNpc(e.n, t, nd);
+      if (dist(e.n.x, e.n.y, W.p.x, W.p.y) < T * 3.2) { SP.world(); label(ctx, nd.name, e.n.x, e.n.y - 66 * (nd.small ? 0.82 : 1), 200, 12, 'rgba(255,255,255,.92)'); }
+      continue;
+    }
+    SP.world(); // остальное рисуется линиями, в координатах мира
+    if (e.c) drawSeaCreature(ctx, e.c, t);
+    else if (e.it) {
       const ic = (TASK_BY_ID[m.task] || {}).sticker || '⭐', yy = (e.it.y + 0.5) * T + Math.sin(t * 4 + e.it.x) * 4;
       ell(ctx, (e.it.x + 0.5) * T, (e.it.y + 0.5) * T + 12, 12, 4, 'rgba(0,0,0,.15)'); ell(ctx, (e.it.x + 0.5) * T, yy - 4, 20, 20, 'rgba(255,255,255,.45)');
       emoji(ctx, ic, (e.it.x + 0.5) * T, yy - 4, 26);
     } else if (e.boat) { const bt = boatState(); drawBoat(ctx, bt.x, bt.y, 1, t, null, false); }
-    else if (e.p) drawChar(ctx, playerLook(), W.p, t, false, true);
+    else if (e.p) drawPlayer(ctx, playerLook(), W.p, t);
   }
+  SP.world();
   // падающие кокосы и крошки для рыбок
   for (const q of W.drops) { const k = Math.min(1, q.t / 0.45); emoji(ctx, q.e, q.x, q.y + k * k * 62, 22); }
   if (W.crumbs && t < W.crumbs.until) {
@@ -1108,6 +1242,7 @@ export function draw(ctx) {
   // звёздочка-цель
   const tg = targetPx();
   if (tg) { const by = tg.y - 78 + Math.sin(t * 4) * 6; if (tg.icon === '⭐') { star(ctx, tg.x, by, 15, '#ffd43b', OUT, 2.5); } }
+  SP.end(dpr);
   ctx.restore();
 
   if (dark > 0) { ctx.fillStyle = `rgba(24,24,72,${dark * 0.42})`; ctx.fillRect(0, 0, w, h); }
@@ -1183,6 +1318,8 @@ export function surfaceAt(x, y) {
 }
 /** Насколько хорошо слышно море там, где стоит хомячок: 0..1 */
 export function seaLevel() { return clamp((W.p.y / T - 29) / 11, 0, 1); }
+/** Для тестов: что лежит в кэше спрайтов города. */
+export const debugSprites = () => SP.stats();
 export function debugSea() { const n = {}; for (const c of W.sea) n[c.kind] = (n[c.kind] || 0) + 1; return n; }
 /** Для тестов: перенести ближайшее существо этого вида к хомячку и заставить вынырнуть. */
 export function debugSeaShow(kind) { const c = W.sea.find((q) => q.kind === kind); c.x = W.p.x + 110; c.y = W.p.y + 60; c.up = SEA_DUR[kind]; c.dir = 1; c.feed = 0; return debugScreen(c.x, c.y); }

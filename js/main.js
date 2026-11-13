@@ -33,7 +33,7 @@ G.go = (name, from) => {
 function resize() {
   dpr = Math.min(window.devicePixelRatio || 1, 2);
   const w = window.innerWidth, h = window.innerHeight;
-  G.view.w = w; G.view.h = h;
+  G.view.w = w; G.view.h = h; G.view.dpr = dpr;
   canvas.width = Math.round(w * dpr); canvas.height = Math.round(h * dpr);
   redraw = true; // смена размера стирает канву
 }
