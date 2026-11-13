@@ -61,7 +61,7 @@ export function leave() {}
 /** Сохранение запоминает место на поверхности, где нырнули. */
 export function storePos() { G.state.pos = { scene: 'world', x: D.entry.x, y: D.entry.y }; }
 export function surface() {
-  const s = World.surfaceAt(D.p.x, D.entry.y);
+  const s = World.isBoating() ? World.playerPos() : World.surfaceAt(D.p.x, D.entry.y); // нырнули с кораблика — к нему и всплываем
   G.state.pos = { scene: 'world', x: s.x, y: s.y };
   sfx('splash');
   G.go('world', 'dive');

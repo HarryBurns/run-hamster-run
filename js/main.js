@@ -67,7 +67,7 @@ window.addEventListener('keyup', (e) => G.keys.delete(e.code));
 window.addEventListener('blur', () => G.keys.clear());
 
 // ---------- HUD ----------
-let chipDate, chipMoney, chipTask, btnLeft, btnMap, btnDive;
+let chipDate, chipMoney, chipTask, btnLeft, btnMap, btnDive, btnBoat;
 function rbtn(icon, label, fn) {
   const b = el('button', 'rbtn', `${icon}<span class="lbl">${label}</span>`);
   b.onclick = () => { unlockAudio(); sfx('tap'); fn(); };
@@ -86,7 +86,9 @@ function buildHud() {
   btnMap = rbtn('🗺️', 'Карта', F.openMap);
   btnDive = rbtn('🤿', 'Нырнуть', () => { if (World.canDive()) G.go('dive', 'world'); });
   btnDive.classList.add('on');
-  left.append(btnDive, btnMap, btnLeft);
+  btnBoat = rbtn('⚓', 'Сойти', () => World.leaveBoat());
+  btnBoat.classList.add('on');
+  left.append(btnBoat, btnDive, btnMap, btnLeft);
   hud.append(top, right, left);
 }
 async function leftAction() {
@@ -106,6 +108,7 @@ function updateHud() {
   btnLeft.firstChild.textContent = villa ? '🔨' : dive ? '⬆️' : '🏡';
   btnLeft.querySelector('.lbl').textContent = villa ? 'Обустроить' : dive ? 'Всплыть' : 'Домой';
   btnDive.style.display = G.sceneName === 'world' && World.canDive() ? '' : 'none';
+  btnBoat.style.display = G.sceneName === 'world' && World.isBoating() ? '' : 'none';
   btnMap.style.display = dive ? 'none' : '';
   btnLeft.classList.toggle('on', villa && Villa.isDecor());
   hud.classList.toggle('decor', villa && Villa.isDecor());
@@ -147,6 +150,7 @@ function showHelp() {
       <li>🎹 Нажми на <b>пианино</b> — оно откроется во весь экран, и можно играть самой или учить песенки по зелёным клавишам.</li>
       <li>🔨 Кнопка <b>«Обустроить»</b> — перетаскивай мебель, доставай новую из кладовки.</li>
       <li>🛍️ В городе — магазины одежды и мебели, продукты, салон красоты, кафе и мини-игры: бассейн, школа, больница, ресторан, Дом моды.</li>
+      <li>⛵ У конца пирса стоит <b>кораблик</b>: нажми на него, чтобы сесть. На нём можно плавать быстро и заплывать <b>за буйки</b> — к дальним островам. Нажми на берег рядом, чтобы сойти.</li>
       <li>🌊 В море можно заплывать далеко, а на глубине — <b>🤿 нырнуть</b>: под водой рыбы, кораллы, жемчужины и затонувший корабль.</li>
       <li>🛏️ Чтобы наступил следующий день, ложись спать в кровать. В месяце 3 дня, сезоны меняются.</li>
       <li>📱 Друзей можно звать в гости и угощать. Подружишься — узнаешь секретные рецепты!</li></ul>`,

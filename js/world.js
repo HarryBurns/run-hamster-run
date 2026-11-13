@@ -7,8 +7,11 @@ import { toast } from './ui.js';
 import { sfx } from './audio.js';
 import * as F from './features.js';
 
-export const T = 48, MW = 72, MH = 76;
-const SEA_Y = 44; // с этой строки начинается глубокое море
+export const T = 48, MW = 72, MH = 106;
+const SEA_Y = 44;  // с этой строки начинается глубокое море
+const BUOY_Y = 74; // линия буйков: дальше — открытое море, туда можно только на кораблике
+const BOAT_HOME = { x: 52.5 * T, y: 46.5 * T }; // стоянка кораблика у пирса
+const isDeep = (c) => c === 'w' || c === 'O';
 const OUT = '#4a3728';
 const PS = 0.78; // масштаб хомячка в городе
 
@@ -52,6 +55,10 @@ const ISLES = [
   { name: 'Звёздный остров', x: 9, y: 63, rx: 3.4, ry: 2.5, deco: [['palm', -1, -1], ['starfish', 1, 0], ['starfish', -2, 1], ['starfish', 0, 1], ['flag', 2, -1]] },
   { name: 'Остров Кораблика', x: 33, y: 68, rx: 5.2, ry: 2.9, deco: [['palm', -3, -1], ['palm', 3, -1], ['boat', 0, 0], ['chest', -2, 1], ['crab', 2, 1]] },
   { name: 'Остров-крошка', x: 60, y: 67, rx: 1.9, ry: 1.5, deco: [['palm', 0, -1], ['starfish', 0, 0]] },
+  // за буйками — только на кораблике
+  { name: 'Остров Сокровищ', x: 36, y: 90, rx: 7.2, ry: 4.2, treasure: true, deco: [['volcano', 0, -2], ['palm', -5, -1], ['palm', -3, 1], ['palm', 4, -1], ['palm', 5, 1], ['chest', 1, 2], ['crab', -1, 2], ['flag', 3, 2]] },
+  { name: 'Ледяной остров', x: 12, y: 93, rx: 4.4, ry: 2.8, ice: true, deco: [['igloo', 0, -1], ['penguin', -2, 0], ['penguin', 0, 1], ['penguin', 2, 0]] },
+  { name: 'Остров Маяка', x: 61, y: 88, rx: 3.2, ry: 2.3, deco: [['lighthouse', 0, -1], ['starfish', -2, 0], ['crab', 1, 1]] },
 ];
 const HANG = { plusha: [30, 5], ponchik: [39, 35], senya: [56, 24], busya: [41, 12], prof: [47, 24], myata: [15, 27], bob: [50, 44], zefirka: [42, 39] };
 
@@ -65,11 +72,11 @@ const W = {
 function build() {
   const g = Array.from({ length: MH }, () => Array(MW).fill('g'));
   const fill = (x0, y0, x1, y1, ch) => { for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) if (g[y] && g[y][x] !== undefined) g[y][x] = ch; };
-  fill(0, 37, 71, 41, 's'); fill(0, 42, 71, 43, 'h'); fill(0, SEA_Y, 71, MH - 1, 'w');
+  fill(0, 37, 71, 41, 's'); fill(0, 42, 71, 43, 'h'); fill(0, SEA_Y, 71, BUOY_Y, 'w'); fill(0, BUOY_Y + 1, 71, MH - 1, 'O');
   // необитаемые острова: песок, а вокруг мелководье
   for (const is of ISLES) for (let y = Math.floor(is.y - is.ry - 2); y <= is.y + is.ry + 2; y++) for (let x = Math.floor(is.x - is.rx - 2); x <= is.x + is.rx + 2; x++) {
     const d = ((x + 0.5 - is.x) / is.rx) ** 2 + ((y + 0.5 - is.y) / is.ry) ** 2;
-    if (d <= 1) g[y][x] = 's'; else if (d <= 2.1 && g[y][x] === 'w') g[y][x] = 'h';
+    if (d <= 1) g[y][x] = is.ice ? 'I' : 's'; else if (d <= 2.1 && isDeep(g[y][x])) g[y][x] = 'h';
   }
   fill(25, 12, 71, 13, 'r'); fill(0, 24, 71, 25, 'r'); fill(34, 0, 35, 36, 'r'); fill(52, 0, 53, 36, 'r'); fill(0, 35, 71, 36, 'r');
   fill(36, 14, 51, 16, 'r'); // площадь с фонтаном
@@ -99,9 +106,11 @@ function build() {
   for (const is of ISLES) for (const [type, dx, dy] of is.deco) {
     const ox = Math.floor(is.x) + dx, oy = Math.floor(is.y) + dy;
     add(type, ox, oy, type === 'umbrella' ? { beach: true } : {});
-    if (type === 'palm') solid[oy][ox] = true;
+    if (type === 'palm' || type === 'igloo' || type === 'lighthouse') solid[oy][ox] = true;
+    if (type === 'volcano') for (const vx of [-1, 0, 1]) solid[oy][ox + vx] = true;
   }
-  for (let x = 1; x < MW; x += 5) add('buoy', x, MH - 2);
+  for (let x = 1; x < MW; x += 5) add('buoy', x, BUOY_Y);
+  for (const [x, y] of [[6, 87], [20, 98], [3, 99], [24, 84]]) add('iceberg', x, y);
   for (const [x, y] of [[4, 12], [6, 12], [8, 12]]) add('lounger', x, y);
   add('umbrella', 10, 12); solid[12][10] = true;
   for (const [x, y] of [[38, 15], [48, 15], [28, 14], [31, 14], [57, 14], [63, 14]]) { add('bench', x, y); solid[y][x] = true; }
@@ -137,9 +146,11 @@ function build() {
 
 function ch(tx, ty) { return W.ground[ty] ? W.ground[ty][tx] : undefined; }
 let DRY = false; // true — искать путь только по суше (для жителей)
-function walkable(tx, ty) {
+function walkable(tx, ty, foot) {
   const c = ch(tx, ty);
   if (c === undefined) return false;
+  if (!DRY && !foot && W.p.boat) return c === 'w' || c === 'O' || c === 'h'; // на кораблике — только по воде
+  if (c === 'O') return false;                                              // за буйки вплавь нельзя
   if (DRY && (c === 'h' || c === 'w' || c === 'o' || c === 'd')) return false;
   if (c === 'd') return cal().season === 'winter';
   return !W.solid[ty][tx];
@@ -205,8 +216,10 @@ export function enter(from) {
   if (!W.built) build();
   const p = W.p, s = G.state;
   p.path = []; p.pending = null; p.moving = false;
-  if (from === 'villa') { const d = doorPx(B_BY_ID.villa); p.x = d.x; p.y = d.y; }
+  const bt = boatState();
+  if (from === 'villa') { const d = doorPx(B_BY_ID.villa); p.x = d.x; p.y = d.y; bt.x = BOAT_HOME.x; bt.y = BOAT_HOME.y; bt.on = false; } // кораблик возвращается к пирсу
   else if (s.pos && s.pos.scene === 'world') { p.x = s.pos.x; p.y = s.pos.y; }
+  p.boat = !!bt.on;
   layout(); W.cam.x = p.x; W.cam.y = p.y; clampCam();
   initWeather();
 }
@@ -267,6 +280,9 @@ export function pointerUp(sx, sy) {
   const w = toWorld(sx, sy), p = W.p;
   const tx = tileOf(w.x), ty = tileOf(w.y);
   p.pending = null;
+  if (p.boat) { boatTap(w, tx, ty); return; }
+  const bt = boatState();
+  if (dist(w.x, w.y, bt.x, bt.y - 20) < 60) { goNear(bt.x, bt.y, { act: 'board' }); sfx('tap'); return; } // кораблик
   // житель?
   for (const n of W.npcs) {
     if (n.hidden) continue;
@@ -320,9 +336,13 @@ function arrive() {
   else if (pd.act === 'fish') F.goFishing(pd.spot);
   else if (pd.act === 'palm') shakePalm(pd.o);
   else if (pd.act === 'feed') feedFish();
+  else if (pd.act === 'board') boardBoat();
+  else if (pd.act === 'land') landFromBoat(pd.tx, pd.ty);
 }
 export function interactNearest() {
   const p = W.p; let best = null, bd = T * 1.7;
+  if (p.boat) { leaveBoat(); return; }
+  { const bt = boatState(), d = dist(p.x, p.y, bt.x, bt.y); if (d < T * 2) { bd = d * 0.5; best = { act: 'board' }; } }
   for (const n of W.npcs) { if (n.hidden) continue; const d = dist(p.x, p.y, n.x, n.y); if (d < bd) { bd = d; best = { npc: n }; } }
   for (const b of BUILDINGS) { const dd = doorPx(b), d = dist(p.x, p.y, dd.x, dd.y); if (d < bd) { bd = d; best = { b }; } }
   const mb = dist(p.x, p.y, 15.5 * T, 8.5 * T); if (mb < bd) { bd = mb; best = { act: 'mail' }; }
@@ -355,7 +375,7 @@ export function update(dt) {
   const p = W.p, keys = G.keys;
   const kx = (keys.has('ArrowRight') || keys.has('KeyD') ? 1 : 0) - (keys.has('ArrowLeft') || keys.has('KeyA') ? 1 : 0);
   const ky = (keys.has('ArrowDown') || keys.has('KeyS') ? 1 : 0) - (keys.has('ArrowUp') || keys.has('KeyW') ? 1 : 0);
-  const sp = p.surf === 'w' ? 170 : p.surf === 'o' || p.surf === 'h' ? 140 : p.surf === 'd' ? 270 : 225;
+  const sp = p.boat ? 330 : p.surf === 'w' ? 170 : p.surf === 'o' || p.surf === 'h' ? 140 : p.surf === 'd' ? 270 : 225;
   if (kx || ky) {
     p.path = []; p.pending = null;
     const k = sp * dt / Math.hypot(kx, ky);
@@ -364,21 +384,24 @@ export function update(dt) {
     if (kx) p.dir = kx;
     p.moving = true; p.walkT += dt * 2.4;
   } else if (moveAlong(p, sp, dt)) arrive();
+  if (p.boat) { const bt = boatState(); bt.x = p.x; bt.y = p.y; }
   // на чём стоим
   const surf = ch(tileOf(p.x), tileOf(p.y));
   // шаги: звук зависит от поверхности
   if (p.moving) {
     p.stepT = (p.stepT || 0) + dt;
-    const water = surf === 'o' || surf === 'h' || surf === 'w';
+    const water = surf === 'o' || surf === 'h' || surf === 'w' || surf === 'O';
     if (p.stepT > (water ? 0.5 : surf === 'd' ? 0.45 : 0.3)) {
       p.stepT = 0;
-      sfx(water ? 'paddle' : surf === 'd' ? 'skate' : surf === 's' ? 'stepSand' : surf === 'i' ? 'stepWood' : surf === 'g' ? (cal().season === 'winter' ? 'stepSnow' : 'step') : 'stepStone');
+      if (p.boat) { p.stepT = -0.25; sfx('paddle'); }
+      else sfx(water ? 'paddle' : surf === 'd' ? 'skate' : surf === 'I' ? 'stepSnow' : surf === 's' ? 'stepSand' : surf === 'i' ? 'stepWood' : surf === 'g' ? (cal().season === 'winter' ? 'stepSnow' : 'step') : 'stepStone');
     }
   } else p.stepT = 0.2;
   if (surf !== p.surf) {
     const wasWater = p.surf === 'o' || p.surf === 'h' || p.surf === 'w';
-    if ((surf === 'o' || surf === 'h' || surf === 'w') && !wasWater) { sfx('splash'); G.emit('swim', { where: surf === 'o' ? 'pool' : 'sea' }); }
-    if (surf === 's' && tileOf(p.y) > SEA_Y) landOnIsle();
+    if (p.boat) { if (surf === 'O' && addSticker('x_far')) { toast('Новая наклейка: 🌅 За буйками!', 'good'); toast('Это открытое море. Где-то здесь прячутся дальние острова…'); save(); } }
+    else if ((surf === 'o' || surf === 'h' || surf === 'w') && !wasWater) { sfx('splash'); G.emit('swim', { where: surf === 'o' ? 'pool' : 'sea' }); }
+    if ((surf === 's' || surf === 'I') && tileOf(p.y) > SEA_Y) landOnIsle();
     if (surf === 'd') G.emit('skate');
     p.surf = surf; G.emit('hud');
   }
@@ -414,6 +437,57 @@ export function update(dt) {
   W.drops = W.drops.filter((q) => q.t < 0.9);
 }
 
+// ---------- кораблик ----------
+function boatState() {
+  const s = G.state;
+  if (!s.boat) s.boat = { x: BOAT_HOME.x, y: BOAT_HOME.y, on: false };
+  return s.boat;
+}
+export const isBoating = () => !!W.p.boat;
+function boardBoat() {
+  const p = W.p, bt = boatState();
+  if (dist(p.x, p.y, bt.x, bt.y) > T * 2.4) return;
+  p.boat = true; bt.on = true; p.x = bt.x; p.y = bt.y; p.path = []; p.surf = ch(tileOf(p.x), tileOf(p.y));
+  sfx('splash'); sfx('ok');
+  if (addSticker('x_boat')) toast('Новая наклейка: ⛵ Капитан!', 'good');
+  if (!G.state.flags.boatHint) { G.state.flags.boatHint = 1; toast('Ты на кораблике! Нажимай на воду — поплывём. Теперь можно и за буйки! ⛵'); }
+  G.emit('boat'); G.emit('hud'); save();
+}
+function getOff(px, py) {
+  const p = W.p, bt = boatState();
+  bt.x = p.x; bt.y = p.y; bt.on = false; p.boat = false; p.path = []; p.pending = null;
+  p.x = px; p.y = py; sfx('pop');
+  G.emit('hud'); save();
+}
+function landFromBoat(tx, ty) {
+  const p = W.p;
+  if (dist(p.x / T, p.y / T, tx + 0.5, ty + 0.5) > 2.6 || !walkable(tx, ty, true)) { toast('Ближе на кораблике не подплыть. Попробуй с другой стороны!'); return; }
+  getOff((tx + 0.5) * T, (ty + 0.5) * T);
+}
+/** Сойти с кораблика там, где он сейчас: на берег рядом или в воду. */
+export function leaveBoat() {
+  const p = W.p, tx = tileOf(p.x), ty = tileOf(p.y);
+  if (!p.boat) return;
+  let best = null, bd = 1e9;
+  for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) {
+    const c = ch(tx + dx, ty + dy);
+    if (c === 'w' || c === 'O' || c === 'h' || c === 'o' || !walkable(tx + dx, ty + dy, true)) continue;
+    const d = dx * dx + dy * dy; if (d < bd) { bd = d; best = [tx + dx, ty + dy]; }
+  }
+  if (best) { getOff((best[0] + 0.5) * T, (best[1] + 0.5) * T); return; }
+  if (ch(tx, ty) === 'O') { toast('Здесь открытое море — слишком далеко и глубоко. Сойти можно у берега или внутри буйков.'); return; }
+  const ox = p.x - 46, oy = p.y + 26, okSpot = walkable(tileOf(ox), tileOf(oy), true);
+  getOff(okSpot ? ox : p.x, okSpot ? oy : p.y); sfx('splash');
+}
+function boatTap(w, tx, ty) {
+  const p = W.p;
+  for (const f of W.sea) if (f.kind === 'fish' && dist(w.x, w.y, f.x, f.y) < 44) { if (walkTo(p, f.x - 50, f.y + 20, true)) p.pending = { act: 'feed', f }; sfx('tap'); return; }
+  const c = ch(tx, ty);
+  if (c === 'w' || c === 'O' || c === 'h') { if (walkTo(p, w.x, w.y, true)) sfx('paddle'); return; }
+  if (walkable(tx, ty, true)) { if (walkTo(p, w.x, w.y, false)) p.pending = { act: 'land', tx, ty }; sfx('tap'); return; } // берег: подплыть и сойти
+  walkTo(p, w.x, w.y, false);
+}
+
 // ---------- кокосы и корм для рыбок ----------
 function shakePalm(o) {
   const s = G.state, key = o.tx + '_' + o.ty;
@@ -446,6 +520,7 @@ function landOnIsle() {
   ISLES.forEach((is, i) => { const d = dist(p.x / T, p.y / T, is.x, is.y); if (d < bd) { bd = d; bi = i; } });
   s.flags.isles = s.flags.isles || {};
   if (s.flags.isles[bi]) return;
+  if (ISLES[bi].treasure) setTimeout(() => F.giveSurprise('Клад с Острова Сокровищ!'), 1600);
   s.flags.isles[bi] = 1;
   const n = Object.keys(s.flags.isles).length;
   if (addSticker('x_island')) toast('Новая наклейка: 🏝️ Необитаемый остров!', 'good');
@@ -463,13 +538,13 @@ function initSea() {
     while (n > 0 && guard++ < 500) {
       const tx = 2 + Math.floor(rng() * (MW - 4)), ty = SEA_Y + 2 + Math.floor(rng() * (MH - SEA_Y - 5));
       let ok = true;
-      for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) if (ch(tx + dx, ty + dy) !== 'w') ok = false;
+      for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) if (!isDeep(ch(tx + dx, ty + dy))) ok = false;
       if (!ok) continue;
       list.push({ kind, x: (tx + 0.5) * T, y: (ty + 0.5) * T, a: rng() * TAU, turn: rng() * 3, timer: 1 + rng() * 8, up: 0, v: Math.floor(rng() * 3) });
       n--;
     }
   };
-  spawn('fish', 14); spawn('shark', 4); spawn('whale', 3);
+  spawn('fish', 22); spawn('shark', 6); spawn('whale', 6);
   W.sea = list;
 }
 function updateSea(dt) {
@@ -486,7 +561,7 @@ function updateSea(dt) {
     const sp = { fish: 42, shark: 58, whale: 24 }[c.kind] * (c.up > 0 && c.kind !== 'fish' ? 0.25 : 1);
     const cs = Math.cos(c.a), sn = Math.sin(c.a);
     const ax = c.x + cs * 90, ay = c.y + sn * 90; // смотрим вперёд: не заплываем на мель и за край
-    if (ch(tileOf(ax), tileOf(ay)) !== 'w' || ay > (MH - 3) * T || ay < (SEA_Y + 1) * T) c.a += Math.PI * 0.55 + rnd(0, 0.5);
+    if (!isDeep(ch(tileOf(ax), tileOf(ay))) || ay > (MH - 3) * T || ay < (SEA_Y + 1) * T) c.a += Math.PI * 0.55 + rnd(0, 0.5);
     else { c.x += cs * sp * dt; c.y += sn * sp * dt; }
     if (c.up > 0) {
       c.up -= dt;
@@ -619,7 +694,11 @@ function drawTile(ctx, c, tx, ty, t, pal, sea) {
       ctx.fillStyle = pal.s; ctx.fillRect(x, y, T + 1, T + 1);
       if (hash(tx, ty) < 0.5) { ctx.fillStyle = 'rgba(190,140,60,.25)'; ctx.fillRect(x + hash(ty, tx) * 40, y + hash(tx + 3, ty) * 40, 3, 3); ctx.fillRect(x + hash(ty + 5, tx) * 40, y + hash(tx, ty + 9) * 40, 3, 3); }
       break;
-    case 'h': case 'w': {
+    case 'I':
+      ctx.fillStyle = alt ? '#f4fbff' : '#e6f4fd'; ctx.fillRect(x, y, T + 1, T + 1);
+      if (hash(tx, ty) < 0.4) { line(ctx, x + 10, y + 14, x + 24, y + 20, 'rgba(160,205,235,.8)', 2); line(ctx, x + 28, y + 34, x + 40, y + 30, 'rgba(160,205,235,.8)', 2); }
+      break;
+    case 'h': case 'w': case 'O': {
       ctx.fillStyle = c === 'h' ? (sea === 'winter' ? '#9fd8ee' : '#7fdcf7') : deepCol(ty, sea); ctx.fillRect(x, y, T + 1, T + 1);
       const ph = t * 1.2 + tx * 0.9 + ty * 1.7;
       ctx.strokeStyle = 'rgba(255,255,255,.5)'; ctx.lineWidth = 2.5; ctx.lineCap = 'round';
@@ -765,6 +844,50 @@ function drawObj(ctx, o, t, sea) {
       poly(ctx, [2, -56, 30, -22, 2, -18], '#fff3bf', OUT, 1.8); ell(ctx, -22, 8, 5, 5, '#343a40');
       ctx.restore();
       break;
+    case 'penguin': {
+      const px = x + Math.sin(t * 1.1 + o.tx * 3) * 16, py = y + 8, wob = Math.sin(t * 7 + o.tx) * 0.12;
+      ctx.save(); ctx.translate(px, py); ctx.rotate(wob);
+      ell(ctx, -6, 2, 6, 3, '#ff922b', OUT, 1.2); ell(ctx, 6, 2, 6, 3, '#ff922b', OUT, 1.2);
+      ell(ctx, 0, -18, 14, 20, '#343a40', OUT, 2); ell(ctx, 0, -14, 9, 14, '#fff');
+      ell(ctx, -15, -16, 4, 10, '#343a40', OUT, 1.5, 0.3); ell(ctx, 15, -16, 4, 10, '#343a40', OUT, 1.5, -0.3);
+      ell(ctx, -4, -28, 2, 2.4, '#fff'); ell(ctx, 4, -28, 2, 2.4, '#fff'); ell(ctx, -4, -28, 1, 1.2, '#000'); ell(ctx, 4, -28, 1, 1.2, '#000');
+      poly(ctx, [-3, -24, 3, -24, 0, -19], '#ff922b', OUT, 1);
+      ctx.restore();
+      break;
+    }
+    case 'igloo':
+      ell(ctx, x, y + 14, 34, 8, 'rgba(0,0,0,.1)');
+      ctx.beginPath(); ctx.ellipse(x, y + 14, 34, 42, 0, Math.PI, 0); ctx.closePath(); ctx.fillStyle = '#fff'; ctx.fill(); ctx.strokeStyle = OUT; ctx.lineWidth = 2.5; ctx.stroke();
+      for (const [ax, ay, bx, by] of [[-30, -2, 30, -2], [-24, -16, 24, -16], [-12, -27, 12, -27], [-12, 14, -12, -2], [12, 14, 12, -2], [0, -2, 0, -16]]) line(ctx, x + ax, y + ay, x + bx, y + by, 'rgba(120,170,210,.7)', 1.6);
+      ctx.beginPath(); ctx.ellipse(x, y + 14, 11, 16, 0, Math.PI, 0); ctx.closePath(); ctx.fillStyle = '#343a40'; ctx.fill(); ctx.stroke();
+      break;
+    case 'iceberg': {
+      const by = y + Math.sin(t * 1.3 + o.tx) * 4;
+      ell(ctx, x, by + 20, 44, 8, 'rgba(255,255,255,.5)');
+      poly(ctx, [x - 40, by + 18, x - 24, by - 30, x - 6, by - 12, x + 10, by - 52, x + 30, by - 14, x + 42, by + 18], '#f4fbff', OUT, 2.5);
+      poly(ctx, [x + 10, by - 52, x + 30, by - 14, x + 42, by + 18, x + 12, by + 18], '#cfe8f9');
+      break;
+    }
+    case 'lighthouse': {
+      const dk = darkness();
+      if (dk > 0.3) { const a = t * 0.8; ctx.globalAlpha = 0.28; for (const s2 of [0, Math.PI]) poly(ctx, [x, y - 118, x + Math.cos(a + s2 - 0.16) * 420, y - 118 + Math.sin(a + s2 - 0.16) * 150, x + Math.cos(a + s2 + 0.16) * 420, y - 118 + Math.sin(a + s2 + 0.16) * 150], '#fff3bf'); ctx.globalAlpha = 1; }
+      ell(ctx, x, y + 14, 28, 7, 'rgba(0,0,0,.14)');
+      poly(ctx, [x - 22, y + 14, x - 14, y - 100, x + 14, y - 100, x + 22, y + 14], '#fff', OUT, 2.5);
+      ctx.save(); ctx.beginPath(); ctx.moveTo(x - 22, y + 14); ctx.lineTo(x - 14, y - 100); ctx.lineTo(x + 14, y - 100); ctx.lineTo(x + 22, y + 14); ctx.closePath(); ctx.clip(); ctx.fillStyle = '#fa5252'; ctx.fillRect(x - 30, y - 78, 60, 22); ctx.fillRect(x - 30, y - 34, 60, 22); ctx.restore();
+      fillRR(ctx, x - 7, y - 10, 14, 24, 6, '#8d5524', OUT, 2);
+      fillRR(ctx, x - 20, y - 108, 40, 10, 3, '#343a40', OUT, 2); fillRR(ctx, x - 13, y - 132, 26, 26, 3, dk > 0.3 ? '#ffe066' : '#d0ebff', OUT, 2);
+      poly(ctx, [x - 18, y - 132, x, y - 152, x + 18, y - 132], '#fa5252', OUT, 2);
+      break;
+    }
+    case 'volcano': {
+      ell(ctx, x, y + 16, 92, 14, 'rgba(0,0,0,.14)');
+      poly(ctx, [x - 96, y + 18, x - 28, y - 104, x + 28, y - 104, x + 96, y + 18], '#8d6e53', OUT, 3);
+      poly(ctx, [x - 28, y - 104, x - 12, y - 70, x - 2, y - 92, x + 10, y - 62, x + 28, y - 104], '#ff922b', OUT, 2);
+      ell(ctx, x, y - 104, 28, 8, '#ff6b6b', OUT, 2);
+      poly(ctx, [x - 60, y - 20, x - 44, y - 46, x - 30, y - 22], 'rgba(0,0,0,.12)'); poly(ctx, [x + 30, y - 4, x + 48, y - 36, x + 62, y - 6], 'rgba(0,0,0,.12)');
+      for (let i = 0; i < 4; i++) { const k = (t * 0.25 + i / 4) % 1; ctx.globalAlpha = 0.7 * (1 - k); ell(ctx, x + Math.sin(k * 5 + i) * 14, y - 116 - k * 90, 12 + k * 18, 10 + k * 14, '#dee2e6'); } ctx.globalAlpha = 1;
+      break;
+    }
     case 'chest':
       ell(ctx, x, y + 12, 18, 5, 'rgba(0,0,0,.14)');
       fillRR(ctx, x - 16, y - 10, 32, 22, 4, '#a8703f', OUT, 2); fillRR(ctx, x - 17, y - 18, 34, 12, 6, '#c98b5a', OUT, 2);
@@ -874,7 +997,28 @@ function drawBuilding(ctx, b, sea, dark) {
   label(ctx, `${b.icon} ${b.name}`, cx, Y + roofH * 0.5 - 2, Wd + 30, mall ? 19 : 15, '#fff');
 }
 
+function drawBoat(ctx, x, y, dir, t, look, moving) {
+  const bob = Math.sin(t * 2.2 + x * 0.01) * 3;
+  ell(ctx, x, y + 16, 62, 12, 'rgba(255,255,255,.4)');
+  if (moving) { ctx.strokeStyle = 'rgba(255,255,255,.8)'; ctx.lineWidth = 3; ctx.lineCap = 'round'; for (let i = 0; i < 3; i++) { const k = ((t * 1.6 + i / 3) % 1); ctx.globalAlpha = 1 - k; ctx.beginPath(); ctx.ellipse(x - dir * (50 + k * 46), y + 16, 10 + k * 16, 4 + k * 5, 0, 0, TAU); ctx.stroke(); } ctx.globalAlpha = 1; }
+  ctx.save(); ctx.translate(x, y + bob); ctx.scale(dir, 1); // мачта и паруса — позади хомячка
+  line(ctx, 2, -8, 2, -104, OUT, 6); line(ctx, 2, -8, 2, -104, '#a8703f', 3);
+  const puff = moving ? 6 : 2;
+  ctx.beginPath(); ctx.moveTo(6, -100); ctx.quadraticCurveTo(40 + puff, -66, 48, -28); ctx.lineTo(6, -24); ctx.closePath(); ctx.fillStyle = '#fff'; ctx.fill(); ctx.strokeStyle = OUT; ctx.lineWidth = 2; ctx.stroke();
+  ctx.save(); ctx.clip(); ctx.fillStyle = '#ff8fab'; ctx.fillRect(0, -74, 60, 12); ctx.fillRect(0, -48, 60, 12); ctx.restore();
+  poly(ctx, [-2, -92, -30, -30, -2, -26], '#ffe066', OUT, 2);
+  poly(ctx, [2, -104, -16, -98 + Math.sin(t * 6) * 2, 2, -92], '#fa5252', OUT, 1.5);
+  ctx.restore();
+  if (look) drawHamster(ctx, x - dir * 6, y + 8 + bob, PS, look, { dir, time: t, clipBelow: -26, shadow: false, blink: t % 3.6 > 3.45, happy: moving });
+  ctx.save(); ctx.translate(x, y + bob); ctx.scale(dir, 1); // борт — перед хомячком
+  ctx.beginPath(); ctx.moveTo(-54, -12); ctx.lineTo(60, -12); ctx.quadraticCurveTo(52, 16, 28, 20); ctx.lineTo(-34, 20); ctx.quadraticCurveTo(-52, 16, -54, -12); ctx.closePath();
+  ctx.fillStyle = '#e8590c'; ctx.fill(); ctx.strokeStyle = OUT; ctx.lineWidth = 2.5; ctx.stroke();
+  fillRR(ctx, -57, -17, 120, 9, 4, '#fff3bf', OUT, 2); ell(ctx, 14, 4, 5.5, 5.5, '#74c0fc', OUT, 1.5); ell(ctx, -12, 4, 5.5, 5.5, '#74c0fc', OUT, 1.5);
+  ctx.restore();
+  ell(ctx, x, y + 22 + bob * 0.3, 52, 5, 'rgba(255,255,255,.75)');
+}
 function drawChar(ctx, look, ent, t, small, isPlayer) {
+  if (isPlayer && ent.boat) { drawBoat(ctx, ent.x, ent.y, ent.dir, t, look, ent.moving); return; }
   const surf = isPlayer ? ent.surf : 'g';
   const water = surf === 'o' || surf === 'h' || surf === 'w';
   const pose = { time: t + ent.x * 0.01, dir: ent.dir, walk: ent.moving ? ent.walkT : null, blink: (t + ent.x) % 3.6 > 3.45 };
@@ -907,6 +1051,7 @@ export function draw(ctx) {
   const m = G.state.mail;
   if (m && m.items && !m.done) for (const it of m.items) if (!it.got) list.push({ y: (it.y + 0.5) * T, it });
   list.push({ y: W.p.y + 10, p: true });
+  if (!W.p.boat) list.push({ y: boatState().y + 12, boat: true });
   list.sort((a, b2) => a.y - b2.y);
   for (const e of list) {
     if (e.o) drawObj(ctx, e.o, t, sea);
@@ -920,7 +1065,8 @@ export function draw(ctx) {
       const ic = TASK_BY_ID[m.task].sticker, yy = (e.it.y + 0.5) * T + Math.sin(t * 4 + e.it.x) * 4;
       ell(ctx, (e.it.x + 0.5) * T, (e.it.y + 0.5) * T + 12, 12, 4, 'rgba(0,0,0,.15)'); ell(ctx, (e.it.x + 0.5) * T, yy - 4, 20, 20, 'rgba(255,255,255,.45)');
       emoji(ctx, ic, (e.it.x + 0.5) * T, yy - 4, 26);
-    } else if (e.p) drawChar(ctx, playerLook(), W.p, t, false, true);
+    } else if (e.boat) { const bt = boatState(); drawBoat(ctx, bt.x, bt.y, 1, t, null, false); }
+    else if (e.p) drawChar(ctx, playerLook(), W.p, t, false, true);
   }
   // падающие кокосы и крошки для рыбок
   for (const q of W.drops) { const k = Math.min(1, q.t / 0.45); emoji(ctx, q.e, q.x, q.y + k * k * 62, 22); }
@@ -954,7 +1100,7 @@ export function draw(ctx) {
 }
 
 // ---------- карта города ----------
-const MAP_COL = { r: '#eadcc0', y: '#ead9b5', p: '#f1f3f5', h: '#7fdcf7', w: '#3fb0ea', o: '#58c6f2', i: '#c98b5a', b: '#8d5a3a' };
+const MAP_COL = { O: '#1c6fc4', I: '#eef8ff', r: '#eadcc0', y: '#ead9b5', p: '#f1f3f5', h: '#7fdcf7', w: '#3fb0ea', o: '#58c6f2', i: '#c98b5a', b: '#8d5a3a' };
 export function drawMiniMap(ctx, k) {
   if (!W.built) build();
   const sea = cal().season, pal = PAL[sea];
@@ -971,6 +1117,8 @@ export function drawMiniMap(ctx, k) {
     else emoji(ctx, b.kind === 'villa' ? '🏡' : b.icon, (b.x + b.w / 2) * k, (b.y + b.h / 2) * k, Math.max(11, k * 2.3));
   }
   emoji(ctx, '🎣', 51 * k, 46 * k, Math.max(10, k * 2));
+  ctx.setLineDash([k, k]); line(ctx, 0, (BUOY_Y + 0.5) * k, MW * k, (BUOY_Y + 0.5) * k, '#fa5252', 1.5); ctx.setLineDash([]);
+  { const bt = boatState(); emoji(ctx, '⛵', (bt.x / T) * k, (bt.y / T) * k - k, Math.max(12, k * 2.6)); }
   const tg = targetPx();
   if (tg) star(ctx, (tg.x / T) * k, (tg.y / T) * k, k * 1.3 + 2, '#ffd43b', OUT, 1.5);
   const pr = k * 0.9 + 3 + Math.sin(G.time * 5) * 1.2;
@@ -995,7 +1143,7 @@ export function walkToPlace(id) {
 }
 export const playerPos = () => ({ x: W.p.x, y: W.p.y });
 /** Нырять можно только там, где глубоко. */
-export const canDive = () => W.built && ch(tileOf(W.p.x), tileOf(W.p.y)) === 'w';
+export const canDive = () => W.built && isDeep(ch(tileOf(W.p.x), tileOf(W.p.y)));
 /** Где всплыть: ближайшая глубокая клетка к точке (x, y). */
 export function surfaceAt(x, y) {
   const tx = clamp(tileOf(x), 0, MW - 1), ty = clamp(tileOf(y), SEA_Y, MH - 2);

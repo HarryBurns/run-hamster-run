@@ -764,6 +764,7 @@ function onEvent(type, d = {}) {
     case 'feed': ok = type === 'feed'; break;
     case 'coconut': ok = type === 'coconut'; break;
     case 'pearl': ok = type === 'pearl'; break;
+    case 'boat': ok = type === 'boat'; break;
     case 'piano': ok = type === 'piano'; break;
     case 'swim':
       if (type === 'swim' && d.where === 'sea') {
@@ -779,7 +780,7 @@ function onEvent(type, d = {}) {
   if (ok) completeTask();
 }
 export function initEvents() {
-  for (const ev of ['minigame', 'buy', 'cook', 'treat', 'gift', 'plant', 'harvest', 'salon', 'place', 'visit', 'wheel', 'skate', 'swim', 'collect', 'talk', 'spa', 'feed', 'coconut', 'pearl', 'piano']) G.on(ev, (d) => onEvent(ev, d));
+  for (const ev of ['minigame', 'buy', 'cook', 'treat', 'gift', 'plant', 'harvest', 'salon', 'place', 'visit', 'wheel', 'skate', 'swim', 'collect', 'talk', 'spa', 'feed', 'coconut', 'pearl', 'piano', 'boat']) G.on(ev, (d) => onEvent(ev, d));
 }
 
 // =====================================================================
