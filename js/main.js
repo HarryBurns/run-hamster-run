@@ -182,6 +182,7 @@ let last = performance.now(), hudT = 0, saveT = 0, sndT = 0;
 let frameNo = 0;
 let failStreak = 0; // сколько кадров подряд закончились ошибкой
 const FAIL_LIMIT = 30;
+const MAX_FRAME = 0.1, MAX_STEP = 0.05; // секунды
 /** Выполнить часть кадра так, чтобы её ошибка не остановила игру. Возвращает false, если была ошибка. */
 function guard(fn) {
   try { fn(); return true; } catch (e) {
@@ -206,12 +207,17 @@ function render() {
 }
 function frame(now) {
   requestAnimationFrame(frame); // первым делом: что бы ни случилось ниже, следующий кадр уже заказан
-  const dt = Math.min(0.05, (now - last) / 1000); last = now;
-  G.time += dt;
+  // Кадр длиннее 100 мс обрезаем (вкладка вернулась из фона), а длинный делим на шаги логики не больше 50 мс:
+  // на слабом устройстве игра идёт с той же скоростью, только реже рисуется.
+  const dtFrame = Math.min(MAX_FRAME, Math.max(0, (now - last) / 1000)); last = now;
+  const steps = Math.max(1, Math.ceil(dtFrame / MAX_STEP - 1e-6)), dt = dtFrame / steps;
   let ok = true;
-  sndT += dt; if (sndT > 0.25) { sndT = 0; ok = guard(updateSound) && ok; }
+  for (let i = 0; i < steps; i++) {
+    G.time += dt;
+    if (G.state && G.scene && !G.modal) ok = guard(() => tick(dt)) && ok;
+  }
+  sndT += dtFrame; if (sndT > 0.25) { sndT = 0; ok = guard(updateSound) && ok; }
   if (G.state && G.scene) {
-    if (!G.modal) ok = guard(() => tick(dt)) && ok;
     // Под мини-игрой, пианино и затемнением сна сцену не видно — не рисуем вовсе.
     // Под окном с затемнением хватает каждого третьего кадра: мир на паузе, шевелятся только вода и дыхание.
     frameNo++;
@@ -219,8 +225,8 @@ function frame(now) {
       redraw = false;
       if (!guard(render)) { ok = false; canvas.width = canvas.width; } // сброс канвы: после ошибки на ней могли остаться clip и недозакрытые save()
     }
-    hudT += dt; if (hudT > 1) { hudT = 0; ok = guard(updateHud) && ok; }
-    saveT += dt; if (saveT > 20) { saveT = 0; ok = guard(persist) && ok; }
+    hudT += dtFrame; if (hudT > 1) { hudT = 0; ok = guard(updateHud) && ok; }
+    saveT += dtFrame; if (saveT > 20) { saveT = 0; ok = guard(persist) && ok; }
   }
   if (ok) failStreak = 0;
   else if (++failStreak === FAIL_LIMIT) showBroken();

@@ -196,9 +196,17 @@ function findPath(sx, sy, tx, ty) {
     }
   }
   if (!found) return null;
+  const cells = [];
+  for (let c = goal; c !== idx(sx, sy) && c !== -1; c = from[c]) cells.push(c);
+  cells.reverse();
+  // точки на одной прямой пропускаем: остаются первая клетка, повороты и цель
   const path = [];
-  for (let c = goal; c !== idx(sx, sy) && c !== -1; c = from[c]) path.push({ x: ((c % MW) + 0.5) * T, y: (((c / MW) | 0) + 0.5) * T });
-  return path.reverse();
+  for (let i = 0; i < cells.length; i++) {
+    const c = cells[i];
+    if (i > 0 && i < cells.length - 1 && cells[i + 1] - c === c - cells[i - 1]) continue;
+    path.push({ x: ((c % MW) + 0.5) * T, y: (((c / MW) | 0) + 0.5) * T });
+  }
+  return path;
 }
 const tileOf = (px) => Math.floor(px / T);
 
@@ -371,12 +379,18 @@ const inBush = (px, py) => !!(W.bush[tileOf(py)] && W.bush[tileOf(py)][tileOf(px
 function moveAlong(ent, speed, dt) {
   if (!ent.path.length) { ent.moving = false; return false; }
   if (inBush(ent.x, ent.y)) speed *= 0.5; // через кусты можно, но медленнее
-  const t = ent.path[0], dx = t.x - ent.x, dy = t.y - ent.y, d = Math.hypot(dx, dy), step = speed * dt;
+  let step = speed * dt;
   ent.moving = true; ent.walkT += dt * 2.4;
-  if (Math.abs(dx) > 2) ent.dir = dx > 0 ? 1 : -1;
-  if (d <= step) { ent.x = t.x; ent.y = t.y; ent.path.shift(); if (!ent.path.length) { ent.moving = false; return true; } }
-  else { ent.x += (dx / d) * step; ent.y += (dy / d) * step; }
-  return false;
+  // Дошли до точки пути — остаток шага тратим на следующий отрезок в этом же кадре.
+  // Иначе на каждой точке терялась часть шага, и хомячок запинался.
+  while (ent.path.length) {
+    const t = ent.path[0], dx = t.x - ent.x, dy = t.y - ent.y, d = Math.hypot(dx, dy);
+    if (Math.abs(dx) > 2) ent.dir = dx > 0 ? 1 : -1;
+    if (d > step) { ent.x += (dx / d) * step; ent.y += (dy / d) * step; return false; }
+    ent.x = t.x; ent.y = t.y; step -= d; ent.path.shift();
+  }
+  ent.moving = false;
+  return true;
 }
 function canStand(px, py) {
   const r = 11;
