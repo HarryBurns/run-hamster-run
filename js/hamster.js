@@ -523,7 +523,7 @@ export function drawHamster(ctx, x, y, s, look, pose = {}) {
   const bob = walking ? Math.abs(Math.sin(t * TAU)) * 2.5 : Math.sin(time * 2.2) * 0.7;
   const liftL = walking ? Math.max(0, Math.sin(t * TAU)) * 5 : 0;
   const liftR = walking ? Math.max(0, -Math.sin(t * TAU)) * 5 : 0;
-  const fur = look.fur, furDark = shade(fur, -0.12);
+  const fur = look.fur;
 
   ctx.save();
   ctx.translate(x, y);

@@ -254,6 +254,7 @@ function layout() {
   // и спрайты из кэша ложатся 1:1 без швов (забор, соседние деревья). Масштаб от этого меняется на 1–2 %.
   const tile = Math.max(2, Math.round((T * z * dpr) / 2) * 2);
   W.cam.zoom = tile / (T * dpr);
+  W.cam.k = tile / T; // пикселей устройства на единицу мира
 }
 function clampCam() {
   const { w, h } = G.view, z = W.cam.zoom, vw = w / z, vh = h / z;
@@ -1187,7 +1188,7 @@ function drawNpc(n, t, nd) {
 
 export function draw(ctx) {
   layout(); // масштаб — по текущему размеру экрана, даже если мир на паузе под окном
-  const { w, h } = G.view, dpr = G.view.dpr || 1, t = G.time, z = W.cam.zoom, k = z * dpr, c = cal(), sea = c.season, pal = PAL[sea], dark = darkness();
+  const { w, h } = G.view, dpr = G.view.dpr || 1, t = G.time, z = W.cam.zoom, k = W.cam.k, c = cal(), sea = c.season, pal = PAL[sea], dark = darkness();
   ctx.fillStyle = '#3fb0ea'; ctx.fillRect(0, 0, w, h);
   ctx.save();
   // Сдвиг камеры — целое число пикселей устройства: земля и спрайты из кэша двигаются вместе, без дрожания.
