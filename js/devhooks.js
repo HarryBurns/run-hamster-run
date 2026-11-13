@@ -10,6 +10,8 @@ import * as modals from './ui/modals.js';
 import { message, openPanel } from './ui/panel.js';
 import { dialog } from './ui/dialog.js';
 import { toast } from './ui/toast.js';
+import { createSideScene } from './engine/side/scene.js';
+import { OWN as demoOwn } from './interiors/demo_house.js';
 import * as World from './locations/town.js';
 import * as Tower from './interiors/tower.js';
 
@@ -76,6 +78,9 @@ export function installDevHooks({ F }) {
       loop.go(pos.scene, { pos });
     },
     registerScene: loop.registerScene,
+    /** «Движок домов»: собрать сцену из описания дома; demoOwn — пробное «своё жильё» для тестов. */
+    createSideScene,
+    demoOwn,
     /** Выполнить действие из реестра: run('bank'), run('minigame:swim'). */
     run: registry.run,
     listActions: registry.listActions,

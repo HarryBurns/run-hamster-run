@@ -152,6 +152,28 @@ async function extra({ page, step, ev, wait, closeAll, hold }) {
     if (pos.scene !== 'world' || !Number.isFinite(pos.x) || !Number.isFinite(pos.y) || 'floor' in pos)
       throw new Error('позиция после выхода из виллы: ' + JSON.stringify(pos));
   });
+  await step('образец: позиция в доме, которого нет, и мебель в других домах', async () => {
+    await putSave(
+      edit((s) => {
+        s.pos = { scene: 'нет_такого_дома', floor: 0, x: 300 };
+        s.homes = {
+          flat: [
+            { uid: 500, id: 'bed_green', floor: 0, x: 300, y: 0 },
+            { uid: 501, id: 'gone_furn', floor: 0, x: 400, y: 0 },
+          ],
+        };
+      }),
+    );
+    await cont();
+    const r = await ev(() => {
+      const d = window.__dev;
+      return { scene: d.sceneName, flat: d.G.state.homes.flat.map((i) => i.id).join(), uid: d.G.state.uid };
+    });
+    if (r.scene !== 'villa') throw new Error('игра открылась не дома: ' + r.scene);
+    if (r.flat !== 'bed_green' || !(r.uid > 500))
+      throw new Error('мебель других домов не почищена: ' + JSON.stringify(r));
+    await hold('ArrowRight', 300);
+  });
   await step('образец: нечитаемое сохранение', async () => {
     const raw = SAVE_V1.slice(0, 300);
     await putSave(raw);
@@ -781,7 +803,187 @@ async function extra({ page, step, ev, wait, closeAll, hold }) {
       await wait(200);
       await closeAll();
     });
+    // ---------- «движок домов»: пробный дом (interiors/demo_house.js) ----------
+    await step('пробный дом: дом жителя — мебель из описания, хозяйка внутри, выход назад', async () => {
+      await ev(() => {
+        window.__dev.go('world');
+        window.__dev.World.debugTeleport(44, 14);
+        window.__dev.go('demo_house');
+      });
+      await wait(500);
+      const house = () =>
+        ev(() => {
+          const d = window.__dev,
+            sc = d.scenes.demo_house;
+          return {
+            scene: d.sceneName,
+            x: sc.p.x,
+            state: sc.p.state,
+            decor: sc.isDecor(),
+            saved: JSON.parse(localStorage.getItem('rhr-save-v1')).pos,
+            homes: Object.keys(d.G.state.homes),
+            left: document.querySelector('.hud-btns.left').textContent,
+            open: document.querySelectorAll('.overlay, .dialog').length,
+          };
+        });
+      let r = await house();
+      if (r.scene !== 'demo_house') throw new Error('не вошли в пробный дом');
+      if (r.saved.scene !== 'world' || !Number.isFinite(r.saved.y))
+        throw new Error('в сохранении должно остаться место снаружи: ' + JSON.stringify(r.saved));
+      if (r.homes.length) throw new Error('мебель дома-описания попала в сохранение: ' + r.homes);
+      if (!r.left.includes('Домой') || r.left.includes('Обустроить')) throw new Error('HUD чужого дома: ' + r.left);
+      await hold('ArrowRight', 400);
+      const x1 = (await house()).x;
+      if (!(x1 > r.x + 60)) throw new Error('хомячок не идёт: ' + JSON.stringify([r.x, x1]));
+      // хозяйку отодвигаем в угол, чтобы не мешала проверять мебель
+      const at = (x) =>
+        ev((x) => {
+          const sc = window.__dev.scenes.demo_house;
+          sc.actors[0].x = sc.actors[0].tx = 1040;
+          sc.actors[0].wait = 99;
+          sc.standUp();
+          sc.p.path = [];
+          sc.p.x = x;
+        }, x);
+      await at(300);
+      await page.keyboard.press('KeyE'); // диван
+      await wait(200);
+      if ((await house()).state !== 'sit') throw new Error('не села на диван');
+      await at(535);
+      await page.keyboard.press('KeyE'); // чужая кровать: ничего не происходит
+      await wait(300);
+      r = await house();
+      if (r.open || r.state !== 'idle') throw new Error('чужой кроватью можно пользоваться: ' + JSON.stringify(r));
+      await at(730);
+      await page.keyboard.press('KeyE'); // раковина
+      await wait(200);
+      if (!(await page.locator('text=Лапки чистые').count())) throw new Error('раковина не работает');
+      await ev(() => window.__dev.scenes.demo_house.setDecor(true));
+      if ((await house()).decor) throw new Error('в чужом доме включился режим обустройства');
+      // нажимаем на хозяйку: хомячок подходит, открывается диалог
+      await at(880);
+      await wait(900); // камера догоняет
+      const s = await ev(() => {
+        const sc = window.__dev.scenes.demo_house,
+          a = sc.actors[0];
+        return sc.debugScreen(a.x, -60);
+      });
+      await page.mouse.click(s.x, s.y);
+      await wait(2200);
+      if (!(await page.locator('.dialog .name:has-text("Плюша")').count())) throw new Error('хозяйка не заговорила');
+      await closeAll();
+      // выход через дверь — туда, откуда пришли
+      await at(110);
+      await page.keyboard.press('KeyE');
+      await wait(400);
+      const out = await ev(() => ({ scene: window.__dev.sceneName, ...window.__dev.World.playerPos() }));
+      if (out.scene !== 'world' || Math.abs(out.x - 44.5 * 48) > 2 || Math.abs(out.y - 14.5 * 48) > 2)
+        throw new Error('дверь вывела не туда: ' + JSON.stringify(out));
+    });
+    await step('пробный дом: своё жильё — мебель в сохранении, «Обустроить», гости, сон', async () => {
+      const before = await ev(() => {
+        const d = window.__dev;
+        if (!d.scenes.demo_flat) d.registerScene('demo_flat', d.createSideScene(d.demoOwn));
+        d.go('demo_flat');
+        return { villa: d.G.state.villa.length, day: d.G.state.day };
+      });
+      await wait(500);
+      const flat = () =>
+        ev(() => {
+          const d = window.__dev,
+            sc = d.scenes.demo_flat,
+            s = d.G.state;
+          return {
+            scene: d.sceneName,
+            items: (s.homes.demo_flat || []).map((i) => i.id),
+            villa: s.villa.length,
+            piano: s.storage.piano || 0,
+            decor: sc.isDecor(),
+            tray: document.querySelectorAll('.decor-tray').length,
+            left: document.querySelector('.hud-btns.left').textContent,
+            guests: sc.actors.map((a) => a.id),
+            x: sc.p.x,
+            day: s.day,
+            saved: JSON.parse(localStorage.getItem('rhr-save-v1')).pos,
+          };
+        });
+      let r = await flat();
+      if (r.scene !== 'demo_flat' || r.items.join() !== 'bed_green,lamp,table')
+        throw new Error('стартовая мебель: ' + JSON.stringify(r));
+      if (r.saved.scene !== 'demo_flat')
+        throw new Error('своё жильё должно сохранять позицию: ' + JSON.stringify(r.saved));
+      if (!r.left.includes('Обустроить')) throw new Error('нет кнопки «Обустроить»: ' + r.left);
+      // обустройство: пианино из кладовки, перетаскивание, обратно в кладовку
+      await page.click('.hud-btns.left .rbtn:last-child');
+      await wait(300);
+      r = await flat();
+      if (!r.decor || !r.tray) throw new Error('режим обустройства не включился');
+      if (r.piano) {
+        await page.click('.decor-tray .tray-item');
+        await wait(300);
+        r = await flat();
+        if (r.items.length !== 4 || r.piano) throw new Error('предмет из кладовки не встал: ' + JSON.stringify(r));
+        const spot = await ev(() => {
+          const d = window.__dev,
+            it = d.G.state.homes.demo_flat.find((i) => i.id === 'piano');
+          return { ...d.scenes.demo_flat.debugScreen(it.x, -40), x0: it.x };
+        });
+        await page.mouse.move(spot.x, spot.y);
+        await page.mouse.down();
+        await page.mouse.move(spot.x + 60, spot.y, { steps: 4 });
+        await page.mouse.up();
+        const moved = await ev(() => window.__dev.G.state.homes.demo_flat.find((i) => i.id === 'piano').x);
+        if (!(moved > spot.x0 + 20)) throw new Error('мебель не перетаскивается: ' + JSON.stringify([spot.x0, moved]));
+        await page.click('text=Убрать в кладовку');
+        await wait(300);
+        r = await flat();
+        if (r.items.length !== 3 || !r.piano) throw new Error('предмет не убрался в кладовку: ' + JSON.stringify(r));
+      }
+      // последнюю кровать убрать нельзя
+      const bed = await ev(() => {
+        const d = window.__dev,
+          it = d.G.state.homes.demo_flat.find((i) => i.id === 'bed_green');
+        return d.scenes.demo_flat.debugScreen(it.x, -40);
+      });
+      await page.mouse.click(bed.x, bed.y);
+      await wait(200);
+      await page.click('text=Убрать в кладовку');
+      await wait(300);
+      r = await flat();
+      if (!r.items.includes('bed_green')) throw new Error('последнюю кровать убрали в кладовку');
+      await page.click('text=Готово');
+      await wait(300);
+      if ((await flat()).decor) throw new Error('режим обустройства не выключился');
+      // гости приходят и сюда
+      await ev(() => {
+        const d = window.__dev;
+        d.actions.meetFriend('bob');
+        d.actions.inviteGuest('bob');
+      });
+      await wait(300);
+      r = await flat();
+      if (!r.guests.includes('bob')) throw new Error('гость не пришёл: ' + JSON.stringify(r.guests));
+      // сон: просыпаемся здесь же, у своей кровати
+      await ev(() => {
+        window.__dev.F.askSleep();
+      });
+      await wait(400);
+      await page.click('.panel-foot .btn.green');
+      await wait(3600);
+      await closeAll();
+      r = await flat();
+      const bedX = await ev(() => window.__dev.G.state.homes.demo_flat.find((i) => i.id === 'bed_green').x);
+      if (r.scene !== 'demo_flat' || r.day !== before.day + 1 || Math.abs(r.x - (bedX + 30)) > 1)
+        throw new Error('после сна: ' + JSON.stringify({ scene: r.scene, day: r.day, x: r.x, bedX }));
+      if (r.villa !== before.villa)
+        throw new Error('мебель виллы изменилась: ' + JSON.stringify([before.villa, r.villa]));
+      await ev(() => {
+        window.__dev.go('villa');
+      });
+      await wait(300);
+    });
     await step('сон и новый день', async () => {
+      const day0 = await ev(() => window.__dev.G.state.day);
       await ev(() => {
         window.__dev.go('villa');
         window.__dev.F.askSleep();
@@ -790,15 +992,16 @@ async function extra({ page, step, ev, wait, closeAll, hold }) {
       await page.click('.panel-foot .btn.green');
       await wait(3600);
       await closeAll();
-      if ((await ev(() => window.__dev.G.state.day)) !== 1) throw new Error('день не сменился');
+      if ((await ev(() => window.__dev.G.state.day)) !== day0 + 1) throw new Error('день не сменился');
     });
     await step('сохранение и продолжение', async () => {
+      const day0 = await ev(() => window.__dev.G.state.day);
       await ev(() => window.dispatchEvent(new Event('pagehide')));
       await page.reload();
       await wait(500);
       await page.click('text=Продолжить');
       await wait(600);
-      if ((await ev(() => window.__dev.G.state.day)) !== 1) throw new Error('сохранение не загрузилось');
+      if ((await ev(() => window.__dev.G.state.day)) !== day0) throw new Error('сохранение не загрузилось');
     });
     if (tag === 'desktop')
       await extra({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll, hold });
