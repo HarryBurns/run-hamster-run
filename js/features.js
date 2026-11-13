@@ -293,7 +293,20 @@ export function openMap() {
       const k = Math.max(4, Math.min(11, Math.floor(((Math.min(window.innerWidth, 980) - 60) / World.MW) * 2) / 2));
       const { canvas, ctx } = makeCanvas(World.MW * k, World.MH * k);
       canvas.style.cssText += ';display:block;margin:0 auto;border-radius:14px;max-width:100%;height:auto;touch-action:manipulation';
-      const loop = () => { World.drawMiniMap(ctx, k); raf = requestAnimationFrame(loop); };
+      // Карта неподвижна (мир на паузе): рисуем её один раз в отдельную канву, а в каждом кадре
+      // обновляем только квадратик вокруг мигающей точки игрока.
+      const base = makeCanvas(World.MW * k, World.MH * k);
+      World.drawMiniMapBase(base.ctx, k);
+      const r = canvas.width / (World.MW * k), p = World.playerPos(), R = k * 0.9 + 10; // r — пикселей канвы в CSS-пикселе
+      const bx = Math.max(0, Math.floor(((p.x / World.T) * k - R) * r)), by = Math.max(0, Math.floor(((p.y / World.T) * k - R) * r)), bs = Math.ceil(2 * R * r);
+      let first = true;
+      const loop = () => {
+        ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0);
+        if (first) { ctx.drawImage(base.canvas, 0, 0); first = false; } else ctx.drawImage(base.canvas, bx, by, bs, bs, bx, by, bs, bs);
+        ctx.restore();
+        World.drawMiniMapPlayer(ctx, k);
+        raf = requestAnimationFrame(loop);
+      };
       cancelAnimationFrame(raf); loop();
       canvas.onclick = (e) => {
         const r = canvas.getBoundingClientRect();

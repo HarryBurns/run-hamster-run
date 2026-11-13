@@ -1267,7 +1267,8 @@ export function draw(ctx) {
 
 // ---------- карта города ----------
 const MAP_COL = { O: '#1c6fc4', I: '#eef8ff', r: '#eadcc0', y: '#ead9b5', p: '#f1f3f5', h: '#7fdcf7', w: '#3fb0ea', o: '#58c6f2', i: '#c98b5a', b: '#8d5a3a' };
-export function drawMiniMap(ctx, k) {
+/** Неподвижная часть карты (земля, деревья, здания, кораблик, цель): рисуется один раз, когда карту открывают. */
+export function drawMiniMapBase(ctx, k) {
   if (!W.built) build();
   const sea = cal().season, pal = PAL[sea];
   for (let y = 0; y < MH; y++) for (let x = 0; x < MW; x++) {
@@ -1287,6 +1288,9 @@ export function drawMiniMap(ctx, k) {
   { const bt = boatState(); emoji(ctx, '⛵', (bt.x / T) * k, (bt.y / T) * k - k, Math.max(12, k * 2.6)); }
   const tg = targetPx();
   if (tg) star(ctx, (tg.x / T) * k, (tg.y / T) * k, k * 1.3 + 2, '#ffd43b', OUT, 1.5);
+}
+/** Мигающая точка игрока поверх карты — единственное, что на карте меняется. */
+export function drawMiniMapPlayer(ctx, k) {
   const pr = k * 0.9 + 3 + Math.sin(G.time * 5) * 1.2;
   ell(ctx, (W.p.x / T) * k, (W.p.y / T) * k, pr, pr, '#ff3d7f', '#fff', 2.5);
 }
