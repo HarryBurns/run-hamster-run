@@ -1,8 +1,9 @@
 // Мини-игра «Показ мод»: оденься по теме и пройди по подиуму.
 import { clothesPanel, scoreOutfit, FASHION_THEMES } from '../features.js';
-import { playerLook } from '../game.js';
-import { pick, el, ell, fillRR, poly, star, text, clamp, TAU } from '../util.js';
-import { drawPortrait } from '../hamster.js';
+import { playerLook } from '../core/state.js';
+import { pick, el, clamp, TAU } from '../core/util.js';
+import { ell, fillRR, poly, star, text } from '../core/draw.js';
+import { drawPortrait } from '../art/hamster.js';
 
 export default {
   id: 'fashion',

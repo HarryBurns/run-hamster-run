@@ -1,29 +1,18 @@
 // Город, двор виллы и пляж: вид сверху, хомячок ходит сам.
-import {
-  clamp,
-  lerp,
-  rnd,
-  pick,
-  seeded,
-  ell,
-  fillRR,
-  line,
-  poly,
-  shade,
-  mix,
-  rr,
-  star,
-  emoji,
-  TAU,
-  dist,
-} from './util.js';
-import { drawHamster, blinkAt } from './hamster.js';
-import { NPCS, NPC_BY_ID, npcLook, ING_BY_ID, SEED_BY_ID, TASK_BY_ID } from './data.js';
-import { G, playerLook, cal, darkness, addSticker, save, addTo } from './game.js';
-import { toast } from './ui.js';
-import { sfx } from './audio.js';
-import * as F from './features.js';
-import { SpriteSet } from './sprites.js';
+import { clamp, lerp, rnd, pick, seeded, TAU, dist } from '../core/util.js';
+import { ell, fillRR, line, poly, shade, mix, rr, star, emoji } from '../core/draw.js';
+import { drawHamster, blinkAt } from '../art/hamster.js';
+import { NPCS, NPC_BY_ID, npcLook, ING_BY_ID, SEED_BY_ID, TASK_BY_ID } from '../data.js';
+import { G, playerLook, cal, darkness } from '../core/state.js';
+import { award, addItem, setFlag, setDayFlag, collectMailItem, patchState, touchState } from '../core/actions.js';
+import { emit } from '../core/events.js';
+import { run } from '../core/registry.js';
+import { go, scene } from '../core/loop.js';
+import { keys } from '../core/input.js';
+import { Camera } from '../core/camera.js';
+import { toast } from '../ui.js';
+import { sfx } from '../core/audio.js';
+import { SpriteSet } from '../core/sprites.js';
 
 export const T = 48,
   MW = 72,
@@ -63,6 +52,50 @@ export const BUILDINGS = [
   B('house6', 'house', 65, 31, 4, 4, { wall: '#c5f6fa', roof: '#0b7285', npc: 'bob' }),
   B('house7', 'house', 19, 31, 4, 4, { wall: '#fff0f6', roof: '#f06595', npc: 'zefirka' }),
 ];
+// Что происходит на входе в здание: записи для реестра действий (core/registry.js). Сам город про магазины,
+// мини-игры и диалоги ничего не знает. У домиков жителей действие одно: 'home-of:<житель>'.
+const ask = (vendor, text, options) => ({ do: 'ask', vendor, text, options });
+const BUILDING_ACTS = {
+  villa: 'scene:villa',
+  salon: 'salon',
+  boutique: { do: 'clothes-shop', vendor: 'boutique', shops: ['boutique'] },
+  mall_fashion: { do: 'clothes-shop', vendor: 'mall', shops: ['mall'] },
+  mall_home: 'home-mall',
+  mall_food: 'food-mall',
+  cafe: { do: 'cafe', kind: 'cafe' },
+  tower: 'scene:tower',
+  bank: 'bank',
+  fashion: ask('fashion', 'Дорогая! Подиум ждёт. Выйдешь на показ мод?', [
+    { text: '👠 На подиум!', cls: 'green', do: 'minigame:fashion' },
+    { text: 'Не сейчас' },
+  ]),
+  hospital: ask('hospital', 'Ой, как хорошо, что ты пришла! Пациентов много. Поможешь их вылечить?', [
+    { text: '🩺 Лечить', cls: 'green', do: 'minigame:doctor' },
+    { text: 'Не сейчас' },
+  ]),
+  school: ask('school', 'Здравствуй! Детям как раз нужна учительница. Проведёшь урок?', [
+    { text: '👩‍🏫 Провести урок', cls: 'green', do: 'minigame:teacher' },
+    { text: 'Не сейчас' },
+  ]),
+  pool: ask('pool', 'На старт, внимание… Хочешь поучаствовать в заплыве?', [
+    { text: '🏊 Плыть!', cls: 'green', do: 'minigame:swim' },
+    { text: 'Не сейчас' },
+  ]),
+  rest: ask('rest', 'Добро пожаловать в «Золотой орешек»! Желаете поужинать — или поможете мне на кухне?', [
+    { text: '👩‍🍳 Помочь на кухне', cls: 'green', do: 'minigame:chef' },
+    { text: '🍽️ Меню', do: { do: 'cafe', kind: 'rest', title: 'Ресторан «Золотой орешек»' } },
+    { text: 'Пока!' },
+  ]),
+  beachcafe: ask('beach', 'Привет! У нас холодный лимонад и всё для пляжа. Что тебе показать?', [
+    { text: '🍹 Вкусняшки', cls: 'green', do: { do: 'cafe', kind: 'beach', title: 'Пляжное кафе' } },
+    {
+      text: '🩱 Пляжные вещи',
+      do: { do: 'clothes-shop', vendor: 'beach', shops: ['beach'], title: 'Пляжный магазинчик' },
+    },
+    { text: 'Пока!' },
+  ]),
+};
+for (const b of BUILDINGS) b.act = BUILDING_ACTS[b.id] || (b.npc ? 'home-of:' + b.npc : null);
 const B_BY_ID = Object.fromEntries(BUILDINGS.map((b) => [b.id, b]));
 export const doorOf = (id) => doorPx(B_BY_ID[id]);
 const doorPx = (b) => ({ x: (b.x + b.w / 2) * T, y: (b.y + b.h) * T + T * 0.45 });
@@ -207,7 +240,7 @@ const W = {
   ground: [],
   solid: [],
   objs: [],
-  cam: { x: 0, y: 0, zoom: 1 },
+  cam: new Camera(),
   p: { x: 12.5 * T, y: 7.6 * T, dir: 1, path: [], moving: false, walkT: 0, pending: null, surf: 'g' },
   npcs: [],
   sea: [],
@@ -394,6 +427,7 @@ function build() {
   W.solid = solid;
   W.bush = bush;
   W.objs = objs;
+  W.cam.setBounds(0, 0, MW * T, MH * T);
   W.built = true;
   initSea();
   // жители
@@ -551,10 +585,9 @@ function walkTo(ent, px, py, exact) {
 }
 
 // ---------- вход / выход ----------
-export function enter(from) {
+export function enter(from, params = {}) {
   if (!W.built) build();
-  const p = W.p,
-    s = G.state;
+  const p = W.p;
   p.path = [];
   p.pending = null;
   p.moving = false;
@@ -563,15 +596,15 @@ export function enter(from) {
     const d = doorPx(B_BY_ID.villa);
     p.x = d.x;
     p.y = d.y;
-    bt.x = BOAT_HOME.x;
-    bt.y = BOAT_HOME.y;
-    bt.on = false;
-  } // кораблик возвращается к пирсу
-  else if (s.pos && s.pos.scene === 'world') {
-    p.x = s.pos.x;
-    p.y = s.pos.y;
-  }
+    setBoat({ x: BOAT_HOME.x, y: BOAT_HOME.y, on: false }); // кораблик возвращается к пирсу
+  } else if (params.pos) restorePos(params.pos);
   p.boat = !!bt.on;
+  // всплыли после ныряния: рядом с тем местом, куда доплыли под водой (а с кораблика — к нему же)
+  if (params.surface && !p.boat) {
+    const sf = surfaceAt(params.surface.x, params.surface.y);
+    p.x = sf.x;
+    p.y = sf.y;
+  }
   // позиция из сохранения могла испортиться или оказаться в стене — тогда встаём рядом, а если никак — у двери виллы
   const onMap = p.x >= 0 && p.x < MW * T && p.y >= 0 && p.y < MH * T;
   if (!onMap || !walkable(tileOf(p.x), tileOf(p.y))) {
@@ -584,48 +617,33 @@ export function enter(from) {
       p.x = d.x;
       p.y = d.y;
       p.boat = false;
-      bt.on = false;
+      setBoat({ on: false });
     }
   }
   layout();
-  W.cam.x = p.x;
-  W.cam.y = p.y;
-  clampCam();
+  W.cam.snap(p.x, p.y);
   initWeather();
 }
-export function leave() {
-  G.state.pos = { scene: 'world', x: W.p.x, y: W.p.y };
+export function leave() {}
+export function savePos() {
+  return { scene: 'world', x: W.p.x, y: W.p.y };
 }
-export function storePos() {
-  if (G.scene === api) G.state.pos = { scene: 'world', x: W.p.x, y: W.p.y };
+export function restorePos(pos) {
+  if (!pos || !Number.isFinite(pos.x) || !Number.isFinite(pos.y)) return false;
+  W.p.x = pos.x;
+  W.p.y = pos.y;
+  return true;
 }
 
 function layout() {
-  const { w, h } = G.view,
-    dpr = G.view.dpr || 1;
+  const { w, h } = G.view;
   let z = clamp(Math.min(w, h) / (T * 9.4), 0.8, 1.4);
   // На большом экране не показываем всё больше клеток (каждая — работа в каждом кадре), а приближаем:
   // не больше 14 клеток по короткой стороне и 26 по длинной.
   z = Math.max(z, Math.min(w, h) / (T * 14), Math.max(w, h) / (T * 26));
-  // Клетка на экране — целое чётное число пикселей устройства. Тогда центры клеток попадают на целые пиксели,
-  // и спрайты из кэша ложатся 1:1 без швов (забор, соседние деревья). Масштаб от этого меняется на 1–2 %.
-  const tile = Math.max(2, Math.round((T * z * dpr) / 2) * 2);
-  W.cam.zoom = tile / (T * dpr);
-  W.cam.k = tile / T; // пикселей устройства на единицу мира
+  W.cam.setTileZoom(z, T); // клетка — целое чётное число пикселей устройства: спрайты из кэша ложатся 1:1
 }
-function clampCam() {
-  const { w, h } = G.view,
-    z = W.cam.zoom,
-    vw = w / z,
-    vh = h / z;
-  W.cam.x = vw >= MW * T ? (MW * T) / 2 : clamp(W.cam.x, vw / 2, MW * T - vw / 2);
-  W.cam.y = vh >= MH * T ? (MH * T) / 2 : clamp(W.cam.y, vh / 2, MH * T - vh / 2);
-}
-function toWorld(sx, sy) {
-  const { w, h } = G.view,
-    z = W.cam.zoom;
-  return { x: W.cam.x + (sx - w / 2) / z, y: W.cam.y + (sy - h / 2) / z };
-}
+const toWorld = (sx, sy) => W.cam.toWorld(sx, sy);
 
 /** Случайные свободные места для предметов задания. zone: beach | town */
 export function randomSpots(zone, n, seed) {
@@ -802,23 +820,33 @@ function arrive() {
     pd.npc.dir = -p.dir;
     pd.npc.path = [];
     pd.npc.wait = 4;
-    F.npcDialog(pd.npc.id);
+    run('npc:' + pd.npc.id);
     return;
   }
   if (pd.b) {
     sfx('door');
-    F.enterBuilding(pd.b.id);
+    enterBuilding(pd.b);
     return;
   }
-  if (pd.act === 'mail') F.openMailbox();
-  else if (pd.act === 'bed') F.gardenBed(pd.i);
-  else if (pd.act === 'fish') F.goFishing(pd.spot);
+  if (pd.act === 'mail') run('mailbox');
+  else if (pd.act === 'bed') run('garden:' + pd.i);
+  else if (pd.act === 'fish') run('fish:' + pd.spot);
   else if (pd.act === 'palm') shakePalm(pd.o);
   else if (pd.act === 'feed') feedFish();
   else if (pd.act === 'board') boardBoat();
   else if (pd.act === 'land') landFromBoat(pd.tx, pd.ty);
 }
-export function interactNearest() {
+/** Вошли в здание: что при этом происходит, записано в его поле act и выполняется реестром действий. */
+export function enterBuilding(b) {
+  if (!b.act) return;
+  const d = doorPx(b);
+  run(b.act, { building: b, back: { scene: 'world', x: d.x, y: d.y } });
+}
+/** Нырнуть там, где стоим (если глубоко). */
+export function dive() {
+  if (canDive()) go('dive', { x: W.p.x, boat: !!W.p.boat, width: MW * T });
+}
+export function interact() {
   const p = W.p;
   let best = null,
     bd = T * 1.7;
@@ -877,7 +905,7 @@ export function interactNearest() {
     p.path = [];
     p.pending = best;
     arrive();
-  } else if (canDive()) G.go('dive', 'world');
+  } else dive();
 }
 
 // ---------- обновление ----------
@@ -924,8 +952,7 @@ function canStand(px, py) {
   return true;
 }
 export function update(dt) {
-  const p = W.p,
-    keys = G.keys;
+  const p = W.p;
   const kx = (keys.has('ArrowRight') || keys.has('KeyD') ? 1 : 0) - (keys.has('ArrowLeft') || keys.has('KeyA') ? 1 : 0);
   const ky = (keys.has('ArrowDown') || keys.has('KeyS') ? 1 : 0) - (keys.has('ArrowUp') || keys.has('KeyW') ? 1 : 0);
   const sp = p.boat ? 330 : p.surf === 'w' ? 170 : p.surf === 'o' || p.surf === 'h' ? 140 : p.surf === 'd' ? 270 : 225;
@@ -940,9 +967,7 @@ export function update(dt) {
     p.walkT += dt * 2.4;
   } else if (moveAlong(p, sp, dt)) arrive();
   if (p.boat) {
-    const bt = boatState();
-    bt.x = p.x;
-    bt.y = p.y;
+    setBoat({ x: p.x, y: p.y });
   }
   // на чём стоим
   const surf = ch(tileOf(p.x), tileOf(p.y));
@@ -983,28 +1008,24 @@ export function update(dt) {
   if (surf !== p.surf) {
     const wasWater = p.surf === 'o' || p.surf === 'h' || p.surf === 'w';
     if (p.boat) {
-      if (surf === 'O' && addSticker('x_far')) {
-        toast('Новая наклейка: 🌅 За буйками!', 'good');
-        toast('Это открытое море. Где-то здесь прячутся дальние острова…');
-        save();
-      }
+      if (surf === 'O' && award('x_far')) toast('Это открытое море. Где-то здесь прячутся дальние острова…');
     } else if ((surf === 'o' || surf === 'h' || surf === 'w') && !wasWater) {
       sfx('splash');
-      G.emit('swim', { where: surf === 'o' ? 'pool' : 'sea' });
+      emit('swim', { where: surf === 'o' ? 'pool' : 'sea' });
     }
     if ((surf === 's' || surf === 'I') && tileOf(p.y) > SEA_Y) landOnIsle();
-    if (surf === 'd') G.emit('skate');
+    if (surf === 'd') emit('skate');
     p.surf = surf;
-    G.emit('hud');
+    emit('hud');
   }
   // предметы задания
   const m = G.state.mail;
   if (m && m.items && !m.done)
     for (const it of m.items) {
       if (!it.got && dist(p.x, p.y, (it.x + 0.5) * T, (it.y + 0.5) * T) < 34) {
-        it.got = true;
+        collectMailItem(it);
         sfx('coin');
-        G.emit('collect');
+        emit('collect');
       }
     }
   // жители
@@ -1033,9 +1054,7 @@ export function update(dt) {
   }
   // камера
   layout();
-  W.cam.x = lerp(W.cam.x, p.x, Math.min(1, dt * 6));
-  W.cam.y = lerp(W.cam.y, p.y - 20, Math.min(1, dt * 6));
-  clampCam();
+  W.cam.follow(p.x, p.y - 20, dt, 6);
   updateWeather(dt);
   updateSea(dt);
   for (const q of W.drops) q.t += dt;
@@ -1043,47 +1062,43 @@ export function update(dt) {
 }
 
 // ---------- кораблик ----------
-function boatState() {
-  const s = G.state;
-  if (!s.boat) s.boat = { x: BOAT_HOME.x, y: BOAT_HOME.y, on: false };
-  return s.boat;
-}
+// Кораблик лежит в сохранении (state.boat): где стоит и сидит ли в нём хомячок. Меняется через setBoat.
+const BOAT_INIT = { x: BOAT_HOME.x, y: BOAT_HOME.y, on: false };
+const boatState = () => G.state.boat || patchState('boat', null, BOAT_INIT);
+const setBoat = (patch) => patchState('boat', patch, BOAT_INIT);
 export const isBoating = () => !!W.p.boat;
 function boardBoat() {
   const p = W.p,
     bt = boatState();
   if (dist(p.x, p.y, bt.x, bt.y) > T * 2.4) return;
   p.boat = true;
-  bt.on = true;
+  setBoat({ on: true });
   p.x = bt.x;
   p.y = bt.y;
   p.path = [];
   p.surf = ch(tileOf(p.x), tileOf(p.y));
   sfx('splash');
   sfx('ok');
-  if (addSticker('x_boat')) toast('Новая наклейка: ⛵ Капитан!', 'good');
+  award('x_boat');
   if (!G.state.flags.boatHint) {
-    G.state.flags.boatHint = 1;
+    setFlag('boatHint');
     toast('Ты на кораблике! Нажимай на воду — поплывём. Теперь можно и за буйки! ⛵');
   }
-  G.emit('boat');
-  G.emit('hud');
-  save();
+  emit('boat');
+  emit('hud');
+  touchState();
 }
 function getOff(px, py) {
-  const p = W.p,
-    bt = boatState();
-  bt.x = p.x;
-  bt.y = p.y;
-  bt.on = false;
+  const p = W.p;
+  setBoat({ x: p.x, y: p.y, on: false });
   p.boat = false;
   p.path = [];
   p.pending = null;
   p.x = px;
   p.y = py;
   sfx('pop');
-  G.emit('hud');
-  save();
+  emit('hud');
+  touchState();
 }
 function landFromBoat(tx, ty) {
   const p = W.p;
@@ -1148,24 +1163,22 @@ function boatTap(w, tx, ty) {
 
 // ---------- кокосы и корм для рыбок ----------
 function shakePalm(o) {
-  const s = G.state,
-    key = o.tx + '_' + o.ty;
-  s.dayFlags.palms = s.dayFlags.palms || {};
+  const key = o.tx + '_' + o.ty,
+    shaken = G.state.dayFlags.palms || {};
   o.shake = G.time + 0.8;
   sfx('paper');
-  if (s.dayFlags.palms[key]) {
+  if (shaken[key]) {
     toast('На этой пальме кокосы на сегодня закончились. Попробуй другую! 🌴');
     return;
   }
-  s.dayFlags.palms[key] = 1;
-  addTo('ing', 'coconut', 1);
+  setDayFlag(key, 1, 'palms');
+  addItem('ing', 'coconut', 1);
   W.drops.push({ x: o.x + 6, y: o.y - 58, t: 0, e: '🥥' });
   setTimeout(() => {
     sfx('pop');
     toast('Бум! +1 🥥 Кокос', 'good');
   }, 450);
-  G.emit('coconut');
-  save();
+  emit('coconut');
 }
 function feedFish() {
   const p = W.p,
@@ -1184,9 +1197,8 @@ function feedFish() {
   sfx('paddle');
   sfx('heart');
   toast(n > 1 ? 'Рыбки со всех сторон плывут на угощение! 🐟🐠' : 'Рыбки пробуют крошки — вкусно! 🐟');
-  if (addSticker('x_feed')) setTimeout(() => toast('Новая наклейка: 🐟 Друг рыбок!', 'good'), 900);
-  G.emit('feed');
-  save();
+  award('x_feed', { delay: 900 });
+  emit('feed');
   void tx;
   void ty;
 }
@@ -1204,17 +1216,15 @@ function landOnIsle() {
       bi = i;
     }
   });
-  s.flags.isles = s.flags.isles || {};
-  if (s.flags.isles[bi]) return;
-  if (ISLES[bi].treasure) F.giveSurprise('Клад с Острова Сокровищ!', 1600);
-  s.flags.isles[bi] = 1;
-  const n = Object.keys(s.flags.isles).length;
-  if (addSticker('x_island')) toast('Новая наклейка: 🏝️ Необитаемый остров!', 'good');
+  const found = s.flags.isles || {};
+  if (found[bi]) return;
+  if (ISLES[bi].treasure) run({ do: 'surprise', title: 'Клад с Острова Сокровищ!', delay: 1600 });
+  setFlag('isles', { ...found, [bi]: 1 });
+  const n = Object.keys(found).length + 1;
+  award('x_island');
   toast(`Открыт «${ISLES[bi].name}» — ${n} из ${ISLES.length} 🏝️`, 'good');
-  if (n >= ISLES.length && addSticker('x_isles'))
-    setTimeout(() => toast('Новая наклейка: 🧭 Все острова открыты!', 'good'), 1200);
+  if (n >= ISLES.length) award('x_isles', { delay: 1200 });
   sfx('magic');
-  save();
 }
 
 // ---------- морские жители: рыбки, акулы и киты ----------
@@ -1279,12 +1289,9 @@ function updateSea(dt) {
     }
     if (c.up > 0) {
       c.up -= dt;
-      if (c.kind === 'whale' && dist(c.x, c.y, p.x, p.y) < T * 6.5 && addSticker('x_whale')) {
-        toast('Новая наклейка: 🐋 Встреча с китом!', 'good');
-        save();
-      }
+      if (c.kind === 'whale' && dist(c.x, c.y, p.x, p.y) < T * 6.5) award('x_whale');
       if (c.kind === 'shark' && dist(c.x, c.y, p.x, p.y) < T * 3 && !G.state.dayFlags.shark) {
-        G.state.dayFlags.shark = 1;
+        setDayFlag('shark');
         toast('Акула улыбнулась тебе и поплыла дальше 🦈');
       }
       continue;
@@ -1294,7 +1301,7 @@ function updateSea(dt) {
       c.up = SEA_DUR[c.kind];
       c.dir = cs >= 0 ? 1 : -1;
       c.timer = c.kind === 'fish' ? rnd(2.5, 7) : c.kind === 'shark' ? rnd(8, 15) : rnd(10, 18);
-      if (dist(c.x, c.y, p.x, p.y) < T * 7 && G.scene === api) sfx(c.kind === 'whale' ? 'spout' : 'paddle');
+      if (dist(c.x, c.y, p.x, p.y) < T * 7 && scene() === api) sfx(c.kind === 'whale' ? 'spout' : 'paddle');
     }
   }
 }
@@ -2566,8 +2573,7 @@ export function draw(ctx) {
   // Сдвиг камеры — целое число пикселей устройства: земля и спрайты из кэша двигаются вместе, без дрожания.
   const cw = ctx.canvas.width,
     chh = ctx.canvas.height;
-  const ox = Math.round(W.cam.x * k - cw / 2),
-    oy = Math.round(W.cam.y * k - chh / 2);
+  const { ox, oy } = W.cam.pixelOrigin(cw, chh);
   SP.begin(ctx, k, ox, oy);
   ctx.lineJoin = 'round';
   const x0 = Math.max(0, tileOf(ox / k)),
@@ -2841,9 +2847,7 @@ export function debugSeaShow(kind) {
   return debugScreen(c.x, c.y);
 }
 export function debugScreen(wx, wy) {
-  const { w, h } = G.view,
-    z = W.cam.zoom;
-  return { x: (wx - W.cam.x) * z + w / 2, y: (wy - W.cam.y) * z + h / 2 };
+  return W.cam.toScreen(wx, wy);
 }
 export function debugNpc(id) {
   const n = W.npcs.find((q) => q.id === id);
@@ -2856,5 +2860,29 @@ export function debugTeleport(tx, ty) {
   W.cam.x = W.p.x;
   W.cam.y = W.p.y;
 }
-const api = { enter, leave, storePos, update, draw, pointerDown, pointerMove, pointerUp, interactNearest };
+/** Кнопки HUD: сойти с кораблика, нырнуть. */
+function hud() {
+  const buttons = [];
+  if (isBoating()) buttons.push({ id: 'boat', icon: '⚓', label: 'Сойти', on: true, fn: leaveBoat });
+  if (canDive()) buttons.push({ id: 'dive', icon: '🤿', label: 'Нырнуть', on: true, fn: dive });
+  return { buttons };
+}
+/** Что слышно в городе: дневная музыка города, море (чем ближе к пляжу — тем громче), птицы, сверчки. */
+function sound() {
+  return { day: 'town', sea: seaLevel(), rain: 1, birds: true, crickets: true };
+}
+const api = {
+  enter,
+  leave,
+  update,
+  draw,
+  pointerDown,
+  pointerMove,
+  pointerUp,
+  interact,
+  savePos,
+  restorePos,
+  hud,
+  sound,
+};
 export default api;

@@ -8,9 +8,8 @@
 <script type="module">
 // Страница для разработки: /dev/minigame.html?g=swim&level=0&season=summer
 import { runMinigame } from '../js/minigames/host.js';
-import { NPCS, npcLook, resolveLook, START_OUTFIT } from '../js/data.js';
-import { defaultLook } from '../js/hamster.js';
-import { unlockAudio } from '../js/audio.js';
+import { NPCS, npcLook, resolveLook, START_OUTFIT, defaultLook } from '../js/data.js';
+import { unlockAudio } from '../js/core/audio.js';
 const q = new URLSearchParams(location.search);
 const look = resolveLook({ ...defaultLook(), outfit: { ...START_OUTFIT, body: 'swim_pink', head: null, acc: null, legs: null, feet: null } });
 const friends = NPCS.map((n) => ({ id: n.id, name: n.name, look: npcLook(n.id) }));

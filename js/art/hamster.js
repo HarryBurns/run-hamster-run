@@ -1,6 +1,7 @@
 // Рисование хомячка и всей одежды. Начало координат — между лапками (на полу).
 // При масштабе 1 хомячок ростом около 85 px.
-import { ell, rr, fillRR, line, poly, star, shade, TAU } from './util.js';
+import { TAU } from '../core/util.js';
+import { ell, rr, fillRR, line, poly, star, shade } from '../core/draw.js';
 
 const OUT = '#4a3728'; // цвет контура
 const BACK_ACC = ['wings', 'backpack', 'cape']; // аксессуары, которые рисуются за спиной
@@ -13,17 +14,6 @@ const BACK_ACC = ['wings', 'backpack', 'cape']; // аксессуары, кот�
 export function blinkAt(t, phase = 0) {
   const c = (t + phase * 1.37) % 3.7;
   return c > 3.5 ? Math.sin(((c - 3.5) / 0.2) * Math.PI) : 0;
-}
-
-export function defaultLook() {
-  return {
-    fur: '#ffffff',
-    spots: '#2f2a2a',
-    belly: null,
-    ear: '#ffb3c1',
-    outfit: { head: null, body: null, legs: null, feet: null, acc: null },
-    beauty: { tuft: 0, hair: null, lashes: false, blush: '#ffb0bd', nails: null, bow: null },
-  };
 }
 
 function bodyPath(ctx, g = 0) {

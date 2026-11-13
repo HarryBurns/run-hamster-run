@@ -1,5 +1,6 @@
 // Мини-игра «Шеф-повар»: запомни заказ и собери блюдо в нужном порядке.
-import { el, makeCanvas, shuffle, pick, fillRR, ell, clamp } from '../util.js';
+import { el, shuffle, pick, clamp } from '../core/util.js';
+import { makeCanvas, fillRR, ell } from '../core/draw.js';
 
 const ORDERS = 5;
 

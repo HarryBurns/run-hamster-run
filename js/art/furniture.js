@@ -1,7 +1,8 @@
 // Мебель и украшения для виллы (вид сбоку). Всё рисуется кодом.
 // Напольные предметы: начало координат — середина нижнего края (на полу).
 // Настенные: начало координат — центр предмета.
-import { ell, fillRR, line, poly, star, shade, TAU, rr, heart } from './util.js';
+import { TAU } from '../core/util.js';
+import { ell, fillRR, line, poly, star, shade, rr, heart } from '../core/draw.js';
 
 const OUT = '#4a3728';
 const WOOD = '#d9a066';

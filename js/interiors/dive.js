@@ -1,23 +1,29 @@
 // Под водой: хомячок ныряет в глубоком море и свободно плавает во все стороны.
 // Вид сбоку. Положение по горизонтали совпадает с местом на карте, где нырнули.
-import { clamp, lerp, rnd, seeded, ell, fillRR, line, poly, mix, star, text, emoji, TAU, dist } from './util.js';
-import { drawHamster, blinkAt } from './hamster.js';
-import { G, playerLook, darkness, addSticker, addClothes, hasClothes, save } from './game.js';
-import { sfx } from './audio.js';
-import { toast } from './ui.js';
-import * as World from './world.js';
-import * as F from './features.js';
+import { clamp, lerp, rnd, seeded, TAU, dist } from '../core/util.js';
+import { ell, fillRR, line, poly, mix, star, text, emoji } from '../core/draw.js';
+import { drawHamster, blinkAt } from '../art/hamster.js';
+import { G, playerLook, darkness } from '../core/state.js';
+import * as A from '../core/actions.js';
+import { emit } from '../core/events.js';
+import { run } from '../core/registry.js';
+import { go } from '../core/loop.js';
+import { axisX, axisY } from '../core/input.js';
+import { Camera } from '../core/camera.js';
+import { sfx } from '../core/audio.js';
+import { toast } from '../ui.js';
 
 const OUT = '#4a3728',
   HS = 1.15;
-const DW = World.MW * World.T,
-  DEPTH = 1500; // ширина и глубина подводного мира
+let DW = 72 * 48; // ширина подводного мира — как у карты наверху (её сообщает сцена, из которой нырнули)
+const DEPTH = 1500; // глубина
 const bedY = (x) => 1385 + Math.sin(x / 260) * 40 + Math.sin(x / 97 + 1) * 22; // дно с барханами
 const SHIP_X = 1700,
   OCTO_X = 820;
 
 const D = {
-  cam: { x: 0, y: 0, zoom: 1 },
+  cam: new Camera(),
+  back: null, // позиция на поверхности, где нырнули: туда всплываем, её же кладём в сохранение
   p: { x: 0, y: 150, vx: 0, vy: 0, dir: 1, tx: null, ty: null, swimT: 0, happy: 0 },
   entry: { x: 0, y: 0 },
   built: false,
@@ -87,10 +93,14 @@ function build() {
 }
 
 // ---------- вход / выход ----------
-export function enter() {
-  if (!D.built) build();
-  const wp = World.playerPos(),
+export function enter(from, params = {}) {
+  if (!D.built) {
+    if (params.width) DW = params.width;
+    build();
+  }
+  const wp = params.back || { scene: 'world', x: DW / 2, y: 0 },
     p = D.p;
+  D.back = wp;
   D.entry = { x: wp.x, y: wp.y };
   p.x = clamp(wp.x, 60, DW - 60);
   p.y = 130;
@@ -104,45 +114,30 @@ export function enter() {
   D.hold = false;
   for (let i = 0; i < 14; i++)
     D.bubbles.push({ x: p.x + rnd(-40, 40), y: p.y + rnd(-60, 40), r: rnd(3, 9), vy: rnd(60, 130) });
+  D.cam.setBounds(0, -140, DW, DEPTH, { smallY: 'start' });
   layout();
-  D.cam.x = p.x;
-  D.cam.y = p.y;
-  clampCam();
+  D.cam.snap(p.x, p.y);
   sfx('splash');
-  if (addSticker('x_dive')) toast('Новая наклейка: 🤿 Первое погружение!', 'good');
-  else if (!D.hint) toast('Нажимай, куда плыть. Чтобы всплыть — плыви вверх или жми ⬆️');
+  if (!A.award('x_dive') && !D.hint) toast('Нажимай, куда плыть. Чтобы всплыть — плыви вверх или жми ⬆️');
   D.hint = true;
-  G.emit('dive');
-  save();
+  emit('dive');
 }
 export function leave() {}
 /** Сохранение запоминает место на поверхности, где нырнули. */
-export function storePos() {
-  G.state.pos = { scene: 'world', x: D.entry.x, y: D.entry.y };
+export function savePos() {
+  return D.back;
 }
+/** Всплыть: наверху хомячок окажется над тем местом, куда доплыл (а если нырял с кораблика — у кораблика). */
 export function surface() {
-  const s = World.isBoating() ? World.playerPos() : World.surfaceAt(D.p.x, D.entry.y); // нырнули с кораблика — к нему и всплываем
-  G.state.pos = { scene: 'world', x: s.x, y: s.y };
   sfx('splash');
-  G.go('world', 'dive');
+  go(D.back.scene, { pos: D.back, surface: { x: D.p.x, y: D.entry.y } });
 }
 
 function layout() {
   const { w, h } = G.view;
-  D.cam.zoom = clamp(Math.min(w, h) / 540, 0.6, 1);
+  D.cam.setZoom(clamp(Math.min(w, h) / 540, 0.6, 1));
 }
-function clampCam() {
-  const { w, h } = G.view,
-    z = D.cam.zoom,
-    vw = w / z,
-    vh = h / z;
-  D.cam.x = vw >= DW ? DW / 2 : clamp(D.cam.x, vw / 2, DW - vw / 2);
-  D.cam.y = clamp(D.cam.y, -140 + vh / 2, DEPTH - vh / 2);
-}
-const toWorld = (sx, sy) => ({
-  x: D.cam.x + (sx - G.view.w / 2) / D.cam.zoom,
-  y: D.cam.y + (sy - G.view.h / 2) / D.cam.zoom,
-});
+const toWorld = (sx, sy) => D.cam.toWorld(sx, sy);
 
 // ---------- ввод ----------
 export function pointerDown(sx, sy) {
@@ -168,7 +163,7 @@ export function pointerMove(sx, sy) {
 export function pointerUp() {
   D.hold = false;
 }
-export function interactNearest() {
+export function interact() {
   const f = D.fish.reduce((b, q) => (dist(q.x, q.y, D.p.x, D.p.y) < dist(b.x, b.y, D.p.x, D.p.y) ? q : b), D.fish[0]);
   if (f && dist(f.x, f.y, D.p.x, D.p.y) < 400) feed(f);
 }
@@ -186,35 +181,27 @@ function feed(f) {
     D.fedHint = true;
     toast('Рыбки плывут на угощение! 🐠');
   }
-  if (addSticker('x_feed')) toast('Новая наклейка: 🐟 Друг рыбок!', 'good');
-  G.emit('feed');
-  save();
+  A.award('x_feed');
+  emit('feed');
 }
 function addPearls(n, x, y) {
-  const s = G.state;
-  s.pearls = (s.pearls || 0) + n;
   for (let i = 0; i < 8; i++) D.sparks.push({ x, y, vx: rnd(-80, 80), vy: rnd(-120, -20), t: 0 });
   sfx('coin');
-  G.emit('pearl');
-  if (s.pearls >= 10 && addSticker('x_pearl')) {
-    setTimeout(() => toast('Новая наклейка: ⚪ Ловец жемчуга!', 'good'), 800);
-    if (!hasClothes('neck_pearl')) {
-      addClothes('neck_pearl');
+  const total = A.addPearls(n);
+  if (total >= 10 && A.award('x_pearl', { delay: 800 })) {
+    if (A.addClothes('neck_pearl'))
       setTimeout(() => toast('Из жемчужин получились бусы! Они уже в шкафу 📿', 'good'), 1800);
-    }
   }
-  save();
 }
 
 // ---------- обновление ----------
 export function update(dt) {
   const p = D.p,
-    keys = G.keys,
     s = G.state,
     t = G.time;
   layout();
-  const kx = (keys.has('ArrowRight') || keys.has('KeyD') ? 1 : 0) - (keys.has('ArrowLeft') || keys.has('KeyA') ? 1 : 0);
-  const ky = (keys.has('ArrowDown') || keys.has('KeyS') ? 1 : 0) - (keys.has('ArrowUp') || keys.has('KeyW') ? 1 : 0);
+  const kx = axisX(),
+    ky = axisY();
   let ax = 0,
     ay = 0;
   if (kx || ky) {
@@ -266,13 +253,13 @@ export function update(dt) {
   D.sparks = D.sparks.filter((q) => q.t < 1.1);
 
   // раковины с жемчугом: открываются, когда подплываешь
-  s.dayFlags.clams = s.dayFlags.clams || {};
+  const taken = s.dayFlags.clams || {};
   D.clams.forEach((c, i) => {
     const cy = bedY(c.x) - 14,
       near = dist(p.x, p.y, c.x, cy - 40) < 110;
     c.open = lerp(c.open, near ? 1 : 0, Math.min(1, dt * 5));
-    if (near && c.open > 0.8 && !s.dayFlags.clams[i]) {
-      s.dayFlags.clams[i] = 1;
+    if (near && c.open > 0.8 && !taken[i]) {
+      A.setDayFlag(i, 1, 'clams');
       addPearls(1, c.x, cy - 20);
       toast(`Жемчужина! ⚪ Всего: ${s.pearls}`, 'good');
     }
@@ -281,13 +268,13 @@ export function update(dt) {
   const cx = SHIP_X + 40,
     cyy = bedY(cx) - 40;
   if (dist(p.x, p.y, cx, cyy - 30) < 110 && !s.dayFlags.shipChest) {
-    s.dayFlags.shipChest = 1;
+    A.setDayFlag('shipChest');
     D.chestT = t;
     sfx('magic');
     if (!s.flags.shipChest) {
-      s.flags.shipChest = 1;
-      addSticker('x_treasure');
-      F.giveSurprise('Сокровище затонувшего корабля!');
+      A.setFlag('shipChest');
+      A.award('x_treasure', { quiet: true });
+      run({ do: 'surprise', title: 'Сокровище затонувшего корабля!' });
     } else {
       addPearls(2, cx, cyy - 30);
       toast(`В сундуке нашлись 2 жемчужины! ⚪ Всего: ${s.pearls}`, 'good');
@@ -331,17 +318,14 @@ export function update(dt) {
     if (q.x > DW + 200) q.x = -200;
     if (q.x < -200) q.x = DW + 200;
     if (dist(q.x, q.y, p.x, p.y) < 170 && !s.dayFlags.shark) {
-      s.dayFlags.shark = 1;
+      A.setDayFlag('shark');
       toast('Акула улыбнулась тебе и поплыла дальше 🦈');
     }
   }
   D.whaleT += dt;
   if (D.whaleT % 46 > 8 && D.whaleT % 46 < 8 + dt * 1.5) sfx('spout');
-  if (D.whaleT % 46 > 6 && D.whaleT % 46 < 30 && addSticker('x_whale'))
-    toast('Новая наклейка: 🐋 Встреча с китом!', 'good');
-  D.cam.x = lerp(D.cam.x, p.x, Math.min(1, dt * 5));
-  D.cam.y = lerp(D.cam.y, p.y, Math.min(1, dt * 5));
-  clampCam();
+  if (D.whaleT % 46 > 6 && D.whaleT % 46 < 30) A.award('x_whale');
+  D.cam.follow(p.x, p.y, dt, 5);
 }
 
 // =====================================================================
@@ -679,9 +663,7 @@ export function draw(ctx) {
   ctx.fillStyle = g;
   ctx.fillRect(0, 0, w, h);
   ctx.save();
-  ctx.translate(w / 2, h / 2);
-  ctx.scale(z, z);
-  ctx.translate(-D.cam.x, -D.cam.y);
+  D.cam.apply(ctx);
   ctx.lineJoin = 'round';
   const x0 = D.cam.x - w / 2 / z - 200,
     x1 = D.cam.x + w / 2 / z + 200,
@@ -870,3 +852,12 @@ export function draw(ctx) {
   ctx.textBaseline = 'middle';
   ctx.fillText(label, w / 2, h - 29);
 }
+
+/** HUD под водой: вместо «Домой» — «Всплыть», карты нет. */
+function hud() {
+  return { main: { icon: '⬆️', label: 'Всплыть', fn: surface }, noMap: true };
+}
+function sound() {
+  return { force: 'underwater', day: 'villa', sea: 0, rain: 0.3 };
+}
+export default { enter, leave, update, draw, pointerDown, pointerMove, pointerUp, interact, savePos, hud, sound };

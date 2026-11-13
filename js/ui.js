@@ -1,10 +1,12 @@
 // Интерфейс поверх игры: подсказки, окна, диалоги, значки вещей.
-import { el, makeCanvas, fmtMoney } from './util.js';
-import { drawHamster, drawPortrait, defaultLook, blinkAt } from './hamster.js';
-import { drawFurn } from './props.js';
-import { sfx } from './audio.js';
-import { G, playerLook } from './game.js';
-import { cachedIcon } from './sprites.js';
+import { el, fmtMoney } from './core/util.js';
+import { makeCanvas } from './core/draw.js';
+import { drawHamster, drawPortrait, blinkAt } from './art/hamster.js';
+import { defaultLook } from './data.js';
+import { drawFurn } from './art/furniture.js';
+import { sfx } from './core/audio.js';
+import { G, playerLook } from './core/state.js';
+import { cachedIcon } from './core/sprites.js';
 
 // ---------- подсказки ----------
 let toastBox = null;

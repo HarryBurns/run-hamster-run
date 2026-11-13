@@ -1,8 +1,12 @@
 // Пианино во весь экран: нажимай на клавиши сам, играй что хочешь или учи песенки по подсветке.
-import { el, makeCanvas, ell, fillRR, rnd } from './util.js';
-import { drawHamster, blinkAt } from './hamster.js';
-import { G, playerLook, addSticker, save } from './game.js';
-import { sfx, playNote, isMuted, setMuted, unlockAudio } from './audio.js';
+import { el, rnd } from './core/util.js';
+import { makeCanvas, ell, fillRR } from './core/draw.js';
+import { drawHamster, blinkAt } from './art/hamster.js';
+import { G, playerLook } from './core/state.js';
+import { award } from './core/actions.js';
+import { emit } from './core/events.js';
+import { register } from './core/registry.js';
+import { sfx, playNote, isMuted, setMuted, unlockAudio } from './core/audio.js';
 import { toast } from './ui.js';
 
 const NAMES = ['До', '', 'Ре', '', 'Ми', 'Фа', '', 'Соль', '', 'Ля', '', 'Си'];
@@ -205,9 +209,8 @@ export function openPiano() {
       if (!closed) sfx('fanfare');
     }, 500);
     toast(`Браво! Ты сыграла «${name}» 👏`, 'good');
-    if (addSticker('x_piano')) setTimeout(() => toast('Новая наклейка: 🎹 Пианистка!', 'good'), 1400);
-    G.emit('piano');
-    save();
+    award('x_piano', { delay: 1400 });
+    emit('piano');
   }
 
   // пальцы: можно нажимать несколько клавиш сразу и вести пальцем по клавишам
@@ -333,3 +336,5 @@ export function openPiano() {
   drawStage();
   void ell;
 }
+
+register('piano', () => openPiano(), 'пианино во весь экран');

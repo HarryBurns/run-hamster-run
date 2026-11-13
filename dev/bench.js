@@ -61,13 +61,13 @@ const SEASON = { winter: { day: 0, weather: 'snow' }, summer: { day: 18, weather
     await page.click('text=Поехали!');
     await wait(400);
     await page.evaluate(() => {
-      window.__G.go('world', 'villa');
+      window.__dev.go('world');
     });
     await wait(400);
     // счётчики: время draw/update города, интервалы между кадрами, число команд канвы внутри draw
     await page.evaluate(() => {
       const B = (window.__bench = { on: false, frames: [], draw: [], cmd: null, cmdFrames: 0 });
-      const sc = window.__G.scenes.world,
+      const sc = window.__dev.scenes.world,
         d0 = sc.draw;
       sc.draw = function (c) {
         if (B.cmd) B.inDraw = true;
@@ -120,11 +120,11 @@ const SEASON = { winter: { day: 0, weather: 'snow' }, summer: { day: 18, weather
         await cdp.send('Emulation.setCPUThrottlingRate', { rate: 1 });
         await page.evaluate(
           ([s, tx, ty]) => {
-            const st = window.__G.state;
+            const st = window.__dev.G.state;
             st.day = s.day;
             st.weather = s.weather;
             st.minutes = 12 * 60;
-            window.__World.debugTeleport(tx, ty);
+            window.__dev.World.debugTeleport(tx, ty);
           },
           [SEASON[sea], tx, ty],
         );

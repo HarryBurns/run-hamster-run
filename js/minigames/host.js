@@ -3,9 +3,9 @@
 // Каждая мини-игра — модуль с `export default { id, title, icon, howTo, start(host) }`.
 // start(host) строит игру внутри host.root и возвращает { stop() } — остановить таймеры/анимации.
 // Когда игра закончена, она вызывает host.finish({ stars: 1..3, text: 'итог', extra: {...} }).
-import { drawHamster } from '../hamster.js';
-import { sfx } from '../audio.js';
-import { el } from '../util.js';
+import { drawHamster } from '../art/hamster.js';
+import { sfx } from '../core/audio.js';
+import { el } from '../core/util.js';
 
 const LOADERS = {
   swim: () => import('./swim.js'),

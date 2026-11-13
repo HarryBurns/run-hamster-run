@@ -1,22 +1,6 @@
 // Всё, чем можно заняться: магазины, гардероб, салон, готовка, гости, почта, сад, рыбалка, сон.
-import {
-  el,
-  esc,
-  fmtMoney,
-  pick,
-  rnd,
-  shuffle,
-  plural,
-  makeCanvas,
-  ell,
-  fillRR,
-  poly,
-  mix,
-  star,
-  text as ctext,
-  emoji,
-  clamp,
-} from './util.js';
+import { el, esc, fmtMoney, pick, rnd, shuffle, plural, clamp } from './core/util.js';
+import { makeCanvas, ell, fillRR, poly, mix, star, text as ctext, emoji } from './core/draw.js';
 import {
   CLOTHES,
   CLOTHES_BY_ID,
@@ -47,23 +31,40 @@ import {
   FASHION_THEMES,
   resolveLook,
 } from './data.js';
+import { G, cal, hasClothes, count, canCook, friendHearts, playerLook, outfitTags, darkness } from './core/state.js';
 import {
-  G,
-  cal,
-  save,
   spend,
-  hasClothes,
+  earn,
+  addItem,
   addClothes,
-  addTo,
-  count,
-  canCook,
-  friendHearts,
-  addSticker,
-  playerLook,
-  outfitTags,
-  rollDay,
-  darkness,
-} from './game.js';
+  learnRecipe,
+  award,
+  wear,
+  setBeauty,
+  meetFriend,
+  addFriendPts,
+  markFriendToday,
+  inviteGuest,
+  removeGuest,
+  takeVisitor,
+  plantSeed,
+  harvestBed,
+  setMail,
+  readMail,
+  mailCount,
+  mailGot,
+  finishTask,
+  passTime,
+  spendMinutes,
+  nextDay,
+  setFlag,
+  setDayFlag,
+  recordPlay,
+  MAX_GUESTS,
+} from './core/actions.js';
+import { on, emit } from './core/events.js';
+import { register, run } from './core/registry.js';
+import { go, scene, sceneName } from './core/loop.js';
 import {
   toast,
   openPanel,
@@ -76,11 +77,10 @@ import {
   fadeTo,
   whenFree,
 } from './ui.js';
-import { drawPortrait, drawHamster, blinkAt } from './hamster.js';
-import { sfx } from './audio.js';
+import { drawPortrait, drawHamster, blinkAt } from './art/hamster.js';
+import { sfx } from './core/audio.js';
 import { runMinigame } from './minigames/host.js';
-import * as World from './world.js';
-import * as Villa from './villa.js';
+import * as World from './locations/town.js';
 
 const price = (n) => `🪙 ${fmtMoney(n)}`;
 const S = () => G.state;
@@ -91,10 +91,8 @@ function buy(cost, what) {
     return false;
   }
   sfx('coin');
-  if (S().spent >= 1_000_000 && addSticker('x_rich'))
-    setTimeout(() => toast('Новая наклейка: 💰 Потратила миллион!', 'good'), 800);
+  if (S().spent >= 1_000_000) award('x_rich', { delay: 800 });
   if (what) toast(`Куплено: ${what}`, 'good');
-  save();
   return true;
 }
 
@@ -176,10 +174,9 @@ export function clothesPanel(mode, opts = {}) {
               e.stopPropagation();
               if (!buy(it.price, it.name)) return;
               addClothes(it.id);
-              S().look.outfit[it.slot] = it.id;
+              wear(it.slot, it.id);
               delete tryOn[it.slot];
-              G.emit('buy', { cat: 'clothes', id: it.id });
-              G.emit('look');
+              emit('buy', { cat: 'clothes', id: it.id });
               panel.refresh();
             };
             card.appendChild(b);
@@ -187,9 +184,8 @@ export function clothesPanel(mode, opts = {}) {
           card.onclick = () => {
             sfx('pop');
             if (owned) {
-              S().look.outfit[it.slot] = worn ? null : it.id;
+              wear(it.slot, worn ? null : it.id);
               delete tryOn[it.slot];
-              G.emit('look');
             } else if (trying) delete tryOn[it.slot];
             else tryOn[it.slot] = it.id;
             panel.refresh();
@@ -198,9 +194,7 @@ export function clothesPanel(mode, opts = {}) {
           if (worn) card.appendChild(el('span', 'badge', 'Надето'));
           card.onclick = () => {
             sfx('pop');
-            S().look.outfit[it.slot] = worn ? null : it.id;
-            G.emit('look');
-            save();
+            wear(it.slot, worn ? null : it.id);
             panel.refresh();
           };
         }
@@ -257,11 +251,9 @@ function openSalon() {
           btn.onclick = () => {
             if (cur) return;
             if (!buy(cat.price)) return;
-            b[key] = o.v;
+            setBeauty(key, o.v);
             sfx('magic');
-            G.emit('salon');
-            G.emit('look');
-            save();
+            emit('salon');
             panel.refresh();
           };
           row.appendChild(btn);
@@ -301,8 +293,8 @@ function openHomeMall() {
           const b = el('button', 'btn small green', 'Купить');
           b.onclick = () => {
             if (buy(sd.price)) {
-              addTo('seeds', sd.id, 1);
-              G.emit('buy', { cat: 'seeds' });
+              addItem('seeds', sd.id, 1);
+              emit('buy', { cat: 'seeds' });
               panel.refresh();
             }
           };
@@ -320,8 +312,8 @@ function openHomeMall() {
           const b = el('button', 'btn small green', 'Купить');
           b.onclick = () => {
             if (!buy(f.price)) return;
-            addTo('storage', f.id, 1);
-            G.emit('buy', { cat: 'furniture', id: f.id });
+            addItem('storage', f.id, 1);
+            emit('buy', { cat: 'furniture', id: f.id });
             toast(`${f.name} — в кладовке. Дома нажми 🔨, чтобы поставить!`, 'good');
             panel.refresh();
           };
@@ -359,8 +351,8 @@ function openFoodMall() {
           const b = el('button', 'btn small ' + (n === 1 ? 'green' : 'blue'), '+' + n);
           b.onclick = () => {
             if (buy(ing.price * n)) {
-              addTo('ing', ing.id, n);
-              G.emit('buy', { cat: 'food' });
+              addItem('ing', ing.id, n);
+              emit('buy', { cat: 'food' });
               panel.refresh();
             }
           };
@@ -389,8 +381,8 @@ function openCafe(kind, title) {
         const b = el('button', 'btn small green', 'Купить');
         b.onclick = () => {
           if (buy(d.price, d.name)) {
-            addTo('dishes', d.id, 1);
-            G.emit('buy', { cat: 'dish', id: d.id });
+            addItem('dishes', d.id, 1);
+            emit('buy', { cat: 'dish', id: d.id });
             panel.refresh();
           }
         };
@@ -399,8 +391,8 @@ function openCafe(kind, title) {
           if (buy(d.price)) {
             sfx('eat');
             toast(`Ням-ням! ${d.e} ${d.name}`, 'good');
-            G.emit('buy', { cat: 'dish', id: d.id });
-            G.emit('eat');
+            emit('buy', { cat: 'dish', id: d.id });
+            emit('eat');
             panel.refresh();
           }
         };
@@ -413,115 +405,63 @@ function openCafe(kind, title) {
 }
 
 // =====================================================================
-//                    ЗДАНИЯ ГОРОДА: что происходит на входе
+//             ЗДАНИЯ ГОРОДА И ПРЕДМЕТЫ: действия для реестра
 // =====================================================================
-export async function enterBuilding(id) {
-  const v = (k) => ({ look: vendorLook(k), name: VENDORS[k].name });
-  switch (id) {
-    case 'villa':
-      G.go('villa', 'world');
-      break;
-    case 'mall_fashion':
-      clothesPanel('shop', { title: 'ТЦ «Модный»', portrait: vendorLook('mall'), shops: ['mall'] });
-      break;
-    case 'boutique':
-      clothesPanel('shop', { title: 'Бутик «Бантик»', portrait: vendorLook('boutique'), shops: ['boutique'] });
-      break;
-    case 'mall_home':
-      openHomeMall();
-      break;
-    case 'mall_food':
-      openFoodMall();
-      break;
-    case 'salon':
-      openSalon();
-      break;
-    case 'cafe':
-      openCafe('cafe', 'Кафе «Семечка»');
-      break;
-    case 'rest': {
-      const i = await dialog({
-        ...v('rest'),
-        text: 'Добро пожаловать в «Золотой орешек»! Желаете поужинать — или поможете мне на кухне?',
-        options: [{ text: '👩‍🍳 Помочь на кухне', cls: 'green' }, { text: '🍽️ Меню' }, { text: 'Пока!' }],
-      });
-      if (i === 0) playMinigame('chef');
-      else if (i === 1) openCafe('rest', 'Ресторан «Золотой орешек»');
-      break;
-    }
-    case 'beachcafe': {
-      const i = await dialog({
-        ...v('beach'),
-        text: 'Привет! У нас холодный лимонад и всё для пляжа. Что тебе показать?',
-        options: [{ text: '🍹 Вкусняшки', cls: 'green' }, { text: '🩱 Пляжные вещи' }, { text: 'Пока!' }],
-      });
-      if (i === 0) openCafe('beach', 'Пляжное кафе');
-      else if (i === 1)
-        clothesPanel('shop', { title: 'Пляжный магазинчик', portrait: vendorLook('beach'), shops: ['beach'] });
-      break;
-    }
-    case 'pool': {
-      const i = await dialog({
-        ...v('pool'),
-        text: 'На старт, внимание… Хочешь поучаствовать в заплыве?',
-        options: [{ text: '🏊 Плыть!', cls: 'green' }, { text: 'Не сейчас' }],
-      });
-      if (i === 0) playMinigame('swim');
-      break;
-    }
-    case 'school': {
-      const i = await dialog({
-        ...v('school'),
-        text: 'Здравствуй! Детям как раз нужна учительница. Проведёшь урок?',
-        options: [{ text: '👩‍🏫 Провести урок', cls: 'green' }, { text: 'Не сейчас' }],
-      });
-      if (i === 0) playMinigame('teacher');
-      break;
-    }
-    case 'hospital': {
-      const i = await dialog({
-        ...v('hospital'),
-        text: 'Ой, как хорошо, что ты пришла! Пациентов много. Поможешь их вылечить?',
-        options: [{ text: '🩺 Лечить', cls: 'green' }, { text: 'Не сейчас' }],
-      });
-      if (i === 0) playMinigame('doctor');
-      break;
-    }
-    case 'fashion': {
-      const i = await dialog({
-        ...v('fashion'),
-        text: 'Дорогая! Подиум ждёт. Выйдешь на показ мод?',
-        options: [{ text: '👠 На подиум!', cls: 'green' }, { text: 'Не сейчас' }],
-      });
-      if (i === 0) playMinigame('fashion');
-      break;
-    }
-    case 'tower':
-      G.go('tower', 'world');
-      break;
-    case 'bank':
-      openBank();
-      break;
-    default: {
-      const b = World.BUILDINGS.find((q) => q.id === id);
-      if (b && b.npc) {
-        const n = NPC_BY_ID[b.npc];
-        toast(
-          `Здесь живёт ${n.name}. ${S().guests.includes(n.id) ? 'Сейчас у тебя в гостях!' : S().minutes >= 22 * 60 ? 'Тс-с, уже спит!' : 'Сейчас гуляет в городе.'}`,
-        );
-      }
-    }
-  }
-}
-export function goOutside() {
-  G.go('world', 'villa');
-}
+// Что происходит на входе в здание, записано в описании здания (поле act) и выполняется реестром действий
+// (core/registry.js). Здесь — сами действия.
+register(
+  'scene',
+  (p, ctx) => go(p.arg, ctx.back ? { back: ctx.back } : {}),
+  'перейти в сцену: scene:<имя>; ctx.back — куда вернуться',
+);
+register(
+  'clothes-shop',
+  (p, ctx) =>
+    clothesPanel('shop', {
+      title: p.title || ctx.building.name,
+      portrait: vendorLook(p.vendor),
+      shops: p.shops,
+    }),
+  'магазин одежды: { vendor, shops: [...], title? }',
+);
+register('home-mall', () => openHomeMall(), 'ТЦ «Уютный дом»: мебель и семена');
+register('food-mall', () => openFoodMall(), 'ТЦ «Вкусный»: продукты');
+register('salon', () => openSalon(), 'салон красоты');
+register('cafe', (p, ctx) => openCafe(p.kind, p.title || ctx.building.name), 'кафе: { kind, title? }');
+register('bank', () => openBank(), 'Хомяк-Банк');
+register('panorama', () => openPanorama(), 'подзорная труба: вид на город');
+register('minigame', (p) => playMinigame(p.arg), 'мини-игра: minigame:<id>');
+register(
+  'ask',
+  async (p, ctx) => {
+    // продавец спрашивает, чего мы хотим; у каждого ответа может быть своё действие (do)
+    const i = await dialog({
+      look: vendorLook(p.vendor),
+      name: VENDORS[p.vendor].name,
+      text: p.text,
+      options: p.options,
+    });
+    const o = p.options[i];
+    return o && o.do ? run(o.do, ctx) : undefined;
+  },
+  'вопрос продавца с вариантами: { vendor, text, options: [{ text, cls, do }] }',
+);
+register(
+  'home-of',
+  (p) => {
+    const n = NPC_BY_ID[p.arg];
+    toast(
+      `Здесь живёт ${n.name}. ${S().guests.includes(n.id) ? 'Сейчас у тебя в гостях!' : S().minutes >= 22 * 60 ? 'Тс-с, уже спит!' : 'Сейчас гуляет в городе.'}`,
+    );
+  },
+  'домик жителя (пока просто подсказка): home-of:<житель>',
+);
 
 /** Карта города: нажми на место — хомячок сам туда дойдёт. */
 export function openMap() {
   let raf = 0;
   const go = (id, name, panel) => {
-    if (G.sceneName !== 'world') G.go('world', G.sceneName);
+    if (sceneName() !== 'world') go('world');
     if (World.walkToPlace(id)) {
       sfx('ok');
       toast(`Идём: ${name} 🐾`);
@@ -744,21 +684,19 @@ export async function playMinigame(id, extra = {}) {
   G.modal--;
   G.cover--;
   if (!res) return null;
-  s.plays[id] = plays + 1;
-  s.best[id] = Math.max(s.best[id] || 0, res.stars);
-  s.minutes = Math.min(23 * 60 + 30, s.minutes + 40);
+  recordPlay(id, res.stars);
+  spendMinutes(40, 23 * 60 + 30);
   if (id === 'fishing' && res.extra && res.extra.fish) {
-    addTo('ing', 'fish', res.extra.fish);
+    addItem('ing', 'fish', res.extra.fish);
     toast(`В рюкзаке +${res.extra.fish} 🐟`, 'good');
   }
-  if (res.stars === 3 && addSticker('x_3stars')) toast('Новая наклейка: 🌟 Три звезды!', 'good');
+  if (res.stars === 3) award('x_3stars');
   if (id === 'swim' && res.stars === 3 && !hasClothes('medal')) {
     addClothes('medal');
     toast('Тебе вручили золотую медаль! Она в шкафу 🥇', 'good');
   }
-  G.emit('minigame', { id, stars: res.stars });
-  G.emit('hud');
-  save();
+  emit('minigame', { id, stars: res.stars });
+  emit('hud');
   return res;
 }
 export function goFishing(spot) {
@@ -853,16 +791,14 @@ function cookStep(d, parent) {
           if (done) return;
           done = true;
           cancelAnimationFrame(raf);
-          for (const [id, n] of Object.entries(d.needs)) addTo('ing', id, -n);
+          for (const [id, n] of Object.entries(d.needs)) addItem('ing', id, -n);
           const perfect = pos >= 0.44 && pos <= 0.56,
             good = pos >= 0.34 && pos <= 0.66;
           const n = perfect ? 3 : good ? 2 : 1;
-          addTo('dishes', d.id, n);
+          addItem('dishes', d.id, n);
           sfx(perfect ? 'win' : 'ok');
-          G.emit('cook', { dish: d.id, perfect });
-          if (perfect && addSticker('x_master'))
-            setTimeout(() => toast('Новая наклейка: 🏅 Шедевр на кухне!', 'good'), 600);
-          save();
+          emit('cook', { dish: d.id, perfect });
+          if (perfect) award('x_master', { delay: 600 });
           pp.close();
           message({
             title: perfect ? 'Шедевр!' : good ? 'Очень вкусно!' : 'Готово!',
@@ -881,12 +817,11 @@ function cookStep(d, parent) {
 }
 function eat(id) {
   const d = DISH_BY_ID[id];
-  addTo('dishes', id, -1);
+  addItem('dishes', id, -1);
   sfx('eat');
   toast(`Ням-ням! ${d.e} ${d.name}`, 'good');
-  if (G.scene === G.scenes.villa) Villa.playerHappy();
-  G.emit('eat');
-  save();
+  emit('happy'); // сцена-дом, если мы в ней, покажет радость
+  emit('eat');
 }
 function dishGrid(body, panel, onPick, btnText = 'Съесть') {
   const ids = Object.keys(S().dishes);
@@ -971,7 +906,7 @@ function pickDish(title) {
 // =====================================================================
 function addPts(id, n) {
   const before = friendHearts(id);
-  S().friends[id].pts += n;
+  addFriendPts(id, n);
   const after = friendHearts(id),
     npc = NPC_BY_ID[id];
   if (after > before) {
@@ -981,7 +916,7 @@ function addPts(id, n) {
       const unknown = SECRET_RECIPES.filter((r) => !S().recipes.includes(r));
       const rec = unknown.includes(npc.fav) ? npc.fav : pick(unknown);
       if (rec) {
-        S().recipes.push(rec);
+        learnRecipe(rec);
         const d = DISH_BY_ID[rec];
         whenFree(
           () =>
@@ -995,7 +930,7 @@ function addPts(id, n) {
       }
     }
     if (after >= 5 && before < 5) {
-      if (addSticker('x_friend')) setTimeout(() => toast('Новая наклейка: 💖 Лучшие друзья!', 'good'), 900);
+      award('x_friend', { delay: 900 });
       giveSurprise(`${npc.name} дарит тебе подарок в знак дружбы!`, 1200);
     }
   }
@@ -1022,11 +957,11 @@ export async function npcDialog(id) {
     look = npcLook(id);
   let text;
   if (!fr.met) {
-    fr.met = true;
+    meetFriend(id);
     text = `Привет! Я ${npc.name}. А ты, наверное, ${esc(S().name)} с большой виллы? Будем дружить!`;
     addPts(id, 1);
-    fr.chat = S().day;
-    G.emit('talk', { id });
+    markFriendToday(id, 'chat');
+    emit('talk', { id });
   } else
     text = pick([`Привет, ${esc(S().name)}!`, 'О, привет!', `${esc(S().name)}! Рад${npc.fem ? 'а' : ''} тебя видеть!`]);
   for (;;) {
@@ -1044,12 +979,12 @@ export async function npcDialog(id) {
     if (i === 0) {
       text = chatLine(npc);
       if (fr.chat !== S().day) {
-        fr.chat = S().day;
+        markFriendToday(id, 'chat');
         addPts(id, 1);
       }
-      G.emit('talk', { id });
+      emit('talk', { id });
     } else if (i === 1) {
-      if (S().guests.length >= 3) text = 'У тебя уже полный дом гостей! Позови меня в другой раз.';
+      if (S().guests.length >= MAX_GUESTS) text = 'У тебя уже полный дом гостей! Позови меня в другой раз.';
       else {
         invite(id);
         await dialog({
@@ -1067,27 +1002,22 @@ export async function npcDialog(id) {
         text = 'Ничего страшного, в другой раз!';
         continue;
       }
-      addTo('dishes', dish, -1);
+      addItem('dishes', dish, -1);
       sfx('eat');
       const fav = dish === npc.fav;
       if (fr.gift !== S().day) {
-        fr.gift = S().day;
+        markFriendToday(id, 'gift');
         addPts(id, fav ? 4 : 2);
       }
-      G.emit('gift', { id });
+      emit('gift', { id });
       text = fav
         ? `${DISH_BY_ID[dish].e} Это же моё любимое блюдо! Спасибо-спасибо-спасибо!`
         : `${DISH_BY_ID[dish].e} Ой, как вкусно! Спасибо тебе большое!`;
-      save();
     } else return;
   }
 }
 function invite(id) {
-  if (S().guests.includes(id) || S().guests.length >= 3) return false;
-  S().guests.push(id);
-  Villa.syncGuests();
-  save();
-  return true;
+  return inviteGuest(id);
 }
 export async function guestDialog(id) {
   const npc = NPC_BY_ID[id],
@@ -1117,30 +1047,27 @@ export async function guestDialog(id) {
         text = 'Я подожду, не торопись!';
         continue;
       }
-      addTo('dishes', dish, -1);
+      addItem('dishes', dish, -1);
       sfx('eat');
       const fav = dish === npc.fav;
       if (fr.treat !== S().day) {
-        fr.treat = S().day;
+        markFriendToday(id, 'treat');
         addPts(id, fav ? 5 : 3);
       }
-      Villa.guestHappy(id);
-      G.emit('treat', { id });
-      save();
+      emit('guestHappy', { id });
+      emit('treat', { id });
       text = fav
         ? `${DISH_BY_ID[dish].e} ${DISH_BY_ID[dish].name}?! Моё самое любимое! Ты лучшая хозяйка на свете!`
         : `${DISH_BY_ID[dish].e} М-м-м, объедение! Спасибо за угощение!`;
     } else if (i === 1) {
       text = pick(npc.lines);
       if (fr.chat !== S().day) {
-        fr.chat = S().day;
+        markFriendToday(id, 'chat');
         addPts(id, 1);
       }
-      G.emit('talk', { id });
+      emit('talk', { id });
     } else if (i === 2) {
-      S().guests = S().guests.filter((g) => g !== id);
-      Villa.syncGuests();
-      save();
+      removeGuest(id);
       toast(`${npc.name}: «Спасибо, было здорово! Пока!»`);
       return;
     } else return;
@@ -1174,7 +1101,7 @@ export function openPhone() {
             'btn small ' + (here ? 'ghost' : 'green'),
             here ? 'В гостях' : night ? 'Спит' : 'Позвать',
           );
-          b.disabled = here || night || S().guests.length >= 3;
+          b.disabled = here || night || S().guests.length >= MAX_GUESTS;
           b.onclick = () => {
             if (invite(n.id)) {
               sfx('bell');
@@ -1200,13 +1127,10 @@ export function gardenBed(i) {
     const sd = SEED_BY_ID[bed.seed],
       ing = ING_BY_ID[sd.crop];
     if (bed.age >= sd.days) {
-      addTo('ing', sd.crop, sd.n);
-      bed.seed = null;
-      bed.age = 0;
+      harvestBed(i, sd.crop, sd.n);
       sfx('pop');
       toast(`Урожай! +${sd.n} ${ing.e} ${ing.name}`, 'good');
-      G.emit('harvest');
-      save();
+      emit('harvest');
     } else {
       const left = sd.days - bed.age;
       toast(`${ing.e} Растёт… Ещё ${left} ${plural(left, 'ночь', 'ночи', 'ночей')}.`);
@@ -1232,13 +1156,10 @@ export function gardenBed(i) {
         card.appendChild(el('span', 'cnt', '×' + count('seeds', sd.id)));
         card.appendChild(el('div', 'muted', `${sd.days} ${plural(sd.days, 'ночь', 'ночи', 'ночей')}`));
         card.onclick = () => {
-          addTo('seeds', sd.id, -1);
-          bed.seed = sd.id;
-          bed.age = 0;
+          plantSeed(i, sd.id);
           sfx('dig');
           toast(`Посажено: ${sd.name} 🌱`, 'good');
-          G.emit('plant');
-          save();
+          emit('plant');
           panel.close();
         };
         grid.appendChild(card);
@@ -1272,8 +1193,7 @@ export function newDayMail() {
     if (!pool.length) pool = TASKS.filter((t) => !t.seasons || t.seasons.includes(sea));
     id = pick(pool).id;
   }
-  s.lastTasks = [id, ...s.lastTasks].slice(0, 6);
-  s.mail = { task: id, read: false, done: false, n: 0, got: {}, items: null };
+  setMail(id);
 }
 function taskProgress() {
   const m = S().mail,
@@ -1307,13 +1227,14 @@ export function openMailbox() {
     return;
   }
   if (!m.read) {
-    m.read = true;
     sfx('mail');
     const t = TASK_BY_ID[m.task];
-    if (t.type === 'collect')
-      m.items = World.randomSpots(t.where === 'beach' ? 'beach' : 'town', t.n + 2, 1000 + S().day * 7);
-    G.emit('hud');
-    save();
+    readMail(
+      t.type === 'collect'
+        ? World.randomSpots(t.where === 'beach' ? 'beach' : 'town', t.n + 2, 1000 + S().day * 7)
+        : null,
+    );
+    emit('hud');
   }
   showLetter();
 }
@@ -1360,7 +1281,7 @@ function grantSurprise() {
   let html,
     icon = null;
   if (!pool.length) {
-    s.money += 100000;
+    earn(100000);
     html = '<div class="big-emoji">💰</div><p>Мешочек монет: +100 000!</p>';
   } else {
     const g = pick(pool);
@@ -1369,16 +1290,15 @@ function grantSurprise() {
       icon = clothesIcon(g.def, 110);
       html = `<p><b>${g.def.name}</b><br>Ищи в своём шкафу!</p>`;
     } else if (g.kind === 'furn') {
-      addTo('storage', g.def.id, 1);
-      s.flags['gift_' + g.def.id] = true;
+      addItem('storage', g.def.id, 1);
+      setFlag('gift_' + g.def.id, true);
       icon = furnIcon(g.def, 110);
       html = `<p><b>${g.def.name}</b><br>Лежит в кладовке — поставь дома через 🔨!</p>`;
     } else {
-      s.recipes.push(g.def.id);
+      learnRecipe(g.def.id);
       html = `<div class="big-emoji">${g.def.e}</div><p>Секретный рецепт: <b>${g.def.name}</b>!</p>`;
     }
   }
-  save();
   return { html, icon };
 }
 function showSurprise(title, { html, icon }) {
@@ -1403,13 +1323,11 @@ function completeTask() {
     m = s.mail,
     t = TASK_BY_ID[m.task];
   if (m.done) return;
-  m.done = true;
-  s.tasksDone++;
-  const isNew = addSticker(t.id);
-  const surprise = s.tasksDone <= 2 || Math.random() < 0.5;
+  const done = finishTask();
+  const isNew = award(t.id, { quiet: true }); // о наклейке расскажет окно «Задание выполнено»
+  const surprise = done <= 2 || Math.random() < 0.5;
   const gift = surprise ? grantSurprise() : null; // подарок выдаём сразу, окно — когда освободится экран
-  G.emit('hud');
-  save();
+  emit('hud');
   whenFree(() => {
     sfx('fanfare');
     message({
@@ -1489,24 +1407,24 @@ function onEvent(type, d = {}) {
       break;
     case 'collect':
       if (type === 'collect') {
-        m.n++;
-        G.emit('hud');
+        mailCount();
+        emit('hud');
         ok = m.n >= t.n;
         if (!ok) toast(`${t.sticker} ${m.n} из ${t.n}`);
       }
       break;
     case 'talk':
       if (type === 'talk' && !m.got[d.id]) {
-        m.got[d.id] = 1;
-        m.n++;
-        G.emit('hud');
+        mailGot(d.id);
+        mailCount();
+        emit('hud');
         ok = m.n >= t.n;
       }
       break;
     case 'spa':
       if (type === 'spa') {
-        m.got[d.what] = 1;
-        G.emit('hud');
+        mailGot(d.what);
+        emit('hud');
         ok = Object.keys(m.got).length >= 3;
       }
       break;
@@ -1539,7 +1457,7 @@ export function initEvents() {
     'piano',
     'boat',
   ])
-    G.on(ev, (d) => onEvent(ev, d));
+    on(ev, (d) => onEvent(ev, d));
 }
 
 // =====================================================================
@@ -1558,17 +1476,12 @@ export async function askSleep() {
   sfx('sleep');
   const release = await fadeTo('Спокойной ночи… 💤', 1700);
   const s = S();
-  s.day++;
-  s.minutes = 7 * 60 + 30;
-  for (const b of s.garden) if (b.seed) b.age++;
-  rollDay();
+  nextDay();
   newDayMail();
   const c = cal();
-  if (s.day > 0 && s.day % 36 === 0 && addSticker('x_year'))
-    setTimeout(() => toast('Новая наклейка: 🎆 Целый год!', 'good'), 2500);
-  Villa.enter('wake');
-  G.emit('hud');
-  save();
+  if (s.day > 0 && s.day % 36 === 0) award('x_year', { delay: 2500 });
+  emit('wake'); // сцена-дом ставит хомячка у кровати
+  emit('hud');
   release();
   setTimeout(() => {
     sfx(c.season !== before.season ? 'fanfare' : 'morning');
@@ -1726,3 +1639,47 @@ export function scoreOutfit(theme) {
   return Math.min(10, score);
 }
 export { FASHION_THEMES };
+
+// =====================================================================
+//                     ДЕЙСТВИЯ ДЛЯ РЕЕСТРА И СОБЫТИЯ
+// =====================================================================
+register('npc', (p) => npcDialog(p.arg), 'поговорить с жителем в городе: npc:<житель>');
+register('guest', (p) => guestDialog(p.arg), 'поговорить с гостем дома: guest:<житель>');
+register('mailbox', () => openMailbox(), 'почтовый ящик');
+register('garden', (p) => gardenBed(+p.arg), 'грядка: garden:<номер>');
+register('fish', (p) => goFishing(p.arg), 'рыбалка: fish:<место>');
+register('surprise', (p) => giveSurprise(p.title, p.delay || 0), 'сюрприз: { title, delay? }');
+register('cook', () => openCooking(), 'плита');
+register('sleep', () => askSleep(), 'кровать: лечь спать');
+register('wardrobe', () => openWardrobe(), 'шкаф с одеждой');
+register('fridge', () => openFridge(), 'холодильник');
+
+// Подсказка о новой наклейке: название берётся из таблицы наклеек, а не набирается руками в каждом месте.
+const STICKERS = Object.fromEntries(
+  [...TASKS.map((t) => ({ id: t.id, sticker: t.sticker, title: t.title })), ...EXTRA_STICKERS].map((q) => [q.id, q]),
+);
+on('sticker', ({ id, delay, quiet }) => {
+  const st = STICKERS[id];
+  if (quiet || !st) return;
+  const show = () => toast(`Новая наклейка: ${st.sticker} ${st.title}${st.title.endsWith('!') ? '' : '!'}`, 'good');
+  if (delay) setTimeout(show, delay);
+  else show();
+});
+
+// Игровое время идёт, пока мир не на паузе; поздно вечером — напоминание; гость, который приходит сам.
+on('step', ({ dt }) => {
+  const s = S();
+  passTime(dt);
+  if (s.minutes >= 22 * 60 && !s.dayFlags.late) {
+    setDayFlag('late', true);
+    toast('Уже поздно. Пора в кроватку 😴');
+  }
+  const sc = scene();
+  if (s.visitor && s.minutes >= 11 * 60 && sc && sc.canHostGuests && sc.canHostGuests()) {
+    const id = takeVisitor();
+    if (s.friends[id].met && inviteGuest(id)) {
+      sfx('bell');
+      toast(`Тук-тук! ${NPC_BY_ID[id].name} заглянул${NPC_BY_ID[id].fem ? 'а' : ''} в гости 🚪`, 'good');
+    }
+  }
+});

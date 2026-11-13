@@ -1,5 +1,6 @@
 // Мини-игра «Соревнования по плаванию»: заплыв на 4 дорожках, грести левой-правой по очереди.
-import { clamp, shuffle, el, esc, ell, fillRR, text, emoji, TAU } from '../util.js';
+import { clamp, shuffle, el, esc, TAU } from '../core/util.js';
+import { ell, fillRR, text, emoji } from '../core/draw.js';
 
 const POOL_LEN = 2300; // длина дорожки в «мировых» пикселях
 const START_X = 250; // где стартовая линия

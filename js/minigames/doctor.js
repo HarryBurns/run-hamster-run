@@ -1,5 +1,6 @@
 // Мини-игра «Доктор»: подбери правильное лечение каждому пациенту.
-import { el, makeCanvas, shuffle, fillRR, heart, clamp } from '../util.js';
+import { el, shuffle, clamp } from '../core/util.js';
+import { makeCanvas, fillRR, heart } from '../core/draw.js';
 
 const TOTAL = 8;
 

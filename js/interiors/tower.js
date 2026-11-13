@@ -1,30 +1,17 @@
 // Хомяк-Тауэр изнутри: холл → лифт → смотровая площадка на 101-м этаже, по которой можно гулять.
-import {
-  clamp,
-  lerp,
-  rnd,
-  seeded,
-  ell,
-  fillRR,
-  line,
-  poly,
-  shade,
-  mix,
-  rr,
-  star,
-  text,
-  emoji,
-  TAU,
-  makeCanvas,
-  el,
-} from './util.js';
-import { drawHamster, blinkAt } from './hamster.js';
-import { vendorLook, VENDORS } from './data.js';
-import { G, playerLook, cal, darkness, addSticker, save } from './game.js';
-import { sfx } from './audio.js';
-import { toast, dialog, openPanel } from './ui.js';
-import * as World from './world.js';
-import * as F from './features.js';
+import { clamp, rnd, seeded, TAU, el } from '../core/util.js';
+import { ell, fillRR, line, poly, shade, mix, rr, star, text, emoji, makeCanvas } from '../core/draw.js';
+import { drawHamster, blinkAt } from '../art/hamster.js';
+import { vendorLook, VENDORS } from '../data.js';
+import { G, playerLook, cal, darkness } from '../core/state.js';
+import { award, bumpFlag } from '../core/actions.js';
+import { emit } from '../core/events.js';
+import { run } from '../core/registry.js';
+import { go } from '../core/loop.js';
+import { axisX } from '../core/input.js';
+import { Camera } from '../core/camera.js';
+import { sfx } from '../core/audio.js';
+import { toast, dialog, openPanel } from '../ui.js';
 
 const OUT = '#4a3728',
   HS = 1.45;
@@ -52,7 +39,8 @@ const HOT = {
 
 const S = {
   level: 'lobby',
-  cam: { x: 500, zoom: 1 },
+  cam: new Camera(),
+  back: null, // позиция снаружи (у дверей башни): туда выходим и её же кладём в сохранение
   floorY: 500,
   p: { x: 200, dir: 1, tx: null, moving: false, walkT: 0, pending: null, state: 'idle', happy: 0, stepT: 0 },
   ride: null,
@@ -64,8 +52,9 @@ const S = {
 };
 
 // ---------- вход / выход ----------
-export function enter() {
+export function enter(from, params = {}) {
   const p = S.p;
+  S.back = params.back || { scene: 'world' };
   S.level = 'lobby';
   S.ride = null;
   S.planes = [];
@@ -84,15 +73,14 @@ export function enter() {
 }
 export function leave() {}
 /** В сохранении башня не хранится: после перезагрузки хомячок окажется у её дверей. */
-export function storePos() {
-  const d = World.doorOf('tower');
-  G.state.pos = { scene: 'world', x: d.x, y: d.y };
+export function savePos() {
+  return S.back;
 }
 export const onDeck = () => S.level === 'deck';
 /** Для тестов: состояние и экранные координаты шариков. */
 export function debugState() {
   const z = S.cam.zoom,
-    sc = (x, y) => ({ x: (x - S.cam.x) * z + G.view.w / 2, y: y * z + S.floorY });
+    sc = (x, y) => S.cam.toScreen(x, y);
   return {
     level: S.level,
     state: S.p.state,
@@ -113,15 +101,15 @@ export function debugDeck() {
 const width = () => (S.level === 'deck' ? DECK_W : LOBBY_W);
 function layout() {
   const { w, h } = G.view;
-  S.cam.zoom = clamp(Math.min(w, h) / 470, 0.62, 1.05);
-  S.floorY = h * (h > w ? 0.72 : 0.8);
+  S.cam.setZoom(clamp(Math.min(w, h) / 470, 0.62, 1.05));
+  S.floorY = h * (h > w ? 0.72 : 0.8); // пол (y = 0 в мире) — на этой высоте экрана
+  S.cam.setAnchor(null, S.floorY);
 }
 function clampCam() {
-  const vw = G.view.w / S.cam.zoom,
-    W = width();
-  S.cam.x = W <= vw ? W / 2 : clamp(S.cam.x, vw / 2, W - vw / 2);
+  S.cam.setBounds(0, null, width(), null); // камера ездит только по горизонтали
+  S.cam.clamp();
 }
-const toWorld = (sx, sy) => ({ x: S.cam.x + (sx - G.view.w / 2) / S.cam.zoom, y: (sy - S.floorY) / S.cam.zoom });
+const toWorld = (sx, sy) => S.cam.toWorld(sx, sy);
 
 // ---------- действия ----------
 function goTo(x, pending) {
@@ -135,7 +123,7 @@ function act(o) {
   switch (o.act) {
     case 'exit':
       sfx('door');
-      G.go('world', 'tower');
+      go(S.back.scene, { pos: S.back });
       break;
     case 'sit':
       p.state = 'sit';
@@ -157,7 +145,7 @@ function act(o) {
       break;
     case 'scope_city':
       sfx('pop');
-      F.openPanorama();
+      run('panorama');
       break;
     case 'scope_sea':
       sfx('pop');
@@ -234,7 +222,7 @@ export function pointerUp(sx, sy) {
     sfx('step');
   }
 }
-export function interactNearest() {
+export function interact() {
   if (S.level === 'ride') return;
   if (S.p.state === 'aim') {
     launch({ x: S.p.x + S.p.dir * 420, y: -300 });
@@ -323,10 +311,9 @@ function updatePlanes(dt) {
         S.p.happy = 1.4;
         for (let i = 0; i < 10; i++)
           S.pops.push({ x: b.x, y: b.y, vx: rnd(-150, 150), vy: rnd(-170, 60), t: 0, c: b.c });
-        st.flags.balloons = (st.flags.balloons || 0) + 1;
-        if (st.flags.balloons === 1) toast('Попала! 🎈 Целься в шарики — они лопаются!', 'good');
-        if (st.flags.balloons >= 5 && addSticker('x_ace')) toast('Новая наклейка: 🎯 Меткий пилот!', 'good');
-        save();
+        const n = bumpFlag('balloons');
+        if (n === 1) toast('Попала! 🎈 Целься в шарики — они лопаются!', 'good');
+        if (n >= 5) award('x_ace');
       }
   }
   S.planes = S.planes.filter((q) => q.t < 9 && !(q.land > 1.8));
@@ -341,8 +328,7 @@ function updatePlanes(dt) {
 
 // ---------- обновление ----------
 export function update(dt) {
-  const p = S.p,
-    keys = G.keys;
+  const p = S.p;
   layout();
   if (p.happy > 0) p.happy -= dt;
   if (S.level === 'ride') {
@@ -360,17 +346,14 @@ export function update(dt) {
       S.cam.x = p.x;
       sfx('ding');
       if (S.level === 'deck') {
-        G.emit('visit', { place: 'tower' });
-        if (addSticker('x_tower')) {
-          toast('Новая наклейка: 🛗 На 101-й этаж!', 'good');
-          save();
-        } else if (!S.seenDeck) toast('101-й этаж! Смотровая площадка 🔭');
+        emit('visit', { place: 'tower' });
+        if (!award('x_tower') && !S.seenDeck) toast('101-й этаж! Смотровая площадка 🔭');
         S.seenDeck = true;
       }
     }
     return;
   }
-  const kx = (keys.has('ArrowRight') || keys.has('KeyD') ? 1 : 0) - (keys.has('ArrowLeft') || keys.has('KeyA') ? 1 : 0);
+  const kx = axisX();
   p.moving = false;
   if (kx) {
     p.state = 'idle';
@@ -401,8 +384,8 @@ export function update(dt) {
     }
   }
   if (S.level === 'deck') updatePlanes(dt);
-  S.cam.x = lerp(S.cam.x, p.x, Math.min(1, dt * 5));
-  clampCam();
+  S.cam.setBounds(0, null, width(), null);
+  S.cam.follow(p.x, null, dt, 5);
 }
 
 // =====================================================================
@@ -654,9 +637,7 @@ function drawLobby(ctx, t) {
   ctx.fillStyle = '#5c7cfa';
   ctx.fillRect(0, 0, w, h);
   ctx.save();
-  ctx.translate(w / 2, S.floorY);
-  ctx.scale(z, z);
-  ctx.translate(-S.cam.x, 0);
+  S.cam.apply(ctx);
   ctx.lineJoin = 'round';
   // стены и пол
   ctx.fillStyle = '#dbe4ff';
@@ -739,9 +720,7 @@ function drawDeck(ctx, t) {
   const railTop = S.floorY - 96 * z;
   drawPano(ctx, w, S.floorY + 4, off, w + w * 0.9, t);
   ctx.save();
-  ctx.translate(w / 2, S.floorY);
-  ctx.scale(z, z);
-  ctx.translate(-S.cam.x, 0);
+  S.cam.apply(ctx);
   ctx.lineJoin = 'round';
   // стеклянное ограждение (за хомячком)
   ctx.fillStyle = 'rgba(210,240,255,.28)';
@@ -1010,6 +989,11 @@ export function draw(ctx) {
   else if (S.level === 'deck') drawDeck(ctx, t);
   else drawLobby(ctx, t);
 }
+/** Что слышно: музыка города; на площадке — немного моря и птицы. */
+function sound() {
+  return { day: 'town', sea: onDeck() ? 0.3 : 0, rain: 0.3, birds: onDeck(), crickets: false };
+}
+export default { enter, leave, update, draw, pointerDown, pointerMove, pointerUp, interact, savePos, sound };
 
 // ---------- вид в подзорную трубу: море ----------
 function openSeaScope() {

@@ -23,7 +23,7 @@ async function extra({ page, step, ev, wait, closeAll, hold }) {
   // подложить сохранение и перезагрузить страницу (state = null — чтобы уходящая страница его не перезаписала)
   const putSave = async (raw) => {
     await ev((raw) => {
-      window.__G.state = null;
+      window.__dev.G.state = null;
       localStorage.removeItem('rhr-save-backup');
       localStorage.setItem('rhr-save-v1', raw);
     }, raw);
@@ -46,12 +46,12 @@ async function extra({ page, step, ev, wait, closeAll, hold }) {
     await putSave(SAVE_V1);
     await cont();
     const r = await ev(async () => {
-      const g = await import('./js/game.js'),
-        s = window.__G.state;
+      const g = await import('./js/core/state.js'),
+        s = window.__dev.G.state;
       return {
         name: s.name,
         clothes: s.clothes.length,
-        scene: window.__G.sceneName,
+        scene: window.__dev.sceneName,
         v: s.v,
         ver: g.saveVersion(),
         wheel: s.villa.find((i) => i.id === 'wheel').on,
@@ -62,13 +62,13 @@ async function extra({ page, step, ev, wait, closeAll, hold }) {
     if (r.wheel !== undefined) throw new Error('колесо осталось «включённым» после загрузки');
     for (const f of ['openWardrobe', 'openBackpack', 'openAlbum', 'openPhone', 'showLetter']) {
       await ev((f) => {
-        window.__F[f]();
+        window.__dev.F[f]();
       }, f);
       await wait(300);
       await closeAll();
     }
     await ev(() => {
-      window.__G.go('villa', 'world');
+      window.__dev.go('villa');
     });
     await wait(400);
   });
@@ -92,7 +92,7 @@ async function extra({ page, step, ev, wait, closeAll, hold }) {
     );
     await cont();
     const r = await ev(() => {
-      const s = window.__G.state;
+      const s = window.__dev.G.state;
       return {
         task: s.mail && s.mail.task,
         seed: s.garden[1].seed,
@@ -115,13 +115,13 @@ async function extra({ page, step, ev, wait, closeAll, hold }) {
       'openMailbox',
     ]) {
       await ev((f) => {
-        window.__F[f]();
+        window.__dev.F[f]();
       }, f);
       await wait(300);
       await closeAll();
     }
     await ev(() => {
-      window.__G.go('villa', 'world');
+      window.__dev.go('villa');
     });
     await wait(400);
     await hold('ArrowRight', 300);
@@ -135,18 +135,18 @@ async function extra({ page, step, ev, wait, closeAll, hold }) {
     );
     await cont();
     await ev(() => {
-      if (window.__G.sceneName !== 'world') window.__G.go('world', 'villa');
+      if (window.__dev.sceneName !== 'world') window.__dev.go('world');
     });
     await wait(300);
-    const a = await ev(() => window.__World.playerPos());
+    const a = await ev(() => window.__dev.World.playerPos());
     await hold('ArrowDown', 400);
-    const b = await ev(() => window.__World.playerPos());
+    const b = await ev(() => window.__dev.World.playerPos());
     if (!Number.isFinite(a.x) || !Number.isFinite(a.y) || !(b.y > a.y))
       throw new Error('хомячок не двигается: ' + JSON.stringify([a, b]));
     // а теперь по-настоящему: выйти из виллы и сразу посмотреть, что лежит в хранилище
     await ev(() => {
-      window.__G.go('villa', 'world');
-      window.__G.go('world', 'villa');
+      window.__dev.go('villa');
+      window.__dev.go('world');
     });
     const pos = JSON.parse((await stored()).save).pos;
     if (pos.scene !== 'world' || !Number.isFinite(pos.x) || !Number.isFinite(pos.y) || 'floor' in pos)
@@ -177,7 +177,7 @@ async function extra({ page, step, ev, wait, closeAll, hold }) {
   await step('миграция сохранения и копия перед ней', async () => {
     await putSave(SAVE_V1);
     const r = await ev(async () => {
-      const g = await import('./js/game.js');
+      const g = await import('./js/core/state.js');
       g.MIGRATIONS[g.saveVersion()] = (s) => {
         s.money = Math.min(s.money, 20000);
       }; // пробная миграция «миллиард → 20 000»
@@ -204,11 +204,11 @@ async function extra({ page, step, ev, wait, closeAll, hold }) {
     'ошибка в кадре не останавливает игру',
     async () => {
       await ev(() => {
-        window.__G.go('world', 'villa');
+        window.__dev.go('world');
       });
       await wait(300);
       await ev(() => {
-        const sc = window.__G.scenes.world;
+        const sc = window.__dev.scenes.world;
         sc._draw = sc.draw;
         sc.draw = () => {
           throw new Error('проверка: сломанный кадр');
@@ -216,25 +216,25 @@ async function extra({ page, step, ev, wait, closeAll, hold }) {
       });
       await wait(1200);
       await ev(() => {
-        const sc = window.__G.scenes.world;
+        const sc = window.__dev.scenes.world;
         sc.draw = sc._draw;
         delete sc._draw;
       });
       if (!(await page.locator('text=Что-то сломалось').count())) throw new Error('нет окна «Что-то сломалось»');
       await page.click('text=Домой 🏡');
       await wait(500);
-      if ((await ev(() => window.__G.sceneName)) !== 'villa') throw new Error('кнопка «Домой» не привела на виллу');
+      if ((await ev(() => window.__dev.sceneName)) !== 'villa') throw new Error('кнопка «Домой» не привела на виллу');
     },
     { expectErrors: 'сломанный кадр' },
   );
   await step('подарок ждёт, пока закроют диалог', async () => {
     await ev(() => {
-      const s = window.__G.state;
+      const s = window.__dev.G.state;
       s.friends.plusha.pts = 19;
       s.friends.plusha.met = true;
       s.friends.plusha.gift = -1;
       s.dishes.cookies = 3;
-      window.__F.npcDialog('plusha');
+      window.__dev.F.npcDialog('plusha');
     });
     await wait(500);
     await page.click('text=Угостить');
@@ -261,7 +261,7 @@ async function extra({ page, step, ev, wait, closeAll, hold }) {
   });
   await step('кэш спрайтов: все сезоны, ночь, смена размера окна', async () => {
     await ev(() => {
-      window.__G.go('world', 'villa');
+      window.__dev.go('world');
     });
     await wait(300);
     for (const day of [0, 6, 18, 24])
@@ -282,29 +282,225 @@ async function extra({ page, step, ev, wait, closeAll, hold }) {
         ]) {
           await ev(
             ([day, minutes, tx, ty]) => {
-              const s = window.__G.state;
+              const s = window.__dev.G.state;
               s.day = day;
               s.minutes = minutes;
               s.weather = 'sun';
-              window.__World.debugTeleport(tx, ty);
+              window.__dev.World.debugTeleport(tx, ty);
             },
             [day, minutes, tx, ty],
           );
           await wait(70);
         }
       }
-    const a = await ev(() => window.__World.debugSprites());
+    const a = await ev(() => window.__dev.World.debugSprites());
     if (a.count < 50) throw new Error('в кэше подозрительно мало спрайтов: ' + a.count);
     if (a.clipped.length) throw new Error('спрайты не поместились в рамку: ' + a.clipped.join(', '));
     await page.setViewportSize({ width: 600, height: 900 });
     await wait(400);
     await hold('ArrowLeft', 300);
-    const b = await ev(() => window.__World.debugSprites());
+    const b = await ev(() => window.__dev.World.debugSprites());
     if (b.k === a.k || b.count >= a.count)
       throw new Error('кэш не сброшен при смене масштаба: ' + JSON.stringify([a.k, a.count, b.k, b.count]));
     if (b.clipped.length > a.clipped.length) throw new Error('спрайты не поместились в рамку: ' + b.clipped.join(', '));
     await page.setViewportSize({ width: 1280, height: 720 });
     await wait(300);
+  });
+  // ---------- каркас: сцены, события, действия ----------
+  await step('переход между сценами — между кадрами', async () => {
+    await ev(() => window.__dev.go('world'));
+    await wait(300);
+    // go() изнутри update(): сцена меняется только после того, как старая сцена закончила свой шаг
+    await ev(() => {
+      const d = window.__dev,
+        sc = d.scenes.world,
+        u = sc.update,
+        log = (window.__log = {});
+      sc.update = function (dt) {
+        sc.update = u;
+        d.go('villa');
+        log.during = d.sceneName;
+        u.call(this, dt);
+        log.after = d.sceneName;
+      };
+    });
+    await wait(300);
+    const r = await ev(() => ({ ...window.__log, now: window.__dev.sceneName }));
+    if (r.during !== 'world' || r.after !== 'world' || r.now !== 'villa')
+      throw new Error('переход выполнен посреди шага: ' + JSON.stringify(r));
+    // вне кадра (кнопка в окне, тест) — сразу, вместе с позицией в сохранении
+    const s = await ev(() => {
+      window.__dev.go('world');
+      return { name: window.__dev.sceneName, pos: JSON.parse(localStorage.getItem('rhr-save-v1')).pos };
+    });
+    if (s.name !== 'world' || s.pos.scene !== 'world')
+      throw new Error('переход вне кадра не выполнен сразу: ' + JSON.stringify(s));
+  });
+  await step('сцена: общий интерфейс и подписки', async () => {
+    const r = await ev(() => {
+      const d = window.__dev,
+        need = ['enter', 'update', 'draw', 'pointerDown', 'pointerMove', 'pointerUp', 'interact', 'savePos'],
+        out = { missing: [] };
+      for (const [name, sc] of Object.entries(d.scenes))
+        for (const m of need) if (typeof sc[m] !== 'function') out.missing.push(name + '.' + m);
+      d.go('villa');
+      out.inVilla = d.events.listenerCount('guests');
+      d.go('world');
+      out.inWorld = d.events.listenerCount('guests');
+      return out;
+    });
+    if (r.missing.length) throw new Error('у сцен нет методов: ' + r.missing.join(', '));
+    if (r.inVilla < 1 || r.inWorld !== 0)
+      throw new Error('сцена не сняла подписки при выходе: ' + JSON.stringify([r.inVilla, r.inWorld]));
+    // неизвестное событие — ошибка сразу, а не тихо не работающая подписка
+    const bad = await ev(() => {
+      try {
+        window.__dev.events.on('нет_такого', () => {});
+        return false;
+      } catch (e) {
+        return true;
+      }
+    });
+    if (!bad) throw new Error('подписка на неизвестное событие не дала ошибку');
+  });
+  await step('состояние меняют только действия (core/actions.js)', async () => {
+    await ev(() => {
+      const d = window.__dev;
+      d.go('world');
+      window.__stopWatch = d.watchState();
+    });
+    const click = async (sel) => {
+      await page.click(sel);
+      await wait(350);
+    };
+    // покупки, салон, готовка, еда
+    await ev(() => {
+      window.__dev.enterBuilding('mall_food');
+    });
+    await wait(400);
+    await click('.overlay .card .btn');
+    await closeAll();
+    await ev(() => {
+      window.__dev.enterBuilding('mall_fashion');
+    });
+    await wait(400);
+    await click('.overlay .card .btn');
+    await click('.overlay .card');
+    await closeAll();
+    await ev(() => {
+      window.__dev.enterBuilding('mall_home');
+    });
+    await wait(400);
+    await click('.overlay .card .btn');
+    await closeAll();
+    await ev(() => {
+      window.__dev.enterBuilding('salon');
+    });
+    await wait(400);
+    await click('.overlay .opt:not(.sel)');
+    await closeAll();
+    await ev(() => {
+      window.__dev.F.openCooking();
+    });
+    await wait(400);
+    await click('.overlay .btn.green');
+    await wait(400);
+    await click('text=Снять с плиты');
+    await closeAll();
+    await ev(() => {
+      window.__dev.F.openFridge();
+    });
+    await wait(400);
+    await click('.overlay .card .btn');
+    await closeAll();
+    // друзья, почта, сад
+    await ev(() => {
+      window.__dev.F.npcDialog('ponchik');
+    });
+    await wait(500);
+    await click('text=Поболтать');
+    await wait(300);
+    await click('text=Угостить');
+    await click('.overlay .card .btn');
+    await wait(400);
+    await click('text=Позвать в гости');
+    await wait(400);
+    await closeAll();
+    await ev(() => {
+      window.__dev.F.openMailbox();
+    });
+    await wait(400);
+    await closeAll();
+    await ev(() => {
+      window.__dev.F.gardenBed(2);
+    });
+    await wait(400);
+    await click('.overlay .card');
+    await closeAll();
+    // город: ходьба, кораблик, ныряние
+    await hold('ArrowDown', 400);
+    await ev(() => window.__dev.World.debugTeleport(51, 45));
+    await wait(300);
+    const bs = await ev(() => window.__dev.World.debugScreen(52.5 * 48, 46.2 * 48));
+    await page.mouse.click(bs.x, bs.y);
+    await wait(2200);
+    await closeAll();
+    await hold('ArrowDown', 1200);
+    await ev(() => {
+      window.__dev.World.dive();
+    });
+    await wait(600);
+    await hold('ArrowDown', 500);
+    await ev(() => {
+      window.__dev.back();
+    });
+    await wait(500);
+    await ev(() => {
+      window.__dev.World.leaveBoat();
+    });
+    await wait(300);
+    // башня
+    await ev(() => {
+      window.__dev.enterBuilding('tower');
+    });
+    await wait(400);
+    await ev(() => {
+      window.__dev.back();
+    });
+    await wait(300);
+    // вилла: предметы, обустройство
+    await ev(() => {
+      window.__dev.villaAt(0, 800);
+    });
+    await wait(400);
+    await page.keyboard.press('KeyE'); // телевизор
+    await wait(300);
+    await ev(() => {
+      window.__dev.Villa.setDecor(true);
+    });
+    await wait(300);
+    if (await page.locator('.decor-tray .tray-item').count()) await click('.decor-tray .tray-item');
+    if (await page.locator('text=Убрать в кладовку').count()) await click('text=Убрать в кладовку');
+    await page.mouse.move(640, 300);
+    await page.mouse.down();
+    await page.mouse.move(700, 310, { steps: 3 });
+    await page.mouse.up();
+    await ev(() => {
+      window.__dev.Villa.setDecor(false);
+    });
+    // сон
+    await ev(() => {
+      window.__dev.F.askSleep();
+    });
+    await wait(400);
+    await click('.panel-foot .btn.green');
+    await wait(3600);
+    await closeAll();
+    const bad = await ev(() => window.__stopWatch());
+    if (bad.length)
+      throw new Error(
+        `запись в состояние мимо действий (${bad.length}): ` + [...new Set(bad)].slice(0, 6).join(' ;; '),
+      );
   });
 }
 
@@ -322,9 +518,9 @@ async function extra({ page, step, ev, wait, closeAll, hold }) {
     const wait = (ms) => page.waitForTimeout(ms);
     // главный цикл жив: время игры идёт
     const alive = async () => {
-      const t0 = await ev(() => window.__G && window.__G.time);
+      const t0 = await ev(() => window.__dev && window.__dev.G.time);
       await wait(150);
-      if (!((await ev(() => window.__G && window.__G.time)) > t0)) throw new Error('главный цикл остановился');
+      if (!((await ev(() => window.__dev && window.__dev.G.time)) > t0)) throw new Error('главный цикл остановился');
     };
     const step = async (name, fn, o = {}) => {
       if (ONLY_EXTRA && !o.extra && name !== 'новая игра') return;
@@ -373,7 +569,7 @@ async function extra({ page, step, ev, wait, closeAll, hold }) {
       await wait(400);
       await page.click('text=Поехали!');
       await wait(500);
-      if ((await ev(() => window.__G.sceneName)) !== 'villa') throw new Error('ожидалась вилла');
+      if ((await ev(() => window.__dev.sceneName)) !== 'villa') throw new Error('ожидалась вилла');
     });
     for (const fn of [
       'openWardrobe',
@@ -388,7 +584,7 @@ async function extra({ page, step, ev, wait, closeAll, hold }) {
     ]) {
       await step('окно ' + fn, async () => {
         await ev((f) => {
-          window.__F[f]();
+          window.__dev.F[f]();
         }, fn);
         await wait(350);
         await closeAll();
@@ -398,13 +594,17 @@ async function extra({ page, step, ev, wait, closeAll, hold }) {
       await hold('ArrowRight', 500);
       await hold('ArrowDown', 200);
       await wait(2500);
-      await ev(() => window.__Villa.setDecor(true));
+      await ev(() => {
+        window.__dev.Villa.setDecor(true);
+      });
       await wait(300);
-      await ev(() => window.__Villa.setDecor(false));
+      await ev(() => {
+        window.__dev.Villa.setDecor(false);
+      });
     });
     await step('город: ходьба', async () => {
       await ev(() => {
-        window.__G.go('world', 'villa');
+        window.__dev.go('world');
       });
       await wait(500);
       await hold('ArrowDown', 900);
@@ -416,7 +616,7 @@ async function extra({ page, step, ev, wait, closeAll, hold }) {
         [40, 36],
         [15, 27],
       ]) {
-        await ev(([x, y]) => window.__World.debugTeleport(x, y), [x, y]);
+        await ev(([x, y]) => window.__dev.World.debugTeleport(x, y), [x, y]);
         await hold('ArrowLeft', 300);
       }
     });
@@ -438,7 +638,7 @@ async function extra({ page, step, ev, wait, closeAll, hold }) {
     ]) {
       await step('здание ' + id, async () => {
         await ev((b) => {
-          window.__F.enterBuilding(b);
+          window.__dev.enterBuilding(b);
         }, id);
         await wait(400);
         await closeAll();
@@ -447,7 +647,7 @@ async function extra({ page, step, ev, wait, closeAll, hold }) {
     for (const g of ['swim', 'fishing', 'teacher', 'doctor', 'chef', 'fashion']) {
       await step('мини-игра ' + g, async () => {
         await ev((g) => {
-          window.__F.playMinigame(g, { spot: 'pier' });
+          window.__dev.F.playMinigame(g, { spot: 'pier' });
         }, g);
         await wait(700);
         await page.click('#mg >> text=Начать!');
@@ -459,7 +659,7 @@ async function extra({ page, step, ev, wait, closeAll, hold }) {
     }
     await step('друзья: разговор', async () => {
       await ev(() => {
-        window.__F.npcDialog('plusha');
+        window.__dev.F.npcDialog('plusha');
       });
       await wait(400);
       await page.click('text=Поболтать');
@@ -468,46 +668,48 @@ async function extra({ page, step, ev, wait, closeAll, hold }) {
     });
     await step('башня: холл и площадка', async () => {
       await ev(() => {
-        window.__G.go('tower', 'world');
+        window.__dev.go('tower');
       });
       await wait(400);
       await hold('ArrowRight', 500);
-      await ev(() => window.__Tower.debugDeck());
+      await ev(() => window.__dev.Tower.debugDeck());
       await wait(400);
       await hold('ArrowRight', 600);
       await ev(() => {
-        window.__G.go('world', 'tower');
+        window.__dev.go('world');
       });
       await wait(400);
     });
     await step('море: плавание и ныряние', async () => {
-      await ev(() => window.__World.debugTeleport(40, 50));
+      await ev(() => window.__dev.World.debugTeleport(40, 50));
       await wait(400);
       await hold('ArrowDown', 600);
       await ev(() => {
-        window.__G.go('dive', 'world');
+        window.__dev.go('dive');
       });
       await wait(600);
       await hold('ArrowDown', 1200);
       await hold('ArrowRight', 600);
       await page.click('text=Всплыть');
       await wait(600);
-      if ((await ev(() => window.__G.sceneName)) !== 'world') throw new Error('не всплыли');
+      if ((await ev(() => window.__dev.sceneName)) !== 'world') throw new Error('не всплыли');
     });
     await step('кораблик', async () => {
-      await ev(() => window.__World.debugTeleport(51, 45));
+      await ev(() => window.__dev.World.debugTeleport(51, 45));
       await wait(400);
-      const s = await ev(() => window.__World.debugScreen(52.5 * 48, 46.2 * 48));
+      const s = await ev(() => window.__dev.World.debugScreen(52.5 * 48, 46.2 * 48));
       await page.mouse.click(s.x, s.y);
       await wait(2200);
       await closeAll();
-      if (!(await ev(() => window.__World.isBoating()))) throw new Error('не сели на кораблик');
+      if (!(await ev(() => window.__dev.World.isBoating()))) throw new Error('не сели на кораблик');
       await hold('ArrowDown', 1500);
-      await ev(() => window.__World.leaveBoat());
+      await ev(() => {
+        window.__dev.World.leaveBoat();
+      });
       await wait(300);
     });
     await step('пианино', async () => {
-      await ev(() => import('./js/piano.js').then((m) => m.openPiano()));
+      await ev(() => window.__dev.openPiano());
       await wait(400);
       await page.keyboard.press('KeyA');
       await wait(200);
@@ -515,14 +717,14 @@ async function extra({ page, step, ev, wait, closeAll, hold }) {
     });
     await step('сон и новый день', async () => {
       await ev(() => {
-        window.__G.go('villa', 'world');
-        window.__F.askSleep();
+        window.__dev.go('villa');
+        window.__dev.F.askSleep();
       });
       await wait(400);
       await page.click('.panel-foot .btn.green');
       await wait(3600);
       await closeAll();
-      if ((await ev(() => window.__G.state.day)) !== 1) throw new Error('день не сменился');
+      if ((await ev(() => window.__dev.G.state.day)) !== 1) throw new Error('день не сменился');
     });
     await step('сохранение и продолжение', async () => {
       await ev(() => window.dispatchEvent(new Event('pagehide')));
@@ -530,7 +732,7 @@ async function extra({ page, step, ev, wait, closeAll, hold }) {
       await wait(500);
       await page.click('text=Продолжить');
       await wait(600);
-      if ((await ev(() => window.__G.state.day)) !== 1) throw new Error('сохранение не загрузилось');
+      if ((await ev(() => window.__dev.G.state.day)) !== 1) throw new Error('сохранение не загрузилось');
     });
     if (tag === 'desktop')
       await extra({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll, hold });

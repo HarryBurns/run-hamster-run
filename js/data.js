@@ -536,6 +536,17 @@ export const FASHION_THEMES = [
 ];
 
 // ---------- помощники ----------
+/** Хомячок по умолчанию: белый с пятнышком, без одежды. */
+export function defaultLook() {
+  return {
+    fur: '#ffffff',
+    spots: '#2f2a2a',
+    belly: null,
+    ear: '#ffb3c1',
+    outfit: { head: null, body: null, legs: null, feet: null, acc: null },
+    beauty: { tuft: 0, hair: null, lashes: false, blush: '#ffb0bd', nails: null, bow: null },
+  };
+}
 /** Превратить сохранённую внешность (с id вещей) в готовую для рисования (с объектами вещей). */
 export function resolveLook(look) {
   const outfit = {};

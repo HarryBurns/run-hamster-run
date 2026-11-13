@@ -1,7 +1,8 @@
 <!doctype html><meta charset="utf-8"><body style="margin:0;background:#bfe3a0">
 <canvas id="c" width="1200" height="700"></canvas>
 <script type="module">
-import { drawHamster, defaultLook, drawPortrait } from '../js/hamster.js';
+import { drawHamster, drawPortrait } from '../js/art/hamster.js';
+import { defaultLook } from '../js/data.js';
 const ctx = document.getElementById('c').getContext('2d');
 const base = defaultLook();
 const mk = (outfit, beauty = {}, extra = {}) => ({ ...base, ...extra, outfit: { ...base.outfit, ...outfit }, beauty: { ...base.beauty, ...beauty } });

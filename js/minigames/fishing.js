@@ -1,5 +1,6 @@
 // Мини-игра «Рыбалка»: 5 забросов, подсекай, когда поплавок нырнул и появился «!».
-import { clamp, pick, el, ell, fillRR, line, poly, text, plural, TAU } from '../util.js';
+import { clamp, pick, el, plural, TAU } from '../core/util.js';
+import { ell, fillRR, line, poly, text } from '../core/draw.js';
 
 const CASTS = 5;
 const FISH = [

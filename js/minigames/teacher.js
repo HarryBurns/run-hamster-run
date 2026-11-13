@@ -1,5 +1,6 @@
 // Мини-игра «Учительница»: проверяем примеры в тетрадках — верно или ошибка.
-import { el, makeCanvas, pick, shuffle, irnd, fillRR, line, clamp } from '../util.js';
+import { el, pick, shuffle, irnd, clamp } from '../core/util.js';
+import { makeCanvas, fillRR, line } from '../core/draw.js';
 
 const TOTAL = 10;
 

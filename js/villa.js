@@ -1,13 +1,18 @@
 // Вилла внутри: вид «в разрезе», как кукольный домик. 3 этажа + лифт.
-import { clamp, lerp, rnd, pick, ell, fillRR, line, poly, shade, mix, rr, heart, TAU, el } from './util.js';
-import { drawHamster, blinkAt } from './hamster.js';
-import { drawFurn, furnRect } from './props.js';
+import { clamp, lerp, rnd, pick, TAU, el } from './core/util.js';
+import { ell, fillRR, line, poly, shade, mix, rr, heart } from './core/draw.js';
+import { drawHamster, blinkAt } from './art/hamster.js';
+import { drawFurn, furnRect } from './art/furniture.js';
 import { FURN_BY_ID, NPC_BY_ID, npcLook } from './data.js';
-import { G, playerLook, cal, darkness, save, addTo } from './game.js';
-import { sfx } from './audio.js';
+import { G, playerLook, cal, darkness } from './core/state.js';
+import { placeFurn, stashFurn, moveFurn, setFurnOn, touchState } from './core/actions.js';
+import { emit, scope } from './core/events.js';
+import { run } from './core/registry.js';
+import { go } from './core/loop.js';
+import { keys } from './core/input.js';
+import { Camera } from './core/camera.js';
+import { sfx } from './core/audio.js';
 import { toast, furnIcon } from './ui.js';
-import * as F from './features.js';
-import { openPiano } from './piano.js';
 
 const RH = 250,
   SLAB = 26,
@@ -48,7 +53,7 @@ const BUILT = [
 const SEAT_H = { sofa: 34, armchair: 34, chair: 50, beanbag: 36, throne: 54 };
 
 const V = {
-  cam: { x: 800, y: -300, zoom: 1 },
+  cam: new Camera(),
   p: { x: 270, f: 1, dir: 1, path: [], walkT: 0, state: 'idle', item: null, lift: null, pending: null, happy: 0 },
   guests: [],
   parts: [],
@@ -67,39 +72,64 @@ const V = {
 const live = new WeakMap(); // предмет → { on, t: сколько секунд осталось (0 — пока не выключат) }
 
 // ---------- вход / выход ----------
-export function enter(from) {
-  const s = G.state,
-    p = V.p;
+const sub = scope(); // подписки на события, пока вилла — текущая сцена
+export function enter(from, params = {}) {
+  const p = V.p;
   p.path = [];
   p.state = 'idle';
   p.item = null;
   p.pending = null;
   p.lift = null;
-  if (from === 'world') {
+  if (params.wake) toBed();
+  else if (!params.pos || !restorePos(params.pos)) {
+    // вошли с улицы — стоим у входной двери
     p.f = 0;
     p.x = 290;
     p.dir = 1;
-  } else if (from === 'wake') {
-    const bed = findBed();
-    if (bed) {
-      p.f = bed.floor;
-      p.x = bed.x + 30;
-    }
-  } else {
-    p.f = s.pos.floor || 0;
-    p.x = s.pos.x || 290;
   }
   V.liftY = fy(p.f);
   syncGuests();
   setDecor(false);
   snapCam();
+  sub.off();
+  sub.on('guests', syncGuests);
+  sub.on('guestHappy', ({ id }) => guestHappy(id));
+  sub.on('happy', playerHappy);
+  sub.on('wake', wake);
 }
 export function leave() {
   setDecor(false);
-  storePos();
+  sub.off();
 }
-export function storePos() {
-  G.state.pos = { scene: 'villa', floor: V.p.f, x: V.p.x };
+export function savePos() {
+  return { scene: 'villa', floor: V.p.f, x: V.p.x };
+}
+export function restorePos(pos) {
+  if (!pos || !Number.isFinite(pos.x) || ![0, 1, 2].includes(pos.floor)) return false;
+  V.p.f = pos.floor;
+  V.p.x = pos.x;
+  return true;
+}
+function toBed() {
+  const bed = findBed();
+  if (bed) {
+    V.p.f = bed.floor;
+    V.p.x = bed.x + 30;
+  }
+}
+/** Утро: хомячок просыпается в своей кровати (событие wake после сна). */
+function wake() {
+  const p = V.p;
+  p.path = [];
+  p.state = 'idle';
+  p.item = null;
+  p.pending = null;
+  p.lift = null;
+  toBed();
+  V.liftY = fy(p.f);
+  syncGuests();
+  setDecor(false);
+  snapCam();
 }
 function findBed() {
   const beds = G.state.villa.filter((i) => FURN_BY_ID[i.id] && FURN_BY_ID[i.id].act === 'sleep');
@@ -143,35 +173,20 @@ function layout() {
   const fit = Math.min(w / (WTOT + 90), h / (3 * FH + 230));
   let z = fit >= 0.66 ? fit : clamp(Math.min(w, h) / 470, 0.62, 1.05);
   if (V.decor && fit < 0.66) z = Math.max(fit, z * 0.72); // в режиме обустройства видно побольше
-  V.cam.zoom = z;
+  V.cam.setZoom(z);
+  // в режиме обустройства камеру можно увести ниже — под домом лежит панель кладовки
+  V.cam.setBounds(-60, -(3 * FH) - 190, WTOT + 60, 90 + (V.decor ? 150 / z : 0), { centerDy: -20 });
 }
-function clampCam() {
-  const { w, h } = G.view,
-    z = V.cam.zoom;
-  const vw = w / z,
-    vh = h / z;
-  const x0 = -60,
-    x1 = WTOT + 60,
-    y0 = -(3 * FH) - 190,
-    y1 = 90 + (V.decor ? 150 / z : 0);
-  V.cam.x = x1 - x0 <= vw ? (x0 + x1) / 2 : clamp(V.cam.x, x0 + vw / 2, x1 - vw / 2);
-  V.cam.y = y1 - y0 <= vh ? (y0 + y1) / 2 - 20 : clamp(V.cam.y, y0 + vh / 2, y1 - vh / 2);
-}
+const clampCam = () => V.cam.clamp();
 function camTarget() {
   return { x: V.p.x, y: (V.p.lift ? V.liftY : fy(V.p.f)) - 110 };
 }
 function snapCam() {
   layout();
   const t = camTarget();
-  V.cam.x = t.x;
-  V.cam.y = t.y;
-  clampCam();
+  V.cam.snap(t.x, t.y);
 }
-function toWorld(sx, sy) {
-  const { w, h } = G.view,
-    z = V.cam.zoom;
-  return { x: V.cam.x + (sx - w / 2) / z, y: V.cam.y + (sy - h / 2) / z };
-}
+const toWorld = (sx, sy) => V.cam.toWorld(sx, sy);
 
 // ---------- частицы ----------
 function burst(x, y, kind, n = 6) {
@@ -205,7 +220,7 @@ export function setDecor(on) {
     standUp();
     buildTray();
   }
-  G.emit('hud');
+  emit('hud');
 }
 function buildTray() {
   if (V.tray) V.tray.remove();
@@ -249,17 +264,11 @@ function buildTray() {
   V.tray = t;
 }
 function placeFromStorage(id) {
-  const d = FURN_BY_ID[id],
-    s = G.state;
+  const d = FURN_BY_ID[id];
   const c = toWorld(G.view.w / 2, G.view.h / 2);
   const f = clamp(Math.floor((-c.y + 40) / FH), 0, 2);
-  const it = { uid: s.uid++, id, floor: f, x: clamp(c.x, d.w / 2 + 6, W - d.w / 2 - 6), y: d.wall ? 160 : 0 };
-  s.villa.push(it);
-  addTo('storage', id, -1);
-  V.sel = it;
-  G.emit('place', { id });
+  V.sel = placeFurn('villa', id, f, clamp(c.x, d.w / 2 + 6, W - d.w / 2 - 6), d.wall ? 160 : 0);
   buildTray();
-  save();
 }
 function stash(it) {
   const s = G.state,
@@ -268,11 +277,9 @@ function stash(it) {
     toast('Последнюю кровать убирать нельзя — где же спать?');
     return;
   }
-  s.villa = s.villa.filter((i) => i !== it);
-  addTo('storage', it.id, 1);
+  stashFurn('villa', it.uid);
   V.sel = null;
   buildTray();
-  save();
 }
 
 // ---------- поиск предметов под пальцем ----------
@@ -338,7 +345,7 @@ function arrive() {
   p.pending = null;
   if (!pd) return;
   if (pd.guest) {
-    F.guestDialog(pd.guest.id);
+    run('guest:' + pd.guest.id);
     return;
   }
   if (pd.built) {
@@ -353,15 +360,15 @@ function actItem(it) {
     y = fy(it.floor);
   switch (d.act) {
     case 'sleep':
-      F.askSleep();
+      run('sleep');
       break;
     case 'wardrobe':
       sfx('door');
-      F.openWardrobe();
+      run('wardrobe');
       break;
     case 'fridge':
       sfx('door');
-      F.openFridge();
+      run('fridge');
       break;
     case 'sit':
       p.state = 'sit';
@@ -374,7 +381,7 @@ function actItem(it) {
     case 'music':
     case 'disco':
     case 'fire':
-      it.on = it.on === undefined ? d.act !== 'fire' : !it.on;
+      setFurnOn(it, it.on === undefined ? d.act !== 'fire' : !it.on);
       sfx(d.act === 'tv' && it.on ? 'tvOn' : d.act === 'lamp' ? 'click' : 'tap');
       if (d.act === 'music' && it.on) {
         sfx('note', 523);
@@ -389,7 +396,7 @@ function actItem(it) {
       burst(it.x, y - d.h, 'spark', 4);
       break;
     case 'piano':
-      openPiano();
+      run('piano');
       break;
     case 'wheel':
       p.state = 'wheel';
@@ -405,7 +412,7 @@ function actItem(it) {
       burst(it.x, y - d.h + 20, 'bubble', 7);
       burst(it.x, y - d.h - 6, 'heart', 3);
       toast('Ты покормила рыбок. Они машут плавниками: «Спасибо!» 🐠');
-      G.emit('feed');
+      emit('feed');
       break;
     case 'book':
       toast(
@@ -433,7 +440,7 @@ function actBuilt(b) {
   switch (b.act) {
     case 'exit':
       sfx('door');
-      F.goOutside();
+      go('world');
       break;
     case 'toilet':
       sfx('flush');
@@ -446,34 +453,34 @@ function actBuilt(b) {
       toast('Лапки чистые! 🫧');
       break;
     case 'cook':
-      F.openCooking();
+      run('cook');
       break;
     case 'bath':
       p.state = 'bath';
       p.x = b.x;
       sfx('splash');
-      G.emit('spa', { what: 'bath' });
+      emit('spa', { what: 'bath' });
       toast('Ванна с пеной! 🛁');
       break;
     case 'sauna':
       p.state = 'sauna';
       p.x = b.x + 20;
       sfx('hiss');
-      G.emit('spa', { what: 'sauna' });
+      emit('spa', { what: 'sauna' });
       toast('Ух, жарко! 🧖');
       break;
     case 'jacuzzi':
       p.state = 'jacuzzi';
       p.x = b.x;
       sfx('bubble');
-      G.emit('spa', { what: 'jacuzzi' });
+      emit('spa', { what: 'jacuzzi' });
       toast('Буль-буль-буль! 🫧');
       break;
     case 'pool':
       p.state = 'swim';
       p.x = clamp(p.x, b.x - b.w / 2 + 60, b.x + b.w / 2 - 60);
       sfx('splash');
-      G.emit('homeswim');
+      emit('homeswim');
       break;
     default:
       break;
@@ -507,10 +514,13 @@ export function pointerMove(sx, sy) {
     const it = V.drag.it,
       d = FURN_BY_ID[it.id];
     V.drag.moved = true;
-    it.x = clamp(w.x - V.drag.dx, d.w / 2 + 6, W - d.w / 2 - 6);
     const f = clamp(Math.floor((-w.y + (d.wall ? 0 : 30)) / FH), 0, 2);
-    it.floor = f;
-    if (d.wall) it.y = clamp(fy(f) - w.y, d.h / 2 + 60, RH - d.h / 2 - 8);
+    moveFurn(
+      it,
+      clamp(w.x - V.drag.dx, d.w / 2 + 6, W - d.w / 2 - 6),
+      f,
+      d.wall ? clamp(fy(f) - w.y, d.h / 2 + 60, RH - d.h / 2 - 8) : undefined,
+    );
   } else if (V.pan) {
     V.cam.x = V.pan.cx - (sx - V.pan.sx) / V.cam.zoom;
     V.cam.y = V.pan.cy - (sy - V.pan.sy) / V.cam.zoom;
@@ -521,7 +531,7 @@ export function pointerUp(sx, sy) {
   if (V.decor) {
     if (V.drag && V.drag.moved) {
       sfx('pop');
-      save();
+      touchState();
     }
     V.drag = null;
     V.pan = null;
@@ -561,7 +571,7 @@ export function pointerUp(sx, sy) {
   goTo(w.x, f);
   sfx('step');
 }
-export function interactNearest() {
+export function interact() {
   const p = V.p;
   let best = null,
     bd = 90;
@@ -599,8 +609,7 @@ export function interactNearest() {
 
 // ---------- обновление ----------
 export function update(dt) {
-  const p = V.p,
-    keys = G.keys;
+  const p = V.p;
   V.stateT += dt;
   if (!V.decor) {
     const kx =
@@ -673,7 +682,7 @@ export function update(dt) {
     p.walkT += dt * 4;
     if (V.stateT > 2.5 && !p.wheelDone) {
       p.wheelDone = true;
-      G.emit('wheel');
+      emit('wheel');
     }
   } else p.wheelDone = false;
   if (p.state === 'swim') {
@@ -777,10 +786,8 @@ export function update(dt) {
   layout();
   if (!V.decor) {
     const t = camTarget();
-    V.cam.x = lerp(V.cam.x, t.x, Math.min(1, dt * 5));
-    V.cam.y = lerp(V.cam.y, t.y, Math.min(1, dt * 5));
-  }
-  clampCam();
+    V.cam.follow(t.x, t.y, dt, 5);
+  } else clampCam();
 }
 
 // ---------- рисование ----------
@@ -1084,9 +1091,7 @@ export function draw(ctx) {
     c = cal();
   drawSky(ctx, w, h);
   ctx.save();
-  ctx.translate(w / 2, h / 2);
-  ctx.scale(z, z);
-  ctx.translate(-V.cam.x, -V.cam.y);
+  V.cam.apply(ctx);
   ctx.lineJoin = 'round';
   // земля
   ctx.fillStyle = { winter: '#f4f9fd', spring: '#9be36d', summer: '#7ed957', autumn: '#d9b65c' }[c.season];
@@ -1238,6 +1243,33 @@ export function isParty() {
     (i) => i.on === true && FURN_BY_ID[i.id] && (FURN_BY_ID[i.id].act === 'music' || FURN_BY_ID[i.id].act === 'disco'),
   );
 }
-export function playerInBed() {
-  /* зарезервировано для анимации сна */
+/** HUD на вилле: вместо «Домой» — «Обустроить». */
+function hud() {
+  return {
+    main: { icon: '🔨', label: 'Обустроить', on: V.decor, fn: () => setDecor(!V.decor) },
+    cls: V.decor ? 'decor' : '',
+  };
 }
+function sound() {
+  return { force: isParty() ? 'party' : null, day: 'villa', sea: 0, rain: 0.3 };
+}
+/** Можно ли сейчас впустить гостя, который пришёл сам. */
+const canHostGuests = () => !V.decor;
+export default {
+  enter,
+  leave,
+  update,
+  draw,
+  pointerDown,
+  pointerMove,
+  pointerUp,
+  interact,
+  savePos,
+  restorePos,
+  hud,
+  sound,
+  canHostGuests,
+  setDecor,
+  isDecor,
+  syncGuests,
+};

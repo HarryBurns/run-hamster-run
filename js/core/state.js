@@ -1,4 +1,6 @@
-// Общее состояние игры, сохранение, календарь, инвентарь.
+// Состояние игры: что лежит в сохранении, как оно читается, чинится и переносится между версиями; календарь.
+// Здесь состояние только создаётся, читается и сохраняется. МЕНЯТЬ его во время игры можно только через
+// функции из core/actions.js — так все деньги, предметы и наклейки проходят через одно место.
 import {
   START_MONEY,
   MONTHS,
@@ -17,8 +19,8 @@ import {
   SEED_BY_ID,
   TASK_BY_ID,
   resolveLook,
-} from './data.js';
-import { defaultLook } from './hamster.js';
+  defaultLook,
+} from '../data.js';
 
 const KEY = 'rhr-save-v1'; // ключ хранилища («v1» в имени — исторически; версия сохранения лежит в поле v)
 const BACKUP_KEY = 'rhr-save-backup'; // копия сохранения: перед миграцией и когда его не удалось прочитать
@@ -34,29 +36,14 @@ const BACKUP_KEY = 'rhr-save-backup'; // копия сохранения: пер
 export const MIGRATIONS = {};
 export const saveVersion = () => 1 + Object.keys(MIGRATIONS).length;
 
+/** Всё, что живёт, пока открыта страница. G.state — то, что уходит в сохранение. */
 export const G = {
   state: null,
-  scene: null, // текущая сцена (world | villa)
-  scenes: {},
   time: 0, // секунды с запуска (для анимаций)
-  modal: 0, // сколько окон открыто (пока > 0 — мир на паузе)
+  modal: 0, // сколько окон открыто (пока > 0 — мир на паузе); считает ui/modals.js
   cover: 0, // сколько открыто того, что закрывает сцену целиком (мини-игра, пианино, затемнение сна): сцену не рисуем
   dim: 0, // сколько открыто окон с затемнением: сцену под ними рисуем через кадр-другой
-  keys: new Set(),
   view: { w: 0, h: 0, dpr: 1 }, // размер экрана в CSS-пикселях и сколько пикселей канвы в одном CSS-пикселе
-  _ls: {},
-  on(ev, fn) {
-    (this._ls[ev] = this._ls[ev] || []).push(fn);
-  },
-  emit(ev, data) {
-    (this._ls[ev] || []).forEach((fn) => {
-      try {
-        fn(data || {});
-      } catch (e) {
-        console.error(e);
-      }
-    });
-  },
 };
 
 // Мебель, которая стоит на вилле в начале игры. floor: 0..2, x — центр, y — высота над полом (для настенных)
@@ -139,12 +126,27 @@ export function newGame(name) {
     plays: {},
     pos: { scene: 'villa', floor: 1, x: 270 },
     flags: {},
+    homes: {}, // мебель в других домах (купленное жильё): ключ дома → список предметов, как в villa
+    // первый день
+    weather: 'snow',
+    visitor: null,
+    dayFlags: {},
   };
-  rollDay(true);
   return G.state;
 }
 
+let dirty = false;
+/** Пометить, что состояние изменилось: оно запишется в конце кадра (flush). Зовут действия из core/actions.js. */
+export function touch() {
+  dirty = true;
+}
+/** Записать сохранение, если с прошлой записи что-то изменилось. Цикл игры зовёт это раз в кадр. */
+export function flush() {
+  if (dirty) save();
+}
+/** Записать сохранение прямо сейчас. */
 export function save() {
+  dirty = false;
   if (!G.state) return;
   try {
     localStorage.setItem(KEY, JSON.stringify(G.state));
@@ -231,7 +233,8 @@ export function repair(s) {
     if (!Number.isFinite(s[k])) s[k] = def;
   };
   for (const k of ['clothes', 'villa', 'recipes', 'guests', 'lastTasks', 'stickers', 'garden']) arr(k);
-  for (const k of ['storage', 'ing', 'dishes', 'seeds', 'friends', 'best', 'plays', 'flags', 'dayFlags']) obj(s, k);
+  for (const k of ['storage', 'ing', 'dishes', 'seeds', 'friends', 'best', 'plays', 'flags', 'dayFlags', 'homes'])
+    obj(s, k);
   num('money', 0);
   num('spent', 0);
   num('day', 0);
@@ -257,17 +260,27 @@ export function repair(s) {
   ]) {
     for (const id of Object.keys(s[bag])) if (!known[id] || !(s[bag][id] > 0)) delete s[bag][id];
   }
-  // мебель на вилле
-  s.villa = s.villa.filter((i) => i && FURN_BY_ID[i.id] && Number.isFinite(i.x) && Number.isFinite(i.floor));
-  for (const i of s.villa) {
-    if (!Number.isFinite(i.y)) i.y = 0;
-    // «включено» у колеса, игрушек и растений раньше попадало в сохранение; теперь это состояние сцены
-    if (['wheel', 'plant', 'toy'].includes(FURN_BY_ID[i.id].act)) {
-      delete i.on;
-      delete i.onT;
+  // мебель: на вилле и в других своих домах
+  const fixItems = (list) => {
+    const out = (Array.isArray(list) ? list : []).filter(
+      (i) => i && FURN_BY_ID[i.id] && Number.isFinite(i.x) && Number.isFinite(i.floor),
+    );
+    for (const i of out) {
+      if (!Number.isFinite(i.y)) i.y = 0;
+      // «включено» у колеса, игрушек и растений раньше попадало в сохранение; теперь это состояние сцены
+      if (['wheel', 'plant', 'toy'].includes(FURN_BY_ID[i.id].act)) {
+        delete i.on;
+        delete i.onT;
+      }
     }
-  }
-  s.uid = Math.max(Number.isFinite(s.uid) ? s.uid : 1, ...s.villa.map((i) => (i.uid || 0) + 1));
+    return out;
+  };
+  s.villa = fixItems(s.villa);
+  for (const k of Object.keys(s.homes)) s.homes[k] = fixItems(s.homes[k]);
+  s.uid = Math.max(
+    Number.isFinite(s.uid) ? s.uid : 1,
+    ...[s.villa, ...Object.values(s.homes)].flat().map((i) => (i.uid || 0) + 1),
+  );
   // грядки: всегда восемь, семена — только известные
   s.garden = Array.from({ length: 8 }, (_, i) => {
     const b = s.garden[i];
@@ -293,15 +306,18 @@ export function repair(s) {
     if (m.items && !Array.isArray(m.items)) m.items = null;
   }
   if (typeof s.weather !== 'string') s.weather = 'sun';
-  // позиция: только целая и из конечных чисел, иначе — у двери виллы (изнутри)
+  // позиция: имя сцены и конечные числа, иначе — у двери виллы (изнутри). Годится ли позиция самой сцене
+  // (этаж, проходимая клетка), проверяет её restorePos().
   const p = s.pos,
     fin = Number.isFinite;
   const okPos =
-    p &&
-    typeof p === 'object' &&
-    (p.scene === 'world' ? fin(p.x) && fin(p.y) : p.scene === 'villa' && fin(p.x) && [0, 1, 2].includes(p.floor));
+    p && typeof p === 'object' && typeof p.scene === 'string' && fin(p.x) && (p.scene !== 'world' || fin(p.y));
   if (!okPos) s.pos = { scene: 'villa', floor: 0, x: 290 };
   return s;
+}
+/** Забыть загруженную игру (перед «Новой игрой» на заставке). */
+export function unload() {
+  G.state = null;
 }
 export function hasSave() {
   try {
@@ -346,23 +362,6 @@ export function darkness() {
   return Math.min(1, (m - 18 * 60) / (3.5 * 60));
 }
 
-// Погода на день: sun | rain | snow | petals | leaves
-function rollWeather() {
-  const s = cal().season,
-    r = Math.random();
-  if (s === 'winter') return r < 0.65 ? 'snow' : 'sun';
-  if (s === 'spring') return r < 0.25 ? 'rain' : r < 0.75 ? 'petals' : 'sun';
-  if (s === 'summer') return r < 0.1 ? 'rain' : 'sun';
-  return r < 0.3 ? 'rain' : 'leaves';
-}
-export function rollDay(first = false) {
-  const s = G.state;
-  s.weather = first ? 'snow' : rollWeather();
-  s.guests = [];
-  s.visitor = !first && Math.random() < 0.35 ? NPCS[Math.floor(Math.random() * NPCS.length)].id : null;
-  s.dayFlags = {};
-}
-
 // ---------- внешность игрока ----------
 let lookCache = null,
   lookKey = '';
@@ -382,24 +381,8 @@ export function outfitTags() {
   return tags;
 }
 
-// ---------- деньги и инвентарь ----------
-export function spend(n) {
-  const s = G.state;
-  if (s.money < n) return false;
-  s.money -= n;
-  s.spent += n;
-  G.emit('money');
-  return true;
-}
+// ---------- что есть у игрока (только чтение) ----------
 export const hasClothes = (id) => G.state.clothes.includes(id);
-export function addClothes(id) {
-  if (!hasClothes(id)) G.state.clothes.push(id);
-}
-export function addTo(bag, id, n = 1) {
-  const b = G.state[bag];
-  b[id] = (b[id] || 0) + n;
-  if (b[id] <= 0) delete b[id];
-}
 export const count = (bag, id) => G.state[bag][id] || 0;
 export function canCook(dish) {
   return Object.entries(dish.needs).every(([id, n]) => count('ing', id) >= n);
@@ -407,11 +390,8 @@ export function canCook(dish) {
 export function friendHearts(id) {
   return Math.min(5, Math.floor(G.state.friends[id].pts / 4));
 }
-export function addSticker(id) {
-  if (G.state.stickers.includes(id)) return false;
-  G.state.stickers.push(id);
-  return true;
-}
-export function nextUid() {
-  return G.state.uid++;
+/** Мебель дома по его ключу в сохранении: 'villa' — вилла, остальные лежат в state.homes. */
+export function houseItems(key) {
+  const s = G.state;
+  return key === 'villa' ? s.villa : s.homes[key] || [];
 }
