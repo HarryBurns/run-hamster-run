@@ -216,7 +216,7 @@ function frame(now) {
   // на слабом устройстве игра идёт с той же скоростью, только реже рисуется.
   const dtFrame = Math.min(MAX_FRAME, Math.max(0, (now - last) / 1000)); last = now;
   const steps = Math.max(1, Math.ceil(dtFrame / MAX_STEP - 1e-6)), dt = dtFrame / steps;
-  let ok = true;
+  let ok = true, drew = false;
   for (let i = 0; i < steps; i++) {
     G.time += dt;
     if (G.state && G.scene && !G.modal) ok = guard(() => tick(dt)) && ok;
@@ -227,14 +227,14 @@ function frame(now) {
     // Под окном с затемнением хватает каждого третьего кадра: мир на паузе, шевелятся только вода и дыхание.
     frameNo++;
     if (!G.cover && (redraw || !G.dim || frameNo % 3 === 0)) {
-      redraw = false;
+      redraw = false; drew = true;
       if (!guard(render)) { ok = false; canvas.width = canvas.width; } // сброс канвы: после ошибки на ней могли остаться clip и недозакрытые save()
     }
     hudT += dtFrame; if (hudT > 1) { hudT = 0; ok = guard(updateHud) && ok; }
     saveT += dtFrame; if (saveT > 20) { saveT = 0; ok = guard(persist) && ok; }
   }
-  if (ok) failStreak = 0;
-  else if (++failStreak === FAIL_LIMIT) showBroken();
+  // кадр, в котором сцену не рисовали (она под окном), ничего не доказывает — счёт сбоев не сбрасываем
+  if (!ok) { if (++failStreak === FAIL_LIMIT) showBroken(); } else if (drew || !G.scene) failStreak = 0;
 }
 /** Игра спотыкается в каждом кадре: честно сказать об этом и предложить выход. */
 function showBroken() {
