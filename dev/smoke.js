@@ -306,6 +306,58 @@ async function extra({ page, step, ev, wait, closeAll, hold }) {
     await page.setViewportSize({ width: 1280, height: 720 });
     await wait(300);
   });
+  await step('очередь окон: по одному и только когда экран свободен', async () => {
+    const st = () =>
+      ev(() => ({
+        dialogs: document.querySelectorAll('.dialog').length,
+        titles: [...document.querySelectorAll('.overlay .panel-head .title')].map((e) => e.textContent),
+        queued: window.__dev.ui.queued(),
+      }));
+    await ev(() => {
+      window.__dev.F.npcDialog('plusha');
+    });
+    await wait(450);
+    await ev(() => {
+      const u = window.__dev.ui;
+      u.enqueue(() => u.message({ title: 'Первое', html: '<p>1</p>' }));
+      u.enqueue(() => u.message({ title: 'Второе', html: '<p>2</p>' }), { delay: 200 });
+    });
+    await wait(900);
+    let r = await st();
+    if (r.dialogs !== 1 || r.titles.length || r.queued !== 2)
+      throw new Error('окно не дождалось диалога: ' + JSON.stringify(r));
+    await page.click('.dialog .btn:last-child');
+    await wait(120);
+    r = await st();
+    if (r.titles.length) throw new Error('окно открылось сразу, без паузы после диалога: ' + JSON.stringify(r));
+    await wait(500);
+    r = await st();
+    if (r.titles.join() !== 'Первое' || r.queued !== 1)
+      throw new Error('ожидалось одно окно «Первое»: ' + JSON.stringify(r));
+    await wait(700);
+    r = await st();
+    if (r.titles.join() !== 'Первое')
+      throw new Error('второе окно не дождалось закрытия первого: ' + JSON.stringify(r));
+    await page.click('.overlay .xbtn');
+    await wait(600);
+    r = await st();
+    if (r.titles.join() !== 'Второе' || r.queued !== 0)
+      throw new Error('ожидалось окно «Второе»: ' + JSON.stringify(r));
+    await closeAll();
+    // на свободном экране окно из очереди тоже появляется не мгновенно, а после короткой паузы
+    await ev(() => {
+      const u = window.__dev.ui;
+      u.enqueue(() => u.message({ title: 'Третье', html: '<p>3</p>' }));
+    });
+    r = await st();
+    if (r.titles.length) throw new Error('окно из очереди открылось без паузы');
+    await wait(500);
+    r = await st();
+    if (r.titles.join() !== 'Третье') throw new Error('окно из очереди не открылось: ' + JSON.stringify(r));
+    await closeAll();
+    const m = await ev(() => window.__dev.G.modal);
+    if (m !== 0) throw new Error('счётчик открытых окон не сошёлся: ' + m);
+  });
   // ---------- каркас: сцены, события, действия ----------
   await step('переход между сценами — между кадрами', async () => {
     await ev(() => window.__dev.go('world'));

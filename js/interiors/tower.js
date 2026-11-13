@@ -11,7 +11,9 @@ import { go } from '../core/loop.js';
 import { axisX } from '../core/input.js';
 import { Camera } from '../core/camera.js';
 import { sfx } from '../core/audio.js';
-import { toast, dialog, openPanel } from '../ui.js';
+import { openPanel } from '../ui/panel.js';
+import { dialog } from '../ui/dialog.js';
+import { toast } from '../ui/toast.js';
 
 const OUT = '#4a3728',
   HS = 1.45;

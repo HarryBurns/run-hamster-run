@@ -7,7 +7,8 @@ import { award } from './core/actions.js';
 import { emit } from './core/events.js';
 import { register } from './core/registry.js';
 import { sfx, playNote, isMuted, setMuted, unlockAudio } from './core/audio.js';
-import { toast } from './ui.js';
+import { toast } from './ui/toast.js';
+import { openLayer } from './ui/modals.js';
 
 const NAMES = ['До', '', 'Ре', '', 'Ми', 'Фа', '', 'Соль', '', 'Ля', '', 'Си'];
 const BLACK = [1, 3, 6, 8, 10];
@@ -63,8 +64,7 @@ const SONGS = [
 export function openPiano() {
   if (document.getElementById('piano')) return;
   unlockAudio();
-  G.modal++;
-  G.cover++;
+  const closeLayer = openLayer({ cover: true });
   const root = el('div');
   root.id = 'piano';
   const head = el('div', 'pn-head', '<span>🎹</span><span class="title">Пианино</span>');
@@ -322,8 +322,7 @@ export function openPiano() {
     window.removeEventListener('keyup', ku);
     window.removeEventListener('resize', onResize);
     root.remove();
-    G.modal--;
-    G.cover--;
+    closeLayer();
   }
   x.onclick = () => {
     sfx('tap');

@@ -10,7 +10,7 @@ import { run } from '../core/registry.js';
 import { go, scene } from '../core/loop.js';
 import { keys } from '../core/input.js';
 import { Camera } from '../core/camera.js';
-import { toast } from '../ui.js';
+import { toast } from '../ui/toast.js';
 import { sfx } from '../core/audio.js';
 import { SpriteSet } from '../core/sprites.js';
 

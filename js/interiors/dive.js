@@ -11,7 +11,7 @@ import { go } from '../core/loop.js';
 import { axisX, axisY } from '../core/input.js';
 import { Camera } from '../core/camera.js';
 import { sfx } from '../core/audio.js';
-import { toast } from '../ui.js';
+import { toast } from '../ui/toast.js';
 
 const OUT = '#4a3728',
   HS = 1.15;

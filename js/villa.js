@@ -12,7 +12,8 @@ import { go } from './core/loop.js';
 import { keys } from './core/input.js';
 import { Camera } from './core/camera.js';
 import { sfx } from './core/audio.js';
-import { toast, furnIcon } from './ui.js';
+import { furnIcon } from './ui/icons.js';
+import { toast } from './ui/toast.js';
 
 const RH = 250,
   SLAB = 26,

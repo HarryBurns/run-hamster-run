@@ -13,21 +13,19 @@ import {
   darkness,
 } from './core/state.js';
 import { mutate, award, addItem, setFlag } from './core/actions.js';
-import { on } from './core/events.js';
 import {
   startLoop,
   registerScene,
   scenes,
   go,
   scene,
-  sceneName,
   every,
   persist,
   dropScene,
   resetFailures,
   safely,
 } from './core/loop.js';
-import { el, esc, fmtMoney } from './core/util.js';
+import { el, esc } from './core/util.js';
 import { makeCanvas } from './core/draw.js';
 import { drawHamster, blinkAt } from './art/hamster.js';
 import { resolveLook, START_OUTFIT, defaultLook } from './data.js';
@@ -43,7 +41,9 @@ import {
   setMusic,
   setAmbience,
 } from './core/audio.js';
-import { toast, openPanel, message, confirmBox } from './ui.js';
+import { openPanel, message, confirmBox } from './ui/panel.js';
+import { toast } from './ui/toast.js';
+import { initHud, buildHud, updateHud } from './ui/hud.js';
 import WorldScene from './locations/town.js';
 import VillaScene from './villa.js';
 import TowerScene from './interiors/tower.js';
@@ -63,39 +63,6 @@ registerScene('dive', DiveScene);
 const HOME = 'villa'; // сцена-дом: туда ведёт кнопка «Домой», там начинается игра
 
 // ---------- HUD ----------
-let chipDate, chipMoney, chipTask, leftBox;
-let leftSig = ''; // что сейчас показано в левом столбике кнопок (чтобы не пересобирать его зря)
-function rbtn(icon, label, fn) {
-  const b = el('button', 'rbtn', `${icon}<span class="lbl">${label}</span>`);
-  b.onclick = () => {
-    unlockAudio();
-    sfx('tap');
-    fn();
-  };
-  return b;
-}
-function buildHud() {
-  hud.innerHTML = '';
-  const top = el('div', 'hud-top');
-  chipDate = el('div', 'chip');
-  chipMoney = el('div', 'chip');
-  chipTask = el('div', 'chip task');
-  chipTask.onclick = () => {
-    sfx('tap');
-    F.showLetter();
-  };
-  top.append(chipDate, chipMoney, chipTask);
-  const right = el('div', 'hud-btns');
-  right.append(
-    rbtn('🎒', 'Рюкзак', F.openBackpack),
-    rbtn('📖', 'Альбом', F.openAlbum),
-    rbtn('📱', 'Гости', F.openPhone),
-    rbtn('⚙️', 'Меню', openSettings),
-  );
-  leftBox = el('div', 'hud-btns left');
-  leftSig = '';
-  hud.append(top, right, leftBox);
-}
 async function goHome() {
   const yes = await confirmBox(
     'Домой?',
@@ -105,35 +72,17 @@ async function goHome() {
   );
   if (yes) go(HOME);
 }
-function updateHud() {
-  if (!G.state || !chipDate) return;
-  const c = cal();
-  chipDate.innerHTML = `${c.seasonIcon} <b>${c.monthName}</b>, день ${c.dom} · ${c.phaseIcon} ${c.time}`;
-  chipMoney.innerHTML = `🪙 <b>${fmtMoney(G.state.money)}</b>`;
-  const t = F.taskChip();
-  chipTask.textContent = t.text;
-  chipTask.className = 'chip task ' + t.cls;
-  // Левый столбик: кнопки сцены (сойти с кораблика, нырнуть…), карта и главная кнопка — по умолчанию «Домой».
-  // Что показать, говорит сама сцена: scene.hud() (см. core/loop.js).
-  const sc = scene(),
-    h = (sc && sc.hud && sc.hud()) || {};
-  const list = [...(h.buttons || [])];
-  if (!h.noMap) list.push({ id: 'map', icon: '🗺️', label: 'Карта', fn: F.openMap });
-  list.push({ id: 'main', ...(h.main || { icon: '🏡', label: 'Домой', fn: goHome }) });
-  const sig = sceneName() + ':' + list.map((b) => `${b.id}|${b.icon}|${b.label}|${b.on ? 1 : 0}`).join(';');
-  if (sig !== leftSig) {
-    leftSig = sig;
-    leftBox.innerHTML = '';
-    for (const b of list) {
-      const e = rbtn(b.icon, b.label, b.fn);
-      if (b.on) e.classList.add('on');
-      leftBox.appendChild(e);
-    }
-  }
-  hud.classList.toggle('decor', h.cls === 'decor');
-}
-on('hud', updateHud);
-on('money', updateHud);
+initHud(hud, {
+  right: [
+    { icon: '🎒', label: 'Рюкзак', fn: F.openBackpack },
+    { icon: '📖', label: 'Альбом', fn: F.openAlbum },
+    { icon: '📱', label: 'Гости', fn: F.openPhone },
+    { icon: '⚙️', label: 'Меню', fn: openSettings },
+  ],
+  task: { info: F.taskChip, fn: F.showLetter },
+  map: { icon: '🗺️', label: 'Карта', fn: F.openMap },
+  home: { icon: '🏡', label: 'Домой', fn: goHome },
+});
 
 function openSettings() {
   openPanel({

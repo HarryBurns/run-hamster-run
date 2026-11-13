@@ -65,18 +65,12 @@ import {
 import { on, emit } from './core/events.js';
 import { register, run } from './core/registry.js';
 import { go, scene, sceneName } from './core/loop.js';
-import {
-  toast,
-  openPanel,
-  message,
-  confirmBox,
-  dialog,
-  clothesIcon,
-  furnIcon,
-  hamsterStage,
-  fadeTo,
-  whenFree,
-} from './ui.js';
+import { openPanel, message, confirmBox } from './ui/panel.js';
+import { dialog } from './ui/dialog.js';
+import { fadeTo } from './ui/fade.js';
+import { clothesIcon, furnIcon, hamsterStage } from './ui/icons.js';
+import { enqueue, openLayer } from './ui/modals.js';
+import { toast } from './ui/toast.js';
 import { drawPortrait, drawHamster, blinkAt } from './art/hamster.js';
 import { sfx } from './core/audio.js';
 import { runMinigame } from './minigames/host.js';
@@ -665,8 +659,7 @@ const MG_NAMES = {
 export async function playMinigame(id, extra = {}) {
   const s = S();
   const plays = s.plays[id] || 0;
-  G.modal++;
-  G.cover++; // мини-игра закрывает весь экран: город под ней не рисуем
+  const closeLayer = openLayer({ cover: true }); // мини-игра закрывает весь экран: город под ней не рисуем
   let res = null;
   try {
     res = await runMinigame(id, {
@@ -681,8 +674,7 @@ export async function playMinigame(id, extra = {}) {
     console.error(e);
     toast('Не получилось открыть игру. Попробуй ещё раз!');
   }
-  G.modal--;
-  G.cover--;
+  closeLayer();
   if (!res) return null;
   recordPlay(id, res.stars);
   spendMinutes(40, 23 * 60 + 30);
@@ -918,14 +910,14 @@ function addPts(id, n) {
       if (rec) {
         learnRecipe(rec);
         const d = DISH_BY_ID[rec];
-        whenFree(
+        enqueue(
           () =>
             message({
               title: 'Секретный рецепт!',
               icon: '📜',
               html: `<div class="center big-emoji">${d.e}</div><p class="center"><b>${npc.name}</b> ${npc.fem ? 'рассказала' : 'рассказал'} тебе секретный рецепт:<br><b>${d.name}</b>!</p>`,
             }),
-          500,
+          { delay: 500 },
         );
       }
     }
@@ -1273,7 +1265,7 @@ function giftPool() {
  */
 export function giveSurprise(title, delay = 0) {
   const gift = grantSurprise();
-  whenFree(() => showSurprise(title, gift), delay);
+  enqueue(() => showSurprise(title, gift), { delay });
 }
 function grantSurprise() {
   const s = S(),
@@ -1328,17 +1320,20 @@ function completeTask() {
   const surprise = done <= 2 || Math.random() < 0.5;
   const gift = surprise ? grantSurprise() : null; // подарок выдаём сразу, окно — когда освободится экран
   emit('hud');
-  whenFree(() => {
-    sfx('fanfare');
-    message({
-      title: 'Задание выполнено!',
-      icon: '🎉',
-      html: `<div class="center"><div class="sticker got">${t.sticker}</div><p><b>${t.title}</b></p><p>${isNew ? 'Новая наклейка в альбоме!' : 'Такая наклейка у тебя уже есть — молодец!'}</p>${surprise ? '<p>И это ещё не всё… 🎁</p>' : ''}</div>`,
-      buttons: [{ text: surprise ? 'Открыть сюрприз!' : 'Ура!' }],
-    }).then(() => {
-      if (gift) showSurprise(null, gift);
-    });
-  }, 700);
+  enqueue(
+    () => {
+      sfx('fanfare');
+      message({
+        title: 'Задание выполнено!',
+        icon: '🎉',
+        html: `<div class="center"><div class="sticker got">${t.sticker}</div><p><b>${t.title}</b></p><p>${isNew ? 'Новая наклейка в альбоме!' : 'Такая наклейка у тебя уже есть — молодец!'}</p>${surprise ? '<p>И это ещё не всё… 🎁</p>' : ''}</div>`,
+        buttons: [{ text: surprise ? 'Открыть сюрприз!' : 'Ура!' }],
+      }).then(() => {
+        if (gift) showSurprise(null, gift);
+      });
+    },
+    { delay: 700 },
+  );
 }
 function onEvent(type, d = {}) {
   const m = S() && S().mail;
@@ -1486,7 +1481,7 @@ export async function askSleep() {
   setTimeout(() => {
     sfx(c.season !== before.season ? 'fanfare' : 'morning');
     if (c.season !== before.season)
-      whenFree(() =>
+      enqueue(() =>
         message({
           title: `${c.seasonName}!`,
           icon: c.seasonIcon,

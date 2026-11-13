@@ -6,6 +6,10 @@ import * as events from './core/events.js';
 import * as registry from './core/registry.js';
 import * as loop from './core/loop.js';
 import * as audio from './core/audio.js';
+import * as modals from './ui/modals.js';
+import { message, openPanel } from './ui/panel.js';
+import { dialog } from './ui/dialog.js';
+import { toast } from './ui/toast.js';
 import * as World from './locations/town.js';
 import * as Tower from './interiors/tower.js';
 
@@ -80,6 +84,8 @@ export function installDevHooks({ F }) {
     actions,
     houseItems,
     watchState,
+    /** Окна: очередь (enqueue, queued), слои и сами окна — для тестов. */
+    ui: { ...modals, message, openPanel, dialog, toast },
     /** Занятия (features): F.openWardrobe(), F.playMinigame('swim') … */
     F,
     World,
