@@ -672,6 +672,7 @@ export function taskChip() {
   if (!m) return { text: '📭 Писем нет', cls: '' };
   if (!m.read) return { text: '✉️ В почтовом ящике письмо!', cls: '' };
   const t = TASK_BY_ID[m.task];
+  if (!t) return { text: '📭 Писем нет', cls: '' };
   if (m.done) return { text: `✅ ${t.title}`, cls: 'done' };
   return { text: `${t.sticker} ${t.title}${taskProgress()}`, cls: '' };
 }
@@ -747,6 +748,7 @@ function onEvent(type, d = {}) {
   const m = S() && S().mail;
   if (!m || !m.read || m.done) return;
   const t = TASK_BY_ID[m.task];
+  if (!t) return;
   let ok = false;
   switch (t.type) {
     case 'minigame': ok = type === 'minigame' && d.id === t.game; break;
@@ -769,7 +771,7 @@ function onEvent(type, d = {}) {
     case 'swim':
       if (type === 'swim' && d.where === 'sea') {
         const b = S().look.outfit.body;
-        if (b && CLOTHES_BY_ID[b].kind === 'swim') ok = true; else toast('Для задания нужен купальник! Переоденься дома в шкафу 🩱');
+        if (b && CLOTHES_BY_ID[b] && CLOTHES_BY_ID[b].kind === 'swim') ok = true; else toast('Для задания нужен купальник! Переоденься дома в шкафу 🩱');
       }
       break;
     case 'collect': if (type === 'collect') { m.n++; G.emit('hud'); ok = m.n >= t.n; if (!ok) toast(`${t.sticker} ${m.n} из ${t.n}`); } break;

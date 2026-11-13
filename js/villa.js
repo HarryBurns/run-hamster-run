@@ -157,7 +157,7 @@ function placeFromStorage(id) {
 }
 function stash(it) {
   const s = G.state, d = FURN_BY_ID[it.id];
-  if (d.act === 'sleep' && s.villa.filter((i) => FURN_BY_ID[i.id].act === 'sleep').length <= 1) { toast('Последнюю кровать убирать нельзя — где же спать?'); return; }
+  if (d.act === 'sleep' && s.villa.filter((i) => FURN_BY_ID[i.id] && FURN_BY_ID[i.id].act === 'sleep').length <= 1) { toast('Последнюю кровать убирать нельзя — где же спать?'); return; }
   s.villa = s.villa.filter((i) => i !== it);
   addTo('storage', it.id, 1);
   V.sel = null; buildTray(); save();
@@ -580,6 +580,7 @@ export function draw(ctx) {
   // гости и игрок
   for (const g of V.guests) {
     const n = NPC_BY_ID[g.id];
+    if (!n) continue;
     drawHamster(ctx, g.x, fy(g.f), HS * (n.small ? 0.78 : 1), npcLook(g.id), { time: t + g.ph, dir: g.dir, walk: g.moving ? g.walkT : null, happy: g.happy > 0, armsUp: g.happy > 0 && Math.sin(t * 10) > 0, blink: blinkAt(t, g.ph) });
     ctx.font = '800 15px ui-rounded, "Trebuchet MS", sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     const tw = ctx.measureText(n.name).width + 14;

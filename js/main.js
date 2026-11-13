@@ -1,5 +1,5 @@
 // Запуск игры: заставка, главный цикл, ввод, HUD.
-import { G, newGame, load, save, hasSave, wipe, cal, darkness } from './game.js';
+import { G, newGame, load, save, repair, hasSave, wipe, cal, darkness } from './game.js';
 import { el, fmtMoney, makeCanvas } from './util.js';
 import { drawHamster, defaultLook, blinkAt } from './hamster.js';
 import { resolveLook, START_OUTFIT, NPC_BY_ID } from './data.js';
@@ -177,28 +177,63 @@ function updateSound() {
 
 // ---------- главный цикл ----------
 let last = performance.now(), hudT = 0, saveT = 0, sndT = 0;
+let failStreak = 0; // сколько кадров подряд закончились ошибкой
+const FAIL_LIMIT = 30;
+/** Выполнить часть кадра так, чтобы её ошибка не остановила игру. Возвращает false, если была ошибка. */
+function guard(fn) {
+  try { fn(); return true; } catch (e) {
+    if (failStreak < 3) console.error(e); // не засыпаем консоль одной и той же ошибкой 60 раз в секунду
+    return false;
+  }
+}
+function tick(dt) {
+  const s = G.state;
+  if (s.minutes < 23 * 60 + 59) s.minutes = Math.min(23 * 60 + 59, s.minutes + dt / 0.6);
+  if (s.minutes >= 22 * 60 && !s.dayFlags.late) { s.dayFlags.late = true; toast('Уже поздно. Пора в кроватку 😴'); }
+  // гость, который приходит сам
+  if (s.visitor && G.sceneName === 'villa' && s.minutes >= 11 * 60 && !Villa.isDecor()) {
+    const id = s.visitor; s.visitor = null;
+    if (!s.guests.includes(id) && s.guests.length < 3 && s.friends[id].met) { s.guests.push(id); Villa.syncGuests(); sfx('bell'); toast(`Тук-тук! ${NPC_BY_ID[id].name} заглянул${NPC_BY_ID[id].fem ? 'а' : ''} в гости 🚪`, 'good'); }
+  }
+  G.scene.update(dt);
+}
+function render() {
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  G.scene.draw(ctx);
+}
 function frame(now) {
+  requestAnimationFrame(frame); // первым делом: что бы ни случилось ниже, следующий кадр уже заказан
   const dt = Math.min(0.05, (now - last) / 1000); last = now;
   G.time += dt;
-  sndT += dt; if (sndT > 0.25) { sndT = 0; updateSound(); }
+  let ok = true;
+  sndT += dt; if (sndT > 0.25) { sndT = 0; ok = guard(updateSound) && ok; }
   if (G.state && G.scene) {
-    if (!G.modal) {
-      const s = G.state;
-      if (s.minutes < 23 * 60 + 59) s.minutes = Math.min(23 * 60 + 59, s.minutes + dt / 0.6);
-      if (s.minutes >= 22 * 60 && !s.dayFlags.late) { s.dayFlags.late = true; toast('Уже поздно. Пора в кроватку 😴'); }
-      // гость, который приходит сам
-      if (s.visitor && G.sceneName === 'villa' && s.minutes >= 11 * 60 && !Villa.isDecor()) {
-        const id = s.visitor; s.visitor = null;
-        if (!s.guests.includes(id) && s.guests.length < 3 && s.friends[id].met) { s.guests.push(id); Villa.syncGuests(); sfx('bell'); toast(`Тук-тук! ${NPC_BY_ID[id].name} заглянул${NPC_BY_ID[id].fem ? 'а' : ''} в гости 🚪`, 'good'); }
-      }
-      G.scene.update(dt);
-    }
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    G.scene.draw(ctx);
-    hudT += dt; if (hudT > 1) { hudT = 0; updateHud(); }
-    saveT += dt; if (saveT > 20) { saveT = 0; persist(); }
+    if (!G.modal) ok = guard(() => tick(dt)) && ok;
+    if (!guard(render)) { ok = false; canvas.width = canvas.width; } // сброс канвы: после ошибки на ней могли остаться clip и недозакрытые save()
+    hudT += dt; if (hudT > 1) { hudT = 0; ok = guard(updateHud) && ok; }
+    saveT += dt; if (saveT > 20) { saveT = 0; ok = guard(persist) && ok; }
   }
-  requestAnimationFrame(frame);
+  if (ok) failStreak = 0;
+  else if (++failStreak === FAIL_LIMIT) showBroken();
+}
+/** Игра спотыкается в каждом кадре: честно сказать об этом и предложить выход. */
+function showBroken() {
+  message({
+    title: 'Ой! Что-то сломалось', icon: '🛠️', sticky: true,
+    html: '<p class="center big-emoji">🙈</p><p class="center">Игра споткнулась. Давай вернёмся домой — там всё починится. Твои вещи и друзья на месте!</p>',
+    buttons: [{ text: 'Домой 🏡' }, { text: 'Перезапустить игру', cls: 'ghost' }],
+  }).then((i) => {
+    if (i === 1) { location.reload(); return; }
+    failStreak = 0; // если не помогло — окно появится снова
+    guard(() => { if (G.scene && G.scene.leave) G.scene.leave(); });
+    G.scene = null; // чтобы G.go не звал leave() сломанной сцены второй раз
+    guard(() => {
+      repair(G.state);
+      if (!G.state.mail) F.newDayMail();
+      G.state.pos = { scene: 'villa', floor: 0, x: 290 };
+      G.go('villa', 'load');
+    });
+  });
 }
 function persist() {
   if (!G.state || !G.scene) return;

@@ -261,6 +261,7 @@ function targetPx() {
   if (!m.read) { return { x: 15.5 * T, y: 7.5 * T, icon: '✉️' }; }
   if (m.done) return null;
   const t = TASK_BY_ID[m.task];
+  if (!t) return null;
   if (t.type === 'collect' && m.items) { const it = m.items.find((i) => !i.got); return it ? { x: (it.x + 0.5) * T, y: (it.y + 0.5) * T, icon: t.sticker } : null; }
   const wh = t.where;
   if (wh === 'pier') return { x: 51 * T, y: 46.5 * T, icon: '⭐' };
@@ -738,7 +739,7 @@ function drawBed(ctx, tx, ty, x, y, sea) {
   ctx.fillStyle = 'rgba(0,0,0,.18)'; ctx.fillRect(x + 8, y + 17, T - 16, 3); ctx.fillRect(x + 8, y + 29, T - 16, 3);
   const i = (ty === 8 ? 0 : 4) + (tx - 17), bed = G.state.garden[i];
   if (bed && bed.seed) {
-    const sd = SEED_BY_ID[bed.seed], ripe = bed.age >= sd.days, k = Math.min(1, bed.age / sd.days);
+    const sd = SEED_BY_ID[bed.seed], ripe = sd && bed.age >= sd.days, k = sd ? Math.min(1, bed.age / sd.days) : 0;
     if (ripe) { emoji(ctx, ING_BY_ID[sd.crop].e, x + T / 2, y + T / 2 - 4 + Math.sin(G.time * 3 + i) * 2, 28); }
     else {
       const hgt = 8 + k * 14;
@@ -1068,7 +1069,7 @@ export function draw(ctx) {
       drawChar(ctx, npcLook(e.n.id), e.n, t, nd.small, false);
       if (dist(e.n.x, e.n.y, W.p.x, W.p.y) < T * 3.2) label(ctx, nd.name, e.n.x, e.n.y - 66 * (nd.small ? 0.82 : 1), 200, 12, 'rgba(255,255,255,.92)');
     } else if (e.it) {
-      const ic = TASK_BY_ID[m.task].sticker, yy = (e.it.y + 0.5) * T + Math.sin(t * 4 + e.it.x) * 4;
+      const ic = (TASK_BY_ID[m.task] || {}).sticker || '⭐', yy = (e.it.y + 0.5) * T + Math.sin(t * 4 + e.it.x) * 4;
       ell(ctx, (e.it.x + 0.5) * T, (e.it.y + 0.5) * T + 12, 12, 4, 'rgba(0,0,0,.15)'); ell(ctx, (e.it.x + 0.5) * T, yy - 4, 20, 20, 'rgba(255,255,255,.45)');
       emoji(ctx, ic, (e.it.x + 0.5) * T, yy - 4, 26);
     } else if (e.boat) { const bt = boatState(); drawBoat(ctx, bt.x, bt.y, 1, t, null, false); }

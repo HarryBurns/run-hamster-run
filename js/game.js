@@ -1,7 +1,7 @@
 // Общее состояние игры, сохранение, календарь, инвентарь.
 import {
   START_MONEY, MONTHS, SEASON_OF_MONTH, SEASONS, DAYS_PER_MONTH, START_CLOTHES, START_OUTFIT, START_RECIPES,
-  CLOTHES_BY_ID, NPCS, resolveLook,
+  CLOTHES_BY_ID, NPCS, NPC_BY_ID, FURN_BY_ID, ING_BY_ID, DISH_BY_ID, SEED_BY_ID, TASK_BY_ID, resolveLook,
 } from './data.js';
 import { defaultLook } from './hamster.js';
 
@@ -69,12 +69,64 @@ export function load() {
     if (!raw) return false;
     const s = JSON.parse(raw);
     if (!s || s.v !== 1) return false;
+    repair(s);
     G.state = s;
-    for (const r of START_RECIPES) if (!s.recipes.includes(r)) s.recipes.push(r);
-    s.flags = s.flags || {}; s.dayFlags = s.dayFlags || {}; s.pearls = s.pearls || 0;
-    for (const n of NPCS) if (!s.friends[n.id]) s.friends[n.id] = { pts: 0, chat: -1, gift: -1, met: false };
     return true;
   } catch (e) { return false; }
+}
+
+/**
+ * Привести сохранение в порядок: дополнить недостающие поля и выбросить всё, чего игра не знает.
+ * Сохранение ссылается на id из data.js (задание, семена, мебель, одежда, жители). Если id исчез
+ * (старое сохранение после обновления игры, испорченные данные), рисование и логика падали бы в каждом
+ * кадре. Правило для data.js: id не переименовывать; если предмет удалён — здесь он тихо пропадёт.
+ */
+export function repair(s) {
+  const arr = (k) => { if (!Array.isArray(s[k])) s[k] = []; };
+  const obj = (o, k) => { if (!o[k] || typeof o[k] !== 'object' || Array.isArray(o[k])) o[k] = {}; };
+  const num = (k, def) => { if (!Number.isFinite(s[k])) s[k] = def; };
+  for (const k of ['clothes', 'villa', 'recipes', 'guests', 'lastTasks', 'stickers', 'garden']) arr(k);
+  for (const k of ['storage', 'ing', 'dishes', 'seeds', 'friends', 'best', 'plays', 'flags', 'dayFlags']) obj(s, k);
+  num('money', 0); num('spent', 0); num('day', 0); num('minutes', 7 * 60 + 30); num('tasksDone', 0); num('pearls', 0);
+  if (typeof s.name !== 'string' || !s.name) s.name = 'Хомка';
+  // внешность
+  if (!s.look || typeof s.look !== 'object') s.look = defaultLook();
+  obj(s.look, 'outfit'); obj(s.look, 'beauty');
+  s.clothes = s.clothes.filter((id) => CLOTHES_BY_ID[id]);
+  for (const k of Object.keys(s.look.outfit)) if (s.look.outfit[k] && !CLOTHES_BY_ID[s.look.outfit[k]]) s.look.outfit[k] = null;
+  // рецепты, продукты, семена, кладовка
+  s.recipes = s.recipes.filter((id) => DISH_BY_ID[id]);
+  for (const r of START_RECIPES) if (!s.recipes.includes(r)) s.recipes.push(r);
+  for (const [bag, known] of [['ing', ING_BY_ID], ['dishes', DISH_BY_ID], ['seeds', SEED_BY_ID], ['storage', FURN_BY_ID]]) {
+    for (const id of Object.keys(s[bag])) if (!known[id] || !(s[bag][id] > 0)) delete s[bag][id];
+  }
+  // мебель на вилле
+  s.villa = s.villa.filter((i) => i && FURN_BY_ID[i.id] && Number.isFinite(i.x) && Number.isFinite(i.floor));
+  for (const i of s.villa) if (!Number.isFinite(i.y)) i.y = 0;
+  s.uid = Math.max(Number.isFinite(s.uid) ? s.uid : 1, ...s.villa.map((i) => (i.uid || 0) + 1));
+  // грядки: всегда восемь, семена — только известные
+  s.garden = Array.from({ length: 8 }, (_, i) => {
+    const b = s.garden[i];
+    return b && b.seed && SEED_BY_ID[b.seed] ? { seed: b.seed, age: Number.isFinite(b.age) ? b.age : 0 } : { seed: null, age: 0 };
+  });
+  // друзья и гости
+  for (const n of NPCS) {
+    const f = s.friends[n.id];
+    if (!f || typeof f !== 'object' || !Number.isFinite(f.pts)) s.friends[n.id] = { pts: 0, chat: -1, gift: -1, met: false };
+  }
+  s.guests = s.guests.filter((id) => NPC_BY_ID[id]);
+  if (s.visitor && !NPC_BY_ID[s.visitor]) s.visitor = null;
+  // письмо: неизвестное задание — выбрасываем, при старте придёт новое
+  s.lastTasks = s.lastTasks.filter((id) => TASK_BY_ID[id]);
+  if (s.mail && (typeof s.mail !== 'object' || !TASK_BY_ID[s.mail.task])) s.mail = null;
+  if (s.mail) {
+    const m = s.mail;
+    if (!Number.isFinite(m.n)) m.n = 0;
+    obj(m, 'got');
+    if (m.items && !Array.isArray(m.items)) m.items = null;
+  }
+  if (typeof s.weather !== 'string') s.weather = 'sun';
+  return s;
 }
 export function hasSave() { try { return !!localStorage.getItem(KEY); } catch (e) { return false; } }
 export function wipe() { try { localStorage.removeItem(KEY); } catch (e) { /* ignore */ } }
