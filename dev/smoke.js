@@ -107,6 +107,23 @@ async function extra({ page, step, ev, wait, closeAll, hold }) {
     if (d.dialog !== 0 || d.overlay !== 1) throw new Error('подарок не показан после диалога: ' + JSON.stringify(d));
     await closeAll();
   });
+  await step('кэш спрайтов: все сезоны, ночь, смена размера окна', async () => {
+    await ev(() => { window.__G.go('world', 'villa'); }); await wait(300);
+    for (const day of [0, 6, 18, 24]) for (const minutes of [12 * 60, 21.5 * 60]) {
+      for (const [tx, ty] of [[30, 4], [15, 28], [43, 15], [60, 13], [14, 10], [40, 40], [51, 45], [47, 56], [33, 68], [36, 89], [12, 92], [61, 87]]) {
+        await ev(([day, minutes, tx, ty]) => { const s = window.__G.state; s.day = day; s.minutes = minutes; s.weather = 'sun'; window.__World.debugTeleport(tx, ty); }, [day, minutes, tx, ty]);
+        await wait(70);
+      }
+    }
+    const a = await ev(() => window.__World.debugSprites());
+    if (a.count < 50) throw new Error('в кэше подозрительно мало спрайтов: ' + a.count);
+    if (a.clipped.length) throw new Error('спрайты не поместились в рамку: ' + a.clipped.join(', '));
+    await page.setViewportSize({ width: 600, height: 900 }); await wait(400); await hold('ArrowLeft', 300);
+    const b = await ev(() => window.__World.debugSprites());
+    if (b.k === a.k || b.count >= a.count) throw new Error('кэш не сброшен при смене масштаба: ' + JSON.stringify([a.k, a.count, b.k, b.count]));
+    if (b.clipped.length > a.clipped.length) throw new Error('спрайты не поместились в рамку: ' + b.clipped.join(', '));
+    await page.setViewportSize({ width: 1280, height: 720 }); await wait(300);
+  });
 }
 
 (async () => {
