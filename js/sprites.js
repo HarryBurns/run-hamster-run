@@ -119,3 +119,25 @@ export class SpriteSet {
   /** Для тестов и отладки. */
   stats() { return { count: this.map.size, pixels: this.pixels, built: this.built, k: this.k, clipped: this.clipped.slice() }; }
 }
+
+// ---------- значки для окон ----------
+// Значок вещи или мебели рисуется один раз, а в каждую карточку окна кладётся его копия
+// (у каждой карточки свой элемент canvas, поэтому сам кэш в окно вставлять нельзя).
+const icons = new Map();
+/** Canvas w×h CSS-пикселей с картинкой по ключу; paint(ctx) рисует в CSS-пикселях и вызывается один раз на ключ. */
+export function cachedIcon(key, w, h, paint) {
+  const dpr = Math.min(window.devicePixelRatio || 1, 2.5);
+  const mk = () => { const c = document.createElement('canvas'); c.width = Math.round(w * dpr); c.height = Math.round(h * dpr); return c; };
+  const id = `${key}@${w}x${h}@${dpr}`;
+  let src = icons.get(id);
+  if (!src) {
+    src = mk();
+    const c = src.getContext('2d'); c.setTransform(dpr, 0, 0, dpr, 0, 0);
+    paint(c);
+    icons.set(id, src);
+  }
+  const canvas = mk();
+  canvas.style.width = w + 'px'; canvas.style.height = h + 'px';
+  canvas.getContext('2d').drawImage(src, 0, 0);
+  return canvas;
+}
