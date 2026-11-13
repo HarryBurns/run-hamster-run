@@ -445,6 +445,7 @@ export const EXTRA_STICKERS = [
   { id: 'x_master', sticker: '🏅', title: 'Шедевр на кухне' },
   { id: 'x_year', sticker: '🎆', title: 'Целый год!' },
   { id: 'x_rich', sticker: '💰', title: 'Потратила миллион' },
+  { id: 'x_island', sticker: '🏝️', title: 'Необитаемый остров' },
 ];
 
 // Темы показа мод: какие теги одежды ценит жюри

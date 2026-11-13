@@ -2,11 +2,13 @@
 import { clamp, lerp, rnd, pick, seeded, ell, fillRR, line, poly, shade, mix, rr, star, emoji, TAU, dist } from './util.js';
 import { drawHamster } from './hamster.js';
 import { NPCS, NPC_BY_ID, npcLook, ING_BY_ID, SEED_BY_ID, TASK_BY_ID } from './data.js';
-import { G, playerLook, cal, darkness } from './game.js';
+import { G, playerLook, cal, darkness, addSticker, save } from './game.js';
+import { toast } from './ui.js';
 import { sfx } from './audio.js';
 import * as F from './features.js';
 
-export const T = 48, MW = 72, MH = 50;
+export const T = 48, MW = 72, MH = 62;
+const SEA_Y = 44; // с этой строки начинается глубокое море
 const OUT = '#4a3728';
 const PS = 0.78; // масштаб хомячка в городе
 
@@ -53,7 +55,12 @@ const W = {
 function build() {
   const g = Array.from({ length: MH }, () => Array(MW).fill('g'));
   const fill = (x0, y0, x1, y1, ch) => { for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) if (g[y] && g[y][x] !== undefined) g[y][x] = ch; };
-  fill(0, 37, 71, 41, 's'); fill(0, 42, 71, 43, 'h'); fill(0, 44, 71, 49, 'w');
+  fill(0, 37, 71, 41, 's'); fill(0, 42, 71, 43, 'h'); fill(0, SEA_Y, 71, MH - 1, 'w');
+  // островок далеко в море: песок, а вокруг мелководье
+  for (let y = 49; y <= 57; y++) for (let x = 15; x <= 29; x++) {
+    const d = ((x + 0.5 - 22) / 3.6) ** 2 + ((y + 0.5 - 53) / 2.3) ** 2;
+    if (d <= 1) g[y][x] = 's'; else if (d <= 2.1) g[y][x] = 'h';
+  }
   fill(25, 12, 71, 13, 'r'); fill(0, 24, 71, 25, 'r'); fill(34, 0, 35, 36, 'r'); fill(52, 0, 53, 36, 'r'); fill(0, 35, 71, 36, 'r');
   fill(36, 14, 51, 16, 'r'); // площадь с фонтаном
   fill(50, 37, 51, 47, 'i');
@@ -79,6 +86,8 @@ function build() {
   add('icehole', 19, 17);
   add('fountain', 43, 15, { big: true }); solid[15][43] = true; solid[15][44] = true;
   add('fishsign', 51, 47);
+  solid[52][22] = true; add('palm', 22, 52); add('umbrella', 20, 53, { beach: true }); add('chest', 24, 53);
+  for (let x = 1; x < MW; x += 5) add('buoy', x, MH - 2);
   for (const [x, y] of [[4, 12], [6, 12], [8, 12]]) add('lounger', x, y);
   add('umbrella', 10, 12); solid[12][10] = true;
   for (const [x, y] of [[38, 15], [48, 15], [28, 14], [31, 14], [57, 14], [63, 14]]) { add('bench', x, y); solid[y][x] = true; }
@@ -115,8 +124,8 @@ function ch(tx, ty) { return W.ground[ty] ? W.ground[ty][tx] : undefined; }
 let DRY = false; // true — искать путь только по суше (для жителей)
 function walkable(tx, ty) {
   const c = ch(tx, ty);
-  if (c === undefined || c === 'w') return false;
-  if (DRY && (c === 'h' || c === 'o' || c === 'd')) return false;
+  if (c === undefined) return false;
+  if (DRY && (c === 'h' || c === 'w' || c === 'o' || c === 'd')) return false;
   if (c === 'd') return cal().season === 'winter';
   return !W.solid[ty][tx];
 }
@@ -144,7 +153,7 @@ function findPath(sx, sy, tx, ty) {
   gS[idx(sx, sy)] = 0; push(idx(sx, sy), hF(sx, sy));
   const goal = idx(tx, ty);
   let found = false, guard = 0;
-  while (open.length && guard++ < 8000) {
+  while (open.length && guard++ < 30000) {
     const cur = pop();
     if (cur === goal) { found = true; break; }
     if (closed[cur]) continue; closed[cur] = 1;
@@ -324,7 +333,7 @@ export function update(dt) {
   const p = W.p, keys = G.keys;
   const kx = (keys.has('ArrowRight') || keys.has('KeyD') ? 1 : 0) - (keys.has('ArrowLeft') || keys.has('KeyA') ? 1 : 0);
   const ky = (keys.has('ArrowDown') || keys.has('KeyS') ? 1 : 0) - (keys.has('ArrowUp') || keys.has('KeyW') ? 1 : 0);
-  const sp = p.surf === 'o' || p.surf === 'h' ? 140 : p.surf === 'd' ? 270 : 225;
+  const sp = p.surf === 'w' ? 170 : p.surf === 'o' || p.surf === 'h' ? 140 : p.surf === 'd' ? 270 : 225;
   if (kx || ky) {
     p.path = []; p.pending = null;
     const k = sp * dt / Math.hypot(kx, ky);
@@ -338,14 +347,16 @@ export function update(dt) {
   // шаги: звук зависит от поверхности
   if (p.moving) {
     p.stepT = (p.stepT || 0) + dt;
-    const water = surf === 'o' || surf === 'h';
+    const water = surf === 'o' || surf === 'h' || surf === 'w';
     if (p.stepT > (water ? 0.5 : surf === 'd' ? 0.45 : 0.3)) {
       p.stepT = 0;
       sfx(water ? 'paddle' : surf === 'd' ? 'skate' : surf === 's' ? 'stepSand' : surf === 'i' ? 'stepWood' : surf === 'g' ? (cal().season === 'winter' ? 'stepSnow' : 'step') : 'stepStone');
     }
   } else p.stepT = 0.2;
   if (surf !== p.surf) {
-    if (surf === 'o' || surf === 'h') { sfx('splash'); G.emit('swim', { where: surf === 'h' ? 'sea' : 'pool' }); }
+    const wasWater = p.surf === 'o' || p.surf === 'h' || p.surf === 'w';
+    if ((surf === 'o' || surf === 'h' || surf === 'w') && !wasWater) { sfx('splash'); G.emit('swim', { where: surf === 'o' ? 'pool' : 'sea' }); }
+    if (surf === 's' && tileOf(p.y) > SEA_Y && addSticker('x_island')) { toast('Новая наклейка: 🏝️ Необитаемый остров!', 'good'); save(); }
     if (surf === 'd') G.emit('skate');
     p.surf = surf;
   }
@@ -368,7 +379,7 @@ export function update(dt) {
     const far = dist(n.x, n.y, (ax + 0.5) * T, (ay + 0.5) * T) > T * 4;
     const tx = far ? ax : tileOf(n.x) + Math.round(rnd(-2, 2)), ty = far ? ay : tileOf(n.y) + Math.round(rnd(-2, 2));
     if (!far && dist((tx + 0.5) * T, (ty + 0.5) * T, (ax + 0.5) * T, (ay + 0.5) * T) > T * 3.5) continue;
-    if (ch(tx, ty) === 'o' || ch(tx, ty) === 'h' || ch(tx, ty) === 'd') continue;
+    if (['o', 'h', 'w', 'd'].includes(ch(tx, ty))) continue;
     DRY = true; walkTo(n, (tx + 0.5) * T, (ty + 0.5) * T, false); DRY = false;
   }
   // камера
@@ -411,6 +422,13 @@ const PAL = {
 };
 function hash(x, y) { let h = (x * 374761393 + y * 668265263) >>> 0; h = ((h ^ (h >> 13)) * 1274126177) >>> 0; return (h & 0xffff) / 0xffff; }
 
+// чем дальше от берега, тем темнее вода
+const DEEP = {};
+function deepCol(ty, sea) {
+  const k = sea + ty;
+  if (!DEEP[k]) DEEP[k] = mix(sea === 'winter' ? '#5aa9cf' : '#3fb0ea', sea === 'winter' ? '#2f6f9c' : '#1c6fc4', clamp((ty - SEA_Y) / 14, 0, 1));
+  return DEEP[k];
+}
 function drawTile(ctx, c, tx, ty, t, pal, sea) {
   const x = tx * T, y = ty * T, alt = (tx + ty) % 2;
   switch (c) {
@@ -436,7 +454,7 @@ function drawTile(ctx, c, tx, ty, t, pal, sea) {
       if (hash(tx, ty) < 0.5) { ctx.fillStyle = 'rgba(190,140,60,.25)'; ctx.fillRect(x + hash(ty, tx) * 40, y + hash(tx + 3, ty) * 40, 3, 3); ctx.fillRect(x + hash(ty + 5, tx) * 40, y + hash(tx, ty + 9) * 40, 3, 3); }
       break;
     case 'h': case 'w': {
-      ctx.fillStyle = c === 'h' ? (sea === 'winter' ? '#9fd8ee' : '#7fdcf7') : (sea === 'winter' ? '#5aa9cf' : '#3fb0ea'); ctx.fillRect(x, y, T + 1, T + 1);
+      ctx.fillStyle = c === 'h' ? (sea === 'winter' ? '#9fd8ee' : '#7fdcf7') : deepCol(ty, sea); ctx.fillRect(x, y, T + 1, T + 1);
       const ph = t * 1.2 + tx * 0.9 + ty * 1.7;
       ctx.strokeStyle = 'rgba(255,255,255,.5)'; ctx.lineWidth = 2.5; ctx.lineCap = 'round';
       ctx.beginPath(); const wx = x + 8 + Math.sin(ph) * 6, wy = y + 16 + (hash(tx, ty) * 20);
@@ -553,6 +571,19 @@ function drawObj(ctx, o, t, sea) {
       if (sea !== 'winter') break;
       ell(ctx, x, y, 15, 10, '#3fa9e6', '#fff', 3); line(ctx, x + 18, y + 6, x + 30, y - 22, '#8d5524', 3); line(ctx, x + 30, y - 22, x + 4, y - 2, '#868e96', 1);
       break;
+    case 'buoy': {
+      const by = y + Math.sin(t * 2 + o.tx) * 4;
+      ell(ctx, x, by + 8, 16, 5, 'rgba(255,255,255,.5)');
+      ell(ctx, x, by, 13, 13, '#fa5252', OUT, 2); ctx.fillStyle = '#fff'; ctx.fillRect(x - 12, by - 3, 24, 6);
+      line(ctx, x, by - 13, x, by - 24, OUT, 2.5); ell(ctx, x, by - 26, 3.5, 3.5, '#ffd43b', OUT, 1.5);
+      break;
+    }
+    case 'chest':
+      ell(ctx, x, y + 12, 18, 5, 'rgba(0,0,0,.14)');
+      fillRR(ctx, x - 16, y - 10, 32, 22, 4, '#a8703f', OUT, 2); fillRR(ctx, x - 17, y - 18, 34, 12, 6, '#c98b5a', OUT, 2);
+      ctx.fillStyle = '#ffd43b'; ctx.fillRect(x - 16, y - 3, 32, 3); fillRR(ctx, x - 4, y - 9, 8, 9, 2, '#ffd43b', OUT, 1.5);
+      star(ctx, x + 12, y - 24 + Math.sin(t * 4) * 2, 4, '#fff3bf');
+      break;
     case 'fishsign':
       fillRR(ctx, x - 3, y - 20, 6, 30, 2, '#8d5524', OUT, 1.5); fillRR(ctx, x - 20, y - 46, 40, 28, 6, '#fff3bf', OUT, 2); emoji(ctx, '🎣', x, y - 32, 20);
       break;
@@ -658,9 +689,9 @@ function drawBuilding(ctx, b, sea, dark) {
 
 function drawChar(ctx, look, ent, t, small, isPlayer) {
   const surf = isPlayer ? ent.surf : 'g';
-  const water = surf === 'o' || surf === 'h';
+  const water = surf === 'o' || surf === 'h' || surf === 'w';
   const pose = { time: t + ent.x * 0.01, dir: ent.dir, walk: ent.moving ? ent.walkT : null, blink: (t + ent.x) % 3.6 > 3.45 };
-  if (water) { pose.clipBelow = -30; pose.walk = ent.walkT; ell(ctx, ent.x, ent.y - 20, 26, 9, 'rgba(255,255,255,.55)'); }
+  if (water) { pose.clipBelow = surf === 'w' ? -38 : -30; pose.walk = ent.walkT; ell(ctx, ent.x, ent.y - 20, 26, 9, 'rgba(255,255,255,.55)'); }
   if (surf === 'd') pose.walk = null;
   drawHamster(ctx, ent.x, ent.y + (water ? 4 : 10), PS * (small ? 0.8 : 1), look, pose);
   if (water) { ctx.strokeStyle = 'rgba(255,255,255,.9)'; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.ellipse(ent.x, ent.y - 19, 24 + Math.sin(t * 4) * 3, 7, 0, 0, Math.PI); ctx.stroke(); }
