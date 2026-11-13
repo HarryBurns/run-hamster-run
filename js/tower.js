@@ -32,13 +32,13 @@ const HOT = {
 const S = {
   level: 'lobby', cam: { x: 500, zoom: 1 }, floorY: 500,
   p: { x: 200, dir: 1, tx: null, moving: false, walkT: 0, pending: null, state: 'idle', happy: 0, stepT: 0 },
-  ride: null, planes: [], seenDeck: false,
+  ride: null, planes: [], balloons: [], pops: [], aim: null, seenDeck: false,
 };
 
 // ---------- вход / выход ----------
 export function enter() {
   const p = S.p;
-  S.level = 'lobby'; S.ride = null; S.planes = [];
+  S.level = 'lobby'; S.ride = null; S.planes = []; S.balloons = []; S.pops = []; S.aim = null;
   p.x = 190; p.dir = 1; p.tx = null; p.pending = null; p.state = 'idle'; p.moving = false;
   layout(); S.cam.x = p.x; clampCam();
 }
@@ -46,6 +46,9 @@ export function leave() {}
 /** В сохранении башня не хранится: после перезагрузки хомячок окажется у её дверей. */
 export function storePos() { const d = World.doorOf('tower'); G.state.pos = { scene: 'world', x: d.x, y: d.y }; }
 export const onDeck = () => S.level === 'deck';
+/** Для тестов: состояние и экранные координаты шариков. */
+export function debugState() { const z = S.cam.zoom, sc = (x, y) => ({ x: (x - S.cam.x) * z + G.view.w / 2, y: y * z + S.floorY }); return { level: S.level, state: S.p.state, px: S.p.x, planes: S.planes.length, balloons: S.balloons.map((b) => ({ ...sc(b.x, b.y), vx: b.vx, vy: b.vy })), pops: G.state.flags.balloons || 0, zoom: z }; }
+export function debugDeck() { S.level = 'deck'; S.p.x = 1100; S.p.state = 'idle'; S.p.tx = null; }
 
 const width = () => (S.level === 'deck' ? DECK_W : LOBBY_W);
 function layout() {
@@ -77,9 +80,9 @@ function act(o) {
     case 'scope_city': sfx('pop'); F.openPanorama(); break;
     case 'scope_sea': sfx('pop'); openSeaScope(); break;
     case 'plane':
-      S.planes.push({ x: p.x + 30, y: -110, vx: rnd(150, 230), vy: rnd(-90, -40), t: 0, c: ['#fff', '#ffe066', '#ffc9de', '#a5d8ff'][Math.floor(rnd(0, 4))] });
-      p.dir = 1; p.happy = 1; sfx('whistle');
-      if (!S.planeHint) { S.planeHint = true; toast('Лети, самолётик! ✈️ Жми ещё — запускай сколько хочешь.'); }
+      // берём самолётик и целимся: дальше нажатия по небу — это прицел
+      p.state = 'aim'; p.x = o.x - 90; p.dir = 1; S.aim = null; sfx('pop');
+      if (!S.planeHint) { S.planeHint = true; toast('Нажми на небо и тяни: пунктир покажет, куда полетит самолётик. Отпусти — и он летит! ✈️'); }
       break;
     case 'flag': toast('Выше только облака! До земли — 101 этаж 🏁'); sfx('magic'); p.happy = 1.5; break;
     default: break;
@@ -93,9 +96,20 @@ function hit(wx, wy) {
 
 // ---------- ввод ----------
 let down = null;
-export function pointerDown(sx, sy) { down = { sx, sy }; }
-export function pointerMove() {}
+export function pointerDown(sx, sy) {
+  if (S.level === 'deck' && S.p.state === 'aim') {
+    const w = toWorld(sx, sy);
+    if (w.y < -24) { S.aim = { x: w.x, y: w.y }; S.p.dir = w.x >= S.p.x ? 1 : -1; down = null; return; } // по небу — целимся
+  }
+  down = { sx, sy };
+}
+export function pointerMove(sx, sy) {
+  if (!S.aim) return;
+  const w = toWorld(sx, sy);
+  S.aim = { x: w.x, y: Math.min(w.y, -24) }; S.p.dir = w.x >= S.p.x ? 1 : -1;
+}
 export function pointerUp(sx, sy) {
+  if (S.aim) { launch(S.aim); S.aim = null; return; }
   if (!down) return;
   const moved = Math.hypot(sx - down.sx, sy - down.sy) > 16; down = null;
   if (moved || S.level === 'ride') return;
@@ -104,9 +118,48 @@ export function pointerUp(sx, sy) {
 }
 export function interactNearest() {
   if (S.level === 'ride') return;
+  if (S.p.state === 'aim') { launch({ x: S.p.x + S.p.dir * 420, y: -300 }); return; }
   let best = null, bd = 160;
   for (const o of HOT[S.level]) { const d = Math.abs(o.x - S.p.x); if (d < bd) { bd = d; best = o; } }
   if (best) { S.p.tx = null; act(best); }
+}
+
+// ---------- самолётики: прицел и полёт ----------
+const PG = 130; // «сила тяжести» для самолётика
+const planeOrigin = () => ({ x: S.p.x + S.p.dir * 34, y: -128 });
+/** Скорость броска, при которой самолётик пролетит точно через точку прицела. */
+function launchVel(tg) {
+  const o = planeOrigin(), dx = tg.x - o.x, dy = tg.y - o.y;
+  const T = clamp(Math.hypot(dx, dy) / 520, 0.45, 1.5);
+  return { o, T, vx: dx / T, vy: dy / T - 0.5 * PG * T };
+}
+function launch(tg) {
+  const v = launchVel(tg);
+  S.planes.push({ x0: v.o.x, y0: v.o.y, x: v.o.x, y: v.o.y, vx: v.vx, vy0: v.vy, vy: v.vy, t: 0, c: ['#fff', '#ffe066', '#ffc9de', '#a5d8ff', '#b2f2bb'][Math.floor(rnd(0, 5))] });
+  S.p.happy = 0.6; sfx('whistle');
+}
+function updatePlanes(dt) {
+  const st = G.state, top = -(S.floorY / S.cam.zoom) - 80, vw = G.view.w / S.cam.zoom;
+  // воздушные шарики поднимаются из города — в них можно попасть
+  if (S.balloons.length < 4 && Math.random() < dt * 0.7) S.balloons.push({ x: S.cam.x + rnd(-vw / 2 + 40, vw / 2 - 40), y: -70, vx: rnd(-14, 14), vy: rnd(-46, -26), ph: rnd(0, 6), c: ['#fa5252', '#ffd43b', '#4dabf7', '#51cf66', '#f783ac', '#b197fc'][Math.floor(rnd(0, 6))] });
+  for (const b of S.balloons) { b.x += (b.vx + Math.sin(G.time * 1.3 + b.ph) * 16) * dt; b.y += b.vy * dt; }
+  S.balloons = S.balloons.filter((b) => b.y > top && !b.dead);
+  for (const q of S.planes) {
+    if (q.land) { q.land += dt; continue; }
+    q.t += dt; q.x = q.x0 + q.vx * q.t; q.y = q.y0 + q.vy0 * q.t + 0.5 * PG * q.t * q.t; q.vy = q.vy0 + PG * q.t;
+    if (q.y >= -8 && q.t > 0.3) { q.y = -8; q.land = 0.001; continue; } // сел на пол площадки
+    for (const b of S.balloons) if (!b.dead && Math.hypot(q.x - b.x, q.y - b.y) < 40) {
+      b.dead = true; sfx('pop'); sfx('coin'); S.p.happy = 1.4;
+      for (let i = 0; i < 10; i++) S.pops.push({ x: b.x, y: b.y, vx: rnd(-150, 150), vy: rnd(-170, 60), t: 0, c: b.c });
+      st.flags.balloons = (st.flags.balloons || 0) + 1;
+      if (st.flags.balloons === 1) toast('Попала! 🎈 Целься в шарики — они лопаются!', 'good');
+      if (st.flags.balloons >= 5 && addSticker('x_ace')) toast('Новая наклейка: 🎯 Меткий пилот!', 'good');
+      save();
+    }
+  }
+  S.planes = S.planes.filter((q) => q.t < 9 && !(q.land > 1.8));
+  for (const c of S.pops) { c.t += dt; c.x += c.vx * dt; c.y += c.vy * dt; c.vy += 320 * dt; }
+  S.pops = S.pops.filter((c) => c.t < 0.9);
 }
 
 // ---------- обновление ----------
@@ -139,8 +192,7 @@ export function update(dt) {
     if (Math.abs(dx) <= step) { p.x = p.tx; p.tx = null; arrive(); } else { p.x += Math.sign(dx) * step; p.dir = Math.sign(dx); p.moving = true; }
   }
   if (p.moving) { p.walkT += dt * 2.6; p.stepT += dt; if (p.stepT > 0.3) { p.stepT = 0; sfx(S.level === 'deck' ? 'stepStone' : 'stepWood'); } }
-  for (const q of S.planes) { q.t += dt; q.x += q.vx * dt; q.vy += 26 * dt; q.y += (q.vy + Math.sin(q.t * 3) * 30) * dt; }
-  S.planes = S.planes.filter((q) => q.t < 9);
+  if (S.level === 'deck') updatePlanes(dt);
   S.cam.x = lerp(S.cam.x, p.x, Math.min(1, dt * 5)); clampCam();
 }
 
@@ -233,6 +285,7 @@ function liftDoors(ctx, x, open, label) {
 }
 function drawPlayer(ctx, t) {
   const p = S.p, pose = { time: t, dir: p.dir, walk: p.moving ? p.walkT : null, blink: t % 3.4 > 3.25, happy: p.happy > 0, armsUp: p.happy > 0 && Math.sin(t * 10) > 0 };
+  if (p.state === 'aim') pose.armsUp = true;
   if (p.state === 'sit') drawHamster(ctx, p.x, -36, HS, playerLook(), { ...pose, sit: true, shadow: false });
   else drawHamster(ctx, p.x, 0, HS, playerLook(), pose);
 }
@@ -306,11 +359,33 @@ function drawDeck(ctx, t) {
   // цветы в кадках
   for (const x of [420, 1180, 1820]) { poly(ctx, [x - 24, 0, x + 24, 0, x + 19, -30, x - 19, -30], '#e8590c', OUT, 2); for (let i = -1; i <= 1; i++) { line(ctx, x + i * 6, -30, x + i * 14, -62, '#2f9e44', 3); for (let k = 0; k < 5; k++) ell(ctx, x + i * 14 + Math.cos((k * TAU) / 5) * 6, -64 + Math.sin((k * TAU) / 5) * 6, 4.5, 4.5, ['#ff6b9d', '#ffd43b', '#b197fc'][i + 1]); ell(ctx, x + i * 14, -64, 3, 3, '#fff3bf'); } }
   drawPlayer(ctx, t);
-  for (const q of S.planes) { ctx.save(); ctx.translate(q.x, q.y); ctx.rotate(Math.atan2(q.vy, q.vx) * 0.6); const s = Math.max(0.3, 1 - q.t * 0.09); ctx.scale(s, s); poly(ctx, [-18, -4, 20, 0, -18, 10, -10, 1], q.c, OUT, 1.6); line(ctx, -10, 1, 20, 0, OUT, 1.2); ctx.restore(); }
+  // шарики, самолётики и прицел
+  for (const b of S.balloons) { line(ctx, b.x, b.y + 26, b.x + Math.sin(t * 2 + b.ph) * 5, b.y + 64, 'rgba(74,55,40,.6)', 1.5); ell(ctx, b.x, b.y, 22, 27, b.c, OUT, 2); poly(ctx, [b.x - 5, b.y + 26, b.x + 5, b.y + 26, b.x, b.y + 33], b.c, OUT, 1.5); ell(ctx, b.x - 8, b.y - 10, 5, 8, 'rgba(255,255,255,.55)'); }
+  for (const c of S.pops) { ctx.globalAlpha = 1 - c.t / 0.9; fillRR(ctx, c.x - 4, c.y - 4, 8, 8, 2, c.c); } ctx.globalAlpha = 1;
+  const paperPlane = (x, y, ang, flip, col, s = 1) => { ctx.save(); ctx.translate(x, y); ctx.rotate(ang); ctx.scale(s, s * flip); poly(ctx, [-18, -4, 20, 0, -18, 10, -10, 1], col, OUT, 1.6); line(ctx, -10, 1, 20, 0, OUT, 1.2); ctx.restore(); };
+  for (const q of S.planes) paperPlane(q.x, q.y, q.land ? 0 : Math.atan2(q.vy, q.vx), q.vx < 0 ? -1 : 1, q.c, q.land ? 1 : Math.max(0.55, 1 - q.t * 0.06));
+  if (S.p.state === 'aim') {
+    const o = planeOrigin();
+    if (S.aim) {
+      const v = launchVel(S.aim);
+      for (let i = 1; i <= 16; i++) { const tt = (i / 11) * v.T, dx = o.x + v.vx * tt, dy = o.y + v.vy * tt + 0.5 * PG * tt * tt; if (dy > -6) break; ctx.globalAlpha = i <= 11 ? 0.95 : 0.95 - (i - 11) * 0.17; ell(ctx, dx, dy, 5.5, 5.5, '#fff', OUT, 1.5); }
+      ctx.globalAlpha = 1;
+      const r = 20 + Math.sin(t * 8) * 3;
+      ell(ctx, S.aim.x, S.aim.y, r, r, 'rgba(255,107,157,.18)', '#ff3d7f', 3.5); line(ctx, S.aim.x - r - 8, S.aim.y, S.aim.x + r + 8, S.aim.y, '#ff3d7f', 2.5); line(ctx, S.aim.x, S.aim.y - r - 8, S.aim.x, S.aim.y + r + 8, '#ff3d7f', 2.5);
+      paperPlane(o.x, o.y, Math.atan2(v.vy, v.vx), v.vx < 0 ? -1 : 1, '#fff', 1.15);
+    } else paperPlane(o.x, o.y + Math.sin(t * 3) * 3, S.p.dir > 0 ? -0.35 : Math.PI + 0.35, S.p.dir > 0 ? 1 : -1, '#fff', 1.15);
+  }
   ctx.restore();
   // облака на уровне глаз и ночь
   for (let i = 0; i < 3; i++) cloud(ctx, ((i * 0.41 + t * 0.012 * (1 + i * 0.3)) % 1.3) * (w + 300) - 200, railTop - 40 - i * 70, 1.2 + i * 0.3, 0.5);
   if (d > 0) { ctx.fillStyle = `rgba(24,24,72,${d * 0.32})`; ctx.fillRect(0, 0, w, h); }
+  if (S.p.state === 'aim') { // подсказка
+    const label = w < 520 ? '✈️ Тяни по небу — целься · пол — уйти' : '✈️ Нажми на небо и тяни — целься. Отпусти — летит! Нажми на пол, чтобы уйти.';
+    ctx.font = '900 14px ui-rounded, "Trebuchet MS", sans-serif';
+    const tw = Math.min(w - 16, ctx.measureText(label).width + 28);
+    fillRR(ctx, w / 2 - tw / 2, h - 44, tw, 30, 15, 'rgba(255,250,240,.94)');
+    ctx.fillStyle = OUT; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(label, w / 2, h - 28, tw - 16);
+  }
 }
 
 function drawRide(ctx, t) {

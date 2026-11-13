@@ -271,6 +271,6 @@ function titleScreen() {
 
 document.addEventListener('pointerdown', unlockAudio, { passive: true });
 document.addEventListener('keydown', unlockAudio);
-window.__Audio = Audio_; window.__G = G; window.__F = F; window.__World = World; window.__Villa = Villa; // для отладки и тестов
+window.__Tower = Tower; window.__Audio = Audio_; window.__G = G; window.__F = F; window.__World = World; window.__Villa = Villa; // для отладки и тестов
 titleScreen();
 requestAnimationFrame(frame);

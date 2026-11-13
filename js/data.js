@@ -465,6 +465,7 @@ export const EXTRA_STICKERS = [
   { id: 'x_treasure', sticker: '👑', title: 'Сокровище корабля' },
   { id: 'x_whale', sticker: '🐋', title: 'Встреча с китом' },
   { id: 'x_tower', sticker: '🛗', title: 'На 101-й этаж!' },
+  { id: 'x_ace', sticker: '🎯', title: 'Меткий пилот' },
 ];
 
 // Темы показа мод: какие теги одежды ценит жюри
