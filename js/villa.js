@@ -49,9 +49,15 @@ const V = {
   guests: [], parts: [], liftY: 0, decor: false, sel: null, drag: null, pan: null, tray: null, stateT: 0,
 };
 
+// Временное состояние мебели (крутится колесо, качнулась игрушка, шелестит цветок) живёт в сцене,
+// а не в сохранении: иначе после перезагрузки колесо крутилось бы без хомячка.
+const live = new WeakMap(); // предмет → { on, t: сколько секунд осталось (0 — пока не выключат) }
+const LIVE_ACTS = ['wheel', 'plant', 'toy'];
+
 // ---------- вход / выход ----------
 export function enter(from) {
   const s = G.state, p = V.p;
+  for (const it of s.villa) { const d = FURN_BY_ID[it.id]; if (d && LIVE_ACTS.includes(d.act)) { delete it.on; delete it.onT; } } // следы старых сохранений
   p.path = []; p.state = 'idle'; p.item = null; p.pending = null; p.lift = null;
   if (from === 'world') { p.f = 0; p.x = 290; p.dir = 1; }
   else if (from === 'wake') { const bed = findBed(); if (bed) { p.f = bed.floor; p.x = bed.x + 30; } }
@@ -195,7 +201,7 @@ function hitGuest(wx, wy) {
 // ---------- движение ----------
 function standUp() {
   const p = V.p;
-  if (p.item && p.state === 'wheel') p.item.on = false;
+  if (p.item && p.state === 'wheel') live.delete(p.item);
   p.state = 'idle'; p.item = null;
 }
 function goTo(x, f, pending) {
@@ -227,9 +233,9 @@ function actItem(it) {
       sfx(d.act === 'tv' && it.on ? 'tvOn' : d.act === 'lamp' ? 'click' : 'tap');
       if (d.act === 'music' && it.on) { sfx('note', 523); setTimeout(() => sfx('note', 659), 150); setTimeout(() => sfx('note', 784), 300); }
       break;
-    case 'plant': case 'toy': it.on = true; it.onT = 1.2; sfx('pop'); burst(it.x, y - d.h, 'spark', 4); break;
+    case 'plant': case 'toy': live.set(it, { on: true, t: 1.2 }); sfx('pop'); burst(it.x, y - d.h, 'spark', 4); break;
     case 'piano': openPiano(); break;
-    case 'wheel': p.state = 'wheel'; p.item = it; p.x = it.x; it.on = true; V.stateT = 0; sfx('pop'); break;
+    case 'wheel': p.state = 'wheel'; p.item = it; p.x = it.x; live.set(it, { on: true, t: 0 }); V.stateT = 0; sfx('pop'); break;
     case 'fish': sfx('bubble'); sfx('heart'); burst(it.x, y - d.h + 20, 'bubble', 7); burst(it.x, y - d.h - 6, 'heart', 3); toast('Ты покормила рыбок. Они машут плавниками: «Спасибо!» 🐠'); G.emit('feed'); break;
     case 'book': toast(pick(['Ты прочитала сказку про храброго хомяка 📖', 'Книга рецептов: «100 блюд из семечек» 📖', 'Интересно! Хомяки запасают еду за щеками 📖', 'Стихи про море. Красиво! 📖'])); sfx('ok'); break;
     case 'mirror': toast(pick(['Свет мой, зеркальце… Да, ты красотка! 💖', 'Отличный наряд сегодня!'])); playerHappy(); sfx('magic'); break;
@@ -362,7 +368,7 @@ export function update(dt) {
   if (Math.random() < dt * 2) V.parts.push({ x: 520 + rnd(-110, 110), y: fy(2) - 66, vx: 0, vy: rnd(-30, -12), life: 0.8, t: 0, kind: 'bubble', r: rnd(3, 6) });
 
   // предметы с таймером
-  for (const it of G.state.villa) if (it.onT) { it.onT -= dt; if (it.onT <= 0) { it.onT = 0; it.on = false; } }
+  for (const it of G.state.villa) { const lv = live.get(it); if (lv && lv.t > 0) { lv.t -= dt; if (lv.t <= 0) live.delete(it); } }
   // гости бродят по первому этажу
   for (const g of V.guests) {
     if (g.happy > 0) g.happy -= dt;
@@ -573,7 +579,8 @@ export function draw(ctx) {
   const minutes = G.state.minutes;
   for (const it of itemsSorted()) {
     const d = FURN_BY_ID[it.id], y = fy(it.floor);
-    const on = it.on !== undefined ? it.on : d.act === 'fire' || (d.kind === 'lamp' && darkness() > 0.4);
+    const lv = live.get(it);
+    const on = lv ? lv.on : it.on !== undefined ? it.on : d.act === 'fire' || (d.kind === 'lamp' && darkness() > 0.4);
     if (V.decor && V.sel === it) { const r = furnRect(d, it.x, y, it.y); ctx.save(); ctx.setLineDash([8, 6]); ctx.lineDashOffset = -t * 20; rr(ctx, r.x - 6, r.y - 6, r.w + 12, r.h + 12, 10); ctx.strokeStyle = '#ff6b9d'; ctx.lineWidth = 4; ctx.stroke(); ctx.restore(); }
     drawFurn(ctx, d, it.x, d.wall ? y - it.y : y, { t, on, minutes });
   }

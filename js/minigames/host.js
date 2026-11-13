@@ -16,6 +16,9 @@ const LOADERS = {
   fashion: () => import('./fashion.js'),
 };
 
+/** Подгрузить модули мини-игр заранее: тогда пропавшая сеть не помешает их открыть. */
+export function preloadMinigames() { for (const load of Object.values(LOADERS)) load().catch(() => { /* попробуем ещё раз при открытии */ }); }
+
 /**
  * @param id    id мини-игры
  * @param info  { look, name, friends:[{name, look}], season, level, ...что угодно для игры }

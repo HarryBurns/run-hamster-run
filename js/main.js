@@ -1,6 +1,6 @@
 // Запуск игры: заставка, главный цикл, ввод, HUD.
 import { G, newGame, load, loadProblem, backupSave, save, repair, hasSave, wipe, cal, darkness } from './game.js';
-import { el, fmtMoney, makeCanvas } from './util.js';
+import { el, esc, fmtMoney, makeCanvas } from './util.js';
 import { drawHamster, defaultLook, blinkAt } from './hamster.js';
 import { resolveLook, START_OUTFIT, NPC_BY_ID } from './data.js';
 import { sfx, unlockAudio, isMuted, setMuted, isMusicOn, setMusicOn, getMusicVolume, setMusicVolume, setMusic, setAmbience } from './audio.js';
@@ -11,6 +11,7 @@ import * as Tower from './tower.js';
 import * as Dive from './dive.js';
 import * as F from './features.js';
 import * as Audio_ from './audio.js';
+import { preloadMinigames } from './minigames/host.js';
 
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
@@ -122,7 +123,7 @@ function openSettings() {
     title: 'Меню', icon: '⚙️', cls: 'narrow',
     render(body, tab, panel) {
       const c = cal();
-      body.appendChild(el('p', 'center', `<b>${G.state.name}</b> · ${c.year}-й год на вилле<br><span class="muted">Игра сохраняется сама.</span>`));
+      body.appendChild(el('p', 'center', `<b>${esc(G.state.name)}</b> · ${c.year}-й год на вилле<br><span class="muted">Игра сохраняется сама.</span>`));
       const mus = el('button', 'btn ' + (isMusicOn() ? 'green' : 'ghost'), isMusicOn() ? '🎵 Музыка включена' : '🎵 Музыка выключена');
       mus.onclick = () => { setMusicOn(!isMusicOn()); sfx('tap'); panel.refresh(); };
       const vol = el('label', 'vol', '<span>🔈</span><input type="range" min="0" max="100" step="5" aria-label="Громкость музыки"><span>🔊</span>');
@@ -268,6 +269,7 @@ function startGame(fresh) {
   G.scene = G.scenes[scene]; G.sceneName = scene;
   G.scene.enter(fresh ? 'wake' : 'load');
   updateHud();
+  setTimeout(preloadMinigames, 5000); // в простое, не мешая началу игры
   // пианино в подарок (один раз), чтобы было на чём играть
   if (!s.flags.pianoGift) {
     s.flags.pianoGift = 1;
@@ -281,7 +283,7 @@ function startGame(fresh) {
     if (!s.stickers.includes('x_first')) s.stickers.push('x_first');
     message({
       title: 'Добро пожаловать!', icon: '🏡', sticky: true,
-      html: `<p class="center big-emoji">🐹</p><p>Привет, <b>${s.name}</b>! Это твоя вилла: три этажа, сауна, джакузи, бассейн и целый <b>миллиард монет</b> в банке.</p>
+      html: `<p class="center big-emoji">🐹</p><p>Привет, <b>${esc(s.name)}</b>! Это твоя вилла: три этажа, сауна, джакузи, бассейн и целый <b>миллиард монет</b> в банке.</p>
         <p>На дворе <b>январь</b> и зима ❄️. Рядом — город у моря, там магазины, друзья и приключения.</p>
         <p>✉️ У входной двери висит <b>почтовый ящик</b> — в нём уже лежит первое письмо. Выходи через дверь на первом этаже!</p>`,
       buttons: [{ text: 'Поехали!' }, { text: '❓ Как играть', cls: 'yellow' }],
@@ -316,8 +318,8 @@ function titleScreen() {
     const b1 = el('button', 'btn big green', `Продолжить ▶`);
     b1.onclick = () => go(false);
     const b2 = el('button', 'btn ghost', 'Новая игра');
-    b2.onclick = async () => { if (await confirmBox('Новая игра?', `<p class="center">Сохранённая игра (${G.state.name}) сотрётся. Начать заново?</p>`, 'Да', 'Нет')) { wipe(); G.state = null; newForm(); } };
-    form.append(el('div', 'sub', `С возвращением, ${G.state.name}!`), b1, b2);
+    b2.onclick = async () => { if (await confirmBox('Новая игра?', `<p class="center">Сохранённая игра (${esc(G.state.name)}) сотрётся. Начать заново?</p>`, 'Да', 'Нет')) { wipe(); G.state = null; newForm(); } };
+    form.append(el('div', 'sub', `С возвращением, ${esc(G.state.name)}!`), b1, b2);
   } else if (loadProblem === 'newer') {
     // сохранение от более новой версии игры: не затираем, предлагаем обновить страницу
     const b1 = el('button', 'btn big green', 'Обновить 🔄');

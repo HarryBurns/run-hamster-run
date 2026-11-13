@@ -1,5 +1,5 @@
 // Мини-игра «Соревнования по плаванию»: заплыв на 4 дорожках, грести левой-правой по очереди.
-import { clamp, shuffle, el, ell, fillRR, text, emoji, TAU } from '../util.js';
+import { clamp, shuffle, el, esc, ell, fillRR, text, emoji, TAU } from '../util.js';
 
 const POOL_LEN = 2300;   // длина дорожки в «мировых» пикселях
 const START_X = 250;     // где стартовая линия
@@ -101,7 +101,7 @@ export default {
       const winner = swimmers.filter((s) => s !== me && s.fin != null).sort((a, b) => a.fin - b.fin)[0];
       const wn = winner ? winner.name : '';
       const texts = {
-        1: `${host.name} приплыла первой! Золотая медаль твоя! 🥇`,
+        1: `${esc(host.name)} приплыла первой! Золотая медаль твоя! 🥇`,
         2: `Серебро! 🥈 Первое место — ${wn}. Ещё чуть-чуть, и ты победишь!`,
         3: `Бронза! 🥉 Первое место — ${wn}. Отличный заплыв!`,
         4: `Ты доплыла до финиша — молодец! Первое место — ${wn}. В следующий раз греби быстрее: левая-правая, левая-правая!`,
