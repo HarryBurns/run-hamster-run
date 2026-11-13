@@ -16,6 +16,7 @@ const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
 const hud = document.getElementById('hud');
 let dpr = 1;
+let redraw = true; // нарисовать сцену в ближайшем кадре, даже если она под окном
 
 G.scenes = { world: WorldScene, villa: Villa, tower: Tower, dive: Dive };
 G.go = (name, from) => {
@@ -33,6 +34,7 @@ function resize() {
   const w = window.innerWidth, h = window.innerHeight;
   G.view.w = w; G.view.h = h;
   canvas.width = Math.round(w * dpr); canvas.height = Math.round(h * dpr);
+  redraw = true; // смена размера стирает канву
 }
 window.addEventListener('resize', resize);
 window.addEventListener('orientationchange', () => setTimeout(resize, 200));
@@ -177,6 +179,7 @@ function updateSound() {
 
 // ---------- главный цикл ----------
 let last = performance.now(), hudT = 0, saveT = 0, sndT = 0;
+let frameNo = 0;
 let failStreak = 0; // сколько кадров подряд закончились ошибкой
 const FAIL_LIMIT = 30;
 /** Выполнить часть кадра так, чтобы её ошибка не остановила игру. Возвращает false, если была ошибка. */
@@ -209,7 +212,13 @@ function frame(now) {
   sndT += dt; if (sndT > 0.25) { sndT = 0; ok = guard(updateSound) && ok; }
   if (G.state && G.scene) {
     if (!G.modal) ok = guard(() => tick(dt)) && ok;
-    if (!guard(render)) { ok = false; canvas.width = canvas.width; } // сброс канвы: после ошибки на ней могли остаться clip и недозакрытые save()
+    // Под мини-игрой, пианино и затемнением сна сцену не видно — не рисуем вовсе.
+    // Под окном с затемнением хватает каждого третьего кадра: мир на паузе, шевелятся только вода и дыхание.
+    frameNo++;
+    if (!G.cover && (redraw || !G.dim || frameNo % 3 === 0)) {
+      redraw = false;
+      if (!guard(render)) { ok = false; canvas.width = canvas.width; } // сброс канвы: после ошибки на ней могли остаться clip и недозакрытые save()
+    }
     hudT += dt; if (hudT > 1) { hudT = 0; ok = guard(updateHud) && ok; }
     saveT += dt; if (saveT > 20) { saveT = 0; ok = guard(persist) && ok; }
   }

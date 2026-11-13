@@ -366,7 +366,7 @@ const MG_NAMES = { swim: '🏊 Плавание', teacher: '👩‍🏫 Учит
 export async function playMinigame(id, extra = {}) {
   const s = S();
   const plays = s.plays[id] || 0;
-  G.modal++;
+  G.modal++; G.cover++; // мини-игра закрывает весь экран: город под ней не рисуем
   let res = null;
   try {
     res = await runMinigame(id, {
@@ -375,7 +375,7 @@ export async function playMinigame(id, extra = {}) {
       ...extra,
     });
   } catch (e) { console.error(e); }
-  G.modal--;
+  G.modal--; G.cover--;
   if (!res) return null;
   s.plays[id] = plays + 1;
   s.best[id] = Math.max(s.best[id] || 0, res.stars);

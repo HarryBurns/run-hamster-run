@@ -1060,7 +1060,7 @@ export function draw(ctx) {
   const mx0 = (x0 - 3) * T, mx1 = (x1 + 4) * T, my0 = (y0 - 2) * T, my1 = (y1 + 12) * T;
   for (const o of W.objs) if (o.x > mx0 && o.x < mx1 && o.y > my0 && o.y < my1) list.push({ y: o.y + (o.type === 'flowers' || o.type === 'lounger' || o.type === 'icehole' ? -40 : 14), o });
   for (const b of BUILDINGS) if ((b.x + b.w) * T > mx0 - 100 && b.x * T < mx1 + 100 && b.y * T < my1 && (b.y + b.h) * T > my0 - 100) list.push({ y: (b.y + b.h) * T, b });
-  for (const n of W.npcs) if (!n.hidden) list.push({ y: n.y + 10, n });
+  for (const n of W.npcs) if (!n.hidden && n.x > mx0 && n.x < mx1 && n.y > my0 && n.y < my1) list.push({ y: n.y + 10, n });
   for (const c of W.sea) if (c.x > mx0 && c.x < mx1 && c.y > my0 && c.y < my1) list.push({ y: c.y + 8, c });
   const m = G.state.mail;
   if (m && m.items && !m.done) for (const it of m.items) if (!it.got) list.push({ y: (it.y + 0.5) * T, it });

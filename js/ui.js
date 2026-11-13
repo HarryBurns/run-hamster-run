@@ -46,13 +46,13 @@ export function openPanel(o) {
   if (o.foot) { foot = el('div', 'panel-foot'); p.appendChild(foot); }
   ov.appendChild(p);
   document.body.appendChild(ov);
-  G.modal++;
+  G.modal++; G.dim++;
 
   const api = {
     body, tab: o.tab || (o.tabs && o.tabs[0].id) || null, closed: false,
     close() {
       if (api.closed) return;
-      api.closed = true; ov.remove(); G.modal--;
+      api.closed = true; ov.remove(); G.modal--; G.dim--;
       if (o.onClose) o.onClose();
     },
     refresh() {
@@ -194,8 +194,11 @@ export function fadeTo(msg, ms = 1500) {
     document.body.appendChild(f);
     G.modal++;
     requestAnimationFrame(() => f.classList.add('on'));
+    let covered = false;
+    const tc = setTimeout(() => { covered = true; G.cover++; }, 450); // экран уже тёмный — сцену под ним не рисуем
     setTimeout(() => {
       resolve(() => {
+        clearTimeout(tc); if (covered) G.cover--;
         f.classList.remove('on');
         setTimeout(() => { f.remove(); G.modal--; }, 380);
       });

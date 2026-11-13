@@ -24,7 +24,7 @@ const SONGS = [
 export function openPiano() {
   if (document.getElementById('piano')) return;
   unlockAudio();
-  G.modal++;
+  G.modal++; G.cover++;
   const root = el('div'); root.id = 'piano';
   const head = el('div', 'pn-head', '<span>🎹</span><span class="title">Пианино</span>');
   const x = el('button', 'xbtn', '✕'); head.appendChild(x);
@@ -168,7 +168,7 @@ export function openPiano() {
     if (closed) return; closed = true;
     cancelAnimationFrame(raf);
     window.removeEventListener('keydown', kd); window.removeEventListener('keyup', ku); window.removeEventListener('resize', onResize);
-    root.remove(); G.modal--;
+    root.remove(); G.modal--; G.cover--;
   }
   x.onclick = () => { sfx('tap'); close(); };
 
