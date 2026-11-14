@@ -145,7 +145,7 @@ function drawHero(ctx, sc, look, ent, t) {
 
 // ---------- здания ----------
 /** Здание из кэша спрайтов. От времени зависят только снег на крыше и свет в окнах — они входят в ключ. */
-function drawBuilding(ctx, m, b, season, dark) {
+function drawBuilding(ctx, m, b, season, dark, env) {
   const kind = BUILDING_KINDS[b.kind],
     snow = season === 'winter' ? 1 : 0,
     lit = dark > 0.35 ? 1 : 0,
@@ -159,7 +159,7 @@ function drawBuilding(ctx, m, b, season, dark) {
     });
   }
   SP.draw(s, b.x * T, b.y * T);
-  if (kind.live) kind.live(ctx, b, G.time);
+  if (kind.live) kind.live(ctx, b, G.time, env);
 }
 
 // виды записей в списке «от дальнего к ближнему»; z — кто ближе при равной глубине
@@ -236,7 +236,7 @@ export function drawFrame(ctx, sc) {
         OBJECTS[v.type].draw(ctx, v, env);
         break;
       case K_BUILDING:
-        drawBuilding(ctx, m, v, season, dark);
+        drawBuilding(ctx, m, v, season, dark, env);
         break;
       case K_NPC: {
         const nd = NPC_BY_ID[v.id];

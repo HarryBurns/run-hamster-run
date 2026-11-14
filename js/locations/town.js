@@ -12,6 +12,7 @@ import { T, OUT, SP, put, defineTiles, defineObjects } from '../engine/topdown/k
 import { createTopDownScene } from '../engine/topdown/scene.js';
 import './common/index.js';
 import { createSea, WORLD_SEA } from './sea.js';
+import { HOUSE_ART, HOUSE_STYLE } from './town_buildings.js';
 
 const MW = 96,
   MH = 121;
@@ -23,27 +24,50 @@ const B = (id, kind, x, y, w, h, o = {}) => ({ id, kind, x, y, w, h, ...o });
 export const BUILDINGS = [
   B('villa', 'villa', 11, 4, 10, 5, { name: 'Моя вилла', wall: '#fff3d6', roof: '#f76e5c' }),
   // северная улица: магазины и небоскрёбы
-  B('salon', 'shop', 32, 9, 4, 4, { name: 'Салон красоты', icon: '💇', wall: '#ffc9de', roof: '#e64980' }),
-  B('boutique', 'shop', 38, 9, 4, 4, { name: 'Бутик «Бантик»', icon: '🎀', wall: '#e5dbff', roof: '#845ef7' }),
-  B('mall_fashion', 'mall', 44, 7, 7, 6, { name: 'ТЦ «Модный»', icon: '👗', wall: '#ffe066', roof: '#f59f00' }),
-  B('mall_home', 'mall', 53, 7, 7, 6, { name: 'ТЦ «Уютный дом»', icon: '🛋️', wall: '#a5d8ff', roof: '#1c7ed6' }),
-  B('fashion', 'tower', 67, 9, 4, 4, { name: 'Дом моды', icon: '👠', wall: '#f783ac', floors: 8 }),
-  B('tower', 'tower', 73, 9, 4, 4, { name: 'Хомяк-Тауэр', icon: '🔭', wall: '#74c0fc', floors: 11 }),
-  B('bank', 'tower', 79, 9, 4, 4, { name: 'Хомяк-Банк', icon: '💰', wall: '#ffd43b', floors: 7 }),
-  B('realtor', 'office', 86, 9, 5, 4, { name: 'Агентство «Свой домик»', icon: '🔑', wall: '#d8f5a2', roof: '#5c940d' }),
+  B('salon', 'salon', 32, 9, 4, 4, { name: 'Салон красоты', icon: '💇', wall: '#ffc9de', roof: '#e64980' }),
+  B('boutique', 'boutique', 38, 9, 4, 4, { name: 'Бутик «Бантик»', icon: '🎀', wall: '#e5dbff', roof: '#845ef7' }),
+  B('mall_fashion', 'mallx', 44, 7, 7, 6, {
+    theme: 'fashion',
+    name: 'ТЦ «Модный»',
+    icon: '👗',
+    wall: '#ffe066',
+    roof: '#f59f00',
+  }),
+  B('mall_home', 'mallx', 53, 7, 7, 6, {
+    theme: 'home',
+    name: 'ТЦ «Уютный дом»',
+    icon: '🛋️',
+    wall: '#a5d8ff',
+    roof: '#1c7ed6',
+  }),
+  B('fashion', 'towerFashion', 67, 9, 4, 4, { name: 'Дом моды', icon: '👠', wall: '#f783ac', floors: 8 }),
+  B('tower', 'towerHamster', 73, 9, 4, 4, { name: 'Хомяк-Тауэр', icon: '🔭', wall: '#74c0fc', floors: 11 }),
+  B('bank', 'bank', 79, 9, 4, 4, { name: 'Хомяк-Банк', icon: '💰', wall: '#ffd43b', floors: 7 }),
+  B('realtor', 'realtor', 86, 9, 5, 4, {
+    name: 'Агентство «Свой домик»',
+    icon: '🔑',
+    wall: '#d8f5a2',
+    roof: '#5c940d',
+  }),
   // между северной и главной улицами: ТЦ, рыночная площадь, больница и школа
-  B('mall_food', 'mall', 33, 18, 7, 6, { name: 'ТЦ «Вкусный»', icon: '🛒', wall: '#b2f2bb', roof: '#2f9e44' }),
+  B('mall_food', 'mallx', 33, 18, 7, 6, {
+    theme: 'food',
+    name: 'ТЦ «Вкусный»',
+    icon: '🛒',
+    wall: '#b2f2bb',
+    roof: '#2f9e44',
+  }),
   B('market', 'market', 44, 17, 7, 3, { name: 'Рынок', icon: '🧺', wall: '#ffe8cc', roof: '#e8590c' }),
-  B('cafe', 'shop', 56, 17, 4, 4, { name: 'Кафе «Семечка»', icon: '☕', wall: '#ffdeeb', roof: '#d6336c' }),
-  B('hospital', 'mall', 67, 18, 7, 6, { name: 'Больница', icon: '🏥', wall: '#ffffff', roof: '#fa5252' }),
-  B('school', 'mall', 77, 18, 7, 6, { name: 'Школа', icon: '🔔', wall: '#ffd8a8', roof: '#e8590c' }),
+  B('cafe', 'cafe', 56, 17, 4, 4, { name: 'Кафе «Семечка»', icon: '☕', wall: '#ffdeeb', roof: '#d6336c' }),
+  B('hospital', 'hospital', 67, 18, 7, 6, { name: 'Больница', icon: '🏥', wall: '#ffffff', roof: '#fa5252' }),
+  B('school', 'school', 77, 18, 7, 6, { name: 'Школа', icon: '🔔', wall: '#ffd8a8', roof: '#e8590c' }),
   // к югу от главной улицы
   B('home_apartment', 'apartment', 53, 31, 6, 5, { name: 'Жилой дом', icon: '🏢', wall: '#ffe3e3', roof: '#c92a2a' }),
-  B('rest', 'shop', 51, 41, 7, 5, { name: '«Золотой орешек»', icon: '🍽️', wall: '#ffec99', roof: '#c92a2a' }),
-  B('pool', 'shop', 67, 30, 5, 5, { name: 'Бассейн', icon: '🏊', wall: '#99e9f2', roof: '#0c8599' }),
+  B('rest', 'rest', 51, 41, 7, 5, { name: '«Золотой орешек»', icon: '🍽️', wall: '#ffec99', roof: '#c92a2a' }),
+  B('pool', 'poolhall', 67, 30, 5, 5, { name: 'Бассейн', icon: '🏊', wall: '#99e9f2', roof: '#0c8599' }),
   B('hotel', 'hotel', 83, 42, 11, 5, { name: 'Отель «Морская звезда»', icon: '🏨', wall: '#fff4e6', roof: '#1098ad' }),
   // на пляже
-  B('beachcafe', 'shop', 67, 50, 5, 3, { name: 'Пляжное кафе', icon: '🍹', wall: '#c3fae8', roof: '#12b886' }),
+  B('beachcafe', 'beachcafe', 67, 50, 5, 3, { name: 'Пляжное кафе', icon: '🍹', wall: '#c3fae8', roof: '#12b886' }),
   B('home_bungalow', 'bungalow', 6, 50, 5, 3, { name: 'Бунгало', icon: '🛖', wall: '#ffe8cc', roof: '#e0a458' }),
   // дома жителей: западный квартал (Мята, Плюша, Профессор; Зефирка и Буся) и восточный (Сеня, Боб, Пончик)
   B('house5', 'house', 4, 30, 4, 4, { wall: '#d3f9d8', roof: '#2f9e44', npc: 'myata' }),
@@ -106,7 +130,11 @@ const BUILDING_ACTS = {
     { text: 'Пока!' },
   ]),
 };
-for (const b of BUILDINGS) b.act = BUILDING_ACTS[b.id] || (b.npc ? 'home-of:' + b.npc : null);
+for (const b of BUILDINGS) {
+  b.act = BUILDING_ACTS[b.id] || (b.npc ? 'home-of:' + b.npc : null);
+  // дома жителей — по характеру хозяина: ставни, дорисовка поверх общего домика
+  if (b.npc) Object.assign(b, HOUSE_STYLE[b.npc], { art: HOUSE_ART[b.npc] });
+}
 
 // ---------- жители ----------
 // Где кто гуляет днём (клетка); вечером каждый идёт к своему домику.
