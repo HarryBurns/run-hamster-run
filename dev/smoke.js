@@ -2,12 +2,13 @@
 // что главный цикл жив после каждого шага и что сохранения-образцы (dev/saves) загружаются.
 // Запуск:  python3 -m http.server 8765 &   затем   node dev/smoke.js [http://localhost:8765]
 // Нужен Playwright с Chromium. Код возврата 0 — всё хорошо, 1 — есть ошибки.
-// Третий аргумент «extra» — только проверки сохранений, цикла и окон (быстро):  node dev/smoke.js <url> extra
+// Третий аргумент «extra» — только экономика и проверки сохранений, цикла и окон (быстро):  node dev/smoke.js <url> extra
 // Скорость проверяется отдельно:  node dev/bench.js [url] --spots=forest --sizes=desktop --max-forest=45
 const { chromium } = require('playwright');
 const fs = require('fs');
 const path = require('path');
 const SAVE_V1 = fs.readFileSync(path.join(__dirname, 'saves', 'v1.json'), 'utf8'); // сделано кодом до миграций (коммит dc1d500)
+const SAVE_V2 = fs.readFileSync(path.join(__dirname, 'saves', 'v2.json'), 'utf8'); // сделано кодом с новой экономикой (этап 3)
 
 const BASE = process.argv[2] || 'http://localhost:8765';
 const ONLY_EXTRA = process.argv[3] === 'extra';
@@ -33,6 +34,14 @@ async function extra({ page, step, ev, wait, closeAll, hold }) {
   const cont = async () => {
     await page.click('text=Продолжить');
     await wait(600);
+    // образец v1 переносится в новую экономику, и банк один раз присылает письмо: дождаться и закрыть,
+    // чтобы оно не всплыло посреди следующей проверки
+    if (await ev(() => window.__dev.G.state.flags.bankLetter === 1)) {
+      await page.waitForSelector('text=Письмо из Хомяк-Банка');
+      await wait(400);
+      await page.click('.overlay .panel-foot .btn');
+      await wait(350);
+    }
   };
   const stored = () =>
     ev(() => ({ save: localStorage.getItem('rhr-save-v1'), backup: localStorage.getItem('rhr-save-backup') }));
@@ -578,6 +587,439 @@ async function extra({ page, step, ev, wait, closeAll, hold }) {
   });
 }
 
+// ---------- экономика: деньги, цены, зарплата, рынок, банк, перенос сохранений (на обоих размерах) ----------
+async function economy({ page, step, ev, wait, closeAll }) {
+  const state = () =>
+    ev(() => {
+      const s = window.__dev.G.state;
+      return JSON.parse(JSON.stringify(s));
+    });
+  const titles = () =>
+    ev(() => [...document.querySelectorAll('.overlay .panel-head .title')].map((e) => e.textContent).join());
+  const putSave = async (raw) => {
+    await ev((raw) => {
+      window.__dev.G.state = null;
+      localStorage.removeItem('rhr-save-backup');
+      localStorage.setItem('rhr-save-v1', raw);
+    }, raw);
+    await page.reload();
+    await wait(500);
+  };
+  // числа в игре пишутся с узким неразрывным пробелом («3 000»): для сравнения заменяем его обычным
+  const norm = (t) => t.replace(/[\u202f\u00a0]/g, ' ');
+  const text = async (sel) => norm(await page.locator(sel).first().innerText());
+  const expect = (ok, msg, data) => {
+    if (!ok) throw new Error(msg + (data === undefined ? '' : ': ' + JSON.stringify(data)));
+  };
+
+  await step('баланс: node dev/balance.js', async () => {
+    try {
+      require('child_process').execFileSync(process.execPath, [path.join(__dirname, 'balance.js')], { stdio: 'pipe' });
+    } catch (e) {
+      throw new Error(
+        'баланс нарушен: ' +
+          String(e.stdout || e.message)
+            .split('БАЛАНС НАРУШЕН:')
+            .pop()
+            .trim(),
+      );
+    }
+  });
+  await step('экономика: новая игра — 3 000 монет, в приветствии нет миллиарда', async () => {
+    await ev(() => {
+      window.__dev.G.state = null;
+      localStorage.clear();
+    });
+    await page.reload();
+    await wait(400);
+    await page.click('text=Играть!');
+    await wait(400);
+    const hello = await text('.overlay .panel-body');
+    expect(!/миллиард/i.test(hello) && hello.includes('3 000') && /заработ/i.test(hello), 'приветствие', hello);
+    await page.click('text=Поехали!');
+    await wait(500);
+    const s = await state();
+    const chip = norm(await ev(() => document.querySelector('.chip.money').textContent));
+    expect(s.money === 3000 && s.earned === 0 && s.spent === 0 && s.v === 2, 'новая игра', [s.money, s.earned, s.v]);
+    expect(s.ledger && s.ledger.today.out === 0 && s.ledger.yesterday, 'нет учёта денег', s.ledger);
+    expect(chip.includes('3 000'), 'плашка монет', chip);
+    // все цены по карману или хотя бы разумны: ничего дешевле 10 и ничего «за миллион»
+    const prices = await ev(async () => {
+      const d = await import('./js/data/index.js');
+      const all = [
+        ...d.CLOTHES.filter((c) => !['start', 'gift'].includes(c.shop)),
+        ...d.FURNITURE.filter((f) => f.shop !== 'gift'),
+        ...d.INGREDIENTS.filter((i) => i.src === 'shop'),
+        ...d.SEEDS,
+        ...d.DISHES.filter((q) => q.cafe),
+        ...Object.values(d.BEAUTY),
+      ].map((q) => q.price);
+      return { min: Math.min(...all), max: Math.max(...all), bad: all.filter((p) => !(p > 0)).length };
+    });
+    expect(prices.bad === 0 && prices.min >= 10 && prices.max <= 100000, 'цены', prices);
+  });
+  await step('экономика: покупка, нехватка монет', async () => {
+    await ev(() => window.__dev.go('world'));
+    await wait(400);
+    await ev(() => window.__dev.enterBuilding('mall_fashion'));
+    await wait(450);
+    const s0 = await state();
+    await page.click('.overlay .card .btn.green');
+    await wait(300);
+    const s1 = await state();
+    const cost = s0.money - s1.money;
+    expect(cost >= 100 && cost <= 2000, 'цена обновки', cost);
+    expect(s1.spent === cost && s1.ledger.today.out === cost, 'трата не учтена', [s1.spent, s1.ledger.today]);
+    expect(s1.clothes.length === s0.clothes.length + 1, 'вещь не куплена');
+    const fly = await page.locator('.money-fly.minus').count();
+    expect(fly > 0, 'нет отклика на покупку рядом с числом монет');
+    await closeAll();
+    // бутик: дорогое видно, но не по карману — монеты не уходят, подсказка говорит, сколько не хватает
+    await ev(() => window.__dev.enterBuilding('boutique'));
+    await wait(450);
+    expect((await page.locator('.overlay .card .pr.far .lack').count()) > 0, 'недоступные по цене вещи не отмечены');
+    await page.click('.overlay .card .btn.ghost');
+    await wait(300);
+    const toast = norm(await ev(() => document.querySelector('#toasts').textContent));
+    const s2 = await state();
+    expect(/не хватает [\d ]+ монет/.test(toast) && !toast.includes('как так'), 'подсказка о нехватке', toast);
+    expect(s2.money === s1.money && s2.clothes.length === s1.clothes.length, 'покупка без монет прошла');
+    await closeAll();
+  });
+  await step('экономика: диалог перед работой, зарплата по звёздам, две оплачиваемые смены, новый день', async () => {
+    // мини-игра «Учительница» заканчивается сама на две звезды (подменяем только её ход, рамка и расчёт настоящие)
+    await ev(async () => {
+      const mod = (await import('./js/minigames/teacher.js')).default;
+      window.__teacherStart = mod.start;
+      mod.start = (host) => {
+        const t = setTimeout(() => host.finish({ stars: 2, text: 'проверка' }), 60);
+        return { stop: () => clearTimeout(t) };
+      };
+    });
+    const pay = await ev(async () => (await import('./js/data/index.js')).JOBS.teacher.pay[1]);
+    const payText = '+' + String(pay).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+    // пройти игру от заставки до экрана результата; вернуть текст заставки и результата
+    const play = async (close) => {
+      const intro = await text('#mg .mg-card');
+      await page.click('#mg >> text=Начать!');
+      await wait(450);
+      const result = await text('#mg .mg-card');
+      await page.click(close === 'x' ? '#mg .xbtn' : '#mg >> text=Ура!');
+      await wait(450);
+      return { intro, result };
+    };
+    const viaDoor = async () => {
+      await ev(() => window.__dev.enterBuilding('school'));
+      await wait(450);
+      const say = await text('.dialog .say');
+      await page.click('.dialog .btn.green');
+      await wait(600);
+      return say;
+    };
+    const m0 = (await state()).money;
+    // 1-я смена: через дверь школы
+    let say = await viaDoor();
+    expect(
+      say.includes('Зарплата') && say.includes('ещё за 2 смены') && say.includes(String(pay)),
+      'диалог перед работой',
+      say,
+    );
+    let r = await play();
+    expect(r.intro.includes('Зарплата') && r.result.includes(payText), 'заставка и результат 1-й смены', r);
+    let s = await state();
+    expect(s.money === m0 + pay && s.dayFlags.shifts.teacher === 1, '1-я смена не оплачена', [s.money, s.dayFlags]);
+    // 2-я смена: окно результата закрыто крестиком — зарплата всё равно выдана
+    await ev(() => {
+      window.__dev.F.playMinigame('teacher');
+    });
+    await wait(600);
+    r = await play('x');
+    s = await state();
+    expect(r.result.includes(payText) && r.result.includes('последняя оплачиваемая'), 'результат 2-й смены', r.result);
+    expect(s.money === m0 + 2 * pay && s.dayFlags.shifts.teacher === 2, '2-я смена не оплачена', s.money - m0);
+    // 3-я смена: «для удовольствия» — об этом сказано и до игры, и после
+    say = await viaDoor();
+    expect(say.includes('для удовольствия') && !say.includes('ещё за'), 'диалог после двух смен', say);
+    r = await play();
+    s = await state();
+    expect(r.intro.includes('для удовольствия') && r.result.includes('для удовольствия'), 'третья смена', r);
+    expect(s.money === m0 + 2 * pay && s.plays.teacher === 3, '3-я смена оплачена или не записана', s.money - m0);
+    expect(s.ledger.today.in.work === 2 * pay && s.earned >= 2 * pay, 'доход не учтён', s.ledger.today);
+    expect(s.stickers.includes('x_wage'), 'нет наклейки «Первая зарплата»');
+    // на другом месте смены свои
+    expect(
+      await ev(() => window.__dev.F.jobToday('doctor').left === 2 && window.__dev.F.jobToday('fishing') === null),
+      'смены',
+    );
+    // новый день: смены снова оплачиваются, вчерашний доход — во «вчера»
+    await closeAll();
+    await ev(() => {
+      window.__dev.actions.nextDay();
+      window.__dev.F.newDayMail();
+    });
+    s = await state();
+    expect(
+      !s.dayFlags.shifts && s.ledger.yesterday.in.work === 2 * pay && !s.ledger.today.in.work,
+      'новый день',
+      s.ledger,
+    );
+    await ev(() => {
+      window.__dev.F.playMinigame('teacher');
+    });
+    await wait(600);
+    r = await play();
+    s = await state();
+    expect(s.money === m0 + 3 * pay && s.dayFlags.shifts.teacher === 1, 'после сна смена не оплачена', s.money - m0);
+    await ev(async () => {
+      (await import('./js/minigames/teacher.js')).default.start = window.__teacherStart;
+    });
+    await closeAll();
+  });
+  await step('экономика: награда за задание', async () => {
+    await ev(() => {
+      const a = window.__dev.actions;
+      a.setMail('cafe');
+      a.readMail();
+      window.__dev.F.showLetter();
+    });
+    await wait(400);
+    const letter = await text('.overlay .panel-body');
+    expect(/Награда:.*300/.test(letter), 'в письме нет награды монетами', letter);
+    await closeAll();
+    const s0 = await state();
+    await ev(() => window.__dev.emit('buy', { cat: 'dish', id: 'donut' }));
+    const s1 = await state();
+    expect(
+      s1.money === s0.money + 300 && s1.ledger.today.in.task === 300 && s1.mail.done,
+      'награда',
+      s1.money - s0.money,
+    );
+    await page.waitForSelector('text=Задание выполнено!');
+    const done = await text('.overlay .panel-body');
+    expect(done.includes('+300'), 'в окне «Задание выполнено» нет монет', done);
+    await page.click('.overlay .panel-foot .btn');
+    await wait(500);
+    await closeAll();
+    // у каждого задания есть награда в пределах 300–600
+    const bad = await ev(async () => {
+      const d = await import('./js/data/index.js');
+      return d.TASKS.map((t) => [t.id, window.__dev.F.taskCoins(t.id)]).filter(([, c]) => !(c >= 300 && c <= 600));
+    });
+    expect(!bad.length, 'награды вне 300–600', bad);
+  });
+  await step('экономика: рынок — продать одну и все, кошелёк торговца, редкости, входы', async () => {
+    await ev(() => {
+      const a = window.__dev.actions,
+        s = window.__dev.G.state;
+      for (const id of Object.keys(s.ing)) a.addItem('ing', id, -s.ing[id]);
+      for (const id of Object.keys(s.dishes)) a.addItem('dishes', id, -s.dishes[id]);
+      a.addItem('ing', 'carrot', 5);
+      window.__dev.run('market');
+    });
+    await wait(450);
+    expect((await titles()) === 'Рынок', 'рынок не открылся', await titles());
+    const s0 = await state();
+    const card = await text('.overlay .card');
+    expect(card.includes('Морковка') && card.includes('40') && card.includes('+200'), 'карточка товара', card);
+    await page.click('.overlay .card .btn.green'); // продать 1
+    await wait(250);
+    let s = await state();
+    expect(s.money === s0.money + 40 && s.ing.carrot === 4, 'продать 1', [s.money - s0.money, s.ing]);
+    await page.click('.overlay .card .btn.yellow'); // продать все
+    await wait(250);
+    s = await state();
+    expect(s.money === s0.money + 200 && !s.ing.carrot, 'продать все', [s.money - s0.money, s.ing]);
+    expect(s.dayFlags.marketPaid === 200 && s.ledger.today.in.market === 200, 'учёт рынка', [
+      s.dayFlags,
+      s.ledger.today,
+    ]);
+    expect(s.stickers.includes('x_market'), 'нет наклейки за первую продажу');
+    expect((await page.locator('.money-fly.plus').count()) > 0, 'нет отклика на продажу рядом с числом монет');
+    await closeAll();
+    // кошелёк торговца: больше, чем у него есть, за день не продать — это и закрывает «вечный двигатель»
+    const r = await ev(async () => {
+      const d = window.__dev,
+        { MARKET, ING_BY_ID } = await import('./js/data/index.js');
+      d.actions.addItem('ing', 'fish', 40);
+      d.actions.addPearls(3);
+      const fish = () => d.F.sellable().find((g) => g.id === 'fish');
+      const m0 = d.G.state.money,
+        left0 = d.F.purseLeft();
+      const sold = d.F.sellGoods(fish(), 40);
+      const again = d.F.sellGoods(fish(), 1);
+      const pearl = d.F.sellGoods(
+        d.F.sellable().find((g) => g.id === 'pearl'),
+        1,
+      );
+      return {
+        purse: MARKET.purse,
+        left0,
+        sold,
+        again,
+        pearl,
+        got: d.G.state.money - m0,
+        price: ING_BY_ID.fish.sell,
+        left: d.F.purseLeft(),
+        pearls: d.F.pearlsLeft(),
+      };
+    });
+    expect(r.left0 === r.purse - 200 && r.sold === Math.floor(r.left0 / r.price), 'кошелёк торговца', r);
+    expect(r.got === r.sold * r.price && r.again === 0 && r.pearl === 0 && r.pearls === 3, 'продано сверх кошелька', r);
+    await ev(() => window.__dev.run('market'));
+    await wait(400);
+    const dis = await ev(() => [...document.querySelectorAll('.overlay .card .btn')].every((b) => b.disabled));
+    expect(
+      dis && (await page.locator('.overlay .purse.empty').count()) === 1,
+      'при пустом кошельке кнопки продажи активны',
+    );
+    await closeAll();
+    // утром у торговца снова полный кошелёк; жемчужина продаётся и больше не числится в рюкзаке
+    const p = await ev(() => {
+      const d = window.__dev;
+      d.actions.nextDay();
+      d.F.newDayMail();
+      const m0 = d.G.state.money;
+      const n = d.F.sellGoods(
+        d.F.sellable().find((g) => g.id === 'pearl'),
+        1,
+      );
+      return { n, got: d.G.state.money - m0, pearls: d.F.pearlsLeft(), found: d.G.state.pearls, left: d.F.purseLeft() };
+    });
+    expect(p.n === 1 && p.got === 400 && p.pearls === 2 && p.found === 3 && p.left === 1600, 'жемчуг', p);
+    // редкости: вещицы дня и фрукты не по сезону
+    await ev(() => window.__dev.run('market:buy'));
+    await wait(450);
+    const s2 = await state();
+    const cards = await page.locator('.overlay .card').count();
+    expect(cards >= 4, 'мало редкостей', cards);
+    await page.click('.overlay .grid:last-child .card .btn');
+    await wait(250);
+    s = await state();
+    const fruit = Object.keys(s.ing).find((id) => !s2.ing[id]);
+    expect(fruit && s.money < s2.money, 'фрукт не по сезону не куплен', s.ing);
+    await closeAll();
+    // в ТЦ «Вкусный» этого фрукта сейчас нет, зато есть кнопка «Продать на рынке»; такая же — в рюкзаке
+    await ev(() => window.__dev.enterBuilding('mall_food'));
+    await wait(450);
+    expect((await page.locator('.overlay .card.away').count()) > 0, 'в ТЦ «Вкусный» нет отметки «не сезон»');
+    await page.click('.overlay .panel-foot .btn');
+    await wait(450);
+    expect((await titles()) === 'Рынок', 'из ТЦ «Вкусный» рынок не открылся', await titles());
+    await closeAll();
+    await ev(() => window.__dev.F.openBackpack());
+    await wait(400);
+    await page.click('.overlay .panel-foot .btn');
+    await wait(450);
+    expect((await titles()) === 'Рынок', 'из рюкзака рынок не открылся', await titles());
+    await closeAll();
+    // блюдо на рынке дешевле кафе, а купленное в магазине — дешевле магазина (перепродажа не окупается)
+    const arb = await ev(async () => {
+      const d = await import('./js/data/index.js');
+      return [
+        ...d.INGREDIENTS.filter((i) => i.src === 'shop' && i.sell >= i.price).map((i) => i.id),
+        ...d.DISHES.filter((q) => q.cafe && q.sell >= q.price).map((q) => q.id),
+      ];
+    });
+    expect(!arb.length, 'перепродажа с прибылью', arb);
+  });
+  await step('экономика: Хомяк-Банк — счёт и доход по источникам', async () => {
+    await ev(() => {
+      window.__dev.actions.earn(350, 'work');
+      window.__dev.enterBuilding('bank');
+    });
+    await wait(450);
+    const t = await text('.overlay .panel-body');
+    for (const w of ['На твоём счету', 'Сегодня', 'Вчера', 'Работа', 'Рынок', 'Потрачено', 'заработано'])
+      expect(t.includes(w), `в банке нет «${w}»`, t);
+    expect(!/миллиард|миллион/i.test(t), 'в банке остался миллиард', t);
+    await closeAll();
+    // наклейки: «Заработала 10 000» и «Накопила 50 000»
+    const st = await ev(() => {
+      const d = window.__dev;
+      d.actions.earn(60000, 'other');
+      return d.G.state.stickers.filter((q) => ['x_10k', 'x_50k', 'x_rich'].includes(q)).join();
+    });
+    expect(st === 'x_10k,x_50k', 'наклейки за заработок', st);
+    const chip = norm(await ev(() => document.querySelector('.chip.money').textContent));
+    expect(/\d\d \d{3}/.test(chip), 'плашка монет с большим числом', chip);
+    await wait(1400);
+    await closeAll();
+  });
+  await step('экономика: перенос сохранения v1 → v2, письмо банка один раз', async () => {
+    const old = JSON.parse(SAVE_V1);
+    old.stickers.push('x_rich'); // наклейка прежней игры остаётся у тех, у кого она была
+    old.pearls = 4;
+    await putSave(JSON.stringify(old));
+    await page.click('text=Продолжить');
+    await page.waitForSelector('text=Письмо из Хомяк-Банка');
+    await wait(400);
+    const letter = await text('.overlay .panel-body');
+    expect(letter.includes('20 000') && letter.includes(old.name) && /стройк/i.test(letter), 'письмо банка', letter);
+    let s = await state();
+    expect(s.v === 2 && s.money === 20000 && s.spent === 0 && s.earned === 0, 'деньги после переноса', [s.v, s.money]);
+    expect(s.flags.bankLetter === 2 && s.ledger && s.pearlsSold === 0, 'новые поля', [s.flags, s.ledger, s.pearlsSold]);
+    const same = (k) => JSON.stringify(s[k]) === JSON.stringify(old[k]);
+    for (const k of ['name', 'clothes', 'storage', 'dishes', 'seeds', 'recipes', 'stickers', 'day', 'pearls'])
+      expect(same(k), `после переноса изменилось «${k}»`, [s[k], old[k]]);
+    expect(s.villa.length === old.villa.length && s.friends.plusha.pts === old.friends.plusha.pts, 'мебель или друзья');
+    expect(JSON.stringify(s.look.outfit) === JSON.stringify(old.look.outfit), 'наряд изменился');
+    const backup = JSON.parse(await ev(() => localStorage.getItem('rhr-save-backup')));
+    expect(backup.v === 1 && backup.money > 20000, 'нет копии старого сохранения', backup.money);
+    await page.click('.overlay .panel-foot .btn');
+    await wait(400);
+    // альбом: прежняя наклейка «Потратила миллион» видна, счёт сходится
+    await ev(() => window.__dev.F.openAlbum());
+    await wait(350);
+    const album = await text('.overlay .panel-body');
+    expect(
+      album.includes('Потратила миллион') && album.includes(`Собрано ${s.stickers.length} из`),
+      'альбом',
+      album.slice(0, 80),
+    );
+    await closeAll();
+    // второй вход: письма больше нет, деньги те же
+    await ev(() => window.dispatchEvent(new Event('pagehide')));
+    await page.reload();
+    await wait(500);
+    await page.click('text=Продолжить');
+    await wait(2200);
+    s = await state();
+    expect((await page.locator('text=Письмо из Хомяк-Банка').count()) === 0, 'письмо банка показано второй раз');
+    expect(s.money === 20000 && s.v === 2 && s.flags.bankLetter === 2, 'после второго входа', [s.money, s.flags]);
+    await closeAll();
+  });
+  await step('образец: сохранение v2', async () => {
+    const want = JSON.parse(SAVE_V2);
+    await putSave(SAVE_V2);
+    await page.click('text=Продолжить');
+    await wait(2200);
+    const s = await state();
+    expect((await page.locator('text=Письмо из Хомяк-Банка').count()) === 0, 'письмо банка в новой игре');
+    expect(s.v === 2 && s.name === want.name && s.money === want.money && s.earned === want.earned, 'образец v2', [
+      s.v,
+      s.money,
+    ]);
+    expect(
+      JSON.stringify(s.ledger) === JSON.stringify(want.ledger) && s.pearlsSold === want.pearlsSold,
+      'учёт денег',
+      s.ledger,
+    );
+    expect(JSON.stringify(s.clothes) === JSON.stringify(want.clothes), 'вещи');
+    for (const f of ['openBackpack', 'openAlbum', 'openMarket', 'openBank', 'showLetter']) {
+      await ev((f) => {
+        window.__dev.F[f]();
+      }, f);
+      await wait(300);
+      await closeAll();
+    }
+    // в новой игре альбом не показывает наклейку прежней игры
+    await ev(() => window.__dev.F.openAlbum());
+    await wait(300);
+    expect(!(await text('.overlay .panel-body')).includes('Потратила миллион'), 'старая наклейка в альбоме');
+    await closeAll();
+  });
+}
+
 (async () => {
   const browser = await chromium.launch();
   const errors = [];
@@ -1078,6 +1520,7 @@ async function extra({ page, step, ev, wait, closeAll, hold }) {
       await wait(600);
       if ((await ev(() => window.__dev.G.state.day)) !== day0) throw new Error('сохранение не загрузилось');
     });
+    await economy({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
     if (tag === 'desktop')
       await extra({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll, hold });
     await page.close();
