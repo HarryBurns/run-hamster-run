@@ -12,7 +12,8 @@ import { dialog } from './ui/dialog.js';
 import { toast } from './ui/toast.js';
 import { createSideScene } from './engine/side/scene.js';
 import { OWN as demoOwn } from './interiors/demo_house.js';
-import * as World from './locations/town.js';
+import town, { sea, BUILDINGS } from './locations/town.js';
+import * as topdown from './engine/topdown/index.js';
 import * as Tower from './interiors/tower.js';
 
 /**
@@ -56,6 +57,17 @@ function watchState() {
   };
 }
 
+// Город и его море одним объектом — так к ним обращаются тесты (dev/*.js).
+const World = Object.assign(Object.create(town), {
+  BUILDINGS,
+  isBoating: sea.isBoating,
+  leaveBoat: sea.leaveBoat,
+  dive: sea.dive,
+  canDive: sea.canDive,
+  debugSea: sea.debugSea,
+  debugSeaShow: sea.debugSeaShow,
+});
+
 export function installDevHooks({ F }) {
   window.__dev = {
     /** Состояние времени выполнения: G.state — сохранение, G.time, G.view, G.modal. */
@@ -93,14 +105,18 @@ export function installDevHooks({ F }) {
     ui: { ...modals, message, openPanel, dialog, toast },
     /** Занятия (features): F.openWardrobe(), F.playMinigame('swim') … */
     F,
+    /** Город (сцена-локация) вместе с функциями его моря: World.debugTeleport(x, y), World.leaveBoat()… */
     World,
+    /** «Движок локаций»: locations — все локации по имени сцены, getLocation(name), currentLocation(). */
+    topdown,
+    locations: topdown.locations,
     Tower,
     get Villa() {
       return loop.scenes.villa;
     },
     Audio: audio,
     /** Войти в здание города по его id — так же, как если бы хомячок дошёл до двери. */
-    enterBuilding: (id) => World.enterBuilding(World.BUILDINGS.find((b) => b.id === id)),
+    enterBuilding: (id) => town.enterBuilding(BUILDINGS.find((b) => b.id === id)),
     /** Поставить хомячка на вилле: этаж и x. */
     villaAt: (floor, x) => loop.go('villa', { pos: { scene: 'villa', floor, x } }),
     openPiano: () => registry.run('piano'),

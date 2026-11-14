@@ -1,18 +1,19 @@
-// Карта города: нажми на место — хомячок сама туда дойдёт.
+// Карта локации, где сейчас хомячок (пока он в доме — той, что снаружи): нажми на место — он сам туда дойдёт.
 import { sfx } from '../core/audio.js';
 import { makeCanvas } from '../core/draw.js';
 import { go, sceneName } from '../core/loop.js';
 import { el } from '../core/util.js';
 import { NPC_BY_ID } from '../data/index.js';
-import * as World from '../locations/town.js';
+import { T, currentLocation } from '../engine/topdown/index.js';
 import { openPanel } from '../ui/panel.js';
 import { toast } from '../ui/toast.js';
 
-/** Карта города: нажми на место — хомячок сам туда дойдёт. */
+/** Карта текущей локации: нажми на место — хомячок сам туда дойдёт. */
 export function openMap() {
   let raf = 0;
+  const World = currentLocation(); // сцена-локация (engine/topdown/scene.js)
   const walkTo = (id, name, panel) => {
-    if (sceneName() !== 'world') go('world');
+    if (sceneName() !== World.name) go(World.name);
     if (World.walkToPlace(id)) {
       sfx('ok');
       toast(`Идём: ${name} 🐾`);
@@ -20,24 +21,24 @@ export function openMap() {
     } else toast('Туда сейчас не пройти');
   };
   openPanel({
-    title: 'Карта города',
+    title: World.desc.title || 'Карта',
     icon: '🗺️',
     cls: 'wide',
     onClose: () => cancelAnimationFrame(raf),
     render(body, tab, panel) {
-      const k = Math.max(4, Math.min(11, Math.floor(((Math.min(window.innerWidth, 980) - 60) / World.MW) * 2) / 2));
-      const { canvas, ctx } = makeCanvas(World.MW * k, World.MH * k);
+      const k = Math.max(4, Math.min(11, Math.floor(((Math.min(window.innerWidth, 980) - 60) / World.w) * 2) / 2));
+      const { canvas, ctx } = makeCanvas(World.w * k, World.h * k);
       canvas.style.cssText +=
         ';display:block;margin:0 auto;border-radius:14px;max-width:100%;height:auto;touch-action:manipulation';
       // Карта неподвижна (мир на паузе): рисуем её один раз в отдельную канву, а в каждом кадре
       // обновляем только квадратик вокруг мигающей точки игрока.
-      const base = makeCanvas(World.MW * k, World.MH * k);
+      const base = makeCanvas(World.w * k, World.h * k);
       World.drawMiniMapBase(base.ctx, k);
-      const r = canvas.width / (World.MW * k),
+      const r = canvas.width / (World.w * k),
         p = World.playerPos(),
         R = k * 0.9 + 10; // r — пикселей канвы в CSS-пикселе
-      const bx = Math.max(0, Math.floor(((p.x / World.T) * k - R) * r)),
-        by = Math.max(0, Math.floor(((p.y / World.T) * k - R) * r)),
+      const bx = Math.max(0, Math.floor(((p.x / T) * k - R) * r)),
+        by = Math.max(0, Math.floor(((p.y / T) * k - R) * r)),
         bs = Math.ceil(2 * R * r);
       let first = true;
       const loop = () => {
@@ -55,10 +56,7 @@ export function openMap() {
       loop();
       canvas.onclick = (e) => {
         const r = canvas.getBoundingClientRect();
-        const b = World.mapHit(
-          ((e.clientX - r.left) / r.width) * World.MW,
-          ((e.clientY - r.top) / r.height) * World.MH,
-        );
+        const b = World.mapHit(((e.clientX - r.left) / r.width) * World.w, ((e.clientY - r.top) / r.height) * World.h);
         if (b) walkTo(b.id, b.npc ? `домик (${NPC_BY_ID[b.npc].name})` : b.name, panel);
       };
       body.appendChild(canvas);
@@ -71,12 +69,7 @@ export function openMap() {
       );
       const row = el('div', 'opt-row');
       row.style.justifyContent = 'center';
-      const places = [
-        ...World.BUILDINGS.filter((b) => !b.npc).map((b) => [b.id, `${b.kind === 'villa' ? '🏡' : b.icon} ${b.name}`]),
-        ['beach', '🏖️ Пляж'],
-        ['pier', '🎣 Пирс'],
-      ];
-      for (const [id, name] of places) {
+      for (const [id, name] of World.mapPlaces()) {
         const bt = el('button', 'opt', name);
         bt.onclick = () => walkTo(id, name, panel);
         row.appendChild(bt);

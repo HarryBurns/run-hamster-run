@@ -6,7 +6,7 @@ import { register } from '../core/registry.js';
 import { G, cal } from '../core/state.js';
 import { esc, pick } from '../core/util.js';
 import { CLOTHES_BY_ID, SEED_BY_ID, TASKS, TASK_BY_ID, PLACES } from '../data/index.js';
-import * as World from '../locations/town.js';
+import { getLocation, homeLocation } from '../engine/topdown/index.js';
 import { enqueue } from '../ui/modals.js';
 import { message } from '../ui/panel.js';
 import { toast } from '../ui/toast.js';
@@ -67,6 +67,16 @@ function letterHtml() {
     <p class="center">${m.done ? '✅ <b>Задание выполнено!</b>' : `Награда: наклейка ${t.sticker} и, может быть, сюрприз 🎁${taskProgress() ? '<br>Сделано' + taskProgress() : ''}`}</p>`;
 }
 
+/**
+ * Где лежат предметы задания «собери»: случайные места в зоне локации. Локация — поле loc задания (имя сцены),
+ * без него — главная (город); зона — пляж или улицы. Предметы не из главной локации помечаются её именем.
+ */
+function taskSpots(t) {
+  const loc = (t.loc && getLocation(t.loc)) || homeLocation();
+  const spots = loc.randomSpots(t.zone || (t.where === 'beach' ? 'beach' : 'town'), t.n + 2, 1000 + S().day * 7);
+  return loc === homeLocation() ? spots : spots.map((it) => ({ ...it, loc: loc.name }));
+}
+
 export function openMailbox() {
   const m = S().mail;
   if (!m) {
@@ -76,11 +86,7 @@ export function openMailbox() {
   if (!m.read) {
     sfx('mail');
     const t = TASK_BY_ID[m.task];
-    readMail(
-      t.type === 'collect'
-        ? World.randomSpots(t.where === 'beach' ? 'beach' : 'town', t.n + 2, 1000 + S().day * 7)
-        : null,
-    );
+    readMail(t.type === 'collect' ? taskSpots(t) : null);
     emit('hud');
   }
   showLetter();

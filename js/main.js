@@ -21,7 +21,7 @@ import { sfx, unlockAudio } from './core/audio.js';
 import { message, confirmBox } from './ui/panel.js';
 import { toast } from './ui/toast.js';
 import { initHud, buildHud, updateHud } from './ui/hud.js';
-import WorldScene from './locations/town.js';
+import town from './locations/town.js';
 import { createSideScene } from './engine/side/scene.js';
 import villa from './interiors/villa.js';
 import demoHouse from './interiors/demo_house.js';
@@ -34,8 +34,9 @@ import { installDevHooks } from './devhooks.js';
 const canvas = document.getElementById('game');
 const hud = document.getElementById('hud');
 
-// Сцены игры. Дома — описания (interiors/*.js), которые оживляет «движок домов».
-registerScene('world', WorldScene);
+// Сцены игры. Локации — описания (locations/*.js) для «движка локаций», дома — описания (interiors/*.js)
+// для «движка домов».
+registerScene(town.name, town);
 registerScene('tower', TowerScene);
 registerScene('dive', DiveScene);
 for (const house of [villa, demoHouse]) registerScene(house.id, createSideScene(house)); // demo_house — пробный, входа в игре нет
