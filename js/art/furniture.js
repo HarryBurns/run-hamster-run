@@ -3,6 +3,7 @@
 // Настенные: начало координат — центр предмета.
 import { TAU } from '../core/util.js';
 import { ell, fillRR, line, poly, star, shade, rr, heart } from '../core/draw.js';
+import { D_HOMES } from './furniture_homes.js';
 
 const OUT = '#4a3728';
 const WOOD = '#d9a066';
@@ -621,6 +622,8 @@ const D = {
     c.restore();
   },
 };
+
+Object.assign(D, D_HOMES); // вещи из домов жителей — в отдельном файле
 
 /** Нарисовать предмет. st: { t: время, on: включён, minutes: игровое время } */
 export function drawFurn(ctx, def, x, y, st = {}) {
