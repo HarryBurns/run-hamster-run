@@ -551,17 +551,26 @@ defineObjects({
             snowCap(ctx, 0, -70, 10, 4);
             return;
           }
+          // купол зонта дольками, с фестонами и тенью справа
           for (let i = 0; i < 6; i++) {
             ctx.beginPath();
-            ctx.moveTo(0, -78);
-            ctx.arc(0, -50, 34, Math.PI * (1.12 + i * 0.127), Math.PI * (1.12 + (i + 1) * 0.127));
+            ctx.moveTo(0, -62);
+            ctx.arc(0, -46, 32, Math.PI + (i * Math.PI) / 6, Math.PI + ((i + 1) * Math.PI) / 6);
             ctx.closePath();
             ctx.fillStyle = i % 2 ? '#fff' : col;
             ctx.fill();
           }
+          ctx.save();
           ctx.beginPath();
-          ctx.moveTo(0, -78);
-          ctx.arc(0, -50, 34, Math.PI * 1.12, Math.PI * 1.882);
+          ctx.arc(0, -46, 32, Math.PI, 0);
+          ctx.closePath();
+          ctx.clip();
+          ctx.fillStyle = 'rgba(0,0,0,.1)';
+          ctx.fillRect(8, -80, 30, 40);
+          ctx.restore();
+          ctx.beginPath();
+          ctx.arc(0, -46, 32, Math.PI, 0);
+          for (let i = 5; i >= 0; i--) ctx.arc(-32 + (i + 0.5) * (64 / 6), -46, 64 / 12, 0, Math.PI, true);
           ctx.closePath();
           ctx.strokeStyle = OUT;
           ctx.lineWidth = 2;
