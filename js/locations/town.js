@@ -553,6 +553,8 @@ function build(m) {
     [60, 22, 2],
   ])
     put1('cafeTable', x, y, { v });
+  put1('lamp', 48, 21);
+  put1('lamp', 55, 21);
   put1('bench', 48, 23);
   put1('bench', 55, 25);
   put1('bench', 46, 25);
@@ -1006,11 +1008,13 @@ const town = createTopDownScene({
       }
     }
   },
-  /** На мини-карте: забор двора. */
+  /** На мини-карте: забор двора виллы. */
   miniMap(ctx, sc, k) {
     ctx.strokeStyle = '#fff';
-    ctx.lineWidth = 1.5;
+    ctx.lineWidth = Math.max(1.5, k * 0.22);
+    ctx.setLineDash([k * 0.5, k * 0.35]);
     ctx.strokeRect((YARD[0] + 0.5) * k, (YARD[1] + 0.5) * k, (YARD[2] - YARD[0]) * k, (YARD[3] - YARD[1]) * k);
+    ctx.setLineDash([]);
   },
   /** Что слышно в городе: дневная музыка города, море (чем ближе к пляжу — тем громче), птицы, сверчки. */
   sound: (sc) => ({ day: 'town', sea: clamp((sc.p.y / T - 42) / 11, 0, 1), rain: 1, birds: true, crickets: true }),

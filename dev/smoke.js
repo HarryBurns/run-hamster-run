@@ -356,8 +356,7 @@ async function extra({ page, step, ev, wait, closeAll, hold }) {
     if (a.clipped.length) throw new Error('спрайты не поместились в рамку: ' + a.clipped.join(', '));
     // земля — кэш кусками: в памяти только куски вокруг экрана, старые сезоны и места вытеснены
     const g = await ev(() => window.__dev.World.debugGround());
-    if (!(g.count > 0) || g.pixels > 12e6 || g.count > 90)
-      throw new Error('кэш земли: ' + JSON.stringify(g));
+    if (!(g.count > 0) || g.pixels > 12e6 || g.count > 90) throw new Error('кэш земли: ' + JSON.stringify(g));
     await page.setViewportSize({ width: 600, height: 900 });
     await wait(400);
     await hold('ArrowLeft', 300);
@@ -1623,6 +1622,39 @@ async function economy({ page, step, ev, wait, closeAll }) {
         'beach',
       ])
         if (!r.ids.includes(id)) throw new Error('на карте нет места ' + id);
+    });
+    await step('город: ночь — слой неба со светом фонарей; в доме и днём без осадков его нет', async () => {
+      const sky = () =>
+        ev(() => {
+          const e = document.querySelector('#sky');
+          return { on: !!e && e.style.display !== 'none', w: e ? e.width : 0 };
+        });
+      await ev(() => {
+        const d = window.__dev;
+        d.go('world');
+        d.G.state.minutes = 22 * 60;
+        d.G.state.weather = 'sun';
+        d.World.debugTeleport(13, 38);
+      });
+      await wait(300);
+      const night = await sky();
+      const lights = await ev(() => window.__dev.World.lights.length);
+      if (!night.on || night.w < 50 || night.w > 400) throw new Error('ночью нет слоя неба: ' + JSON.stringify(night));
+      if (!(lights >= 10)) throw new Error('ночью нет пятен света от фонарей и окон: ' + lights);
+      await ev(() => window.__dev.go('villa'));
+      await wait(300);
+      if ((await sky()).on) throw new Error('слой неба остался поверх виллы');
+      await ev(() => {
+        const d = window.__dev;
+        d.G.state.minutes = 12 * 60;
+        d.G.state.weather = 'snow';
+        d.go('world');
+      });
+      await wait(300);
+      if ((await sky()).on) throw new Error('слой неба виден днём в снегопад (ни света, ни облаков быть не должно)');
+      await ev(() => {
+        window.__dev.G.state.weather = 'sun';
+      });
     });
     await step('город: новые места — рынок на площади и «Скоро открытие!»', async () => {
       await ev(() => window.__dev.enterBuilding('market'));

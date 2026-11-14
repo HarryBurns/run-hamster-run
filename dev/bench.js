@@ -7,6 +7,7 @@
 //   --spots=palms,forest,square,sea,beach,park
 //   --seasons=winter,summer зима со снегом и лето без осадков
 //   --sec=4                 сколько секунд идёт один замер
+//   --minutes=1320          время суток в минутах (720 — полдень; 1320 — ночь со светом фонарей и окон)
 //   --json=файл             сохранить цифры (чтобы потом сравнить)
 //   --max-forest=40         порог: код возврата 1, если средний кадр в лесу (настольный размер) дольше, мс
 //
@@ -22,7 +23,8 @@ const opt = (name, def) => {
   return a ? a.split('=')[1] : def;
 };
 const CPU = +opt('cpu', 4),
-  SEC = +opt('sec', 4);
+  SEC = +opt('sec', 4),
+  MINUTES = +opt('minutes', 12 * 60);
 const SIZES = { desktop: [1280, 720, 1], phone: [390, 844, 3], big: [1920, 1080, 1] };
 const SPOTS = { palms: [15, 39], forest: [36, 5], square: [50, 21], sea: [40, 65], beach: [40, 53], park: [40, 34] };
 const SPOT_NAMES = {
@@ -120,14 +122,14 @@ const SEASON = { winter: { day: 0, weather: 'snow' }, summer: { day: 18, weather
         const [tx, ty] = SPOTS[spot];
         await cdp.send('Emulation.setCPUThrottlingRate', { rate: 1 });
         await page.evaluate(
-          ([s, tx, ty]) => {
+          ([s, tx, ty, minutes]) => {
             const st = window.__dev.G.state;
             st.day = s.day;
             st.weather = s.weather;
-            st.minutes = 12 * 60;
+            st.minutes = minutes;
             window.__dev.World.debugTeleport(tx, ty);
           },
-          [SEASON[sea], tx, ty],
+          [SEASON[sea], tx, ty, MINUTES],
         );
         await walk(1000); // прогрев: кэши, шрифты
         // 1) число команд (без замедления: счётчик сам тормозит)

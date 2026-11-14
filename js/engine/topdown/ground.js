@@ -223,6 +223,77 @@ function paintChunk(c, sc, env, cx, cy) {
   sc.call('paintGround', c, env, x0, y0, x0 + CH - 1, y0 + CH - 1);
 }
 
+/**
+ * Земля всей карты одним рисунком — для мини-карты: те же слои с плавными краями, но без мелочей.
+ * ctx — в координатах мира (масштаб задаёт вызывающий: ctx.scale(k / T, k / T)).
+ */
+export function paintGroundMap(ctx, sc, env) {
+  const m = sc.map,
+    kinds = m.kinds,
+    w = m.w,
+    h = m.h;
+  const levels = [];
+  for (let y = 0; y < h; y++)
+    for (let x = 0; x < w; x++) {
+      const k = kinds[y][x];
+      if (k.z !== undefined && !levels.some((l) => l.z === k.z)) levels.push({ z: k.z, kind: k });
+    }
+  levels.sort((a, b) => a.z - b.z);
+  const zAt = (x, y) => {
+    const z = kinds[y < 0 ? 0 : y >= h ? h - 1 : y][x < 0 ? 0 : x >= w ? w - 1 : x].z;
+    return z === undefined ? Infinity : z;
+  };
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(0, 0, w * T, h * T);
+  ctx.clip();
+  ctx.lineJoin = 'round';
+  levels.forEach((lv, li) => {
+    const k = lv.kind,
+      e = k.edge || {};
+    ctx.fillStyle = typeof k.fill === 'function' ? k.fill(env, ctx) : k.fill;
+    if (li === 0) {
+      ctx.fillRect(0, 0, w * T, h * T);
+      return;
+    }
+    const path = regionPath(
+      (x, y) => zAt(x, y) >= lv.z,
+      -1,
+      -1,
+      w + 1,
+      h + 1,
+      e.r === undefined ? T / 2 : e.r,
+      e.wob || 0,
+      li,
+    );
+    // на карте линии края делаем заметнее: обводки в 1,6 раза толще
+    for (const [col, lw] of e.out || []) {
+      ctx.strokeStyle = typeof col === 'function' ? col(env) : col;
+      ctx.lineWidth = lw * 1.6;
+      ctx.stroke(path);
+    }
+    ctx.fill(path);
+    ctx.save();
+    ctx.clip(path);
+    for (const [col, lw] of e.in || []) {
+      ctx.strokeStyle = typeof col === 'function' ? col(env) : col;
+      ctx.lineWidth = lw * 1.6;
+      ctx.stroke(path);
+    }
+    ctx.restore();
+  });
+  // виды «по-старому» — цветом для карты
+  for (let y = 0; y < h; y++)
+    for (let x = 0; x < w; x++) {
+      const k = kinds[y][x];
+      if (k.z !== undefined) continue;
+      const c = k.map;
+      ctx.fillStyle = (typeof c === 'function' ? c(env) : c) || '#000';
+      ctx.fillRect(x * T, y * T, T + 1, T + 1);
+    }
+  ctx.restore();
+}
+
 function buildChunk(sc, env, cx, cy, key, k) {
   const t0 = performance.now();
   const size = Math.round(CH * T * k);
