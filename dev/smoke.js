@@ -354,6 +354,10 @@ async function extra({ page, step, ev, wait, closeAll, hold }) {
     const a = await ev(() => window.__dev.World.debugSprites());
     if (a.count < 50) throw new Error('в кэше подозрительно мало спрайтов: ' + a.count);
     if (a.clipped.length) throw new Error('спрайты не поместились в рамку: ' + a.clipped.join(', '));
+    // земля — кэш кусками: в памяти только куски вокруг экрана, старые сезоны и места вытеснены
+    const g = await ev(() => window.__dev.World.debugGround());
+    if (!(g.count > 0) || g.pixels > 12e6 || g.count > 90)
+      throw new Error('кэш земли: ' + JSON.stringify(g));
     await page.setViewportSize({ width: 600, height: 900 });
     await wait(400);
     await hold('ArrowLeft', 300);

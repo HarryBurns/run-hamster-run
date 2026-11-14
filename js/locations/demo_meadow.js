@@ -6,7 +6,7 @@
 // кусты, цветы), свой вид клетки (клевер) и свой предмет со спрайтом (валун), житель, особое место
 // с действием из реестра, находка, зона для предметов заданий, точка входа и выход обратно в город.
 import { ell, poly } from '../core/draw.js';
-import { T, OUT, put, hash, defineTiles, defineObjects, createTopDownScene } from '../engine/topdown/index.js';
+import { OUT, put, defineTiles, defineObjects, createTopDownScene } from '../engine/topdown/index.js';
 import './common/index.js';
 
 // свой вид клетки: клевер — трава потемнее, с листиками (зимой под снегом, как и трава)
@@ -14,14 +14,15 @@ defineTiles({
   clover: {
     map: (env) => (env.season === 'winter' ? '#eaf4fb' : '#5fbf5a'),
     step: 'step',
-    draw(ctx, x, y, tx, ty, env) {
-      const winter = env.season === 'winter';
-      ctx.fillStyle = winter ? ((tx + ty) % 2 ? '#f6fbff' : '#eaf4fb') : (tx + ty) % 2 ? '#6ccb62' : '#62c258';
-      ctx.fillRect(x, y, T + 1, T + 1);
-      if (winter) return;
+    z: 4.5, // слой: поверх травы (4), под тропинкой (5) — см. ground.js
+    fill: (env) => (env.season === 'winter' ? '#eaf4fb' : '#67c85e'),
+    edge: { wob: 6, in: [[(env) => (env.season === 'winter' ? '#d5e6f3' : '#4fae4a'), 6]] },
+    // мелочи клетки: листики клевера (rnd(i) — постоянные «случайные» числа клетки)
+    deco(ctx, x, y, tx, ty, env, rnd) {
+      if (env.season === 'winter') return;
       for (let i = 0; i < 3; i++) {
-        const cx = x + 8 + hash(tx + i, ty) * 32,
-          cy = y + 8 + hash(tx, ty + i * 7) * 32;
+        const cx = x + 8 + rnd(i) * 32,
+          cy = y + 8 + rnd(i + 7) * 32;
         for (const [dx, dy] of [
           [-3, 0],
           [3, 0],

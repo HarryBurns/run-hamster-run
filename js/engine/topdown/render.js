@@ -14,6 +14,7 @@ import { drawHamster, blinkAt } from '../../art/hamster.js';
 import { NPC_BY_ID, TASK_BY_ID } from '../../data/index.js';
 import { T, OUT, PS, SP, TILES, OBJECTS, BUILDING_KINDS, tileOf, label } from './kinds.js';
 import { drawResident } from './actors.js';
+import { drawGround, buildShore, CH } from './ground.js';
 
 // ---------- погода ----------
 export function initWeather(sc) {
@@ -58,6 +59,62 @@ function drawWeather(ctx, sc, w, h) {
         G.time * 2 + q.ph,
       );
   }
+}
+
+// ---------- прибой ----------
+/**
+ * Линия прибоя вдоль берега моря (клетки с surf: true): пена у кромки «дышит», а волна раз за разом набегает
+ * из глубины и тает. Точки берега считаются один раз на карту (ground.js, buildShore); в кадре — два пути.
+ */
+function drawSurf(ctx, sc, env, x0, y0, x1, y1) {
+  const m = sc.map;
+  if (m.shore === undefined) {
+    const any = m.kinds.some((row) => row.some((k) => k.surf));
+    m.shore = any
+      ? buildShore(
+          m,
+          (k) => !k.surf && !k.bridge,
+          (k) => !!k.surf,
+        )
+      : null;
+  }
+  if (!m.shore) return;
+  const t = env.t,
+    ice = env.season === 'winter';
+  const run = (off, amp, speed, wave) => {
+    ctx.beginPath();
+    for (let cy = Math.floor(y0 / CH); cy <= Math.floor(y1 / CH); cy++)
+      for (let cx = Math.floor(x0 / CH); cx <= Math.floor(x1 / CH); cx++) {
+        const pieces = m.shore.get(cx + ',' + cy);
+        if (!pieces) continue;
+        for (const p of pieces) {
+          let px = 0,
+            py = 0;
+          for (let i = 0; i < p.length; i += 5) {
+            const d = off + amp * Math.sin(t * speed + p[i + 4] * wave),
+              x = p[i] + p[i + 2] * d,
+              y = p[i + 1] + p[i + 3] * d;
+            if (i === 0) ctx.moveTo(x, y);
+            else ctx.quadraticCurveTo(px, py, (px + x) / 2, (py + y) / 2);
+            px = x;
+            py = y;
+          }
+          ctx.lineTo(px, py);
+        }
+      }
+    ctx.stroke();
+  };
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  // пена у самой кромки
+  ctx.strokeStyle = ice ? 'rgba(255,255,255,.55)' : 'rgba(255,255,255,.8)';
+  ctx.lineWidth = 3.5;
+  run(5, 3.2, 1.3, 0.021);
+  // набегающая волна: издалека к берегу, у берега тает
+  const ph = (t * 0.22) % 1;
+  ctx.strokeStyle = `rgba(255,255,255,${(Math.sin(ph * Math.PI) * (ice ? 0.3 : 0.5)).toFixed(3)})`;
+  ctx.lineWidth = 2.6;
+  run(34 - ph * 24, 2.5, 0.9, 0.034);
 }
 
 // ---------- герой ----------
@@ -144,11 +201,9 @@ export function drawFrame(ctx, sc) {
     x1 = Math.min(m.w - 1, tileOf((ox + cw) / k));
   const y0 = Math.max(0, tileOf(oy / k)),
     y1 = Math.min(m.h - 1, tileOf((oy + chh) / k));
-  for (let ty = y0; ty <= y1; ty++) {
-    const row = m.kinds[ty];
-    for (let tx = x0; tx <= x1; tx++) row[tx].draw(ctx, tx * T, ty * T, tx, ty, env);
-  }
-  sc.call('ground', ctx, sc, env); // бортики, разметка — то, что лежит прямо на земле
+  drawGround(ctx, sc, env, k, ox, oy, cw, chh); // земля: куски из кэша и «живое» поверх (вода, грядки)
+  drawSurf(ctx, sc, env, x0, y0, x1, y1);
+  sc.call('ground', ctx, sc, env); // разметка — то, что лежит прямо на земле и меняется
 
   // всё, что стоит на земле, — по порядку «дальше → ближе»
   const list = [];

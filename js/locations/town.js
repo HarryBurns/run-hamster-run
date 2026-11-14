@@ -5,7 +5,7 @@
 // у их дверей, особые места (почтовый ящик, грядки, пруд, пирс), жители и их места, зоны для предметов
 // заданий, точки входа и выхода — и свои виды клеток и предметов (грядка, почтовый ящик, лунка, табличка).
 import { clamp, seeded } from '../core/util.js';
-import { ell, fillRR, line, poly, rr, emoji } from '../core/draw.js';
+import { ell, fillRR, line, poly, emoji } from '../core/draw.js';
 import { NPCS, ING_BY_ID, SEED_BY_ID, TASK_BY_ID } from '../data/index.js';
 import { G, cal } from '../core/state.js';
 import { T, OUT, SP, put, defineTiles, defineObjects } from '../engine/topdown/kinds.js';
@@ -200,44 +200,68 @@ const PARK = { x0: 32, y0: 29, x1: 49, y1: 46, pond: [40.5, 38.5, 4.1, 2.9], rin
 
 // ---------- свои виды клеток и предметов ----------
 defineTiles({
-  // грядка: что на ней растёт, записано в сохранении (state.garden)
-  b: { map: '#8d5a3a', block: true, draw: drawBed },
+  // грядка: что на ней растёт, записано в сохранении (state.garden); росток рисуется каждый кадр (live)
+  b: {
+    map: '#8d5a3a',
+    block: true,
+    z: 12,
+    fill: (env) => (env.season === 'winter' ? '#9a735a' : '#8d5a3a'),
+    edge: {
+      r: 9,
+      out: [
+        ['rgba(60,40,20,.25)', 9],
+        [OUT, 5],
+      ],
+      in: [['rgba(255,220,170,.22)', 5]],
+    },
+    deco: bedDeco,
+    live: bedLive,
+  },
   // клетки под воротами выездов: тропа и дорога, по которым можно пройти, только когда выезд открыт
   gateF: { like: 'y', gate: true, walk: () => gateOpen('forest') },
   gateD: { like: 'r', gate: true, walk: () => gateOpen('desert') },
 });
-function drawBed(ctx, x, y, tx, ty, env) {
-  const sea = env.season;
-  ctx.fillStyle = sea === 'winter' ? '#f6fbff' : '#a8e67a';
-  ctx.fillRect(x, y, T + 1, T + 1);
-  fillRR(ctx, x + 3, y + 5, T - 6, T - 9, 8, '#8d5a3a', OUT, 2);
-  ctx.fillStyle = 'rgba(0,0,0,.18)';
-  ctx.fillRect(x + 8, y + 17, T - 16, 3);
-  ctx.fillRect(x + 8, y + 29, T - 16, 3);
-  const i = bedIndex(tx, ty),
-    bed = G.state.garden[i];
-  if (bed && bed.seed) {
-    const sd = SEED_BY_ID[bed.seed],
-      ripe = sd && bed.age >= sd.days,
-      k = sd ? Math.min(1, bed.age / sd.days) : 0;
-    if (ripe) {
-      emoji(ctx, ING_BY_ID[sd.crop].e, x + T / 2, y + T / 2 - 4 + Math.sin(G.time * 3 + i) * 2, 28);
-    } else {
-      const hgt = 8 + k * 14;
-      line(ctx, x + T / 2, y + 30, x + T / 2, y + 30 - hgt, '#2f9e44', 3);
-      ell(ctx, x + T / 2 - 6, y + 30 - hgt, 6, 3.5, '#51cf66', '#2f9e44', 1, -0.5);
-      ell(ctx, x + T / 2 + 6, y + 30 - hgt, 6, 3.5, '#51cf66', '#2f9e44', 1, 0.5);
-    }
-  }
-  if (sea === 'winter') {
+function bedDeco(ctx, x, y, tx, ty, env) {
+  // борозды и перегородка между соседними грядками
+  ctx.fillStyle = 'rgba(0,0,0,.16)';
+  ctx.fillRect(x + 7, y + 15, T - 14, 3);
+  ctx.fillRect(x + 7, y + 28, T - 14, 3);
+  ctx.fillStyle = 'rgba(255,225,180,.16)';
+  ctx.fillRect(x + 7, y + 18, T - 14, 1.6);
+  ctx.fillRect(x + 7, y + 31, T - 14, 1.6);
+  ctx.fillStyle = 'rgba(60,35,15,.5)';
+  ctx.fillRect(x - 1, y + 6, 2, T - 12);
+  if (env.season === 'winter') {
+    // парничок: прозрачный колпак
     ctx.beginPath();
-    ctx.ellipse(x + T / 2, y + T - 6, T / 2 - 4, T - 14, 0, Math.PI, 0);
+    ctx.ellipse(x + T / 2, y + T - 6, T / 2 - 5, T - 16, 0, Math.PI, 0);
     ctx.closePath();
     ctx.fillStyle = 'rgba(210,240,255,.4)';
     ctx.fill();
     ctx.strokeStyle = 'rgba(255,255,255,.9)';
     ctx.lineWidth = 2;
     ctx.stroke();
+  }
+}
+function bedLive(ctx, cells, n) {
+  for (let q = 0; q < n; q += 2) {
+    const tx = cells[q],
+      ty = cells[q + 1],
+      x = tx * T,
+      y = ty * T,
+      i = bedIndex(tx, ty),
+      bed = G.state.garden[i];
+    if (!bed || !bed.seed) continue;
+    const sd = SEED_BY_ID[bed.seed],
+      ripe = sd && bed.age >= sd.days,
+      k = sd ? Math.min(1, bed.age / sd.days) : 0;
+    if (ripe) emoji(ctx, ING_BY_ID[sd.crop].e, x + T / 2, y + T / 2 - 4 + Math.sin(G.time * 3 + i) * 2, 28);
+    else {
+      const hgt = 8 + k * 14;
+      line(ctx, x + T / 2, y + 30, x + T / 2, y + 30 - hgt, '#2f9e44', 3);
+      ell(ctx, x + T / 2 - 6, y + 30 - hgt, 6, 3.5, '#51cf66', '#2f9e44', 1, -0.5);
+      ell(ctx, x + T / 2 + 6, y + 30 - hgt, 6, 3.5, '#51cf66', '#2f9e44', 1, 0.5);
+    }
   }
 }
 defineObjects({
@@ -937,23 +961,21 @@ const town = createTopDownScene({
       sc.p.y = st[1] * T;
     }
   },
-  /** Бортики бассейнов и дорожки для плавания. */
-  ground(ctx) {
-    for (const [px, py, pw, ph] of POOLS) {
-      rr(ctx, px * T - 3, py * T - 3, pw * T + 6, ph * T + 6, 10);
-      ctx.strokeStyle = '#fff';
-      ctx.lineWidth = 6;
-      ctx.stroke();
-      rr(ctx, px * T - 6, py * T - 6, pw * T + 12, ph * T + 12, 12);
-      ctx.strokeStyle = OUT;
-      ctx.lineWidth = 2;
-      ctx.stroke();
-    }
+  /** Дорожки для плавания в городском бассейне — неподвижный рисунок поверх земли (попадает в её кэш). */
+  paintGround(ctx, env, x0, y0, x1, y1) {
     const [lx, ly, lw, lh] = POOLS[1];
+    if (x1 < lx || x0 >= lx + lw || y1 < ly || y0 >= ly + lh) return;
     for (let i = 1; i < lh; i++) {
-      ctx.setLineDash([10, 8]);
-      line(ctx, lx * T + 6, (ly + i) * T, (lx + lw) * T - 6, (ly + i) * T, 'rgba(255,255,255,.85)', 3);
-      ctx.setLineDash([]);
+      const y = (ly + i) * T;
+      for (let x = lx * T + 10, n = 0; x < (lx + lw) * T - 10; x += 14, n++) {
+        ctx.fillStyle = n % 2 ? '#fa5252' : '#ffffff';
+        ctx.beginPath();
+        ctx.ellipse(x, y, 4.2, 3, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(74,55,40,.5)';
+        ctx.lineWidth = 0.8;
+        ctx.stroke();
+      }
     }
   },
   /** На мини-карте: забор двора. */
