@@ -8,7 +8,7 @@ import { el } from '../core/util.js';
 import { BEAUTY, vendorLook } from '../data/index.js';
 import { hamsterStage } from '../ui/icons.js';
 import { openPanel } from '../ui/panel.js';
-import { price, buy } from './purchase.js';
+import { price, buy, lacking, lackText } from './purchase.js';
 
 const S = () => G.state;
 
@@ -35,7 +35,13 @@ function openSalon() {
       const main = el('div', 'main');
       const b = S().look.beauty;
       for (const [key, cat] of Object.entries(BEAUTY)) {
-        main.appendChild(el('h4', '', `${cat.icon} ${cat.name} <span class="muted">— ${price(cat.price)}</span>`));
+        main.appendChild(
+          el(
+            'h4',
+            '',
+            `${cat.icon} ${cat.name} <span class="muted">— ${price(cat.price)}${lacking(cat.price) ? ` · ${lackText(cat.price)}` : ''}</span>`,
+          ),
+        );
         const row = el('div', 'opt-row');
         for (const o of cat.options) {
           const cur =

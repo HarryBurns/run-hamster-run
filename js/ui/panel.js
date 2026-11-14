@@ -5,6 +5,7 @@ import { drawPortrait } from '../art/hamster.js';
 import { sfx } from '../core/audio.js';
 import { G } from '../core/state.js';
 import { openLayer, TAP_GUARD } from './modals.js';
+import { moneyAnchor } from './coins.js';
 
 /**
  * openPanel({ title, icon, cls, money, tabs:[{id,name}], tab, render(body, tabId, panel), foot:[{text, cls, fn}], onClose })
@@ -21,10 +22,12 @@ export function openPanel(o) {
     head.appendChild(canvas);
   } else if (o.icon) head.appendChild(el('span', '', o.icon));
   head.appendChild(el('span', 'title', o.title || ''));
-  let moneyEl = null;
+  let moneyEl = null,
+    dropAnchor = null;
   if (o.money) {
     moneyEl = el('span', 'money');
     head.appendChild(moneyEl);
+    dropAnchor = moneyAnchor(moneyEl); // «+350» и «−120» всплывают у числа монет этого окна (ui/coins.js)
   }
   const x = el('button', 'xbtn', '✕');
   head.appendChild(x);
@@ -53,6 +56,7 @@ export function openPanel(o) {
       if (api.closed) return;
       api.closed = true;
       ov.remove();
+      if (dropAnchor) dropAnchor();
       closeLayer();
       if (o.onClose) o.onClose();
     },
