@@ -26,13 +26,14 @@
 //                 хомячок наступил на клетку area → go(to, { at: entry }). off: true — выход закрыт
 //                 (открыть: sc.exit(id).off = false). Вместо to можно act — действие из реестра.
 //   pickups       НАХОДКИ: [{ id, at: [x, y], icon, give: [сумка, id, сколько], text, once, act }] — лежат на
-//                 земле, подбираются на ходу; снова появляются утром (once: true — только один раз за игру)
+//                 земле, подбираются на ходу; снова появляются утром (once: true — только один раз за игру).
+//                 Каждый день в новых местах — sc.setPickups(список) из крюка enter (места даст randomSpots)
 //   zones         где разбрасывать предметы заданий: { имя: { x: [x0, x1], y: [y0, y1], tiles: [виды],
 //                 avoid: [[x0, y0, x1, y1]], reach: { from: [x, y], tiles } } } — см. randomSpots();
 //                 reach — предмет должен быть достижим из клетки from (tiles — проверять только на этих видах)
 //   water         { shoreY, foamY } — подсказки рисункам воды;  bg — цвет за краем карты
 //   sky: false    под крышей или под землёй: без погоды и ночного затемнения;  dark — своя темнота 0..1
-//                 (число или функция)
+//                 (число или функция);  season — всегда рисовать этим сезоном ('winter' — снежная вершина)
 //   sound(sc)     что слышно: { day, sea, rain, birds, crickets }
 //   parts         ЧАСТИ локации: объекты с теми же крюками, что и у самого описания (море города — sea.js)
 //
@@ -245,6 +246,17 @@ export function createTopDownScene(desc) {
     },
     /** Лежит ли предмет задания в этой локации (без пометки loc — в главной). */
     itemHere: (it) => (it.loc ? it.loc === sc.name : !!desc.home),
+    /** Заменить находки локации (тот же вид записей, что и pickups в описании). */
+    setPickups(list) {
+      sc.pickups = (list || []).map((pk) => ({
+        ...pk,
+        key: `${desc.id}:${pk.id}`,
+        tx: pk.at[0],
+        ty: pk.at[1],
+        x: (pk.at[0] + 0.5) * T,
+        y: (pk.at[1] + 0.5) * T,
+      }));
+    },
     /** Лежит ли находка на месте (не подобрана сегодня / вообще). */
     pickupThere(pk) {
       const s = G.state;
@@ -606,14 +618,7 @@ export function createTopDownScene(desc) {
     map = createMap(desc);
     sc.env.map = map;
     sc.cam.setBounds(0, 0, map.w * T, map.h * T);
-    sc.pickups = (desc.pickups || []).map((pk) => ({
-      ...pk,
-      key: `${desc.id}:${pk.id}`,
-      tx: pk.at[0],
-      ty: pk.at[1],
-      x: (pk.at[0] + 0.5) * T,
-      y: (pk.at[1] + 0.5) * T,
-    }));
+    sc.setPickups(desc.pickups);
     sc.built = true;
     const st = entryPx(startName);
     if (!st) throw new Error(`Локация «${desc.id}»: нет точки входа (entries, start)`);

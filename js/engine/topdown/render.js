@@ -125,7 +125,7 @@ export function drawFrame(ctx, sc) {
     t = G.time,
     z = cam.zoom,
     k = cam.k,
-    season = cal().season,
+    season = desc.season || cal().season,
     dark = sc.darkness();
   ctx.fillStyle = desc.bg || '#3fb0ea';
   ctx.fillRect(0, 0, w, h);
@@ -283,7 +283,7 @@ export function drawMiniMapBase(ctx, sc, k) {
   const m = sc.map,
     env = sc.env;
   env.t = G.time;
-  env.season = cal().season;
+  env.season = sc.desc.season || cal().season;
   env.dark = sc.darkness();
   for (let y = 0; y < m.h; y++)
     for (let x = 0; x < m.w; x++) {
