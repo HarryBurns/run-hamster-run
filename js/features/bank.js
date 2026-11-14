@@ -3,7 +3,7 @@
 import { award, setFlag } from '../core/actions.js';
 import { sfx } from '../core/audio.js';
 import { on } from '../core/events.js';
-import { register } from '../core/registry.js';
+import { register, run } from '../core/registry.js';
 import { G } from '../core/state.js';
 import { el, esc, fmtMoney } from '../core/util.js';
 import { INCOME_SOURCES, MONEY_STICKERS, MIGRATED_MONEY, PAID_SHIFTS, vendorLook } from '../data/index.js';
@@ -38,6 +38,25 @@ export function openBank() {
     title: 'Хомяк-Банк',
     portrait: vendorLook('bank'),
     cls: '',
+    // у риелтора пока нет своей конторы в городе: окно «Недвижимость» открывается отсюда (и из меню)
+    foot: [
+      {
+        text: '🏘️ Недвижимость',
+        cls: 'blue',
+        fn: (panel) => {
+          panel.close();
+          run('realtor');
+        },
+      },
+      {
+        text: '🏪 Мои заведения',
+        cls: 'yellow',
+        fn: (panel) => {
+          panel.close();
+          run('my-biz');
+        },
+      },
+    ],
     render(body) {
       const s = S(),
         L = s.ledger;
@@ -60,9 +79,10 @@ export function openBank() {
           'div',
           'bank-tips',
           `<b>Банкир Монеткин советует, как заработать:</b>
-          <ul><li>💼 <b>Работа.</b> Школа, больница, ресторан, Дом моды и заплыв в бассейне. Чем больше звёзд, тем больше монет. В каждом месте платят за ${PAID_SHIFTS} смены в день.</li>
+          <ul><li>💼 <b>Работа.</b> Школа, больница, ресторан, кафе, Дом моды и заплыв в бассейне. Чем больше звёзд, тем больше монет. В каждом месте платят за ${PAID_SHIFTS} смены в день.</li>
           <li>✉️ <b>Задания</b> из почтового ящика — за каждое дают монеты.</li>
-          <li>🧺 <b>Рынок.</b> Продавай урожай с грядок, рыбу, кокосы, жемчуг и то, что приготовила сама.</li></ul>`,
+          <li>🧺 <b>Рынок.</b> Продавай урожай с грядок, рыбу, кокосы, жемчуг и то, что приготовила сама.</li>
+          <li>🏪 <b>Своё заведение.</b> Кафе, ресторан, салон или бутик можно купить у хозяина — и каждый день получать выручку. А накопишь на второй дом — загляни к риелтору (кнопка «Недвижимость» внизу).</li></ul>`,
         ),
       );
     },

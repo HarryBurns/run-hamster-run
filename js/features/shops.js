@@ -20,6 +20,7 @@ import { furnIcon } from '../ui/icons.js';
 import { openPanel } from '../ui/panel.js';
 import { toast } from '../ui/toast.js';
 import { buy, priceTag, buyBtn } from './purchase.js';
+import { bizByVendor, bizFoot, bizSign } from './business.js';
 
 const S = () => G.state;
 const WHEN = { winter: 'зимой', spring: 'весной', summer: 'летом', autumn: 'осенью' };
@@ -160,11 +161,16 @@ function openFoodMall() {
 }
 
 function openCafe(kind, title) {
+  const biz = bizByVendor(kind); // кафе и ресторан можно купить: внизу окна — «Купить заведение» или «Моё заведение»
   openPanel({
     title,
     portrait: vendorLook(kind),
     money: true,
+    // в ресторане работа — в диалоге у двери («Помочь на кухне»), в кафе — кнопка здесь
+    foot: biz ? () => bizFoot(biz, { work: kind !== 'rest' }) : null,
     render(body, tab, panel) {
+      const sign = bizSign(biz);
+      if (sign) body.appendChild(sign);
       const grid = el('div', 'grid');
       for (const d of DISHES.filter((q) => q.cafe === kind)) {
         const card = el('div', 'card');
@@ -205,4 +211,8 @@ register('home-mall', () => openHomeMall(), 'ТЦ «Уютный дом»: ме�
 
 register('food-mall', () => openFoodMall(), 'ТЦ «Вкусный»: продукты');
 
-register('cafe', (p, ctx) => openCafe(p.kind, p.title || ctx.building.name), 'кафе: { kind, title? }');
+register(
+  'cafe',
+  (p, ctx) => openCafe(p.kind, p.title || (ctx.building && ctx.building.name) || 'Кафе'),
+  'кафе: { kind, title? }',
+);

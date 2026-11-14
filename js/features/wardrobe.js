@@ -10,6 +10,7 @@ import { CLOTHES, CLOTHES_BY_ID, SLOTS, vendorLook, resolveLook } from '../data/
 import { clothesIcon, hamsterStage } from '../ui/icons.js';
 import { openPanel } from '../ui/panel.js';
 import { buy, priceTag, buyBtn } from './purchase.js';
+import { bizByVendor, bizFoot, bizSign } from './business.js';
 
 const S = () => G.state;
 
@@ -46,6 +47,8 @@ export function clothesPanel(mode, opts = {}) {
       if (opts.onClose) opts.onClose();
     },
     render(body, tab, panel) {
+      const sign = opts.sign && opts.sign();
+      if (sign) body.appendChild(sign);
       const split = el('div', 'split');
       const side = el('div', 'side');
       side.appendChild(st.canvas);
@@ -127,12 +130,16 @@ export function openWardrobe() {
 
 register(
   'clothes-shop',
-  (p, ctx) =>
-    clothesPanel('shop', {
-      title: p.title || ctx.building.name,
+  (p, ctx) => {
+    const biz = bizByVendor(p.vendor); // бутик можно купить: внизу окна — «Купить заведение» или «Моё заведение»
+    return clothesPanel('shop', {
+      title: p.title || (ctx.building && ctx.building.name) || 'Магазин',
       portrait: vendorLook(p.vendor),
       shops: p.shops,
-    }),
+      foot: biz ? () => bizFoot(biz) : undefined,
+      sign: biz ? () => bizSign(biz) : undefined,
+    });
+  },
   'магазин одежды: { vendor, shops: [...], title? }',
 );
 
