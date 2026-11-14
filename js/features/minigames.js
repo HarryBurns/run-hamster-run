@@ -31,26 +31,45 @@ const TOOLS = {
 
 // ---------- работа: зарплата по звёздам, PAID_SHIFTS оплачиваемых смен в день на каждом месте ----------
 const coins = (n) => `${fmtMoney(n)} ${plural(n, 'монета', 'монеты', 'монет')}`;
-const shiftsWord = (n) => plural(n, 'смену', 'смены', 'смен');
+// Слова: за работу платят зарплату за смены, в бассейне дают приз за заплывы.
+const WORDS = {
+  job: {
+    word: 'Зарплата',
+    unit: (n) => plural(n, 'смену', 'смены', 'смен'),
+    more: 'Сегодня заплатят ещё за',
+    done: 'Сегодня тебе здесь уже заплатили за',
+    last: 'На сегодня это была последняя оплачиваемая смена здесь.',
+    again: 'Завтра заплатят снова!',
+  },
+  prize: {
+    word: 'Приз',
+    unit: (n) => plural(n, 'заплыв', 'заплыва', 'заплывов'),
+    more: 'Сегодня приз дадут ещё за',
+    done: 'Сегодня тебе уже дали приз за',
+    last: 'На сегодня это был последний заплыв с призом.',
+    again: 'Завтра призы будут снова!',
+  },
+};
 
 /**
  * Что сегодня с работой в мини-игре id: null — это не работа (рыбалка); иначе
- * { pay: [за 1★, 2★, 3★], left: сколько оплачиваемых смен осталось сегодня, word: 'Зарплата' | 'Приз' }.
+ * { pay: [за 1★, 2★, 3★], left: сколько оплачиваемых смен осталось сегодня, w: слова (WORDS) }.
  */
 export function jobToday(id) {
   const job = JOBS[id];
   if (!job) return null;
   const done = (S().dayFlags.shifts || {})[id] || 0;
-  return { pay: job.pay, left: Math.max(0, PAID_SHIFTS - done), word: job.prize ? 'Приз' : 'Зарплата' };
+  return { pay: job.pay, left: Math.max(0, PAID_SHIFTS - done), w: job.prize ? WORDS.prize : WORDS.job };
 }
 
 /** Строчка для диалога перед игрой и заставки мини-игры: сколько заплатят и сколько оплачиваемых смен осталось. */
 export function jobNote(id) {
   const j = jobToday(id);
   if (!j) return '';
+  const w = j.w;
   if (!j.left)
-    return `<div class="pay-note off">💛 Сегодня тебе здесь уже заплатили за ${PAID_SHIFTS} ${shiftsWord(PAID_SHIFTS)}. Сыграть ещё можно — просто для удовольствия, без монет. Завтра заплатят снова!</div>`;
-  return `<div class="pay-note">🪙 <b>${j.word}:</b> ⭐ ${fmtMoney(j.pay[0])} · ⭐⭐ ${fmtMoney(j.pay[1])} · ⭐⭐⭐ ${fmtMoney(j.pay[2])}<br>Сегодня заплатят ещё за <b>${j.left}</b> ${shiftsWord(j.left)}.</div>`;
+    return `<div class="pay-note off">💛 ${w.done} ${PAID_SHIFTS} ${w.unit(PAID_SHIFTS)}. Сыграть ещё можно — просто для удовольствия, без монет. ${w.again}</div>`;
+  return `<div class="pay-note">🪙 <b>${w.word}:</b> ⭐ ${fmtMoney(j.pay[0])} · ⭐⭐ ${fmtMoney(j.pay[1])} · ⭐⭐⭐ ${fmtMoney(j.pay[2])}<br>${w.more} <b>${j.left}</b> ${w.unit(j.left)}.</div>`;
 }
 
 /** Рыбалка — не работа: за неё не платят, зато улов можно продать. */
@@ -61,13 +80,12 @@ const fishNote = () =>
 function payNote(id, stars) {
   const j = jobToday(id);
   if (!j) return '';
+  const w = j.w;
   if (!j.left)
-    return `<div class="pay-note off">💛 Эта игра была для удовольствия: за ${PAID_SHIFTS} ${shiftsWord(PAID_SHIFTS)} сегодня тебе уже заплатили. Завтра заплатят снова!</div>`;
+    return `<div class="pay-note off">💛 Эта игра была для удовольствия. ${w.done} ${PAID_SHIFTS} ${w.unit(PAID_SHIFTS)}. ${w.again}</div>`;
   const rest = j.left - 1;
-  return `<div class="pay-note"><span class="sum">🪙 ${j.word}: +${coins(j.pay[stars - 1])}</span><br>${
-    rest
-      ? `Сегодня здесь заплатят ещё за ${rest} ${shiftsWord(rest)}.`
-      : 'На сегодня это была последняя оплачиваемая смена здесь. Завтра заплатят снова!'
+  return `<div class="pay-note"><span class="sum">🪙 ${w.word}: +${coins(j.pay[stars - 1])}</span><br>${
+    rest ? `${w.more} ${rest} ${w.unit(rest)}.` : `${w.last} ${w.again}`
   }</div>`;
 }
 
@@ -79,7 +97,7 @@ function payJob(id, stars) {
   setDayFlag(id, PAID_SHIFTS - j.left + 1, 'shifts');
   earn(sum, 'work');
   sfx('coin');
-  toast(`🪙 ${j.word}: +${coins(sum)}`, 'good');
+  toast(`🪙 ${j.w.word}: +${coins(sum)}`, 'good');
   award('x_wage', { delay: 1500 });
   return sum;
 }

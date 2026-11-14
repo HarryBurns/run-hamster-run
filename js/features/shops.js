@@ -22,6 +22,7 @@ import { toast } from '../ui/toast.js';
 import { buy, priceTag, buyBtn } from './purchase.js';
 
 const S = () => G.state;
+const WHEN = { winter: 'зимой', spring: 'весной', summer: 'летом', autumn: 'осенью' };
 
 function ownedFurn(id) {
   const homes = [S().villa, ...Object.values(S().homes || {})];
@@ -148,8 +149,8 @@ function openFoodMall() {
         const card = el('div', 'card away');
         card.appendChild(el('div', 'e', ing.e));
         card.appendChild(el('div', 'nm', ing.name));
-        const when = ing.seasons.map((q) => SEASONS[q].icon + ' ' + SEASONS[q].name.toLowerCase()).join(', ');
-        card.appendChild(el('div', 'muted', `Не сезон. Привезут: ${when}. Сейчас есть на рынке.`));
+        const when = ing.seasons.map((q) => SEASONS[q].icon + ' ' + WHEN[q]).join(' и ');
+        card.appendChild(el('div', 'muted', `Не сезон: привезут ${when}. А сейчас есть на рынке.`));
         if (count('ing', ing.id)) card.appendChild(el('span', 'cnt', '×' + count('ing', ing.id)));
         grid.appendChild(card);
       }
