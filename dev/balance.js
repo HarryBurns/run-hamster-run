@@ -87,17 +87,65 @@ const { pathToFileURL } = require('url');
   const avgBed = beds.reduce((s, b) => s + b.perDay, 0) / beds.length;
   const fish = ING.fish.sell;
 
-  // «увлечённая игра»: 6 оплачиваемых смен на две звезды, задание дня; в начале ещё одна рыбалка и пяток кокосов
-  const startWork = 6 * avg2;
-  const startMarket = 3 * fish + 5 * ING.coconut.sell;
-  const start = startWork + taskAvg + startMarket;
-  // через неделю: те же смены, но уже получается лучше (половина на три звезды), 8 грядок, две рыбалки,
-  // улов и урожай частью приготовлены (блюдо дороже сырых продуктов), рынок упирается в кошелёк торговца
-  const weekWork = 3 * avg2 + 3 * (payAt(3) / jobs.length);
-  const weekMarketRaw = 8 * avgBed + 7 * fish + 8 * ING.coconut.sell;
-  const weekMarket = Math.min(MARKET.purse, weekMarketRaw * 1.25);
-  const week = weekWork + taskAvg + weekMarket;
-  const maxDay = PAID_SHIFTS * payAt(3) + Math.max(...taskAll) + MARKET.purse;
+  const avg3 = payAt(3) / jobs.length;
+  const coco = ING.coconut.sell;
+  const taskMax = Math.max(...taskAll);
+  // Три игрока. «В начале» — первые дни: грядки ещё пустые, мини-игры получаются на две звезды.
+  // «Через неделю» — грядки работают, есть рыбалка и готовка, часть смен уже на три звезды.
+  // Рынок в любом случае не даёт больше, чем лежит в кошельке торговца.
+  const PROFILES = [
+    {
+      id: 'calm',
+      name: 'спокойная игра (3 смены в день)',
+      start: { work: 3 * avg2, task: taskAvg, market: 4 * coco, how: '3 смены на 2★, задание, 4 кокоса' },
+      week: {
+        work: 2 * avg2 + avg3,
+        task: taskAvg,
+        market: 4 * avgBed + 3 * fish,
+        how: '3 смены (одна на 3★), задание, 4 грядки, рыбалка',
+      },
+    },
+    {
+      id: 'keen',
+      name: 'увлечённая игра (5 смен в день)',
+      start: {
+        work: 5 * avg2,
+        task: taskAvg,
+        market: 3 * fish + 5 * coco,
+        how: '5 смен на 2★, задание, рыбалка, 5 кокосов',
+      },
+      week: {
+        work: 3 * avg2 + 2 * avg3,
+        task: taskAvg,
+        market: (8 * avgBed + 7 * fish) * 1.15, // часть улова и урожая приготовлена: блюдо дороже сырых продуктов
+        how: '5 смен (две на 3★), задание, 8 грядок, 2 рыбалки, готовка',
+      },
+    },
+    {
+      id: 'max',
+      name: 'потолок (все 10 смен на 3★, весь кошелёк торговца)',
+      start: { work: PAID_SHIFTS * payAt(3), task: taskMax, market: MARKET.purse, how: 'всё, что можно' },
+      week: { work: PAID_SHIFTS * payAt(3), task: taskMax, market: MARKET.purse, how: 'всё, что можно' },
+    },
+  ];
+  const GOAL = 25000; // первое жильё — квартира в городе (docs/DESIGN.md, раздел 3)
+  const SPEND = 1 / 3; // какая доля заработка уходит на наряды, мебель, еду и салон
+  const total = (d) => d.work + d.task + Math.min(MARKET.purse, d.market);
+  /** За сколько дней накопится GOAL: первые два дня — «в начале», к седьмому доход дорастает до «через неделю». */
+  const daysTo = (p, spend) => {
+    let money = START_MONEY,
+      d = 0;
+    while (money < GOAL && d < 999) {
+      d++;
+      const t = Math.min(1, Math.max(0, (d - 2) / 5));
+      money += (total(p.start) + (total(p.week) - total(p.start)) * t) * (1 - spend);
+    }
+    return d;
+  };
+  for (const p of PROFILES) {
+    p.days = daysTo(p, SPEND);
+    p.daysNoSpend = daysTo(p, 0);
+  }
 
   // ---------- 4. сколько стоит ----------
   const C = D.CLOTHES_BY_ID,
@@ -169,29 +217,24 @@ const { pathToFileURL } = require('url');
   line('набор продуктов на блюдо (всё из ТЦ)', range(dishCosts));
   for (const [k, v] of Object.entries(outfits)) line('одеться: ' + k, fmt(v));
   for (const [k, v] of Object.entries(rooms)) line('обставить: ' + k, fmt(v));
-  console.log('\nИгровой день увлечённой игры');
-  line(
-    'в начале: 6 смен на 2★ + задание + рыбалка и кокосы',
-    `${fmt(startWork)} + ${fmt(taskAvg)} + ${fmt(startMarket)} = ${fmt(start)}`,
-  );
-  line(
-    'через неделю: смены получше + задание + рынок',
-    `${fmt(weekWork)} + ${fmt(taskAvg)} + ${fmt(weekMarket)} = ${fmt(week)}`,
-  );
-  line('потолок дня (все смены на 3★, лучшее задание, весь кошелёк)', fmt(maxDay));
-  line(
-    'квартира за 25 000: дней в начале / через неделю',
-    `${(25000 / start).toFixed(1)} / ${(25000 / week).toFixed(1)} (если ничего не тратить)`,
-  );
-  line(
-    '…если тратить треть заработка',
-    `${(25000 / (start * 0.67)).toFixed(1)} / ${(25000 / (week * 0.67)).toFixed(1)}`,
-  );
+  console.log('\nИгровой день: работа + задание + рынок');
+  const sumLine = (d) =>
+    `${fmt(d.work)} + ${fmt(d.task)} + ${fmt(Math.min(MARKET.purse, d.market))} = ${fmt(total(d))}   (${d.how})`;
+  for (const p of PROFILES) {
+    console.log('  ' + p.name);
+    line('    в начале', sumLine(p.start));
+    if (p.id !== 'max') line('    через неделю', sumLine(p.week));
+    line(
+      `    квартира за ${fmt(GOAL)}`,
+      `${p.days} дн., если тратить треть заработка; ${p.daysNoSpend} дн., если не тратить ничего`,
+    );
+  }
 
-  // первое жильё должно быть достижимо за 10–15 дней увлечённой игры, но не за пару дней
-  const days = 25000 / (((start + week) / 2) * 0.67);
-  if (days < 6 || days > 16) bad(`квартира за 25 000 достигается за ${days.toFixed(1)} дн. — вне задуманных 10–15 (±)`);
-  if (maxDay > 25000 / 2) bad('потолок дня слишком высок: квартира за два дня');
+  // первое жильё: примерно 10–15 игровых дней — между увлечённой и спокойной игрой; и не «за пару дней» даже на потолке
+  const by = Object.fromEntries(PROFILES.map((p) => [p.id, p]));
+  if (by.keen.days < 7 || by.keen.days > 15) bad(`увлечённая игра: квартира за ${by.keen.days} дн. — вне 7–15`);
+  if (by.calm.days < 10 || by.calm.days > 20) bad(`спокойная игра: квартира за ${by.calm.days} дн. — вне 10–20`);
+  if (by.max.daysNoSpend < 3) bad(`потолок слишком высок: квартира за ${by.max.daysNoSpend} дн.`);
 
   if (problems.length) {
     console.log('\nБАЛАНС НАРУШЕН:\n' + problems.map((p) => '  - ' + p).join('\n'));
