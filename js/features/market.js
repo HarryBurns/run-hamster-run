@@ -192,7 +192,7 @@ function renderBuy(body, panel) {
       if (kind === 'furn' && S().storage[def.id]) card.appendChild(el('span', 'cnt', '×' + S().storage[def.id]));
       card.appendChild(
         buyBtn('Купить', def.price, () => {
-          if (!buy(def.price, def.name)) return;
+          if (!buy(def.price, kind === 'clothes' ? def.name : null)) return;
           if (kind === 'clothes') {
             addClothes(def.id);
             wear(def.slot, def.id);
@@ -200,6 +200,7 @@ function renderBuy(body, panel) {
           } else {
             addItem('storage', def.id, 1);
             emit('buy', { cat: 'furniture', id: def.id });
+            toast(`${def.name} — в кладовке. Дома нажми 🔨, чтобы поставить!`, 'good');
           }
           panel.refresh();
         }),

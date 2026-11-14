@@ -945,6 +945,70 @@ async function economy({ page, step, ev, wait, closeAll }) {
     await wait(1400);
     await closeAll();
   });
+  await step('экономика: состояние меняют только действия', async () => {
+    await ev(async () => {
+      const d = window.__dev;
+      const mod = (await import('./js/minigames/teacher.js')).default;
+      window.__teacherStart = mod.start;
+      mod.start = (host) => {
+        const t = setTimeout(() => host.finish({ stars: 3, text: 'проверка' }), 60);
+        return { stop: () => clearTimeout(t) };
+      };
+      d.actions.nextDay();
+      d.F.newDayMail();
+      d.actions.addItem('ing', 'carrot', 3);
+      d.actions.addItem('dishes', 'fish_soup', 2);
+      d.actions.setMail('market');
+      d.actions.readMail();
+      window.__stopWatch = d.watchState();
+    });
+    // продажа (и задание «Базарный день» с наградой), покупка редкости, зарплата, банк, ночь
+    await ev(() => window.__dev.run('market'));
+    await wait(400);
+    await page.click('.overlay .card .btn.green');
+    await wait(250);
+    await page.click('.overlay .card .btn.yellow');
+    await wait(250);
+    await page.click('.overlay .tab:nth-child(2)');
+    await wait(300);
+    await page.click('.overlay .card .btn');
+    await wait(250);
+    await closeAll();
+    await page.waitForSelector('text=Задание выполнено!');
+    await page.click('.overlay .panel-foot .btn');
+    await wait(500);
+    await closeAll();
+    await ev(() => window.__dev.enterBuilding('school'));
+    await wait(450);
+    await page.click('.dialog .btn.green');
+    await wait(600);
+    await page.click('#mg >> text=Начать!');
+    await wait(450);
+    await page.click('#mg >> text=Ура!');
+    await wait(450);
+    await ev(() => window.__dev.enterBuilding('bank'));
+    await wait(400);
+    await closeAll();
+    await ev(() => {
+      window.__dev.actions.nextDay();
+      window.__dev.F.newDayMail();
+    });
+    await wait(1700);
+    await closeAll();
+    const r = await ev(async () => {
+      const bad = window.__stopWatch();
+      (await import('./js/minigames/teacher.js')).default.start = window.__teacherStart;
+      const s = window.__dev.G.state;
+      return {
+        bad,
+        done: s.stickers.includes('market'),
+        work: s.ledger.yesterday.in.work,
+        market: s.ledger.yesterday.in.market,
+      };
+    });
+    expect(!r.bad.length, `запись в состояние мимо действий (${r.bad.length})`, [...new Set(r.bad)].slice(0, 6));
+    expect(r.done && r.work === 500 && r.market > 0, 'задание «Базарный день» или учёт', r);
+  });
   await step('экономика: перенос сохранения v1 → v2, письмо банка один раз', async () => {
     const old = JSON.parse(SAVE_V1);
     old.stickers.push('x_rich'); // наклейка прежней игры остаётся у тех, у кого она была
