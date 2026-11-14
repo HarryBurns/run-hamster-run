@@ -105,5 +105,5 @@ export default createTopDownScene({
   zones: { glade: { x: [1, 18], y: [1, 12], tiles: ['g', 'clover'], reach: { from: [11, 11] } } },
   // вход — на тропинке у нижнего края; выход — сама нижняя кромка тропинки: назад в город
   entries: { gate: { at: [11, 11.5] } },
-  exits: [{ id: 'town', area: [10, 13, 11, 13], to: 'world', entry: 'demo' }],
+  exits: [{ id: 'town', area: [10, 13, 11, 13], to: 'world', entry: 'forest' }],
 });

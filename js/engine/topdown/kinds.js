@@ -15,6 +15,7 @@
 //   speed                          скорость героя на этой клетке (обычная — 225)
 //   step, stepEvery                звук шага (имя из core/audio.js или () => имя) и как часто (0,3 с)
 //   onEnter(sc)                    герой ступил на клетку этого вида с клетки другого вида
+//   like: 'вид'                    «как этот вид»: рисунок, звук и прочее берутся у него, свои поля — поверх
 //
 // ПРЕДМЕТ  defineObjects({ имя: { … } })
 //   art: { рисунок: [рамка, paint] }   неподвижные части для кэша спрайтов — см. put() ниже
@@ -56,8 +57,18 @@ function define(table, what, defs) {
     table[id] = { id, ...d };
   }
 }
-/** Добавить виды клеток: { имя: { draw, map, walk, wet, swim, speed, step, … } }. */
-export const defineTiles = (defs) => define(TILES, 'Вид клетки', defs);
+/**
+ * Добавить виды клеток: { имя: { draw, map, walk, wet, swim, speed, step, … } }.
+ * like: 'вид' — «выглядит и звучит как этот вид» (он уже должен быть определён): свои поля записываются поверх.
+ */
+export function defineTiles(defs) {
+  const out = {};
+  for (const [id, d] of Object.entries(defs)) {
+    if (d.like && !TILES[d.like]) throw new Error(`Вид клетки «${id}»: нет вида «${d.like}» (like)`);
+    out[id] = d.like ? { ...TILES[d.like], ...d } : d;
+  }
+  define(TILES, 'Вид клетки', out);
+}
 /** Добавить виды предметов: { имя: { art, draw, solid, slow, flat, map, tap, use } }. */
 export function defineObjects(defs) {
   for (const d of Object.values(defs)) if (d.art) defineArt(d.art);

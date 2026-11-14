@@ -164,6 +164,11 @@ defineBuildings({
   shop: { paint: (ctx, b, snow, lit) => paintShop(ctx, b, snow, lit, false) },
   mall: { paint: (ctx, b, snow, lit) => paintShop(ctx, b, snow, lit, true) },
   villa: { paint: paintVilla, icon: '🏡' },
+  market: { paint: (ctx, b, snow, lit) => paintShop(ctx, b, snow, lit, false) },
+  office: { paint: (ctx, b, snow, lit) => paintShop(ctx, b, snow, lit, false) },
+  bungalow: { paint: (ctx, b, snow, lit) => paintShop(ctx, b, snow, lit, false) },
+  apartment: { paint: (ctx, b, snow, lit) => paintShop(ctx, b, snow, lit, true) },
+  hotel: { paint: (ctx, b, snow, lit) => paintShop(ctx, b, snow, lit, true) },
   tower: {
     paint: paintTower,
     // башни высокие, у вывесок запас по бокам

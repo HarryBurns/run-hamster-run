@@ -4,7 +4,7 @@
 // Запуск:  python3 -m http.server 8765 &   затем   node dev/bench.js [http://localhost:8765] [ключи]
 //   --cpu=4                 замедление процессора (1 — без замедления)
 //   --sizes=desktop,phone   desktop — 1280×720 (dpr 1), phone — 390×844 (dpr 3), big — 1920×1080 (dpr 1)
-//   --spots=palms,forest,square,sea,beach
+//   --spots=palms,forest,square,sea,beach,park
 //   --seasons=winter,summer зима со снегом и лето без осадков
 //   --sec=4                 сколько секунд идёт один замер
 //   --json=файл             сохранить цифры (чтобы потом сравнить)
@@ -24,13 +24,14 @@ const opt = (name, def) => {
 const CPU = +opt('cpu', 4),
   SEC = +opt('sec', 4);
 const SIZES = { desktop: [1280, 720, 1], phone: [390, 844, 3], big: [1920, 1080, 1] };
-const SPOTS = { palms: [15, 28], forest: [30, 4], square: [43, 15], sea: [40, 50], beach: [40, 40] };
+const SPOTS = { palms: [15, 39], forest: [36, 5], square: [50, 21], sea: [40, 65], beach: [40, 53], park: [40, 34] };
 const SPOT_NAMES = {
-  palms: 'Пальмы (15,28)',
-  forest: 'Лес (30,4)',
-  square: 'Площадь (43,15)',
-  sea: 'Море (40,50)',
-  beach: 'Пляж (40,40)',
+  palms: 'Дворики (15,39)',
+  forest: 'Лес (36,5)',
+  square: 'Площадь (50,21)',
+  sea: 'Море (40,65)',
+  beach: 'Пляж (40,53)',
+  park: 'Парк (40,34)',
 };
 const sizes = opt('sizes', 'desktop,phone').split(','),
   spots = opt('spots', 'palms,forest,square,sea').split(',');

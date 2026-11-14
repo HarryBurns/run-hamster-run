@@ -8,6 +8,7 @@ export * from './shops.js';
 export * from './market.js';
 export * from './bank.js';
 export * from './places.js';
+export * from './soon.js';
 export * from './map.js';
 export * from './panorama.js';
 export * from './minigames.js';

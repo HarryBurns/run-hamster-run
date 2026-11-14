@@ -4,7 +4,7 @@
 //   s  песок                       p  плитка у бассейна        i  доски (пирс, мостик)
 //   I  снег и лёд (ледяной остров) h  мелководье: можно зайти  w  глубокая вода: можно плыть
 //   O  открытое море: пешком и вплавь нельзя                   o  бассейн
-//   d  пруд: летом вода (не зайти), зимой лёд — каток
+//   d  пруд: летом вода (не зайти), зимой лёд — каток          k  брусчатка площади
 //
 // Свою клетку локация добавляет у себя: defineTiles({ имя: { … } }).
 import { cal } from '../../core/state.js';
@@ -83,6 +83,17 @@ defineTiles({
       ctx.fillStyle = 'rgba(0,0,0,.05)';
       ctx.fillRect(x, y, T, 2);
       ctx.fillRect(x, y, 2, T);
+    },
+  },
+  k: {
+    map: '#e3d3c3',
+    draw(ctx, x, y, tx, ty, env) {
+      ctx.fillStyle =
+        env.season === 'winter' ? ((tx + ty) % 2 ? '#ece8e4' : '#e2ddd8') : (tx + ty) % 2 ? '#ecdccb' : '#e2cfbb';
+      ctx.fillRect(x, y, T + 1, T + 1);
+      ctx.fillStyle = 'rgba(0,0,0,.06)';
+      ctx.fillRect(x, y + T / 2, T, 1.5);
+      ctx.fillRect(x + T / 2, y, 1.5, T);
     },
   },
   y: {

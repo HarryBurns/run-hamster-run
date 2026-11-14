@@ -19,6 +19,27 @@ const SIZES = ONLY_EXTRA
       [390, 844, 'phone'],
     ];
 
+// Хомячок в городе стоит на свободной клетке, от неё можно дойти до двери виллы, кораблик — на воде
+// (после перепланировки города позиции из старых сохранений попадают «куда придётся» — движок их чинит).
+const townOk = () => {
+  const d = window.__dev,
+    W = d.World,
+    m = W.map,
+    T = 48,
+    p = W.p,
+    tx = Math.floor(p.x / T),
+    ty = Math.floor(p.y / T),
+    door = m.doorPx(m.bById.villa),
+    bt = d.G.state.boat || { x: 65.5 * T, y: 61.5 * T };
+  const sea = ['h', 'w', 'O'].includes(m.at(Math.floor(bt.x / T), Math.floor(bt.y / T)));
+  const free = W.pass()(tx, ty);
+  const way = p.ride
+    ? true
+    : (tx === Math.floor(door.x / T) && ty === Math.floor(door.y / T)) ||
+      !!m.path(m.foot, tx, ty, Math.floor(door.x / T), Math.floor(door.y / T));
+  return { ok: free && way && sea, free, way, sea, tx, ty };
+};
+
 // ---------- сохранения-образцы, живучесть цикла, очередь окон (один раз, на настольном размере) ----------
 async function extra({ page, step, ev, wait, closeAll, hold }) {
   // подложить сохранение и перезагрузить страницу (state = null — чтобы уходящая страница его не перезаписала)
@@ -69,6 +90,9 @@ async function extra({ page, step, ev, wait, closeAll, hold }) {
     if (r.name !== 'Пуговка' || r.clothes < 13 || r.scene !== 'world' || r.v !== r.ver)
       throw new Error('образец загрузился не так: ' + JSON.stringify(r));
     if (r.wheel !== undefined) throw new Error('колесо осталось «включённым» после загрузки');
+    // город с тех пор перепланировали: хомячок не в стене и не в кармане, кораблик на воде
+    const pos = await ev(townOk);
+    if (!pos.ok) throw new Error('позиция из старого сохранения в новом городе: ' + JSON.stringify(pos));
     for (const f of ['openWardrobe', 'openBackpack', 'openAlbum', 'openPhone', 'showLetter']) {
       await ev((f) => {
         window.__dev.F[f]();
@@ -298,18 +322,21 @@ async function extra({ page, step, ev, wait, closeAll, hold }) {
     for (const day of [0, 6, 18, 24])
       for (const minutes of [12 * 60, 21.5 * 60]) {
         for (const [tx, ty] of [
-          [30, 4],
-          [15, 28],
-          [43, 15],
-          [60, 13],
-          [14, 10],
-          [40, 40],
-          [51, 45],
-          [47, 56],
-          [33, 68],
-          [36, 89],
-          [12, 92],
-          [61, 87],
+          [36, 5],
+          [15, 39],
+          [50, 21],
+          [73, 14],
+          [17, 12],
+          [40, 36],
+          [70, 36],
+          [88, 48],
+          [40, 53],
+          [63, 60],
+          [62, 72],
+          [44, 83],
+          [48, 104],
+          [16, 107],
+          [81, 102],
         ]) {
           await ev(
             ([day, minutes, tx, ty]) => {
@@ -522,9 +549,9 @@ async function extra({ page, step, ev, wait, closeAll, hold }) {
     await closeAll();
     // город: ходьба, кораблик, ныряние
     await hold('ArrowDown', 400);
-    await ev(() => window.__dev.World.debugTeleport(51, 45));
+    await ev(() => window.__dev.World.debugTeleport(63, 60));
     await wait(300);
-    const bs = await ev(() => window.__dev.World.debugScreen(52.5 * 48, 46.2 * 48));
+    const bs = await ev(() => window.__dev.World.debugScreen(65.5 * 48, 61.2 * 48));
     await page.mouse.click(bs.x, bs.y);
     await wait(2200);
     await closeAll();
@@ -795,23 +822,30 @@ async function extra({ page, step, ev, wait, closeAll, hold }) {
     await ev(() => {
       const d = window.__dev;
       d.go('world');
-      d.World.debugTeleport(34, 2);
+      d.World.debugTeleport(2, 4);
     });
-    // в игре выход закрыт: дошли до края дороги — остались в городе
-    await send('world', 34.5, 0.5);
+    // в игре тропа в лес закрыта воротами: за них не пройти — остались в городе, перед воротами
+    await send('world', 1.5, 0.5);
     await wait(900);
     let r = await where();
-    if (r.scene !== 'world' || !near(r, { x: 34.5 * T, y: 0.5 * T }))
-      throw new Error('закрытый выход сработал: ' + JSON.stringify(r));
-    // открываем выход (так его откроет задание) и идём к краю ещё раз
+    if (r.scene !== 'world' || r.y < 3 * T) throw new Error('закрытый выход сработал: ' + JSON.stringify(r));
+    // нажатие на ворота: подсказка «Скоро открытие!»
+    {
+      const g = await ev(() => window.__dev.World.debugScreen(2 * 48, 2.2 * 48));
+      await page.mouse.click(g.x, g.y);
+      await wait(700);
+      const t = await ev(() => document.querySelector('#toasts').textContent);
+      if (!t.includes('Скоро открытие')) throw new Error('у ворот в лес нет подсказки «Скоро открытие»: ' + t);
+    }
+    // открываем выход (так его откроет задание) и идём к краю ещё раз: ворота распахнуты
     await ev(() => {
       const d = window.__dev;
-      d.World.exit('demo').off = false;
-      d.World.debugTeleport(34, 2);
+      d.World.exit('forest').off = false;
+      d.World.debugTeleport(2, 4);
     });
     await wait(100);
-    await send('world', 34.5, 0.5);
-    await wait(900);
+    await send('world', 1.5, 0.5);
+    await wait(1200);
     r = await where();
     if (r.scene !== 'demo_meadow' || !near(r, { x: 11 * T, y: 11.5 * T }))
       throw new Error('переход в пробную локацию: ' + JSON.stringify(r));
@@ -821,7 +855,7 @@ async function extra({ page, step, ev, wait, closeAll, hold }) {
     await send('demo_meadow', 10.5, 13.5);
     await wait(1200);
     r = await where();
-    if (r.scene !== 'world' || !near(r, { x: 34.5 * T, y: 2.5 * T }))
+    if (r.scene !== 'world' || !near(r, { x: 2 * T, y: 1.5 * T }))
       throw new Error('переход обратно в город: ' + JSON.stringify(r));
     await wait(400);
     r = await where();
@@ -833,7 +867,7 @@ async function extra({ page, step, ev, wait, closeAll, hold }) {
     if (r.scene !== 'demo_meadow') throw new Error('выход сработал сразу при входе на его клетку');
     await ev(() => {
       const d = window.__dev;
-      d.World.exit('demo').off = true;
+      d.World.exit('forest').off = true;
       d.go('world');
     });
     await wait(200);
@@ -1151,13 +1185,15 @@ async function economy({ page, step, ev, wait, closeAll }) {
     const fruit = Object.keys(s.ing).find((id) => !s2.ing[id]);
     expect(fruit && s.money < s2.money, 'фрукт не по сезону не куплен', s.ing);
     await closeAll();
-    // в ТЦ «Вкусный» этого фрукта сейчас нет, зато есть кнопка «Продать на рынке»; такая же — в рюкзаке
+    // в ТЦ «Вкусный» этого фрукта сейчас нет; рынок — у прилавков на площади (кнопки в ТЦ больше нет) и в рюкзаке
     await ev(() => window.__dev.enterBuilding('mall_food'));
     await wait(450);
     expect((await page.locator('.overlay .card.away').count()) > 0, 'в ТЦ «Вкусный» нет отметки «не сезон»');
-    await page.click('.overlay .panel-foot .btn');
+    expect((await page.locator('.overlay .panel-foot .btn').count()) === 0, 'в ТЦ «Вкусный» осталась кнопка рынка');
+    await closeAll();
+    await ev(() => window.__dev.enterBuilding('market'));
     await wait(450);
-    expect((await titles()) === 'Рынок', 'из ТЦ «Вкусный» рынок не открылся', await titles());
+    expect((await titles()) === 'Рынок', 'у прилавков на площади рынок не открылся', await titles());
     await closeAll();
     await ev(() => window.__dev.F.openBackpack());
     await wait(400);
@@ -1322,6 +1358,10 @@ async function economy({ page, step, ev, wait, closeAll }) {
       s.ledger,
     );
     expect(JSON.stringify(s.clothes) === JSON.stringify(want.clothes), 'вещи');
+    if ((await ev(() => window.__dev.sceneName)) === 'world') {
+      const pos = await ev(townOk);
+      expect(pos.ok, 'позиция из сохранения v2 в новом городе', pos);
+    }
     for (const f of ['openBackpack', 'openAlbum', 'openMarket', 'openBank', 'showLetter']) {
       await ev((f) => {
         window.__dev.F[f]();
@@ -1503,15 +1543,120 @@ async function economy({ page, step, ev, wait, closeAll }) {
       await hold('ArrowDown', 900);
       await hold('ArrowRight', 900);
       for (const [x, y] of [
-        [30, 12],
-        [44, 14],
-        [60, 13],
+        [30, 14],
+        [50, 21],
+        [73, 14],
+        [40, 49],
+        [15, 26],
         [40, 36],
-        [15, 27],
+        [88, 48],
       ]) {
         await ev(([x, y]) => window.__dev.World.debugTeleport(x, y), [x, y]);
         await hold('ArrowLeft', 300);
       }
+    });
+    await step('город: от двери виллы можно дойти до каждой двери, особого места, жителя и выезда', async () => {
+      const bad = await ev(() => {
+        const W = window.__dev.World,
+          m = W.map,
+          T = 48,
+          out = [];
+        const d = m.doorPx(m.bById.villa),
+          s = [Math.floor(d.x / T), Math.floor(d.y / T)];
+        const reach = (x, y, name) => {
+          const tx = Math.floor(x),
+            ty = Math.floor(y);
+          if (!m.foot(tx, ty)) out.push(name + ': клетка занята (' + tx + ', ' + ty + ')');
+          else if (!(tx === s[0] && ty === s[1]) && !m.path(m.foot, s[0], s[1], tx, ty))
+            out.push(name + ': нет пути (' + tx + ', ' + ty + ')');
+        };
+        for (const b of m.buildings) {
+          const p = m.doorPx(b);
+          reach(p.x / T, p.y / T, 'дверь ' + b.id);
+          reach((p.x - 12) / T, p.y / T, 'дверь ' + b.id + ' (слева)'); // у двери помещается хомячок целиком
+        }
+        for (const pl of W.places) if (pl.stand) reach(pl.stand[0], pl.stand[1], 'место ' + pl.id);
+        for (const [id, sp] of Object.entries(W.desc.spots)) reach(sp.at[0], sp.at[1], 'точка ' + id);
+        for (const a of W.desc.actors) reach(a.at[0], a.at[1], 'житель ' + a.npc);
+        for (const n of W.npcs) if (n.home) reach(n.home[0], n.home[1], 'дом жителя ' + n.id);
+        // выезды закрыты: до ворот дойти можно, за ворота — нет
+        for (const id of ['forest', 'desert']) {
+          const e = W.exit(id);
+          if (!e || !e.off) out.push('выезд ' + id + ' должен быть закрыт');
+          else if (m.path(m.foot, s[0], s[1], e.area[0], e.area[1]))
+            out.push('выезд ' + id + ': за закрытые ворота можно пройти');
+        }
+        // предметы заданий раскладываются там, куда можно дойти
+        for (const zone of ['town', 'beach'])
+          for (const it of W.randomSpots(zone, 8, 7)) reach(it.x, it.y, 'предмет задания (' + zone + ')');
+        return out;
+      });
+      if (bad.length) throw new Error(bad.join('; '));
+    });
+    await step('город: карта — кнопка «дойти» работает для каждого места', async () => {
+      const r = await ev(() => {
+        const W = window.__dev.World,
+          bad = [],
+          names = W.mapPlaces();
+        for (const [id, name] of names) {
+          W.debugTeleport(16, 10);
+          if (!W.walkToPlace(id) || !(W.p.path.length > 0)) bad.push(name);
+        }
+        W.debugTeleport(16, 10);
+        W.p.pending = null;
+        return { bad, n: names.length, ids: names.map((q) => q[0]) };
+      });
+      if (r.bad.length) throw new Error('не дойти: ' + r.bad.join(', '));
+      for (const id of [
+        'market',
+        'realtor',
+        'home_apartment',
+        'home_bungalow',
+        'hotel',
+        'forest',
+        'desert',
+        'pier',
+        'beach',
+      ])
+        if (!r.ids.includes(id)) throw new Error('на карте нет места ' + id);
+    });
+    await step('город: новые места — рынок на площади и «Скоро открытие!»', async () => {
+      await ev(() => window.__dev.enterBuilding('market'));
+      await wait(450);
+      const title = await ev(() => (document.querySelector('.overlay .panel-head .title') || {}).textContent || '');
+      if (!title.includes('Рынок')) throw new Error('у прилавков рынок не открылся: ' + title);
+      await closeAll();
+      for (const id of ['realtor', 'home_apartment', 'home_bungalow', 'hotel']) {
+        await ev(() => document.querySelectorAll('#toasts .toast').forEach((t) => t.remove()));
+        await ev((id) => window.__dev.enterBuilding(id), id);
+        await wait(200);
+        const t = await ev(() => (document.querySelector('#toasts') || {}).textContent || '');
+        if (!t.includes('Скоро открытие')) throw new Error(id + ': нет подсказки «Скоро открытие!»: ' + t);
+        if (await ev(() => document.querySelectorAll('.overlay, .dialog').length))
+          throw new Error(id + ': открылось окно');
+      }
+      for (const key of ['forest', 'desert']) {
+        await ev(() => document.querySelectorAll('#toasts .toast').forEach((t) => t.remove()));
+        await ev((key) => window.__dev.run({ do: 'soon', key }), key);
+        await wait(150);
+        const t = await ev(() => (document.querySelector('#toasts') || {}).textContent || '');
+        if (!t.includes('Скоро открытие')) throw new Error(key + ': нет подсказки');
+      }
+      // задание «Базарный день» ведёт к рынку на площади
+      const tg = await ev(() => {
+        const d = window.__dev,
+          was = d.G.state.mail;
+        d.actions.setMail('market');
+        d.F.openMailbox();
+        document.querySelectorAll('.overlay .xbtn').forEach((x) => x.click());
+        const t = d.World.target(),
+          door = d.World.doorOf('market');
+        return { t, door, was: !!was };
+      });
+      await wait(300);
+      await closeAll();
+      if (!tg.t || Math.abs(tg.t.x - tg.door.x) > 2 || tg.t.icon !== '⭐')
+        throw new Error('звёздочка задания «Базарный день» не у рынка: ' + JSON.stringify(tg));
     });
     for (const id of [
       'mall_fashion',
@@ -1601,7 +1746,7 @@ async function economy({ page, step, ev, wait, closeAll }) {
       await wait(300);
     });
     await step('море: плавание и ныряние', async () => {
-      await ev(() => window.__dev.World.debugTeleport(40, 50));
+      await ev(() => window.__dev.World.debugTeleport(40, 65));
       await wait(400);
       await hold('ArrowDown', 600);
       await ev(() => {
@@ -1615,9 +1760,9 @@ async function economy({ page, step, ev, wait, closeAll }) {
       if ((await ev(() => window.__dev.sceneName)) !== 'world') throw new Error('не всплыли');
     });
     await step('кораблик', async () => {
-      await ev(() => window.__dev.World.debugTeleport(51, 45));
+      await ev(() => window.__dev.World.debugTeleport(63, 60));
       await wait(400);
-      const s = await ev(() => window.__dev.World.debugScreen(52.5 * 48, 46.2 * 48));
+      const s = await ev(() => window.__dev.World.debugScreen(65.5 * 48, 61.2 * 48));
       await page.mouse.click(s.x, s.y);
       await wait(2200);
       await closeAll();
@@ -1640,9 +1785,9 @@ async function economy({ page, step, ev, wait, closeAll }) {
       await ev(() => {
         const d = window.__dev;
         d.go('world');
-        d.World.debugTeleport(44, 14);
+        d.World.debugTeleport(50, 21);
         // так же, как вошёл бы хомячок через дверь здания с act: 'scene:demo_house'
-        d.run('scene:demo_house', { back: { scene: 'world', x: 44.5 * 48, y: 14.5 * 48 } });
+        d.run('scene:demo_house', { back: { scene: 'world', x: 50.5 * 48, y: 21.5 * 48 } });
       });
       await wait(500);
       const house = () =>
@@ -1711,7 +1856,7 @@ async function economy({ page, step, ev, wait, closeAll }) {
       await page.keyboard.press('KeyE');
       await wait(400);
       const out = await ev(() => ({ scene: window.__dev.sceneName, ...window.__dev.World.playerPos() }));
-      if (out.scene !== 'world' || Math.abs(out.x - 44.5 * 48) > 2 || Math.abs(out.y - 14.5 * 48) > 2)
+      if (out.scene !== 'world' || Math.abs(out.x - 50.5 * 48) > 2 || Math.abs(out.y - 21.5 * 48) > 2)
         throw new Error('дверь вывела не туда: ' + JSON.stringify(out));
     });
     await step('пробный дом: своё жильё — мебель в сохранении, «Обустроить», гости, сон', async () => {

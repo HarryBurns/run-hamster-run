@@ -26,22 +26,22 @@ import './common/index.js';
 /** Море города: где оно на карте, острова (центр в клетках, размеры и что на них стоит). */
 export const WORLD_SEA = {
   key: 'boat',
-  shallowY: 42,
-  seaY: 44,
-  buoyY: 74,
-  boatHome: [52.5, 46.5], // у пирса
-  creatures: { fish: 22, shark: 6, whale: 6 },
+  shallowY: 57,
+  seaY: 59,
+  buoyY: 89,
+  boatHome: [65.5, 61.5], // у пирса
+  creatures: { fish: 28, shark: 7, whale: 7 },
   icebergs: [
-    [6, 87],
-    [20, 98],
-    [3, 99],
-    [24, 84],
+    [8, 102],
+    [27, 113],
+    [4, 114],
+    [32, 99],
   ],
   isles: [
     {
       name: 'Остров Сундука',
-      x: 22,
-      y: 53,
+      x: 29,
+      y: 68,
       rx: 3.6,
       ry: 2.3,
       deco: [
@@ -52,8 +52,8 @@ export const WORLD_SEA = {
     },
     {
       name: 'Пальмовый остров',
-      x: 47,
-      y: 57,
+      x: 62,
+      y: 73,
       rx: 4.6,
       ry: 2.8,
       deco: [
@@ -66,8 +66,8 @@ export const WORLD_SEA = {
     },
     {
       name: 'Крабий островок',
-      x: 64,
-      y: 51,
+      x: 85,
+      y: 67,
       rx: 2.4,
       ry: 1.7,
       deco: [
@@ -78,8 +78,8 @@ export const WORLD_SEA = {
     },
     {
       name: 'Звёздный остров',
-      x: 9,
-      y: 63,
+      x: 12,
+      y: 78,
       rx: 3.4,
       ry: 2.5,
       deco: [
@@ -92,8 +92,8 @@ export const WORLD_SEA = {
     },
     {
       name: 'Остров Кораблика',
-      x: 33,
-      y: 68,
+      x: 44,
+      y: 83,
       rx: 5.2,
       ry: 2.9,
       deco: [
@@ -106,8 +106,8 @@ export const WORLD_SEA = {
     },
     {
       name: 'Остров-крошка',
-      x: 60,
-      y: 67,
+      x: 80,
+      y: 82,
       rx: 1.9,
       ry: 1.5,
       deco: [
@@ -118,8 +118,8 @@ export const WORLD_SEA = {
     // за буйками — только на кораблике
     {
       name: 'Остров Сокровищ',
-      x: 36,
-      y: 90,
+      x: 48,
+      y: 105,
       rx: 7.2,
       ry: 4.2,
       treasure: true,
@@ -136,8 +136,8 @@ export const WORLD_SEA = {
     },
     {
       name: 'Ледяной остров',
-      x: 12,
-      y: 93,
+      x: 16,
+      y: 108,
       rx: 4.4,
       ry: 2.8,
       ice: true,
@@ -150,8 +150,8 @@ export const WORLD_SEA = {
     },
     {
       name: 'Остров Маяка',
-      x: 61,
-      y: 88,
+      x: 81,
+      y: 103,
       rx: 3.2,
       ry: 2.3,
       deco: [
@@ -689,8 +689,14 @@ export function createSea(cfg) {
       initSea();
     },
     enter(s, from, params) {
-      const p = s.p,
+      const p = s.p;
+      let bt = boatState();
+      // карту могли перерисовать (старое сохранение): кораблик, оказавшийся не на воде, возвращается к пирсу
+      if (!Number.isFinite(bt.x) || !Number.isFinite(bt.y) || !isSea(ch(tileOf(bt.x), tileOf(bt.y)))) {
+        if (bt.on && isSea(ch(tileOf(p.x), tileOf(p.y)))) setBoat({ x: p.x, y: p.y });
+        else setBoat({ x: BOAT_HOME.x, y: BOAT_HOME.y, on: false });
         bt = boatState();
+      }
       p.ride = bt.on ? BOAT : null;
       // всплыли после ныряния: рядом с тем местом, куда доплыли под водой (а с кораблика — к нему же)
       if (params.surface && !p.ride) {

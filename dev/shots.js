@@ -424,7 +424,7 @@ const HOOKS = `window.__T = () => window.__dev;`;
       await start();
       await ev(() => window.__T().go('world'));
       await run(400);
-      await ev(() => window.__T().World.debugTeleport(40, 50));
+      await ev(() => window.__T().World.debugTeleport(40, 65));
       await run(600);
       await shot('sea_swim');
       await ev(() => window.__T().World.dive());
@@ -456,14 +456,17 @@ const HOOKS = `window.__T = () => window.__dev;`;
       await run(800);
       await shot('city_door');
       const spots = [
-        ['yard', 30, 12],
-        ['square', 44, 14],
-        ['east', 60, 13],
-        ['forest', 30, 4],
-        ['beach', 40, 36],
-        ['palms', 15, 27],
-        ['sea', 40, 50],
-        ['pier', 51, 45],
+        ['yard', 30, 14],
+        ['square', 50, 21],
+        ['east', 73, 14],
+        ['forest', 36, 5],
+        ['beach', 40, 49],
+        ['palms', 15, 39],
+        ['park', 40, 34],
+        ['pool', 70, 36],
+        ['hotel', 88, 48],
+        ['sea', 40, 65],
+        ['pier', 63, 60],
       ];
       for (const [id, x, y] of spots) {
         await ev(([x, y]) => window.__T().World.debugTeleport(x, y), [x, y]);
@@ -494,7 +497,7 @@ const HOOKS = `window.__T = () => window.__dev;`;
         const s = window.__T().G.state;
         s.minutes = 12 * 60;
         s.weather = 'sun';
-        window.__T().World.debugTeleport(44, 14);
+        window.__T().World.debugTeleport(50, 21);
       });
       await run(300);
       await hold('ArrowDown', 700);
@@ -504,9 +507,9 @@ const HOOKS = `window.__T = () => window.__dev;`;
       await run(1500);
       await shot('city_tap_walk');
       // кораблик
-      await ev(() => window.__T().World.debugTeleport(51, 45));
+      await ev(() => window.__T().World.debugTeleport(63, 60));
       await run(400);
-      const s = await ev(() => window.__T().World.debugScreen(52.5 * 48, 46.2 * 48));
+      const s = await ev(() => window.__T().World.debugScreen(65.5 * 48, 61.2 * 48));
       await page.mouse.click(s.x, s.y);
       await run(2500);
       await closeAll();
@@ -715,7 +718,7 @@ const HOOKS = `window.__T = () => window.__dev;`;
       await ev(() => {
         const t = window.__T();
         t.go('world');
-        t.World.debugTeleport(44, 14);
+        t.World.debugTeleport(50, 21);
         t.go('demo_house');
       });
       await run(1200);
