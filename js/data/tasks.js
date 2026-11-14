@@ -1,5 +1,6 @@
 // Задания из писем и наклейки.
-// type: minigame | buy | cook | treat | collect | harvest | plant | salon | place | visit | talk | swim | spa | wheel | gift
+// type: minigame | buy | cook | treat | collect | harvest | plant | salon | place | visit | talk | swim | spa | wheel | gift | sell
+// Монеты за задание — TASK_COINS в economy.js.
 export const TASKS = [
   { id: 'swim', type: 'minigame', game: 'swim', sticker: '🏊', title: 'Соревнования по плаванию', where: 'pool',
     text: 'Сегодня в городском бассейне большой заплыв! Приходи и покажи, как плавают хомячки с виллы.' },
@@ -61,6 +62,8 @@ export const TASKS = [
     text: 'На пальмах созрели кокосы! Подойди к любой пальме и потряси её — кокос упадёт прямо в рюкзак.' },
   { id: 'cafe', type: 'buy', cat: 'dish', sticker: '🧁', title: 'Сладкий день', where: 'cafe',
     text: 'В кафе «Семечка» сегодня пахнет особенно вкусно. Купи себе что-нибудь и съешь!' },
+  { id: 'market', type: 'sell', sticker: '🧺', title: 'Базарный день', where: 'mall_food',
+    text: 'На рынке ждут свежий товар! Продай что-нибудь своё: урожай с грядок, рыбку, кокос или блюдо, которое приготовила сама. Рынок пока у Тётушки Крупы в ТЦ «Вкусный» — кнопка «Продать на рынке». А ещё продавать можно прямо из рюкзака 🎒.' },
 ];
 export const TASK_BY_ID = Object.fromEntries(TASKS.map((t) => [t.id, t]));
 
@@ -71,7 +74,12 @@ export const EXTRA_STICKERS = [
   { id: 'x_friend', sticker: '💖', title: 'Лучшие друзья' },
   { id: 'x_master', sticker: '🏅', title: 'Шедевр на кухне' },
   { id: 'x_year', sticker: '🎆', title: 'Целый год!' },
-  { id: 'x_rich', sticker: '💰', title: 'Потратила миллион' },
+  { id: 'x_wage', sticker: '💼', title: 'Первая зарплата' },
+  { id: 'x_market', sticker: '⚖️', title: 'Первая продажа на рынке' },
+  { id: 'x_10k', sticker: '🪙', title: 'Заработала 10 000' },
+  { id: 'x_50k', sticker: '🏦', title: 'Накопила 50 000' },
+  // из прежней игры с миллиардом: получить больше нельзя, в альбоме видна только у тех, у кого она уже есть
+  { id: 'x_rich', sticker: '💰', title: 'Потратила миллион', legacy: true },
   { id: 'x_island', sticker: '🏝️', title: 'Необитаемый остров' },
   { id: 'x_isles', sticker: '🧭', title: 'Все острова открыты' },
   { id: 'x_feed', sticker: '🐟', title: 'Друг рыбок' },
