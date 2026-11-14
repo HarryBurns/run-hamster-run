@@ -1,6 +1,7 @@
 // Задания из писем и наклейки.
 // type: minigame | buy | cook | treat | collect | harvest | plant | salon | place | visit | talk | swim | spa | wheel | gift | sell
 // Монеты за задание — TASK_COINS в economy.js.
+// openHouse — «день гостей»: пока это письмо в ящике, друзья (или один — host) весь день дома и ждут в гости.
 export const TASKS = [
   { id: 'swim', type: 'minigame', game: 'swim', sticker: '🏊', title: 'Соревнования по плаванию', where: 'pool',
     text: 'Сегодня в городском бассейне большой заплыв! Приходи и покажи, как плавают хомячки с виллы.' },
@@ -64,6 +65,14 @@ export const TASKS = [
     text: 'В кафе «Семечка» сегодня пахнет особенно вкусно. Купи себе что-нибудь и съешь!' },
   { id: 'market', type: 'sell', sticker: '🧺', title: 'Базарный день', where: 'mall_food',
     text: 'На рынке ждут свежий товар! Продай что-нибудь своё: урожай с грядок, рыбку, кокос или блюдо, которое приготовила сама. Рынок пока у Тётушки Крупы в ТЦ «Вкусный» — кнопка «Продать на рынке». А ещё продавать можно прямо из рюкзака 🎒.' },
+  { id: 'guesting', type: 'visit', place: 'home', openHouse: true, sticker: '🚪', title: 'В гости к соседям', where: 'town',
+    text: 'Сегодня в городе день гостей! Все твои друзья сидят дома и ждут: зайди в гости в любой домик. А с незнакомым хомячком можно познакомиться прямо на пороге.' },
+  { id: 'teatime', type: 'visit', place: 'tea', openHouse: true, sticker: '🫖', title: 'Чаепитие', where: 'town',
+    text: 'Самый вкусный чай — в гостях! Зайди к кому-нибудь из друзей домой (сегодня все дома) и скажи хозяину: «Попьём чаю?»' },
+  { id: 'stargaze', type: 'visit', place: 'stars', openHouse: true, host: 'prof', sticker: '🔭', title: 'Звёзды в телескоп', where: 'house4',
+    text: 'Профессор Орешкин зовёт тебя в гости: сегодня он весь день дома. Поднимись у него на второй этаж и загляни в телескоп. Только звёзды видно, когда стемнеет, — приходи вечером!' },
+  { id: 'captain', type: 'visit', place: 'home_bob', openHouse: true, host: 'bob', sticker: '⚓', title: 'В гостях у капитана', where: 'house6',
+    text: 'Капитан Боб вернулся из плавания и зовёт тебя в гости — сегодня он весь день дома. Зайди к нему в домик у моря и покрути настоящий штурвал!' },
 ];
 export const TASK_BY_ID = Object.fromEntries(TASKS.map((t) => [t.id, t]));
 
@@ -92,4 +101,14 @@ export const EXTRA_STICKERS = [
   { id: 'x_whale', sticker: '🐋', title: 'Встреча с китом' },
   { id: 'x_tower', sticker: '🛗', title: 'На 101-й этаж!' },
   { id: 'x_ace', sticker: '🎯', title: 'Меткий пилот' },
+  // гости, жильё, своё дело
+  { id: 'x_visit', sticker: '🧸', title: 'Первые гости' },
+  { id: 'x_visit_all', sticker: '🏘️', title: 'В гостях у всех' },
+  { id: 'x_tea', sticker: '☕', title: 'Чай с другом' },
+  { id: 'x_home2', sticker: '🔑', title: 'Новоселье в городе' },
+  { id: 'x_homes_all', sticker: '🗝️', title: 'Три ключа' },
+  { id: 'x_biz', sticker: '🏪', title: 'Своё дело' },
+  { id: 'x_biz_work', sticker: '👩‍🍳', title: 'Хозяйка за работой' },
+  { id: 'x_biz_chain', sticker: '🏬', title: 'Сеть заведений' },
+  { id: 'x_biz_all', sticker: '👑', title: 'Хозяйка города' },
 ];

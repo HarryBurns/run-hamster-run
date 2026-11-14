@@ -19,6 +19,7 @@ export const JOBS = {
   doctor: { pay: [250, 400, 600] },
   chef: { pay: [200, 400, 650] },
   fashion: { pay: [300, 500, 800] },
+  barista: { pay: [200, 350, 550] }, // кафе «Семечка» и пляжное кафе: смены общие (игра одна)
 };
 /** Сколько смен в день оплачивается на каждом месте. Дальше играть можно, но «для удовольствия». */
 export const PAID_SHIFTS = 2;
@@ -28,7 +29,8 @@ export const TASK_COINS_DEFAULT = 400;
 export const TASK_COINS = {
   // быстрые: зайти, купить, нажать
   buy_clothes: 300, cafe: 300, salon: 300, talk: 300, wheel: 300, spa: 300, skate: 300, sea: 300, coconut: 300,
-  plant: 300, tower: 300, market: 300,
+  plant: 300, tower: 300, market: 300, guesting: 300, teatime: 400, captain: 400,
+  stargaze: 500, // звёзды видно только вечером
   // долгие: собрать по городу, выйти в море
   shells: 500, snow: 500, leaves: 500, flowers: 500, boat: 500,
   // самое трудное: нырнуть за жемчужиной
@@ -42,11 +44,36 @@ export const INCOME_SOURCES = [
   { id: 'work', icon: '💼', name: 'Работа' },
   { id: 'market', icon: '🧺', name: 'Рынок' },
   { id: 'task', icon: '✉️', name: 'Задания' },
+  { id: 'business', icon: '🏪', name: 'Свой бизнес' },
   { id: 'gift', icon: '🎁', name: 'Подарки' },
   { id: 'other', icon: '🪙', name: 'Другое' },
 ];
 /** Наклейки за деньги: «Заработала 10 000» (всего заработано) и «Накопила 50 000» (на счету). */
 export const MONEY_STICKERS = { earned: 10000, saved: 50000 };
+
+// ---------- жильё и свой бизнес ----------
+// Принятые цифры — docs/DESIGN.md, раздел 3. Описания (названия, сцены, кто хозяин) — data/estate.js.
+/** Цены жилья. */
+export const HOME_PRICES = { flat: 25000, cabin: 45000, bungalow: 60000, suite: 80000, penthouse: 150000 };
+/** Заведения: цена покупки и выручка за день (копится в кассе заведения, забирать — там же). */
+export const BIZ = {
+  cafe: { price: 40000, income: 1500 },
+  beachcafe: { price: 55000, income: 2000 },
+  salon: { price: 60000, income: 2200 },
+  boutique: { price: 70000, income: 2500 },
+  rest: { price: 90000, income: 3500 },
+};
+export const BIZ_RULES = {
+  /** В кассе помещается выручка за столько дней: дальше она не растёт, пока хозяйка её не заберёт. */
+  tillDays: 3,
+  /** Хозяйка сама поработала в заведении: прибавка к выручке этого дня — по звёздам мини-игры (1★, 2★, 3★). */
+  workBonus: [0.2, 0.35, 0.5],
+  /** Во столько раз больше платят хозяйке за смену в своём заведении (зарплата из JOBS × ownerPay). */
+  ownerPay: 1.5,
+  /** «Блюдо дня» в своём ресторане: прибавка к выручке; за секретный рецепт (узнала от друга) — больше. */
+  special: 0.1,
+  specialSecret: 0.2,
+};
 
 // ---------- рынок ----------
 export const MARKET = {
@@ -138,5 +165,14 @@ export const PRICES = {
     shelf: 500, discoball: 2000,
     // рынок: вещицы ручной работы
     rug_craft: 1200, lamp_lantern: 900, beanbag_melon: 1500,
+    // «как у соседей»: вещи из домов жителей
+    ship_wheel: 1800, fishnet: 400, seamap: 700, anchor: 900, lifebuoy: 350, hammock: 1800,
+    globe: 1200, telescope: 3500, desk: 1400, blackboard: 600,
+    vanity: 2200, mannequin: 1300, clothes_rack: 1100,
+    fridge_giant: 5000, oven: 2400, pot_rack: 500,
+    barbell: 1500, punchbag: 1300, trophy_shelf: 800,
+    rocking_chair: 1200, tea_table: 1000,
+    toybox: 700, dollhouse: 1600, rocking_horse: 1100,
+    seedling_shelf: 900, watering_can: 250, hanging_plant: 300,
   },
 };

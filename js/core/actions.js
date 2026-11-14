@@ -12,7 +12,7 @@
 // Автотест (dev/smoke.js, шаг «состояние меняют только действия») ловит записи в состояние мимо этого файла.
 import { G, touch, cal, hasClothes, houseItems } from './state.js';
 import { emit } from './events.js';
-import { NPCS, FURN_BY_ID } from '../data/index.js';
+import { NPCS, FURN_BY_ID, HOME_BY_ID, BIZ_BY_ID, BIZ_RULES, DISH_BY_ID, SECRET_RECIPES } from '../data/index.js';
 
 let depth = 0;
 /** Идёт ли сейчас действие (для проверки в тестах). */
@@ -148,11 +148,15 @@ export const markFriendToday = act((id, kind) => {
 });
 /** Сколько гостей может быть дома сразу. */
 export const MAX_GUESTS = 3;
-/** Позвать жителя в гости. false — уже в гостях или дом полон. */
-export const inviteGuest = act((id) => {
+/**
+ * Позвать жителя в гости. home — в какой из своих домов (ключ дома); если гости уже сидят в другом доме, они
+ * перебегают вместе с новым гостем. Без home — туда, где гости сейчас. false — уже в гостях или дом полон.
+ */
+export const inviteGuest = act((id, home) => {
   const s = S();
   if (s.guests.includes(id) || s.guests.length >= MAX_GUESTS) return false;
   s.guests.push(id);
+  if (home) s.guestsAt = home;
   touch();
   emit('guests');
   return true;
@@ -171,6 +175,97 @@ export const takeVisitor = act(() => {
   touch();
   return id;
 });
+
+// ---------- в гостях у жителей ----------
+/** Житель позвал в гости: сегодня он весь день дома, дверь открыта. */
+export const inviteHome = act((id) => {
+  const d = S().dayFlags;
+  (d.invited = d.invited || {})[id] = 1;
+  touch();
+});
+/** Героиня зашла в гости к жителю. Возвращает { first: первый ли раз у него, homes: у скольких жителей уже была }. */
+export const countVisit = act((id) => {
+  const v = S().visits;
+  const first = !v[id];
+  v[id] = (v[id] || 0) + 1;
+  touch();
+  return { first, homes: Object.keys(v).length };
+});
+
+// ---------- жильё и свой бизнес ----------
+/** Жильё куплено (монеты списывает покупка — features/homes.js). Возвращает, сколько домов куплено всего. */
+export const addHome = act((id) => {
+  const s = S();
+  if (!HOME_BY_ID[id] || id === 'villa' || s.homesOwned.includes(id)) return s.homesOwned.length;
+  s.homesOwned.push(id);
+  touch();
+  emit('estate');
+  return s.homesOwned.length;
+});
+/** Выбрать основной дом: туда ведёт кнопка «Домой». */
+export const setMainHome = act((id) => {
+  const s = S();
+  if (id !== 'villa' && !s.homesOwned.includes(id)) return;
+  s.homeMain = id;
+  touch();
+  emit('estate');
+});
+/** Заведение куплено. Возвращает, сколько заведений у хозяйки всего. */
+export const addBiz = act((id) => {
+  const s = S();
+  if (BIZ_BY_ID[id] && !s.biz[id]) {
+    s.biz[id] = { day: s.day, till: 0, total: 0, last: 0 };
+    touch();
+    emit('estate');
+  }
+  return Object.keys(s.biz).length;
+});
+/** Забрать выручку из кассы заведения. Возвращает, сколько забрали. */
+export const collectBiz = act((id) => {
+  const b = S().biz[id];
+  if (!b || !(b.till > 0)) return 0;
+  const n = b.till;
+  b.till = 0;
+  b.total += n;
+  earn(n, 'business');
+  return n;
+});
+/** Хозяйка сама поработала в своём заведении сегодня (stars — как сыграла): выручка этого дня будет больше. */
+export const markBizWorked = act((id, stars) => {
+  const s = S();
+  if (!s.biz[id]) return;
+  const w = (s.dayFlags.bizWork = s.dayFlags.bizWork || {});
+  w[id] = Math.max(w[id] || 0, stars);
+  touch();
+});
+/** Настройка своего заведения: special — «блюдо дня», sign — цвет вывески, title — своё название. */
+export const setBizOpt = act((id, key, value) => {
+  const b = S().biz[id];
+  if (!b) return;
+  if (value === null || value === undefined || value === '') delete b[key];
+  else b[key] = value;
+  touch();
+  emit('estate');
+});
+/**
+ * Сколько заведение заработает за сегодняшний день: выручка из таблицы, плюс прибавка, если хозяйка сегодня
+ * сама там поработала, плюс «блюдо дня». Возвращает { sum, base, work, special }.
+ */
+export function bizDayIncome(id) {
+  const s = S(),
+    def = BIZ_BY_ID[id],
+    b = s.biz[id];
+  if (!def || !b) return { sum: 0, base: 0, work: 0, special: 0 };
+  const stars = (s.dayFlags.bizWork || {})[id] || 0;
+  const work = stars ? Math.round(def.income * BIZ_RULES.workBonus[stars - 1]) : 0;
+  const dish = b.special && DISH_BY_ID[b.special];
+  const special = dish
+    ? Math.round(def.income * (SECRET_RECIPES.includes(dish.id) ? BIZ_RULES.specialSecret : BIZ_RULES.special))
+    : 0;
+  return { sum: def.income + work + special, base: def.income, work, special };
+}
+/** Сколько помещается в кассе заведения. */
+export const bizTillCap = (id) => (BIZ_BY_ID[id] ? BIZ_BY_ID[id].income * BIZ_RULES.tillDays : 0);
 
 // ---------- мебель в домах ----------
 /** Завести список мебели для дома (купленное жильё): start — [[id, этаж, x, y?], …]. Если список уже есть — не трогает. */
@@ -296,6 +391,13 @@ function rollWeather() {
 /** Наступил следующий день: утро, грядки подросли, новая погода, гости разошлись. */
 export const nextDay = act(() => {
   const s = S();
+  // свои заведения: выручка прошедшего дня ложится в кассу (в кассе помещается выручка за BIZ_RULES.tillDays дней)
+  for (const id of Object.keys(s.biz)) {
+    const b = s.biz[id],
+      inc = bizDayIncome(id).sum;
+    b.last = Math.max(0, Math.min(inc, bizTillCap(id) - b.till));
+    b.till += b.last;
+  }
   s.day++;
   s.minutes = 7 * 60 + 30;
   for (const b of s.garden) if (b.seed) b.age++;
