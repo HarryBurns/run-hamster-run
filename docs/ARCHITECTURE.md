@@ -339,3 +339,86 @@ export default {
 - занятия, которые знают про город: `features/map.js` (мини-карта, `walkToPlace`) и `features/mail.js`
   (`randomSpots`). Когда локаций станет несколько, им понадобится «текущая локация» вместо импорта города;
 - ныряние: город зовёт `go('dive', { x, boat, width })`, а при возврате получает `params.surface`.
+
+## 11. Гости, жильё, свой бизнес (этап 4)
+
+Что придумано и почему — `docs/DESIGN.md`, раздел 3. Здесь — где это лежит и как добавлять.
+
+**Файлы**
+
+```
+js/data/estate.js        HOMES (жильё) и BUSINESSES (заведения); цены — HOME_PRICES, BIZ, BIZ_RULES в economy.js
+js/data/visits.js        VISIT (часы, когда хозяева дома), NPC_HOME (реплики жителей дома, угощение, приглашение)
+js/interiors/houses.js   все дома одним списком (main.js делает из них сцены): OWN_HOMES, NPC_HOMES
+js/interiors/home_<житель>.js   8 домов жителей;  flat.js, bungalow.js, penthouse.js — жильё;  cabin.js, suite.js — заготовки
+js/art/furniture_homes.js       рисунки 27 предметов «как у соседей» (подключаются к таблице D в furniture.js)
+js/features/visits.js    дверь домика, хозяин дома (чай, угощение), телескоп, гигантский холодильник, духовка
+js/features/homes.js     риелтор, «Мои дома», основной дом и «Домой», двери своих домов
+js/features/business.js  покупка заведения, касса, работа хозяйки, «блюдо дня», вывеска, «Мои заведения»
+js/minigames/orders.js   общий ход игр «собери по заказу»;  barista.js, stylist.js, window.js — их настройки
+dev/smoke_estate.js      шаги автотеста про всё это (подключён из smoke.js; только они: node dev/smoke.js <url> estate)
+dev/furniture.html       весь каталог мебели на одной странице
+```
+
+**Сохранение — версия 3** (`MIGRATIONS[2]` в `core/state.js`, образец `dev/saves/v3.json`). Новые поля:
+`homesOwned` (купленное жильё, вилла не входит), `homeMain` (основной дом — туда ведёт «Домой»), `guestsAt`
+(в каком доме гости), `biz` (`id → { day, till, total, last, special?, sign?, title? }`), `visits` (у кого была
+в гостях). Отметки дня: `dayFlags.invited` (кто позвал в гости), `dayFlags.bizWork` (где хозяйка сегодня работала
+и на сколько звёзд), `dayFlags.fridgeTreat`. У друга появилось поле `tea` (день последнего чаепития).
+Читать: `ownsHome`, `ownedHomes`, `ownsBiz`, `invitedToday`, `npcWhere` (`core/state.js`). Менять: `addHome`,
+`setMainHome`, `addBiz`, `collectBiz`, `markBizWorked`, `setBizOpt`, `inviteHome`, `countVisit`,
+`inviteGuest(id, дом)` (`core/actions.js`). Выручка заведений ложится в кассу в `nextDay()`.
+
+**Действия реестра**
+
+| Действие | Что делает | Кто вызывает |
+|---|---|---|
+| `home-of:<житель>` | дверь домика жителя: закрыто / спит / знакомство на пороге / войти (`ctx.back` — место у двери) | здание-домик в городе |
+| `host:<житель>` | хозяин у себя дома: поболтать, чай, угостить | жилец в описании дома (`actors[].act`) |
+| `say` | подсказка у предмета: `{ do: 'say', text: [...] }` | зона в доме (`built[].acts`) |
+| `telescope`, `bigfridge`, `oven` | особая мебель: звёзды вечером; холодильник (в гостях — пончик раз в день); духовка | мебель (`act` в каталоге) |
+| `realtor`, `realtor:mine` | окно «Недвижимость»: купить жильё / мои дома | кнопки в банке и в меню (временно) |
+| `home:<id>` | дверь своего жилья: куплено — войти, нет — окно риелтора | окно «Мои дома», лифт башни; потом — здания в городе |
+| `home-exit` | дверь своего дома изнутри: туда, откуда пришли (или в город) | `exit` в описании дома |
+| `biz:<id>` | «кабинет» заведения: купить или касса, работа, блюдо дня, вывеска | кнопка в окне заведения, вариант в диалоге у двери |
+| `my-biz` | окно «Мои заведения» | кнопки в банке и в меню |
+| `work:<id>` | поработать в заведении (мини-игра) | — (запасной вход) |
+| `minigame` | теперь понимает и `{ do: 'minigame', arg: игра, biz: заведение }` | кнопка «Встать за стойку» |
+
+**Как заведение узнаёт себя.** Город не менялся: окна и диалоги заведений (`cafe`, `ask`, `salon`,
+`clothes-shop`) спрашивают `bizByVendor(продавец)` из `features/business.js`. Если продавец — хозяин заведения
+из `BUSINESSES`, в окне появляются табличка (`bizSign`) и кнопки (`bizFoot`), в диалоге у двери — вариант
+«Купить заведение» / «Моё заведение» (`bizAskOption`). Работа хозяйки — мини-игра из поля `game`; хозяйке
+платят больше и растёт выручка дня — это считает `features/minigames.js` (`jobToday(id, biz)`, `markBizWorked`).
+
+**Движок домов: что добавилось** (подробно — в начале `engine/side/rooms.js`, `fixtures.js`, `items.js`):
+обои `paper: 'dots' | 'flowers' | 'stars' | 'waves' | 'diamonds' | 'brick' | 'open'` (терраса), пол `'deck'`;
+окна `win: x | [x, …]`, `winW` (панорамное), `view: 'sea' | 'city' | 'forest'`; дом снаружи —
+`shell: { flat, trees: 'palm' | 'fir', ground: 'sand' | 'tower' }`; у встроенных предметов — цвет `c`
+и `acts: { зона: действие }`; у мебели — действия `spin`, `look`, `water`, `sport` и подпись `say`;
+поле `owner` в описании — чей дом. Свой дом (`persist`) кладёт в сохранённую позицию поле `out` — куда ведёт дверь.
+
+### …новый дом жителя
+
+1. `js/interiors/home_<житель>.js` по образцу любого из восьми: `owner`, `furniture.fixed`,
+   `actors: [{ npc, act: 'host:<житель>' }]`, без `persist` и `exit`. Строка в `NPC_HOMES` (`interiors/houses.js`).
+2. Реплики, угощение и приглашение — в `NPC_HOME` (`data/visits.js`). Имя сцены — `home_<id жителя>`.
+3. Дверь в городе: `act: 'home-of:<житель>'` (у зданий с полем `npc` город ставит его сам).
+4. Проверки: таблицы `NPC` и `THINGS` в `dev/smoke_estate.js`.
+
+### …новое жильё
+
+1. Описание `js/interiors/<id>.js` по образцу `flat.js`: `persist: true`, `exit: 'home-exit'`,
+   `furniture: { key: id, editable: true, keepOneBed: true, start: [...] }` (в `start` — кровать и шкаф),
+   `guests`, комната с `main: true`. Строка в `OWN_HOMES`.
+2. Строка в `HOMES` (`data/estate.js`) с тем же `id` и цена в `HOME_PRICES`. `soon: 'подпись'` — пока не продаётся.
+3. Дверь в городе: `act: 'home:<id>'`. Проверки: список `HOMES` в `dev/smoke_estate.js`, `node dev/balance.js`.
+
+### …новое заведение
+
+1. Строка в `BUSINESSES` (`vendor` — продавец из `VENDORS`, `game` — мини-игра хозяйки или `null`) и в `BIZ`
+   (цена, выручка в день). `node dev/balance.js` проверит окупаемость (20–35 дней).
+2. Окно заведения должно спросить `bizByVendor(vendor)` и показать `bizSign` / `bizFoot` (образец —
+   `openCafe` в `features/shops.js`); если вход — диалог `ask`, вариант появится сам.
+3. Новая игра «собери по заказу» — файл-настройка по образцу `minigames/barista.js` (значки) или `stylist.js`
+   (картинка «как должно быть»), строка в `LOADERS` и `MG_NAMES`.
