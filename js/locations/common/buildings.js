@@ -2,9 +2,9 @@
 // (как описывать вид — engine/topdown/kinds.js).
 //
 //   house   домик жителя (поле npc — чей; на дощечке его имя; shutters — цвет ставней; art(ctx, g, snow, lit) —
-//           своя дорисовка поверх: якорь, телескоп, цветы…)
+//           своя дорисовка поверх: якорь, телескоп, цветы…; smoke: true — из трубы всегда идёт дымок)
 //   shop    лавка с навесом и вывеской                       mall   большой магазин с витринами
-//   tower   высотка (поле floors — этажи)                    villa  вилла хомячка
+//   tower   высотка (поле floors — этажи)
 //
 // Здание в описании локации: { id, kind, x, y, w, h, name, icon, wall, roof, act }. Цвета wall и roof — свои
 // у каждого здания. Снег на крыше и свет в окнах рисунок получает параметрами (snow, lit).
@@ -353,7 +353,12 @@ function paintHouse(ctx, b, snow, lit) {
     glow(ctx, g.winL + 18, g.winY + 18, 40);
     glow(ctx, g.winR + 18, g.winY + 18, 40);
   }
-  const wo = { shutters: trim, box: b.box === false ? null : true, snow, curtain: lit ? null : 'rgba(255,255,255,.75)' };
+  const wo = {
+    shutters: trim,
+    box: b.box === false ? null : true,
+    snow,
+    curtain: lit ? null : 'rgba(255,255,255,.75)',
+  };
   win(ctx, g.winL, g.winY, 36, 36, lit, wo);
   win(ctx, g.winR, g.winY, 36, 36, lit, wo);
   steps(ctx, cx, bot, 40);
@@ -430,7 +435,16 @@ function paintShop(ctx, b, snow, lit, mall) {
     showcase(ctx, X + 16, g.wy, W * 0.4, wh, lit);
     door(ctx, cx + (b.w < 5 ? 28 : 0), bot, 34, 60, shade(b.roof, -0.1), { glass: true, lit });
   }
-  signBoard(ctx, `${b.icon || ''} ${b.name || ''}`.trim(), cx, g.top + g.roofH * 0.5, Math.min(W - 16, 220), mall ? 26 : 22, 'plate', shade(b.roof, -0.15));
+  signBoard(
+    ctx,
+    `${b.icon || ''} ${b.name || ''}`.trim(),
+    cx,
+    g.top + g.roofH * 0.5,
+    Math.min(W - 16, 220),
+    mall ? 26 : 22,
+    'plate',
+    shade(b.roof, -0.15),
+  );
 }
 
 // ---------- высотка ----------
@@ -484,11 +498,31 @@ export function beacon(ctx, b, t, dy = 46) {
   }
 }
 /** Рамка спрайта высотки: высоко вверх и с запасом по бокам (вывеска). up — запас над корпусом. */
-export const towerBox = (b, up = 60, side = 44) => [-side, -(b.floors * T * 0.62 + T + up - b.h * T), b.w * T + side, b.h * T + 14];
+export const towerBox = (b, up = 60, side = 44) => [
+  -side,
+  -(b.floors * T * 0.62 + T + up - b.h * T),
+  b.w * T + side,
+  b.h * T + 14,
+];
+
+/** Дымок из трубы — рисуется каждый кадр поверх спрайта: (x, y) — верх трубы. */
+export function smoke(ctx, x, y, t) {
+  SP.world();
+  for (let i = 0; i < 3; i++) {
+    const k = (t * 0.22 + i / 3) % 1;
+    ctx.globalAlpha = 0.55 * (1 - k);
+    ell(ctx, x + Math.sin(k * 5 + i) * 7 + k * 10, y - k * 48, 6 + k * 9, 5 + k * 7, '#f1f3f5');
+  }
+  ctx.globalAlpha = 1;
+}
 
 defineBuildings({
   house: {
     paint: paintHouse,
+    // дымок из трубы: зимой у всех, а у дома с полем smoke — всегда
+    live(ctx, b, t, env) {
+      if (b.smoke || env.season === 'winter') smoke(ctx, (b.x + b.w * 0.68) * T + 10, b.y * T - 2, t + b.x);
+    },
     box: (b) => [-30, -60, b.w * T + 30, b.h * T + 14],
     lights: (b) => {
       const g = houseGeom(b);
