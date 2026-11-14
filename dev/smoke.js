@@ -576,6 +576,259 @@ async function extra({ page, step, ev, wait, closeAll, hold }) {
         `запись в состояние мимо действий (${bad.length}): ` + [...new Set(bad)].slice(0, 6).join(' ;; '),
       );
   });
+
+  // ---------- «движок локаций»: пробная локация, переходы, сохранение позиции ----------
+  const T = 48;
+  const near = (a, b, eps = 2) => Math.abs(a.x - b.x) <= eps && Math.abs(a.y - b.y) <= eps;
+  const where = () =>
+    ev(() => {
+      const d = window.__dev,
+        sc = d.scene;
+      return { scene: d.sceneName, ...(sc.playerPos ? sc.playerPos() : {}) };
+    });
+  await step('старое сохранение { scene: "world", x, y }: хомячок там же, формат позиции прежний', async () => {
+    await putSave(SAVE_V1);
+    await cont();
+    const want = JSON.parse(SAVE_V1).pos,
+      r = await where();
+    if (r.scene !== 'world' || !near(r, want)) throw new Error('позиция из старого сохранения: ' + JSON.stringify(r));
+    await ev(() => window.dispatchEvent(new Event('pagehide')));
+    const pos = JSON.parse((await stored()).save).pos;
+    if (Object.keys(pos).join() !== 'scene,x,y' || pos.scene !== 'world' || !near(pos, want))
+      throw new Error('формат позиции города изменился: ' + JSON.stringify(pos));
+    const cur = await ev(() => [window.__dev.topdown.currentLocation().name, window.__dev.topdown.homeLocation().name]);
+    if (cur.join() !== 'world,world') throw new Error('текущая и главная локации: ' + cur);
+  });
+  await step('пробная локация: карта из описания, свои клетка и предмет, житель, место, находка', async () => {
+    await ev(() => {
+      const d = window.__dev;
+      d.G.state.minutes = 12 * 60; // днём жители на улице
+      d.G.state.dayFlags = {};
+      d.go('demo_meadow');
+      window.__stopWatch = d.watchState();
+    });
+    await wait(500);
+    const loc = (fn, arg) =>
+      ev(
+        ([fn, arg]) => new Function('sc', 'd', 'a', fn)(window.__dev.locations.demo_meadow, window.__dev, arg),
+        [fn, arg],
+      );
+    const info = await loc(`const m = sc.map; return {
+      scene: d.sceneName, cur: d.topdown.currentLocation().name, w: m.w, h: m.h, own: m.at(5, 1), path: m.at(10, 12),
+      boulders: m.objs.filter((o) => o.type === 'boulder').length, trees: m.objs.filter((o) => o.type === 'tree').length,
+      solid: !m.foot(16, 2) && !m.foot(0, 0) && m.foot(10, 12), slow: !!m.slowAt(3.5 * 48, 2.5 * 48),
+      npcs: sc.npcs.map((n) => n.id).join(), pos: sc.savePos(), saved: JSON.parse(localStorage.getItem('rhr-save-v1')).pos,
+      way: !!m.path(m.foot, 11, 11, 16, 3), noWay: m.path(m.foot, 11, 11, 16, 2) };`);
+    if (info.scene !== 'demo_meadow' || info.cur !== 'demo_meadow')
+      throw new Error('не вошли: ' + JSON.stringify(info));
+    if (
+      info.w !== 20 ||
+      info.h !== 14 ||
+      info.own !== 'clover' ||
+      info.path !== 'y' ||
+      info.boulders !== 1 ||
+      !info.trees
+    )
+      throw new Error('карта собрана не по описанию: ' + JSON.stringify(info));
+    if (!info.solid || !info.slow || !info.way || info.noWay !== null)
+      throw new Error('препятствия, кусты или поиск пути: ' + JSON.stringify(info));
+    if (info.npcs !== 'myata') throw new Error('жители: ' + info.npcs);
+    if (
+      info.pos.scene !== 'demo_meadow' ||
+      info.saved.scene !== 'demo_meadow' ||
+      !near(info.pos, { x: 11 * T, y: 11.5 * T })
+    )
+      throw new Error('позиция и точка входа: ' + JSON.stringify([info.pos, info.saved]));
+    // ходьба стрелками и по нажатию
+    await hold('ArrowUp', 400);
+    const up = await where();
+    if (!(up.y < info.pos.y - 40)) throw new Error('хомячок не идёт стрелками: ' + JSON.stringify(up));
+    // особое место: нажимаем на валун — хомячок подходит, реестр действий открывает окно
+    await loc('sc.debugTeleport(13, 5)');
+    await wait(400); // камера встаёт на место
+    let pt = await loc('return sc.debugScreen(16.5 * 48, 2.2 * 48)');
+    await page.mouse.click(pt.x, pt.y);
+    await wait(1800);
+    if (!(await page.locator('.overlay:has-text("Подзорная труба")').count()))
+      throw new Error('особое место не выполнило действие из реестра');
+    if (!near(await where(), { x: 16.5 * T, y: 3.5 * T }))
+      throw new Error('хомячок встал не туда: ' + JSON.stringify(await where()));
+    await closeAll();
+    // свой слой поверх кадра (так пещера рисует темноту со светом от фонарика): крюк overlay зовётся каждый кадр
+    await loc(`window.__ov = 0; sc.desc.overlay = (ctx, s, w, h) => { window.__ov++;
+      const q = s.cam.toScreen(s.p.x, s.p.y - 30); d.topdown.spotlight(ctx, w, h, q.x, q.y, 170); };`);
+    await wait(300);
+    const ov = await loc('delete sc.desc.overlay; return window.__ov');
+    if (!(ov > 3)) throw new Error('крюк overlay не вызывается: ' + ov);
+    const sp = await loc('return sc.debugSprites()');
+    if (sp.clipped.length) throw new Error('спрайты не поместились в рамку: ' + sp.clipped.join(', '));
+    // находка: подбирается на ходу один раз в день
+    const berries = () => ev(() => window.__dev.G.state.ing.strawberry || 0);
+    const b0 = await berries();
+    await loc('sc.debugTeleport(15, 8)');
+    await hold('ArrowRight', 350);
+    const got = await loc(
+      'return { there: sc.pickupThere(sc.pickups[0]), flag: (d.G.state.dayFlags.finds || {})["demo_meadow:berry"] }',
+    );
+    if ((await berries()) !== b0 + 1 || got.there || got.flag !== 1)
+      throw new Error('находка не подобрана: ' + JSON.stringify(got));
+    await hold('ArrowLeft', 300);
+    await hold('ArrowRight', 300);
+    if ((await berries()) !== b0 + 1) throw new Error('находка подобрана дважды за день');
+    // житель: нажимаем — хомячок подходит и заговаривает
+    await loc('const n = sc.npcs[0]; n.x = 6.5 * 48; n.y = 5.5 * 48; n.path = []; n.wait = 99; sc.debugTeleport(8, 6)');
+    await wait(400);
+    pt = await loc('return sc.debugScreen(6.5 * 48, 5.5 * 48 - 30)');
+    await page.mouse.click(pt.x, pt.y);
+    await wait(1500);
+    if (!(await page.locator('.dialog .name:has-text("Мята")').count())) throw new Error('житель не заговорил');
+    await closeAll();
+    // окно карты показывает эту локацию и ведёт к её месту
+    await ev(() => window.__dev.F.openMap());
+    await wait(350);
+    if (!(await page.locator('.overlay:has-text("Полянка")').count()))
+      throw new Error('карта показывает не эту локацию');
+    await page.click('.overlay .opt:has-text("Валун")');
+    await wait(3200); // идти через всю полянку
+    if (!(await page.locator('.overlay:has-text("Подзорная труба")').count()))
+      throw new Error('карта не довела до особого места');
+    await closeAll();
+    const bad = await ev(() => window.__stopWatch());
+    if (bad.length) throw new Error('запись в состояние мимо действий: ' + [...new Set(bad)].slice(0, 4).join(' ;; '));
+  });
+  await step('пробная локация: позиция сохраняется с именем локации и загружается', async () => {
+    await ev(() => {
+      const d = window.__dev;
+      d.go('demo_meadow');
+      d.locations.demo_meadow.debugTeleport(5, 9);
+    });
+    await wait(200);
+    await ev(() => window.dispatchEvent(new Event('pagehide')));
+    const pos = JSON.parse((await stored()).save).pos,
+      want = { x: 5.5 * T, y: 9.5 * T };
+    if (pos.scene !== 'demo_meadow' || !near(pos, want)) throw new Error('в сохранении: ' + JSON.stringify(pos));
+    await page.reload();
+    await wait(500);
+    await cont();
+    const r = await where();
+    if (r.scene !== 'demo_meadow' || !near(r, want)) throw new Error('после загрузки: ' + JSON.stringify(r));
+    // позиция в стене (карту локации потом перерисовали): встаём рядом, а не падаем
+    await ev(() => {
+      const d = window.__dev;
+      d.go('villa');
+      d.go('demo_meadow', { pos: { scene: 'demo_meadow', x: 0.5 * 48, y: 0.5 * 48 } });
+    });
+    const fix = await ev(() => {
+      const sc = window.__dev.locations.demo_meadow;
+      return { ok: sc.map.foot(Math.floor(sc.p.x / 48), Math.floor(sc.p.y / 48)), ...sc.playerPos() };
+    });
+    if (!fix.ok || !near(fix, { x: 1.5 * T, y: 1.5 * T }))
+      throw new Error('позиция в стене не исправлена: ' + JSON.stringify(fix));
+  });
+  await step('предметы задания «собери» — в локации задания, а не в городе', async () => {
+    // заданию про снежинки на время теста назначаем пробную локацию (как будут делать задания новых мест)
+    await ev(async () => {
+      const d = window.__dev,
+        t = (await import('./js/data/index.js')).TASK_BY_ID.snow;
+      t.loc = 'demo_meadow';
+      t.zone = 'glade';
+      d.go('world');
+      d.actions.setMail('snow');
+      d.F.openMailbox();
+    });
+    await wait(300);
+    await closeAll();
+    const loc = (fn) => ev((fn) => new Function('sc', 'd', fn)(window.__dev.locations.demo_meadow, window.__dev), fn);
+    const items = await ev(() => window.__dev.G.state.mail.items);
+    const inZone = await loc(
+      'return d.G.state.mail.items.every((it) => sc.map.foot(it.x, it.y) && it.x >= 1 && it.x <= 18)',
+    );
+    if (!items || items.length < 6 || !items.every((it) => it.loc === 'demo_meadow') || !inZone)
+      throw new Error('предметы разложены не в локации задания: ' + JSON.stringify(items));
+    // в городе этих предметов нет: звёздочка на них не показывает, с земли они не подбираются
+    const town = await ev((it) => {
+      const d = window.__dev;
+      d.World.debugTeleport(it.x, it.y);
+      return { here: d.World.itemHere(it), target: d.World.target() };
+    }, items[0]);
+    await wait(250);
+    if (town.here || (town.target && town.target.icon === '❄️') || (await ev(() => window.__dev.G.state.mail.n)) !== 0)
+      throw new Error('предмет другой локации виден в городе: ' + JSON.stringify(town));
+    // а в своей локации — показывает и подбирается
+    await ev((it) => {
+      const d = window.__dev;
+      d.go('demo_meadow');
+      d.locations.demo_meadow.debugTeleport(it.x, it.y);
+    }, items[0]);
+    await wait(300);
+    const r = await loc('const m = d.G.state.mail; return { n: m.n, got: m.items[0].got, target: sc.target() }');
+    if (r.n !== 1 || !r.got || !r.target || r.target.icon !== '❄️')
+      throw new Error('предмет задания в своей локации: ' + JSON.stringify(r));
+    // находки можно менять на ходу (каждый день в новых местах): места даёт та же зона
+    const pk =
+      await loc(`const s = sc.randomSpots('glade', 3, 7), same = JSON.stringify(s) === JSON.stringify(sc.randomSpots('glade', 3, 7));
+      const old = sc.desc.pickups;
+      sc.setPickups(s.map((q, i) => ({ id: 'x' + i, at: [q.x, q.y], icon: '🍄' })));
+      const out = { n: sc.pickups.length, same, there: sc.pickups.every((q) => sc.pickupThere(q)) };
+      sc.setPickups(old);
+      return out;`);
+    if (pk.n !== 3 || !pk.same || !pk.there) throw new Error('setPickups / randomSpots: ' + JSON.stringify(pk));
+    await ev(async () => {
+      const t = (await import('./js/data/index.js')).TASK_BY_ID.snow;
+      delete t.loc;
+      delete t.zone;
+      window.__dev.actions.setMail('snow');
+    });
+  });
+  await step('переход между локациями: город → пробная локация → город', async () => {
+    const send = (name, x, y) =>
+      ev(([name, x, y]) => window.__dev.locations[name].walkTo(x * 48, y * 48, true), [name, x, y]);
+    await ev(() => {
+      const d = window.__dev;
+      d.go('world');
+      d.World.debugTeleport(34, 2);
+    });
+    // в игре выход закрыт: дошли до края дороги — остались в городе
+    await send('world', 34.5, 0.5);
+    await wait(900);
+    let r = await where();
+    if (r.scene !== 'world' || !near(r, { x: 34.5 * T, y: 0.5 * T }))
+      throw new Error('закрытый выход сработал: ' + JSON.stringify(r));
+    // открываем выход (так его откроет задание) и идём к краю ещё раз
+    await ev(() => {
+      const d = window.__dev;
+      d.World.exit('demo').off = false;
+      d.World.debugTeleport(34, 2);
+    });
+    await wait(100);
+    await send('world', 34.5, 0.5);
+    await wait(900);
+    r = await where();
+    if (r.scene !== 'demo_meadow' || !near(r, { x: 11 * T, y: 11.5 * T }))
+      throw new Error('переход в пробную локацию: ' + JSON.stringify(r));
+    const saved = JSON.parse((await stored()).save).pos;
+    if (saved.scene !== 'demo_meadow') throw new Error('позиция после перехода: ' + JSON.stringify(saved));
+    // обратно: по тропинке до нижнего края
+    await send('demo_meadow', 10.5, 13.5);
+    await wait(1200);
+    r = await where();
+    if (r.scene !== 'world' || !near(r, { x: 34.5 * T, y: 2.5 * T }))
+      throw new Error('переход обратно в город: ' + JSON.stringify(r));
+    await wait(400);
+    r = await where();
+    if (r.scene !== 'world') throw new Error('после возвращения хомячка затянуло обратно');
+    // стоим на клетке выхода в момент входа — он не срабатывает, пока не сойдём с неё и не вернёмся
+    await ev(() => window.__dev.go('demo_meadow', { at: [10.5, 13.5] }));
+    await wait(400);
+    r = await where();
+    if (r.scene !== 'demo_meadow') throw new Error('выход сработал сразу при входе на его клетку');
+    await ev(() => {
+      const d = window.__dev;
+      d.World.exit('demo').off = true;
+      d.go('world');
+    });
+    await wait(200);
+  });
 }
 
 (async () => {

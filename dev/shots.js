@@ -7,7 +7,7 @@
 //   node dev/shots.js http://localhost:8765 /tmp/shots-before      # до правки (например, из git worktree)
 //   node dev/shots.js http://localhost:8765 /tmp/shots-after       # после
 //   node dev/compare.js /tmp/shots-before /tmp/shots-after /tmp/shots-diff
-// Ключи:  --only=villa,decor,guests,tower,dive,city,windows,minigames,sleep,title,demo   --sizes=desktop,phone
+// Ключи:  --only=villa,decor,guests,tower,dive,city,windows,minigames,sleep,title,demo,meadow   --sizes=desktop,phone
 // Группы независимы: каждая начинает новую игру в своём окне браузера.
 const { chromium } = require('playwright');
 const fs = require('fs');
@@ -761,6 +761,27 @@ const HOOKS = `window.__T = () => window.__dev;`;
       await click('.panel-foot .btn');
       await run(600);
       await shot('task_surprise');
+      await closeAll();
+    });
+
+    // пробная локация «движка локаций» (js/locations/demo_meadow.js): зима, лето и карта
+    await group('meadow', async () => {
+      await start();
+      await ev(() => window.__T().go('demo_meadow'));
+      await run(900);
+      await shot('meadow_winter');
+      await ev(() => {
+        const t = window.__T();
+        t.G.state.day = 18;
+        t.G.state.weather = 'sun';
+        t.locations.demo_meadow.debugTeleport(14, 5);
+      });
+      await run(900);
+      await shot('meadow_summer');
+      await F('openMap');
+      await real(300);
+      await run(400);
+      await shot('meadow_map');
       await closeAll();
     });
   }
