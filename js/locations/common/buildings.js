@@ -505,6 +505,16 @@ export const towerBox = (b, up = 60, side = 44) => [
   b.h * T + 14,
 ];
 
+/** Свет ночью для здания: пятно на земле у двери и мягкий свет на фасаде (up — насколько фасад выше «пятна»). */
+export function facadeLights(b, r = 90, up = 0) {
+  const cx = (b.x + b.w / 2) * T,
+    bot = (b.y + b.h) * T,
+    hh = b.h * T + up;
+  return [
+    [cx, bot + 8, r, r * 0.42, 0.9],
+    [cx, bot - hh * 0.5, b.w * T * 0.56, hh * 0.56, 0.72],
+  ];
+}
 /** Дымок из трубы — рисуется каждый кадр поверх спрайта: (x, y) — верх трубы. */
 export function smoke(ctx, x, y, t) {
   SP.world();
@@ -524,11 +534,14 @@ defineBuildings({
       if (b.smoke || env.season === 'winter') smoke(ctx, (b.x + b.w * 0.68) * T + 10, b.y * T - 2, t + b.x);
     },
     box: (b) => [-30, -60, b.w * T + 30, b.h * T + 14],
+    // свет ночью: окна, слуховое окошко и пятно на земле у двери
     lights: (b) => {
       const g = houseGeom(b);
       return [
-        [g.winL + 18, g.bot + 6, 70],
-        [g.winR + 18, g.bot + 6, 70],
+        [g.winL + 18, g.winY + 20, 44, 44, 0.9],
+        [g.winR + 18, g.winY + 20, 44, 44, 0.9],
+        [g.cx, g.atticY, 26, 26, 0.7],
+        [g.cx, g.bot + 8, 84, 34, 0.85],
       ];
     },
     mapDraw(ctx, b, k) {
@@ -538,17 +551,17 @@ defineBuildings({
   },
   shop: {
     paint: (ctx, b, snow, lit) => paintShop(ctx, b, snow, lit, false),
-    lights: (b) => [[(b.x + b.w / 2) * T, (b.y + b.h) * T + 6, 80]],
+    lights: (b) => facadeLights(b, 80),
   },
   mall: {
     paint: (ctx, b, snow, lit) => paintShop(ctx, b, snow, lit, true),
-    lights: (b) => [[(b.x + b.w / 2) * T, (b.y + b.h) * T + 6, 110]],
+    lights: (b) => facadeLights(b, 110),
   },
   tower: {
     paint: paintTower,
     box: (b) => towerBox(b),
     hitUp: (b) => b.floors * T * 0.62,
     live: (ctx, b, t) => beacon(ctx, b, t),
-    lights: (b) => [[(b.x + b.w / 2) * T, (b.y + b.h) * T + 6, 80]],
+    lights: (b) => facadeLights(b, 80, b.floors * T * 0.62 - b.h * T + T),
   },
 });

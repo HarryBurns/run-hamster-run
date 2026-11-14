@@ -74,7 +74,7 @@ import { TASK_BY_ID } from '../../data/index.js';
 import { T, SP, TILES, OBJECTS, BUILDING_KINDS, tileOf } from './kinds.js';
 import { createMap, mapSize } from './map.js';
 import { moveAlong, canStand, makeResidents, updateResidents, hitResident } from './actors.js';
-import { drawFrame, drawMiniMapBase, drawMiniMapPlayer, initWeather, updateWeather } from './render.js';
+import { drawFrame, drawMiniMapBase, drawMiniMapPlayer, initWeather, updateWeather, hideSky } from './render.js';
 import { groundStats } from './ground.js';
 
 // ---------- локации игры ----------
@@ -334,7 +334,9 @@ export function createTopDownScene(desc) {
       sc.cam.snap(p.x, p.y);
       if (desc.sky !== false) initWeather(sc);
     },
-    leave() {},
+    leave() {
+      hideSky(); // слой неба (темнота, тени облаков) — только над локацией
+    },
     savePos: () => ({ scene: sc.name, x: sc.p.x, y: sc.p.y }),
     restorePos(pos) {
       if (!pos || !Number.isFinite(pos.x) || !Number.isFinite(pos.y)) return false;

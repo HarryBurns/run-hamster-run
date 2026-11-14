@@ -4,15 +4,19 @@
 // Правило кэша (core/sprites.js): спрайт ложится 1:1 на целые пиксели устройства. Оно держится на cam.k
 // (целое чётное число пикселей на клетку — Camera.setTileZoom) и cam.pixelOrigin(): не менять.
 //
-// Порядок кадра: фон → клетки земли → «поверх земли» (крюк ground) → всё, что стоит, от дальнего к ближнему
-// (предметы, здания, жители, «своё» из крюка things, предметы задания, находки, герой) → падающие значки →
-// крюк over → звёздочка цели → ночь → погода → крюк overlay → стрелка к цели за экраном.
+// Порядок кадра: фон → земля (куски из кэша, вода, прибой, лужи) → «поверх земли» (крюк ground) → всё, что стоит,
+// от дальнего к ближнему (предметы, здания, жители, «своё» из крюка things, предметы задания, находки, герой) →
+// падающие значки → крюк over → бабочки → звёздочка цели → время суток и ночь со светом → светлячки → погода →
+// крюк overlay → стрелка к цели за экраном.
+//
+// СВЕТ. Ночью (темнота > 0,3) у предметов с полем light: [dx, dy, радиус] и у зданий, чей вид отдаёт
+// lights(b) → [[x, y, rx, ry?, сила?], …], появляются пятна света: темнота в этих местах «прорезана» (drawNight).
 import { G, playerLook, cal } from '../../core/state.js';
 import { clamp, rnd, dist } from '../../core/util.js';
 import { ell, fillRR, line, poly, star, emoji } from '../../core/draw.js';
 import { drawHamster, blinkAt } from '../../art/hamster.js';
 import { NPC_BY_ID, TASK_BY_ID } from '../../data/index.js';
-import { T, OUT, PS, SP, TILES, OBJECTS, BUILDING_KINDS, tileOf, label } from './kinds.js';
+import { T, OUT, PS, SP, TILES, OBJECTS, BUILDING_KINDS, tileOf, label, hash } from './kinds.js';
 import { drawResident } from './actors.js';
 import { drawGround, buildShore, CH } from './ground.js';
 
@@ -39,26 +43,303 @@ export function updateWeather(sc, dt) {
     if (q.x < -0.05) q.x = 1.05;
   }
 }
+/** Осадки — в экранных координатах, по одному пути на цвет. */
 function drawWeather(ctx, sc, w, h) {
-  const k = G.state.weather;
-  for (const q of sc.weather) {
-    const x = q.x * w,
-      y = q.y * h;
-    if (k === 'rain') line(ctx, x, y, x - 4, y + 14 * q.s, 'rgba(120,170,255,.7)', 2);
-    else if (k === 'snow') ell(ctx, x, y, 3 * q.s, 3 * q.s, 'rgba(255,255,255,.95)');
-    else
-      ell(
-        ctx,
-        x,
-        y,
-        6 * q.s,
-        3.5 * q.s,
-        k === 'petals' ? 'rgba(255,170,200,.9)' : ['#f08c00', '#e8590c', '#ffd43b'][Math.floor(q.ph) % 3],
-        null,
-        1,
-        G.time * 2 + q.ph,
-      );
+  const k = G.state.weather,
+    list = sc.weather,
+    t = G.time;
+  if (!list.length) return;
+  if (k === 'rain') {
+    // косые струи: дальние — тоньше и бледнее
+    for (const far of [1, 0]) {
+      ctx.strokeStyle = far ? 'rgba(150,190,255,.4)' : 'rgba(130,175,255,.75)';
+      ctx.lineWidth = far ? 1.3 : 2;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      for (let i = far; i < list.length; i += 2) {
+        const q = list[i],
+          x = q.x * w,
+          y = q.y * h,
+          len = (far ? 10 : 16) * q.s;
+        ctx.moveTo(x, y);
+        ctx.lineTo(x - len * 0.3, y + len);
+      }
+      ctx.stroke();
+    }
+  } else if (k === 'snow') {
+    // снежинки двух размеров, покачиваются
+    ctx.fillStyle = 'rgba(255,255,255,.95)';
+    ctx.beginPath();
+    for (const q of list) {
+      const r = (q.ph > 4 ? 4.2 : q.ph > 2 ? 3 : 2) * q.s,
+        x = q.x * w + Math.sin(t * 1.3 + q.ph * 3) * 6,
+        y = q.y * h;
+      ctx.moveTo(x + r, y);
+      ctx.arc(x, y, r, 0, 6.2832);
+    }
+    ctx.fill();
+  } else {
+    // лепестки и листья: кружатся, по цвету — отдельный путь
+    const cols =
+      k === 'petals' ? ['rgba(255,170,200,.95)', 'rgba(255,205,225,.95)', '#fff'] : ['#f08c00', '#e8590c', '#ffd43b'];
+    cols.forEach((col, ci) => {
+      ctx.fillStyle = col;
+      ctx.beginPath();
+      for (let i = ci; i < list.length; i += 3) {
+        const q = list[i],
+          x = q.x * w + Math.sin(t * 0.9 + q.ph * 2) * 14,
+          y = q.y * h,
+          rot = t * (1.2 + q.s) + q.ph,
+          fl = 0.35 + 0.65 * Math.abs(Math.sin(t * 2.2 + q.ph * 5)); // лист поворачивается ребром
+        ctx.moveTo(x + Math.cos(rot) * 7 * q.s, y + Math.sin(rot) * 7 * q.s);
+        ctx.ellipse(x, y, 7 * q.s, 4 * q.s * fl, rot, 0, 6.2832);
+      }
+      ctx.fill();
+    });
   }
+}
+/** Дождь на земле: лужицы на мостовой и расходящиеся круги — в координатах мира, под всем, что стоит. */
+function drawRainOnGround(ctx, m, t, x0, y0, x1, y1) {
+  ctx.fillStyle = 'rgba(160,205,240,.42)';
+  ctx.beginPath();
+  const rings = [];
+  for (let ty = y0; ty <= y1; ty++) {
+    const row = m.kinds[ty];
+    for (let tx = x0; tx <= x1; tx++) {
+      const hs = hash(tx * 7 + 3, ty * 11 + 5),
+        kind = row[tx];
+      if (hs < 0.1 && kind.z >= 5 && kind.z <= 8 && !kind.wet) {
+        // лужица
+        const cx = (tx + 0.3 + hs * 4) * T,
+          cy = (ty + 0.5) * T;
+        ctx.moveTo(cx + 15, cy);
+        ctx.ellipse(cx, cy, 15, 7, 0, 0, 6.2832);
+        ctx.moveTo(cx + 19, cy + 5);
+        ctx.ellipse(cx + 11, cy + 5, 8, 4, 0, 0, 6.2832);
+      }
+      if (hs > 0.72) rings.push(tx, ty, hs);
+    }
+  }
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(255,255,255,.55)';
+  ctx.lineWidth = 1.4;
+  ctx.beginPath();
+  for (let i = 0; i < rings.length; i += 3) {
+    const hs = rings[i + 2],
+      ph = (t * 1.4 + hs * 37) % 1,
+      cx = (rings[i] + ((hs * 17) % 1)) * T,
+      cy = (rings[i + 1] + ((hs * 29) % 1)) * T,
+      r = 2 + ph * 9;
+    if (ph > 0.8) continue;
+    ctx.moveTo(cx + r, cy);
+    ctx.ellipse(cx, cy, r, r * 0.45, 0, 0, 6.2832);
+  }
+  ctx.stroke();
+}
+
+// ---------- свет: время суток, ночь, пятна света ----------
+/**
+ * Цвет неба поверх кадра: [r, g, b, a] или null. Утром — розоватая дымка, к закату — тёплый свет, в сумерках —
+ * синева, ночью — тёмно-синяя темнота (dark — 0..1 из sc.darkness()). В дождь — серо-голубая пелена.
+ */
+function skyTint(dark) {
+  const m = G.state.minutes,
+    rain = G.state.weather === 'rain';
+  let r = 0,
+    g = 0,
+    b = 0,
+    a = 0;
+  const add = (cr, cg, cb, ca) => {
+    if (ca <= 0) return;
+    r += cr * ca;
+    g += cg * ca;
+    b += cb * ca;
+    a += ca;
+  };
+  if (m >= 300 && m < 480) add(255, 176, 150, 0.15 * (1 - (m - 300) / 180)); // рассвет
+  const warm = clamp((m - 16.5 * 60) / 90, 0, 1) * (1 - clamp(dark * 1.5, 0, 1));
+  add(255, 138, 60, 0.2 * warm); // закат
+  add(110, 70, 160, 0.16 * Math.sin(clamp(dark, 0, 1) * Math.PI)); // сумерки
+  add(18, 22, 78, 0.6 * dark); // ночь
+  if (rain) add(70, 95, 130, 0.14);
+  if (a < 0.01) return null;
+  return [Math.round(r / a), Math.round(g / a), Math.round(b / a), Math.min(0.72, a)];
+}
+let glowImg = null; // мягкое круглое пятно: им «прорезают» темноту
+function glowSprite() {
+  if (glowImg) return glowImg;
+  glowImg = document.createElement('canvas');
+  glowImg.width = glowImg.height = 64;
+  const c = glowImg.getContext('2d'),
+    g = c.createRadialGradient(32, 32, 0, 32, 32, 32);
+  g.addColorStop(0, 'rgba(255,255,255,1)');
+  g.addColorStop(0.45, 'rgba(255,255,255,.75)');
+  g.addColorStop(1, 'rgba(255,255,255,0)');
+  c.fillStyle = g;
+  c.fillRect(0, 0, 64, 64);
+  return glowImg;
+}
+let skyEl = null,
+  skyCtx = null,
+  skyOn = false;
+/** Убрать слой неба (сцена ушла или небо сейчас чистое). */
+export function hideSky() {
+  if (skyEl && skyOn) {
+    skyEl.style.display = 'none';
+    skyOn = false;
+  }
+}
+/**
+ * СЛОЙ НЕБА — отдельная маленькая канва поверх игры (в ~8 раз мельче экрана), растянутая на весь экран средствами
+ * страницы: растягивает её видеокарта, а не наш кадр, поэтому цвет времени суток, ночная темнота с мягкими пятнами
+ * света и тени облаков почти ничего не стоят. В ней: заливка цветом неба tint → «прорезанные» пятна света
+ * (lights — [x, y, rx, ry, сила] в единицах мира) с тёплым оттенком → тени облаков → огоньки светлячков.
+ * Возвращает контекст слоя и перевод «мир → точки слоя» (для светлячков) или null, если слой не нужен.
+ */
+function drawSky(sc, tint, lights, n, clouds, k, ox, oy, w, h, dpr) {
+  if (!tint && !clouds) {
+    hideSky();
+    return null;
+  }
+  const S = Math.max(4, Math.round((w * dpr) / 170)), // пикселей устройства в одной точке слоя
+    lw = Math.ceil((w * dpr) / S) + 1,
+    lh = Math.ceil((h * dpr) / S) + 1;
+  if (!skyEl) {
+    skyEl = document.createElement('canvas');
+    skyEl.id = 'sky';
+    skyEl.style.cssText = 'position:fixed;left:0;top:0;z-index:5;pointer-events:none;display:none';
+    document.body.appendChild(skyEl);
+    skyCtx = skyEl.getContext('2d');
+  }
+  if (skyEl.width !== lw || skyEl.height !== lh) {
+    skyEl.width = lw;
+    skyEl.height = lh;
+  }
+  const cssW = (lw * S) / dpr + 'px',
+    cssH = (lh * S) / dpr + 'px';
+  if (skyEl.style.width !== cssW) skyEl.style.width = cssW;
+  if (skyEl.style.height !== cssH) skyEl.style.height = cssH;
+  if (!skyOn) {
+    skyEl.style.display = 'block';
+    skyOn = true;
+  }
+  const c = skyCtx;
+  c.globalAlpha = 1;
+  c.globalCompositeOperation = 'source-over';
+  c.clearRect(0, 0, lw, lh);
+  if (tint) {
+    c.fillStyle = `rgba(${tint[0]},${tint[1]},${tint[2]},${tint[3]})`;
+    c.fillRect(0, 0, lw, lh);
+    if (n) {
+      const glow = glowSprite();
+      c.globalCompositeOperation = 'destination-out';
+      for (let i = 0; i < n; i += 5) {
+        const rx = (lights[i + 2] * k) / S,
+          ry = (lights[i + 3] * k) / S;
+        c.globalAlpha = lights[i + 4];
+        c.drawImage(glow, (lights[i] * k - ox) / S - rx, (lights[i + 1] * k - oy) / S - ry, rx * 2, ry * 2);
+      }
+      // тёплый оттенок там, где темнота прорезана
+      c.globalAlpha = 1;
+      c.globalCompositeOperation = 'destination-over';
+      c.fillStyle = `rgba(255,186,96,${(tint[3] * 0.3).toFixed(3)})`;
+      c.fillRect(0, 0, lw, lh);
+      c.globalCompositeOperation = 'source-over';
+    }
+  }
+  if (clouds) {
+    // тени облаков плывут над картой с запада на восток
+    const m = sc.map,
+      span = m.w * T + 1200,
+      t = G.time;
+    c.fillStyle = 'rgba(40,60,120,.1)';
+    c.beginPath();
+    for (let i = 0; i < 7; i++) {
+      const cx = ((i * 733 + t * 9) % span) - 600,
+        cy = hash(i * 5 + 1, 3) * m.h * T,
+        rx = 260 + hash(i, 9) * 200,
+        ry = 120 + hash(9, i) * 90;
+      const sx = (cx * k - ox) / S,
+        sy = (cy * k - oy) / S,
+        srx = (rx * k) / S,
+        sry = (ry * k) / S;
+      if (sx + srx < 0 || sx - srx > lw || sy + sry < 0 || sy - sry > lh) continue;
+      c.moveTo(sx + srx, sy);
+      c.ellipse(sx, sy, srx, sry, 0, 0, 6.2832);
+      c.moveTo(sx + srx * 0.4 + srx * 0.6, sy - sry * 0.5);
+      c.ellipse(sx + srx * 0.4, sy - sry * 0.5, srx * 0.6, sry * 0.6, 0, 0, 6.2832);
+    }
+    c.fill();
+  }
+  return { c, S };
+}
+
+// ---------- живность: бабочки днём, светлячки ночью ----------
+const WINGS = ['#ffd43b', '#ff8fab', '#ffffff', '#74c0fc'];
+/** Клетки травы, над которыми кто-то летает: редкие, выбраны «случайным» числом клетки. */
+function critterCells(m, x0, y0, x1, y1, out) {
+  let n = 0;
+  for (let ty = y0; ty <= y1; ty++) {
+    const row = m.kinds[ty];
+    for (let tx = x0; tx <= x1; tx++) {
+      const hs = hash(tx * 13 + 7, ty * 29 + 3);
+      if (hs < 0.016 && row[tx].id === 'g') {
+        out[n++] = tx;
+        out[n++] = ty;
+        out[n++] = hs * 62;
+      }
+    }
+  }
+  return n;
+}
+const critters = [];
+/** Бабочки: в координатах мира, поверх всего, что стоит. */
+function drawButterflies(ctx, m, t, x0, y0, x1, y1) {
+  const n = critterCells(m, x0 - 1, Math.max(0, y0 - 1), x1 + 1, y1, critters);
+  for (let ci = 0; ci < WINGS.length; ci++) {
+    ctx.fillStyle = WINGS[ci];
+    ctx.strokeStyle = 'rgba(74,55,40,.75)';
+    ctx.lineWidth = 0.9;
+    ctx.beginPath();
+    let any = false;
+    for (let i = 0; i < n; i += 3) {
+      const hs = critters[i + 2];
+      if (Math.floor(hs * 97) % WINGS.length !== ci) continue;
+      any = true;
+      const x = (critters[i] + 0.5) * T + Math.sin(t * 0.7 + hs * 40) * 42 + Math.sin(t * 1.9 + hs * 17) * 12,
+        y = (critters[i + 1] + 0.5) * T + Math.cos(t * 0.9 + hs * 31) * 26 - 26 + Math.sin(t * 6 + hs) * 3,
+        fl = Math.abs(Math.sin(t * 13 + hs * 50));
+      for (const sx of [-1, 1]) {
+        ctx.moveTo(x + sx * (1 + 5.5 * fl), y - 2);
+        ctx.ellipse(x + sx * (1 + 2.6 * fl), y - 2, 0.6 + 3 * fl, 4.2, sx * 0.3, 0, 6.2832);
+        ctx.moveTo(x + sx * (1 + 4 * fl), y + 2.6);
+        ctx.ellipse(x + sx * (1 + 1.8 * fl), y + 2.6, 0.5 + 2.2 * fl, 2.8, -sx * 0.3, 0, 6.2832);
+      }
+    }
+    if (any) {
+      ctx.fill();
+      ctx.stroke();
+    }
+  }
+}
+/** Светлячки: огоньки в слое неба (поверх темноты). c — контекст слоя, S — пикселей устройства в его точке. */
+function drawFireflies(c, m, t, x0, y0, x1, y1, k, ox, oy, S) {
+  const n = critterCells(m, x0 - 1, Math.max(0, y0 - 1), x1 + 1, y1, critters);
+  c.fillStyle = 'rgba(255,246,150,.9)';
+  c.beginPath();
+  for (let i = 0; i < n; i += 3) {
+    const hs = critters[i + 2];
+    for (let j = 0; j < 2; j++) {
+      if (Math.sin(t * (1.1 + j * 0.4) + hs * 9 + j * 2) < -0.2) continue; // мерцают
+      const x = (critters[i] + 0.5) * T + Math.sin(t * 0.5 + hs * 40 + j * 3) * 34,
+        y = (critters[i + 1] + 0.5) * T + Math.cos(t * 0.6 + hs * 31 + j) * 20 - 18,
+        sx = (x * k - ox) / S,
+        sy = (y * k - oy) / S;
+      c.moveTo(sx + 0.55, sy);
+      c.arc(sx, sy, 0.55, 0, 6.2832);
+    }
+  }
+  c.fill();
 }
 
 // ---------- прибой ----------
@@ -184,12 +465,15 @@ export function drawFrame(ctx, sc) {
     k = cam.k,
     season = desc.season || cal().season,
     dark = sc.darkness();
-  ctx.fillStyle = desc.bg || '#3fb0ea';
-  ctx.fillRect(0, 0, w, h);
-  ctx.save();
-  // Сдвиг камеры — целое число пикселей устройства: земля и спрайты из кэша двигаются вместе, без дрожания.
   const cw = ctx.canvas.width,
     chh = ctx.canvas.height;
+  // фон нужен, только если карта меньше экрана: иначе землю целиком закрывают её куски
+  if (m.w * T * k < cw || m.h * T * k < chh) {
+    ctx.fillStyle = desc.bg || '#3fb0ea';
+    ctx.fillRect(0, 0, w, h);
+  }
+  ctx.save();
+  // Сдвиг камеры — целое число пикселей устройства: земля и спрайты из кэша двигаются вместе, без дрожания.
   const { ox, oy } = cam.pixelOrigin(cw, chh);
   SP.begin(ctx, k, ox, oy);
   ctx.lineJoin = 'round';
@@ -203,7 +487,21 @@ export function drawFrame(ctx, sc) {
     y1 = Math.min(m.h - 1, tileOf((oy + chh) / k));
   drawGround(ctx, sc, env, k, ox, oy, cw, chh); // земля: куски из кэша и «живое» поверх (вода, грядки)
   drawSurf(ctx, sc, env, x0, y0, x1, y1);
+  const sky = desc.sky !== false,
+    weather = sky ? G.state.weather : 'sun';
+  if (weather === 'rain') drawRainOnGround(ctx, m, t, x0, y0, x1, y1);
   sc.call('ground', ctx, sc, env); // разметка — то, что лежит прямо на земле и меняется
+  // свет: ночью собираем пятна света от фонарей, окон и дверей
+  const lit = sky && dark > 0.3,
+    lights = sc.lights || (sc.lights = []);
+  let nl = 0;
+  const light = (x, y, rx, ry, a) => {
+    lights[nl++] = x;
+    lights[nl++] = y;
+    lights[nl++] = rx;
+    lights[nl++] = ry === undefined ? rx : ry;
+    lights[nl++] = a === undefined ? 1 : a;
+  };
 
   // всё, что стоит на земле, — по порядку «дальше → ближе»
   const list = [];
@@ -232,12 +530,18 @@ export function drawFrame(ctx, sc) {
   for (const e of list) {
     const v = e.v;
     switch (e.k) {
-      case K_OBJ:
-        OBJECTS[v.type].draw(ctx, v, env);
+      case K_OBJ: {
+        const kind = OBJECTS[v.type];
+        kind.draw(ctx, v, env);
+        if (lit && kind.light) light(v.x + kind.light[0], v.y + kind.light[1], kind.light[2]);
         break;
-      case K_BUILDING:
+      }
+      case K_BUILDING: {
         drawBuilding(ctx, m, v, season, dark, env);
+        const kind = BUILDING_KINDS[v.kind];
+        if (lit && kind.lights) for (const q of kind.lights(v)) light(q[0], q[1], q[2], q[3], q[4]);
         break;
+      }
       case K_NPC: {
         const nd = NPC_BY_ID[v.id];
         drawResident(v, t);
@@ -273,6 +577,9 @@ export function drawFrame(ctx, sc) {
     emoji(ctx, q.e, q.x, q.y + kk * kk * 62, 22);
   }
   sc.call('over', ctx, sc, t);
+  const warmSeason = season === 'spring' || season === 'summer',
+    fine = weather === 'sun' || weather === 'petals';
+  if (sky && warmSeason && fine && dark < 0.25) drawButterflies(ctx, m, t, x0, y0, x1, y1);
   // звёздочка-цель
   const tg = sc.target();
   if (tg) {
@@ -284,13 +591,18 @@ export function drawFrame(ctx, sc) {
   SP.end(dpr);
   ctx.restore();
 
-  if (desc.sky !== false) {
-    if (dark > 0) {
-      ctx.fillStyle = `rgba(24,24,72,${dark * 0.42})`;
-      ctx.fillRect(0, 0, w, h);
-    }
+  if (sky) {
     drawWeather(ctx, sc, w, h);
-  }
+    // небо: цвет времени суток, ночью — темнота с пятнами света, днём — тени облаков (отдельный слой, см. drawSky)
+    const tint = skyTint(dark);
+    if (lit) {
+      light(p.x, p.y - 24, 70, 70, 0.4); // хомячка видно и в темноте
+      if (tg) light(tg.x, tg.y - 70, 46, 46, 0.7); // и звёздочку цели
+    }
+    const clouds = !window.__noClouds && dark < 0.5 && (weather === 'sun' || weather === 'petals' || weather === 'leaves');
+    const layer = drawSky(sc, tint, lights, lit ? nl : 0, clouds, k, ox, oy, w, h, dpr);
+    if (layer && warmSeason && fine && dark > 0.55) drawFireflies(layer.c, m, t, x0, y0, x1, y1, k, ox, oy, layer.S);
+  } else hideSky();
   sc.call('overlay', ctx, sc, w, h); // свой слой поверх всего, в экранных координатах (темнота пещеры и т. п.)
   // стрелка к цели, если она за экраном
   if (tg) {

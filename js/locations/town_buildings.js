@@ -26,11 +26,12 @@ import {
   towerBox,
   beacon,
   houseGeom,
+  facadeLights,
 } from './common/buildings.js';
 import { signBoard, awning, flower, fitText, leafTones, WOOD, WOOD_D, WOOD_L, LIT, GOLD } from './common/paint.js';
 
 const title = (b) => `${b.icon || ''} ${b.name || ''}`.trim();
-const doorLight = (b, r = 90) => [[(b.x + b.w / 2) * T, (b.y + b.h) * T + 6, r]];
+const doorLight = facadeLights;
 
 // ---------- мелочи для витрин ----------
 function dress(ctx, x, y, s, col) {
@@ -1496,14 +1497,7 @@ defineBuildings({
     icon: '🏡',
     box: wideBox(76),
     hitUp: () => 60,
-    lights: (b) => {
-      const g = geom(b);
-      return [
-        [g.cx, g.bot + 4, 120],
-        [g.cx - 150, g.bot, 80],
-        [g.cx + 150, g.bot, 80],
-      ];
-    },
+    lights: (b) => doorLight(b, 130, 30),
   },
   salon: { paint: paintSalon, box: wideBox(60), lights: (b) => doorLight(b) },
   boutique: { paint: paintBoutique, box: wideBox(60), lights: (b) => doorLight(b) },
@@ -1518,24 +1512,24 @@ defineBuildings({
     paint: paintTowerFashion,
     box: (b) => towerBox(b, 96),
     hitUp: (b) => b.floors * T * 0.62,
-    lights: (b) => doorLight(b),
+    lights: (b) => doorLight(b, 90, b.floors * T * 0.62 - b.h * T + T + 60),
   },
   towerHamster: {
     paint: paintTowerHamster,
     box: (b) => towerBox(b, 150, 52),
     hitUp: (b) => b.floors * T * 0.62,
     live: (ctx, b, t) => beacon(ctx, b, t, 136),
-    lights: (b) => doorLight(b),
+    lights: (b) => doorLight(b, 90, b.floors * T * 0.62 - b.h * T + T + 80),
   },
   bank: {
     paint: paintBank,
     box: (b) => towerBox(b, 90),
     hitUp: (b) => b.floors * T * 0.62,
-    lights: (b) => doorLight(b),
+    lights: (b) => doorLight(b, 90, b.floors * T * 0.62 - b.h * T + T + 60),
   },
   market: { paint: paintMarket, box: wideBox(40), lights: (b) => doorLight(b, 110) },
   realtor: { paint: paintRealtor, box: wideBox(50), lights: (b) => doorLight(b) },
-  apartment: { paint: paintApartment, box: wideBox(150), hitUp: () => 90, lights: (b) => doorLight(b, 100) },
+  apartment: { paint: paintApartment, box: wideBox(150), hitUp: () => 90, lights: (b) => doorLight(b, 100, 84) },
   bungalow: { paint: paintBungalow, box: wideBox(60, 50), lights: (b) => doorLight(b) },
-  hotel: { paint: paintHotel, box: wideBox(170), hitUp: () => 110, lights: (b) => doorLight(b, 150) },
+  hotel: { paint: paintHotel, box: wideBox(170), hitUp: () => 110, lights: (b) => doorLight(b, 150, 90) },
 });
