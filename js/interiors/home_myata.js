@@ -1,0 +1,50 @@
+// Дом Мяты: комната в цветах и большая теплица под стеклянной крышей — рассада, пальма, подсолнух и лейка.
+// Дом жителя: мебель из описания, хозяйка внутри; вход — 'home-of:myata'.
+export default {
+  id: 'home_myata',
+  name: 'Домик Мяты',
+  owner: 'myata',
+  floors: 1,
+  width: 1460,
+  maxZoom: 1.1,
+  door: { f: 0, x: 110 },
+  shell: { wall: '#d3f9d8', roof: '#2f9e44', chimneyX: 380, bushes: true },
+  rooms: [
+    { id: 'living', f: 0, x0: 0, x1: 600, name: 'Комната', wall: '#d3f9d8', paper: 'flowers', floor: 'wood', win: 390 },
+    {
+      id: 'green',
+      f: 0,
+      x0: 600,
+      x1: 1460,
+      name: 'Теплица',
+      wall: '#d8f5ff',
+      paper: 'tile',
+      floor: 'tile',
+      win: null,
+      glass: true,
+    },
+  ],
+  built: [{ id: 'door', type: 'door', f: 0, x: 110, c: '#2f9e44' }],
+  furniture: {
+    fixed: [
+      ['rug_craft', 0, 390],
+      ['plant_ficus', 0, 215],
+      ['hanging_plant', 0, 225, 190],
+      ['sofa_mint', 0, 390],
+      ['plant_flowers', 0, 540],
+      ['pic_flowers', 0, 545, 185],
+      // теплица
+      ['seedling_shelf', 0, 700],
+      ['watering_can', 0, 815],
+      ['hanging_plant', 0, 815, 196],
+      ['plant_palm', 0, 910],
+      ['sunflower', 0, 1030],
+      ['seedling_shelf', 0, 1150],
+      ['hanging_plant', 0, 1260, 196],
+      ['plant_cactus', 0, 1255],
+      ['plant_flowers', 0, 1315],
+      ['plant_ficus', 0, 1400],
+    ],
+  },
+  actors: [{ npc: 'myata', f: 0, x: 480, roam: [200, 1360], act: 'host:myata' }],
+};
