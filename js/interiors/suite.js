@@ -1,0 +1,57 @@
+// Номер-люкс в отеле — ЗАГОТОВКА: продавать его начнут, когда достроят курортный отель (в таблице HOMES стоит soon).
+// Гостиная с видом на море и спальня с джакузи. Своё жильё: мебель в сохранении (state.homes.suite), «Обустроить».
+export default {
+  id: 'suite',
+  name: 'Номер-люкс в отеле',
+  floors: 1,
+  width: 1380,
+  maxZoom: 1.1,
+  persist: true,
+  exit: 'home-exit',
+  door: { f: 0, x: 100 },
+  shell: { wall: '#fff9db', roof: '#f08c00', flat: true, chimneyX: null, bushes: true, trees: 'palm', ground: 'sand' },
+  rooms: [
+    {
+      id: 'living',
+      f: 0,
+      x0: 0,
+      x1: 640,
+      name: 'Гостиная',
+      wall: '#fff3bf',
+      paper: 'diamonds',
+      floor: 'wood',
+      win: 380,
+      winW: 220,
+      view: 'sea',
+    },
+    {
+      id: 'bed',
+      f: 0,
+      x0: 640,
+      x1: 1380,
+      name: 'Спальня с джакузи',
+      wall: '#c5f6fa',
+      floor: 'tile',
+      win: 800,
+      view: 'sea',
+      main: true,
+    },
+  ],
+  built: [
+    { id: 'door', type: 'door', f: 0, x: 100, c: '#f08c00' },
+    { id: 'jacuzzi', type: 'jacuzzi', f: 0, x: 1150 },
+  ],
+  furniture: {
+    key: 'suite',
+    editable: true,
+    keepOneBed: true,
+    start: [
+      ['rug_pink', 0, 380],
+      ['sofa_mint', 0, 380],
+      ['lamp_pink', 0, 560],
+      ['bed_blue', 0, 800],
+      ['wardrobe_white', 0, 960],
+    ],
+  },
+  guests: { f: 0, enterX: 170, gap: 70, first: [200, 500], roam: [180, 980] },
+};

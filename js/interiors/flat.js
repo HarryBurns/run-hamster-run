@@ -1,0 +1,63 @@
+// Квартира в городе — первое покупное жильё: маленькая и уютная, гостиная с кухонькой и спальня, окна на город.
+// Своё жильё: мебель лежит в сохранении (state.homes.flat), есть «Обустроить», кровать (сон) и шкаф.
+// Покупка и вход — features/homes.js (действие 'home:flat'); дверь ведёт туда, откуда пришли ('home-exit').
+export default {
+  id: 'flat',
+  name: 'Квартира в городе',
+  floors: 1,
+  width: 1280,
+  maxZoom: 1.15,
+  persist: true,
+  exit: 'home-exit',
+  door: { f: 0, x: 100 },
+  shell: { wall: '#f6dfc8', roof: '#b9834f', flat: true, chimneyX: null, bushes: true },
+  rooms: [
+    {
+      id: 'living',
+      f: 0,
+      x0: 0,
+      x1: 860,
+      name: 'Гостиная с кухней',
+      wall: '#ffe8d6',
+      paper: 'dots',
+      floor: 'wood',
+      win: 275,
+      winW: 150,
+      view: 'city',
+    },
+    {
+      id: 'bed',
+      f: 0,
+      x0: 860,
+      x1: 1280,
+      name: 'Спальня',
+      wall: '#d0ebff',
+      floor: 'wood',
+      win: 990,
+      view: 'city',
+      main: true,
+    },
+  ],
+  built: [
+    { id: 'door', type: 'door', f: 0, x: 100, c: '#4dabf7' },
+    { id: 'kitchen', type: 'kitchen', f: 0, x: 680, c: '#63e6be' },
+  ],
+  furniture: {
+    key: 'flat',
+    editable: true,
+    keepOneBed: true,
+    start: [
+      ['rug_craft', 0, 275],
+      ['sofa_red', 0, 275],
+      ['lamp', 0, 170],
+      ['fridge', 0, 445],
+      ['plant_ficus', 0, 395],
+      ['rug_blue', 0, 990],
+      ['bed_green', 0, 990],
+      ['nightstand', 0, 1128],
+      ['wardrobe_white', 0, 1210],
+      ['pic_sun', 0, 1096, 190],
+    ],
+  },
+  guests: { f: 0, enterX: 170, gap: 70, first: [200, 480], roam: [180, 1220] },
+};
