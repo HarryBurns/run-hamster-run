@@ -8,6 +8,7 @@ const { pathToFileURL } = require('url');
 (async () => {
   const D = await import(pathToFileURL(path.join(__dirname, '..', 'js', 'data', 'index.js')).href);
   const { JOBS, PAID_SHIFTS, MARKET, PRICES, TASK_COINS, TASK_COINS_DEFAULT, START_MONEY } = D;
+  const { HOMES, BUSINESSES, BIZ_RULES, HOME_PRICES, BIZ } = D;
   const problems = [];
   const bad = (msg) => problems.push(msg);
   const fmt = (n) => Math.round(n).toLocaleString('ru-RU');
@@ -41,6 +42,13 @@ const { pathToFileURL } = require('url');
   for (const id of Object.keys(MARKET.sell))
     if (id !== 'pearl' && !ING[id]) bad(`цена рынка для неизвестного id: ${id}`);
   for (const id of Object.keys(TASK_COINS)) if (!D.TASK_BY_ID[id]) bad(`награда для неизвестного задания: ${id}`);
+  // жильё и заведения: у всего есть цена, у заведений — выручка; в таблицах цен нет лишних строк
+  for (const h of HOMES) if (h.id !== 'villa' && !(h.price > 0)) bad(`жильё без цены: ${h.id}`);
+  for (const b of BUSINESSES) if (!(b.price > 0) || !(b.income > 0)) bad(`заведение без цены или выручки: ${b.id}`);
+  for (const id of Object.keys(HOME_PRICES)) if (!D.HOME_BY_ID[id]) bad(`цена для неизвестного жилья: ${id}`);
+  for (const id of Object.keys(BIZ)) if (!D.BIZ_BY_ID[id]) bad(`цена для неизвестного заведения: ${id}`);
+  for (const f of D.FURNITURE)
+    if (f.act === 'spin' || f.act === 'look' || f.act === 'sport') if (!f.say) bad(`мебель без подписи (say): ${f.id}`);
 
   // ---------- 2. нет «вечного двигателя» ----------
   // (а) всё, что можно купить, на рынке стоит не больше доли MARKET.shopShare от самой низкой цены покупки
@@ -123,7 +131,7 @@ const { pathToFileURL } = require('url');
     },
     {
       id: 'max',
-      name: 'потолок (все 10 смен на 3★, весь кошелёк торговца)',
+      name: `потолок (все ${PAID_SHIFTS * jobs.length} смен на 3★, весь кошелёк торговца)`,
       start: { work: PAID_SHIFTS * payAt(3), task: taskMax, market: MARKET.purse, how: 'всё, что можно' },
       week: { work: PAID_SHIFTS * payAt(3), task: taskMax, market: MARKET.purse, how: 'всё, что можно' },
     },
@@ -235,6 +243,112 @@ const { pathToFileURL } = require('url');
   if (by.keen.days < 7 || by.keen.days > 15) bad(`увлечённая игра: квартира за ${by.keen.days} дн. — вне 7–15`);
   if (by.calm.days < 10 || by.calm.days > 20) bad(`спокойная игра: квартира за ${by.calm.days} дн. — вне 10–20`);
   if (by.max.daysNoSpend < 3) bad(`потолок слишком высок: квартира за ${by.max.daysNoSpend} дн.`);
+
+  // ---------- 5. жильё и свой бизнес ----------
+  // Заведение приносит выручку раз в день; хозяйка может поработать сама (прибавка по звёздам) и получает за смену
+  // в ownerPay раз больше. В кассе помещается выручка за tillDays дней — дальше она не растёт.
+  const bizBy = Object.fromEntries(BUSINESSES.map((b) => [b.id, b]));
+  const hasGame = (b) => !!b.game && !!JOBS[b.game]; // работа хозяйки есть (и это оплачиваемая мини-игра)
+  const bonus3 = BIZ_RULES.workBonus[2],
+    bonus2 = BIZ_RULES.workBonus[1];
+  /** Сколько заведения приносят в день: profile — как играет хозяйка. */
+  const passive = (owned, profile) => {
+    let sum = 0,
+      best = 0;
+    for (const id of owned) {
+      const b = bizBy[id];
+      sum += b.income;
+      if (profile === 'max') {
+        if (b.game) sum += b.income * bonus3;
+        if (b.id === 'rest') sum += b.income * BIZ_RULES.specialSecret;
+      } else if (profile === 'keen') {
+        if (b.game) best = Math.max(best, b.income * bonus2); // работает сама в одном заведении в день, на 2★
+        if (b.id === 'rest') sum += b.income * BIZ_RULES.special;
+      }
+    }
+    return sum + best;
+  };
+  /** Купить всё по порядку: в какой день что куплено (доход растёт, как в daysTo, плюс выручка заведений). */
+  const PLAN = ['flat', 'cafe', 'beachcafe', 'bungalow', 'salon', 'boutique', 'rest', 'penthouse'];
+  const costOf = (id) => (bizBy[id] ? bizBy[id].price : HOME_PRICES[id]);
+  const timeline = (p, spend, plan = PLAN) => {
+    let money = START_MONEY,
+      d = 0,
+      i = 0;
+    const owned = [],
+      days = {};
+    while (i < plan.length && d < 2000) {
+      d++;
+      const t = Math.min(1, Math.max(0, (d - 2) / 5));
+      money += (total(p.start) + (total(p.week) - total(p.start)) * t + passive(owned, p.id)) * (1 - spend);
+      while (i < plan.length && money >= costOf(plan[i])) {
+        money -= costOf(plan[i]);
+        days[plan[i]] = d;
+        if (bizBy[plan[i]]) owned.push(plan[i]);
+        i++;
+      }
+    }
+    return days;
+  };
+  console.log('\nЖильё и свой бизнес');
+  for (const h of HOMES) if (h.id !== 'villa') line(`жильё: ${h.name}${h.soon ? ' (скоро)' : ''}`, fmt(h.price));
+  for (const b of BUSINESSES) {
+    const pay = Math.ceil(b.price / b.income),
+      payWork = Math.ceil(b.price / (b.income * (1 + (b.game ? bonus3 : 0))));
+    line(
+      `заведение: ${b.name}`,
+      `${fmt(b.price)} · ${fmt(b.income)} в день · окупается за ${pay} дн.${b.game ? ` (с работой хозяйки на 3★ — за ${payWork})` : ''}`,
+    );
+    if (pay < 20 || pay > 35) bad(`${b.id}: окупается за ${pay} дн. — вне 20–35`);
+    if (payWork < 12) bad(`${b.id}: с работой хозяйки окупается слишком быстро (${payWork} дн.)`);
+    if (b.game && !D.BIZ_BY_ID[b.id].work) bad(`${b.id}: нет подписи кнопки «работа хозяйки»`);
+  }
+  line('касса заведения', `выручка за ${BIZ_RULES.tillDays} дн., дальше не растёт`);
+  line(
+    'хозяйке за смену в своём заведении',
+    `× ${BIZ_RULES.ownerPay} (шеф-повар на 3★: ${fmt(JOBS.chef.pay[2] * BIZ_RULES.ownerPay)})`,
+  );
+  const allBiz = BUSINESSES.map((b) => b.id);
+  line(
+    'все 5 заведений: выручка в день',
+    `${fmt(passive(allBiz, 'calm'))} сами по себе · до ${fmt(passive(allBiz, 'max'))} с работой хозяйки и блюдом дня`,
+  );
+  console.log(
+    '  на какой день что куплено (квартира → кафе → пляжное кафе → бунгало → салон → бутик → ресторан → пентхаус)',
+  );
+  const names = {
+    flat: 'квартира',
+    cafe: 'кафе',
+    beachcafe: 'пляжное кафе',
+    bungalow: 'бунгало',
+    salon: 'салон',
+    boutique: 'бутик',
+    rest: 'ресторан',
+    penthouse: 'пентхаус',
+  };
+  const tl = {};
+  for (const p of PROFILES) {
+    tl[p.id] = timeline(p, p.id === 'max' ? 0 : SPEND);
+    line(
+      `    ${p.id === 'max' ? 'потолок, ничего не тратя' : p.name.split(' (')[0] + ', треть заработка — на траты'}`,
+      PLAN.map((id) => `${names[id]} ${tl[p.id][id]}`).join(' · '),
+    );
+  }
+  const cafeFirst = { keen: timeline(by.keen, SPEND, ['cafe']).cafe, max: timeline(by.max, 0, ['cafe']).cafe };
+  line(
+    '    если сразу копить на кафе (без квартиры)',
+    `увлечённая игра — день ${cafeFirst.keen}, потолок — день ${cafeFirst.max}`,
+  );
+  // «купила кафе на второй день» быть не должно; всё купить — долго, но достижимо; выручка — не «бесконечные деньги»
+  if (cafeFirst.max < 4) bad(`потолок: кафе на ${cafeFirst.max}-й день — слишком рано`);
+  if (cafeFirst.keen < 10) bad(`увлечённая игра: кафе на ${cafeFirst.keen}-й день — слишком рано`);
+  if (tl.keen.penthouse < 60) bad(`увлечённая игра: всё куплено за ${tl.keen.penthouse} дн. — слишком быстро`);
+  if (tl.keen.penthouse > 250) bad(`увлечённая игра: всё куплено за ${tl.keen.penthouse} дн. — слишком долго`);
+  if (passive(allBiz, 'max') > 2 * total(by.max.week))
+    bad('выручка всех заведений больше двух «потолков» дневного заработка');
+  if (!(BIZ_RULES.tillDays >= 1 && BIZ_RULES.tillDays <= 5)) bad('в кассе должна помещаться выручка за 1–5 дней');
+  if (BIZ_RULES.ownerPay > 2) bad('хозяйке платят больше чем вдвое');
+  for (const b of BUSINESSES) if (hasGame(b) && !JOBS[b.game]) bad(`${b.id}: работа хозяйки без зарплаты`);
 
   if (problems.length) {
     console.log('\nБАЛАНС НАРУШЕН:\n' + problems.map((p) => '  - ' + p).join('\n'));

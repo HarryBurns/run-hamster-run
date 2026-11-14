@@ -3,15 +3,18 @@
 // Запуск:  python3 -m http.server 8765 &   затем   node dev/smoke.js [http://localhost:8765]
 // Нужен Playwright с Chromium. Код возврата 0 — всё хорошо, 1 — есть ошибки.
 // Третий аргумент «extra» — только экономика и проверки сохранений, цикла и окон (быстро):  node dev/smoke.js <url> extra
+// Третий аргумент «estate» — только гости, жильё и бизнес (dev/smoke_estate.js):  node dev/smoke.js <url> estate
 // Скорость проверяется отдельно:  node dev/bench.js [url] --spots=forest --sizes=desktop --max-forest=45
 const { chromium } = require('playwright');
 const fs = require('fs');
 const path = require('path');
 const SAVE_V1 = fs.readFileSync(path.join(__dirname, 'saves', 'v1.json'), 'utf8'); // сделано кодом до миграций (коммит dc1d500)
 const SAVE_V2 = fs.readFileSync(path.join(__dirname, 'saves', 'v2.json'), 'utf8'); // сделано кодом с новой экономикой (этап 3)
+const estate = require('./smoke_estate.js'); // этап 4: в гости, жильё, бизнес, «Бариста», перенос v2 → v3
 
 const BASE = process.argv[2] || 'http://localhost:8765';
-const ONLY_EXTRA = process.argv[3] === 'extra';
+const ONLY_ESTATE = process.argv[3] === 'estate';
+const ONLY_EXTRA = process.argv[3] === 'extra' || ONLY_ESTATE;
 const SIZES = ONLY_EXTRA
   ? [[1280, 720, 'desktop']]
   : [
@@ -640,7 +643,7 @@ async function economy({ page, step, ev, wait, closeAll }) {
     await wait(500);
     const s = await state();
     const chip = norm(await ev(() => document.querySelector('.chip.money').textContent));
-    expect(s.money === 3000 && s.earned === 0 && s.spent === 0 && s.v === 2, 'новая игра', [s.money, s.earned, s.v]);
+    expect(s.money === 3000 && s.earned === 0 && s.spent === 0 && s.v === 3, 'новая игра', [s.money, s.earned, s.v]);
     expect(s.ledger && s.ledger.today.out === 0 && s.ledger.yesterday, 'нет учёта денег', s.ledger);
     expect(chip.includes('3 000'), 'плашка монет', chip);
     // все цены по карману или хотя бы разумны: ничего дешевле 10 и ничего «за миллион»
@@ -1020,7 +1023,7 @@ async function economy({ page, step, ev, wait, closeAll }) {
     const letter = await text('.overlay .panel-body');
     expect(letter.includes('20 000') && letter.includes(old.name) && /стройк/i.test(letter), 'письмо банка', letter);
     let s = await state();
-    expect(s.v === 2 && s.money === 20000 && s.spent === 0 && s.earned === 0, 'деньги после переноса', [s.v, s.money]);
+    expect(s.v === 3 && s.money === 20000 && s.spent === 0 && s.earned === 0, 'деньги после переноса', [s.v, s.money]);
     expect(s.flags.bankLetter === 2 && s.ledger && s.pearlsSold === 0, 'новые поля', [s.flags, s.ledger, s.pearlsSold]);
     const same = (k) => JSON.stringify(s[k]) === JSON.stringify(old[k]);
     for (const k of ['name', 'clothes', 'storage', 'dishes', 'seeds', 'recipes', 'stickers', 'day', 'pearls'])
@@ -1049,7 +1052,7 @@ async function economy({ page, step, ev, wait, closeAll }) {
     await wait(2200);
     s = await state();
     expect((await page.locator('text=Письмо из Хомяк-Банка').count()) === 0, 'письмо банка показано второй раз');
-    expect(s.money === 20000 && s.v === 2 && s.flags.bankLetter === 2, 'после второго входа', [s.money, s.flags]);
+    expect(s.money === 20000 && s.v === 3 && s.flags.bankLetter === 2, 'после второго входа', [s.money, s.flags]);
     await closeAll();
   });
   await step('образец: сохранение v2', async () => {
@@ -1059,7 +1062,7 @@ async function economy({ page, step, ev, wait, closeAll }) {
     await wait(2200);
     const s = await state();
     expect((await page.locator('text=Письмо из Хомяк-Банка').count()) === 0, 'письмо банка в новой игре');
-    expect(s.v === 2 && s.name === want.name && s.money === want.money && s.earned === want.earned, 'образец v2', [
+    expect(s.v === 3 && s.name === want.name && s.money === want.money && s.earned === want.earned, 'образец v2', [
       s.v,
       s.money,
     ]);
@@ -1104,6 +1107,7 @@ async function economy({ page, step, ev, wait, closeAll }) {
     };
     const step = async (name, fn, o = {}) => {
       if (ONLY_EXTRA && !o.extra && name !== 'новая игра') return;
+      if (ONLY_ESTATE && !o.estate && name !== 'новая игра') return;
       const before = errors.length;
       try {
         await fn();
@@ -1539,7 +1543,7 @@ async function economy({ page, step, ev, wait, closeAll }) {
       await ev(() => {
         const d = window.__dev;
         d.actions.meetFriend('bob');
-        d.actions.inviteGuest('bob');
+        d.actions.inviteGuest('bob', 'demo_flat');
       });
       await wait(300);
       r = await flat();
@@ -1585,6 +1589,7 @@ async function economy({ page, step, ev, wait, closeAll }) {
       if ((await ev(() => window.__dev.G.state.day)) !== day0) throw new Error('сохранение не загрузилось');
     });
     await economy({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
+    await estate({ page, step: (n, f, o) => step(n, f, { ...o, extra: true, estate: true }), ev, wait, closeAll });
     if (tag === 'desktop')
       await extra({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll, hold });
     await page.close();
