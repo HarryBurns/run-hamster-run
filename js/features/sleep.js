@@ -4,6 +4,7 @@ import { sfx } from '../core/audio.js';
 import { on, emit } from '../core/events.js';
 import { register } from '../core/registry.js';
 import { G, cal } from '../core/state.js';
+import { fmtMoney } from '../core/util.js';
 import { fadeTo } from '../ui/fade.js';
 import { enqueue } from '../ui/modals.js';
 import { message, confirmBox } from '../ui/panel.js';
@@ -43,6 +44,9 @@ export async function askSleep() {
         }),
       );
     else toast(`Доброе утро! ${c.seasonIcon} ${c.monthName}, день ${c.dom}. В ящике новое письмо ✉️`);
+    // итог вчерашнего дня: сколько монет заработано (подробно — в Хомяк-Банке)
+    const got = Object.values(s.ledger.yesterday.in).reduce((a, b) => a + b, 0);
+    if (got > 0) setTimeout(() => toast(`Вчера ты заработала 🪙 ${fmtMoney(got)}. Молодец!`, 'good'), 1800);
   }, 600);
 }
 

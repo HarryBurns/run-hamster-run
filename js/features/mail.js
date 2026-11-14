@@ -1,11 +1,11 @@
 // Почта: письмо с заданием дня, его выполнение и награда.
-import { award, setMail, readMail, mailCount, mailGot, finishTask } from '../core/actions.js';
+import { award, earn, setMail, readMail, mailCount, mailGot, finishTask } from '../core/actions.js';
 import { sfx } from '../core/audio.js';
 import { on, emit } from '../core/events.js';
 import { register } from '../core/registry.js';
 import { G, cal } from '../core/state.js';
-import { esc, pick } from '../core/util.js';
-import { CLOTHES_BY_ID, SEED_BY_ID, TASKS, TASK_BY_ID, PLACES } from '../data/index.js';
+import { esc, fmtMoney, pick } from '../core/util.js';
+import { CLOTHES_BY_ID, SEED_BY_ID, TASKS, TASK_BY_ID, PLACES, TASK_COINS, TASK_COINS_DEFAULT } from '../data/index.js';
 import * as World from '../locations/town.js';
 import { enqueue } from '../ui/modals.js';
 import { message } from '../ui/panel.js';
@@ -14,7 +14,9 @@ import { grantSurprise, showSurprise } from './gifts.js';
 
 const S = () => G.state;
 
-const FIRST_TASKS = ['buy_clothes', 'swim', 'treat'];
+const FIRST_TASKS = ['buy_clothes', 'swim', 'treat', 'market'];
+/** Сколько монет дают за задание (в дополнение к наклейке). */
+export const taskCoins = (id) => TASK_COINS[id] || TASK_COINS_DEFAULT;
 
 export function newDayMail() {
   const s = S(),
@@ -64,7 +66,7 @@ function letterHtml() {
   const where = PLACES[t.where] || (t.where === 'beach' ? 'Пляж' : t.where === 'town' ? 'Город' : '');
   return `<div class="letter"><h3>${t.sticker} ${t.title}</h3><p>Дорогая ${esc(S().name)}!</p><p>${t.text}</p>
     <p class="muted">${c.seasonIcon} ${c.monthName}, день ${c.dom}${where ? ` · Куда идти: <b>${where}</b>` : ''}</p></div>
-    <p class="center">${m.done ? '✅ <b>Задание выполнено!</b>' : `Награда: наклейка ${t.sticker} и, может быть, сюрприз 🎁${taskProgress() ? '<br>Сделано' + taskProgress() : ''}`}</p>`;
+    <p class="center">${m.done ? '✅ <b>Задание выполнено!</b>' : `Награда: <b>🪙 ${fmtMoney(taskCoins(t.id))}</b>, наклейка ${t.sticker} и, может быть, сюрприз 🎁${taskProgress() ? '<br>Сделано' + taskProgress() : ''}`}</p>`;
 }
 
 export function openMailbox() {
@@ -112,6 +114,8 @@ function completeTask() {
     t = TASK_BY_ID[m.task];
   if (m.done) return;
   const done = finishTask();
+  const coins = taskCoins(t.id);
+  earn(coins, 'task');
   const isNew = award(t.id, { quiet: true }); // о наклейке расскажет окно «Задание выполнено»
   const surprise = done <= 2 || Math.random() < 0.5;
   const gift = surprise ? grantSurprise() : null; // подарок выдаём сразу, окно — когда освободится экран
@@ -122,7 +126,7 @@ function completeTask() {
       message({
         title: 'Задание выполнено!',
         icon: '🎉',
-        html: `<div class="center"><div class="sticker got">${t.sticker}</div><p><b>${t.title}</b></p><p>${isNew ? 'Новая наклейка в альбоме!' : 'Такая наклейка у тебя уже есть — молодец!'}</p>${surprise ? '<p>И это ещё не всё… 🎁</p>' : ''}</div>`,
+        html: `<div class="center"><div class="sticker got">${t.sticker}</div><p><b>${t.title}</b></p><p class="reward">🪙 +${fmtMoney(coins)} монет</p><p>${isNew ? 'Новая наклейка в альбоме!' : 'Такая наклейка у тебя уже есть — молодец!'}</p>${surprise ? '<p>И это ещё не всё… 🎁</p>' : ''}</div>`,
         buttons: [{ text: surprise ? 'Открыть сюрприз!' : 'Ура!' }],
       }).then(() => {
         if (gift) showSurprise(null, gift);
@@ -144,6 +148,9 @@ function onEvent(type, d = {}) {
       break;
     case 'buy':
       ok = type === 'buy' && d.cat === t.cat;
+      break;
+    case 'sell':
+      ok = type === 'sell';
       break;
     case 'cook':
       ok = type === 'cook';
@@ -230,6 +237,7 @@ export function initEvents() {
   for (const ev of [
     'minigame',
     'buy',
+    'sell',
     'cook',
     'treat',
     'gift',

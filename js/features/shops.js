@@ -1,21 +1,31 @@
-// Магазины: мебель и семена, продукты, кафе и рестораны, банк.
+// Магазины: мебель и семена, продукты, кафе и рестораны. Банк — в bank.js, рынок — в market.js.
 import { addItem } from '../core/actions.js';
 import { sfx } from '../core/audio.js';
-import { makeCanvas, ell, fillRR, star } from '../core/draw.js';
 import { emit } from '../core/events.js';
-import { register } from '../core/registry.js';
-import { G, count } from '../core/state.js';
-import { el, fmtMoney, plural } from '../core/util.js';
-import { FURNITURE, FURN_CATS, INGREDIENTS, ING_BY_ID, SEEDS, DISHES, vendorLook } from '../data/index.js';
+import { register, run } from '../core/registry.js';
+import { G, cal, count } from '../core/state.js';
+import { el, plural } from '../core/util.js';
+import {
+  FURNITURE,
+  FURN_CATS,
+  INGREDIENTS,
+  ING_BY_ID,
+  SEEDS,
+  DISHES,
+  SEASONS,
+  vendorLook,
+  inSeason,
+} from '../data/index.js';
 import { furnIcon } from '../ui/icons.js';
 import { openPanel } from '../ui/panel.js';
 import { toast } from '../ui/toast.js';
-import { price, buy } from './purchase.js';
+import { buy, priceTag, buyBtn } from './purchase.js';
 
 const S = () => G.state;
 
 function ownedFurn(id) {
-  return (S().storage[id] || 0) + S().villa.filter((i) => i.id === id).length;
+  const homes = [S().villa, ...Object.values(S().homes || {})];
+  return (S().storage[id] || 0) + homes.flat().filter((i) => i.id === id).length;
 }
 
 function openHomeMall() {
@@ -34,36 +44,42 @@ function openHomeMall() {
           card.appendChild(el('div', 'e', ing.e));
           card.appendChild(el('div', 'nm', sd.name));
           card.appendChild(el('div', 'muted', `растёт ${sd.days} ${plural(sd.days, 'день', 'дня', 'дней')}`));
-          card.appendChild(el('div', 'pr', price(sd.price)));
+          card.appendChild(priceTag(sd.price));
           if (count('seeds', sd.id)) card.appendChild(el('span', 'cnt', '×' + count('seeds', sd.id)));
-          const b = el('button', 'btn small green', 'Купить');
-          b.onclick = () => {
-            if (buy(sd.price)) {
-              addItem('seeds', sd.id, 1);
-              emit('buy', { cat: 'seeds' });
-              panel.refresh();
-            }
-          };
-          card.appendChild(b);
+          card.appendChild(
+            buyBtn('Купить', sd.price, () => {
+              if (buy(sd.price)) {
+                addItem('seeds', sd.id, 1);
+                emit('buy', { cat: 'seeds' });
+                panel.refresh();
+              }
+            }),
+          );
           grid.appendChild(card);
         }
-        body.appendChild(el('p', 'muted', 'Семена сажают на грядках во дворе виллы.'));
+        body.appendChild(
+          el(
+            'p',
+            'muted',
+            'Семена сажают на грядках во дворе виллы. Урожай можно съесть, приготовить или продать на рынке.',
+          ),
+        );
       } else {
         for (const f of FURNITURE.filter((q) => q.cat === tab && q.shop === 'home')) {
           const card = el('div', 'card');
           card.appendChild(furnIcon(f, 112));
           card.appendChild(el('div', 'nm', f.name));
-          card.appendChild(el('div', 'pr', price(f.price)));
+          card.appendChild(priceTag(f.price));
           if (ownedFurn(f.id)) card.appendChild(el('span', 'cnt', '×' + ownedFurn(f.id)));
-          const b = el('button', 'btn small green', 'Купить');
-          b.onclick = () => {
-            if (!buy(f.price)) return;
-            addItem('storage', f.id, 1);
-            emit('buy', { cat: 'furniture', id: f.id });
-            toast(`${f.name} — в кладовке. Дома нажми 🔨, чтобы поставить!`, 'good');
-            panel.refresh();
-          };
-          card.appendChild(b);
+          card.appendChild(
+            buyBtn('Купить', f.price, () => {
+              if (!buy(f.price)) return;
+              addItem('storage', f.id, 1);
+              emit('buy', { cat: 'furniture', id: f.id });
+              toast(`${f.name} — в кладовке. Дома нажми 🔨, чтобы поставить!`, 'good');
+              panel.refresh();
+            }),
+          );
           grid.appendChild(card);
         }
       }
@@ -78,34 +94,63 @@ function openFoodMall() {
     portrait: vendorLook('food'),
     money: true,
     cls: 'wide',
+    // рынок пока без своего прилавка в городе: вход к торговцу — отсюда (и из рюкзака)
+    foot: [
+      {
+        text: '💰 Продать на рынке',
+        cls: 'yellow',
+        fn: (panel) => {
+          panel.close();
+          run('market');
+        },
+      },
+    ],
     render(body, tab, panel) {
       body.appendChild(
         el(
           'p',
           'muted',
-          'Морковку, клубнику, помидоры, тыкву и семечки вырасти на грядках, рыбку поймай сама. А кокосы можно стрясти с любой пальмы — бесплатно!',
+          'Морковку, клубнику, помидоры, тыкву и семечки вырасти на грядках, рыбку поймай сама. А кокосы можно стрясти с любой пальмы — бесплатно! Лишнее можно продать — кнопка «Продать на рынке» внизу.',
         ),
       );
+      const sea = cal().season;
+      const shop = INGREDIENTS.filter((i) => i.src === 'shop');
       const grid = el('div', 'grid');
-      for (const ing of INGREDIENTS.filter((i) => i.src === 'shop')) {
+      for (const ing of shop.filter((i) => inSeason(i, sea))) {
         const card = el('div', 'card');
         card.appendChild(el('div', 'e', ing.e));
         card.appendChild(el('div', 'nm', ing.name));
-        card.appendChild(el('div', 'pr', price(ing.price)));
+        card.appendChild(priceTag(ing.price));
+        if (ing.seasons) card.appendChild(el('span', 'badge season', 'Сезон!'));
         if (count('ing', ing.id)) card.appendChild(el('span', 'cnt', '×' + count('ing', ing.id)));
         const row = el('div', 'row');
         for (const n of [1, 5]) {
-          const b = el('button', 'btn small ' + (n === 1 ? 'green' : 'blue'), '+' + n);
-          b.onclick = () => {
-            if (buy(ing.price * n)) {
-              addItem('ing', ing.id, n);
-              emit('buy', { cat: 'food' });
-              panel.refresh();
-            }
-          };
-          row.appendChild(b);
+          row.appendChild(
+            buyBtn(
+              '+' + n,
+              ing.price * n,
+              () => {
+                if (buy(ing.price * n)) {
+                  addItem('ing', ing.id, n);
+                  emit('buy', { cat: 'food' });
+                  panel.refresh();
+                }
+              },
+              n === 1 ? 'green' : 'blue',
+            ),
+          );
         }
         card.appendChild(row);
+        grid.appendChild(card);
+      }
+      // южные фрукты не в сезон: в ТЦ их нет, но видно, когда привезут и где взять сейчас
+      for (const ing of shop.filter((i) => !inSeason(i, sea))) {
+        const card = el('div', 'card away');
+        card.appendChild(el('div', 'e', ing.e));
+        card.appendChild(el('div', 'nm', ing.name));
+        const when = ing.seasons.map((q) => SEASONS[q].icon + ' ' + SEASONS[q].name.toLowerCase()).join(', ');
+        card.appendChild(el('div', 'muted', `Не сезон. Привезут: ${when}. Сейчас есть на рынке.`));
+        if (count('ing', ing.id)) card.appendChild(el('span', 'cnt', '×' + count('ing', ing.id)));
         grid.appendChild(card);
       }
       body.appendChild(grid);
@@ -124,26 +169,29 @@ function openCafe(kind, title) {
         const card = el('div', 'card');
         card.appendChild(el('div', 'e', d.e));
         card.appendChild(el('div', 'nm', d.name));
-        card.appendChild(el('div', 'pr', price(d.price)));
+        card.appendChild(priceTag(d.price));
         if (count('dishes', d.id)) card.appendChild(el('span', 'cnt', '×' + count('dishes', d.id)));
-        const b = el('button', 'btn small green', 'Купить');
-        b.onclick = () => {
+        const b = buyBtn('Купить', d.price, () => {
           if (buy(d.price, d.name)) {
             addItem('dishes', d.id, 1);
             emit('buy', { cat: 'dish', id: d.id });
             panel.refresh();
           }
-        };
-        const b2 = el('button', 'btn small yellow', 'Съесть тут');
-        b2.onclick = () => {
-          if (buy(d.price)) {
-            sfx('eat');
-            toast(`Ням-ням! ${d.e} ${d.name}`, 'good');
-            emit('buy', { cat: 'dish', id: d.id });
-            emit('eat');
-            panel.refresh();
-          }
-        };
+        });
+        const b2 = buyBtn(
+          'Съесть тут',
+          d.price,
+          () => {
+            if (buy(d.price)) {
+              sfx('eat');
+              toast(`Ням-ням! ${d.e} ${d.name}`, 'good');
+              emit('buy', { cat: 'dish', id: d.id });
+              emit('eat');
+              panel.refresh();
+            }
+          },
+          'yellow',
+        );
         card.append(b, b2);
         grid.appendChild(card);
       }
@@ -157,37 +205,3 @@ register('home-mall', () => openHomeMall(), 'ТЦ «Уютный дом»: ме�
 register('food-mall', () => openFoodMall(), 'ТЦ «Вкусный»: продукты');
 
 register('cafe', (p, ctx) => openCafe(p.kind, p.title || ctx.building.name), 'кафе: { kind, title? }');
-
-register('bank', () => openBank(), 'Хомяк-Банк');
-
-function openBank() {
-  openPanel({
-    title: 'Хомяк-Банк',
-    portrait: vendorLook('bank'),
-    cls: 'narrow',
-    render(body) {
-      const { canvas, ctx } = makeCanvas(300, 170);
-      canvas.style.cssText += ';display:block;margin:0 auto';
-      fillRR(ctx, 10, 10, 280, 150, 18, '#868e96', '#4a3728', 3);
-      fillRR(ctx, 24, 24, 252, 122, 10, '#495057');
-      for (let r = 0; r < 5; r++)
-        for (let i = 0; i < 9 - r; i++) {
-          const x = 52 + i * 24 + r * 12,
-            y = 130 - r * 16;
-          ell(ctx, x, y, 13, 6, '#ffd43b', '#e0a800', 2);
-        }
-      star(ctx, 150, 46, 14, '#ffd43b', '#e0a800', 2);
-      body.appendChild(canvas);
-      body.appendChild(
-        el('p', 'center', `В хранилище лежит:<br><b style="font-size:24px">🪙 ${fmtMoney(S().money)}</b>`),
-      );
-      body.appendChild(
-        el(
-          'p',
-          'center muted',
-          `Потрачено за всё время: ${fmtMoney(S().spent)} монет.<br>Банкир Монеткин говорит: «Хватит ещё на миллион лет!»`,
-        ),
-      );
-    },
-  });
-}

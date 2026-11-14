@@ -23,8 +23,12 @@ export function openAlbum() {
     render(body, tab) {
       const s = S();
       if (tab === 'st') {
-        const all = [...TASKS.map((t) => ({ id: t.id, sticker: t.sticker, title: t.title })), ...EXTRA_STICKERS];
-        body.appendChild(el('p', 'center', `Собрано <b>${s.stickers.length}</b> из ${all.length}`));
+        const all = [
+          ...TASKS.map((t) => ({ id: t.id, sticker: t.sticker, title: t.title })),
+          ...EXTRA_STICKERS.filter((q) => !q.legacy || s.stickers.includes(q.id)),
+        ];
+        const have = all.filter((a) => s.stickers.includes(a.id)).length;
+        body.appendChild(el('p', 'center', `Собрано <b>${have}</b> из ${all.length}`));
         const grid = el('div', 'grid small');
         for (const a of all) {
           const got = s.stickers.includes(a.id);
