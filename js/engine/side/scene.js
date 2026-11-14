@@ -17,12 +17,13 @@
 //                   { fixed: [[id, этаж, x, y?], …], noUse: ['sleep', …] }  чужая: стоит как в описании,
 //                        переставить нельзя; noUse — чем нельзя пользоваться (по умолчанию кровать, шкаф, холодильник)
 //   door          { f, x } — где стоит хомячок, войдя с улицы
-//   exit          действие из реестра для двери ('scene:world'); без него — назад, откуда пришли
-//   persist       true — сцена кладёт в сохранение свою позицию (в ней можно начать игру после перезагрузки);
-//                 иначе в сохранении остаётся место снаружи, у двери
+//   exit          действие из реестра для двери ('scene:world', 'home-exit'); без него — назад, откуда пришли
+//   persist       true — сцена кладёт в сохранение свою позицию (в ней можно начать игру после перезагрузки)
+//                 и место снаружи, откуда в дом вошли (поле out); иначе в сохранении остаётся место снаружи, у двери
+//   owner         чей это дом (id жителя) — для занятий: реплики хозяина, «изюминки» дома
 //   guests        { f, enterX, gap, first, roam } — сюда приходят приглашённые друзья (см. actors.js)
 //   actors        [{ npc, f, x, roam, act }] — кто здесь живёт или работает
-//   shell         { wall, roof, chimneyX, bushes } — дом снаружи
+//   shell         { wall, roof, chimneyX, bushes, flat, ground, trees } — дом снаружи (см. rooms.js)
 //   maxZoom       не приближать сильнее (для маленьких домов);  music — дневная музыка ('villa' | 'town')
 //   art           { back(ctx, sc, t), front(ctx, sc, t) } — свой рисунок позади и поверх хомячка (если нужен)
 //
@@ -140,7 +141,9 @@ export function createSideScene(desc) {
     // ---------- интерфейс сцены ----------
     enter(from, params = {}) {
       if (owned) initHouse(furn.key, furn.start);
-      if (params.back) sc.back = params.back;
+      // откуда пришли. Если нас возвращают на сохранённое место (params.pos), «откуда» не меняется:
+      // иначе два своих дома, между которыми перешли через окно «Мои дома», вели бы дверями друг в друга.
+      if (params.back && !params.pos) sc.back = params.back;
       resetPlayer();
       if (params.wake) toBed();
       else if (!params.pos || !sc.restorePos(params.pos)) {
@@ -165,6 +168,8 @@ export function createSideScene(desc) {
     },
     savePos() {
       const here = { scene: sc.name, floor: sc.p.f, x: sc.p.x };
+      // свой дом без постоянного выхода помнит, куда ведёт дверь, и после перезагрузки страницы
+      if (desc.persist && sc.back && sc.back.scene !== sc.name) here.out = sc.back;
       return desc.persist ? here : sc.back || here;
     },
     restorePos(pos) {
@@ -172,6 +177,7 @@ export function createSideScene(desc) {
         return false;
       sc.p.f = pos.floor;
       sc.p.x = pos.x;
+      if (pos.out && typeof pos.out.scene === 'string') sc.back = pos.out;
       return true;
     },
     update,

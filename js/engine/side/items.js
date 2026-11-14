@@ -18,7 +18,7 @@ import { drawFurn, furnRect } from '../../art/furniture.js';
 import { toast } from '../../ui/toast.js';
 
 /** На какой высоте сидит хомячок на мебели разного вида. */
-export const SEAT_H = { sofa: 34, armchair: 34, chair: 50, beanbag: 36, throne: 54 };
+export const SEAT_H = { sofa: 34, armchair: 34, chair: 50, beanbag: 36, throne: 54, hammock: 44, rocking_chair: 38 };
 
 /** Предметы в порядке рисования: коврики → настенные → напольные. */
 export function itemsSorted(sc) {
@@ -122,6 +122,44 @@ const USE = {
     toast(pick(['Свет мой, зеркальце… Да, ты красотка! 💖', 'Отличный наряд сегодня!']));
     sc.playerHappy();
     sfx('magic');
+  },
+  /** Покрутить (штурвал, глобус): предмет крутится пару секунд. */
+  spin(sc, it, d) {
+    sc.live.set(it, { on: true, t: 2.4 });
+    sfx('wheel');
+    setTimeout(() => sfx('wheel'), 220);
+    if (d.say) toast(pick(d.say));
+    emit('thing', { id: it.id, owner: sc.desc.owner || null });
+  },
+  /** Рассмотреть (карта, доска, полка с кубками). */
+  look(sc, it, d) {
+    sfx('pop');
+    if (d.say) toast(pick(d.say));
+    emit('thing', { id: it.id, owner: sc.desc.owner || null });
+  },
+  /** Лейка: полить все цветы на этом этаже — они качаются и благодарят. */
+  water(sc, it) {
+    const y = sc.geo.fy(it.floor);
+    let n = 0;
+    for (const q of sc.items()) {
+      const qd = FURN_BY_ID[q.id];
+      if (!qd || q.floor !== it.floor || (qd.act !== 'plant' && qd.kind !== 'hanging_plant')) continue;
+      sc.live.set(q, { on: true, t: 1.6 });
+      sc.burst(q.x, y - (qd.wall ? q.y : qd.h * 0.7), 'bubble', 3);
+      n++;
+    }
+    sc.live.set(it, { on: true, t: 1.2 });
+    sfx('splash');
+    toast(n ? 'Цветы напились и шелестят: «Спасибо!» 🌿💧' : 'Буль-буль… А поливать-то нечего! Поставь рядом цветы 🪴');
+    emit('thing', { id: it.id, owner: sc.desc.owner || null });
+  },
+  /** Штанга: потренироваться. */
+  sport(sc, it, d) {
+    sc.live.set(it, { on: true, t: 1.6 });
+    sc.playerHappy();
+    sfx('ok');
+    if (d.say) toast(pick(d.say));
+    emit('thing', { id: it.id, owner: sc.desc.owner || null });
   },
 };
 // Звук перед действием из реестра (дверца шкафа и холодильника).

@@ -5,6 +5,8 @@
 // Запись в описании дома (поле built):
 //   { type, f, x }                 тип из FIXTURES, этаж, центр по x
 //   { …, id, w, h, act }           необязательно: своё имя, свой размер зоны нажатия, своё действие из реестра
+//   { …, c }                       цвет (дверь, шкафчики кухни) — чтобы дома отличались друг от друга
+//   { type: 'kitchen', acts: { stove: … } }   своё действие для одной из зон предмета
 //   { type: 'zone', f, x, w, h, act: 'cook' }   просто место нажатия без рисунка
 //
 // Тип предмета (значение в FIXTURES):
@@ -22,7 +24,7 @@
 // того места (o = b.x − ref). Так картинка виллы осталась точь-в-точь прежней, а в другом доме предмет
 // просто стоит со сдвигом. y — пол этажа.
 import { clamp, rnd } from '../../core/util.js';
-import { ell, fillRR, line, rr } from '../../core/draw.js';
+import { ell, fillRR, line, rr, shade } from '../../core/draw.js';
 import { sfx } from '../../core/audio.js';
 import { emit } from '../../core/events.js';
 import { toast } from '../../ui/toast.js';
@@ -73,9 +75,9 @@ export const FIXTURES = {
       sfx('door');
       sc.exit();
     },
-    back(ctx, o, y) {
+    back(ctx, o, y, t, sc, b) {
       fillRR(ctx, o + 237, y - 176, 96, 176, 8, '#8d5524', OUT);
-      fillRR(ctx, o + 245, y - 168, 80, 168, 5, '#e8590c', OUT, 1.5);
+      fillRR(ctx, o + 245, y - 168, 80, 168, 5, b.c || '#e8590c', OUT, 1.5);
       fillRR(ctx, o + 259, y - 152, 52, 50, 24, '#d0ebff', OUT, 1.5);
       ell(ctx, o + 314, y - 82, 5, 5, '#ffd43b', OUT, 1.5);
       fillRR(ctx, o + 230, y - 6, 110, 10, 4, '#51cf66', OUT, 1.5);
@@ -130,14 +132,16 @@ export const FIXTURES = {
       { id: 'stove', dx: -105, w: 120, h: 110, act: 'cook' },
       { id: 'sink', dx: 75, w: 110, h: 110, use: wash },
     ],
-    back(ctx, o, y, t) {
+    back(ctx, o, y, t, sc, b) {
+      const col = b.c || '#ff8787',
+        lite = b.c ? shade(b.c, 0.3) : '#ffa8a8';
       fillRR(ctx, o + 1050, y - 236, 160, 70, 8, '#fff', OUT);
       line(ctx, o + 1130, y - 236, o + 1130, y - 166, OUT, 1.5);
       ell(ctx, o + 1120, y - 200, 3, 3, '#ffd43b', OUT, 1);
       ell(ctx, o + 1140, y - 200, 3, 3, '#ffd43b', OUT, 1);
       fillRR(ctx, o + 1230, y - 236, 150, 70, 8, '#fff', OUT);
       line(ctx, o + 1305, y - 236, o + 1305, y - 166, OUT, 1.5);
-      fillRR(ctx, o + 1050, y - 88, 350, 88, 8, '#ff8787', OUT);
+      fillRR(ctx, o + 1050, y - 88, 350, 88, 8, col, OUT);
       fillRR(ctx, o + 1044, y - 98, 362, 14, 5, '#f8f9fa', OUT);
       fillRR(ctx, o + 1066, y - 78, 108, 70, 6, '#f1f3f5', OUT);
       fillRR(ctx, o + 1078, y - 56, 84, 40, 5, '#343a40', OUT, 1.5);
@@ -152,7 +156,7 @@ export const FIXTURES = {
         ctx.globalAlpha = 1;
       }
       for (const dx of [1196, 1290]) {
-        fillRR(ctx, o + dx, y - 78, 86, 70, 6, '#ffa8a8', OUT, 1.5);
+        fillRR(ctx, o + dx, y - 78, 86, 70, 6, lite, OUT, 1.5);
         ell(ctx, o + dx + 43, y - 62, 3, 3, '#fff', OUT, 1);
       }
       fillRR(ctx, o + 1262, y - 104, 76, 8, 3, '#ced4da', OUT, 1.5);
@@ -373,8 +377,20 @@ export function buildFixtures(list = []) {
     const fix = { ...b, def, w: b.w || def.w, h: b.h || def.h, id: b.id || `${b.type || 'zone'}${i}`, idx: i };
     fixtures.push(fix);
     if (def.zones) {
-      for (const z of def.zones)
-        zones.push({ id: `${fix.id}.${z.id}`, f: b.f, x: b.x + z.dx, w: z.w, h: z.h, act: z.act, use: z.use, fix });
+      // acts в описании дома заменяет действие зоны: { stove: 'другое действие' } (в гостях на чужой плите не готовят)
+      for (const z of def.zones) {
+        const own = b.acts && z.id in b.acts;
+        zones.push({
+          id: `${fix.id}.${z.id}`,
+          f: b.f,
+          x: b.x + z.dx,
+          w: z.w,
+          h: z.h,
+          act: own ? b.acts[z.id] : z.act,
+          use: own ? null : z.use,
+          fix,
+        });
+      }
     } else if (b.act || def.act || def.use) {
       zones.push({
         id: fix.id,

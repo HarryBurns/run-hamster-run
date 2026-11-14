@@ -31,11 +31,14 @@ export function makeResidents(desc) {
   }));
 }
 
-/** Привести гостей в соответствие со списком в сохранении: ушедших убрать, новых впустить. */
+/**
+ * Привести гостей в соответствие со списком в сохранении: ушедших убрать, новых впустить.
+ * Гости сидят в одном из своих домов — в том, куда их позвали (state.guestsAt).
+ */
 export function syncGuests(sc) {
   const cfg = sc.desc.guests;
   if (!cfg) return;
-  const ids = G.state.guests;
+  const ids = (G.state.guestsAt || 'villa') === sc.houseKey ? G.state.guests : [];
   sc.actors = sc.actors.filter((g) => !g.guest || ids.includes(g.id));
   const count = () => sc.actors.filter((g) => g.guest).length;
   for (const id of ids) {
