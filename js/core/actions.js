@@ -40,21 +40,31 @@ export const mutate = act((fn) => {
 const S = () => G.state;
 
 // ---------- деньги ----------
+// Все монеты идут через spend() и earn(): здесь же ведётся учёт для Хомяк-Банка — сколько заработано и потрачено
+// за всё время (earned, spent) и за сегодня и вчера (ledger). Событие money несёт delta — на сколько изменился счёт.
 /** Потратить n монет. false — не хватает (ничего не меняется). */
 export const spend = act((n) => {
   const s = S();
   if (s.money < n) return false;
   s.money -= n;
   s.spent += n;
+  s.ledger.today.out += n;
   touch();
-  emit('money');
+  emit('money', { delta: -n });
   return true;
 });
-/** Получить n монет. */
-export const earn = act((n) => {
-  S().money += n;
+/**
+ * Получить n монет. source — откуда: work (работа), market (рынок), task (задание), gift (подарок), other;
+ * полный список с названиями для банка — INCOME_SOURCES в data/economy.js.
+ */
+export const earn = act((n, source = 'other') => {
+  const s = S(),
+    day = s.ledger.today.in;
+  s.money += n;
+  s.earned += n;
+  day[source] = (day[source] || 0) + n;
   touch();
-  emit('money');
+  emit('money', { delta: n, source });
 });
 
 // ---------- предметы ----------
@@ -85,6 +95,12 @@ export const addPearls = act((n) => {
   touch();
   emit('pearl');
   return s.pearls;
+});
+/** Продать n жемчужин: pearls — сколько найдено за всё время, pearlsSold — сколько из них уже продано. */
+export const sellPearls = act((n) => {
+  const s = S();
+  s.pearlsSold = Math.min(s.pearls || 0, (s.pearlsSold || 0) + n);
+  touch();
 });
 
 // ---------- наклейки ----------
@@ -286,7 +302,8 @@ export const nextDay = act(() => {
   s.weather = rollWeather();
   s.guests = [];
   s.visitor = Math.random() < 0.35 ? NPCS[Math.floor(Math.random() * NPCS.length)].id : null;
-  s.dayFlags = {};
+  s.dayFlags = {}; // вместе с отметками дня обнуляются оплаченные смены (shifts) и кошелёк торговца (marketPaid)
+  s.ledger = { today: { in: {}, out: 0 }, yesterday: s.ledger.today };
   touch();
   emit('guests');
 });

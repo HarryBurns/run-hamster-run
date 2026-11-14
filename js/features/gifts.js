@@ -3,8 +3,8 @@ import { earn, addItem, addClothes, learnRecipe, setFlag } from '../core/actions
 import { sfx } from '../core/audio.js';
 import { register } from '../core/registry.js';
 import { G, hasClothes } from '../core/state.js';
-import { el, pick } from '../core/util.js';
-import { CLOTHES, FURNITURE, DISH_BY_ID, SECRET_RECIPES } from '../data/index.js';
+import { el, fmtMoney, pick } from '../core/util.js';
+import { CLOTHES, FURNITURE, DISH_BY_ID, SECRET_RECIPES, SURPRISE_COINS } from '../data/index.js';
 import { clothesIcon, furnIcon } from '../ui/icons.js';
 import { enqueue } from '../ui/modals.js';
 import { openPanel } from '../ui/panel.js';
@@ -35,8 +35,8 @@ export function grantSurprise() {
   let html,
     icon = null;
   if (!pool.length) {
-    earn(100000);
-    html = '<div class="big-emoji">💰</div><p>Мешочек монет: +100 000!</p>';
+    earn(SURPRISE_COINS, 'gift');
+    html = `<div class="big-emoji">💰</div><p>Мешочек монет: +${fmtMoney(SURPRISE_COINS)}!</p>`;
   } else {
     const g = pick(pool);
     if (g.kind === 'clothes') {

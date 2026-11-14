@@ -3,6 +3,7 @@
 // функции из core/actions.js — так все деньги, предметы и наклейки проходят через одно место.
 import {
   START_MONEY,
+  MIGRATED_MONEY,
   MONTHS,
   SEASON_OF_MONTH,
   SEASONS,
@@ -28,12 +29,21 @@ const BACKUP_KEY = 'rhr-save-backup'; // копия сохранения: пер
 /**
  * Миграции сохранения. MIGRATIONS[n](s) переводит сохранение версии n в версию n + 1 (меняет s на месте).
  * Версия игры считается сама: 1 + число миграций. Чтобы изменить формат — добавить функцию под следующим
- * номером, например для новой экономики (v1 → v2):
- *   1: (s) => { s.money = Math.min(s.money, 20000); s.flags.bankLetter = 1; },
- * Перед миграцией исходная строка копируется в BACKUP_KEY; после неё repair() дополняет и чистит состояние.
- * Миграция видит сохранение как есть, до repair(): полей может не хватать.
+ * номером. Перед миграцией исходная строка копируется в BACKUP_KEY; после неё repair() дополняет и чистит
+ * состояние. Миграция видит сохранение как есть, до repair(): полей может не хватать.
  */
-export const MIGRATIONS = {};
+export const MIGRATIONS = {
+  // v1 → v2, новая экономика: миллиарда больше нет. Вещи, мебель, друзья и наклейки остаются как были,
+  // на счету — MIGRATED_MONEY, учёт «заработано / потрачено» начинается заново (новые поля создаст repair()).
+  // Отметка bankLetter = 1 — при первом входе показать письмо банка (features/bank.js), один раз.
+  1: (s) => {
+    s.money = MIGRATED_MONEY;
+    s.spent = 0;
+    s.earned = 0;
+    if (!s.flags || typeof s.flags !== 'object' || Array.isArray(s.flags)) s.flags = {};
+    s.flags.bankLetter = 1;
+  },
+};
 export const saveVersion = () => 1 + Object.keys(MIGRATIONS).length;
 
 /** Всё, что живёт, пока открыта страница. G.state — то, что уходит в сохранение. */
@@ -77,6 +87,9 @@ const START_VILLA = [
   ['plant_palm', 2, 1565],
 ];
 
+/** Учёт денег за два дня: in — доход по источникам (work, market, task…), out — траты. */
+const newLedger = () => ({ today: { in: {}, out: 0 }, yesterday: { in: {}, out: 0 } });
+
 export function newGame(name) {
   let uid = 1;
   const look = defaultLook();
@@ -85,7 +98,9 @@ export function newGame(name) {
     v: saveVersion(),
     name: name || 'Хомка',
     money: START_MONEY,
-    spent: 0,
+    spent: 0, // потрачено за всё время
+    earned: 0, // заработано за всё время
+    ledger: newLedger(), // доход по источникам и траты за сегодня и за вчера (для Хомяк-Банка)
     day: 0,
     minutes: 7 * 60 + 30,
     look,
@@ -237,10 +252,24 @@ export function repair(s) {
     obj(s, k);
   num('money', 0);
   num('spent', 0);
+  num('earned', 0);
+  num('pearlsSold', 0);
+  // учёт денег за сегодня и вчера
+  if (!s.ledger || typeof s.ledger !== 'object') s.ledger = newLedger();
+  for (const k of ['today', 'yesterday']) {
+    const d = s.ledger[k];
+    if (!d || typeof d !== 'object') s.ledger[k] = { in: {}, out: 0 };
+    else {
+      obj(d, 'in');
+      if (!Number.isFinite(d.out)) d.out = 0;
+      for (const src of Object.keys(d.in)) if (!Number.isFinite(d.in[src])) delete d.in[src];
+    }
+  }
   num('day', 0);
   num('minutes', 7 * 60 + 30);
   num('tasksDone', 0);
   num('pearls', 0);
+  s.pearlsSold = Math.max(0, Math.min(s.pearlsSold, s.pearls)); // продано не больше, чем найдено
   if (typeof s.name !== 'string' || !s.name) s.name = 'Хомка';
   // внешность
   if (!s.look || typeof s.look !== 'object') s.look = defaultLook();

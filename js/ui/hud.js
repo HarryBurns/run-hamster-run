@@ -11,11 +11,13 @@ import { on } from '../core/events.js';
 import { scene, sceneName } from '../core/loop.js';
 import { el, fmtMoney } from '../core/util.js';
 import { sfx, unlockAudio } from '../core/audio.js';
+import { moneyAnchor } from './coins.js';
 
 let root = null,
   cfg = null;
 let chipDate, chipMoney, chipTask, leftBox;
 let leftSig = ''; // что сейчас показано в левом столбике (чтобы не пересобирать его зря)
+let dropAnchor = null; // плашка монет — место, где всплывает «+350» (ui/coins.js)
 
 function rbtn(icon, label, fn) {
   const b = el('button', 'rbtn', `${icon}<span class="lbl">${label}</span>`);
@@ -46,7 +48,9 @@ export function buildHud() {
   root.innerHTML = '';
   const top = el('div', 'hud-top');
   chipDate = el('div', 'chip');
-  chipMoney = el('div', 'chip');
+  chipMoney = el('div', 'chip money');
+  if (dropAnchor) dropAnchor();
+  dropAnchor = moneyAnchor(chipMoney);
   chipTask = el('div', 'chip task');
   chipTask.onclick = () => {
     sfx('tap');

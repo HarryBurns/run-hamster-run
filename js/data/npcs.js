@@ -48,7 +48,7 @@ export const NPCS = [
     about: 'Самая маленькая в городе. Всё время задаёт вопросы.',
     look: lk('#fff0f6', { belly: '#fff', outfit: { body: 'tee_dots', legs: 'skirt_blue' }, beauty: { blush: '#ff6b9d', bow: '#b197fc', tuft: 4, hair: '#faa2c1' } }),
     small: true,
-    lines: ['А почему море солёное? А небо синее? А ты пятнистая?', 'Когда я вырасту, у меня тоже будет вилла! И пони!', 'Я умею считать до ста. Один, два, сто!', 'А правда, что у тебя миллиард? А это больше, чем сто?'],
+    lines: ['А почему море солёное? А небо синее? А ты пятнистая?', 'Когда я вырасту, у меня тоже будет вилла! И пони!', 'Я умею считать до ста. Один, два, сто!', 'А правда, что ты сама зарабатываешь монетки? А мне дадут зарплату, если я съем мороженое?'],
   },
 ];
 export const NPC_BY_ID = Object.fromEntries(NPCS.map((n) => [n.id, n]));
@@ -82,5 +82,6 @@ export const VENDORS = {
   hospital: { name: 'Медсестра Ромашка', look: lk('#fff', { outfit: { body: 'robe', head: 'panama_white' }, beauty: { blush: '#ffb0bd', lashes: true } }) },
   fashion: { name: 'Модельер Пуговка', look: lk('#e88b3a', { belly: '#ffe8cc', outfit: { body: 'dress_evening', acc: 'sung_pink', head: 'sunhat' }, beauty: { blush: '#ff6b9d', lashes: true, nails: '#845ef7' } }) },
   tower: { name: 'Лифтёр Этажкин', look: lk('#a8703f', { belly: '#f6dfb8', outfit: { body: 'ja_wine', head: 'cap_blue' } }) },
+  market: { name: 'Торговец Грошик', look: lk('#c98b5a', { belly: '#f6dfb8', mask: '#f6dfb8', outfit: { body: 'overall_red', head: 'panama_green', acc: 'scarf_yellow' }, beauty: { blush: '#ffa94d', tuft: 1, hair: '#8d5524' } }) },
   bank: { name: 'Банкир Монеткин', look: lk('#b9bcc6', { belly: '#f1f3f5', outfit: { body: 'pajama', acc: 'bowtie', head: 'tophat' } }) },
 };

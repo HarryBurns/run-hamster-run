@@ -9,7 +9,7 @@ import { blinkAt } from '../art/hamster.js';
 import { CLOTHES, CLOTHES_BY_ID, SLOTS, vendorLook, resolveLook } from '../data/index.js';
 import { clothesIcon, hamsterStage } from '../ui/icons.js';
 import { openPanel } from '../ui/panel.js';
-import { price, buy } from './purchase.js';
+import { buy, priceTag, buyBtn } from './purchase.js';
 
 const S = () => G.state;
 
@@ -82,18 +82,18 @@ export function clothesPanel(mode, opts = {}) {
             card.appendChild(el('span', 'badge', 'Есть ✓'));
             card.appendChild(el('div', 'muted', worn ? 'Надето' : 'В шкафу'));
           } else {
-            card.appendChild(el('div', 'pr', price(it.price)));
-            const b = el('button', 'btn small green', 'Купить');
-            b.onclick = (e) => {
-              e.stopPropagation();
-              if (!buy(it.price, it.name)) return;
-              addClothes(it.id);
-              wear(it.slot, it.id);
-              delete tryOn[it.slot];
-              emit('buy', { cat: 'clothes', id: it.id });
-              panel.refresh();
-            };
-            card.appendChild(b);
+            card.appendChild(priceTag(it.price));
+            card.appendChild(
+              buyBtn('Купить', it.price, (e) => {
+                e.stopPropagation();
+                if (!buy(it.price, it.name)) return;
+                addClothes(it.id);
+                wear(it.slot, it.id);
+                delete tryOn[it.slot];
+                emit('buy', { cat: 'clothes', id: it.id });
+                panel.refresh();
+              }),
+            );
           }
           card.onclick = () => {
             sfx('pop');

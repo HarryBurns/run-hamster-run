@@ -162,6 +162,18 @@ p { margin: 8px 0; line-height: 1.35; }
   position: absolute; top: -6px; left: -6px; background: var(--ink); color: #fff; border-radius: 10px; padding: 2px 7px; font-size: 12px;
 }
 .card.locked { opacity: .5; }
+/* товар не по карману: виден, но ценник бледнее и под ним — сколько ещё накопить */
+.card .pr.far { color: #a39484; }
+.card .pr .lack { font-size: 11px; font-weight: 700; color: #b8869a; line-height: 1.2; }
+.card .pr .per { font-size: 11px; font-weight: 700; opacity: .7; }
+.card .btn.small b { font-weight: 900; white-space: nowrap; }
+/* товар, которого сейчас нет в магазине (фрукты не в сезон) */
+.card.away { border-style: dashed; }
+.card.away .e { filter: grayscale(.7); opacity: .6; }
+.card.away .muted { font-size: 12px; }
+h4.sect { margin: 14px 0 8px; }
+h4.sect:first-child { margin-top: 0; }
+h4.sect .muted { font-size: 13px; }
 .swatch { width: 44px; height: 44px; border-radius: 50%; border: 4px solid #fff; box-shadow: 0 0 0 2px var(--line); }
 
 .row { display: flex; gap: 12px; align-items: center; }
@@ -339,3 +351,43 @@ h4 { margin: 4px 0; font-size: 16px; }
 .pn-b.down { background: #845ef7; box-shadow: none; }
 .pn-b.hint { background: #2f9e44; animation: pn-pulse .7s infinite alternate; }
 @keyframes pn-pulse { from { filter: brightness(1); } to { filter: brightness(1.25); } }
+
+/* ---------- монеты: отклик на изменение счёта, зарплата, рынок, банк ---------- */
+.chip.money.bump, .panel-head .money.bump { animation: coin-bump .4s ease-out; }
+@keyframes coin-bump { 0% { transform: scale(1); } 35% { transform: scale(1.2); } 100% { transform: scale(1); } }
+.money-fly {
+  position: fixed; z-index: 95; transform: translateX(-50%); pointer-events: none; white-space: nowrap;
+  font-size: 18px; font-weight: 900; text-shadow: 0 0 4px #fff, 0 0 4px #fff, 0 1px 0 #fff;
+  animation: money-fly 1.25s ease-out forwards;
+}
+.money-fly.plus { color: #2b8a3e; }
+.money-fly.minus { color: #c2255c; }
+@keyframes money-fly { 0% { opacity: 0; margin-top: -8px; } 15% { opacity: 1; margin-top: 0; } 70% { opacity: 1; } 100% { opacity: 0; margin-top: 22px; } }
+.pay-note {
+  margin: 8px 0 2px; padding: 8px 12px; border-radius: 14px; background: #fff3bf; font-size: 14px; line-height: 1.35; font-weight: 700;
+}
+.pay-note.off { background: #f1f3f5; }
+.pay-note .sum { font-size: 20px; font-weight: 900; color: #2b8a3e; }
+.dialog .pay-note { font-size: 13.5px; }
+.reward { font-size: 20px; font-weight: 900; color: #2b8a3e; }
+.purse { background: #fff3bf; border-radius: 14px; padding: 8px 12px; margin-bottom: 12px; font-weight: 700; font-size: 14px; }
+.purse.empty { background: #f1f3f5; }
+.purse .bar, .bank-day .bar { display: block; height: 8px; background: rgba(74, 55, 40, .12); border-radius: 4px; overflow: hidden; }
+.purse .bar { margin-top: 6px; }
+.purse .bar i { display: block; height: 100%; background: var(--yellow-d); border-radius: 4px; }
+.bank-acc { text-align: center; }
+.bank-acc .big { font-size: 32px; font-weight: 900; line-height: 1.2; }
+.bank-days { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 10px 0; }
+@media (max-width: 520px) { .bank-days { grid-template-columns: 1fr; } }
+.bank-day { background: #fff; border: 3px solid var(--line); border-radius: 18px; padding: 10px 12px; font-size: 14px; }
+.bank-day .ttl { font-weight: 900; font-size: 16px; display: flex; justify-content: space-between; margin-bottom: 4px; }
+.bank-day .ttl b { color: #2b8a3e; }
+.bank-day .row { gap: 8px; margin: 4px 0; }
+.bank-day .row > span:first-child { flex: none; width: 6.4em; white-space: nowrap; }
+.bank-day .row .bar { flex: 1; }
+.bank-day .row .bar i { display: block; height: 100%; background: var(--green); border-radius: 4px; }
+.bank-day .row b { flex: none; min-width: 3.6em; text-align: right; }
+.bank-day .out { margin-top: 6px; font-size: 13px; opacity: .7; }
+.bank-tips { background: #fff3bf; border-radius: 16px; padding: 10px 14px; font-size: 14px; line-height: 1.3; }
+.bank-tips ul { margin: 6px 0 0; padding-left: 20px; }
+.bank-tips li { margin: 4px 0; font-weight: 600; }

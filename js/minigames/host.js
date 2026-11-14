@@ -27,6 +27,8 @@ export function preloadMinigames() {
 /**
  * @param id    id мини-игры
  * @param info  { look, name, friends:[{name, look}], season, level, ...что угодно для игры }
+ *              introNote — HTML под правилами на заставке (например, сколько заплатят за работу);
+ *              resultNote(stars) — HTML под итогом на экране результата (сколько заработано)
  * @returns Promise<{stars, text, extra} | null>  (null — игрок закрыл игру)
  */
 export async function runMinigame(id, info) {
@@ -42,7 +44,8 @@ export async function runMinigame(id, info) {
     document.body.appendChild(wrap);
 
     let game = null,
-      ended = false;
+      ended = false,
+      result = null; // итог игры: есть с момента, когда показан экран со звёздами
     const cleanup = () => {
       try {
         game && game.stop && game.stop();
@@ -60,7 +63,7 @@ export async function runMinigame(id, info) {
     };
     close.onclick = () => {
       sfx('tap');
-      end(null);
+      end(result); // крестик на экране со звёздами — то же, что «Ура!»: результат (и зарплата) не пропадают
     };
 
     const card = (html, btnText, onBtn) => {
@@ -115,16 +118,18 @@ export async function runMinigame(id, info) {
         sfx(stars === 3 ? 'win' : 'ok');
         const st = [1, 2, 3].map((i) => `<span class="${i <= stars ? '' : 'off'}">⭐</span>`).join('');
         const head2 = ['', 'Хорошо!', 'Здорово!', 'Великолепно!'][stars];
+        result = { ...res, stars };
+        const note = info.resultNote ? info.resultNote(stars) || '' : '';
         card(
-          `<div class="stars">${st}</div><h2 style="margin:4px 0">${head2}</h2><p>${res.text || ''}</p>`,
+          `<div class="stars">${st}</div><h2 style="margin:4px 0">${head2}</h2><p>${res.text || ''}</p>${note}`,
           'Ура!',
-          () => end({ ...res, stars }),
+          () => end(result),
         );
       },
     };
 
     card(
-      `<div class="big-emoji">${mod.icon || '🎮'}</div><h2 style="margin:4px 0">${mod.title}</h2><p>${mod.howTo || ''}</p>`,
+      `<div class="big-emoji">${mod.icon || '🎮'}</div><h2 style="margin:4px 0">${mod.title}</h2><p>${mod.howTo || ''}</p>${info.introNote || ''}`,
       'Начать!',
       () => {
         try {

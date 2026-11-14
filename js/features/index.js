@@ -5,6 +5,8 @@ export * from './purchase.js';
 export * from './wardrobe.js';
 export * from './salon.js';
 export * from './shops.js';
+export * from './market.js';
+export * from './bank.js';
 export * from './places.js';
 export * from './map.js';
 export * from './panorama.js';
