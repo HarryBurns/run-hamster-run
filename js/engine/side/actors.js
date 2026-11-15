@@ -6,9 +6,9 @@
 //   actors: [{ npc, f, x, roam: [x0, x1] | null, act }]          жильцы: кто, где стоит, где бродит,
 //                                                                 act — действие из реестра по нажатию
 // У гостя действие всегда 'guest:<житель>'.
-import { G } from '../../core/state.js';
+import { G, questBadge } from '../../core/state.js';
 import { rnd } from '../../core/util.js';
-import { fillRR } from '../../core/draw.js';
+import { fillRR, ell } from '../../core/draw.js';
 import { sfx } from '../../core/audio.js';
 import { NPC_BY_ID, npcLook } from '../../data/index.js';
 import { drawHamster, blinkAt } from '../../art/hamster.js';
@@ -123,5 +123,15 @@ export function drawActors(ctx, sc, t) {
     fillRR(ctx, g.x - tw / 2, y - 152 * (n.small ? 0.8 : 1), tw, 20, 10, 'rgba(255,255,255,.9)');
     ctx.fillStyle = OUT;
     ctx.fillText(n.name, g.x, y - 142 * (n.small ? 0.8 : 1) + (n.small ? 2 : 0));
+    // журнал заданий: «!» — у жителя есть задание, «?» — к нему пора с заданием (и у себя дома, и в гостях)
+    const mark = questBadge(g.id);
+    if (mark) {
+      const by = y - 178 * (n.small ? 0.8 : 1) + Math.round(Math.sin(t * 3 + g.ph) * 3);
+      ell(ctx, g.x, by + 2, 16, 16, 'rgba(60,40,30,.28)');
+      ell(ctx, g.x, by, 16, 16, mark === '!' ? '#ffd43b' : '#8ce99a', OUT, 2.5);
+      ctx.font = '900 23px ui-rounded, "Trebuchet MS", sans-serif';
+      ctx.fillStyle = OUT;
+      ctx.fillText(mark, g.x, by + 1.5);
+    }
   }
 }

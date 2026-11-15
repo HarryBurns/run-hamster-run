@@ -52,13 +52,18 @@
 //   things(sc, add, view)        своё в общем порядке «дальше → ближе»: add(y, fn(ctx, v, t, sc), v, late)
 //   overlay(ctx, sc, w, h)       поверх кадра в экранных координатах;  miniMap(ctx, sc, k) — на мини-карту
 //   target(sc)                   куда показывать звёздочку задания: { x, y, icon } или null
+//   where(sc, имя)               точка по имени, которую знает только эта часть (места для гербария: 'herb') — для
+//                                sc.whereIs; { x, y } или null
 //   buttons(sc)                  кнопки HUD: [{ id, icon, label, on, fn }]
 //
 // СЦЕНА (то, что вернул createTopDownScene) умеет: ходьбу по нажатию и стрелками, «дойти и сделать», вход в
 // здания, особые места, жителей, предметы заданий и находки, переходы, камеру, погоду и ночь, сохранение позиции.
 // Крюкам и занятиям пригодятся: sc.map, sc.p (герой), sc.cam, sc.walkTo(x, y, точно), sc.goNear(x, y, pending),
 // sc.pass(), sc.spot(id), sc.walkToPlace(id), sc.randomSpots(зона, n, seed), sc.drops, sc.exit(id),
-// sc.heroLook() — как сейчас нарисован герой (на пляже — в шлёпанцах).
+// sc.heroLook() — как сейчас нарисован герой (на пляже — в шлёпанцах), sc.whereIs(имя) — точка по имени для
+// звёздочки задания: место, точка, здание, 'npc:<житель>' или имя, которое знает крюк where.
+// Звёздочку сюжетного задания (журнал) подставляет занятие: setTargetHook(fn) — fn(sc) → { x, y, icon } | null;
+// если она есть, она важнее звёздочки письма.
 // pending — «что сделать, когда дойдём»: { fn(sc) } | { place } | { b: здание } | { npc } | { obj }.
 // Способ передвижения героя (кораблик): sc.p.ride = { speed, pass(tx, ty), step: { sfx, pause }, moved(sc),
 // draw(ctx, sc, p, t, look), drop(sc) } — пока он задан, герой ходит по его правилам; null — пешком.
@@ -95,6 +100,11 @@ export function currentLocation() {
 }
 
 const NONE = [];
+let targetHook = null;
+/** Звёздочка, которая важнее письма (сюжетное задание из журнала): fn(sc) → { x, y, icon } | null. */
+export function setTargetHook(fn) {
+  targetHook = fn;
+}
 const cellPx = (c) => ({ x: c[0] * T, y: c[1] * T }); // [15.5, 8.5] «в клетках» → единицы мира
 
 export function createTopDownScene(desc) {
@@ -166,6 +176,8 @@ export function createTopDownScene(desc) {
       desc.dark === undefined ? darkness() : typeof desc.dark === 'function' ? desc.dark(sc) : desc.dark,
     /** Куда показывает звёздочка задания: что скажет крюк target, а иначе — ближайший несобранный предмет задания. */
     target() {
+      const hk = targetHook && targetHook(sc);
+      if (hk) return hk;
       const tg = sc.first('target', sc);
       if (tg) return tg;
       for (const it of sc.taskItems())
@@ -261,6 +273,20 @@ export function createTopDownScene(desc) {
       return true;
     },
     exit: (id) => exits.find((e) => e.id === id),
+    /**
+     * Точка по имени (единицы мира) — куда показывать звёздочку: 'npc:<житель>' — житель (если его сейчас нет на
+     * улице — у его дома), имя, которое знает крюк where (места для гербария), место, точка или здание. null — нет.
+     */
+    whereIs(name) {
+      ensure();
+      if (name.startsWith('npc:')) {
+        const n = sc.npcs.find((q) => q.id === name.slice(4));
+        if (!n) return null;
+        if (!n.hidden) return { x: n.x, y: n.y };
+        return n.home ? { x: (n.home[0] + 0.5) * T, y: (n.home[1] + 0.5) * T } : null;
+      }
+      return sc.first('where', sc, name) || sc.spot(name);
+    },
 
     // ---------- предметы заданий и находки ----------
     /** Предметы задания дня (из письма), пока оно не выполнено. Чьи они — см. itemHere. */

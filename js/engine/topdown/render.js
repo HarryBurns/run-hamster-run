@@ -17,7 +17,7 @@ import { ell, fillRR, poly, rr, shade, star, emoji } from '../../core/draw.js';
 import { drawHamster, blinkAt } from '../../art/hamster.js';
 import { NPC_BY_ID, TASK_BY_ID } from '../../data/index.js';
 import { T, OUT, PS, SP, TILES, OBJECTS, BUILDING_KINDS, tileOf, label, hash } from './kinds.js';
-import { drawResident } from './actors.js';
+import { drawResident, drawBadge } from './actors.js';
 import { drawGround, buildShore, paintGroundMap, CH } from './ground.js';
 
 // ---------- погода ----------
@@ -545,6 +545,7 @@ export function drawFrame(ctx, sc) {
       case K_NPC: {
         const nd = NPC_BY_ID[v.id];
         drawResident(v, t);
+        drawBadge(v, t); // «!» или «?» над головой — журнал заданий
         if (dist(v.x, v.y, p.x, p.y) < T * 3.2) {
           SP.world();
           label(ctx, nd.name, v.x, v.y - 66 * (nd.small ? 0.82 : 1), 200, 12, 'rgba(255,255,255,.92)');
@@ -717,11 +718,29 @@ export function drawMiniMapBase(ctx, sc, k) {
         size = Math.max(10, k * 2);
       ell(ctx, px, py + 1.5, size * 0.72, size * 0.72, 'rgba(60,40,30,.25)');
       ell(ctx, px, py, size * 0.72, size * 0.72, '#fff', OUT, 1.1);
-      emoji(ctx, pl.map.icon, px, py, size);
+      if (pl.map.lock && pl.map.lock()) {
+        // закрытое тайное место: серый силуэт значка и замочек
+        silhouette(ctx, pl.map.icon, px, py, size);
+        emoji(ctx, '🔒', px + size * 0.5, py + size * 0.42, size * 0.62);
+      } else emoji(ctx, pl.map.icon, px, py, size);
     }
   sc.call('miniMap', ctx, sc, k);
   const tg = sc.target();
   if (tg) star(ctx, (tg.x / T) * k, (tg.y / T) * k, k * 1.3 + 2, '#ffd43b', OUT, 1.5);
+}
+/** Значок-силуэт (закрытое место на карте): эмодзи, залитое серым по своей форме. */
+function silhouette(ctx, icon, x, y, size) {
+  const n = Math.ceil(size * 1.4),
+    k = Math.max(1, ctx.getTransform().a), // карта рисуется в пикселях экрана (×dpr): силуэт — так же чётко
+    c = document.createElement('canvas');
+  c.width = c.height = Math.ceil(n * k);
+  const g = c.getContext('2d');
+  g.scale(k, k);
+  emoji(g, icon, n / 2, n / 2, size);
+  g.globalCompositeOperation = 'source-in';
+  g.fillStyle = '#8a7f8f';
+  g.fillRect(0, 0, n, n);
+  ctx.drawImage(c, x - n / 2, y - n / 2, n, n);
 }
 /** Мигающая точка игрока поверх карты — единственное, что на карте меняется. */
 export function drawMiniMapPlayer(ctx, sc, k) {

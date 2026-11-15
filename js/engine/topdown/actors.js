@@ -12,11 +12,12 @@
 //   позвал в гости («Заходи ко мне сегодня!», письмо «день гостей» — invitedToday) — идёт домой и ждёт внутри:
 //   дошёл до двери — и на улице его нет до конца дня;
 //   в гостях у хомячка дома или ночью — на улице его нет.
-import { G, invitedToday } from '../../core/state.js';
+import { G, invitedToday, questBadge } from '../../core/state.js';
 import { rnd, dist } from '../../core/util.js';
+import { ell } from '../../core/draw.js';
 import { NPC_BY_ID, VISIT, npcLook } from '../../data/index.js';
 import { drawHamster, blinkAt } from '../../art/hamster.js';
-import { T, PS, SP, OBJECTS, tileOf, doorX } from './kinds.js';
+import { T, PS, OUT, SP, OBJECTS, tileOf, doorX } from './kinds.js';
 
 /**
  * Сдвинуть ent ({ x, y, dir, path, moving, walkT }) по его пути. true — в этом шаге дошли до конца.
@@ -177,4 +178,24 @@ export function drawResident(n, t) {
     s = SP.get(key, [-56 * sc, -124 * sc, 56 * sc, 12 * sc], (c) => drawHamster(c, 0, 0, sc, npcLook(n.id), pose));
   }
   SP.draw(s, n.x, n.y + 10);
+}
+
+/**
+ * Значок над жителем (журнал заданий): '!' — у него можно взять задание, '?' — к нему пора с заданием (questBadge
+ * в core/state.js). Рисунок — из кэша спрайтов, покачивается целыми шагами.
+ */
+export function drawBadge(n, t) {
+  const mark = questBadge(n.id);
+  if (!mark) return;
+  const small = NPC_BY_ID[n.id].small ? 0.82 : 1;
+  const s = SP.get('badge:' + mark, [-22, -24, 22, 22], (c) => {
+    ell(c, 0, 2, 15, 15, 'rgba(60,40,30,.28)');
+    ell(c, 0, 0, 15, 15, mark === '!' ? '#ffd43b' : '#8ce99a', OUT, 2.5);
+    c.font = '900 22px ui-rounded, "Trebuchet MS", sans-serif';
+    c.textAlign = 'center';
+    c.textBaseline = 'middle';
+    c.fillStyle = OUT;
+    c.fillText(mark, 0, 1.5);
+  });
+  SP.draw(s, n.x, n.y - 96 * small + Math.round(Math.sin(t * 3 + n.ph) * 3));
 }

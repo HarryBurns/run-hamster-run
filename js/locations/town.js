@@ -6,8 +6,8 @@
 // заданий, точки входа и выхода — и свои виды клеток и предметов (грядка, почтовый ящик, лунка, табличка).
 import { clamp, seeded } from '../core/util.js';
 import { ell, fillRR, line, poly, emoji } from '../core/draw.js';
-import { NPCS, ING_BY_ID, SEED_BY_ID, TASK_BY_ID } from '../data/index.js';
-import { G, cal, ownsHome } from '../core/state.js';
+import { NPCS, ING_BY_ID, SEED_BY_ID, TASK_BY_ID, LAND_BY_ID } from '../data/index.js';
+import { G, cal, ownsHome, landOpen } from '../core/state.js';
 import { T, OUT, SP, put, defineTiles, defineObjects } from '../engine/topdown/kinds.js';
 import { createTopDownScene } from '../engine/topdown/scene.js';
 import './common/index.js';
@@ -15,6 +15,7 @@ import { createSea, WORLD_SEA } from './sea.js';
 import { HOUSE_ART, HOUSE_STYLE } from './town_buildings.js';
 import { signBoard, fitText } from './common/paint.js';
 import { createPlants, hasFruit } from './common/plants.js';
+import { createHerbs } from './common/herbs.js';
 
 const MW = 96,
   MH = 121;
@@ -105,8 +106,8 @@ export const BUILDINGS = [
 // Агентство — 'realtor'; двери покупного жилья — 'home:<id жилья>' (features/homes.js): куплено — войти, нет —
 // окно риелтора. Пентхаус — из лифта Хомяк-Тауэра. Какое здание — дверь какого жилья, записано и в HOMES
 // (data/estate.js, поле building): туда ведёт кнопка «Домой».
-// 'soon' — временная заглушка «Скоро открытие!» (features/soon.js) для мест, которые ещё строятся:
-// ключ места — hotel (и forest, desert — у выездов из города, см. PLACES).
+// 'soon' — временная заглушка «Скоро открытие!» (features/soon.js) для отеля, который ещё строится. Выезды в лес
+// и пустыню — не «скоро», а тайные места: у них действие 'way:<место>' (features/quests.js, см. PLACES).
 const ask = (vendor, text, options) => ({ do: 'ask', vendor, text, options });
 const soon = (key) => ({ do: 'soon', key });
 const BUILDING_ACTS = {
@@ -256,24 +257,25 @@ const PLACES = [
     act: 'fish:pier',
     map: { icon: '🎣', at: [64, 61], label: '🎣 Пирс' },
   },
-  // выезды из города (пока закрыты): тропа в лес и остановка каравана в пустыню
+  // выезды из города в тайные места: тропа в лес и остановка каравана в пустыню. Пока место закрыто (landOpen),
+  // у ворот — доброе окно «кто знает дорогу», на карте — силуэт с замочком (lock); действие way — features/quests.js
   {
     id: 'forest',
     at: [1.5, 2],
     hit: { dx: 62, up: 70, down: 30 },
     stand: [2, 3.6],
-    act: soon('forest'),
+    act: 'way:forest',
     key: false,
-    map: { icon: '🌲', at: [2, 2.5], label: '🌲 Тропа в лес' },
+    map: { icon: '🌲', at: [2, 2.5], label: '🌲 Тропа в лес', lock: () => !landOpen('forest') },
   },
   {
     id: 'desert',
     at: [89.5, 25],
     hit: { dx: 60, up: 84, down: 24 },
     stand: [91.5, 26.4],
-    act: soon('desert'),
+    act: 'way:desert',
     key: false,
-    map: { icon: '🐫', at: [92, 25.5], label: '🐫 Караван в пустыню' },
+    map: { icon: '🐫', at: [92, 25.5], label: '🐫 Караван в пустыню', lock: () => !landOpen('desert') },
   },
 ];
 const POOLS = [
@@ -437,6 +439,24 @@ defineObjects({
 // ---------- построение карты ----------
 const sea = createSea(WORLD_SEA);
 const plants = createPlants(); // подпись «Сорвать…», кнопка и клавиша E у плодовых растений
+// Места, где можно сорвать находку для гербария Мяты (common/herbs.js): вид места и клетка клумбы, дерева или ёлки.
+// В парке, где гуляет Мята, есть все три вида; остальные — по городу: во дворе виллы, на площади, на улицах, у опушки.
+const HERB_SPOTS = [
+  ['flowers', 19, 9], // двор виллы, клумба у почтового ящика
+  ['flowers', 33, 33], // парк, клумба у входа
+  ['flowers', 47, 43], // парк, клумба у пруда
+  ['flowers', 43, 23], // площадь, клумба
+  ['flowers', 23, 43], // Садовая улочка
+  ['tree', 34, 29], // парк, у входа
+  ['tree', 44, 40], // парк, у пруда
+  ['tree', 16, 29], // улица под двором виллы
+  ['tree', 57, 29], // за площадью
+  ['pine', 3, 9], // опушка у тропы в лес
+  ['pine', 42, 30], // парк
+  ['pine', 39, 17], // за салоном и бутиком
+  ['pine', 66, 23], // у Морского проспекта
+];
+const herbs = createHerbs(HERB_SPOTS);
 function build(m) {
   const g = m.ground,
     solid = m.solid,
@@ -1040,6 +1060,13 @@ function target(sc) {
   return s ? { ...s, icon: '⭐' } : null;
 }
 
+/** Выход из города в тайное место: в его сцену из LANDS, если она уже есть, — и только когда место открыто. */
+function landExit(id, area, to, entry) {
+  const land = LAND_BY_ID[id];
+  if (!land.scene) return { id, area, to, entry, off: true };
+  return { id, area, to: land.scene, entry: land.entry || entry, when: () => landOpen(id) };
+}
+
 const town = createTopDownScene({
   id: 'world', // имя сцены лежит в сохранениях: { scene: 'world', x, y } — не менять
   title: 'Карта города',
@@ -1058,18 +1085,16 @@ const town = createTopDownScene({
   // кто вышел из виллы — стоит у её двери; forest — куда приходят с лесной тропы (за воротами)
   entries: { villa: { building: 'villa', from: 'villa' }, forest: { at: [2, 1.5] } },
   start: 'villa',
-  // Выезды. Тропа в лес пока ведёт в пробную локацию (demo_meadow.js) и закрыта: в игре её открывает только
-  // автотест. Когда появится лес — поменять to и entry; пустыня — так же (сцены 'desert' пока нет).
-  exits: [
-    { id: 'forest', area: [1, 0, 2, 0], to: 'demo_meadow', entry: 'gate', off: true },
-    { id: 'desert', area: [95, 26, 95, 27], to: 'desert', entry: 'bus', off: true },
-  ],
+  // Выезды в тайные места. Сцена места и вход в неё — в LANDS (data/places.js): пока сцены нет, выход закрыт
+  // (off), и у ворот — окно действия way:<место> (features/quests.js); тропа в лес тогда ведёт в пробную полянку
+  // (её открывает только автотест). Впишут в LANDS scene — выход откроется сам, как только место открыто (when).
+  exits: [landExit('forest', [1, 0, 2, 0], 'demo_meadow', 'gate'), landExit('desert', [95, 26, 95, 27], 'desert', 'bus')],
   // где разбрасывать предметы заданий: на пляже и в городе (не во дворе виллы и только там, куда можно дойти с улицы)
   zones: {
     beach: { y: [50, WORLD_SEA.shallowY - 1], tiles: ['s'] },
     town: { y: [3, 49], tiles: ['r', 'g', 'k', 'y'], avoid: [[0, 0, 28, 25]], reach: { from: [15, 26], tiles: ['g'] } },
   },
-  parts: [sea, plants],
+  parts: [sea, plants, herbs],
   target,
   /** Таблички «моё» у купленных заведений и жилья — сразу после здания в порядке «дальше → ближе». */
   things(sc, add, v) {
