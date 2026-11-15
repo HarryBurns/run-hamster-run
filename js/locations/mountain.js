@@ -11,12 +11,12 @@
 //
 // Атмосфера: облака ниже вершины плывут в слое неба (крюк sky), наверху ветер несёт снежинки (overlay), зимой
 // снег идёт везде; своя музыка, ветер и колокольчики коров (sound → features/soundscape.js).
-import { G, cal } from '../core/state.js';
+import { G, cal, questNow } from '../core/state.js';
 import { keys } from '../core/input.js';
 import { clamp, seeded } from '../core/util.js';
 import { ell } from '../core/draw.js';
 import { drawHamster, blinkAt } from '../art/hamster.js';
-import { coldDay } from '../data/index.js';
+import { coldDay, QUEST_BY_ID } from '../data/index.js';
 import { T, PS, put, createTopDownScene } from '../engine/topdown/index.js';
 import { chaletArt, cloudPuff } from './mountain_art.js';
 import './common/index.js';
@@ -129,6 +129,13 @@ const S2 = () => G.state.dayFlags.mountain || {};
 export const edelweissOn = () => cal().season === 'summer' && !S2().edelweiss;
 /** Снеговик сегодня: { stage — сделано шагов (0–5), roll — сколько покатан текущий ком }. */
 export const snowmanNow = () => ({ stage: S2().snowman || 0, roll: S2().roll || 0 });
+/** Варежка Вершинкина лежит на вершине: задание «Потерянная варежка» взято, а варежка ещё не найдена. */
+export const MITTEN = [23, 4]; // у смотровой площадки, справа от флага
+export const mittenHidden = () => {
+  if (!QUEST_BY_ID.lost_mitten) return false;
+  const w = questNow('lost_mitten');
+  return w.status === 'active' && w.i === 0;
+};
 /** Корову видно на лугу (зимой коровы в тёплом хлеву). */
 const cowsOut = () => cal().season !== 'winter';
 
@@ -246,6 +253,8 @@ function build(m) {
     put1('fenceV', px0, y, { v: 1 });
     put1('fenceV', px1, y, { v: 1 });
   }
+  m.clear(...MITTEN); // там лежит варежка из задания Вершинкина
+  m.clear(MITTEN[0], MITTEN[1] + 1);
   // эдельвейсы на лугах (видны летом, пока не сорван сегодняшний); клетка под ними и ниже — свободны
   for (const [x, y] of EDELWEISS) {
     put1('edelweiss', x, y, { on: edelweissOn });
@@ -389,6 +398,12 @@ function drawSnowmanAndSteam(sc, add, v) {
     y = (AT.snowman[1] + 0.5) * T;
   if ((sm.stage || sm.roll) && x > v.x0 && x < v.x1 && y > v.y0 && y < v.y1)
     add(y + 8, () => put('snowman', x, y + 8, sm.stage, sm.stage < 3 ? sm.roll : 0));
+  if (mittenHidden()) {
+    const mx = (MITTEN[0] + 0.5) * T,
+      my = (MITTEN[1] + 0.5) * T;
+    if (mx > v.x0 && mx < v.x1 && my > v.y0 && my < v.y1)
+      add(my, (ctx, _v, t) => put('mitten', mx, my + 6 + (Math.sin(t * 3) > 0.7 ? -2 : 0), Math.round(Math.sin(t * 2) * 2)));
+  }
   const sx = SPRING_C[0] * T,
     sy = SPRING_C[1] * T;
   if (sx > v.x0 && sx < v.x1 + 100 && sy > v.y0 && sy < v.y1) add(sy - 30, (ctx, _v, t) => drawSteam(ctx, sx, sy - 20, t));
@@ -480,6 +495,8 @@ const mountain = createTopDownScene({
       act: 'way:caves',
       map: { icon: '🔒', at: [29.5, 5.2], label: '💎 Вход в пещеры' },
     },
+    // варежка Вершинкина (задание «Потерянная варежка»): видна, пока её не нашли
+    { id: 'mitten', at: MITTEN, hit: { r: 40 }, stand: [MITTEN[0] + 0.5, MITTEN[1] + 1.4], when: mittenHidden, act: 'mountain:mitten', key: false },
     // старт трассы для санок: «Спуск на санках» (та же мини-игра, что у Вершинкина)
     {
       id: 'sled',

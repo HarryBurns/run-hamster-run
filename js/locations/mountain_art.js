@@ -544,10 +544,32 @@ defineObjects({
   },
 });
 
+/** Варежка Вершинкина: синяя, вязаная, со снежинкой; tilt — покачивается на ветру (шагами). */
+function paintMitten(ctx, tilt) {
+  ell(ctx, 2, 8, 14, 4, 'rgba(70,90,140,.22)');
+  ctx.rotate(tilt * 0.06);
+  ctx.beginPath();
+  ctx.moveTo(-9, 6);
+  ctx.lineTo(-10, -10);
+  ctx.quadraticCurveTo(-10, -22, 0, -22);
+  ctx.quadraticCurveTo(10, -22, 10, -10);
+  ctx.lineTo(9, 6);
+  ctx.closePath();
+  ctx.fillStyle = '#4dabf7';
+  ctx.fill();
+  ctx.strokeStyle = OUT;
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  ell(ctx, -12, -6, 5, 7, '#4dabf7', OUT, 1.8, -0.5); // большой палец
+  fillRR(ctx, -11, 2, 22, 7, 3, '#ffffff', OUT, 1.6); // манжета
+  for (let i = 0; i < 3; i++) line(ctx, 0, -12, Math.cos(i * 1.05) * 5, -12 + Math.sin(i * 1.05) * 5, '#ffffff', 1.4);
+  for (let i = 0; i < 3; i++) line(ctx, 0, -12, -Math.cos(i * 1.05) * 5, -12 - Math.sin(i * 1.05) * 5, '#ffffff', 1.4);
+}
 // снеговик и корова — спрайты для крюка things (стоят не на клетке, а там, где их поставила локация)
 defineArt({
   snowman: [[-36, -100, 52, 14], paintSnowman],
   cow: [[-46, -60, 50, 18], paintCow],
+  mitten: [[-22, -30, 20, 16], paintMitten],
 });
 
 // ---------- шале инструктора Вершинкина: дорисовка поверх домика (поле art у здания house) ----------

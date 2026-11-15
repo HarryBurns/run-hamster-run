@@ -149,4 +149,5 @@ export const EXTRA_STICKERS = [
   { id: 'q_herbarium', sticker: '🌱', title: 'Юный ботаник' },
   { id: 'q_forest', sticker: '🌲', title: 'Друг леса' },
   { id: 'q_summit', sticker: '🏔️', title: 'Покоритель вершин' },
+  { id: 'q_mountain', sticker: '🧤', title: 'Друг гор' },
 ];

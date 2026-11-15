@@ -39,7 +39,7 @@ export const TASK_COINS = {
 /** Мешочек монет вместо сюрприза, когда все подарки уже подарены. */
 export const SURPRISE_COINS = 1000;
 // Сюжетные задания (журнал, data/quests.js): награда разовая — задание делают один раз за игру.
-export const QUEST_COINS = { herbarium: 500, squirrel_kit: 600, summit: 700 };
+export const QUEST_COINS = { herbarium: 500, squirrel_kit: 600, summit: 700, lost_mitten: 600 };
 /** Подарок за задание уже лежит в шкафу — вместо него мешочек монет. */
 export const QUEST_GIFT_COINS = 600;
 

@@ -39,7 +39,7 @@ import { VIEW_LAYERS, viewEnv, renderViewLayer } from '../interiors/tower_view.j
 import { startBath, snowmanNow } from '../locations/mountain.js';
 import { dialog } from '../ui/dialog.js';
 import { openLayer } from '../ui/modals.js';
-import { openPanel } from '../ui/panel.js';
+import { message, openPanel } from '../ui/panel.js';
 import { toast } from '../ui/toast.js';
 import { frostToday } from './health.js';
 import { playMinigame } from './minigames.js';
@@ -421,6 +421,19 @@ export async function sledRide() {
   return res;
 }
 
+// ---------- варежка Вершинкина (задание «Потерянная варежка», data/quests.js) ----------
+/** Нашли варежку на вершине (место mitten видно, пока задание на первом шаге). */
+export async function findMitten() {
+  emit('mountain', { what: 'mitten' });
+  sfx('win');
+  await message({
+    title: 'Варежка нашлась!',
+    icon: '🧤',
+    html: '<p class="center big-emoji">🧤❄️</p><p class="center">Вот она — синяя, со снежинкой! Зацепилась за сугроб у смотровой площадки. Теперь — скатиться на санках и отнести варежку Вершинкину!</p>',
+    buttons: [{ text: 'Ура!' }],
+  });
+}
+
 // ---------- действия на горе ----------
 const MOUNTAIN_ACTS = {
   spring: (ctx) => visitSpring(ctx && ctx.scene),
@@ -428,11 +441,12 @@ const MOUNTAIN_ACTS = {
   view: climbLookout,
   snowman: buildSnowman,
   sled: sledRide,
+  mitten: findMitten,
 };
 register(
   'mountain',
   (p, ctx) => MOUNTAIN_ACTS[p.arg] && MOUNTAIN_ACTS[p.arg](ctx),
-  'гора: mountain:spring | edelweiss | view | snowman | sled',
+  'гора: mountain:spring | edelweiss | view | snowman | sled | mitten',
 );
 
 // ---------- канатная дорога ----------

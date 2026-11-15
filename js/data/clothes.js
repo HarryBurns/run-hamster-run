@@ -117,6 +117,8 @@ C('wreath', 'head', 'wreath', 'Венок из цветов', '#fff', { shop: 'g
 C('glasses_red', 'acc', 'glasses', 'Красные очки', '#e03131', { tags: ['cute'] });
 C('glasses_black', 'acc', 'glasses', 'Умные очки', '#343a40', { tags: ['fancy'] });
 C('sung_yellow', 'acc', 'sunglasses', 'Солнечные очки', '#ffd43b', { season: 'hot', tags: ['summer', 'beach', 'sport'] });
+// лыжные очки — подарок инструктора Вершинкина за задание «Потерянная варежка» (гора, П.9): носят на лбу
+C('goggles_ski', 'acc', 'skigoggles', 'Лыжные очки', '#1c7ed6', { c2: '#343a40', shop: 'gift', tags: ['sport', 'winter'] });
 C('sung_pink', 'acc', 'sunglasses', 'Розовые тёмные очки', '#ff6b9d', { shop: 'beach', season: 'hot', tags: ['summer', 'beach', 'cute'] });
 C('scarf_yellow', 'acc', 'scarf', 'Полосатый шарф', '#ffd43b', { c2: '#ff6b6b', shop: 'start', season: 'cold', tags: ['warm', 'winter', 'autumn'] });
 C('scarf_blue', 'acc', 'scarf', 'Голубой шарф', '#74c0fc', { c2: '#fff', season: 'cold', tags: ['warm', 'winter', 'autumn'] });
