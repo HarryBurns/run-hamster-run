@@ -29,6 +29,7 @@ import {
   QUESTS,
   QUEST_BY_ID,
   LAND_BY_ID,
+  DRESS,
   resolveLook,
   defaultLook,
 } from '../data/index.js';
@@ -616,7 +617,12 @@ export function questNow(id) {
     const need = step.n || 1;
     let have = 0;
     if (status === 'done') have = need;
-    else if (st) have = step.bring ? bringHave(step.bring) : (st.n[i] || 0);
+    else if (st)
+      have = step.bring
+        ? bringHave(step.bring)
+        : step.dress // «приди в тёплом»: смотрит на наряд прямо сейчас (снимешь — шаг снова не сделан)
+          ? +DRESS[step.dress](playerLook().outfit)
+          : st.n[i] || 0;
     return { have: Math.min(have, need), need, ok: have >= need };
   });
   let i = steps.findIndex((x) => !x.ok);

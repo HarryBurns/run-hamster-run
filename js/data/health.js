@@ -90,6 +90,10 @@ const JACKETS = ['jacketW', 'jacketA', 'jacketS'];
 export const dressedForRain = (outfit) =>
   (!!outfit.body && JACKETS.includes(outfit.body.kind)) ||
   ['head', 'body', 'feet'].some((k) => !!outfit[k] && (outfit[k].season === 'rain' || outfit[k].tags.includes('rain')));
+/** Тёплая ли вещь из шкафа (шапка, наушники, куртка, кофта, тёплое платье, шарф) — то, что засчитывает dressedWarm. */
+export const isWarmItem = (c) => !!c && ['head', 'body', 'acc'].includes(c.slot) && warm(c);
+/** Проверки наряда по имени — для шага задания «приди в тёплом» ({ dress: 'warm' } в data/quests.js). */
+export const DRESS = { warm: dressedWarm, rain: dressedForRain };
 /** Холодно ли сегодня на улице без тёплой вещи (поздняя осень и зима). */
 export const coldDay = (day) => isColdMonth(monthOfDay(day));
 

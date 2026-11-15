@@ -41,7 +41,7 @@ export const LANDS = [
   },
   // вход на гору — из леса, станция канатной дороги (здание station в locations/forest.js, действие way:mountain)
   {
-    id: 'mountain', name: 'Гора', icon: '⛰️', npc: 'senya', who: 'Сеня из бассейна', quest: null,
+    id: 'mountain', name: 'Гора', icon: '⛰️', npc: 'senya', who: 'Сеня из бассейна', quest: 'summit',
     door: 'Канатная дорога на гору пока не работает.', from: 'forest', at: 'в лесу, у станции канатной дороги',
     scene: null, entry: null,
   },

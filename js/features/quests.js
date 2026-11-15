@@ -49,7 +49,9 @@ import { openMap } from './map.js';
 
 const S = () => G.state;
 const STICKER = Object.fromEntries(EXTRA_STICKERS.map((q) => [q.id, q]));
-const her = (npc) => (NPC_BY_ID[npc].fem ? 'ней' : 'ним');
+const her = (npc) => (NPC_BY_ID[npc].fem ? 'ней' : 'ним'); // «с ней / с ним»
+const hisOf = (npc) => (NPC_BY_ID[npc].fem ? 'неё' : 'него'); // «у неё / у него»
+const toHim = (npc) => (NPC_BY_ID[npc].fem ? 'ней' : 'нему'); // «к ней / к нему»
 
 // ---------- звёздочка-указатель ----------
 // К какому заданию показывает звёздочка (та же, что у письма; важнее письма). Берут задание — звёздочка ведёт
@@ -82,7 +84,7 @@ setTargetHook((sc) => {
 });
 /** Где искать того, кто дал задание: «в городе» или «в лесу» (поле loc задания — локация, где оно идёт). */
 const placeOf = (q) => (q.loc ? `в ${LOC_WORDS[q.loc] || 'другом месте'}` : 'в городе');
-const LOC_WORDS = { forest: 'лесу' };
+const LOC_WORDS = { forest: 'лесу', mountain: 'горах' };
 /** Показать задание на карте (звёздочкой). false — сейчас показать нечего (сегодня всё собрано и т. п.). */
 export function showQuestOnMap(id) {
   const w = questNow(id),
@@ -114,7 +116,8 @@ export function showQuestOnMap(id) {
 // ---------- ход заданий по событиям ----------
 const STEP_EVENTS = new Set(QUESTS.flatMap((q) => q.steps.filter((st) => st.on).map((st) => st.on)));
 // после этих событий задание могло сдвинуться (шаг «принести» — что-то появилось в рюкзаке или пропало)
-const WATCH = new Set([...STEP_EVENTS, 'herb', 'find', 'gather', 'harvest', 'buy', 'sell', 'cook', 'eat', 'wake']);
+// (или шаг «приди в тёплом» — надели или сняли вещь)
+const WATCH = new Set([...STEP_EVENTS, 'herb', 'find', 'gather', 'harvest', 'buy', 'sell', 'cook', 'eat', 'wake', 'wear']);
 
 function countEvent(ev, d) {
   const s = S();
@@ -154,7 +157,7 @@ function refresh(quiet = false) {
       cur = q.steps[w.i];
     if (w.i > wi) {
       sfx('ok');
-      if (cur && cur.talk) toast(`${q.icon} Всё готово! ${cur.text} — у ${her(cur.talk)} над головой «?»`, 'good');
+      if (cur && cur.talk) toast(`${q.icon} Всё готово! ${cur.text} — у ${hisOf(cur.talk)} над головой «?»`, 'good');
       else if (cur) toast(`✅ Сделано! Дальше: ${cur.text}`, 'good');
     } else if (w.i === wi && cur && w.steps[w.i].need > 1) toast(`${q.icon} ${q.title}: ${w.steps[w.i].have} из ${w.steps[w.i].need}`);
   }
@@ -176,7 +179,7 @@ function hintNew() {
     if (s.flags['questHint:' + q.id] || questNow(q.id).status !== 'ready') continue;
     setFlag('questHint:' + q.id);
     const npc = NPC_BY_ID[q.npc];
-    enqueue(() => toast(`❗ ${npc.name} хочет о чём-то тебя попросить — у ${her(q.npc)} над головой «!»`, 'good'), {
+    enqueue(() => toast(`❗ ${npc.name} хочет о чём-то тебя попросить — у ${hisOf(q.npc)} над головой «!»`, 'good'), {
       delay: 2500,
     });
   }
@@ -223,6 +226,10 @@ async function offer(q) {
   const i = await say(npc, q.lines.offer, [{ text: `${q.icon} Помогу!`, cls: 'green' }, { text: 'Потом' }]);
   if (i !== 0) return { text: q.lines.later || 'Хорошо, в другой раз!' };
   takeQuest(q.id);
+  // «это уже было» (рекорд в мини-игре до задания) — засчитать сразу
+  q.steps.forEach((step, i) => {
+    if (step.on && step.already && step.already(S())) questCount(q.id, i);
+  });
   trackQuest(q.id);
   sfx('bell');
   const j = await say(npc, q.lines.accept, [{ text: 'Хорошо!', cls: 'green' }, { text: '📖 Открыть журнал', cls: 'blue' }], true);
@@ -232,11 +239,19 @@ async function offer(q) {
   return { end: true };
 }
 
+// Своё «как дела» у задания: занятие места (features/mountain.js — Сеня и тёплые вещи) может сказать что-то другое
+// вместо строки lines.wait и при этом что-то сделать (подарить шапку). fn(w) → текст | null (тогда — lines.wait).
+const waitHooks = {};
+/** Своё «как дела» для задания id: fn(w) → текст или null. */
+export function setWaitHook(id, fn) {
+  waitHooks[id] = fn;
+}
 async function howGoes(q, w) {
   const npc = q.npc,
     st = w.steps[w.i];
   emit('talk', { id: npc });
-  const wait = typeof q.lines.wait === 'string' ? q.lines.wait : (q.lines.wait || {})[w.i];
+  const own = waitHooks[q.id] ? waitHooks[q.id](w) : null;
+  const wait = own || (typeof q.lines.wait === 'string' ? q.lines.wait : (q.lines.wait || {})[w.i]);
   const left = st && st.need > 1 ? ` У тебя уже ${st.have} из ${st.need}.` : '';
   const i = await say(npc, `${wait || 'Как успехи?'}${left}`, [
     { text: 'Хорошо, продолжу!', cls: 'green' },
@@ -393,7 +408,7 @@ export function renderJournal(body, panel) {
       el(
         'div',
         'q-head',
-        `<span class="q-ic">❗</span><div><div class="ttl">Новое задание!</div><div class="sub">${npc.name} хочет о чём-то попросить — найди ${npc.fem ? 'её' : 'его'} ${placeOf(q)}. Над головой у ${her(q.npc)} «!».</div></div>`,
+        `<span class="q-ic">❗</span><div><div class="ttl">Новое задание!</div><div class="sub">${npc.name} хочет о чём-то попросить — найди ${npc.fem ? 'её' : 'его'} ${placeOf(q)}. Над головой у ${hisOf(q.npc)} «!».</div></div>`,
       ),
     );
     card.appendChild(mapBtn(w));
@@ -477,9 +492,9 @@ export function openWay(id) {
   if (!w) {
     text = `${door} Говорят, ${land.who} знает, как туда попасть… Только дорогу сюда ещё прокладывают — она откроется в одном из следующих обновлений игры.`;
   } else if (w.status === 'locked') {
-    text = `${door} Говорят, ${land.who} знает дорогу… Сегодня ${npc.fem ? 'она занята' : 'он занят'} — загляни к ${her(land.npc)} завтра!`;
+    text = `${door} Говорят, ${land.who} знает дорогу… Сегодня ${npc.fem ? 'она занята' : 'он занят'} — загляни к ${toHim(land.npc)} завтра!`;
   } else if (w.status === 'ready') {
-    text = `${door} ${land.who} знает дорогу — поговори с ${her(land.npc)}! Над головой у ${her(land.npc)} «!».`;
+    text = `${door} ${land.who} знает дорогу — поговори с ${her(land.npc)}! Над головой у ${hisOf(land.npc)} «!».`;
     buttons = [{ text: `⭐ Где ${npc.name}?`, cls: 'yellow' }, { text: 'Хорошо', cls: 'ghost' }];
     act = () => showQuestOnMap(q.id);
   } else {
