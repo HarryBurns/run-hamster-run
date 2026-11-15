@@ -211,6 +211,79 @@ const { pathToFileURL } = require('url');
   }
   if (!(offStats.mall > 0 && offStats.market > 0 && offStats.none > 0))
     bad('ассортимент дня: несезонное должно быть то в ТЦ, то на рынке, то нигде');
+  // (з) вещи: одежда, мебель, украшения — сезоны, «привоз» и распродажа (data/wares.js, WARES в economy.js)
+  const { WARES, WARE_MONTHS } = D;
+  const WARE_SHOPS = { mall: 'ТЦ «Модный»', boutique: 'бутик «Бантик»', beach: 'пляжный магазинчик', home: 'ТЦ «Уютный дом»' };
+  const allWares = [...D.CLOTHES, ...D.FURNITURE];
+  for (const k of ['off', 'delivery', 'special'])
+    if (!(WARES[k] && WARES[k].days >= 1 && WARES[k].days < WARES[k].of && !WARES[k].max))
+      bad(`WARES.${k}: странное правило (вещи покупают по одной — без «мало штук»)`);
+  if (!(WARES.sale > 0.5 && WARES.sale < 1)) bad('WARES.sale: распродажа должна быть скидкой, но не больше чем вдвое');
+  for (const it of allWares) {
+    if (it.season && !WARE_MONTHS[it.season]) bad(`${it.id}: нет такого сезона вещей — ${it.season}`);
+    if (it.stock && !['delivery', 'special'].includes(it.stock)) bad(`${it.id}: нет такого привоза — ${it.stock}`);
+    if (it.stock && it.season) bad(`${it.id}: у сезонной вещи не бывает «привоза» (поле stock лишнее)`);
+    if (it.stock && !WARE_SHOPS[it.shop]) bad(`${it.id}: «привоз» — только для вещей из магазинов`);
+    // продать вещь нельзя: на распродаже (и вообще на вещах) не заработать
+    if ('sell' in it || MARKET.sell[it.id]) bad(`${it.id}: вещи не продаются — иначе распродажу можно перепродать`);
+    for (const m of ALL_MONTHS) {
+      const phase = D.wareSeason(it, m),
+        price = D.warePrice(it, m);
+      if (it.price > 0 && (phase === 'last' ? !(price < it.price && price >= it.price / 2) : price !== it.price))
+        bad(`${it.id}: ${MONTHS[m]} — цена ${price} при обычной ${it.price} (скидка бывает только в конце сезона)`);
+      if (phase && phase !== 'off' && D.wareRule(it, m) !== null) bad(`${it.id}: в сезон вещь должна быть всегда`);
+    }
+  }
+  for (const [k, m] of Object.entries(WARE_MONTHS))
+    if (m.length < 3 || m.length > 6) bad(`сезон вещей ${k}: длится ${m.length} мес. (должен 3–6)`);
+  // витрина: в любой день двух лет в каждом магазине есть выбор, в каждом отделе хоть что-то есть;
+  // вещь не пропадает надолго: не в сезон — хоть раз за месяц, привоз — не дольше двух дней подряд
+  const wareStats = {};
+  for (const [shop, shopName] of Object.entries(WARE_SHOPS)) {
+    const list = D.shopWares(shop).map((q) => q.def),
+      tabs = [...new Set(list.map((d) => d.slot || d.cat))],
+      st = (wareStats[shop] = { all: list.length, min: Infinity, max: 0 });
+    st.seasonal = list.filter((d) => d.season).length;
+    st.delivery = list.filter((d) => d.stock === 'delivery').length;
+    st.special = list.filter((d) => d.stock === 'special').length;
+    const loose = (st.delivery + st.special) / (st.all - st.seasonal);
+    if (list.length >= 20 && !(loose >= 0.25 && loose <= 0.45))
+      bad(`${shopName}: «привоз» — ${Math.round(loose * 100)} % обычных вещей (должно быть 25–45 %)`);
+    const gap = {};
+    for (let day = 0; day < YEAR2; day++) {
+      const on = list.filter((d) => D.wareOn(d, day));
+      st.min = Math.min(st.min, on.length);
+      st.max = Math.max(st.max, on.length);
+      if (on.length < WARES.minChoice[shop])
+        bad(`${shopName}: день ${day} — на витрине всего ${on.length} вещей (нужно не меньше ${WARES.minChoice[shop]})`);
+      for (const t of tabs)
+        if (!on.some((d) => (d.slot || d.cat) === t)) bad(`${shopName}: день ${day} — отдел ${t} пустой`);
+      for (const d of list) {
+        gap[d.id] = on.includes(d) ? 0 : (gap[d.id] || 0) + 1;
+        const limit = D.wareSeason(d, D.monthOfDay(day)) === 'off' ? 2 * (DAYS_PER_MONTH - 1) : 2;
+        if (gap[d.id] > limit) bad(`${shopName}: ${d.id} нет на витрине ${gap[d.id]} дн. подряд (день ${day})`);
+        if (gap[d.id] && D.wareBackIn(d, day) !== 1 + [1, 2, 3, 4].findIndex((n) => D.wareOn(d, day + n)))
+          bad(`${shopName}: ${d.id} — «привезут через…» расходится с витриной (день ${day})`);
+      }
+    }
+  }
+  // рынок: вещиц каждый день ровно MARKET.trinkets, и каждая приезжает хотя бы раз в четыре месяца
+  const trinkets = D.shopWares('market').map((q) => q.def),
+    seenTrinket = {};
+  for (let day = 0; day < YEAR2; day++) {
+    const got = D.trinketsOn(day).map((q) => q.def);
+    if (got.length !== MARKET.trinkets) bad(`рынок: день ${day} — вещиц ${got.length}, а не ${MARKET.trinkets}`);
+    for (const d of trinkets) {
+      seenTrinket[d.id] = got.includes(d) ? 0 : (seenTrinket[d.id] || 0) + 1;
+      if (seenTrinket[d.id] > 4 * DAYS_PER_MONTH)
+        bad(`рынок: ${d.id} не привозят ${seenTrinket[d.id]} дн. подряд (день ${day})`);
+    }
+    if (got.some((d) => !D.wareOn(d, day))) bad(`рынок: день ${day} — привезли вещицу не в её день`);
+  }
+  // задания: «Обновка» и «Уют на вилле» выполнимы в любой день — в ТЦ всегда есть базовые вещи (без сезона и привоза)
+  for (const shop of ['mall', 'home'])
+    if (D.shopWares(shop).filter((q) => !q.def.season && !q.def.stock).length < 20)
+      bad(`${WARE_SHOPS[shop]}: мало базовых вещей, которые есть всегда`);
   const coco = ING.coconut.sell,
     cocoMax = GATHER.coconut.n * GATHER.coconut.max; // игра начинается зимой: первые дни собирают кокосы
   const taskMax = Math.max(...taskAll);
@@ -390,6 +463,16 @@ const { pathToFileURL } = require('url');
   line(
     'редкости на рынке (вещицы)',
     range([...shopCl(['market']), ...D.FURNITURE.filter((f) => f.shop === 'market').map((f) => f.price)]),
+  );
+  console.log('\nВещи: сезоны, привоз, распродажа (всего · сезонных · привоз 2 дня из 3 · особенных через день · на витрине в день)');
+  for (const [shop, shopName] of Object.entries(WARE_SHOPS)) {
+    const st = wareStats[shop];
+    line(shopName, `${st.all} · ${st.seasonal} · ${st.delivery} · ${st.special} · ${st.min}–${st.max}`);
+  }
+  line('рынок: вещицы', `${trinkets.length} (сезонных ${trinkets.filter((d) => d.season).length}), в день ${MARKET.trinkets}`);
+  line(
+    'сезонная вещь',
+    `в сезон — всегда; не в сезон — ${WARES.off.days} день из ${WARES.off.of}; последний месяц сезона — цена × ${WARES.sale}`,
   );
   const dishCosts = cook.filter((c) => c.buyable).map((c) => c.cost);
   line('набор продуктов на блюдо (всё из ТЦ, сезонное — в сезон)', range(dishCosts));
