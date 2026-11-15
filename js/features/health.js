@@ -11,7 +11,7 @@ import { fallSick, recoverSick, setDayFlag, spend, award } from '../core/actions
 import { sfx } from '../core/audio.js';
 import { makeCanvas, ell, fillRR, line, star, emoji } from '../core/draw.js';
 import { on, emit } from '../core/events.js';
-import { sceneName } from '../core/loop.js';
+import { scene, sceneName } from '../core/loop.js';
 import { register, run } from '../core/registry.js';
 import { G, playerLook, isSick } from '../core/state.js';
 import { el, esc, fmtMoney } from '../core/util.js';
@@ -192,11 +192,15 @@ function tick({ dt }) {
     return;
   }
   nextSneeze = G.time + 3;
-  if (sceneName() !== 'world') return; // «на улице» — город, двор виллы, пляж, море
+  // «на улице» — город, двор виллы, пляж, море; и места, которые сами говорят, холодно ли там (гора: на вершине
+  // мороз круглый год — крюк cold у локации)
+  const sc = scene(),
+    here = sc && sc.cold ? sc.cold() : null;
+  if (here === null && sceneName() !== 'world') return;
   const min = dt / 0.6,
     o = playerLook().outfit,
     cf = careless();
-  if (coldDay(s.day) && !dressedWarm(o) && !cf.cold) {
+  if ((here === null ? coldDay(s.day) : here) && !dressedWarm(o) && !cf.cold) {
     coldMin += min;
     if (coldMin >= HEALTH.warnMin)
       warnOnce(
@@ -216,6 +220,13 @@ function tick({ dt }) {
   }
 }
 on('step', tick);
+/** Согрелась (горячий источник на горе): мороза за день как не бывало — неосторожность «холод» снята. */
+on('warmup', () => {
+  coldMin = 0;
+  if (careless().cold) setDayFlag('cold', 0, 'careless');
+});
+/** Набрала ли сегодня «мороза» (гуляла на холоде без тёплого) — для доброй фразы у источника. */
+export const frostToday = () => !!careless().cold || coldMin >= HEALTH.warnMin;
 /** Ледяное море: купаться и нырять в холодные месяцы — неосторожность (сразу, с подсказкой). */
 function icySea() {
   const s = S();

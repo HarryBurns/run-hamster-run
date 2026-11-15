@@ -56,6 +56,9 @@ export const EVENTS = {
   thing: 'потрогали особую вещь в доме { id, owner } — штурвал, глобус, лейку, штангу…',
   wear: 'надели или сняли вещь { slot, id } (id = null — сняли)',
   herb: 'сорвали находку для гербария { id } (locations/common/herbs.js)',
+  mountain:
+    'занятие на горе { what } — spring (горячий источник), edelweiss (сорвали эдельвейс), summit (смотровая площадка), snowman (слепили снеговика), frame (эдельвейс в рамке), mitten (нашли варежку) — features/mountain.js',
+  warmup: 'хомячок согрелась (горячий источник на горе): мороза за день как не бывало — features/health.js',
   forest: 'занятие в лесу { what } — hive (мёд), squirrel (обмен у белки), fire (жарили зефир), treehouse (домик на дереве), wreath (венок), kit (нашли бельчонка), kitHome (отнесли маме) — features/forest.js',
 };
 

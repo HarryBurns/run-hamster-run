@@ -37,7 +37,9 @@
 //   water         { shoreY, foamY } — подсказки рисункам воды;  bg — цвет за краем карты
 //   sky: false    под крышей или под землёй: без погоды и ночного затемнения;  dark — своя темнота 0..1
 //                 (число или функция);  season — всегда рисовать этим сезоном ('winter' — снежная вершина)
-//   sound(sc)     что слышно: { day, sea, rain, birds, crickets }
+//   sound(sc)     что слышно: { day, sea, rain, birds, crickets, wind, bells }
+//   cold(sc)      холодно ли здесь сейчас без тёплой вещи (true / false); без него — как в городе: в холодные месяцы
+//                 (болезнь, features/health.js; на вершине горы мороз круглый год)
 //   parts         ЧАСТИ локации: объекты с теми же крюками, что и у самого описания (море города — sea.js)
 //
 // КРЮКИ — функции в описании или в его частях (всё, что у локации уникально):
@@ -626,6 +628,8 @@ export function createTopDownScene(desc) {
       for (const part of parts) if (part.buttons) buttons.push(...part.buttons(sc));
       return { buttons };
     },
+    /** Холодно ли здесь без тёплой вещи: true / false, или null — «как в городе» (решает features/health.js). */
+    cold: () => (desc.cold ? !!desc.cold(sc) : null),
     sound: () =>
       desc.sound ? desc.sound(sc) : { day: 'town', rain: desc.sky !== false ? 1 : 0, birds: true, crickets: true },
 

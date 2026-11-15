@@ -71,6 +71,8 @@ F('neon', 'neon', 'Неоновая вывеска', 150, 70, { shop: 'gift', wa
 F('cup', 'cup', 'Кубок чемпиона', 56, 80, { shop: 'gift', cat: 'decor', act: 'toy' });
 // из леса (П.9)
 F('golden_cone', 'goldcone', 'Золотая шишка', 60, 84, { shop: 'forest', cat: 'decor', act: 'look', say: 'Подарок белки из леса. Блестит!' });
+// с горы (П.9): эдельвейсы в рамке — делает инструктор Вершинкин из трёх эдельвейсов (не продаются)
+F('edelweiss_frame', 'edelframe', 'Эдельвейсы в рамке', 80, 96, { shop: 'mountain', wall: true, cat: 'wall', act: 'look', say: 'Редкие цветы с горы. Пушистые, как хомячок!' });
 F('fir_wreath', 'firwreath', 'Еловый венок', 90, 90, { shop: 'forest', wall: true, cat: 'wall', act: 'look', say: 'Пахнет лесом и Новым годом!' });
 F('rocket', 'rocket', 'Игрушечная ракета', 70, 150, { shop: 'gift', cat: 'fun', act: 'toy' });
 // рынок: вещицы ручной работы

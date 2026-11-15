@@ -126,6 +126,11 @@ export const EXTRA_STICKERS = [
   { id: 'x_squirrel', sticker: '🐿️', title: 'Подарок белки' },
   { id: 'x_marshmallow', sticker: '🔥', title: 'Зефир у костра' },
   { id: 'x_treehouse', sticker: '🏡', title: 'Домик на дереве' },
+  // гора (П.9)
+  { id: 'x_summit', sticker: '🚩', title: 'На вершине мира' },
+  { id: 'x_snowman', sticker: '⛄', title: 'Снеговик-строитель' },
+  { id: 'x_spring', sticker: '♨️', title: 'Горячий источник' },
+  { id: 'x_edelweiss', sticker: '🤍', title: 'Эдельвейсы в рамке' },
   { id: 'x_visit', sticker: '🧸', title: 'Первые гости' },
   { id: 'x_visit_all', sticker: '🏘️', title: 'В гостях у всех' },
   { id: 'x_tea', sticker: '☕', title: 'Чай с другом' },

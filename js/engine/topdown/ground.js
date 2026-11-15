@@ -186,7 +186,7 @@ function paintChunk(c, sc, env, cx, cy) {
         wy1,
         e.r === undefined ? T / 2 : e.r,
         e.wob || 0,
-        li,
+        Math.round(lv.z * 10), // «неровность» края — от слоя, а не от его номера в куске: иначе на стыке кусков шов
       );
       for (const [col, lw] of e.out || []) {
         c.strokeStyle = typeof col === 'function' ? col(env) : col;
@@ -264,7 +264,7 @@ export function paintGroundMap(ctx, sc, env) {
       h + 1,
       e.r === undefined ? T / 2 : e.r,
       e.wob || 0,
-      li,
+      Math.round(lv.z * 10),
     );
     // на карте линии края делаем заметнее: обводки в 1,6 раза толще
     for (const [col, lw] of e.out || []) {

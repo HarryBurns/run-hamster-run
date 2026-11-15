@@ -12,8 +12,12 @@
 // Атмосфера: облака ниже вершины плывут в слое неба (крюк sky), наверху ветер несёт снежинки (overlay), зимой
 // снег идёт везде; своя музыка, ветер и колокольчики коров (sound → features/soundscape.js).
 import { G, cal } from '../core/state.js';
+import { keys } from '../core/input.js';
 import { clamp, seeded } from '../core/util.js';
-import { T, put, createTopDownScene } from '../engine/topdown/index.js';
+import { ell } from '../core/draw.js';
+import { drawHamster, blinkAt } from '../art/hamster.js';
+import { coldDay } from '../data/index.js';
+import { T, PS, put, createTopDownScene } from '../engine/topdown/index.js';
 import { chaletArt, cloudPuff } from './mountain_art.js';
 import './common/index.js';
 
@@ -115,6 +119,16 @@ export const AT = {
   run: [30, 31, 8, 18], // трасса для санок: x0, x1, y0, y1
   pasture: [26, 29, 32, 36], // загон для коров (забор)
 };
+/** Эдельвейсы: летом, один в день на всю гору (отметка дня dayFlags.mountain.edelweiss). */
+const EDELWEISS = [
+  [8, 24],
+  [17, 30],
+  [33, 26],
+];
+const S2 = () => G.state.dayFlags.mountain || {};
+export const edelweissOn = () => cal().season === 'summer' && !S2().edelweiss;
+/** Снеговик сегодня: { stage — сделано шагов (0–5), roll — сколько покатан текущий ком }. */
+export const snowmanNow = () => ({ stage: S2().snowman || 0, roll: S2().roll || 0 });
 /** Корову видно на лугу (зимой коровы в тёплом хлеву). */
 const cowsOut = () => cal().season !== 'winter';
 
@@ -138,7 +152,7 @@ function build(m) {
           for (let x = Math.floor(px - 1); x <= px + 1; x++)
             if (x >= 0 && y >= 0 && x < W && y < H && Math.hypot(x + 0.5 - px, y + 0.5 - py) <= r) {
               const c = m.at(x, y);
-              if (c !== 'skiRun') m.set(x, y, c === 'snowCap' ? 'snowPath' : 'y');
+              if (c !== 'skiRun') m.set(x, y, c === 'snowCap' || c === 'snowPath' ? 'snowPath' : 'y');
               path.add(x + ',' + y);
             }
       }
@@ -232,6 +246,11 @@ function build(m) {
     put1('fenceV', px0, y, { v: 1 });
     put1('fenceV', px1, y, { v: 1 });
   }
+  // эдельвейсы на лугах (видны летом, пока не сорван сегодняшний); клетка под ними и ниже — свободны
+  for (const [x, y] of EDELWEISS) {
+    put1('edelweiss', x, y, { on: edelweissOn });
+    m.clear(x, y + 1);
+  }
   // скамейка у водопада, указатели
   put1('bench', 32, 16);
   put1('signpost', 23, 40, { text: '🔭 Вершина', text2: '♨️ Источник' });
@@ -305,6 +324,55 @@ function drawWindSnow(ctx, w, h, t, n, wind) {
   }
   ctx.fill();
 }
+// ---------- горячий источник: хомячок сидит в тёплой воде, над ней пар ----------
+const SPRING_C = [(AT.spring[0] + AT.spring[2] + 1) / 2, (AT.spring[1] + AT.spring[3] + 1) / 2 + 0.15];
+export const SPRING_STAND = [6.6, 27.6];
+/** Пар над источником: три завитка поднимаются и тают (каждый кадр, в координатах мира). */
+function drawSteam(ctx, x, y, t, n = 4) {
+  for (let i = 0; i < n; i++) {
+    const ph = (t * 0.35 + i / n) % 1,
+      sx = x + Math.sin(i * 2.3) * 40 + Math.sin(t * 1.2 + i) * 8,
+      sy = y - ph * 70;
+    ctx.globalAlpha = 0.6 * Math.sin(ph * Math.PI);
+    ell(ctx, sx, sy, 12 + ph * 12, 8 + ph * 6, '#ffffff', 'rgba(150,175,200,.55)', 1.5);
+  }
+  ctx.globalAlpha = 1;
+}
+const isBathing = (sc) => !!(sc.p.ride && sc.p.ride.bath);
+/** Окунуться: хомячок садится в воду (способ передвижения ride — стоит на месте, рисуется по пояс в воде). */
+export function startBath(sc) {
+  const p = sc.p;
+  p.path = [];
+  p.pending = null;
+  p.x = SPRING_C[0] * T;
+  p.y = SPRING_C[1] * T;
+  p.dir = 1;
+  p.ride = {
+    bath: true,
+    speed: 0,
+    pass: () => false,
+    draw(ctx, _sc, e, t, look) {
+      ell(ctx, e.x, e.y - 18, 30, 10, 'rgba(255,255,255,.45)');
+      drawHamster(ctx, e.x, e.y + 6, PS, look, { time: t, dir: 0, clipBelow: -34, happy: true, blink: blinkAt(t) });
+      ctx.strokeStyle = 'rgba(255,255,255,.9)';
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      ctx.ellipse(e.x, e.y - 20, 26 + Math.sin(t * 3) * 3, 8, 0, 0, Math.PI);
+      ctx.stroke();
+      drawSteam(ctx, e.x, e.y - 50, t, 3);
+    },
+    drop: (s) => endBath(s),
+  };
+}
+/** Вылезти из источника — на бережок. false — хомячок и так не в воде. */
+export function endBath(sc) {
+  if (!isBathing(sc)) return false;
+  sc.p.ride = null;
+  sc.p.x = SPRING_STAND[0] * T;
+  sc.p.y = SPRING_STAND[1] * T;
+  return true;
+}
+
 /** Насколько герой у вершины: 1 — в снегу, 0 — на лугах. */
 export const highUp = (sc) => clamp((snowLine(sc.p.x / T) + 4 - sc.p.y / T) / 5, 0, 1);
 
@@ -314,6 +382,17 @@ const COWS = [
   [28, 34.5, 2.1],
   [30.5, 33.8, 4.2],
 ];
+/** Снеговик на снежной поляне (стоит до конца дня) и пар над горячим источником. */
+function drawSnowmanAndSteam(sc, add, v) {
+  const sm = snowmanNow(),
+    x = (AT.snowman[0] + 0.5) * T,
+    y = (AT.snowman[1] + 0.5) * T;
+  if ((sm.stage || sm.roll) && x > v.x0 && x < v.x1 && y > v.y0 && y < v.y1)
+    add(y + 8, () => put('snowman', x, y + 8, sm.stage, sm.stage < 3 ? sm.roll : 0));
+  const sx = SPRING_C[0] * T,
+    sy = SPRING_C[1] * T;
+  if (sx > v.x0 && sx < v.x1 + 100 && sy > v.y0 && sy < v.y1) add(sy - 30, (ctx, _v, t) => drawSteam(ctx, sx, sy - 20, t));
+}
 function drawCows(sc, add, v) {
   if (!cowsOut()) return;
   for (const [cx, cy, ph] of COWS) {
@@ -368,6 +447,50 @@ const mountain = createTopDownScene({
     },
   ],
   actors: [{ npc: 'vershinkin', at: [27.5, 21.5], home: 'chalet', always: true, act: 'instructor' }],
+  places: [
+    {
+      id: 'lookout',
+      at: AT.viewer,
+      hit: { dx: 44, up: 70, down: 26 },
+      stand: [20.5, 3.7],
+      act: 'mountain:view',
+      map: { icon: '🔭', at: [20.5, 2.5], label: '🔭 Смотровая площадка' },
+    },
+    {
+      id: 'spring',
+      area: AT.spring,
+      stand: SPRING_STAND,
+      act: 'mountain:spring',
+      map: { icon: '♨️', at: SPRING_C, label: '♨️ Горячий источник' },
+    },
+    {
+      id: 'snowman',
+      at: AT.snowman,
+      hit: { r: 56 },
+      stand: [8.5, 10.6],
+      mark: [8.5, 9.5],
+      act: 'mountain:snowman',
+      map: { icon: '⛄', at: [8.5, 9.5], label: '⛄ Снежная поляна' },
+    },
+    {
+      id: 'caves',
+      at: AT.cave,
+      hit: { dx: 80, up: 110, down: 26 },
+      stand: [29.5, 6.6],
+      act: 'way:caves',
+      map: { icon: '🔒', at: [29.5, 5.2], label: '💎 Вход в пещеры' },
+    },
+    ...EDELWEISS.map(([x, y], i) => ({
+      id: 'edelweiss' + i,
+      at: [x, y],
+      hit: { r: 34 },
+      stand: [x + 0.5, y + 1.5],
+      mark: [x + 0.5, y + 0.5],
+      when: edelweissOn,
+      reach: 1.4,
+      act: 'mountain:edelweiss',
+    })),
+  ],
   spots: {
     pasture: { at: [29.5, 37.5], label: '🐄 Луг с коровами' },
     waterfall: { at: [32.5, 15.5], label: '🌊 Водопад' },
@@ -394,7 +517,18 @@ const mountain = createTopDownScene({
   },
   things(sc, add, v) {
     drawCows(sc, add, v);
+    drawSnowmanAndSteam(sc, add, v);
   },
+  /** Сидит в источнике: нажатие куда угодно, стрелка или E — вылезти на бережок. */
+  tap: (sc) => endBath(sc),
+  interact: (sc) => endBath(sc),
+  update(sc) {
+    if (isBathing(sc) && ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'KeyA', 'KeyD', 'KeyW', 'KeyS'].some((k) => keys.has(k)))
+      endBath(sc);
+  },
+  buttons: (sc) => (isBathing(sc) ? [{ id: 'bath', icon: '🧺', label: 'Вылезти', fn: () => endBath(sc) }] : []),
+  /** Холодно ли без тёплого: у вершины — всегда (вечный снег), ниже — как в городе, в холодные месяцы. */
+  cold: (sc) => highUp(sc) > 0.5 || coldDay(G.state.day),
   /** Что слышно: горная музыка, ветер наверху, у водопада и ручья — шум воды, на лугу — колокольчики коров. */
   sound(sc) {
     const tx = sc.p.x / T,

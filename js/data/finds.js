@@ -30,6 +30,8 @@ export const FINDS = [
   // у лесника Шишкина)
   { id: 'cone', kind: 'forest', e: '🌰', name: 'Шишка' },
   { id: 'fir_twig', kind: 'forest', e: '🎄', name: 'Еловая веточка' },
+  // гора (П.9): эдельвейс — редкий горный цветок, летом один в день; из трёх Вершинкин сделает «Эдельвейс в рамке»
+  { id: 'edelweiss', kind: 'mountain', e: '🤍', name: 'Эдельвейс' },
 ];
 export const FIND_BY_ID = Object.fromEntries(FINDS.map((f) => [f.id, f]));
 

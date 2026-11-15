@@ -2,24 +2,44 @@
 // действия реестра, а выполняются они здесь:
 //   задание Сени «На вершину!» (data/quests.js, summit) — своё «как дела» (hintWarm): нет тёплых вещей — где купить,
 //                        а если и назавтра нет — Сеня дарит свою шапку (так задание выполнимо в любой сезон)
+//   mountain:spring     горячий источник: окунуться (хомячок сидит в воде, пар); снимает «мороз» за день (событие
+//                       warmup — features/health.js); простуду не лечит — добрая фраза
+//   mountain:edelweiss  эдельвейс: летом один в день (находка); из трёх Вершинкин делает «Эдельвейсы в рамке»
+//   mountain:view       смотровая площадка с флагом: окно-панорама — лес, город и море; в первый раз — наклейка
+//   mountain:snowman    снеговик-строитель: покатать три кома, надеть ведро, нос-морковка из рюкзака; стоит до конца дня
 //   instructor          поговорить с инструктором Вершинкиным (житель горы у шале на трассе): задание, санки, болтовня
 //   cableway:up | down   канатная дорога: вагончик едет на гору из леса (вход way:mountain у станции в лесу —
 //                        LANDS.mountain.go) и обратно в лес (станция на горе); короткая картинка-переезд
 // Числа — MOUNTAIN в data/economy.js. Каждое занятие шлёт событие mountain { what } — по нему считают задания.
 // Состояние меняют только действия (core/actions.js); «раз в день» — отметки дня (dayFlags.mountain).
-import { setFlag, addClothes } from '../core/actions.js';
+import { setFlag, setDayFlag, addClothes, addItem, award } from '../core/actions.js';
 import { sfx } from '../core/audio.js';
 import { makeCanvas, ell, fillRR, line, poly } from '../core/draw.js';
 import { go } from '../core/loop.js';
 import { register } from '../core/registry.js';
 import { emit } from '../core/events.js';
-import { G, cal, darkness, hasClothes, playerLook } from '../core/state.js';
+import { G, cal, darkness, hasClothes, playerLook, isSick, count } from '../core/state.js';
 import { el, esc, pick } from '../core/util.js';
 import { drawHamster } from '../art/hamster.js';
-import { CLOTHES, CLOTHES_BY_ID, LAND_BY_ID, NPC_BY_ID, npcLook, isWarmItem } from '../data/index.js';
+import {
+  CLOTHES,
+  CLOTHES_BY_ID,
+  LAND_BY_ID,
+  NPC_BY_ID,
+  ING_BY_ID,
+  FIND_BY_ID,
+  MOUNTAIN,
+  npcLook,
+  isWarmItem,
+} from '../data/index.js';
+import { ART } from '../engine/topdown/index.js';
+import { VIEW_LAYERS, viewEnv, renderViewLayer } from '../interiors/tower_view.js';
+import { startBath, snowmanNow } from '../locations/mountain.js';
 import { dialog } from '../ui/dialog.js';
 import { openLayer } from '../ui/modals.js';
+import { openPanel } from '../ui/panel.js';
 import { toast } from '../ui/toast.js';
+import { frostToday } from './health.js';
 import { setWaitHook, questTalk } from './quests.js';
 
 const S = () => G.state;
@@ -93,8 +113,297 @@ export async function talkVershinkin() {
   }
 }
 /** Дополнительные ответы в разговоре с инструктором: (s) → { text, cls, fn: async () => следующая реплика | null }. */
-const MORE_TALK = [];
+const MORE_TALK = [
+  // эдельвейсы в рамке (украшение для дома) из MOUNTAIN.frame эдельвейсов
+  (s) =>
+    (s.finds.edelweiss || 0) > 0 && {
+      text: `🖼️ Эдельвейсы в рамке (${s.finds.edelweiss} из ${MOUNTAIN.frame})`,
+      cls: 'green',
+      fn: async () => {
+        if (count('finds', 'edelweiss') < MOUNTAIN.frame)
+          return `Для рамки нужно ${MOUNTAIN.frame} эдельвейса, а у тебя ${count('finds', 'edelweiss')}. Летом ищи их на лугах — по одному в день!`;
+        addItem('finds', 'edelweiss', -MOUNTAIN.frame);
+        addItem('storage', 'edelweiss_frame', 1);
+        sfx('win');
+        award('x_edelweiss', { delay: 1200 });
+        emit('mountain', { what: 'frame' });
+        return 'Вот, держи: эдельвейсы под стеклом в рамке! Повесь дома на стену — будет напоминать о горах 🏔️ Рамка уже в кладовке: дома нажми 🔨.';
+      },
+    },
+  // морковка для снеговика: снеговик ждёт носик, а в рюкзаке морковки нет — раз в день
+  (s) =>
+    snowmanNow().stage === 4 &&
+    !count('ing', 'carrot') &&
+    !(s.dayFlags.mountain || {}).carrot && {
+      text: '🥕 Морковку для снеговика',
+      cls: 'yellow',
+      fn: async () => {
+        setDayFlag('carrot', 1, 'mountain');
+        addItem('ing', 'carrot', 1);
+        sfx('coin');
+        return `Держи! Я всегда храню морковку для снеговиков 🥕 Беги на снежную поляну — пусть у него будет нос!`;
+      },
+    },
+];
 register('instructor', () => talkVershinkin(), 'инструктор Вершинкин: разговор (житель горы у шале)');
+
+// ---------- горячий источник ----------
+const S2 = () => S().dayFlags.mountain || {};
+/** Окунуться в горячий источник: хомячок садится в воду (сцена горы); снимает «мороз» за день. */
+export function visitSpring(sc) {
+  if (sc && sc.name === 'mountain') startBath(sc);
+  sfx('splash');
+  const frost = frostToday();
+  emit('warmup');
+  emit('mountain', { what: 'spring' });
+  if (!S2().spring) {
+    setDayFlag('spring', 1, 'mountain');
+    award('x_spring', { delay: 1600 });
+  }
+  if (isSick())
+    toast(
+      '♨️ Тёплая водичка… Ох, хорошо! Только простуду источник не лечит — загляни к доктору в больницу 🏥 А пока грейся!',
+    );
+  else if (frost) toast('♨️ Ах, тепло! Лапки согрелись — мороза как не бывало 🥰', 'good');
+  else toast('♨️ Ах, как тепло! Над водой пар, а вокруг — горы. Нажми куда-нибудь, чтобы вылезти.', 'good');
+  return true;
+}
+
+// ---------- эдельвейсы ----------
+/** Сорвать эдельвейс: летом один в день на всю гору — в рюкзак (находка). */
+export function pickEdelweiss() {
+  if (cal().season !== 'summer') {
+    toast('🤍 Эдельвейсы цветут только летом. Приходи в июне, июле или августе!');
+    return false;
+  }
+  if (S2().edelweiss) {
+    toast('🤍 Эдельвейс — редкий цветок: один в день. Завтра распустится ещё!');
+    return false;
+  }
+  setDayFlag('edelweiss', MOUNTAIN.edelweiss, 'mountain');
+  addItem('finds', 'edelweiss', MOUNTAIN.edelweiss);
+  sfx('coin');
+  const n = count('finds', 'edelweiss');
+  toast(
+    `🤍 Эдельвейс — редкий горный цветок! В рюкзаке: ${n}.${n < MOUNTAIN.frame ? ` Собери ${MOUNTAIN.frame} — Вершинкин сделает из них картину в рамке.` : ' Можно идти к Вершинкину за рамкой!'}`,
+    'good',
+  );
+  emit('mountain', { what: 'edelweiss' });
+  return true;
+}
+
+// ---------- смотровая площадка ----------
+/**
+ * Вид с вершины на юг: вдали — город и море слоями вида с башни (interiors/tower_view.js — те же небо, море
+ * с островами, пляж и кварталы, только мельче: гора дальше от города, чем башня), над ними — Хомяк-Тауэр, ближе —
+ * лес под горой, облака ниже вершины и снежный край вершины с флагом.
+ */
+export function paintSummitView(ctx, w, h, season, dark) {
+  const env = viewEnv(season, dark),
+    dpr = Math.min(window.devicePixelRatio || 1, 2.5),
+    cityBot = h * 0.6,
+    k = cityBot / VIEW_LAYERS.find((l) => l.id === 'mid').y1, // пикселей на единицу панорамы
+    L = w / k;
+  for (const l of VIEW_LAYERS) {
+    if (l.id === 'near') continue; // крыши у самой башни отсюда не видно
+    const r = renderViewLayer(l, L, env, k * dpr);
+    ctx.drawImage(r.c, 0, r.top / dpr, r.c.width / dpr, r.c.height / dpr);
+  }
+  // Хомяк-Тауэр посреди города (с башни её не видно — мы на ней стояли)
+  const tx = w * 0.5,
+    tb = cityBot - 18,
+    th = h * 0.27;
+  fillRR(ctx, tx - 8, tb - th, 16, th, 4, env.c('#a5d8ff', 0.5), env.out, 1.6);
+  for (let y = tb - th + 8; y < tb - 6; y += 9) {
+    ctx.fillStyle = env.lit ? '#ffe066' : 'rgba(255,255,255,.7)';
+    ctx.fillRect(tx - 4.5, y, 3, 4);
+    ctx.fillRect(tx + 1.5, y, 3, 4);
+  }
+  poly(ctx, [tx - 9, tb - th, tx, tb - th - 15, tx + 9, tb - th], env.c('#ffd43b', 0.5), env.out, 1.4);
+  ell(ctx, tx, tb - th - 17, 3, 3, '#ff6b6b');
+  // лес под горой: ряды крон и ёлок, ближние крупнее
+  const leaf = env.leaf;
+  for (let row = 0; row < 4; row++) {
+    const y = h * (0.6 + row * 0.07),
+      sc = 0.6 + row * 0.18;
+    for (let i = 0, x = -10 + row * 9; x < w + 30; i++, x += 24 * sc) {
+      const yy = y + ((i * 13) % 7);
+      if ((i + row) % 3 === 0) {
+        poly(ctx, [x - 14 * sc, yy + 14 * sc, x, yy - 28 * sc, x + 14 * sc, yy + 14 * sc], env.fir, env.out, 1.2);
+        if (env.snow) poly(ctx, [x - 6 * sc, yy - 14 * sc, x, yy - 28 * sc, x + 6 * sc, yy - 14 * sc], '#ffffff');
+      } else {
+        ell(ctx, x, yy, 16 * sc, 12 * sc, leaf[(i + row) % leaf.length], env.out, 1.2);
+        ell(ctx, x - 5 * sc, yy - 4 * sc, 6 * sc, 3.5 * sc, 'rgba(255,255,255,.3)');
+      }
+    }
+  }
+  // облака ниже вершины
+  for (let i = 0; i < 6; i++) {
+    const x = ((i * 0.23 + 0.05) % 1) * w,
+      y = h * (0.6 + (i % 3) * 0.06);
+    ctx.globalAlpha = env.d > 0.5 ? 0.45 : 0.85;
+    for (const [dx, dy, r] of [
+      [0, 0, 34],
+      [30, -10, 26],
+      [58, 2, 30],
+    ])
+      ell(ctx, x + dx, y + dy, r, r * 0.55, '#ffffff');
+    ctx.globalAlpha = 1;
+  }
+  // край вершины в снегу и флаг
+  const snowTop = [0, h * 0.88, w * 0.18, h * 0.84, w * 0.36, h * 0.86, w * 0.55, h * 0.82, w * 0.78, h * 0.85, w, h * 0.83];
+  poly(ctx, [0, h, ...snowTop, w, h], '#ffffff', OUT, 2);
+  poly(ctx, [w * 0.55, h * 0.82, w * 0.78, h * 0.85, w, h * 0.83, w, h, w * 0.62, h], '#e3eef8');
+  for (let i = 0; i < 6; i++) ell(ctx, w * (0.1 + i * 0.15), h * 0.93 + (i % 2) * 6, 14, 4, '#e7f1f9');
+  line(ctx, w * 0.84, h * 0.86, w * 0.84, h * 0.56, OUT, 4);
+  line(ctx, w * 0.84, h * 0.86, w * 0.84, h * 0.56, '#dee2e6', 2);
+  poly(ctx, [w * 0.84, h * 0.56, w * 0.95, h * 0.59, w * 0.84, h * 0.635], '#ff6b9d', OUT, 1.6);
+  if (env.d > 0.3) {
+    // вечером и ночью — темнее (слои города уже тёмные)
+    ctx.fillStyle = `rgba(27,31,74,${(env.d * 0.35).toFixed(2)})`;
+    ctx.fillRect(0, h * 0.55, w, h * 0.45);
+  }
+}
+/** Подняться на смотровую площадку: окно с видом на лес, город и море; в первый раз — наклейка. */
+export function climbLookout() {
+  sfx('door');
+  emit('mountain', { what: 'summit' });
+  emit('visit', { place: 'summit' });
+  award('x_summit', { delay: 1400 });
+  const season = cal().season,
+    dark = darkness();
+  return openPanel({
+    title: 'Смотровая площадка',
+    icon: '🔭',
+    cls: 'wide',
+    render(body) {
+      const W = Math.min(560, window.innerWidth - 60),
+        H = Math.round(W * 0.62);
+      const { canvas, ctx } = makeCanvas(W, H);
+      canvas.style.cssText += ';display:block;margin:0 auto;border-radius:14px;max-width:100%;height:auto';
+      paintSummitView(ctx, W, H, season, dark);
+      body.appendChild(canvas);
+      body.appendChild(
+        el(
+          'p',
+          'center',
+          'Ты на самой вершине! Облака — внизу, под ними шумит лес, дальше — город с Хомяк-Тауэром, а на горизонте блестит море. Флаг на вершине машет тебе: «Ура, покорительница вершин!» 🚩',
+        ),
+      );
+    },
+    foot: [{ text: 'Красота! 🏔️', cls: 'green', fn: (api) => api.close() }],
+  });
+}
+
+// ---------- снеговик-строитель ----------
+/** Нарисовать снеговик в окне (stage, roll — как в мире). */
+function paintSnowmanPic(ctx, w, h, sm) {
+  const g = ctx.createLinearGradient(0, 0, 0, h);
+  g.addColorStop(0, '#d0ebff');
+  g.addColorStop(1, '#f8fbff');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, w, h);
+  ell(ctx, w / 2, h - 10, w * 0.6, 26, '#ffffff', '#cfe3f0', 2);
+  ctx.save();
+  ctx.translate(w / 2 - 20, h - 18);
+  ctx.scale(1.5, 1.5);
+  ART.snowman[1](ctx, sm.stage, sm.stage < 3 ? sm.roll : 0); // тот же рисунок, что в мире (mountain_art.js)
+  ctx.restore();
+  // ведёрко ждёт рядом, пока его не надели
+  if (sm.stage < 4) {
+    poly(ctx, [w - 70, h - 22, w - 46, h - 22, w - 49, h - 46, w - 67, h - 46], '#74c0fc', OUT, 2);
+    line(ctx, w - 72, h - 22, w - 44, h - 22, OUT, 3);
+  }
+}
+/** Слепить снеговика: окно с картинкой и кнопкой следующего шага. Сделанное лежит в отметках дня. */
+export function buildSnowman() {
+  let pic = null;
+  const step = () => {
+    const sm = snowmanNow();
+    if (sm.stage < 3) {
+      const roll = sm.roll + 1;
+      sfx('stepSnow');
+      if (roll >= MOUNTAIN.snowman) {
+        setDayFlag('snowman', sm.stage + 1, 'mountain');
+        setDayFlag('roll', 0, 'mountain');
+        sfx('pop');
+      } else setDayFlag('roll', roll, 'mountain');
+      return;
+    }
+    if (sm.stage === 3) {
+      setDayFlag('snowman', 4, 'mountain');
+      sfx('tap');
+      return;
+    }
+    if (sm.stage === 4) {
+      if (!count('ing', 'carrot')) {
+        toast(
+          `🥕 Нос — из морковки! В рюкзаке её нет. Морковку продают в ТЦ «Вкусный», она растёт на грядке — а ещё она всегда есть у инструктора Вершинкина.`,
+        );
+        return;
+      }
+      addItem('ing', 'carrot', -1);
+      setDayFlag('snowman', 5, 'mountain');
+      sfx('win');
+      award('x_snowman', { delay: 900 });
+      emit('mountain', { what: 'snowman' });
+    }
+  };
+  const label = (sm) =>
+    sm.stage < 3
+      ? `⛄ Катать ${['большой', 'средний', 'маленький'][sm.stage]} ком (${sm.roll}/${MOUNTAIN.snowman})`
+      : sm.stage === 3
+        ? '🪣 Надеть ведро-шапку'
+        : sm.stage === 4
+          ? `🥕 Нос-морковка${count('ing', 'carrot') ? '' : ' (нет в рюкзаке)'}`
+          : '';
+  const say = (sm) =>
+    sm.stage < 3
+      ? 'Катай снежный ком — он растёт с каждым разом! Три кома — большой, средний и маленький — и снеговик готов стоять.'
+      : sm.stage === 3
+        ? 'Снеговик стоит! Глазки-угольки и ручки-веточки уже есть. Рядом лежит ведёрко — надень его снеговику как шапку!'
+        : sm.stage === 4
+          ? 'Осталось самое главное — нос! Нужна морковка из рюкзака 🥕'
+          : 'Ура! Снеговик готов — с ведром на голове и носом-морковкой. Он простоит здесь до конца дня! ⛄';
+  return openPanel({
+    title: 'Снеговик',
+    icon: '⛄',
+    cls: 'narrow',
+    render(body, tab, api) {
+      const sm = snowmanNow();
+      const W = Math.min(320, window.innerWidth - 60),
+        H = 200;
+      pic = makeCanvas(W, H);
+      pic.canvas.style.cssText += ';display:block;margin:0 auto 8px;border-radius:14px';
+      paintSnowmanPic(pic.ctx, W, H, sm);
+      body.appendChild(pic.canvas);
+      body.appendChild(el('p', 'center', say(sm)));
+      if (sm.stage < 5) {
+        const b = el('button', 'btn big green snow-step', label(sm));
+        b.style.cssText = 'display:block;margin:6px auto 0';
+        b.onclick = () => {
+          step();
+          api.refresh();
+        };
+        body.appendChild(b);
+      }
+    },
+    foot: [{ text: 'Готово', cls: 'ghost', fn: (api) => api.close() }],
+  });
+}
+
+// ---------- действия на горе ----------
+const MOUNTAIN_ACTS = {
+  spring: (ctx) => visitSpring(ctx && ctx.scene),
+  edelweiss: pickEdelweiss,
+  view: climbLookout,
+  snowman: buildSnowman,
+};
+register(
+  'mountain',
+  (p, ctx) => MOUNTAIN_ACTS[p.arg] && MOUNTAIN_ACTS[p.arg](ctx),
+  'гора: mountain:spring | edelweiss | view | snowman',
+);
 
 // ---------- канатная дорога ----------
 const OUT = '#4a3728';

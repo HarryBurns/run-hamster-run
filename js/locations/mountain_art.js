@@ -222,6 +222,7 @@ function paintAlpFlowers(ctx, sea, v) {
 }
 /** Эдельвейс: звёздочка из пушистых белых лепестков с жёлтой серединкой. */
 function paintEdelweiss(ctx) {
+  ctx.scale(1.3, 1.3);
   ell(ctx, 1, 6, 10, 3.5, 'rgba(52,38,70,.15)');
   line(ctx, 0, 6, 0, -4, '#5c940d', 2);
   for (let i = 0; i < 7; i++) {
@@ -495,7 +496,7 @@ defineObjects({
   // эдельвейс виден, только пока его можно сорвать (o.on() — особое место в locations/mountain.js)
   edelweiss: {
     flat: true,
-    art: { edelweiss: [[-16, -18, 16, 12], paintEdelweiss] },
+    art: { edelweiss: [[-20, -24, 20, 14], paintEdelweiss] },
     draw(ctx, o) {
       if (!o.on || o.on()) put('edelweiss', o.x, o.y);
     },

@@ -493,6 +493,24 @@ const D = {
     c.restore();
     star(c, 16, -70, 4, '#fff');
   },
+  // с горы (П.9): три эдельвейса под стеклом в деревянной рамке
+  edelframe(c, d, w, h) {
+    fillRR(c, -w / 2, -h / 2, w, h, 6, '#a8703f', OUT);
+    fillRR(c, -w / 2 + 8, -h / 2 + 8, w - 16, h - 16, 3, '#d3f9d8', OUT, 1.5);
+    for (const [x, y, s] of [
+      [-12, -14, 1],
+      [12, -4, 0.9],
+      [-4, 18, 1.1],
+    ]) {
+      line(c, x, y, x + 2, y + 16 * s, '#5c940d', 2);
+      for (let i = 0; i < 7; i++) {
+        const a = (i / 7) * Math.PI * 2;
+        ell(c, x + Math.cos(a) * 6 * s, y + Math.sin(a) * 6 * s, 4.5 * s, 2.2 * s, '#f8f9fa', '#adb5bd', 1, a);
+      }
+      ell(c, x, y, 3 * s, 3 * s, '#ffe066', '#e0a800', 1);
+    }
+    line(c, -w / 2 + 12, -h / 2 + 12, -w / 2 + 22, -h / 2 + 30, 'rgba(255,255,255,.7)', 3);
+  },
   firwreath(c, d, w, h, st) {
     const r = w / 2 - 12;
     for (let i = 0; i < 18; i++) {
