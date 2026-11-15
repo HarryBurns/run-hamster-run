@@ -1,6 +1,7 @@
 // Проверка баланса экономики расчётом: сколько можно заработать за игровой день, сколько что стоит,
 // и нет ли «вечного двигателя» (купить → продать дороже). Браузер и сервер не нужны.
 // Запуск:  node dev/balance.js          (код возврата 1 — баланс нарушен; таблица печатается всегда)
+// Здесь же — частота болезни (Ф1): моделирование двух игровых лет функциями из js/data/health.js.
 // Все числа берутся из js/data/economy.js; итоговая таблица переписана в docs/DESIGN.md, раздел 1.
 const path = require('path');
 const { pathToFileURL } = require('url');
@@ -614,6 +615,104 @@ const { pathToFileURL } = require('url');
   if (!(BIZ_RULES.tillDays >= 1 && BIZ_RULES.tillDays <= 5)) bad('в кассе должна помещаться выручка за 1–5 дней');
   if (BIZ_RULES.ownerPay > 2) bad('хозяйке платят больше чем вдвое');
   for (const b of BUSINESSES) if (hasGame(b) && !JOBS[b.game]) bad(`${b.id}: работа хозяйки без зарплаты`);
+
+  // ---------- 6. болезнь (Ф1): как часто хомячок простужается ----------
+  // Моделирование двух игровых лет (72 дня) теми же функциями, что и в игре (nightHealth в data/health.js): решение
+  // ночью зависит от номера дня и имени, поэтому считаем по 500 разным именам и берём среднее, самое малое и большое.
+  {
+    const { HEALTH, CARELESS, nightHealth, sickChance, coldDay, DOCTOR_FEE } = D;
+    const YEARS = 2,
+      DAYS = 36 * YEARS,
+      NAMES = Array.from({ length: 500 }, (_, i) => (i ? 'Хомка' + i : 'Хомка'));
+    /**
+     * Прожить DAYS дней. careless(d) — неосторожности дня d; doctor — в день болезни сразу идёт к доктору.
+     * Возвращает { n: сколько раз заболела, sickDays, maxRun: самая долгая болезнь (дней), early: болела в первые дни }.
+     */
+    const live = (key, careless, doctor) => {
+      let sick = null,
+        immuneUntil = HEALTH.grace,
+        n = 0,
+        sickDays = 0,
+        run = 0,
+        maxRun = 0,
+        early = false,
+        again = false;
+      for (let d = 0; d < DAYS; d++) {
+        if (sick) {
+          sickDays++;
+          run++;
+          maxRun = Math.max(maxRun, run);
+          if (doctor) {
+            sick = null; // приём у доктора — здорова в тот же день
+            immuneUntil = d + HEALTH.immune;
+          }
+        } else run = 0;
+        const plan = nightHealth({ day: d + 1, sick, immuneUntil, careless: sick ? {} : careless(d), key });
+        if (plan.recover) {
+          sick = null;
+          immuneUntil = d + 1 + HEALTH.immune;
+        }
+        if (plan.fall) {
+          if (d + 1 < HEALTH.grace) early = true;
+          if (run > 0) again = true; // заболела сразу после болезни
+          sick = { since: d + 1, cause: plan.fall };
+          n++;
+        }
+      }
+      return { n, sickDays, maxRun, early, again };
+    };
+    const PROF = [
+      { id: 'careful', name: 'аккуратно (тепло одета, зимой не купается)', c: () => ({}) },
+      {
+        id: 'winter',
+        name: 'зимой без тёплых вещей и купается в море',
+        c: (d) => (coldDay(d) ? { cold: 1, sea: 1 } : {}),
+      },
+      {
+        id: 'always',
+        name: 'то же и мокнет под дождём весной и осенью',
+        c: (d) => (coldDay(d) ? { cold: 1, sea: 1 } : [2, 3, 4, 8, 9, 10].includes(D.monthOfDay(d)) ? { rain: 1 } : {}),
+      },
+    ];
+    const res = {};
+    console.log(
+      `\nБолезнь (Ф1): сколько раз хомячок простыла за ${YEARS} игровых года (${DAYS} дней), по ${NAMES.length} именам`,
+    );
+    line(
+      'шанс за ночь',
+      `просто так ${HEALTH.base * 100} %, ${Object.entries(CARELESS)
+        .map(([id, c]) => `${id} +${Math.round(c.risk * 100)} %`)
+        .join(', ')}; не больше ${HEALTH.max * 100} %`,
+    );
+    line(
+      'болеет / после болезни не болеет / в новой игре не болеет',
+      `≤ ${HEALTH.days} дн. / ${HEALTH.immune} дн. / ${HEALTH.grace} дн.`,
+    );
+    line('приём у доктора', `${DOCTOR_FEE} монет (без монет — бесплатно)`);
+    for (const p of PROF)
+      for (const doctor of [true, false]) {
+        const runs = NAMES.map((k) => live(k, p.c, doctor));
+        const ns = runs.map((r) => r.n),
+          mean = ns.reduce((a, b) => a + b, 0) / ns.length;
+        res[p.id + (doctor ? '' : '_self')] = { mean, runs };
+        line(
+          doctor ? `  ${p.name}, лечится у доктора` : '      …а если не лечится, ждёт, пока пройдёт само',
+          `в среднем ${mean.toFixed(1)} раза (от ${Math.min(...ns)} до ${Math.max(...ns)}), у «Хомки» — ${runs[0].n}`,
+        );
+        for (const r of runs) {
+          if (r.early) bad('болезнь в первые дни новой игры');
+          if (r.again) bad('заболела сразу после болезни');
+          if (r.maxRun > HEALTH.days) bad(`болела ${r.maxRun} дн. подряд — дольше ${HEALTH.days}`);
+        }
+      }
+    const perMonth = (id) => res[id].mean / (12 * YEARS);
+    // аккуратная игра — редкость: не чаще раза в 2 игровых месяца (в среднем)
+    if (perMonth('careful') > 1 / 2) bad(`аккуратная игра: болеет ${perMonth('careful').toFixed(2)} раза в месяц`);
+    // неосторожность зимой — заметно чаще, но не «каждую ночь»
+    if (!(res.winter.mean >= 2 * res.careful.mean)) bad('неосторожность зимой почти не влияет на болезнь');
+    if (sickChance({ cold: 1, sea: 1, rain: 1 }) >= 0.5) bad('шанс заболеть за ночь — половина и больше');
+    if (!(HEALTH.days >= 1 && HEALTH.days <= 2)) bad('болезнь должна длиться 1–2 дня');
+  }
 
   if (problems.length) {
     console.log('\nБАЛАНС НАРУШЕН:\n' + problems.map((p) => '  - ' + p).join('\n'));
