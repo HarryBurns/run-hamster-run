@@ -1,6 +1,7 @@
-// Альбом: наклейки, друзья, рекорды. Здесь же — подсказка о новой наклейке.
+// Альбом: журнал заданий, наклейки, друзья, рекорды. Здесь же — подсказка о новой наклейке.
 import { makeCanvas, text as ctext } from '../core/draw.js';
 import { on } from '../core/events.js';
+import { register } from '../core/registry.js';
 import { G, friendHearts } from '../core/state.js';
 import { el } from '../core/util.js';
 import { drawPortrait } from '../art/hamster.js';
@@ -8,21 +9,26 @@ import { DISH_BY_ID, NPCS, npcLook, TASKS, EXTRA_STICKERS } from '../data/index.
 import { openPanel } from '../ui/panel.js';
 import { toast } from '../ui/toast.js';
 import { MG_NAMES } from './minigames.js';
+import { renderJournal } from './quests.js';
 
 const S = () => G.state;
 
-export function openAlbum() {
+/** Открыть альбом; tab — вкладка: 'quests' (журнал заданий), 'st' (наклейки), 'fr', 'rec'. */
+export function openAlbum(tab) {
   openPanel({
     title: 'Альбом',
     icon: '📖',
+    tab: typeof tab === 'string' ? tab : 'st',
     tabs: [
+      { id: 'quests', name: '📜 Журнал' },
       { id: 'st', name: '⭐ Наклейки' },
       { id: 'fr', name: '💖 Друзья' },
       { id: 'rec', name: '🏆 Рекорды' },
     ],
-    render(body, tab) {
+    render(body, tab, panel) {
       const s = S();
-      if (tab === 'st') {
+      if (tab === 'quests') renderJournal(body, panel);
+      else if (tab === 'st') {
         const all = [
           ...TASKS.map((t) => ({ id: t.id, sticker: t.sticker, title: t.title })),
           ...EXTRA_STICKERS.filter((q) => !q.legacy || s.stickers.includes(q.id)),
@@ -83,6 +89,8 @@ export function openAlbum() {
     },
   });
 }
+
+register('journal', () => openAlbum('quests'), 'журнал заданий — вкладка альбома');
 
 // Подсказка о новой наклейке: название берётся из таблицы наклеек, а не набирается руками в каждом месте.
 const STICKERS = Object.fromEntries(

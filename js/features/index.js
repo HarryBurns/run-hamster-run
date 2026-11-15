@@ -25,6 +25,7 @@ export * from './homes.js';
 export * from './business.js';
 export * from './garden.js';
 export * from './mail.js';
+export * from './quests.js';
 export * from './backpack.js';
 export * from './album.js';
 export * from './piano.js';

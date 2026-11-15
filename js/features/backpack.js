@@ -1,7 +1,8 @@
-// Рюкзак: вкусняшки, продукты, семена, кладовка. Продают лишнее на рынке — у прилавков на площади.
+// Рюкзак: вкусняшки, продукты, семена, находки (не еда: для гербария Мяты — data/finds.js), кладовка.
+// Продают лишнее на рынке — у прилавков на площади.
 import { G } from '../core/state.js';
 import { el } from '../core/util.js';
-import { FURN_BY_ID, ING_BY_ID, SEED_BY_ID } from '../data/index.js';
+import { FURN_BY_ID, ING_BY_ID, SEED_BY_ID, FIND_BY_ID } from '../data/index.js';
 import { furnIcon } from '../ui/icons.js';
 import { openPanel } from '../ui/panel.js';
 import { eat, dishGrid, ingGrid } from './cooking.js';
@@ -17,6 +18,7 @@ export function openBackpack() {
       { id: 'dishes', name: '🍰 Вкусняшки' },
       { id: 'ing', name: '🥕 Продукты' },
       { id: 'seeds', name: '🌱 Семена' },
+      { id: 'finds', name: '🌿 Находки' },
       { id: 'furn', name: '📦 Кладовка' },
     ],
     render(body, tab, panel) {
@@ -46,6 +48,23 @@ export function openBackpack() {
         }
         body.appendChild(grid);
         body.appendChild(el('p', 'muted center', 'Сажай на грядках во дворе виллы — каждую культуру в свой сезон.'));
+      } else if (tab === 'finds') {
+        const ids = Object.keys(S().finds).filter((id) => FIND_BY_ID[id]);
+        if (!ids.length) {
+          body.appendChild(el('p', 'muted center', 'Находок пока нет. Их собирают для заданий из журнала 📜'));
+          return;
+        }
+        const grid = el('div', 'grid small');
+        for (const id of ids) {
+          const f = FIND_BY_ID[id];
+          const card = el('div', 'card');
+          card.appendChild(el('div', 'e', f.e));
+          card.appendChild(el('div', '', f.name));
+          card.appendChild(el('span', 'cnt', '×' + S().finds[id]));
+          grid.appendChild(card);
+        }
+        body.appendChild(grid);
+        body.appendChild(el('p', 'muted center', 'Это не еда — это находки для гербария Мяты. Отнеси их ей!'));
       } else {
         const ids = Object.keys(S().storage);
         if (!ids.length) {

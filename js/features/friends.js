@@ -40,6 +40,7 @@ import { openPanel, message } from '../ui/panel.js';
 import { toast } from '../ui/toast.js';
 import { pickDish } from './cooking.js';
 import { giveSurprise } from './gifts.js';
+import { questTalk } from './quests.js';
 
 const S = () => G.state;
 
@@ -131,6 +132,10 @@ export async function npcDialog(id) {
     emit('talk', { id });
   } else
     text = pick([`Привет, ${esc(S().name)}!`, 'О, привет!', `${esc(S().name)}! Рад${npc.fem ? 'а' : ''} тебя видеть!`]);
+  // есть задание из журнала (взять, как дела, сдать) — сначала оно (features/quests.js)
+  const qt = await questTalk(id);
+  if (qt && qt.end) return;
+  if (qt && qt.text) text = qt.text;
   for (;;) {
     const i = await dialog({
       look,
@@ -217,6 +222,9 @@ export async function guestDialog(id) {
           here === 'bungalow' ? 'Слышишь, как шумит море? Красота!' : 'А где ты купила такую мебель?',
         ],
   );
+  const qt = await questTalk(id); // задание из журнала — сначала оно
+  if (qt && qt.end) return;
+  if (qt && qt.text) text = qt.text;
   for (;;) {
     const i = await dialog({
       look,

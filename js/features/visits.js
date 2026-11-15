@@ -23,6 +23,7 @@ import { openPanel, message } from '../ui/panel.js';
 import { toast } from '../ui/toast.js';
 import { pickDish } from './cooking.js';
 import { addPts } from './friends.js';
+import { questTalk } from './quests.js';
 
 const S = () => G.state;
 const hhmm = (m) => `${Math.floor(m / 60)}:${String(m % 60).padStart(2, '0')}`;
@@ -179,6 +180,9 @@ export async function hostDialog(id, ctx = {}) {
     'Будь как дома! Трогай всё, что хочется.',
     'Садись, рассказывай: что нового в городе?',
   ]);
+  const qt = await questTalk(id); // задание из журнала — сначала оно (features/quests.js)
+  if (qt && qt.end) return;
+  if (qt && qt.text) text = qt.text;
   for (;;) {
     const hadTea = fr.tea === S().day;
     const i = await dialog({

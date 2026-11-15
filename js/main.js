@@ -55,7 +55,15 @@ initHud(hud, {
     { icon: '📱', label: 'Гости', fn: F.openPhone },
     { icon: '⚙️', label: 'Меню', fn: F.openSettings },
   ],
-  task: { info: F.taskChip, fn: F.showLetter },
+  // плашка письма: по нажатию — письмо, и звёздочка снова ведёт к заданию из письма (а не из журнала)
+  task: {
+    info: F.taskChip,
+    fn: () => {
+      F.trackQuest(null);
+      F.showLetter();
+    },
+  },
+  quest: { info: F.questChip, fn: () => F.openAlbum('quests') },
   map: { icon: '🗺️', label: 'Карта', fn: F.openMap },
   home: { icon: '🏡', label: 'Домой', fn: goHome },
   sick: { fn: F.showSickHelp },

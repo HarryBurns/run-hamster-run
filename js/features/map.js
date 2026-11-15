@@ -1,10 +1,14 @@
 // Карта локации, где сейчас хомячок (пока он в доме — той, что снаружи): нажми на место — он сам туда дойдёт.
+// Под картой города — «Тайные места» (LANDS в data/places.js): закрытые — серым силуэтом с замочком; нажми —
+// подсказка, кто знает дорогу (действие way, features/quests.js).
 import { sfx } from '../core/audio.js';
 import { makeCanvas } from '../core/draw.js';
 import { go, sceneName } from '../core/loop.js';
+import { run } from '../core/registry.js';
+import { landOpen } from '../core/state.js';
 import { el } from '../core/util.js';
-import { NPC_BY_ID } from '../data/index.js';
-import { T, currentLocation } from '../engine/topdown/index.js';
+import { NPC_BY_ID, LANDS } from '../data/index.js';
+import { T, currentLocation, homeLocation } from '../engine/topdown/index.js';
 import { openPanel } from '../ui/panel.js';
 import { toast } from '../ui/toast.js';
 
@@ -75,6 +79,31 @@ export function openMap() {
         row.appendChild(bt);
       }
       body.appendChild(row);
+      if (loc === homeLocation()) body.appendChild(landsRow(panel));
     },
   });
+}
+
+/** «Тайные места»: силуэт с замочком, пока место закрыто; нажми — подсказка (или «открыто»). */
+function landsRow(panel) {
+  const box = el('div', 'lands');
+  box.appendChild(el('div', 'lands-h', '🗝️ Тайные места'));
+  const row = el('div', 'lands-row');
+  for (const land of LANDS) {
+    const open = landOpen(land.id);
+    const b = el(
+      'button',
+      'land' + (open ? ' open' : ''),
+      `<span class="ic">${land.icon}</span>${open ? '' : '<span class="lk">🔒</span>'}<span class="nm">${land.name}</span>`,
+    );
+    b.title = open ? `${land.name} — открыто!` : `${land.name} — закрыто. Кто знает дорогу: ${land.who}`;
+    b.onclick = () => {
+      sfx('tap');
+      panel.close();
+      run('way:' + land.id);
+    };
+    row.appendChild(b);
+  }
+  box.appendChild(row);
+  return box;
 }

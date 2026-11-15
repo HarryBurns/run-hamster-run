@@ -463,3 +463,55 @@ h4 { margin: 4px 0; font-size: 16px; }
 .biz-row.mine { border-color: var(--yellow-d); background: #fffdf2; }
 .pay-note.boss { background: #ffe8cc; }
 .boss-hi { color: var(--pink-d); }
+
+/* ---------- журнал сюжетных заданий (features/quests.js) ---------- */
+/* плашка в HUD: на телефоне — коротко (значок и «3/5»), чтобы не загромождать верх экрана */
+.chip.quest { cursor: pointer; position: relative; background: #fff3bf; max-width: min(46vw, 300px); white-space: normal; line-height: 1.15; }
+.chip.quest::after { content: ""; position: absolute; inset: -8px -4px; }
+.chip.quest[hidden] { display: none; }
+.chip.quest.new { background: #ffe066; animation: quest-pulse 1.8s ease-in-out infinite; }
+.chip.quest.ready { background: #b2f2bb; animation: quest-pulse 1.8s ease-in-out infinite; }
+.chip.quest .short { display: none; }
+@keyframes quest-pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.06); } }
+@media (max-width: 520px) {
+  .chip.quest { white-space: nowrap; }
+  .chip.quest .long { display: none; }
+  .chip.quest .short { display: inline; }
+}
+/* журнал: карточка задания */
+.quest { background: var(--paper); border-radius: 18px; padding: 12px 14px; margin-bottom: 12px; box-shadow: 0 3px 0 rgba(74, 55, 40, .12); }
+.quest.new { background: #fff9db; }
+.q-head { display: flex; gap: 10px; align-items: center; }
+.q-head .ttl { font-weight: 900; font-size: 17px; }
+.q-head .sub { font-size: 13px; opacity: .75; font-weight: 600; }
+.q-ic { font-size: 34px; line-height: 1; flex: none; }
+.q-story { margin: 8px 0; line-height: 1.3; }
+.q-steps { list-style: none; padding: 0; margin: 6px 0 10px; }
+.q-steps li { padding: 6px 8px; border-radius: 10px; margin: 3px 0; line-height: 1.25; }
+.q-steps li.ok { opacity: .55; }
+.q-steps li.cur { background: #fff; border: 2px dashed var(--pink); font-weight: 800; }
+.q-steps li.todo { opacity: .75; }
+.q-hint { font-weight: 600; font-size: 13px; opacity: .85; margin-top: 3px; }
+.q-finds { font-size: 22px; margin-top: 4px; letter-spacing: 3px; }
+.q-finds .muted { font-size: 13px; letter-spacing: 0; }
+.q-done-h { margin: 14px 0 6px; }
+/* праздничное окно «Задание выполнено!»: конфетти */
+.quest-done { position: relative; overflow: hidden; padding-top: 4px; }
+.quest-done > :not(.confetti) { position: relative; }
+.confetti { position: absolute; inset: 0; pointer-events: none; }
+.confetti i { position: absolute; top: -14px; width: 8px; height: 12px; border-radius: 2px; animation: confetti-fall linear infinite; }
+@keyframes confetti-fall { 0% { transform: translateY(-10px) rotate(0); opacity: 1; } 100% { transform: translateY(300px) rotate(540deg); opacity: 0; } }
+.land-open { background: #d3f9d8; border-radius: 14px; padding: 8px; font-size: 17px; line-height: 1.3; }
+/* закрытое место: серый силуэт и замочек */
+.way-lock { position: relative; }
+.way-lock .ic { filter: grayscale(1) brightness(.7) opacity(.55); }
+.way-lock .lk { font-size: 30px; margin-left: -18px; }
+/* карта: «Тайные места» */
+.lands { margin-top: 12px; }
+.lands-h { font-weight: 900; text-align: center; margin-bottom: 6px; }
+.lands-row { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
+.land { position: relative; border: 0; background: #f1ece6; color: var(--ink); border-radius: 14px; padding: 6px 10px 6px 8px; display: flex; align-items: center; gap: 6px; font: inherit; font-size: 14px; font-weight: 800; min-height: 40px; cursor: pointer; }
+.land .ic { font-size: 22px; filter: grayscale(1) brightness(.6) opacity(.55); }
+.land .lk { position: absolute; left: 21px; top: 20px; font-size: 13px; }
+.land.open { background: #d3f9d8; }
+.land.open .ic { filter: none; }

@@ -7,6 +7,7 @@
 //     noMap: true,                              // спрятать «Карту»
 //     cls: 'decor' }                            // класс на весь HUD (в режиме обустройства кнопки прячутся)
 // Рядом с датой — значок 🤒, пока хомячок простыла (Ф1); по нажатию — config.sick.fn.
+// После плашки письма — плашка задания из журнала (config.quest; на телефоне — коротко: значок и «3/5»).
 import { G, cal } from '../core/state.js';
 import { on } from '../core/events.js';
 import { scene, sceneName } from '../core/loop.js';
@@ -16,7 +17,7 @@ import { moneyAnchor } from './coins.js';
 
 let root = null,
   cfg = null;
-let chipDate, chipSick, chipMoney, chipTask, leftBox;
+let chipDate, chipSick, chipMoney, chipTask, chipQuest, leftBox;
 let leftSig = ''; // что сейчас показано в левом столбике (чтобы не пересобирать его зря)
 let dropAnchor = null; // плашка монет — место, где всплывает «+350» (ui/coins.js)
 
@@ -37,6 +38,7 @@ function rbtn(icon, label, fn) {
  *   map: { icon, label, fn }          кнопка «Карта»
  *   home: { icon, label, fn }         главная кнопка по умолчанию — «Домой»
  *   sick: { fn }                      значок 🤒 «простыла» рядом с датой — по нажатию
+ *   quest: { info(), fn }             плашка задания из журнала: info() → { text, short, cls } или null (не показывать)
  */
 export function initHud(rootEl, config) {
   root = rootEl;
@@ -66,7 +68,13 @@ export function buildHud() {
     sfx('tap');
     cfg.task.fn();
   };
-  top.append(chipDate, chipSick, chipMoney, chipTask);
+  chipQuest = el('div', 'chip quest');
+  chipQuest.hidden = true;
+  chipQuest.onclick = () => {
+    sfx('tap');
+    if (cfg.quest) cfg.quest.fn();
+  };
+  top.append(chipDate, chipSick, chipMoney, chipTask, chipQuest);
   const right = el('div', 'hud-btns');
   right.append(...cfg.right.map((b) => rbtn(b.icon, b.label, b.fn)));
   leftBox = el('div', 'hud-btns left');
@@ -83,6 +91,13 @@ export function updateHud() {
   const t = cfg.task.info();
   chipTask.textContent = t.text;
   chipTask.className = 'chip task ' + t.cls;
+  const q = cfg.quest && cfg.quest.info();
+  chipQuest.hidden = !q;
+  if (q) {
+    const html = `<span class="long">${q.text}</span><span class="short">${q.short}</span>`;
+    if (chipQuest.innerHTML !== html) chipQuest.innerHTML = html;
+    chipQuest.className = 'chip quest ' + (q.cls || '');
+  }
   // левый столбик: кнопки сцены, карта, главная кнопка
   const sc = scene(),
     h = (sc && sc.hud && sc.hud()) || {};
