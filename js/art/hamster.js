@@ -5,6 +5,7 @@ import { ell, rr, fillRR, line, poly, star, shade } from '../core/draw.js';
 
 const OUT = '#4a3728'; // цвет контура
 const BACK_ACC = ['wings', 'backpack', 'cape']; // аксессуары, которые рисуются за спиной
+const FACE_ACC = ['glasses', 'sunglasses']; // аксессуары на мордочке: поворачиваются вместе с ней
 
 /**
  * Насколько закрыты глаза в момент времени t: 0 — открыты, 1 — закрыты.
@@ -483,14 +484,14 @@ function drawShoe(ctx, item, x, y) {
 }
 
 // ---------- головные уборы ----------
-function drawHat(ctx, item) {
+function drawHat(ctx, item, side = 1) {
   const c = item.c,
     c2 = item.c2 || shade(c, -0.25);
   ctx.save();
   switch (item.kind) {
     case 'cap':
       ctx.beginPath();
-      ctx.ellipse(16, -68, 19, 5, 0.08, 0, TAU);
+      ctx.ellipse(16 * side, -68, 19, 5, 0.08 * side, 0, TAU); // козырёк — в сторону взгляда
       ctx.fillStyle = c2;
       ctx.fill();
       ctx.strokeStyle = OUT;
@@ -885,15 +886,28 @@ function drawBow(ctx, col, x, y) {
   ell(ctx, x, y, 3.2, 3.2, shade(col, -0.2), OUT, 1.2);
 }
 
+// Поворот: насколько мордочка сдвигается в сторону взгляда и насколько хомячок наклоняется на ходу.
+const TURN = 5,
+  LEAN = 0.05;
+
 /**
  * Нарисовать хомячка.
  * @param look  {fur, spots, belly, ear, outfit:{head,body,legs,feet,acc} (объекты вещей), beauty:{...}}
- * @param pose  {dir:1|-1, walk:фаза 0..1|null, time:сек, blink, sleep, happy, armsUp, sit,
- *               clipBelow:y (не рисовать ниже, для воды), shadow:false}
+ * @param pose  {dir:1|-1|нет, walk:фаза 0..1|null, time:сек, blink, sleep, happy, armsUp, sit,
+ *               clipBelow:y (не рисовать ниже, для воды), shadow:false, lean:false (не наклоняться на ходу)}
+ *
+ * Направление (dir) показывает ПОЗА, рисунок не зеркалится: мордочка (глаза, нос, рот, усы, щёчки, очки)
+ * поворачивается в сторону dir, носки и козырёк кепки смотрят туда же, на ходу хомячок слегка наклоняется
+ * вперёд. Всё «своё» — пятна, бантик, чёлка, сумочка на плече, хвост шарфа, цветок на шляпе — остаётся
+ * на одной и той же стороне при любом dir. Без dir хомячок смотрит прямо на зрителя.
  */
 export function drawHamster(ctx, x, y, s, look, pose = {}) {
   const o = look.outfit || {},
     b = look.beauty || {};
+  const k = pose.dir === 1 || pose.dir === -1 ? pose.dir : 0; // куда повёрнут; 0 — смотрит прямо
+  const turn = k * TURN;
+  // сдвиг точки мордочки при повороте головы: в середине — полный, к краям головы сходит на нет
+  const fx = k ? (px) => px + turn * (1 - (px / 27) * (px / 27)) : (px) => px;
   const time = pose.time || 0;
   const t = pose.walk;
   const walking = t != null;
@@ -910,7 +924,7 @@ export function drawHamster(ctx, x, y, s, look, pose = {}) {
     ctx.ellipse(0, 1 * s, 24 * s, 6 * s, 0, 0, TAU);
     ctx.fill();
   }
-  ctx.scale(s * (pose.dir || 1), s);
+  ctx.scale(s, s);
   if (pose.clipBelow != null) {
     ctx.beginPath();
     ctx.rect(-80, -160, 160, 160 + pose.clipBelow);
@@ -923,18 +937,29 @@ export function drawHamster(ctx, x, y, s, look, pose = {}) {
     [-10, liftL],
     [10, liftR],
   ];
-  const fx = pose.sit ? 14 : 10;
-  feet[0][0] = -fx;
-  feet[1][0] = fx;
-  for (const [px, lift] of feet) {
+  const fw = pose.sit ? 14 : 10;
+  feet[0][0] = -fw;
+  feet[1][0] = fw;
+  for (const [px0, lift] of feet) {
+    const px = px0 + k * 2; // носки — в сторону шага
     ell(ctx, px, -3 - lift, 8, 5, '#ffc2cf', OUT, 1.6);
     if (b.nails) {
       for (let i = -1; i <= 1; i++) ell(ctx, px + i * 4, -1 - lift, 1.3, 1.3, b.nails);
     }
-    if (o.feet) drawShoe(ctx, o.feet, px, -lift);
+    if (o.feet) {
+      if (k < 0) {
+        // обувь нарисована носком вправо: при шаге влево разворачиваем только её
+        ctx.save();
+        ctx.translate(px, 0);
+        ctx.scale(-1, 1);
+        drawShoe(ctx, o.feet, 0, -lift);
+        ctx.restore();
+      } else drawShoe(ctx, o.feet, px, -lift);
+    }
   }
 
   ctx.translate(0, -bob);
+  if (k && walking && pose.lean !== false) ctx.rotate(k * LEAN); // на ходу — лёгкий наклон вперёд
   if (o.acc && BACK_ACC.includes(o.acc.kind)) drawAccBack(ctx, o.acc, time);
 
   // --- тело
@@ -999,8 +1024,8 @@ export function drawHamster(ctx, x, y, s, look, pose = {}) {
   ctx.fill();
   ctx.save();
   ctx.clip();
-  if (look.spots) ell(ctx, 14, -60, 13, 12, look.spots);
-  if (look.mask) ell(ctx, 0, -44, 17, 11, look.mask);
+  if (look.spots) ell(ctx, fx(14), -60, 13, 12, look.spots); // пятно у глаза — всегда у одного и того же
+  if (look.mask) ell(ctx, turn, -44, 17, 11, look.mask);
   ctx.restore();
   headPath(ctx);
   ctx.strokeStyle = OUT;
@@ -1010,15 +1035,15 @@ export function drawHamster(ctx, x, y, s, look, pose = {}) {
   // щёчки
   if (b.blush !== null) {
     ctx.globalAlpha = 0.6;
-    ell(ctx, -18, -46, 5.5, 3.6, b.blush || '#ffb0bd');
-    ell(ctx, 18, -46, 5.5, 3.6, b.blush || '#ffb0bd');
+    ell(ctx, fx(-18), -46, 5.5, 3.6, b.blush || '#ffb0bd');
+    ell(ctx, fx(18), -46, 5.5, 3.6, b.blush || '#ffb0bd');
     ctx.globalAlpha = 1;
   }
   // глаза
   const bl = pose.sleep || pose.blink === true ? 1 : typeof pose.blink === 'number' ? pose.blink : 0; // 0..1
   const closed = bl > 0.72;
   for (const sx of [-1, 1]) {
-    const ex = sx * 10,
+    const ex = fx(sx * 10),
       ey = -55;
     const onSpot = look.spots && sx === 1;
     if (onSpot && !closed && !pose.happy) ell(ctx, ex, ey, 6, 7, '#fff');
@@ -1053,26 +1078,26 @@ export function drawHamster(ctx, x, y, s, look, pose = {}) {
   // усы, нос, рот
   ctx.globalAlpha = 0.28;
   for (const sx of [-1, 1]) {
-    line(ctx, sx * 13, -47, sx * 24, -49, OUT, 1);
-    line(ctx, sx * 13, -45, sx * 24, -43, OUT, 1);
+    line(ctx, fx(sx * 13), -47, fx(sx * 24), -49, OUT, 1);
+    line(ctx, fx(sx * 13), -45, fx(sx * 24), -43, OUT, 1);
   }
   ctx.globalAlpha = 1;
-  ell(ctx, 0, -48.5, 3.1, 2.3, '#ff8fa3', OUT, 1);
+  ell(ctx, turn, -48.5, 3.1, 2.3, '#ff8fa3', OUT, 1);
   ctx.strokeStyle = OUT;
   ctx.lineWidth = 1.5;
   ctx.lineCap = 'round';
   if (pose.happy || pose.talk) {
     ctx.beginPath();
-    ctx.ellipse(0, -43, 4, pose.talk ? 2 + Math.abs(Math.sin(time * 9)) * 2.5 : 3.5, 0, 0, Math.PI);
+    ctx.ellipse(turn, -43, 4, pose.talk ? 2 + Math.abs(Math.sin(time * 9)) * 2.5 : 3.5, 0, 0, Math.PI);
     ctx.fillStyle = '#c9485b';
     ctx.fill();
     ctx.stroke();
   } else {
     ctx.beginPath();
-    ctx.arc(-3, -46, 3, 0.1 * Math.PI, 0.9 * Math.PI);
+    ctx.arc(turn - 3, -46, 3, 0.1 * Math.PI, 0.9 * Math.PI);
     ctx.stroke();
     ctx.beginPath();
-    ctx.arc(3, -46, 3, 0.1 * Math.PI, 0.9 * Math.PI);
+    ctx.arc(turn + 3, -46, 3, 0.1 * Math.PI, 0.9 * Math.PI);
     ctx.stroke();
   }
   if (pose.sleep) {
@@ -1089,10 +1114,17 @@ export function drawHamster(ctx, x, y, s, look, pose = {}) {
   const hat = o.head;
   if (b.tuft && (!hat || ['earmuffs', 'wreath', 'catears', 'flower'].includes(hat.kind)))
     drawTuft(ctx, b.tuft, b.hair || look.spots || shade(fur, -0.35));
-  if (hat) drawHat(ctx, hat);
+  if (hat) drawHat(ctx, hat, k || 1);
   if (b.bow) drawBow(ctx, b.bow, hat ? -24 : -15, hat ? -62 : -74);
-  if (o.acc && !BACK_ACC.includes(o.acc.kind)) drawAcc(ctx, o.acc);
-  else if (o.acc && o.acc.kind === 'cape') {
+  if (o.acc && !BACK_ACC.includes(o.acc.kind)) {
+    if (k && FACE_ACC.includes(o.acc.kind)) {
+      // очки сидят на глазах — поворачиваются вместе с мордочкой
+      ctx.save();
+      ctx.translate(fx(10) - 10, 0);
+      drawAcc(ctx, o.acc);
+      ctx.restore();
+    } else drawAcc(ctx, o.acc);
+  } else if (o.acc && o.acc.kind === 'cape') {
     ell(ctx, -12, -41, 3.2, 3.2, '#ffd43b', OUT, 1);
     ell(ctx, 12, -41, 3.2, 3.2, '#ffd43b', OUT, 1);
     line(ctx, -12, -41, 12, -41, '#ffd43b', 2);

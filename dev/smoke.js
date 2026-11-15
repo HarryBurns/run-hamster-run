@@ -317,6 +317,60 @@ async function extra({ page, step, ev, wait, closeAll, hold }) {
     if (d.dialog !== 0 || d.overlay !== 1) throw new Error('подарок не показан после диалога: ' + JSON.stringify(d));
     await closeAll();
   });
+  await step('хомячок: пятна и бантик не «перебегают» при смене направления, поворот виден по мордочке', async () => {
+    // рисуем хомячка на маленьком холсте во всех направлениях и считаем точки по цветам
+    const r = await ev(async () => {
+      const { drawHamster } = await import(new URL('js/art/hamster.js', location.href).href);
+      const look = {
+        fur: '#ffffff',
+        spots: '#2f2a2a',
+        ear: '#ffb3c1',
+        outfit: {},
+        beauty: { blush: null, bow: '#ff5c8a' },
+      };
+      const W = 120,
+        OX = 60,
+        OY = 104;
+      const out = [];
+      for (const dir of [1, -1, undefined])
+        for (const walk of [null, 0.25]) {
+          const c = document.createElement('canvas');
+          c.width = c.height = W;
+          const x = c.getContext('2d', { willReadFrequently: true });
+          drawHamster(x, OX, OY, 1, look, { dir, walk, time: 1, shadow: false });
+          const d = x.getImageData(0, 0, W, W).data;
+          const near = (i, r, g, b) => Math.abs(d[i] - r) < 8 && Math.abs(d[i + 1] - g) < 8 && Math.abs(d[i + 2] - b) < 8;
+          const q = { dir, walk, earL: 0, earR: 0, bodyL: 0, bodyR: 0, bowN: 0, bowX: 0, eyeN: 0, eyeX: 0 };
+          for (let py = 0; py < W; py++)
+            for (let px = 0; px < W; px++) {
+              const i = (py * W + px) * 4,
+                hx = px - OX,
+                hy = py - OY;
+              if (near(i, 0x2f, 0x2a, 0x2a)) {
+                if (hy < -73) hx < 0 ? q.earL++ : q.earR++; // выше макушки — только уши
+                else if (hy > -26) hx < 0 ? q.bodyL++ : q.bodyR++; // ниже подбородка — пятна на боках
+              } else if (near(i, 0xff, 0x5c, 0x8a)) {
+                q.bowN++;
+                q.bowX += hx;
+              } else if (near(i, 0x1d, 0x1b, 0x1b) && hy > -64 && hy < -46) {
+                q.eyeN++;
+                q.eyeX += hx;
+              }
+            }
+          q.bowX /= q.bowN || 1;
+          q.eyeX /= q.eyeN || 1;
+          out.push(q);
+        }
+      return out;
+    });
+    const bad = r.filter(
+      (q) => !(q.earR > 20 && q.earL === 0 && q.bodyL > q.bodyR * 1.3 && q.bodyR > 10 && q.bowN > 40 && q.bowX < -8),
+    );
+    if (bad.length) throw new Error('пятно или бантик сменили сторону: ' + JSON.stringify(bad));
+    const eye = (dir) => r.find((q) => q.dir === dir && q.walk === null).eyeX;
+    if (!(eye(1) - eye(undefined) > 2 && eye(undefined) - eye(-1) > 2))
+      throw new Error('направление не видно по мордочке: ' + JSON.stringify([eye(-1), eye(undefined), eye(1)]));
+  });
   await step('кэш спрайтов: все сезоны, ночь, смена размера окна', async () => {
     await ev(() => {
       window.__dev.go('world');

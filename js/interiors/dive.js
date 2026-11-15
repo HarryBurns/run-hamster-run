@@ -814,6 +814,7 @@ export function draw(ctx) {
   drawHamster(ctx, 0, 34, HS, playerLook(), {
     time: t,
     dir: p.dir,
+    lean: false, // наклон задаёт сама сцена (tilt), маска рисуется в тех же координатах
     walk: p.swimT,
     shadow: false,
     happy: p.happy > 0,
