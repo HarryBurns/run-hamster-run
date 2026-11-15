@@ -1,6 +1,6 @@
 // Отладочные хуки для автотестов (dev/smoke.js, dev/bench.js) и ручной отладки в консоли браузера.
 // Всё собрано в одном объекте window.__dev; игра сама им не пользуется.
-import { G, houseItems } from './core/state.js';
+import { G, houseItems, questNow, questBadge, findsWanted, landOpen } from './core/state.js';
 import * as actions from './core/actions.js';
 import * as events from './core/events.js';
 import * as registry from './core/registry.js';
@@ -114,6 +114,8 @@ export function installDevHooks({ F }) {
     /** Плодовые растения: Plants.PLANTS (что на чём растёт), hasFruit(o), plantInSeason(o), gather(сцена, o). */
     Plants: { PLANTS, hasFruit, plantInSeason, gather },
     Tower,
+    /** Журнал заданий (только чтение): questNow('herbarium'), questBadge('myata'), findsWanted('herb'), landOpen('forest'). */
+    QuestState: { questNow, questBadge, findsWanted, landOpen },
     get Villa() {
       return loop.scenes.villa;
     },

@@ -1233,7 +1233,7 @@ module.exports = async function estate({ page, step, ev, wait, closeAll }) {
     await page.click('text=Продолжить');
     await wait(900);
     const s = await state();
-    expect(s.v === 4 && s.money === old.money && s.earned === old.earned, 'версия и деньги', [s.v, s.money]);
+    expect(s.v === 5 && s.money === old.money && s.earned === old.earned, 'версия и деньги', [s.v, s.money]);
     expect(
       Array.isArray(s.homesOwned) && !s.homesOwned.length && s.homeMain === 'villa' && s.guestsAt === 'villa',
       'жильё',
@@ -1278,7 +1278,7 @@ module.exports = async function estate({ page, step, ev, wait, closeAll }) {
     await page.click('text=Продолжить');
     await wait(900);
     const s = await state();
-    expect(s.v === 4 && s.name === want.name && s.money === want.money, 'образец v3', [s.v, s.money]);
+    expect(s.v === 5 && s.name === want.name && s.money === want.money, 'образец v3', [s.v, s.money]);
     for (const k of ['homesOwned', 'homeMain', 'guestsAt', 'biz', 'visits', 'homes'])
       expect(JSON.stringify(s[k]) === JSON.stringify(want[k]), `образец v3: поле «${k}»`, s[k]);
     expect((await scene()) === want.pos.scene, 'образец v3 открылся не там', await scene());

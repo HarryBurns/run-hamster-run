@@ -730,7 +730,7 @@ module.exports = async function wares({ page, step, ev, wait, closeAll }) {
     await closeAll();
     s = await state();
     expect(
-      s.v === 4 &&
+      s.v === 5 &&
         s.money === old.money &&
         JSON.stringify([...s.clothes].sort()) === JSON.stringify([...old.clothes, 'flip_pink'].sort()) && // + подарок (У2)
         s.villa.length === old.villa.length,

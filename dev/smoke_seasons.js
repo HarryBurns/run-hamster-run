@@ -663,7 +663,7 @@ module.exports = async function seasons({ page, step, ev, wait, closeAll }) {
     await closeAll();
     let s = await state();
     // Э1 версию не меняла; с Ф1 (болезнь) сохранение v3 переносится в v4 — остальное то же
-    expect(s.v === 4 && s.day === old.day && s.money === old.money, 'версия или деньги после загрузки', [
+    expect(s.v === 5 && s.day === old.day && s.money === old.money, 'версия или деньги после загрузки', [
       s.v,
       s.money,
     ]);

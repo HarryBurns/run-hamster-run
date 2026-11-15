@@ -7,7 +7,8 @@
 // Третий аргумент «step:<часть названия>» — только шаги с таким текстом в названии:  node dev/smoke.js <url> step:растёт
 // (сезонность продуктов, Э1 — dev/smoke_seasons.js:  node dev/smoke.js <url> step:сезонность;
 //  сезонные вещи и «привоз», Э1 — dev/smoke_wares.js:  node dev/smoke.js <url> "step:витрина дня";
-//  болезнь, Ф1 — dev/smoke_health.js:  node dev/smoke.js <url> step:болезнь)
+//  болезнь, Ф1 — dev/smoke_health.js:  node dev/smoke.js <url> step:болезнь;
+//  журнал сюжетных заданий, этап 5 — dev/smoke_quests.js:  node dev/smoke.js <url> step:журнал)
 // Скорость проверяется отдельно:  node dev/bench.js [url] --spots=forest --sizes=desktop --max-forest=45
 const { chromium } = require('playwright');
 const fs = require('fs');
@@ -18,6 +19,7 @@ const estate = require('./smoke_estate.js'); // этап 4: в гости, жи�
 const seasons = require('./smoke_seasons.js'); // Э1: сезонность продуктов, ассортимент дня, огород по сезонам
 const wares = require('./smoke_wares.js'); // Э1: сезонные вещи и «привоз» — витрины одежды, мебели, рынок
 const health = require('./smoke_health.js'); // Ф1: болезнь — причины, эффекты, доктор, иммунитет, перенос v3 → v4
+const quests = require('./smoke_quests.js'); // этап 5: журнал сюжетных заданий, гербарий Мяты, тайные места, v4 → v5
 
 const BASE = process.argv[2] || 'http://localhost:8765';
 const ONLY_ESTATE = process.argv[3] === 'estate';
@@ -897,13 +899,15 @@ async function extra({ page, step, ev, wait, closeAll, hold }) {
     await wait(900);
     let r = await where();
     if (r.scene !== 'world' || r.y < 3 * T) throw new Error('закрытый выход сработал: ' + JSON.stringify(r));
-    // нажатие на ворота: подсказка «Скоро открытие!»
+    // нажатие на ворота: окно тайного места «Тропа в лес заросла…» (журнал заданий, features/quests.js)
     {
       const g = await ev(() => window.__dev.World.debugScreen(2 * 48, 2.2 * 48));
       await page.mouse.click(g.x, g.y);
-      await wait(700);
-      const t = await ev(() => document.querySelector('#toasts').textContent);
-      if (!t.includes('Скоро открытие')) throw new Error('у ворот в лес нет подсказки «Скоро открытие»: ' + t);
+      await wait(900);
+      const t = await ev(() => [...document.querySelectorAll('.overlay .panel')].map((p) => p.textContent).join(' '));
+      if (!t.includes('Тропа в лес заросла') || !t.includes('Мята'))
+        throw new Error('у ворот в лес нет окна «Тропа в лес заросла»: ' + t);
+      await closeAll();
     }
     // открываем выход (так его откроет задание) и идём к краю ещё раз: ворота распахнуты
     await ev(() => {
@@ -995,7 +999,7 @@ async function economy({ page, step, ev, wait, closeAll }) {
     await wait(500);
     const s = await state();
     const chip = norm(await ev(() => document.querySelector('.chip.money').textContent));
-    expect(s.money === 3000 && s.earned === 0 && s.spent === 0 && s.v === 4, 'новая игра', [s.money, s.earned, s.v]);
+    expect(s.money === 3000 && s.earned === 0 && s.spent === 0 && s.v === 5, 'новая игра', [s.money, s.earned, s.v]);
     expect(s.ledger && s.ledger.today.out === 0 && s.ledger.yesterday, 'нет учёта денег', s.ledger);
     expect(chip.includes('3 000'), 'плашка монет', chip);
     // все цены по карману или хотя бы разумны: ничего дешевле 10 и ничего «за миллион»
@@ -1388,7 +1392,7 @@ async function economy({ page, step, ev, wait, closeAll }) {
     const letter = await text('.overlay .panel-body');
     expect(letter.includes('20 000') && letter.includes(old.name) && /стройк/i.test(letter), 'письмо банка', letter);
     let s = await state();
-    expect(s.v === 4 && s.money === 20000 && s.spent === 0 && s.earned === 0, 'деньги после переноса', [s.v, s.money]);
+    expect(s.v === 5 && s.money === 20000 && s.spent === 0 && s.earned === 0, 'деньги после переноса', [s.v, s.money]);
     expect(s.flags.bankLetter === 2 && s.ledger && s.pearlsSold === 0, 'новые поля', [s.flags, s.ledger, s.pearlsSold]);
     const same = (k) => JSON.stringify(s[k]) === JSON.stringify(old[k]);
     for (const k of ['name', 'storage', 'dishes', 'seeds', 'stickers', 'day', 'pearls'])
@@ -1426,7 +1430,7 @@ async function economy({ page, step, ev, wait, closeAll }) {
     await wait(2200);
     s = await state();
     expect((await page.locator('text=Письмо из Хомяк-Банка').count()) === 0, 'письмо банка показано второй раз');
-    expect(s.money === 20000 && s.v === 4 && s.flags.bankLetter === 2, 'после второго входа', [s.money, s.flags]);
+    expect(s.money === 20000 && s.v === 5 && s.flags.bankLetter === 2, 'после второго входа', [s.money, s.flags]);
     expect(s.clothes.filter((id) => id === 'flip_pink').length === 1, 'шлёпанцы подарены второй раз', s.clothes);
     await closeAll();
   });
@@ -1437,7 +1441,7 @@ async function economy({ page, step, ev, wait, closeAll }) {
     await wait(2200);
     const s = await state();
     expect((await page.locator('text=Письмо из Хомяк-Банка').count()) === 0, 'письмо банка в новой игре');
-    expect(s.v === 4 && s.name === want.name && s.money === want.money && s.earned === want.earned, 'образец v2', [
+    expect(s.v === 5 && s.name === want.name && s.money === want.money && s.earned === want.earned, 'образец v2', [
       s.v,
       s.money,
     ]);
@@ -1988,7 +1992,7 @@ async function economy({ page, step, ev, wait, closeAll }) {
         if (r.acts.join() !== want.join()) throw new Error('действия новых зданий: ' + r.acts.join(' | '));
       },
     );
-    await step('город: новые места — рынок, агентство, двери жилья и «Скоро открытие!»', async () => {
+    await step('город: новые места — рынок, агентство, двери жилья, «Скоро открытие!» и тайные места', async () => {
       const title = () => ev(() => (document.querySelector('.overlay .panel-head .title') || {}).textContent || '');
       await ev(() => window.__dev.enterBuilding('market'));
       await wait(450);
@@ -2012,12 +2016,18 @@ async function economy({ page, step, ev, wait, closeAll }) {
         if (await ev(() => document.querySelectorAll('.overlay, .dialog').length))
           throw new Error(id + ': открылось окно');
       }
-      for (const key of ['forest', 'desert']) {
-        await ev(() => document.querySelectorAll('#toasts .toast').forEach((t) => t.remove()));
-        await ev((key) => window.__dev.run({ do: 'soon', key }), key);
-        await wait(150);
-        const t = await ev(() => (document.querySelector('#toasts') || {}).textContent || '');
-        if (!t.includes('Скоро открытие')) throw new Error(key + ': нет подсказки');
+      // выезды в лес и пустыню — не «скоро», а тайные места: доброе окно «кто знает дорогу»
+      for (const [key, who] of [
+        ['forest', 'Мята'],
+        ['desert', 'Буся'],
+      ]) {
+        await ev((key) => {
+          window.__dev.run('way:' + key);
+        }, key);
+        await wait(400);
+        const t = await ev(() => [...document.querySelectorAll('.overlay .panel')].map((p) => p.textContent).join(' '));
+        if (!t.includes(who) || t.includes('Скоро открытие')) throw new Error(key + ': окно тайного места: ' + t);
+        await closeAll();
       }
       // задание «Базарный день» ведёт к рынку на площади
       const tg = await ev(() => {
@@ -2425,6 +2435,7 @@ async function economy({ page, step, ev, wait, closeAll }) {
     await seasons({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
     await wares({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
     await health({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
+    await quests({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
     await estate({ page, step: (n, f, o) => step(n, f, { ...o, extra: true, estate: true }), ev, wait, closeAll });
     if (tag === 'desktop')
       await extra({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll, hold });

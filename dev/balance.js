@@ -714,6 +714,44 @@ const { pathToFileURL } = require('url');
     if (!(HEALTH.days >= 1 && HEALTH.days <= 2)) bad('болезнь должна длиться 1–2 дня');
   }
 
+  // ---------- 7. журнал заданий (этап 5): находки для гербария и награды ----------
+  {
+    const { FINDS, HERB_KINDS, QUESTS, QUEST_COINS, QUEST_GIFT_COINS, CLOTHES_BY_ID, LAND_BY_ID, EXTRA_STICKERS } = D;
+    console.log('\nЖурнал заданий: находки и награды');
+    // находки — не еда и не товар: их нельзя продать, приготовить или купить, поэтому «вечного двигателя» нет
+    for (const f of FINDS) {
+      if (ING[f.id] || D.DISH_BY_ID[f.id]) bad(`находка ${f.id} — это ещё и еда`);
+      if (MARKET.sell[f.id] !== undefined) bad(`находку ${f.id} покупает рынок`);
+      for (const t of Object.keys(PRICES)) if (PRICES[t] && PRICES[t][f.id] !== undefined) bad(`у находки ${f.id} есть цена (${t})`);
+    }
+    for (const [type, bySeason] of Object.entries(HERB_KINDS))
+      for (const sea of Object.keys(SEASONS)) {
+        const list = bySeason[sea] || [];
+        if (list.length < 2) bad(`гербарий: у мест «${type}» в сезон ${sea} меньше двух находок`);
+        for (const id of list) if (!D.FIND_BY_ID[id]) bad(`гербарий: неизвестная находка ${id}`);
+      }
+    // за один день в городе распускаются по одной находке с каждого вида мест — пять разных быстрее, чем за два дня, не собрать
+    for (const sea of Object.keys(SEASONS)) {
+      const day = (d) => new Set(Object.keys(HERB_KINDS).map((t) => D.herbFor(t, sea, d)));
+      const one = day(0).size,
+        two = new Set([...day(0), ...day(1)]).size;
+      line(`  ${SEASONS[sea].name}`, `за день — ${one} разных находки, за два дня — ${two}`);
+      if (one >= 5) bad(`гербарий: ${sea} — пять разных находок за один день`);
+      if (two < 5) bad(`гербарий: ${sea} — за два дня меньше пяти разных находок`);
+    }
+    for (const q of QUESTS) {
+      const r = q.reward || {};
+      if (r.coins !== QUEST_COINS[q.id]) bad(`задание ${q.id}: монеты не из QUEST_COINS`);
+      if (r.clothes && !CLOTHES_BY_ID[r.clothes]) bad(`задание ${q.id}: неизвестная вещь ${r.clothes}`);
+      if (r.open && !LAND_BY_ID[r.open]) bad(`задание ${q.id}: неизвестное место ${r.open}`);
+      if (r.sticker && !EXTRA_STICKERS.some((x) => x.id === r.sticker)) bad(`задание ${q.id}: нет наклейки ${r.sticker}`);
+      line(
+        `  ${q.title}`,
+        `${fmt(r.coins || 0)} монет${r.clothes ? ` + ${CLOTHES_BY_ID[r.clothes].name} (если уже есть — ${fmt(QUEST_GIFT_COINS)} монет)` : ''}, один раз за игру`,
+      );
+    }
+  }
+
   if (problems.length) {
     console.log('\nБАЛАНС НАРУШЕН:\n' + problems.map((p) => '  - ' + p).join('\n'));
     process.exit(1);

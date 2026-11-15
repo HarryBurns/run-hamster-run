@@ -94,7 +94,7 @@ module.exports = async function health({ page, step, ev, wait, closeAll }) {
   await step('болезнь: в первые 3 дня новой игры не болеет', async () => {
     await fresh();
     const s = await state();
-    expect(s.v === 4 && s.sick === null && s.immuneUntil === 3, 'новая игра', [s.v, s.sick, s.immuneUntil]);
+    expect(s.v === 5 && s.sick === null && s.immuneUntil === 3, 'новая игра', [s.v, s.sick, s.immuneUntil]);
     // со всеми неосторожностями в ночи на 1-й и 2-й день — ничего; по-настоящему спим две ночи
     for (const d of [0, 1]) {
       await setDay(d, ALL);
@@ -453,7 +453,7 @@ module.exports = async function health({ page, step, ev, wait, closeAll }) {
     await page.click('text=Продолжить');
     await wait(900);
     let s = await state();
-    expect(s.v === 4 && s.sick === null && s.immuneUntil === old.day + 3, 'перенос', [s.v, s.sick, s.immuneUntil]);
+    expect(s.v === 5 && s.sick === null && s.immuneUntil === old.day + 3, 'перенос', [s.v, s.sick, s.immuneUntil]);
     for (const k of ['name', 'money', 'stickers', 'day', 'biz', 'homesOwned', 'homes', 'villa'])
       expect(JSON.stringify(s[k]) === JSON.stringify(old[k]), `после переноса изменилось «${k}»`);
     // вещи: всё, что было, и шлёпанцы в подарок (У2)
@@ -466,7 +466,7 @@ module.exports = async function health({ page, step, ev, wait, closeAll }) {
     await page.click('text=Продолжить');
     await wait(900);
     s = await state();
-    expect(s.v === 4 && s.name === want.name && JSON.stringify(s.sick) === JSON.stringify(want.sick), 'образец v4', [
+    expect(s.v === 5 && s.name === want.name && JSON.stringify(s.sick) === JSON.stringify(want.sick), 'образец v4', [
       s.v,
       s.sick,
     ]);
