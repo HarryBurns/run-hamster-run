@@ -421,8 +421,9 @@ export default createTopDownScene({
     сбора `PICK_MONTHS`, читать — `pickIn(id, месяц)`, `whenPick(id)`) и пока его сегодня не сорвали (отметка дня
     `dayFlags.plants`, наутро вырастает снова); с плодами и без — разные спрайты. Что на чём растёт и какие
     подписи — таблица `PLANTS` там же. Локация ставит их обычным `m.add(…)` и подключает часть
-    `parts: [createPlants()]` — она показывает подпись «Сорвать…» над растением рядом с хомячком, кнопку в HUD
-    и слушает клавишу E; нажатие на само растение работает через `tap` + `use` вида;
+    `parts: [createPlants()]` — она показывает подпись «Сорвать…» над растением рядом с хомячком, кнопку в HUD,
+    слушает клавишу E и рисует на мини-карте значки того, что сейчас в сезоне (крюк `miniMap`; близкие растения
+    одного вида — одним значком, `fruitGroups`; подпись под картой — `ripeIcons()`, её показывает `features/map.js`); нажатие на само растение работает через `tap` + `use` вида;
   - уличная мебель и дворы (`props.js`): `lamp` (ночью светит), `flowerbed`, `hedge`, `planter`, `bin`,
     `signpost` (поля `text`, `text2`), `postbox`, `clothesline`, `hammock`, `swing`, `slide`, `sandbox`, `toys`,
     `ball`, `cafeTable`, `crate`, `barrel`, `picnicTable`, `bbq`, `ambulance`, `busstop`, `gate` и `barrier`

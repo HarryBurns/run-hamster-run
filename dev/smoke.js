@@ -1754,6 +1754,13 @@ async function economy({ page, step, ev, wait, closeAll }) {
             } else if (when['-' + id] === undefined) when['-' + id] = month;
           }
           if (!any) out.push('в месяце ' + month + ' нечего собрать');
+          // значки на карте (З9): ровно то, что сейчас в сезоне
+          const part = W.desc.parts.find((q) => q.ripeIcons),
+            icons = part.ripeIcons().sort().join(''),
+            should = [...new Set(plants.filter((o) => D.pickIn(P.PLANTS[o.type].gives, month)).map((o) => D.ING_BY_ID[P.PLANTS[o.type].gives].e))]
+              .sort()
+              .join('');
+          if (icons !== should) out.push(`месяц ${month}: на карте ${icons}, а в сезоне ${should}`);
           if (plants.filter((o) => o.type === 'cocoPalm' && P.hasFruit(o)).length > 4)
             out.push('кокосовых пальм с плодами больше четырёх');
         }

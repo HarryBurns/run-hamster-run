@@ -28,7 +28,7 @@ import { G } from '../../core/state.js';
 import { addItem, award, setDayFlag, setFlag } from '../../core/actions.js';
 import { emit } from '../../core/events.js';
 import { TAU, dist } from '../../core/util.js';
-import { ell, line, shade } from '../../core/draw.js';
+import { ell, line, shade, emoji } from '../../core/draw.js';
 import { sfx } from '../../core/audio.js';
 import { toast } from '../../ui/toast.js';
 import { ING_BY_ID, GATHER, DAYS_PER_MONTH, pickIn, whenPick } from '../../data/index.js';
@@ -806,8 +806,72 @@ defineObjects({
 });
 
 /**
+ * Значки на мини-карте: что можно собрать сейчас. Растения одного вида, стоящие рядом (ближе GROUP клеток), — один
+ * значок посередине, чтобы карта не пестрела. Не в сезон значка нет; если со всех растений группы сегодня уже
+ * собрали — значок бледный (завтра поспеет снова).
+ */
+const GROUP = 4.5;
+export function fruitGroups(list) {
+  const groups = [];
+  for (const o of list) {
+    if (!plantInSeason(o)) continue;
+    const id = PLANTS[o.type].gives,
+      x = o.tx + 0.5,
+      y = o.ty + 0.5;
+    const g = groups.find((q) => q.id === id && Math.hypot(q.x - x, q.y - y) < GROUP);
+    if (g) {
+      g.x = (g.x * g.n + x) / (g.n + 1);
+      g.y = (g.y * g.n + y) / (g.n + 1);
+      g.n++;
+      g.ripe = g.ripe || hasFruit(o);
+    } else groups.push({ id, e: ING_BY_ID[id].e, x, y, n: 1, ripe: hasFruit(o) });
+  }
+  return groups;
+}
+function drawFruitMap(ctx, list, k) {
+  const size = Math.max(11, k * 1.8),
+    gs = fruitGroups(list),
+    pos = gs.map((g) => [g.x * k, g.y * k]);
+  // значки разных видов, которые налезают друг на друга (грибы рядом с белыми), — раздвинуть
+  for (let it = 0; it < 6; it++)
+    for (let i = 0; i < pos.length; i++)
+      for (let j = i + 1; j < pos.length; j++) {
+        const dx = pos[j][0] - pos[i][0],
+          dy = pos[j][1] - pos[i][1],
+          d = Math.hypot(dx, dy) || 0.01,
+          push = (size * 1.1 - d) / 2;
+        if (push <= 0) continue;
+        pos[i][0] -= (dx / d) * push;
+        pos[i][1] -= (dy / d) * push;
+        pos[j][0] += (dx / d) * push;
+        pos[j][1] += (dy / d) * push;
+      }
+  gs.forEach((g, i) => {
+    const [x, y] = pos[i];
+    ctx.globalAlpha = g.ripe ? 1 : 0.45;
+    ell(ctx, x, y + 1, size * 0.6, size * 0.6, 'rgba(60,40,30,.22)');
+    ell(ctx, x, y, size * 0.6, size * 0.6, 'rgba(255,255,255,.88)', OUT, 0.9);
+    emoji(ctx, g.e, x, y, size * 0.82);
+    if (g.n > 1) {
+      // сколько растений в группе — маленькая цифра справа снизу
+      const bx = x + size * 0.5,
+        by = y + size * 0.42,
+        r = Math.max(5, size * 0.3);
+      ell(ctx, bx, by, r, r, '#fff', OUT, 0.9);
+      ctx.font = `900 ${Math.round(r * 1.35)}px ui-rounded, "Trebuchet MS", sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = OUT;
+      ctx.fillText(String(g.n), bx, by + 0.5);
+    }
+  });
+  ctx.globalAlpha = 1;
+}
+
+/**
  * Часть локации (parts): подпись «Сорвать…» над растением, рядом с которым стоит хомячок и на котором есть
- * плоды, кнопка в HUD и клавиша E. Нажатие на само растение работает и без неё (tap + use у вида).
+ * плоды, кнопка в HUD и клавиша E; значки «что можно собрать сейчас» на мини-карте. Нажатие на само растение
+ * работает и без неё (tap + use у вида).
  */
 export function createPlants() {
   let list = [],
@@ -863,6 +927,12 @@ export function createPlants() {
         '#fffbe6',
       );
     },
+    /** Мини-карта: значки того, что сейчас в сезоне (близкие растения одного вида — одним значком). */
+    miniMap(ctx, sc, k) {
+      drawFruitMap(ctx, list, k);
+    },
+    /** Значки того, что сейчас в сезоне, без повторов (подпись под картой). */
+    ripeIcons: () => [...new Set(fruitGroups(list).map((g) => g.e))],
     /** Все плодовые растения локации (для заданий и тестов). */
     plants: () => list,
   };

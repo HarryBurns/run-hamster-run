@@ -71,6 +71,17 @@ export function openMap() {
           'Розовая точка — это ты. Нажми на место на карте или на кнопку — и хомячок сама туда дойдёт.',
         ),
       );
+      // что сейчас растёт: значки плодовых растений на карте (common/plants.js) — подпись, что они значат
+      const fruit = (loc.desc.parts || []).find((p) => p.ripeIcons);
+      const icons = fruit ? fruit.ripeIcons() : [];
+      if (icons.length)
+        body.appendChild(
+          el(
+            'p',
+            'muted center map-fruit',
+            `${icons.join(' ')} — здесь сейчас можно собрать урожай. Бледный значок — сегодня уже собрано, завтра поспеет снова.`,
+          ),
+        );
       const row = el('div', 'opt-row');
       row.style.justifyContent = 'center';
       for (const [id, name] of loc.mapPlaces()) {
