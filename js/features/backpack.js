@@ -20,7 +20,7 @@ export function openBackpack() {
     ],
     render(body, tab, panel) {
       if (tab === 'dishes') dishGrid(body, panel, eat);
-      else if (tab === 'ing') ingGrid(body);
+      else if (tab === 'ing') ingGrid(body, panel);
       else if (tab === 'seeds') {
         const ids = Object.keys(S().seeds);
         if (!ids.length) {

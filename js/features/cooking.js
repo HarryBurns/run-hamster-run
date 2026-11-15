@@ -27,7 +27,9 @@ export function openCooking() {
     icon: '🍳',
     cls: '',
     render(body, tab, panel) {
-      body.appendChild(el('p', 'muted', 'Выбери рецепт. Продукты — в ТЦ «Вкусный», на грядках и на рыбалке.'));
+      body.appendChild(
+        el('p', 'muted', 'Выбери рецепт. Продукты — в ТЦ «Вкусный», на грядках и на рыбалке; ягоды и грибы — в городе.'),
+      );
       const known = DISHES.filter((d) => d.needs && S().recipes.includes(d.id));
       known.sort((a, b) => canCook(b) - canCook(a));
       for (const d of known) {
@@ -157,7 +159,19 @@ export function dishGrid(body, panel, onPick, btnText = 'Съесть') {
   body.appendChild(grid);
 }
 
-export function ingGrid(body) {
+/** Съесть продукт просто так, не готовя: фрукты, ягоды, овощи с грядки (у продукта raw: true). */
+export function eatRaw(id) {
+  const i = ING_BY_ID[id];
+  if (!i || !i.raw || !count('ing', id)) return;
+  addItem('ing', id, -1);
+  sfx('eat');
+  toast(`Ням-ням! ${i.e} ${i.name}`, 'good');
+  emit('happy');
+  emit('eat');
+}
+
+/** Продукты в рюкзаке или холодильнике; то, что едят сырым, можно съесть прямо отсюда (panel — чтобы обновить окно). */
+export function ingGrid(body, panel) {
   const ids = Object.keys(S().ing);
   if (!ids.length) {
     body.appendChild(el('p', 'muted center', 'Продуктов нет. Загляни в ТЦ «Вкусный»!'));
@@ -171,6 +185,14 @@ export function ingGrid(body) {
     card.appendChild(el('div', 'e', i.e));
     card.appendChild(el('div', '', i.name));
     card.appendChild(el('span', 'cnt', '×' + S().ing[id]));
+    if (i.raw && panel) {
+      const b = el('button', 'btn small green', 'Съесть');
+      b.onclick = () => {
+        eatRaw(id);
+        if (!panel.closed) panel.refresh();
+      };
+      card.appendChild(b);
+    }
     grid.appendChild(card);
   }
   body.appendChild(grid);
@@ -186,7 +208,7 @@ export function openFridge() {
     ],
     render(body, tab, panel) {
       if (tab === 'dishes') dishGrid(body, panel, eat);
-      else ingGrid(body);
+      else ingGrid(body, panel);
     },
   });
 }
