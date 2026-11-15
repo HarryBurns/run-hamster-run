@@ -9,6 +9,7 @@
 //   --sec=4                 сколько секунд идёт один замер
 //   --minutes=1320          время суток в минутах (720 — полдень; 1320 — ночь со светом фонарей и окон)
 //   --json=файл             сохранить цифры (чтобы потом сравнить)
+//   --quest                 взять задание «Гербарий для Мяты»: над местами для гербария — кружки со значками
 //   --max-forest=40         порог: код возврата 1, если средний кадр в лесу (настольный размер) дольше, мс
 //
 // Оговорка: в headless-Chromium нет видеокарты, канва растеризуется программно. Время кадра при замедлении —
@@ -63,9 +64,10 @@ const SEASON = { winter: { day: 0, weather: 'snow' }, summer: { day: 18, weather
     await wait(400);
     await page.click('text=Поехали!');
     await wait(400);
-    await page.evaluate(() => {
+    await page.evaluate((quest) => {
       window.__dev.go('world');
-    });
+      if (quest) window.__dev.actions.takeQuest('herbarium');
+    }, args.includes('--quest'));
     await wait(400);
     // счётчики: время draw/update города, интервалы между кадрами, число команд канвы внутри draw
     await page.evaluate(() => {
