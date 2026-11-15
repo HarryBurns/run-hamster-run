@@ -852,6 +852,102 @@ module.exports = async function estate({ page, step, ev, wait, closeAll }) {
     else await page.click('.overlay .panel-foot .btn:has-text("заведение")');
     await wait(450);
   };
+  await step('жильё: лесной домик — продаётся, когда лес открыт; покупка, дверь в лесу, «мой дом», «Домой»', async () => {
+    await newGame();
+    await ev(() => window.__dev.go('world'));
+    await wait(300);
+    const card = '.overlay .home-card:has(.ttl:has-text("Лесной домик"))';
+    // лес закрыт: в агентстве домик «скоро» — дорогу покажет Мята, купить нельзя
+    await setMoney(100000);
+    await enter('realtor');
+    expect(
+      (await page.locator(card + '.soon').count()) === 1 && (await text(card)).includes('Мята'),
+      'лесной домик до открытия леса',
+      await text(card),
+    );
+    expect((await page.locator(card + ' .btn').count()) === 0, 'лесной домик можно купить, пока лес закрыт');
+    await closeAll();
+    // лес открыт: дверь домика в лесу — окно риелтора с подсказкой «…продаётся!»
+    await ev(() => {
+      const d = window.__dev;
+      d.actions.openLand('forest');
+      d.go('forest');
+    });
+    await wait(300);
+    const enterCabin = () =>
+      ev(() => {
+        const sc = window.__dev.locations.forest;
+        sc.enterBuilding(sc.map.bById.cabin);
+      });
+    await clearToasts();
+    await enterCabin();
+    await wait(450);
+    expect(
+      (await scene()) === 'forest' &&
+        (await toasts()).includes('Лесной домик продаётся') &&
+        (await page.locator(card + ' .btn').count()) === 1,
+      'дверь некупленного лесного домика',
+      await toasts(),
+    );
+    await ev(() => {
+      window.__stopWatchCabin = window.__dev.watchState();
+    });
+    await page.click(card + ' .btn');
+    await wait(400);
+    await lastOv().locator('.panel-foot .btn.green').click();
+    await wait(700);
+    expect(await page.locator('text=С новосельем!').count(), 'нет поздравления (лесной домик)');
+    let s = await state();
+    expect(s.homesOwned.includes('cabin') && s.money === 55000, 'покупка лесного домика', [s.homesOwned, s.money]);
+    await closeAll();
+    // через дверь в лесу — внутрь: три бревенчатые комнаты, кровать и шкаф на месте
+    await enterCabin();
+    await wait(500);
+    expect((await scene()) === 'cabin', 'через дверь в лесу не вошли в домик', await scene());
+    const inside = await ev(() => {
+      const sc = window.__dev.scene;
+      return { rooms: sc.desc.rooms.map((r) => r.paper), items: window.__dev.houseItems('cabin').map((i) => i.id) };
+    });
+    expect(
+      inside.rooms.length === 3 &&
+        inside.rooms.every((p) => p === 'logs') &&
+        inside.items.some((q) => q.startsWith('bed_')) &&
+        inside.items.includes('wardrobe') &&
+        inside.items.includes('fireplace'),
+      'внутри лесного домика',
+      inside,
+    );
+    // дверь изнутри — обратно в лес, к двери домика; на домике — табличка «мой дом»
+    await leaveByDoor();
+    const out = await ev(() => {
+      const d = window.__dev,
+        sc = d.locations.forest,
+        door = sc.doorOf('cabin'),
+        n = [];
+      sc.desc.things(sc, (y, f) => n.push(f), { x0: 0, y0: 0, x1: 1e6, y1: 1e6 });
+      return { scene: d.sceneName, dx: Math.abs(sc.p.x - door.x), dy: Math.abs(sc.p.y - door.y), plates: n.length };
+    });
+    expect(out.scene === 'forest' && out.dx < 2 && out.dy < 2 && out.plates >= 1, 'выход из лесного домика', out);
+    const bad = await ev(() => window.__stopWatchCabin());
+    expect(!bad.length, 'лесной домик: запись в состояние мимо действий', bad.slice(0, 3));
+    // основной дом — лесной домик: «Домой» из города ведёт в него, его дверь — в лес
+    await ev(() => {
+      const d = window.__dev;
+      d.actions.setMainHome('cabin');
+      d.go('world');
+    });
+    await wait(300);
+    await ev(() => {
+      window.__dev.F.askGoHome();
+    });
+    await wait(400);
+    await page.click('.overlay .panel-foot .btn.green');
+    await wait(500);
+    expect((await scene()) === 'cabin', '«Домой» не привело в лесной домик', await scene());
+    await leaveByDoor();
+    expect((await scene()) === 'forest', 'дверь лесного домика после «Домой» ведёт не в лес', await scene());
+    await ev(() => window.__dev.actions.setMainHome('villa'));
+  });
   await step('бизнес: покупка каждого заведения у хозяина, вывеска, наклейки', async () => {
     await newGame();
     await ev(() => window.__dev.go('world'));

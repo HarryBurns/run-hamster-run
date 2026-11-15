@@ -719,7 +719,9 @@ export default createTopDownScene({
    `guests`, комната с `main: true`. Строка в `OWN_HOMES`.
 2. Строка в `HOMES` (`data/estate.js`) с тем же `id` и цена в `HOME_PRICES`. `soon: 'подпись'` — пока не продаётся.
 3. Дверь в городе: здание с `act: 'home:<id>'` (`BUILDING_ACTS` в `town.js`) и его id в поле `building` этой строки
-   `HOMES` (к этой двери выводит «Домой»). Табличка «мой дом» на здании появится сама.
+   `HOMES` (к этой двери выводит «Домой»). Табличка «мой дом» на здании появится сама. Дверь в другой локации (лесной
+   домик) — здание там же с `act: 'home:<id>'`, в строке `HOMES` — ещё `loc: '<сцена>'`, табличка — крюк `things` локации;
+   продаётся с открытием места — `land: '<место>'` и подпись `soon` до этого.
    Проверки: список `HOMES` в `dev/smoke_estate.js`, `node dev/balance.js`.
 
 ### …новое заведение
@@ -826,7 +828,7 @@ export default createTopDownScene({
 js/data/estate.js        HOMES (жильё) и BUSINESSES (заведения); цены — HOME_PRICES, BIZ, BIZ_RULES в economy.js
 js/data/visits.js        VISIT (часы, когда хозяева дома), NPC_HOME (реплики жителей дома, угощение, приглашение)
 js/interiors/houses.js   все дома одним списком (main.js делает из них сцены): OWN_HOMES, NPC_HOMES
-js/interiors/home_<житель>.js   8 домов жителей;  flat.js, bungalow.js, penthouse.js — жильё;  cabin.js, suite.js — заготовки
+js/interiors/home_<житель>.js   8 домов жителей;  flat.js, bungalow.js, penthouse.js, cabin.js — жильё;  suite.js — заготовка
 js/art/furniture_homes.js       рисунки 27 предметов «как у соседей» (подключаются к таблице D в furniture.js)
 js/features/visits.js    дверь домика, хозяин дома (чай, угощение), телескоп, гигантский холодильник, духовка
 js/features/homes.js     риелтор (агентство), «Мои дома», основной дом и «Домой», двери своих домов
@@ -855,7 +857,7 @@ dev/furniture.html       весь каталог мебели на одной с
 | `telescope`, `bigfridge`, `oven` | особая мебель: звёзды вечером; холодильник (в гостях — пончик раз в день); духовка | мебель (`act` в каталоге) |
 | `realtor` | окно «Недвижимость»: купить жильё и «Мои дома» | дверь агентства «Свой домик» (здание `realtor`) |
 | `realtor:mine` | окно «Мои дома»: только список и выбор основного дома (купить и перейти в дом отсюда нельзя) | кнопка в ⚙️ меню, «Выбрать основной дом» в вопросе «Домой?» |
-| `home:<id>` | дверь своего жилья: куплено — войти (`ctx.back` — место у двери), нет — окно риелтора | здания `home_apartment` (`home:flat`) и `home_bungalow` (`home:bungalow`), лифт башни (`home:penthouse`) |
+| `home:<id>` | дверь своего жилья: куплено — войти (`ctx.back` — место у двери), нет — окно риелтора | здания `home_apartment` (`home:flat`) и `home_bungalow` (`home:bungalow`), лифт башни (`home:penthouse`), лесной домик в лесу (`home:cabin`) |
 | `home-exit` | дверь своего дома изнутри: туда, откуда пришли (или в город) | `exit` в описании дома |
 | `biz:<id>` | «кабинет» заведения: купить или касса, работа, блюдо дня, вывеска | кнопка в окне заведения, вариант в диалоге у двери |
 | `my-biz` | окно «Мои заведения» | кнопки в банке и в меню |
@@ -889,7 +891,7 @@ dev/furniture.html       весь каталог мебели на одной с
 платят больше и растёт выручка дня — это считает `features/minigames.js` (`jobToday(id, biz)`, `markBizWorked`).
 
 **Движок домов: что добавилось** (подробно — в начале `engine/side/rooms.js`, `fixtures.js`, `items.js`):
-обои `paper: 'dots' | 'flowers' | 'stars' | 'waves' | 'diamonds' | 'brick' | 'open'` (терраса), пол `'deck'`;
+обои `paper: 'dots' | 'flowers' | 'stars' | 'waves' | 'diamonds' | 'brick' | 'logs'` (брёвна) `| 'open'` (терраса), пол `'deck'`;
 окна `win: x | [x, …]`, `winW` (панорамное), `view: 'sea' | 'city' | 'forest'`; дом снаружи —
 `shell: { flat, trees: 'palm' | 'fir', ground: 'sand' | 'tower' }`; у встроенных предметов — цвет `c`
 и `acts: { зона: действие }`; у мебели — действия `spin`, `look`, `water`, `sport` и подпись `say`;
@@ -1025,5 +1027,11 @@ dev/smoke_forest.js          автотест (step:лес);  dev/bench.js — �
   `hunts`), знакомство с Шишкиным — `flags.metShishkin`, украшения — в кладовке (`storage`).
 - **Событие** `forest { what }` — `hive`, `squirrel`, `trade`, `fire`, `treehouse`, `wreath`, `kit`, `kitHome`: по нему
   считаются шаги заданий (`{ on: 'forest', if: { what: 'kit' } }`).
-- Чего нет: войти в избушку нельзя (дверь — разговор с Шишкиным); «лесного домика» (жильё за 45 000 из DESIGN) в лесу
-  пока не продают; звёздочка из города к заданию в лесу не ведёт (только подсказка словами).
+- **Лесной домик** (жильё, раздел 11): здание `cabin` (вид `house`, дорисовка `cabinArt` в `forest_art.js`) с действием
+  `home:cabin`; в `HOMES` у него `building: 'cabin'`, `loc: 'forest'` (в какой локации дверь — к ней выводит «Домой»)
+  и `land: 'forest'` (продаётся, когда лес открыт; до этого — подпись `soon`). Полянка вокруг расчищена после
+  постройки леса (`m.clear`), чтобы случайные числа леса не сдвинулись. Табличка «🔑 мой дом» / «ПРОДАЁТСЯ» —
+  крюк `things` (`drawCabinPlate`). Внутри — `interiors/cabin.js`: три комнаты с обоями `logs` (бревенчатая стена,
+  `engine/side/rooms.js`).
+- Чего нет: войти в избушку нельзя (дверь — разговор с Шишкиным); звёздочка из города к заданию в лесу не ведёт
+  (только подсказка словами).

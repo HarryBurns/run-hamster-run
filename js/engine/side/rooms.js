@@ -177,7 +177,7 @@ function terrace(ctx, geo, r, y) {
 }
 
 /**
- * Обои комнаты: paper — 'planks' (доски, как в сауне), 'tile' (плитка), 'open' (терраса без стены),
+ * Обои комнаты: paper — 'planks' (доски, как в сауне), 'logs' (бревенчатая стена), 'tile' (плитка), 'open' (терраса без стены),
  * узор с панелью понизу ('dots', 'flowers', 'stars', 'waves', 'diamonds', 'brick') или полоски с панелью (по умолчанию).
  */
 function wallpaper(ctx, geo, r, y) {
@@ -193,6 +193,22 @@ function wallpaper(ctx, geo, r, y) {
     ctx.strokeStyle = 'rgba(120,70,20,.3)';
     ctx.lineWidth = 2;
     for (let yy = y - RH + 25; yy < y; yy += 25) line(ctx, r.x0, yy, r.x1, yy, 'rgba(120,70,20,.3)', 2);
+  } else if (paper === 'logs') {
+    // бревенчатая стена: брёвна одно на другом — блик сверху, тень снизу, редкие сучки
+    const lh = 28,
+      w = r.x1 - r.x0;
+    for (let yy = y - RH, i = 0; yy < y; yy += lh, i++) {
+      const h = Math.min(lh, y - yy);
+      if (i % 2) {
+        ctx.fillStyle = shade(r.wall, -0.07);
+        ctx.fillRect(r.x0, yy, w, h);
+      }
+      ctx.fillStyle = 'rgba(255,255,255,.2)';
+      ctx.fillRect(r.x0, yy + 3, w, 3);
+      ctx.fillStyle = 'rgba(90,50,20,.3)';
+      ctx.fillRect(r.x0, yy + h - 4, w, 4);
+      for (let xx = r.x0 + 30 + ((i * 97) % 150); xx < r.x1 - 20; xx += 190) ell(ctx, xx, yy + h / 2, 4.5, 2.6, 'rgba(90,50,20,.32)');
+    }
   } else if (paper === 'tile') {
     ctx.strokeStyle = 'rgba(255,255,255,.55)';
     ctx.lineWidth = 2;

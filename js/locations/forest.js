@@ -13,12 +13,12 @@
 // находки на земле), улей, белка, костёр, домик на дереве, бельчонок из задания Шишкина, станция канатной дороги
 // (way:mountain — замочек, LANDS). Атмосфера: днём лучики сквозь кроны, зимой падает снег, ночью темно,
 // светлячки летом (их рисует движок над травой), у ручья журчит вода.
-import { G, cal, questNow, darkness } from '../core/state.js';
+import { G, cal, questNow, darkness, ownsHome } from '../core/state.js';
 import { clamp, seeded } from '../core/util.js';
 import { FOREST_GATHER, FOREST, QUEST_BY_ID, wildIn, DAYS_PER_MONTH } from '../data/index.js';
 import { T, put, createTopDownScene } from '../engine/topdown/index.js';
 import { createPlants } from './common/plants.js';
-import { hutArt, drawSunbeams } from './forest_art.js';
+import { hutArt, cabinArt, drawCabinPlate, drawSunbeams } from './forest_art.js';
 import './common/index.js';
 
 const W = 50,
@@ -175,6 +175,7 @@ const TWIGS = [
 // особые места
 const AT = {
   hut: { x: 4, y: 30, w: 3, h: 2 },
+  cabin: { x: 14, y: 33, w: 3, h: 2 }, // лесной домик: дверь внизу посередине — клетка (15, 35)
   station: { x: 42, y: 3, w: 4, h: 2 },
   fire: [24, 21],
   hive: [42, 14],
@@ -281,8 +282,18 @@ function build(m) {
   // указатель у ворот
   put1('signpost', 12, 36, { text: '🏙️ Город', text2: '🔥 Костёр' });
   // перед зданиями — свободно (там двери)
-  for (const b of [AT.hut, AT.station])
+  for (const b of [AT.hut, AT.station, AT.cabin])
     for (let x = b.x - 1; x <= b.x + b.w; x++) for (let y = b.y; y <= b.y + b.h + 1; y++) m.clear(x, y);
+  // полянка вокруг лесного домика: расчищена после того, как всё выросло (случайные числа леса не сдвигаются),
+  // у крыльца — цветы
+  for (let y = 32; y <= 38; y++)
+    for (let x = 12; x <= 18; x++) if (!path.has(x + ',' + y) && !(x === 12 && y === 36)) m.clear(x, y);
+  for (const [x, y, v] of [
+    [13, 36, 0],
+    [17, 36, 2],
+    [18, 33, 1],
+  ])
+    m.add('flowers', x, y, { v });
 }
 
 /** Клетки, до которых от ворот не дойти пешком, — закрыть (чтобы туда не попасть и ничего там не потерять). */
@@ -379,6 +390,21 @@ const forest = createTopDownScene({
       frame: [-64, -100, 3 * T + 64, 2 * T + 44],
       act: 'forester',
     },
+    // лесной домик — своё жильё (HOMES.cabin, building: 'cabin'): куплен — войти, нет — окно риелтора
+    {
+      id: 'cabin',
+      kind: 'house',
+      ...AT.cabin,
+      name: 'Лесной домик',
+      icon: '🏠',
+      wall: '#c98b5a',
+      roof: '#b8553a',
+      shutters: '#2f9e44',
+      smoke: true,
+      art: cabinArt,
+      frame: [-56, -100, 3 * T + 56, 2 * T + 44],
+      act: 'home:cabin',
+    },
     // станция канатной дороги: на гору (откроется заданием Сени — LANDS.mountain); пока — окно с замочком
     { id: 'station', kind: 'cableway', ...AT.station, name: 'Канатная дорога', icon: '🚡', act: 'way:mountain' },
   ],
@@ -470,8 +496,14 @@ const forest = createTopDownScene({
   enter(sc) {
     dailyPickups(sc);
   },
-  /** Бельчонок из задания Шишкина: сидит в траве, пока его не нашли (особое место kit). */
+  /**
+   * Табличка у лесного домика («🔑 мой дом» или «ПРОДАЁТСЯ») и бельчонок из задания Шишкина: сидит в траве, пока
+   * его не нашли (особое место kit).
+   */
   things(sc, add, v) {
+    const cb = sc.map.bById.cabin;
+    if (cb.x * T < v.x1 + 60 && (cb.x + cb.w) * T > v.x0 - 60 && cb.y * T < v.y1 && (cb.y + cb.h) * T > v.y0)
+      add((cb.y + cb.h) * T + 2, (ctx) => drawCabinPlate(ctx, cb, ownsHome('cabin')));
     if (!kitHidden()) return;
     const x = (AT.kit[0] + 0.5) * T,
       y = (AT.kit[1] + 0.5) * T;

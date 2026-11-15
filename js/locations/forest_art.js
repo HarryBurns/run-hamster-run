@@ -687,6 +687,43 @@ export function hutArt(ctx, g, snow) {
   ctx.stroke();
 }
 
+/**
+ * Дорисовка лесного домика (жильё, data/estate.js): торцы брёвен по углам, поленница слева, ящик с цветами под
+ * окном, у крыльца — фонарик на столбике (ночью горит).
+ */
+export function cabinArt(ctx, g, snow, lit) {
+  for (const x of [g.wx - 2, g.wx + g.ww + 2])
+    for (let y = g.wallTop + 8; y < g.bot - 8; y += 11) ell(ctx, x, y, 5, 4.6, WOOD_L, OUT, 1.3);
+  // поленница у левой стены
+  const px = g.X - 2,
+    py = g.bot - 4;
+  for (let r = 0; r < 2; r++)
+    for (let i = 0; i < 3 - r; i++) ell(ctx, px + i * 10 + r * 5, py - r * 8.5, 5, 4.3, WOOD_L, OUT, 1.3);
+  if (snow) ell(ctx, px + 10, py - 14, 14, 3.6, '#ffffff', '#cfe3f0', 1.1);
+  // фонарик у крыльца
+  const lx = g.cx + 38;
+  line(ctx, lx, g.bot + 4, lx, g.bot - 40, OUT, 4);
+  line(ctx, lx, g.bot + 4, lx, g.bot - 40, WOOD_D, 2);
+  if (lit) {
+    ctx.fillStyle = 'rgba(255,224,130,.35)';
+    ctx.beginPath();
+    ctx.arc(lx, g.bot - 46, 16, 0, TAU);
+    ctx.fill();
+  }
+  fillRR(ctx, lx - 6, g.bot - 54, 12, 14, 3, lit ? LIT : '#fff3bf', OUT, 1.6);
+  poly(ctx, [lx - 8, g.bot - 54, lx, g.bot - 61, lx + 8, g.bot - 54], '#2b8a3e', OUT, 1.4);
+}
+
+/** Табличка у лесного домика: «🔑 мой дом» (куплен) или «ПРОДАЁТСЯ» на колышке у крыльца — каждый кадр поверх спрайта. */
+export function drawCabinPlate(ctx, b, owned) {
+  const x = (b.x + b.w) * T - 6,
+    bot = (b.y + b.h) * T;
+  line(ctx, x, bot + 6, x, bot - 24, OUT, 4);
+  line(ctx, x, bot + 6, x, bot - 24, WOOD_D, 2);
+  if (owned) signBoard(ctx, '🔑 мой дом', x, bot - 34, 84, 22, 'plate', '#2f9e44');
+  else signBoard(ctx, 'ПРОДАЁТСЯ', x, bot - 34, 76, 20, 'wood');
+}
+
 // ---------- лучики сквозь кроны (днём) ----------
 const BEAMS = [
   [0.06, 0.05, 0.5],

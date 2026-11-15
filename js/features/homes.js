@@ -6,8 +6,8 @@
 //   'realtor:mine'       только список «Мои дома» и выбор основного дома — кнопка в ⚙️ меню (купить там нельзя)
 //   'home:<id>'          дверь своего жилья: куплено — войти (ctx.back — место у двери), нет — окно риелтора
 //   'home-exit'          дверь изнутри (поле exit в описании дома): туда, откуда пришли
-// В дом входят через дверь его здания в городе (locations/town.js: квартира — 'home_apartment', бунгало —
-// 'home_bungalow'; пентхаус — из лифта Хомяк-Тауэра). Мгновенного перехода «в любой дом» нет; кнопка «Домой»
+// В дом входят через дверь его здания (locations/town.js: квартира — 'home_apartment', бунгало — 'home_bungalow';
+// пентхаус — из лифта Хомяк-Тауэра; лесной домик — здание 'cabin' в лесу, locations/forest.js, поле loc в HOMES). Мгновенного перехода «в любой дом» нет; кнопка «Домой»
 // ведёт в основной дом, а его дверь выводит к двери здания (поле building в HOMES, data/estate.js).
 import { addHome, award, setMainHome } from '../core/actions.js';
 import { sfx } from '../core/audio.js';
@@ -15,24 +15,28 @@ import { makeCanvas, fillRR, line, poly, ell, shade } from '../core/draw.js';
 import { emit } from '../core/events.js';
 import { go, scene, sceneName, scenes } from '../core/loop.js';
 import { register } from '../core/registry.js';
-import { G, ownsHome, ownedHomes } from '../core/state.js';
+import { G, ownsHome, ownedHomes, landOpen } from '../core/state.js';
 import { el, fmtMoney } from '../core/util.js';
 import { HOMES, HOME_BY_ID, VENDORS, vendorLook } from '../data/index.js';
-import { currentLocation, homeLocation } from '../engine/topdown/index.js';
+import { currentLocation, homeLocation, getLocation } from '../engine/topdown/index.js';
 import { HOUSE_BY_ID } from '../interiors/houses.js';
 import { openPanel, message, confirmBox } from '../ui/panel.js';
 import { toast } from '../ui/toast.js';
 import { buy, priceTag, buyBtn, lacking } from './purchase.js';
 
 const S = () => G.state;
+/** «Скоро»: подпись, пока жильё не продаётся (лесной домик — пока лес не открыт), или null — уже продаётся. */
+const soonNote = (h) => (h.soon && !(h.land && landOpen(h.land)) ? h.soon : null);
 /** Что уже продаётся (без заготовок «скоро»). */
-const onSale = () => HOMES.filter((h) => h.id !== 'villa' && !h.soon);
+const onSale = () => HOMES.filter((h) => h.id !== 'villa' && !soonNote(h));
+/** Локация, где стоит дверь жилья (поле loc в HOMES; без него — город). */
+const homeLoc = (h) => (h && h.loc && getLocation(h.loc)) || homeLocation();
 
 // ---------- переходы ----------
 /** Место у двери здания, где это жильё (для дома, в который пришли не через дверь, а кнопкой «Домой»). */
 function doorOutside(id) {
-  const loc = homeLocation(),
-    h = HOME_BY_ID[id],
+  const h = HOME_BY_ID[id],
+    loc = homeLoc(h),
     d = h && h.building ? loc.spot(h.building) : null;
   return d ? { scene: loc.name, x: d.x, y: d.y } : { scene: loc.name };
 }
@@ -149,7 +153,7 @@ async function buyHome(h, panel) {
   if (panel && !panel.closed) panel.close();
   // в дом входят через дверь: предлагаем дойти до неё (как кнопка на карте), если мы в городе
   const loc = currentLocation(),
-    canWalk = !!h.building && sceneName() === loc.name;
+    canWalk = !!h.building && sceneName() === loc.name && loc === homeLoc(h);
   const i = await message({
     title: 'С новосельем!',
     icon: '🔑',
@@ -163,7 +167,8 @@ async function buyHome(h, panel) {
 function homeCard(h, panel, mine) {
   const owned = ownsHome(h.id),
     here = scene() && scene().name === h.id;
-  const li = el('div', 'list-item home-card' + (h.soon ? ' soon' : ''));
+  const soon = soonNote(h);
+  const li = el('div', 'list-item home-card' + (soon ? ' soon' : ''));
   if (HOUSE_BY_ID[h.id]) li.appendChild(planCanvas(HOUSE_BY_ID[h.id]));
   const main = S().homeMain === h.id;
   const info = el(
@@ -189,9 +194,9 @@ function homeCard(h, panel, mine) {
       };
       side.appendChild(m);
     }
-  } else if (h.soon) {
+  } else if (soon) {
     side.appendChild(el('div', 'pr far', `🪙 ${fmtMoney(h.price)}`));
-    side.appendChild(el('div', 'soon-note', h.soon));
+    side.appendChild(el('div', 'soon-note', soon));
   } else {
     const pr = el('div', 'card-pr');
     pr.appendChild(priceTag(h.price));
