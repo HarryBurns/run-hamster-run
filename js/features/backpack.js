@@ -1,5 +1,4 @@
-// Рюкзак: вкусняшки, продукты, семена, кладовка; отсюда же можно продать лишнее на рынке.
-import { run } from '../core/registry.js';
+// Рюкзак: вкусняшки, продукты, семена, кладовка. Продают лишнее на рынке — у прилавков на площади.
 import { G } from '../core/state.js';
 import { el } from '../core/util.js';
 import { FURN_BY_ID, ING_BY_ID, SEED_BY_ID } from '../data/index.js';
@@ -18,17 +17,6 @@ export function openBackpack() {
       { id: 'ing', name: '🥕 Продукты' },
       { id: 'seeds', name: '🌱 Семена' },
       { id: 'furn', name: '📦 Кладовка' },
-    ],
-    // рынок пока без своего прилавка в городе: продать можно прямо отсюда
-    foot: [
-      {
-        text: '💰 Продать',
-        cls: 'yellow',
-        fn: (panel) => {
-          panel.close();
-          run('market');
-        },
-      },
     ],
     render(body, tab, panel) {
       if (tab === 'dishes') dishGrid(body, panel, eat);
