@@ -580,7 +580,7 @@ defineObjects({
       squirrel: [[-28, -40, 16, 14], paintSquirrel],
       // бельчонок (задание Шишкина) — та же белка, только маленькая
       squirrelKit: [
-        [-20, -30, 16, 12],
+        [-22, -32, 22, 12],
         (ctx, tail, dir) => {
           ctx.scale(0.72, 0.72);
           paintSquirrel(ctx, tail, dir);

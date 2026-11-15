@@ -20,6 +20,7 @@ import {
   earn,
   meetFriend,
   setFlag,
+  learnRecipe,
 } from '../core/actions.js';
 import { sfx } from '../core/audio.js';
 import { on, emit } from '../core/events.js';
@@ -37,6 +38,7 @@ import {
   CLOTHES_BY_ID,
   EXTRA_STICKERS,
   QUEST_GIFT_COINS,
+  DISH_BY_ID,
 } from '../data/index.js';
 import { homeLocation, currentLocation, getLocation, setTargetHook } from '../engine/topdown/index.js';
 import { dialog } from '../ui/dialog.js';
@@ -295,6 +297,11 @@ function complete(q) {
     openLand(r.open);
     got.land = LAND_BY_ID[r.open];
   }
+  if (r.recipe) {
+    if (!S().recipes.includes(r.recipe)) learnRecipe(r.recipe);
+    got.recipe = DISH_BY_ID[r.recipe];
+  }
+  got.hint = r.hint || null;
   if (tracked === q.id) tracked = null;
   emit('hud');
   return got;
@@ -311,7 +318,9 @@ function celebrate(q, got) {
     got.land ? `<p class="land-open">${got.land.icon} <b>${got.land.name} открыт!</b><br>${got.land.at ? `Вход — ${got.land.at}.` : ''}</p>` : '',
     st ? `<p>Наклейка «${st.title}» ${st.isNew ? '— новая в альбоме!' : '— такая у тебя уже есть.'}</p>` : '',
     got.clothes ? `<p>🎁 Подарок: <b>${got.clothes.name}</b> — уже в шкафу!</p>` : '',
+    got.recipe ? `<p>📜 Секретный рецепт: <b>${got.recipe.e} ${got.recipe.name}</b> — готовь на кухне!</p>` : '',
     got.coins ? `<p class="reward">🪙 +${fmtMoney(got.coins)} монет</p>` : '',
+    got.hint ? `<p class="muted">${got.hint}</p>` : '',
   ].join('');
   enqueue(
     () => {

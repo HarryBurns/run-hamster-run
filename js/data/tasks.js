@@ -125,4 +125,5 @@ export const EXTRA_STICKERS = [
   { id: 'x_healthy', sticker: '🌡️', title: 'Будь здоров!' },
   // сюжетные задания (журнал, data/quests.js): наклейка — награда за задание
   { id: 'q_herbarium', sticker: '🌱', title: 'Юный ботаник' },
+  { id: 'q_forest', sticker: '🌲', title: 'Друг леса' },
 ];

@@ -354,7 +354,21 @@ export async function mushroomHunt() {
   return res;
 }
 
+// ---------- бельчонок (задание «Потерянный бельчонок», data/quests.js) ----------
+/** Нашли бельчонка на грибной поляне (место kit видно, пока задание на первом шаге). */
+export async function findKit() {
+  emit('forest', { what: 'kit' });
+  sfx('win');
+  await message({
+    title: 'Бельчонок нашёлся!',
+    icon: '🐿️',
+    html: '<p class="center big-emoji">🐿️🍄</p><p class="center">Вот он, малыш! Сидит под грибом и пищит. Бельчонок запрыгнул к тебе в корзинку — неси его маме на старый дуб за мостиком!</p>',
+    buttons: [{ text: 'Идём к маме!' }],
+  });
+}
+
 const FOREST_ACTS = {
+  kit: findKit,
   hunt: mushroomHunt,
   hive: visitHive,
   squirrel: visitSquirrel,
