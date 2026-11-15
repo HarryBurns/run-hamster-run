@@ -16,7 +16,7 @@ import { G, invitedToday } from '../../core/state.js';
 import { rnd, dist } from '../../core/util.js';
 import { NPC_BY_ID, VISIT, npcLook } from '../../data/index.js';
 import { drawHamster, blinkAt } from '../../art/hamster.js';
-import { T, PS, SP, OBJECTS, tileOf } from './kinds.js';
+import { T, PS, SP, OBJECTS, tileOf, doorX } from './kinds.js';
 
 /**
  * Сдвинуть ent ({ x, y, dir, path, moving, walkT }) по его пути. true — в этом шаге дошли до конца.
@@ -77,7 +77,7 @@ export function makeResidents(m) {
       def: a,
       act: a.act || 'npc:' + a.npc,
       hang: a.at,
-      home: b ? [b.x + Math.floor(b.w / 2), b.y + b.h + 1] : Array.isArray(a.home) ? a.home : null,
+      home: b ? [Math.floor(b.x + b.w / 2 + doorX(b) / T), b.y + b.h + 1] : Array.isArray(a.home) ? a.home : null,
       ph: 1 + i * 2.3,
       x: (a.at[0] + 0.5) * T,
       y: (a.at[1] + 0.5) * T,

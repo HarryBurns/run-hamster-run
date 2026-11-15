@@ -8,6 +8,7 @@ export {
   hash,
   label,
   tileOf,
+  doorX,
   defineTiles,
   defineObjects,
   defineBuildings,

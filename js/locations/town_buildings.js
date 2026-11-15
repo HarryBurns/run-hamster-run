@@ -7,7 +7,7 @@
 // и вьюнок Мяты, телескоп Профессора…) и HOUSE_STYLE[житель] (цвет ставней, дымок из трубы).
 import { TAU } from '../core/util.js';
 import { ell, fillRR, line, poly, rr, shade, emoji } from '../core/draw.js';
-import { T, OUT, defineBuildings } from '../engine/topdown/kinds.js';
+import { T, OUT, doorX, defineBuildings } from '../engine/topdown/kinds.js';
 import {
   geom,
   baseShadow,
@@ -292,7 +292,7 @@ function paintSalon(ctx, b, snow, lit) {
         lit ? '#fff' : '#ffe9a0',
       );
   });
-  door(ctx, cx + 42, bot, 34, 64, '#e64980', { glass: true, lit, frame: '#fff8ec' });
+  door(ctx, cx + doorX(b), bot, 34, 64, '#e64980', { glass: true, lit, frame: '#fff8ec' });
   barberPole(ctx, X + W - 18, bot - 76, 54);
   // сердечки-наклейки на стене
   for (const [dx, dy] of [
@@ -343,7 +343,7 @@ function paintBoutique(ctx, b, snow, lit) {
     ell(c, x + 50, y + 22, 13, 4, '#845ef7', OUT, 1.2);
     fillRR(c, x + 43, y + 12, 14, 10, 4, '#845ef7', OUT, 1.2);
   });
-  door(ctx, cx + 46, bot, 34, 64, '#fff8ec', { glass: true, lit, frame: '#845ef7', arch: true });
+  door(ctx, cx + doorX(b), bot, 34, 64, '#fff8ec', { glass: true, lit, frame: '#845ef7', arch: true });
   wallLamp(ctx, X + W - 14, bot - 70, lit);
   signBoard(ctx, title(b), cx, g.top + 30, W - 14, 26, 'plate', '#845ef7');
   bow(ctx, cx, g.top - 2, 1.1, '#ff8fab');
@@ -414,7 +414,7 @@ function paintCafe(ctx, b, snow, lit) {
       items.forEach((col, i) => cake(c, x + 18 + i * 30, yy, col));
     }
   });
-  door(ctx, cx + 40, bot, 34, 64, '#d6336c', { glass: true, lit, frame: '#fff8ec' });
+  door(ctx, cx + doorX(b), bot, 34, 64, '#d6336c', { glass: true, lit, frame: '#fff8ec' });
   chalkboard(ctx, X + W - 18, bot + 2);
   signBoard(ctx, title(b), cx - 14, g.top + 28, W - 62, 25, 'plate', '#d6336c');
   bigCup(ctx, X + W - 34, g.top + 14, !snow);
@@ -1112,7 +1112,7 @@ function paintRealtor(ctx, b, snow, lit) {
       fitText(c, price, x + 19 + i * 33, y + 42, 24, 6.5, '#2f9e44');
     });
   });
-  door(ctx, cx + 62, bot, 36, 66, shade(b.roof, -0.05), { glass: true, lit, frame: '#fff8ec' });
+  door(ctx, cx + doorX(b), bot, 36, 66, shade(b.roof, -0.05), { glass: true, lit, frame: '#fff8ec' });
   wallLamp(ctx, cx + 92, bot - 62, lit);
   signBoard(ctx, title(b), cx, Y + 92, W - 30, 24, 'plate', '#5c940d');
   // табличка «Продаётся» у крыльца
@@ -1499,9 +1499,10 @@ defineBuildings({
     hitUp: () => 60,
     lights: (b) => doorLight(b, 130, 30),
   },
-  salon: { paint: paintSalon, box: wideBox(60), lights: (b) => doorLight(b) },
-  boutique: { paint: paintBoutique, box: wideBox(60), lights: (b) => doorLight(b) },
-  cafe: { paint: paintCafe, box: wideBox(76), lights: (b) => doorLight(b) },
+  // doorX — дверь сбоку от витрины (сдвиг от середины фасада): хомячок встаёт именно под ней
+  salon: { paint: paintSalon, doorX: 42, box: wideBox(60), lights: (b) => doorLight(b) },
+  boutique: { paint: paintBoutique, doorX: 46, box: wideBox(60), lights: (b) => doorLight(b) },
+  cafe: { paint: paintCafe, doorX: 40, box: wideBox(76), lights: (b) => doorLight(b) },
   rest: { paint: paintRest, box: wideBox(60), lights: (b) => doorLight(b, 130) },
   poolhall: { paint: paintPool, box: wideBox(112, 50), hitUp: () => 60, lights: (b) => doorLight(b) },
   beachcafe: { paint: paintBeachCafe, box: wideBox(50, 50), lights: (b) => doorLight(b, 100) },
@@ -1528,7 +1529,7 @@ defineBuildings({
     lights: (b) => doorLight(b, 90, b.floors * T * 0.62 - b.h * T + T + 60),
   },
   market: { paint: paintMarket, box: wideBox(40), lights: (b) => doorLight(b, 110) },
-  realtor: { paint: paintRealtor, box: wideBox(50), lights: (b) => doorLight(b) },
+  realtor: { paint: paintRealtor, doorX: 62, box: wideBox(50), lights: (b) => doorLight(b) },
   apartment: { paint: paintApartment, box: wideBox(150), hitUp: () => 90, lights: (b) => doorLight(b, 100, 84) },
   bungalow: { paint: paintBungalow, box: wideBox(60, 50), lights: (b) => doorLight(b) },
   hotel: { paint: paintHotel, box: wideBox(170), hitUp: () => 110, lights: (b) => doorLight(b, 150, 90) },

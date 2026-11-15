@@ -17,7 +17,7 @@
 // После постройки: m.kindAt(tx, ty) — вид клетки; m.foot / m.dry — «можно ли пройти» для героя пешком и для
 // жителей (их передают в поиск пути, см. path.js); m.route(кто, x, y, точно, pass) — проложить путь.
 import { clamp } from '../../core/util.js';
-import { T, TILES, OBJECTS, BUILDING_KINDS, tileOf } from './kinds.js';
+import { T, TILES, OBJECTS, BUILDING_KINDS, tileOf, doorX } from './kinds.js';
 import { findPath, nearest } from './path.js';
 
 /** Размер карты в клетках по описанию (не строя её). */
@@ -107,8 +107,8 @@ export function createMap(desc) {
       const row = slow[tileOf(py)];
       return (row && row[tileOf(px)]) || null;
     },
-    /** Где стоят, войдя в здание или выйдя из него: под дверью (дверь — снизу по центру «пятна»). */
-    doorPx: (b) => ({ x: (b.x + b.w / 2) * T, y: (b.y + b.h) * T + T * 0.45 }),
+    /** Где стоят, войдя в здание или выйдя из него: под дверью (дверь — снизу «пятна», по центру или со сдвигом doorX). */
+    doorPx: (b) => ({ x: (b.x + b.w / 2) * T + doorX(b), y: (b.y + b.h) * T + T * 0.45 }),
     nearest: (pass, tx, ty, maxR) => nearest(pass, tx, ty, maxR),
     path: (pass, sx, sy, tx, ty) => findPath(w, h, pass, sx, sy, tx, ty),
     /**

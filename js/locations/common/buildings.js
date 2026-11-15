@@ -15,7 +15,7 @@
 import { NPC_BY_ID } from '../../data/index.js';
 import { TAU } from '../../core/util.js';
 import { ell, fillRR, line, poly, rr, shade } from '../../core/draw.js';
-import { T, OUT, SP, hash, defineBuildings } from '../../engine/topdown/kinds.js';
+import { T, OUT, SP, hash, doorX, defineBuildings } from '../../engine/topdown/kinds.js';
 import { SHADOW, STONE, LIT, signBoard, awning, flower, grad, snowCap } from './paint.js';
 
 /** Размеры «пятна» здания b в единицах мира. */
@@ -433,7 +433,7 @@ function paintShop(ctx, b, snow, lit, mall) {
     door(ctx, cx, bot, 60, wh + 18, '#fff', { double: true, glass: true, lit });
   } else {
     showcase(ctx, X + 16, g.wy, W * 0.4, wh, lit);
-    door(ctx, cx + (b.w < 5 ? 28 : 0), bot, 34, 60, shade(b.roof, -0.1), { glass: true, lit });
+    door(ctx, cx + doorX(b), bot, 34, 60, shade(b.roof, -0.1), { glass: true, lit });
   }
   signBoard(
     ctx,
@@ -511,7 +511,7 @@ export function facadeLights(b, r = 90, up = 0) {
     bot = (b.y + b.h) * T,
     hh = b.h * T + up;
   return [
-    [cx, bot + 8, r, r * 0.42, 0.9],
+    [cx + doorX(b), bot + 8, r, r * 0.42, 0.9],
     [cx, bot - hh * 0.5, b.w * T * 0.56, hh * 0.56, 0.72],
   ];
 }
@@ -547,6 +547,7 @@ defineBuildings({
   },
   shop: {
     paint: (ctx, b, snow, lit) => paintShop(ctx, b, snow, lit, false),
+    doorX: (b) => (b.w < 5 ? 28 : 0), // у узкой лавки дверь сбоку от витрины
     lights: (b) => facadeLights(b, 80),
   },
   mall: {
