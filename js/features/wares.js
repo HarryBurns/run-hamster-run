@@ -37,9 +37,7 @@ export function wareToday(it) {
     rule = wareRule(it, month);
   // рынок: торговец привозит несколько вещиц из тех, что сегодня «в привозе»; магазины — каждая вещь по своему правилу
   const here =
-    it.shop === 'market'
-      ? trinketsToday().some((q) => q.def === it)
-      : stockToday(it.shop, it.id, rule).state === 'ok';
+    it.shop === 'market' ? trinketsToday().some((q) => q.def === it) : stockToday(it.shop, it.id, rule).state === 'ok';
   const price = warePrice(it, month);
   return { season: wareSeason(it, month), price, sale: price < it.price, here, fresh: here && !!rule };
 }

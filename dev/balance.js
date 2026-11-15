@@ -213,7 +213,12 @@ const { pathToFileURL } = require('url');
     bad('ассортимент дня: несезонное должно быть то в ТЦ, то на рынке, то нигде');
   // (з) вещи: одежда, мебель, украшения — сезоны, «привоз» и распродажа (data/wares.js, WARES в economy.js)
   const { WARES, WARE_MONTHS } = D;
-  const WARE_SHOPS = { mall: 'ТЦ «Модный»', boutique: 'бутик «Бантик»', beach: 'пляжный магазинчик', home: 'ТЦ «Уютный дом»' };
+  const WARE_SHOPS = {
+    mall: 'ТЦ «Модный»',
+    boutique: 'бутик «Бантик»',
+    beach: 'пляжный магазинчик',
+    home: 'ТЦ «Уютный дом»',
+  };
   const allWares = [...D.CLOTHES, ...D.FURNITURE];
   for (const k of ['off', 'delivery', 'special'])
     if (!(WARES[k] && WARES[k].days >= 1 && WARES[k].days < WARES[k].of && !WARES[k].max))
@@ -255,7 +260,9 @@ const { pathToFileURL } = require('url');
       st.min = Math.min(st.min, on.length);
       st.max = Math.max(st.max, on.length);
       if (on.length < WARES.minChoice[shop])
-        bad(`${shopName}: день ${day} — на витрине всего ${on.length} вещей (нужно не меньше ${WARES.minChoice[shop]})`);
+        bad(
+          `${shopName}: день ${day} — на витрине всего ${on.length} вещей (нужно не меньше ${WARES.minChoice[shop]})`,
+        );
       for (const t of tabs)
         if (!on.some((d) => (d.slot || d.cat) === t)) bad(`${shopName}: день ${day} — отдел ${t} пустой`);
       for (const d of list) {
@@ -464,12 +471,17 @@ const { pathToFileURL } = require('url');
     'редкости на рынке (вещицы)',
     range([...shopCl(['market']), ...D.FURNITURE.filter((f) => f.shop === 'market').map((f) => f.price)]),
   );
-  console.log('\nВещи: сезоны, привоз, распродажа (всего · сезонных · привоз 2 дня из 3 · особенных через день · на витрине в день)');
+  console.log(
+    '\nВещи: сезоны, привоз, распродажа (всего · сезонных · привоз 2 дня из 3 · особенных через день · на витрине в день)',
+  );
   for (const [shop, shopName] of Object.entries(WARE_SHOPS)) {
     const st = wareStats[shop];
     line(shopName, `${st.all} · ${st.seasonal} · ${st.delivery} · ${st.special} · ${st.min}–${st.max}`);
   }
-  line('рынок: вещицы', `${trinkets.length} (сезонных ${trinkets.filter((d) => d.season).length}), в день ${MARKET.trinkets}`);
+  line(
+    'рынок: вещицы',
+    `${trinkets.length} (сезонных ${trinkets.filter((d) => d.season).length}), в день ${MARKET.trinkets}`,
+  );
   line(
     'сезонная вещь',
     `в сезон — всегда; не в сезон — ${WARES.off.days} день из ${WARES.off.of}; последний месяц сезона — цена × ${WARES.sale}`,

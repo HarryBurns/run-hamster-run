@@ -133,7 +133,10 @@ module.exports = async function wares({ page, step, ev, wait, closeAll }) {
         for (const id of ['jw_red', 'swim_blue', 'rain_red', 'js_mint', 'ja_wine'])
           out.phases[id] = D.MONTHS.map((_, m) => D.wareSeason(D.CLOTHES_BY_ID[id], m)[0]).join('');
         // январь: в какие дни жёлтых сандалий нет и в какой день их привозят
-        out.sandals = { away: [0, 1, 2].filter((d) => !D.wareOn(sand, d)), here: [0, 1, 2].filter((d) => D.wareOn(sand, d)) };
+        out.sandals = {
+          away: [0, 1, 2].filter((d) => !D.wareOn(sand, d)),
+          here: [0, 1, 2].filter((d) => D.wareOn(sand, d)),
+        };
         return out;
       });
       expect(year.n >= 30 && !year.missing.length, 'сезонной одежды в сезон нет на витрине', year.missing.slice(0, 5));
@@ -228,7 +231,11 @@ module.exports = async function wares({ page, step, ev, wait, closeAll }) {
       await card('Угги').locator('.btn').click();
       await wait(300);
       s1 = await state();
-      expect(s1.clothes.includes('ugg_beige') && s0.money - s1.money === 420, 'цена на распродаже', s0.money - s1.money);
+      expect(
+        s1.clothes.includes('ugg_beige') && s0.money - s1.money === 420,
+        'цена на распродаже',
+        s0.money - s1.money,
+      );
       await closeAll();
       // сентябрь — первый месяц: «Новинка!» по обычной цене
       await setDay(24);
@@ -265,7 +272,12 @@ module.exports = async function wares({ page, step, ev, wait, closeAll }) {
     const year = await ev(async () => {
       const D = await import('./js/data/index.js');
       const out = { base: [], delivery: [], special: [], season: [], n: {} };
-      for (const { def } of [...D.shopWares('home'), ...D.shopWares('mall'), ...D.shopWares('boutique'), ...D.shopWares('beach')]) {
+      for (const { def } of [
+        ...D.shopWares('home'),
+        ...D.shopWares('mall'),
+        ...D.shopWares('boutique'),
+        ...D.shopWares('beach'),
+      ]) {
         const on = [];
         for (let day = 0; day < 72; day++) on.push(D.wareOn(def, day) ? 1 : 0);
         const sum = (from, n) => on.slice(from, from + n).reduce((a, b) => a + b, 0);
@@ -292,7 +304,11 @@ module.exports = async function wares({ page, step, ev, wait, closeAll }) {
     expect(!year.delivery.length, '«привоз» — два дня из трёх', year.delivery.slice(0, 5));
     expect(!year.special.length, 'особенное — через день', year.special.slice(0, 5));
     expect(!year.season.length, 'сезонной вещи в сезон нет', year.season.slice(0, 5));
-    expect(year.n.base >= 80 && year.n.delivery >= 35 && year.n.special >= 8 && year.n.season >= 35, 'разметка', year.n);
+    expect(
+      year.n.base >= 80 && year.n.delivery >= 35 && year.n.special >= 8 && year.n.season >= 35,
+      'разметка',
+      year.n,
+    );
     expect(
       year.phases.fireplace === 'iloooooonii' + 'i' &&
         year.phases.hammock === 'oonii' + 'iiloooo' &&
@@ -348,7 +364,10 @@ module.exports = async function wares({ page, step, ev, wait, closeAll }) {
     expect(!c.away && c.badge.includes('Сегодня!') && c.btn === 1, 'вещь из привоза', c);
     c = await cardInfo(cat.gone[0]);
     expect(
-      c.away && c.btn === 0 && /Сегодня нет — привезут (завтра|послезавтра)\./.test(c.text) && !c.text.includes('Сезон'),
+      c.away &&
+        c.btn === 0 &&
+        /Сегодня нет — привезут (завтра|послезавтра)\./.test(c.text) &&
+        !c.text.includes('Сезон'),
       'обычная вещь, которую сегодня не привезли',
       c,
     );
@@ -397,7 +416,11 @@ module.exports = async function wares({ page, step, ev, wait, closeAll }) {
       return out;
     });
     expect(!year.low.length && !year.empty.length, 'мало выбора или пустой отдел', year);
-    expect(year.min.mall >= 40 && year.min.home >= 45 && year.min.boutique >= 12 && year.min.beach >= 4, 'мало', year.min);
+    expect(
+      year.min.mall >= 40 && year.min.home >= 45 && year.min.boutique >= 12 && year.min.beach >= 4,
+      'мало',
+      year.min,
+    );
     // окна магазинов зимой и летом: в каждом отделе есть что купить, а всего карточек — сколько вещей в таблице
     for (const sea of ['winter', 'summer']) {
       await setDay(DAY[sea] + 1, 1000);
@@ -482,7 +505,10 @@ module.exports = async function wares({ page, step, ev, wait, closeAll }) {
       return ids.map((id) => (D.CLOTHES_BY_ID[id] || D.FURN_BY_ID[id]).name);
     }, snap.trinkets);
     const shown = await page.locator('.overlay .grid').first().locator('.card .nm').allInnerTexts();
-    expect(JSON.stringify(shown.map(norm)) === JSON.stringify(names.map(norm)), 'на рынке не те вещицы', [shown, names]);
+    expect(JSON.stringify(shown.map(norm)) === JSON.stringify(names.map(norm)), 'на рынке не те вещицы', [
+      shown,
+      names,
+    ]);
     const off = await ev(async (ids) => {
       const D = await import('./js/data/index.js');
       const id = ids.find((q) => ['sunhat_daisy', 'beanbag_melon'].includes(q));
@@ -618,7 +644,11 @@ module.exports = async function wares({ page, step, ev, wait, closeAll }) {
       const out = {};
       // (зимой сюрприз за задание мог подарить колпак по-честному — проверяем с чистого листа)
       d.actions.mutate((s) => (s.clothes = s.clothes.filter((id) => !['hat_santa', 'hat_witch'].includes(id))));
-      for (const [name, day] of [['july', 18], ['october', 27], ['december', 33]]) {
+      for (const [name, day] of [
+        ['july', 18],
+        ['october', 27],
+        ['december', 33],
+      ]) {
         d.actions.mutate((s) => (s.day = day));
         for (let i = 0; i < 60 && !(has('hat_santa') && has('hat_witch')); i++) d.F.grantSurprise();
         out[name] = [has('hat_santa'), has('hat_witch')];
@@ -626,7 +656,9 @@ module.exports = async function wares({ page, step, ev, wait, closeAll }) {
       return out;
     });
     expect(
-      String(gifts.july) === 'false,false' && String(gifts.october) === 'false,true' && String(gifts.december) === 'true,true',
+      String(gifts.july) === 'false,false' &&
+        String(gifts.october) === 'false,true' &&
+        String(gifts.december) === 'true,true',
       'праздничные подарки не по сезону',
       gifts,
     );
@@ -641,7 +673,11 @@ module.exports = async function wares({ page, step, ev, wait, closeAll }) {
     await enter('boutique');
     await tab('Верх');
     const foot = await text('.overlay .panel-foot');
-    expect(foot.includes('Оформить витрину') || foot.includes('Моё заведение'), 'в своём бутике нет кнопок хозяйки', foot);
+    expect(
+      foot.includes('Оформить витрину') || foot.includes('Моё заведение'),
+      'в своём бутике нет кнопок хозяйки',
+      foot,
+    );
     const view = await ev(async () => {
       const d = window.__dev,
         D = await import('./js/data/index.js');
