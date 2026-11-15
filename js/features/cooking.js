@@ -8,6 +8,7 @@ import { el, plural } from '../core/util.js';
 import { ING_BY_ID, DISHES, DISH_BY_ID, SECRET_RECIPES } from '../data/index.js';
 import { openPanel, message } from '../ui/panel.js';
 import { toast } from '../ui/toast.js';
+import { whereToGet } from './pantry.js';
 
 const S = () => G.state;
 
@@ -21,6 +22,18 @@ function needsHtml(d) {
     .join('');
 }
 
+/** Чего не хватает для блюда и где это взять: строки-подсказки (про несезонное — когда сезон и есть ли сегодня). */
+function lackHtml(d) {
+  return Object.entries(d.needs)
+    .filter(([id, n]) => count('ing', id) < n)
+    .map(([id]) => {
+      const ing = ING_BY_ID[id],
+        w = whereToGet(ing);
+      return `<div class="lack-line${w.ok ? '' : ' no'}">${ing.e} <b>${ing.name}</b> — ${w.text}</div>`;
+    })
+    .join('');
+}
+
 export function openCooking() {
   openPanel({
     title: 'Плита',
@@ -28,7 +41,11 @@ export function openCooking() {
     cls: '',
     render(body, tab, panel) {
       body.appendChild(
-        el('p', 'muted', 'Выбери рецепт. Продукты — в ТЦ «Вкусный», на грядках и на рыбалке; ягоды и грибы — в городе.'),
+        el(
+          'p',
+          'muted',
+          'Выбери рецепт. Продукты — в ТЦ «Вкусный», на грядках и на рыбалке; ягоды и грибы — в городе. Под рецептом написано, чего не хватает и где это взять.',
+        ),
       );
       const known = DISHES.filter((d) => d.needs && S().recipes.includes(d.id));
       known.sort((a, b) => canCook(b) - canCook(a));
@@ -36,7 +53,13 @@ export function openCooking() {
         const ok = canCook(d);
         const li = el('div', 'list-item');
         li.appendChild(el('div', 'e', `<span style="font-size:38px">${d.e}</span>`));
-        li.appendChild(el('div', 'grow', `<div class="ttl">${d.name}</div><div>${needsHtml(d)}</div>`));
+        li.appendChild(
+          el(
+            'div',
+            'grow',
+            `<div class="ttl">${d.name}</div><div>${needsHtml(d)}</div>${ok ? '' : `<div class="lack-list">${lackHtml(d)}</div>`}`,
+          ),
+        );
         const b = el('button', 'btn small ' + (ok ? 'green' : 'ghost'), 'Готовить');
         b.disabled = !ok;
         b.onclick = () => {

@@ -5,7 +5,20 @@ import { on, emit } from '../core/events.js';
 import { register } from '../core/registry.js';
 import { G, cal } from '../core/state.js';
 import { esc, fmtMoney, pick } from '../core/util.js';
-import { CLOTHES_BY_ID, SEED_BY_ID, TASKS, TASK_BY_ID, PLACES, TASK_COINS, TASK_COINS_DEFAULT } from '../data/index.js';
+import {
+  CLOTHES_BY_ID,
+  SEED_BY_ID,
+  SEEDS,
+  DISHES,
+  ING_BY_ID,
+  TASKS,
+  TASK_BY_ID,
+  PLACES,
+  TASK_COINS,
+  TASK_COINS_DEFAULT,
+  canSow,
+  foodRule,
+} from '../data/index.js';
 import { getLocation, homeLocation } from '../engine/topdown/index.js';
 import { enqueue } from '../ui/modals.js';
 import { message } from '../ui/panel.js';
@@ -59,12 +72,37 @@ export function taskChip() {
   return { text: `${t.sticker} ${t.title}${taskProgress()}`, cls: '' };
 }
 
+/**
+ * Сезонная подсказка к письму: что сегодня точно получится. Задания не требуют продукта, которого сегодня не достать:
+ * «посади» — называет культуры этого сезона, «приготовь» — блюда, для которых всё есть на полках.
+ */
+function seasonTip(t) {
+  const month = cal().month;
+  if (t.type === 'plant') {
+    const now = SEEDS.filter((sd) => canSow(sd, month)).map((sd) => `${ING_BY_ID[sd.crop].e} ${sd.name.toLowerCase()}`);
+    return `Сейчас ${cal().seasonName.toLowerCase()} — на грядках сажают: <b>${now.join(', ')}</b>.`;
+  }
+  if (t.type === 'cook') {
+    const sure = DISHES.filter(
+      (d) =>
+        d.needs &&
+        S().recipes.includes(d.id) &&
+        Object.keys(d.needs).every((id) => ING_BY_ID[id].price > 0 && foodRule(ING_BY_ID[id], month) === null),
+    ).slice(0, 4);
+    return sure.length
+      ? `Сегодня в ТЦ точно есть всё для таких блюд: <b>${sure.map((d) => `${d.e} ${d.name.toLowerCase()}`).join(', ')}</b>.`
+      : '';
+  }
+  return '';
+}
+
 function letterHtml() {
   const m = S().mail,
     t = TASK_BY_ID[m.task],
-    c = cal();
+    c = cal(),
+    tip = m.done ? '' : seasonTip(t);
   const where = PLACES[t.where] || (t.where === 'beach' ? 'Пляж' : t.where === 'town' ? 'Город' : '');
-  return `<div class="letter"><h3>${t.sticker} ${t.title}</h3><p>Дорогая ${esc(S().name)}!</p><p>${t.text}</p>
+  return `<div class="letter"><h3>${t.sticker} ${t.title}</h3><p>Дорогая ${esc(S().name)}!</p><p>${t.text}</p>${tip ? `<p class="tip">${tip}</p>` : ''}
     <p class="muted">${c.seasonIcon} ${c.monthName}, день ${c.dom}${where ? ` · Куда идти: <b>${where}</b>` : ''}</p></div>
     <p class="center">${m.done ? '✅ <b>Задание выполнено!</b>' : `Награда: <b>🪙 ${fmtMoney(taskCoins(t.id))}</b>, наклейка ${t.sticker} и, может быть, сюрприз 🎁${taskProgress() ? '<br>Сделано' + taskProgress() : ''}`}</p>`;
 }
