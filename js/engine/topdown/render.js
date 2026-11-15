@@ -283,7 +283,7 @@ function critterCells(m, x0, y0, x1, y1, out) {
     const row = m.kinds[ty];
     for (let tx = x0; tx <= x1; tx++) {
       const hs = hash(tx * 13 + 7, ty * 29 + 3);
-      if (hs < 0.016 && row[tx].id === 'g') {
+      if (hs < 0.016 && row[tx] && row[tx].id === 'g') {
         out[n++] = tx;
         out[n++] = ty;
         out[n++] = hs * 62;
