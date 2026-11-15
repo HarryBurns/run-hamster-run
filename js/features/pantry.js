@@ -6,12 +6,21 @@
 //    привезли, иногда выручает рынок (у торговца 1–2 штуки по той же цене). Бывает, что сегодня нет нигде.
 import { addItem } from '../core/actions.js';
 import { emit } from '../core/events.js';
-import { G, cal, count } from '../core/state.js';
-import { SEASONS, STOCK, buyPrice, foodRule, inSeason, isSeasonal, monthOfDay, whenRipe } from '../data/index.js';
+import { cal } from '../core/state.js';
+import {
+  GATHER,
+  SEASONS,
+  STOCK,
+  buyPrice,
+  foodRule,
+  inSeason,
+  isSeasonal,
+  monthOfDay,
+  whenRipe,
+} from '../data/index.js';
 import { buy } from './purchase.js';
 import { stockToday, takeStock, comeBack } from './stock.js';
 
-const S = () => G.state;
 const NEVER = { days: 0 }; // правило «здесь этого нет»
 const mallRule = (ing) => (day) => foodRule(ing, monthOfDay(day));
 
@@ -79,12 +88,7 @@ export function whereToGet(ing) {
       text: `сегодня в ТЦ нет${f.mall.state === 'sold' ? ' (раскупили)' : ''} — ${back ? 'привезут ' + back : 'загляни позже'}`,
     };
   }
-  const own =
-    ing.src === 'garden'
-      ? 'вырасти на грядке'
-      : ing.src === 'wild' || ['coconut', 'banana', 'mango'].includes(ing.id)
-        ? 'собери в городе'
-        : '';
+  const own = ing.src === 'garden' ? 'вырасти на грядке' : GATHER[ing.id] ? 'собери в городе' : '';
   if (f.season === 'in')
     return { ok: true, text: `сейчас сезон ${SEASONS[c.season].icon}: ${own ? own + ' или ' : ''}купи в ТЦ «Вкусный»` };
   const lead = `не сезон (сезон — ${seasonText(ing)})`;
@@ -93,7 +97,3 @@ export function whereToGet(ing) {
   const back = mallBack(ing);
   return { ok: false, text: `${lead}: сегодня нет в продаже — ${back ? 'в ТЦ привезут ' + back : 'загляни позже'}` };
 }
-/** Сколько продукта у игрока. */
-export const haveFood = (ing) => count('ing', ing.id);
-/** День, для которого посчитан ассортимент (для тестов). */
-export const stockDay = () => S().day;
