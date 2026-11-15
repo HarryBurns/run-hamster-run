@@ -25,6 +25,7 @@ import { buy, priceTag, buyBtn } from './purchase.js';
 import { bizByVendor, bizFoot, bizSign } from './business.js';
 import { foodToday, buyFood, mallAwayText } from './pantry.js';
 import { stockToday, takeStock, comeBack, leftText, awayCard } from './stock.js';
+import { wareToday, wareAwayCard, wareBadge, warePriceTag, wareOrder, wareNote } from './wares.js';
 
 const S = () => G.state;
 
@@ -83,15 +84,28 @@ function openHomeMall() {
           ),
         );
       } else {
-        for (const f of FURNITURE.filter((q) => q.cat === tab && q.shop === 'home')) {
-          const card = el('div', 'card');
+        // витрина дня (features/wares.js): сначала сезонное, потом сегодняшний привоз; чего сегодня нет — в конце, серым
+        const list = FURNITURE.filter((q) => q.cat === tab && q.shop === 'home').sort(
+          (a, b) => wareOrder(a) - wareOrder(b),
+        );
+        const note = wareNote(list);
+        if (note) body.appendChild(note);
+        for (const f of list) {
+          const w = wareToday(f);
+          if (!w.here) {
+            grid.appendChild(wareAwayCard(f, furnIcon(f, 112), ownedFurn(f.id)));
+            continue;
+          }
+          const card = el('div', 'card'),
+            badge = wareBadge(f, 'r');
           card.appendChild(furnIcon(f, 112));
           card.appendChild(el('div', 'nm', f.name));
-          card.appendChild(priceTag(f.price));
+          if (badge) card.appendChild(badge);
+          card.appendChild(warePriceTag(f));
           if (ownedFurn(f.id)) card.appendChild(el('span', 'cnt', '×' + ownedFurn(f.id)));
           card.appendChild(
-            buyBtn('Купить', f.price, () => {
-              if (!buy(f.price)) return;
+            buyBtn('Купить', w.price, () => {
+              if (!buy(w.price)) return;
               addItem('storage', f.id, 1);
               emit('buy', { cat: 'furniture', id: f.id });
               toast(`${f.name} — в кладовке. Дома нажми 🔨, чтобы поставить!`, 'good');

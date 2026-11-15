@@ -177,6 +177,14 @@ p { margin: 8px 0; line-height: 1.35; }
 .card .badge.season.r { left: auto; right: -6px; }
 .card .badge.off { background: #adb5bd; }
 .card .badge.treat { background: var(--pink); }
+/* вещи (одежда, мебель): значок в левом углу (в правом — «Есть ✓»), скидка в конце сезона, серый значок вещи */
+.card .badge.l { left: -6px; right: auto; }
+.card .badge.r { left: auto; right: -6px; }
+.card .badge.sale { background: #f76707; }
+.card .pr .was { font-size: 11px; font-weight: 700; color: #a39484; margin-left: 4px; }
+.card.away canvas { filter: grayscale(.8); opacity: .55; }
+.ware-note { margin: 0 0 10px; font-size: 13px; line-height: 1.3; }
+.ware-note b { font-weight: 800; }
 .card .note { font-size: 11px; font-weight: 800; color: #c2255c; line-height: 1.2; }
 .card .note.off { color: #868e96; }
 .card .note.up { color: #2f9e44; }

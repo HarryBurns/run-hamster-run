@@ -6,6 +6,7 @@ export * from './wardrobe.js';
 export * from './salon.js';
 export * from './stock.js';
 export * from './pantry.js';
+export * from './wares.js';
 export * from './shops.js';
 export * from './market.js';
 export * from './bank.js';

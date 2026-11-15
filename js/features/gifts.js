@@ -2,9 +2,9 @@
 import { earn, addItem, addClothes, learnRecipe, setFlag } from '../core/actions.js';
 import { sfx } from '../core/audio.js';
 import { register } from '../core/registry.js';
-import { G, hasClothes } from '../core/state.js';
+import { G, cal, hasClothes } from '../core/state.js';
 import { el, fmtMoney, pick } from '../core/util.js';
-import { CLOTHES, FURNITURE, DISH_BY_ID, SECRET_RECIPES, SURPRISE_COINS } from '../data/index.js';
+import { CLOTHES, FURNITURE, DISH_BY_ID, SECRET_RECIPES, SURPRISE_COINS, wareSeason } from '../data/index.js';
 import { clothesIcon, furnIcon } from '../ui/icons.js';
 import { enqueue } from '../ui/modals.js';
 import { openPanel } from '../ui/panel.js';
@@ -13,10 +13,13 @@ const S = () => G.state;
 
 function giftPool() {
   const s = S(),
-    pool = [];
+    pool = [],
+    // праздничные подарки (новогодний колпак, шляпа волшебницы) дарят только около своего праздника
+    timely = (def) => wareSeason(def, cal().month) !== 'off';
   for (const c of CLOTHES)
-    if (c.shop === 'gift' && c.id !== 'medal' && !hasClothes(c.id)) pool.push({ kind: 'clothes', def: c });
-  for (const f of FURNITURE) if (f.shop === 'gift' && !s.flags['gift_' + f.id]) pool.push({ kind: 'furn', def: f });
+    if (c.shop === 'gift' && c.id !== 'medal' && !hasClothes(c.id) && timely(c)) pool.push({ kind: 'clothes', def: c });
+  for (const f of FURNITURE)
+    if (f.shop === 'gift' && !s.flags['gift_' + f.id] && timely(f)) pool.push({ kind: 'furn', def: f });
   for (const r of SECRET_RECIPES) if (!s.recipes.includes(r)) pool.push({ kind: 'recipe', def: DISH_BY_ID[r] });
   return pool;
 }

@@ -15,12 +15,10 @@ import { sfx } from '../core/audio.js';
 import { emit } from '../core/events.js';
 import { register } from '../core/registry.js';
 import { G, cal, hasClothes } from '../core/state.js';
-import { el, fmtMoney, seeded } from '../core/util.js';
+import { el, fmtMoney } from '../core/util.js';
 import {
   INGREDIENTS,
   DISHES,
-  CLOTHES,
-  FURNITURE,
   MARKET,
   VENDORS,
   vendorLook,
@@ -34,6 +32,7 @@ import { toast } from '../ui/toast.js';
 import { buy, priceTag, buyBtn } from './purchase.js';
 import { foodToday, buyFood, seasonText } from './pantry.js';
 import { leftText } from './stock.js';
+import { trinketsToday, wareToday, wareBadge, warePriceTag } from './wares.js';
 
 const S = () => G.state;
 
@@ -107,19 +106,8 @@ export function sellGoods(g, n) {
 }
 
 // ---------- редкости ----------
-/** Вещицы, которые торговец привёз сегодня: каждый день другие (но один и тот же день — одни и те же). */
-function trinketsToday() {
-  const pool = [
-    ...CLOTHES.filter((c) => c.shop === 'market').map((def) => ({ kind: 'clothes', def })),
-    ...FURNITURE.filter((f) => f.shop === 'market').map((def) => ({ kind: 'furn', def })),
-  ];
-  const r = seeded(7919 * (S().day + 3));
-  for (let i = pool.length - 1; i > 0; i--) {
-    const j = Math.floor(r() * (i + 1));
-    [pool[i], pool[j]] = [pool[j], pool[i]];
-  }
-  return pool.slice(0, MARKET.trinkets);
-}
+// Вещицы ручной работы: торговец привозит по нескольку штук в день, каждый день другие — trinketsToday()
+// из features/wares.js (общий «ассортимент дня»; сезонные вещицы не в сезон приезжают реже).
 /** Не по сезону: чего сегодня нет в ТЦ «Вкусный», а торговец привёз (и что у него уже раскупили). */
 export const rareFood = () =>
   INGREDIENTS.map((ing) => ({ ing, f: foodToday(ing) })).filter((q) => q.f.market.state !== 'none');
@@ -214,11 +202,15 @@ function renderBuy(body, panel) {
       card.appendChild(el('span', 'badge', 'Есть ✓'));
       card.appendChild(el('div', 'muted', 'В шкафу'));
     } else {
-      card.appendChild(priceTag(def.price));
+      // сезонная вещица: значок «Сезон!» / «Не сезон», в конце сезона — скидка (правило то же, что в магазинах)
+      const cost = wareToday(def).price,
+        badge = wareBadge(def, 'r');
+      if (badge) card.appendChild(badge);
+      card.appendChild(warePriceTag(def));
       if (kind === 'furn' && S().storage[def.id]) card.appendChild(el('span', 'cnt', '×' + S().storage[def.id]));
       card.appendChild(
-        buyBtn('Купить', def.price, () => {
-          if (!buy(def.price, kind === 'clothes' ? def.name : null)) return;
+        buyBtn('Купить', cost, () => {
+          if (!buy(cost, kind === 'clothes' ? def.name : null)) return;
           if (kind === 'clothes') {
             addClothes(def.id);
             wear(def.slot, def.id);

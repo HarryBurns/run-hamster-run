@@ -9,8 +9,9 @@ import { blinkAt } from '../art/hamster.js';
 import { CLOTHES, CLOTHES_BY_ID, SLOTS, vendorLook, resolveLook } from '../data/index.js';
 import { clothesIcon, hamsterStage } from '../ui/icons.js';
 import { openPanel } from '../ui/panel.js';
-import { buy, priceTag, buyBtn } from './purchase.js';
+import { buy, buyBtn } from './purchase.js';
 import { bizByVendor, bizFoot, bizSign } from './business.js';
+import { wareToday, wareAwayCard, wareBadge, warePriceTag, wareOrder, wareNote } from './wares.js';
 
 const S = () => G.state;
 
@@ -32,7 +33,6 @@ export function clothesPanel(mode, opts = {}) {
     raf = requestAnimationFrame(loop);
   };
   loop();
-  const season = cal().season;
   return openPanel({
     title: opts.title || 'Шкаф',
     icon: opts.icon || '👗',
@@ -59,10 +59,17 @@ export function clothesPanel(mode, opts = {}) {
       const grid = el('div', 'grid');
       let items = CLOTHES.filter((c) => c.slot === tab);
       if (mode === 'shop') {
+        // витрина дня (features/wares.js): сначала сезонное, потом сегодняшний привоз; чего сегодня нет — в конце, серым.
+        // Свои вещи с витрины не пропадают: их можно надеть прямо здесь в любой день.
+        const season = cal().season,
+          gone = (c) => !hasClothes(c.id) && !wareToday(c).here;
         items = items.filter((c) => opts.shops.includes(c.shop));
         items.sort(
-          (a, b) => (b.season === season) - (a.season === season) || b.tags.includes(season) - a.tags.includes(season),
+          (a, b) =>
+            gone(a) - gone(b) || wareOrder(a) - wareOrder(b) || b.tags.includes(season) - a.tags.includes(season),
         );
+        const note = wareNote(items.filter((c) => !hasClothes(c.id)));
+        if (note) main.appendChild(note);
       } else items = items.filter((c) => hasClothes(c.id));
       if (!items.length)
         main.appendChild(
@@ -76,20 +83,27 @@ export function clothesPanel(mode, opts = {}) {
         const owned = hasClothes(it.id),
           worn = S().look.outfit[it.slot] === it.id,
           trying = tryOn[it.slot] === it.id;
+        if (mode === 'shop' && !owned && !wareToday(it).here) {
+          // сегодня не привезли: карточка на месте, но серая — с подписью, когда будет и когда сезон
+          grid.appendChild(wareAwayCard(it, clothesIcon(it, 84)));
+          continue;
+        }
         const card = el('div', 'card tap' + (worn || trying ? ' sel' : ''));
         card.appendChild(clothesIcon(it, 84));
         card.appendChild(el('div', 'nm', it.name));
-        if (mode === 'shop' && it.season === season) card.appendChild(el('span', 'badge season', 'Сезон!'));
         if (mode === 'shop') {
           if (owned) {
             card.appendChild(el('span', 'badge', 'Есть ✓'));
             card.appendChild(el('div', 'muted', worn ? 'Надето' : 'В шкафу'));
           } else {
-            card.appendChild(priceTag(it.price));
+            const badge = wareBadge(it, 'l'),
+              cost = wareToday(it).price;
+            if (badge) card.appendChild(badge);
+            card.appendChild(warePriceTag(it));
             card.appendChild(
-              buyBtn('Купить', it.price, (e) => {
+              buyBtn('Купить', cost, (e) => {
                 e.stopPropagation();
-                if (!buy(it.price, it.name)) return;
+                if (!buy(cost, it.name)) return;
                 addClothes(it.id);
                 wear(it.slot, it.id);
                 delete tryOn[it.slot];

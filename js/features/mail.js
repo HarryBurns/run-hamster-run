@@ -3,7 +3,7 @@ import { award, earn, setMail, readMail, mailCount, mailGot, finishTask } from '
 import { sfx } from '../core/audio.js';
 import { on, emit } from '../core/events.js';
 import { register } from '../core/registry.js';
-import { G, cal } from '../core/state.js';
+import { G, cal, hasClothes } from '../core/state.js';
 import { esc, fmtMoney, pick } from '../core/util.js';
 import {
   CLOTHES_BY_ID,
@@ -24,6 +24,7 @@ import { enqueue } from '../ui/modals.js';
 import { message } from '../ui/panel.js';
 import { toast } from '../ui/toast.js';
 import { grantSurprise, showSurprise } from './gifts.js';
+import { waresHere, wareOrder } from './wares.js';
 
 const S = () => G.state;
 
@@ -46,7 +47,8 @@ export function newDayMail() {
         !s.lastTasks.includes(t.id) &&
         (!t.needsCrop || ripe) &&
         (t.type !== 'wheel' || hasWheel) &&
-        (t.type !== 'piano' || hasPiano),
+        (t.type !== 'piano' || hasPiano) &&
+        (t.id !== 'buy_clothes' || newClothesToday().length > 0), // «Обновка» — только когда на витринах есть что купить
     );
     if (!pool.length) pool = TASKS.filter((t) => !t.seasons || t.seasons.includes(sea));
     id = pick(pool).id;
@@ -72,6 +74,17 @@ export function taskChip() {
   return { text: `${t.sticker} ${t.title}${taskProgress()}`, cls: '' };
 }
 
+/** Одежда, которую сегодня можно купить в магазинах города (и которой у игрока ещё нет): витрина дня, wares.js. */
+const newClothesToday = () =>
+  ['mall', 'beach', 'boutique'].flatMap((shop) => waresHere(shop).map((q) => q.def)).filter((c) => !hasClothes(c.id));
+/** Несколько вещей с сегодняшней витрины для подсказки: сначала сезонное и привоз (wareOrder), потом остальное. */
+const shelfTip = (list) =>
+  [...list]
+    .sort((a, b) => wareOrder(a) - wareOrder(b))
+    .slice(0, 3)
+    .map((it) => it.name.toLowerCase())
+    .join(', ');
+
 /**
  * Сезонная подсказка к письму: что сегодня точно получится. Задания не требуют продукта, которого сегодня не достать:
  * «посади» — называет культуры этого сезона, «приготовь» — блюда, для которых всё есть на полках.
@@ -93,6 +106,15 @@ function seasonTip(t) {
       ? `Сегодня в ТЦ точно есть всё для таких блюд: <b>${sure.map((d) => `${d.e} ${d.name.toLowerCase()}`).join(', ')}</b>.`
       : '';
   }
+  // «купи обновку», «купи мебель»: витрина каждый день немного другая — называем то, что сегодня точно есть
+  if (t.id === 'buy_clothes') {
+    const mall = waresHere('mall')
+      .map((q) => q.def)
+      .filter((c) => !hasClothes(c.id));
+    return mall.length ? `Сегодня в ТЦ «Модный» точно есть: <b>${shelfTip(mall)}</b> — и ещё много всего.` : '';
+  }
+  if (t.id === 'buy_furn')
+    return `Сегодня в ТЦ «Уютный дом» точно есть: <b>${shelfTip(waresHere('home').map((q) => q.def))}</b> — и ещё много всего.`;
   return '';
 }
 
