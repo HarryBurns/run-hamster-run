@@ -9,6 +9,7 @@ const { pathToFileURL } = require('url');
   const D = await import(pathToFileURL(path.join(__dirname, '..', 'js', 'data', 'index.js')).href);
   const { JOBS, PAID_SHIFTS, MARKET, PRICES, TASK_COINS, TASK_COINS_DEFAULT, START_MONEY } = D;
   const { HOMES, BUSINESSES, BIZ_RULES, HOME_PRICES, BIZ } = D;
+  const { GATHER, HARVEST_MONTHS, SEASONS, SEASON_OF_MONTH, MONTHS } = D;
   const problems = [];
   const bad = (msg) => problems.push(msg);
   const fmt = (n) => Math.round(n).toLocaleString('ru-RU');
@@ -56,7 +57,14 @@ const { pathToFileURL } = require('url');
     if (i.src !== 'shop') continue;
     if (i.sell > i.price * MARKET.shopShare + 1e-9)
       bad(`${i.id}: купить за ${i.price}, продать за ${i.sell} — больше ${MARKET.shopShare * 100}%`);
-    if (i.seasons && !(i.rare > i.price)) bad(`${i.id}: не в сезон на рынке должен стоить дороже, чем в ТЦ`);
+    if (i.south && !(i.rare > i.price)) bad(`${i.id}: не в сезон на рынке должен стоить дороже, чем в ТЦ`);
+    if (i.south && !i.seasons) bad(`${i.id}: южный фрукт без сезона в таблице сезонов (data/seasons.js)`);
+  }
+  // (а2) общая таблица сезонов: только известные продукты и месяцы 0–11
+  for (const [id, ms] of Object.entries(HARVEST_MONTHS)) {
+    if (!ING[id]) bad(`таблица сезонов: неизвестный продукт ${id}`);
+    if (!ms.length || ms.some((q) => !(q >= 0 && q <= 11) || q !== Math.floor(q)))
+      bad(`таблица сезонов: ${id} — месяцы должны быть числами 0–11`);
   }
   // (б) блюдо: даже шедевр (3 порции) из целиком купленных продуктов не окупает продукты
   const cook = [];
@@ -96,7 +104,26 @@ const { pathToFileURL } = require('url');
   const fish = ING.fish.sell;
 
   const avg3 = payAt(3) / jobs.length;
-  const coco = ING.coconut.sell;
+  // (е) сбор в городе: с растения — раз в день и только в сезон. Сколько это даёт за день в каждом месяце,
+  // если собрать всё и всё продать: должно быть что собрать в любом сезоне, но меньше одной смены на 2★
+  const gatherIn = (month) =>
+    Object.entries(GATHER)
+      .filter(([id]) => D.ripeIn(id, month))
+      .map(([id, q]) => ({ id, n: q.n * q.max, sum: q.n * q.max * ING[id].sell }));
+  const gatherSum = (month) => gatherIn(month).reduce((s, q) => s + q.sum, 0);
+  for (const [id, q] of Object.entries(GATHER)) {
+    if (!ING[id]) bad(`сбор: неизвестный продукт ${id}`);
+    else if (!ING[id].seasons) bad(`сбор: у ${id} нет сезона в таблице сезонов — плод был бы на дереве круглый год`);
+    if (!(q.n > 0 && q.max > 0)) bad(`сбор: ${id} — нужны n и max`);
+  }
+  if (GATHER.coconut.max > 4) bad('кокосовых пальм должно быть не больше четырёх на всю карту');
+  for (let month = 0; month < 12; month++) {
+    if (!gatherIn(month).length) bad(`сбор: в месяце «${MONTHS[month]}» в городе нечего собрать`);
+    if (gatherSum(month) >= avg2)
+      bad(`сбор: ${MONTHS[month]} — ${gatherSum(month)} монет в день, это не меньше смены на 2★ (${fmt(avg2)})`);
+  }
+  const coco = ING.coconut.sell,
+    cocoMax = GATHER.coconut.n * GATHER.coconut.max; // игра начинается зимой: первые дни собирают кокосы
   const taskMax = Math.max(...taskAll);
   // Три игрока. «В начале» — первые дни: грядки ещё пустые, мини-игры получаются на две звезды.
   // «Через неделю» — грядки работают, есть рыбалка и готовка, часть смен уже на три звезды.
@@ -105,7 +132,7 @@ const { pathToFileURL } = require('url');
     {
       id: 'calm',
       name: 'спокойная игра (3 смены в день)',
-      start: { work: 3 * avg2, task: taskAvg, market: 4 * coco, how: '3 смены на 2★, задание, 4 кокоса' },
+      start: { work: 3 * avg2, task: taskAvg, market: cocoMax * coco, how: `3 смены на 2★, задание, ${cocoMax} кокоса` },
       week: {
         work: 2 * avg2 + avg3,
         task: taskAvg,
@@ -119,8 +146,8 @@ const { pathToFileURL } = require('url');
       start: {
         work: 5 * avg2,
         task: taskAvg,
-        market: 3 * fish + 5 * coco,
-        how: '5 смен на 2★, задание, рыбалка, 5 кокосов',
+        market: 3 * fish + cocoMax * coco,
+        how: `5 смен на 2★, задание, рыбалка, ${cocoMax} кокоса`,
       },
       week: {
         work: 3 * avg2 + 2 * avg3,
@@ -202,6 +229,14 @@ const { pathToFileURL } = require('url');
       `${fmt(b.perDay)} в день с грядки`,
     );
   line('8 грядок, в среднем / лучшая культура', `${fmt(8 * avgBed)} / ${fmt(8 * bestBed)} в день`);
+  console.log('\nСбор в городе: раз в день с растения, только в сезон (если собрать всё и всё продать)');
+  for (const s of Object.keys(SEASONS)) {
+    const month = SEASON_OF_MONTH.indexOf(s);
+    line(
+      `${SEASONS[s].name.toLowerCase()}: ${gatherIn(month).map((q) => `${ING[q.id].name.toLowerCase()} ×${q.n}`).join(', ')}`,
+      `${fmt(gatherSum(month))} в день`,
+    );
+  }
   console.log('\nГотовка: продукты → порция на рынке (1 / 2 / 3 порции за одну готовку)');
   for (const { d, cost, raw, buyable } of cook.sort((a, b) => b.d.sell - a.d.sell).slice(0, 8))
     line(

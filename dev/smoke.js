@@ -1371,8 +1371,15 @@ async function economy({ page, step, ev, wait, closeAll }) {
     expect(s.v === 3 && s.money === 20000 && s.spent === 0 && s.earned === 0, 'деньги после переноса', [s.v, s.money]);
     expect(s.flags.bankLetter === 2 && s.ledger && s.pearlsSold === 0, 'новые поля', [s.flags, s.ledger, s.pearlsSold]);
     const same = (k) => JSON.stringify(s[k]) === JSON.stringify(old[k]);
-    for (const k of ['name', 'clothes', 'storage', 'dishes', 'seeds', 'recipes', 'stickers', 'day', 'pearls'])
+    for (const k of ['name', 'clothes', 'storage', 'dishes', 'seeds', 'stickers', 'day', 'pearls'])
       expect(same(k), `после переноса изменилось «${k}»`, [s[k], old[k]]);
+    // рецепты: всё, что было, на месте; в конец дописаны только новые рецепты «с начала игры» (repair)
+    expect(
+      JSON.stringify(s.recipes.slice(0, old.recipes.length)) === JSON.stringify(old.recipes) &&
+        s.recipes.slice(old.recipes.length).every((r) => ['mushroom_soup', 'blueberry_muffin'].includes(r)),
+      'после переноса изменилось «recipes»',
+      [s.recipes, old.recipes],
+    );
     expect(s.villa.length === old.villa.length && s.friends.plusha.pts === old.friends.plusha.pts, 'мебель или друзья');
     expect(JSON.stringify(s.look.outfit) === JSON.stringify(old.look.outfit), 'наряд изменился');
     const backup = JSON.parse(await ev(() => localStorage.getItem('rhr-save-backup')));

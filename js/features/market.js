@@ -4,7 +4,7 @@
 // Другому прилавку достаточно написать act: 'market' (или { do: 'market', tab: 'buy' }).
 //
 // Правила (числа — в data/economy.js, раздел MARKET):
-//  - цена продукта на рынке — поле sell (data/food.js): своё (урожай, рыба, кокос) стоит дорого, купленное
+//  - цена продукта на рынке — поле sell (data/food.js): своё (урожай, рыба, кокос, черника, грибы) стоит дорого, купленное
 //    в магазине — дешевле, чем в магазине; блюдо — по продуктам, из которых оно приготовлено;
 //  - у торговца на день ограниченный кошелёк: когда монеты кончились — приходи завтра.
 import { addItem, addClothes, award, earn, sellPearls, setDayFlag, wear } from '../core/actions.js';
@@ -13,7 +13,7 @@ import { emit } from '../core/events.js';
 import { register } from '../core/registry.js';
 import { G, cal, hasClothes } from '../core/state.js';
 import { el, fmtMoney, seeded } from '../core/util.js';
-import { INGREDIENTS, DISHES, CLOTHES, FURNITURE, MARKET, VENDORS, vendorLook, inSeason } from '../data/index.js';
+import { INGREDIENTS, DISHES, CLOTHES, FURNITURE, MARKET, VENDORS, vendorLook, inMall } from '../data/index.js';
 import { clothesIcon, furnIcon } from '../ui/icons.js';
 import { openPanel } from '../ui/panel.js';
 import { toast } from '../ui/toast.js';
@@ -103,7 +103,7 @@ function trinketsToday() {
   return pool.slice(0, MARKET.trinkets);
 }
 /** Южные фрукты, которых сейчас нет в ТЦ «Вкусный» (не сезон): на рынке они есть всегда, но дороже. */
-const rareFruits = () => INGREDIENTS.filter((i) => i.src === 'shop' && !inSeason(i, cal().season));
+const rareFruits = () => INGREDIENTS.filter((i) => i.src === 'shop' && !inMall(i, cal().month));
 
 function renderSell(body, panel) {
   const left = purseLeft();
@@ -120,7 +120,7 @@ function renderSell(body, panel) {
       el(
         'p',
         'muted center',
-        'Продавать пока нечего. Вырасти урожай на грядках, поймай рыбку, стряси кокос с пальмы, найди жемчужину на дне или приготовь что-нибудь вкусное — и приходи!',
+        'Продавать пока нечего. Вырасти урожай на грядках, поймай рыбку, собери кокосы, ягоды или грибы, найди жемчужину на дне или приготовь что-нибудь вкусное — и приходи!',
       ),
     );
     return;

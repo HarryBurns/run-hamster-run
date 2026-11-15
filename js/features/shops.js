@@ -14,7 +14,7 @@ import {
   DISHES,
   SEASONS,
   vendorLook,
-  inSeason,
+  inMall,
 } from '../data/index.js';
 import { furnIcon } from '../ui/icons.js';
 import { openPanel } from '../ui/panel.js';
@@ -23,7 +23,6 @@ import { buy, priceTag, buyBtn } from './purchase.js';
 import { bizByVendor, bizFoot, bizSign } from './business.js';
 
 const S = () => G.state;
-const WHEN = { winter: 'зимой', spring: 'весной', summer: 'летом', autumn: 'осенью' };
 
 function ownedFurn(id) {
   const homes = [S().villa, ...Object.values(S().homes || {})];
@@ -101,18 +100,18 @@ function openFoodMall() {
         el(
           'p',
           'muted',
-          'Морковку, клубнику, помидоры, тыкву и семечки вырасти на грядках, рыбку поймай сама. А кокосы можно стрясти с любой пальмы — бесплатно! Лишнее можно продать на рынке — он на площади с фонтаном.',
+          'Морковку, клубнику, помидоры, тыкву и семечки вырасти на грядках, рыбку поймай сама. А кокосы, бананы, манго, чернику и грибы можно собрать в городе бесплатно — каждый в свой сезон. Лишнее можно продать на рынке — он на площади с фонтаном.',
         ),
       );
-      const sea = cal().season;
+      const month = cal().month;
       const shop = INGREDIENTS.filter((i) => i.src === 'shop');
       const grid = el('div', 'grid');
-      for (const ing of shop.filter((i) => inSeason(i, sea))) {
+      for (const ing of shop.filter((i) => inMall(i, month))) {
         const card = el('div', 'card');
         card.appendChild(el('div', 'e', ing.e));
         card.appendChild(el('div', 'nm', ing.name));
         card.appendChild(priceTag(ing.price));
-        if (ing.seasons) card.appendChild(el('span', 'badge season', 'Сезон!'));
+        if (ing.south) card.appendChild(el('span', 'badge season', 'Сезон!'));
         if (count('ing', ing.id)) card.appendChild(el('span', 'cnt', '×' + count('ing', ing.id)));
         const row = el('div', 'row');
         for (const n of [1, 5]) {
@@ -135,11 +134,11 @@ function openFoodMall() {
         grid.appendChild(card);
       }
       // южные фрукты не в сезон: в ТЦ их нет, но видно, когда привезут и где взять сейчас
-      for (const ing of shop.filter((i) => !inSeason(i, sea))) {
+      for (const ing of shop.filter((i) => !inMall(i, month))) {
         const card = el('div', 'card away');
         card.appendChild(el('div', 'e', ing.e));
         card.appendChild(el('div', 'nm', ing.name));
-        const when = ing.seasons.map((q) => SEASONS[q].icon + ' ' + WHEN[q]).join(' и ');
+        const when = ing.seasons.map((q) => SEASONS[q].icon + ' ' + SEASONS[q].when).join(' и ');
         card.appendChild(el('div', 'muted', `Не сезон: привезут ${when}. А сейчас есть на рынке.`));
         if (count('ing', ing.id)) card.appendChild(el('span', 'cnt', '×' + count('ing', ing.id)));
         grid.appendChild(card);

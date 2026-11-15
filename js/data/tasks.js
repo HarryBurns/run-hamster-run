@@ -1,7 +1,10 @@
 // Задания из писем и наклейки.
 // type: minigame | buy | cook | treat | collect | harvest | plant | salon | place | visit | talk | swim | spa | wheel | gift | sell
 // Монеты за задание — TASK_COINS в economy.js.
+// seasons — в какие сезоны задание приходит (у «Кокосового дня» — из общей таблицы сезонов data/seasons.js).
 // openHouse — «день гостей»: пока это письмо в ящике, друзья (или один — host) весь день дома и ждут в гости.
+import { seasonsOf } from './seasons.js';
+
 export const TASKS = [
   { id: 'swim', type: 'minigame', game: 'swim', sticker: '🏊', title: 'Соревнования по плаванию', where: 'pool',
     text: 'Сегодня в городском бассейне большой заплыв! Приходи и покажи, как плавают хомячки с виллы.' },
@@ -59,8 +62,8 @@ export const TASKS = [
     text: 'У конца пирса тебя ждёт кораблик. Сядь на него и прокатись по морю — можно даже заплыть за буйки!' },
   { id: 'pearl', type: 'pearl', sticker: '🦪', title: 'Жемчужина со дна', where: 'beach',
     text: 'На морском дне лежат раковины с жемчугом. Заплыви туда, где глубоко, нажми 🤿 «Нырнуть» и найди на дне хотя бы одну жемчужину!' },
-  { id: 'coconut', type: 'coconut', sticker: '🥥', title: 'Кокосовый день', where: 'beach',
-    text: 'На пальмах созрели кокосы! Подойди к любой пальме и потряси её — кокос упадёт прямо в рюкзак.' },
+  { id: 'coconut', type: 'coconut', sticker: '🥥', title: 'Кокосовый день', where: 'beach', seasons: seasonsOf('coconut'),
+    text: 'На кокосовой пальме созрели орехи! Таких пальм в городе всего несколько — их видно по коричневым кокосам под листьями. Одна растёт у тебя во дворе, возле бассейна, другая — на пляже. Подойди и потряси её — кокос упадёт прямо в рюкзак.' },
   { id: 'cafe', type: 'buy', cat: 'dish', sticker: '🧁', title: 'Сладкий день', where: 'cafe',
     text: 'В кафе «Семечка» сегодня пахнет особенно вкусно. Купи себе что-нибудь и съешь!' },
   { id: 'market', type: 'sell', sticker: '🧺', title: 'Базарный день', where: 'market',
@@ -111,4 +114,7 @@ export const EXTRA_STICKERS = [
   { id: 'x_biz_work', sticker: '👩‍🍳', title: 'Хозяйка за работой' },
   { id: 'x_biz_chain', sticker: '🏬', title: 'Сеть заведений' },
   { id: 'x_biz_all', sticker: '👑', title: 'Хозяйка города' },
+  // сбор: первый плод с дерева или куста; собрано всё, что растёт в городе
+  { id: 'x_gather', sticker: '🧺', title: 'Первый урожай с ветки' },
+  { id: 'x_gather_all', sticker: '🍄', title: 'Всё, что растёт в городе' },
 ];

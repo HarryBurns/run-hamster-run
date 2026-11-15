@@ -1243,8 +1243,14 @@ module.exports = async function estate({ page, step, ev, wait, closeAll }) {
       s.biz,
       s.visits,
     ]);
-    for (const k of ['name', 'clothes', 'storage', 'recipes', 'stickers', 'day', 'ledger'])
+    for (const k of ['name', 'clothes', 'storage', 'stickers', 'day', 'ledger'])
       expect(JSON.stringify(s[k]) === JSON.stringify(old[k]), `после переноса изменилось «${k}»`);
+    // рецепты: всё, что было, на месте; в конец дописаны только новые рецепты «с начала игры» (repair)
+    expect(
+      JSON.stringify(s.recipes.slice(0, old.recipes.length)) === JSON.stringify(old.recipes) &&
+        s.recipes.slice(old.recipes.length).every((r) => ['mushroom_soup', 'blueberry_muffin'].includes(r)),
+      'после переноса изменилось «recipes»',
+    );
     expect(s.villa.length === old.villa.length, 'мебель виллы');
     const backup = JSON.parse(await ev(() => localStorage.getItem('rhr-save-backup')));
     expect(backup.v === 2 && backup.money === old.money, 'нет копии сохранения v2', backup.v);

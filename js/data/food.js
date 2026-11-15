@@ -1,10 +1,14 @@
 // Еда: продукты, семена, блюда и рецепты.
-// src: shop — ТЦ «Вкусный»; garden — грядки; fish — рыбалка
-// seasons — когда южный фрукт продают в ТЦ; в остальное время он есть только на рынке (дороже).
+// src: shop — ТЦ «Вкусный»; garden — грядки; fish — рыбалка; wild — только собрать (растёт в городе и в лесу)
+// south — южный фрукт: ТЦ продаёт его только в сезон, в остальное время он есть только на рынке (дороже).
+// raw — можно съесть просто так, не готовя (кнопка «Съесть» в рюкзаке и холодильнике).
+// Сезон продукта — из общей таблицы data/seasons.js: months — месяцы (0–11), seasons — сезоны; у кого сезона
+// нет, у того и полей нет. Кокосы, бананы и манго ещё и растут в городе (locations/common/plants.js).
 // Цены сюда подставляются из economy.js:
-//   price — в магазине (у продуктов с грядки и у рыбы её нет); sell — сколько даёт рынок;
+//   price — в магазине (у продуктов с грядки, у рыбы и у собранного её нет); sell — сколько даёт рынок;
 //   rare — цена на рынке не в сезон.
 import { PRICES, MARKET } from './economy.js';
+import { harvestMonths, seasonsOf, ripeIn } from './seasons.js';
 
 const floor5 = (n) => Math.max(5, Math.floor(n / 5) * 5);
 const ING_LIST = [
@@ -17,39 +21,46 @@ const ING_LIST = [
   { id: 'choco', name: 'Шоколад', e: '🍫', src: 'shop' },
   { id: 'rice', name: 'Рис', e: '🍚', src: 'shop' },
   { id: 'nuts', name: 'Орешки', e: '🌰', src: 'shop' },
-  { id: 'apple', name: 'Яблоко', e: '🍎', src: 'shop' },
-  { id: 'banana', name: 'Банан', e: '🍌', src: 'shop' },
+  { id: 'apple', name: 'Яблоко', e: '🍎', src: 'shop', raw: true },
+  { id: 'banana', name: 'Банан', e: '🍌', src: 'shop', raw: true },
   { id: 'honey', name: 'Мёд', e: '🍯', src: 'shop' },
   { id: 'coconut', name: 'Кокос', e: '🥥', src: 'shop' },
   // южные фрукты
-  { id: 'mango', name: 'Манго', e: '🥭', src: 'shop', seasons: ['summer'] },
-  { id: 'pineapple', name: 'Ананас', e: '🍍', src: 'shop', seasons: ['spring', 'summer'] },
-  { id: 'kiwi', name: 'Киви', e: '🥝', src: 'shop', seasons: ['autumn', 'winter'] },
-  { id: 'orange', name: 'Апельсин', e: '🍊', src: 'shop', seasons: ['winter', 'spring'] },
-  { id: 'lemon', name: 'Лимон', e: '🍋', src: 'shop', seasons: ['winter', 'spring'] },
-  { id: 'peach', name: 'Персик', e: '🍑', src: 'shop', seasons: ['summer'] },
-  { id: 'grapes', name: 'Виноград', e: '🍇', src: 'shop', seasons: ['autumn'] },
-  { id: 'melon', name: 'Дыня', e: '🍈', src: 'shop', seasons: ['summer', 'autumn'] },
-  { id: 'avocado', name: 'Авокадо', e: '🥑', src: 'shop', seasons: ['spring'] },
-  { id: 'carrot', name: 'Морковка', e: '🥕', src: 'garden' },
-  { id: 'strawberry', name: 'Клубника', e: '🍓', src: 'garden' },
+  { id: 'mango', name: 'Манго', e: '🥭', src: 'shop', south: true, raw: true },
+  { id: 'pineapple', name: 'Ананас', e: '🍍', src: 'shop', south: true, raw: true },
+  { id: 'kiwi', name: 'Киви', e: '🥝', src: 'shop', south: true, raw: true },
+  { id: 'orange', name: 'Апельсин', e: '🍊', src: 'shop', south: true, raw: true },
+  { id: 'lemon', name: 'Лимон', e: '🍋', src: 'shop', south: true },
+  { id: 'peach', name: 'Персик', e: '🍑', src: 'shop', south: true, raw: true },
+  { id: 'grapes', name: 'Виноград', e: '🍇', src: 'shop', south: true, raw: true },
+  { id: 'melon', name: 'Дыня', e: '🍈', src: 'shop', south: true, raw: true },
+  { id: 'avocado', name: 'Авокадо', e: '🥑', src: 'shop', south: true },
+  { id: 'carrot', name: 'Морковка', e: '🥕', src: 'garden', raw: true },
+  { id: 'strawberry', name: 'Клубника', e: '🍓', src: 'garden', raw: true },
   { id: 'seeds', name: 'Семечки', e: '🌻', src: 'garden' },
-  { id: 'tomato', name: 'Помидор', e: '🍅', src: 'garden' },
+  { id: 'tomato', name: 'Помидор', e: '🍅', src: 'garden', raw: true },
   { id: 'pumpkin', name: 'Тыква', e: '🎃', src: 'garden' },
   { id: 'fish', name: 'Рыбка', e: '🐟', src: 'fish' },
+  // растёт само: кусты черники и грибы (в городе их мало — основное место сбора будет в лесу)
+  { id: 'blueberry', name: 'Черника', e: '🫐', src: 'wild', raw: true },
+  { id: 'mushroom', name: 'Гриб', e: '🍄', src: 'wild' },
 ];
 export const INGREDIENTS = ING_LIST.map((i) => {
   const price = PRICES.ing[i.id] || 0;
+  const months = harvestMonths(i.id);
   return {
     ...i,
+    ...(months ? { months, seasons: seasonsOf(i.id) } : null),
     price,
     sell: MARKET.sell[i.id] || Math.round(price * MARKET.shopShare),
-    rare: i.seasons ? floor5(price * MARKET.rareMarkup) : 0,
+    rare: i.south ? floor5(price * MARKET.rareMarkup) : 0,
   };
 });
 export const ING_BY_ID = Object.fromEntries(INGREDIENTS.map((i) => [i.id, i]));
-/** Продаётся ли продукт сейчас в ТЦ «Вкусный» (южные фрукты — только в свой сезон). */
-export const inSeason = (ing, season) => !ing.seasons || ing.seasons.includes(season);
+/** Сезон ли сейчас у продукта (month — 0–11, как cal().month). У кого сезона нет — всегда. */
+export const inSeason = (ing, month) => ripeIn(ing.id, month);
+/** Продаётся ли продукт сейчас в ТЦ «Вкусный»: южные фрукты — только в свой сезон, остальное — всегда. */
+export const inMall = (ing, month) => !ing.south || inSeason(ing, month);
 
 // Семена: crop — что вырастет, days — сколько ночей растёт, n — урожай с грядки
 const SEED_LIST = [
@@ -90,6 +101,9 @@ const DISH_LIST = [
   { id: 'kozinaki', name: 'Козинаки', e: '🍘', needs: { seeds: 2, honey: 1 } },
   { id: 'apple_pie', name: 'Яблочный пирог', e: '🥮', needs: { apple: 2, flour: 1, butter: 1, sugar: 1 } },
   { id: 'cheese_plate', name: 'Сырная тарелка', e: '🧀', needs: { cheese: 2, nuts: 1, honey: 1 } },
+  // из собранного в городе и в лесу
+  { id: 'mushroom_soup', name: 'Грибной суп', e: '🥣', needs: { mushroom: 2, carrot: 1 }, start: true },
+  { id: 'blueberry_muffin', name: 'Черничный кекс', e: '🧁', needs: { blueberry: 2, flour: 1, egg: 1 }, start: true },
   // только в кафе
   { id: 'croissant', name: 'Круассан', e: '🥐', cafe: 'cafe' },
   { id: 'donut', name: 'Пончик', e: '🍩', cafe: 'cafe' },
