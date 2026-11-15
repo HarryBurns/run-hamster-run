@@ -1224,11 +1224,18 @@ async function economy({ page, step, ev, wait, closeAll }) {
     });
     expect(r.left0 === r.purse - all && r.sold === Math.floor(r.left0 / r.price), 'кошелёк торговца', r);
     expect(r.got === r.sold * r.price && r.again === 0 && r.pearl === 0 && r.pearls === 3, 'продано сверх кошелька', r);
+    // в кошельке осталось меньше цены рыбки и жемчужины — кнопки продажи выключены; монеты кончились совсем —
+    // кошелёк показан пустым
+    const allOff = () => ev(() => [...document.querySelectorAll('.overlay .card .btn')].every((b) => b.disabled));
     await ev(() => window.__dev.run('market'));
     await wait(400);
-    const dis = await ev(() => [...document.querySelectorAll('.overlay .card .btn')].every((b) => b.disabled));
+    expect(r.left < r.price && (await allOff()), 'торговцу не хватает монет, а кнопки продажи активны', r.left);
+    await closeAll();
+    await ev((purse) => window.__dev.actions.setDayFlag('marketPaid', purse), r.purse);
+    await ev(() => window.__dev.run('market'));
+    await wait(400);
     expect(
-      dis && (await page.locator('.overlay .purse.empty').count()) === 1,
+      (await allOff()) && (await page.locator('.overlay .purse.empty').count()) === 1,
       'при пустом кошельке кнопки продажи активны',
     );
     await closeAll();
