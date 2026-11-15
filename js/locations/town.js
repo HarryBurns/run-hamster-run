@@ -14,6 +14,7 @@ import './common/index.js';
 import { createSea, WORLD_SEA } from './sea.js';
 import { HOUSE_ART, HOUSE_STYLE } from './town_buildings.js';
 import { signBoard, fitText } from './common/paint.js';
+import { createPlants, hasFruit } from './common/plants.js';
 
 const MW = 96,
   MH = 121;
@@ -277,6 +278,30 @@ const POOLS = [
 const YARD = [4, 3, 27, 24]; // двор виллы: по этим клеткам идёт забор
 const PARK = { x0: 32, y0: 29, x1: 49, y1: 46, pond: [40.5, 38.5, 4.1, 2.9], ring: [6.6, 5.6] }; // парк с прудом
 
+// ---------- что растёт в городе ----------
+// Плодовые растения (виды и правила сбора — common/plants.js; сезоны — data/seasons.js; сколько их можно —
+// GATHER в data/economy.js). Их немного, и стоят они на местах обычной зелени: дерева, пальмы, куста — так что
+// проходы остаются прежними. Ставь так, чтобы растение не закрывали дом или ёлка с юга (грибы низкие!). Ещё две кокосовые пальмы — на островах (WORLD_SEA в sea.js). Грибов и ягод
+// в городе мало нарочно: главное место для них — лес.
+const COCO_BEACH = 38; // кокосовая пальма на набережной — напротив пляжа (остальные пальмы там без плодов)
+const FRUIT_PLANTS = [
+  ['cocoPalm', 9, 10], // двор виллы, у бассейна
+  ['bananaPalm', 22, 7], // двор виллы, над грядками
+  ['bananaPalm', 66, 30], // у входа в бассейн, с Морского проспекта
+  ['mangoTree', 16, 39], // Садовая улочка
+  ['mangoTree', 60, 40], // у ресторана «Золотой орешек»
+  ['mangoTree', 79, 39], // улочка за бассейном
+  ['berryBush', 3, 22], // у тропы в лес
+  ['berryBush', 36, 31], // парк
+  ['berryBush', 7, 37], // Садовая улочка
+  ['berryBush', 69, 38], // напротив бассейна
+  ['mushrooms', 3, 7, { v: 0 }], // опушка: под ёлками у тропы в лес
+  ['mushrooms', 3, 21, { v: 1 }], // там же, рядом с черникой
+  ['mushrooms', 30, 3, { v: 1 }], // опушка за магазинами
+  ['mushrooms', 35, 30, { v: 0 }], // парк: под деревьями у входа
+  ['mushrooms', 37, 41, { v: 1 }], // парк: у пруда, в камышах
+];
+
 // ---------- свои виды клеток и предметов ----------
 defineTiles({
   // грядка: что на ней растёт, записано в сохранении (state.garden); росток рисуется каждый кадр (live)
@@ -406,6 +431,7 @@ defineObjects({
 
 // ---------- построение карты ----------
 const sea = createSea(WORLD_SEA);
+const plants = createPlants(); // подпись «Сорвать…», кнопка и клавиша E у плодовых растений
 function build(m) {
   const g = m.ground,
     solid = m.solid,
@@ -847,11 +873,11 @@ function build(m) {
   put1('crab', 36, 55);
   put1('crab', 78, 55);
   put1('rowboat', 61, 53);
-  // бунгало: гамак между пальмами, шезлонг
+  // бунгало: гамак между пальмами, шезлонг, банановая пальма
   put1('palm', 12, 51, { v: 0 });
   put1('hammock', 13, 51, { v: 0 });
   put1('palm', 15, 51, { v: 1 });
-  put1('palm', 4, 51, { v: 2 });
+  put1('bananaPalm', 4, 51);
   put1('lounger', 11, 53);
   put1('barrel', 5, 52);
   keep(6, 53, 10, 54);
@@ -863,7 +889,8 @@ function build(m) {
   // пальмы вдоль набережной
   for (let x = 2; x < MW; x += 4) {
     if (x >= 62 && x <= 65) continue;
-    if (g[50][x] === 's' && !solid[50][x] && !taken.has(x + ',50')) put1('palm', x, 50, { v: x % 3 });
+    if (g[50][x] === 's' && !solid[50][x] && !taken.has(x + ',50'))
+      put1(x === COCO_BEACH ? 'cocoPalm' : 'palm', x, 50, { v: x % 3 });
   }
 
   // ---- деревья, кусты, цветы ----
@@ -930,6 +957,12 @@ function build(m) {
       } else if (r < dens[0] + dens[1]) add('bush', x, y, { v });
       else if (r < dens[0] + dens[1] + dens[2]) add('flowers', x, y, { v: Math.floor(rng() * 4) });
     }
+
+  // ---- плодовые растения: на месте того, что выросло на клетке само (остальная зелень от этого не меняется) ----
+  for (const [type, x, y, o] of FRUIT_PLANTS) {
+    m.clear(x, y);
+    add(type, x, y, o);
+  }
 }
 
 /**
@@ -983,6 +1016,14 @@ function target(sc) {
     const it = m.items.find((i) => !i.got && sc.itemHere(i));
     return it ? { x: (it.x + 0.5) * T, y: (it.y + 0.5) * T, icon: t.sticker } : null;
   }
+  if (t.type === 'coconut') {
+    // «Кокосовый день»: к ближайшей кокосовой пальме, на которой ещё есть орехи (сначала те, что на суше)
+    const palms = plants.plants().filter((o) => o.type === 'cocoPalm' && hasFruit(o)),
+      land = palms.filter((o) => o.ty < WORLD_SEA.shallowY),
+      near = (o) => Math.hypot(o.x - sc.p.x, o.y - sc.p.y),
+      palm = (land.length ? land : palms).sort((a, b) => near(a) - near(b))[0];
+    if (palm) return { x: palm.x, y: palm.y - 46, icon: '⭐' };
+  }
   const wh = t.where;
   if (wh === 'town') return null;
   const b = sc.map.bById[wh];
@@ -1023,7 +1064,7 @@ const town = createTopDownScene({
     beach: { y: [50, WORLD_SEA.shallowY - 1], tiles: ['s'] },
     town: { y: [3, 49], tiles: ['r', 'g', 'k', 'y'], avoid: [[0, 0, 28, 25]], reach: { from: [15, 26], tiles: ['g'] } },
   },
-  parts: [sea],
+  parts: [sea, plants],
   target,
   /** Таблички «моё» у купленных заведений и жилья — сразу после здания в порядке «дальше → ближе». */
   things(sc, add, v) {

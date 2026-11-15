@@ -58,7 +58,7 @@ export const WORLD_SEA = {
       ry: 2.8,
       deco: [
         ['palm', -2, -1],
-        ['palm', 1, -2],
+        ['cocoPalm', 1, -2], // кокосовая: до неё можно доплыть
         ['palm', 3, 0],
         ['starfish', -1, 1],
         ['crab', 1, 1],
@@ -127,7 +127,7 @@ export const WORLD_SEA = {
         ['volcano', 0, -2],
         ['palm', -5, -1],
         ['palm', -3, 1],
-        ['palm', 4, -1],
+        ['cocoPalm', 4, -1], // кокосовая: награда тем, кто доплыл на кораблике
         ['palm', 5, 1],
         ['chest', 1, 2],
         ['crab', -1, 2],

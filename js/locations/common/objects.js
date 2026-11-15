@@ -1,6 +1,6 @@
 // ОБЩИЕ ВИДЫ ПРЕДМЕТОВ — для любых локаций «вид сверху» (как описывать вид — engine/topdown/kinds.js).
 //
-//   tree, pine, palm   деревья: на клетку не встать; palm можно потрясти — упадёт кокос (раз в день с пальмы)
+//   tree, pine, palm   деревья: на клетку не встать (пальма — без плодов; с плодами — plants.js)
 //   bush               куст: пройти можно, но медленно;   flowers — цветы (просто украшение)
 //   fenceH, fenceV     забор вдоль и поперёк;             bench — скамейка;   fountain — фонтан (две клетки)
 //   lounger, umbrella  лежак и зонтик (поле beach: true — пляжный, с ковриком; зимой убран)
@@ -8,15 +8,10 @@
 //
 // Поле v у предмета — вариант рисунка (цвет листвы, цветов). Свой предмет локация добавляет у себя:
 // defineObjects({ имя: { art: { … }, draw(ctx, o, env) { put('…', o.x, o.y) }, solid: true } }).
-import { G } from '../../core/state.js';
-import { addItem, setDayFlag } from '../../core/actions.js';
-import { emit } from '../../core/events.js';
 import { TAU } from '../../core/util.js';
 import { ell, fillRR, line, poly, shade, star } from '../../core/draw.js';
 import { shadow, leafTones, flower } from './paint.js';
-import { sfx } from '../../core/audio.js';
-import { toast } from '../../ui/toast.js';
-import { T, OUT, SP, ART, put, defineArt, defineObjects } from '../../engine/topdown/kinds.js';
+import { T, OUT, SP, put, defineArt, defineObjects } from '../../engine/topdown/kinds.js';
 
 /** Цвет листвы по сезону; v — вариант. */
 export function leafCol(sea, v) {
@@ -61,7 +56,7 @@ export function crown(ctx, puffs, tones, lw = 2.2) {
   }
 }
 /** Ствол с тенью справа и бликом слева. */
-function trunk(ctx, x, top, w, bot, col = '#a8703f') {
+export function trunk(ctx, x, top, w, bot, col = '#a8703f') {
   fillRR(ctx, x - w / 2, top, w, bot - top, w * 0.35, col, OUT, 2);
   ctx.fillStyle = 'rgba(0,0,0,.16)';
   ctx.fillRect(x + w * 0.12, top + 2, w * 0.3, bot - top - 4);
@@ -92,8 +87,8 @@ const CROWNS = [
   ],
 ];
 const BLOSSOM = ['#fff0f6', '#ffd6e7', '#ffffff'];
-// Листья пальмы и два кокоса; sw — наклон листьев (радианы).
-function paintPalmTop(ctx, sea, sw) {
+/** Листья пальмы; sw — наклон листьев (радианы); nuts — с кокосами под листьями (кокосовая пальма в сезон). */
+export function paintPalmTop(ctx, sea, sw, nuts) {
   const col = sea === 'autumn' ? '#94c93d' : sea === 'winter' ? '#58b56b' : '#40c057',
     dark = shade(col, -0.16),
     lite = shade(col, 0.22);
@@ -128,16 +123,21 @@ function paintPalmTop(ctx, sea, sw) {
     }
     ctx.restore();
   }
-  for (const [dx, dy] of [
-    [2, -57],
-    [11, -55],
-    [7, -51],
+  if (!nuts) return;
+  // гроздь кокосов под листьями: крупные, чтобы кокосовую пальму было видно издалека
+  for (const [dx, dy, r] of [
+    [-3, -55, 6],
+    [15, -54, 6],
+    [6, -58, 6.4],
+    [1, -47, 6.4],
+    [11, -47, 6.6],
   ]) {
-    ell(ctx, dx, dy, 5, 5, '#8d5524', OUT, 1.3);
-    ell(ctx, dx - 1.5, dy - 1.5, 1.6, 1.3, 'rgba(255,255,255,.35)');
+    ell(ctx, dx, dy, r, r, '#8d5524', OUT, 1.5);
+    ell(ctx, dx + r * 0.3, dy + r * 0.35, r * 0.62, r * 0.5, 'rgba(60,30,10,.28)');
+    ell(ctx, dx - r * 0.34, dy - r * 0.36, r * 0.34, r * 0.26, 'rgba(255,255,255,.45)');
   }
 }
-const PALM_STEP = 0.015; // листья пальмы качаются готовыми кадрами: шаг наклона, радианы
+export const PALM_STEP = 0.015; // листья пальмы качаются готовыми кадрами: шаг наклона, радианы
 const FLOWER_COLS = ['#ff6b9d', '#ffd43b', '#fff', '#b197fc'],
   FLOWER_AT = [
     [-10, 5, 0],
@@ -356,6 +356,7 @@ defineArt({
     },
   ],
   palmTop: [[-62, -128, 72, -30], (ctx, sea, q) => paintPalmTop(ctx, sea, q * PALM_STEP)],
+  palmTopNuts: [[-62, -128, 72, -30], (ctx, sea, q) => paintPalmTop(ctx, sea, q * PALM_STEP, true)],
   bush: [
     [-30, -28, 32, 22],
     (ctx, sea, v) => {
@@ -647,26 +648,7 @@ defineArt({
   ],
 });
 
-/** Потрясти пальму: раз в день с каждой падает кокос. */
-function shakePalm(sc, o) {
-  const key = o.tx + '_' + o.ty,
-    shaken = G.state.dayFlags.palms || {};
-  o.shake = G.time + 0.8;
-  sfx('paper');
-  if (shaken[key]) {
-    toast('На этой пальме кокосы на сегодня закончились. Попробуй другую! 🌴');
-    return;
-  }
-  setDayFlag(key, 1, 'palms');
-  addItem('ing', 'coconut', 1);
-  sc.drops.push({ x: o.x + 6, y: o.y - 58, t: 0, e: '🥥' });
-  setTimeout(() => {
-    sfx('pop');
-    toast('Бум! +1 🥥 Кокос', 'good');
-  }, 450);
-  emit('coconut');
-}
-const treeDot = (env) => (env.season === 'winter' ? '#cfe3f0' : env.season === 'autumn' ? '#f08c00' : '#40c057');
+export const treeDot = (env) => (env.season === 'winter' ? '#cfe3f0' : env.season === 'autumn' ? '#f08c00' : '#40c057');
 
 // Предмет на земле: неподвижное — спрайтами из кэша (put), подвижное — линиями поверх (перед этим SP.world()).
 defineObjects({
@@ -690,30 +672,13 @@ defineObjects({
       put('pine', o.x, o.y, env.season, (o.v || 0) % 3);
     },
   },
+  // пальма без плодов: просто дерево (кокосовая и банановая — в plants.js)
   palm: {
     solid: true,
     map: treeDot,
-    tap: { dx: 34, up: 78, down: 18, ox: 4 },
-    use: shakePalm,
     draw(ctx, o, env) {
-      const t = env.t,
-        x = o.x,
-        y = o.y,
-        sw = Math.sin(t * 1.4 + x * 0.1) * 0.06;
-      if (o.shake > t) {
-        // пальму трясут: это редко и недолго — рисуем линиями
-        SP.world();
-        ctx.save();
-        ctx.translate(x, y);
-        ctx.lineCap = 'round';
-        ctx.lineJoin = 'round';
-        ART.palmBase[1](ctx);
-        paintPalmTop(ctx, env.season, sw + Math.sin(t * 34) * 0.16);
-        ctx.restore();
-        return;
-      }
-      put('palmBase', x, y);
-      put('palmTop', x, y, env.season, Math.round(sw / PALM_STEP));
+      put('palmBase', o.x, o.y);
+      put('palmTop', o.x, o.y, env.season, Math.round((Math.sin(env.t * 1.4 + o.x * 0.1) * 0.06) / PALM_STEP));
     },
   },
   bush: {

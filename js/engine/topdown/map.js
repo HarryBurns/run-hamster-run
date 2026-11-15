@@ -9,7 +9,8 @@
 //                   base — чем залита карта до правил ('g').
 //
 // В build(m) доступны: m.fill(x0, y0, x1, y1, вид), m.set(x, y, вид), m.at(x, y), m.add(предмет, x, y, поля),
-// m.block(x, y), m.ground / m.solid (сетки [y][x]), m.objs, m.buildings, m.w, m.h.
+// m.clear(x, y) — убрать с клетки то, что на неё поставили раньше, m.block(x, y), m.ground / m.solid
+// (сетки [y][x]), m.objs, m.buildings, m.w, m.h.
 // Предмет сам занимает клетку, если его вид «твёрдый» (solid) или в полях передано solid: true;
 // «медленный» вид (slow) помечает клетку медленной. Здания (описание.buildings) занимают своё «пятно».
 //
@@ -78,6 +79,24 @@ export function createMap(desc) {
       if (kind.slow) slow[ty][tx] = ob;
       if (kind.tap) m.tappable.push(ob);
       return ob;
+    },
+
+    /**
+     * Убрать с клетки предметы, которые начинаются на ней (только в правилах постройки: потом карта не меняется).
+     * Клетка снова свободна. Так на место «случайной» зелени сажают то, что должно расти именно здесь.
+     */
+    clear(tx, ty) {
+      for (let i = objs.length - 1; i >= 0; i--) {
+        const ob = objs[i];
+        if (ob.tx !== tx || ob.ty !== ty) continue;
+        const s = ob.solid !== undefined ? ob.solid : OBJECTS[ob.type].solid;
+        if (s === true) solid[ty][tx] = false;
+        else if (s) for (const [dx, dy] of s) solid[ty + dy][tx + dx] = false;
+        if (slow[ty][tx] === ob) slow[ty][tx] = null;
+        const t = m.tappable.indexOf(ob);
+        if (t >= 0) m.tappable.splice(t, 1);
+        objs.splice(i, 1);
+      }
     },
 
     // ---------- после постройки ----------

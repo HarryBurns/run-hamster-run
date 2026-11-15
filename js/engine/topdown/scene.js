@@ -384,9 +384,11 @@ export function createTopDownScene(desc) {
         }
       }
       if (sc.first('tapThing', sc, w, tx, ty)) return;
-      // предмет, с которым можно что-то сделать (пальма — потрясти)
+      // предмет, с которым можно что-то сделать (плодовое дерево — собрать плоды)
       for (const o of map.tappable) {
-        const tp = OBJECTS[o.type].tap;
+        const kind = OBJECTS[o.type],
+          tp = kind.tap;
+        if (kind.tapIf && !kind.tapIf(o)) continue;
         if (Math.abs(w.x - o.x - (tp.ox || 0)) < tp.dx && w.y > o.y - tp.up && w.y < o.y + tp.down) {
           sc.goNear(o.x, o.y, { obj: o });
           sfx('tap');

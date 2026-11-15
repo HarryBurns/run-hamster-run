@@ -14,6 +14,7 @@ import { createSideScene } from './engine/side/scene.js';
 import { OWN as demoOwn } from './interiors/demo_house.js';
 import town, { sea, BUILDINGS } from './locations/town.js';
 import * as topdown from './engine/topdown/index.js';
+import { PLANTS, hasFruit, plantInSeason, gather } from './locations/common/plants.js';
 import * as Tower from './interiors/tower.js';
 
 /**
@@ -110,6 +111,8 @@ export function installDevHooks({ F }) {
     /** «Движок локаций»: locations — все локации по имени сцены, getLocation(name), currentLocation(). */
     topdown,
     locations: topdown.locations,
+    /** Плодовые растения: Plants.PLANTS (что на чём растёт), hasFruit(o), plantInSeason(o), gather(сцена, o). */
+    Plants: { PLANTS, hasFruit, plantInSeason, gather },
     Tower,
     get Villa() {
       return loop.scenes.villa;
