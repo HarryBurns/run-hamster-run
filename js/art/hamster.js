@@ -107,19 +107,23 @@ function drawLegs(ctx, item) {
     ctx.fillStyle = shade(item.c, -0.2);
     ctx.fillRect(-19, -22, 38, 4);
   } else if (item.kind === 'skirt') {
-    ctx.beginPath();
-    ctx.moveTo(-20, -22);
-    ctx.lineTo(20, -22);
-    ctx.quadraticCurveTo(30, -10, 30, -4);
-    ctx.quadraticCurveTo(0, 2, -30, -4);
-    ctx.quadraticCurveTo(-30, -10, -20, -22);
-    ctx.closePath();
+    const skirtPath = () => {
+      ctx.beginPath();
+      ctx.moveTo(-20, -22);
+      ctx.lineTo(20, -22);
+      ctx.quadraticCurveTo(30, -10, 30, -4);
+      ctx.quadraticCurveTo(0, 2, -30, -4);
+      ctx.quadraticCurveTo(-30, -10, -20, -22);
+      ctx.closePath();
+    };
+    skirtPath();
     ctx.fillStyle = item.c;
     ctx.fill();
     ctx.save();
     ctx.clip();
     pattern(ctx, item, -32, -22, 64, 26);
     ctx.restore();
+    skirtPath(); // узор меняет текущий путь — контур юбки строим заново
     ctx.strokeStyle = OUT;
     ctx.lineWidth = 2;
     ctx.stroke();
@@ -188,13 +192,16 @@ function drawBody(ctx, item) {
     case 'dress':
     case 'princess': {
       const long = item.kind === 'princess';
-      ctx.beginPath();
-      ctx.moveTo(-17, -42);
-      ctx.quadraticCurveTo(0, -36, 17, -42);
-      ctx.quadraticCurveTo(25, -30, long ? 36 : 31, -3);
-      ctx.quadraticCurveTo(0, long ? 7 : 4, long ? -36 : -31, -3);
-      ctx.quadraticCurveTo(-25, -30, -17, -42);
-      ctx.closePath();
+      const dressPath = () => {
+        ctx.beginPath();
+        ctx.moveTo(-17, -42);
+        ctx.quadraticCurveTo(0, -36, 17, -42);
+        ctx.quadraticCurveTo(25, -30, long ? 36 : 31, -3);
+        ctx.quadraticCurveTo(0, long ? 7 : 4, long ? -36 : -31, -3);
+        ctx.quadraticCurveTo(-25, -30, -17, -42);
+        ctx.closePath();
+      };
+      dressPath();
       ctx.fillStyle = c;
       ctx.fill();
       ctx.save();
@@ -209,6 +216,7 @@ function drawBody(ctx, item) {
         ctx.globalAlpha = 1;
       }
       ctx.restore();
+      dressPath(); // узор рисует свои кружки и звёзды — путь платья для контура строим заново
       ctx.strokeStyle = OUT;
       ctx.lineWidth = 2;
       ctx.stroke();
