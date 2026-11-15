@@ -57,11 +57,12 @@
 // СЦЕНА (то, что вернул createTopDownScene) умеет: ходьбу по нажатию и стрелками, «дойти и сделать», вход в
 // здания, особые места, жителей, предметы заданий и находки, переходы, камеру, погоду и ночь, сохранение позиции.
 // Крюкам и занятиям пригодятся: sc.map, sc.p (герой), sc.cam, sc.walkTo(x, y, точно), sc.goNear(x, y, pending),
-// sc.pass(), sc.spot(id), sc.walkToPlace(id), sc.randomSpots(зона, n, seed), sc.drops, sc.exit(id).
+// sc.pass(), sc.spot(id), sc.walkToPlace(id), sc.randomSpots(зона, n, seed), sc.drops, sc.exit(id),
+// sc.heroLook() — как сейчас нарисован герой (на пляже — в шлёпанцах).
 // pending — «что сделать, когда дойдём»: { fn(sc) } | { place } | { b: здание } | { npc } | { obj }.
 // Способ передвижения героя (кораблик): sc.p.ride = { speed, pass(tx, ty), step: { sfx, pause }, moved(sc),
 // draw(ctx, sc, p, t, look), drop(sc) } — пока он задан, герой ходит по его правилам; null — пешком.
-import { G, darkness } from '../../core/state.js';
+import { G, darkness, cal, playerLook, beachLook } from '../../core/state.js';
 import { addItem, setFlag, setDayFlag, collectMailItem } from '../../core/actions.js';
 import { emit } from '../../core/events.js';
 import { run } from '../../core/registry.js';
@@ -166,6 +167,15 @@ export function createTopDownScene(desc) {
             icon: (TASK_BY_ID[G.state.mail.task] || {}).sticker || '⭐',
           };
       return null;
+    },
+
+    /**
+     * Как нарисовать героя: наряд из сохранения, а на пляже (клетка с beach: true) не зимой — в шлёпанцах, если
+     * они есть в шкафу (beachLook). Только картинка: наряд в сохранении не меняется.
+     */
+    heroLook() {
+      const k = TILES[sc.p.surf];
+      return k && k.beach && (desc.season || cal().season) !== 'winter' ? beachLook() : playerLook();
     },
 
     // ---------- «дойти и сделать» ----------

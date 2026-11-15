@@ -91,6 +91,12 @@ C('sand_pink', 'feet', 'sandals', 'Розовые сандалии', '#ff6b9d', 
 C('flippers', 'feet', 'flippers', 'Ласты', '#20c997', { shop: 'beach', tags: ['beach', 'swim'] });
 C('slippers', 'feet', 'slippers', 'Домашние тапочки', '#ffc9de', { shop: 'start', tags: ['home'] });
 C('shoes_gold', 'feet', 'sandals', 'Золотые туфельки', '#ffd43b', { c2: '#ff6b9d', shop: 'boutique', stock: 'special', tags: ['fancy'] });
+// шлёпанцы-вьетнамки (У2): c — подошва, c2 — перемычка. На песке пляжа хомячок сама идёт в шлёпанцах, если они
+// есть в шкафу (кроме зимы): beachLook в core/state.js, клетки с beach: true. Розовые — подарок: в новой игре
+// лежат в шкафу, в старых сохранениях появляются один раз (main.js, отметка flags.flipflopsGift).
+C('flip_pink', 'feet', 'flipflops', 'Розовые шлёпанцы', '#ff6b9d', { c2: '#ffe066', shop: 'start', season: 'hot', tags: ['summer', 'beach', 'cute'] });
+C('flip_sea', 'feet', 'flipflops', 'Бирюзовые шлёпанцы', '#22b8cf', { c2: '#fff', shop: 'beach', season: 'hot', tags: ['summer', 'beach', 'swim'] });
+C('flip_lime', 'feet', 'flipflops', 'Салатовые шлёпанцы', '#94d82d', { c2: '#ff922b', season: 'hot', tags: ['summer', 'beach', 'sport'] });
 // --- голова
 C('cap_yellow', 'head', 'cap', 'Жёлтая кепка', '#ffd43b', { tags: ['sport', 'summer'] });
 C('cap_red', 'head', 'cap', 'Кепка со звездой', '#f03e3e', { print: 'star', tags: ['sport', 'summer', 'spring'] });
@@ -166,4 +172,6 @@ C('lei_shell', 'acc', 'lei', 'Бусы из ракушек', '#ffe8cc', { c2: '#
 export const CLOTHES = CL;
 export const CLOTHES_BY_ID = Object.fromEntries(CL.map((c) => [c.id, c]));
 export const START_CLOTHES = CL.filter((c) => c.shop === 'start').map((c) => c.id);
+/** Шлёпанцы в подарок (У2): в новой игре — в шкафу с начала, в старом сохранении — один раз при загрузке (main.js). */
+export const FLIPFLOPS_GIFT = 'flip_pink';
 export const START_OUTFIT = { head: 'beanie_red', body: 'jw_blue', legs: 'pants_jeans', feet: 'boots_brown', acc: 'scarf_yellow' };

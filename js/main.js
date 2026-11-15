@@ -1,6 +1,6 @@
 // Запуск игры: собирает вместе сцены, HUD и заставку. Имён сцен здесь нет нигде, кроме их регистрации.
 import { G, newGame, load, loadProblem, backupSave, repair, hasSave, wipe, unload } from './core/state.js';
-import { mutate, award, addItem, setFlag } from './core/actions.js';
+import { mutate, award, addItem, addClothes, setFlag } from './core/actions.js';
 import {
   startLoop,
   registerScene,
@@ -16,7 +16,7 @@ import {
 import { el, esc, fmtMoney } from './core/util.js';
 import { makeCanvas } from './core/draw.js';
 import { drawHamster, blinkAt } from './art/hamster.js';
-import { resolveLook, START_OUTFIT, defaultLook, START_MONEY } from './data/index.js';
+import { resolveLook, START_OUTFIT, defaultLook, START_MONEY, FLIPFLOPS_GIFT } from './data/index.js';
 import { sfx, unlockAudio } from './core/audio.js';
 import { message, confirmBox } from './ui/panel.js';
 import { toast } from './ui/toast.js';
@@ -108,6 +108,12 @@ function startGame(fresh) {
         fresh ? 9000 : 1500,
       );
     }
+  }
+  // шлёпанцы в подарок (У2, один раз): в новой игре они уже лежат в шкафу, в старом сохранении — появляются
+  if (!s.flags.flipflopsGift) {
+    setFlag('flipflopsGift');
+    const text = '🩴 Подарок к лету: в шкафу появились розовые шлёпанцы! На пляже ты будешь ходить в них сама.';
+    if (addClothes(FLIPFLOPS_GIFT)) setTimeout(() => toast(text, 'good'), 3500);
   }
   if (!fresh) F.showBankLetter(); // после переноса старого сохранения — письмо банка (один раз)
   if (fresh) {

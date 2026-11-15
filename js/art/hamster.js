@@ -498,6 +498,24 @@ function drawShoe(ctx, item, x, y) {
       ell(ctx, x - 5, y - 2, 3.6, 3.6, item.c2 || '#ffd43b', OUT, 1.2);
       ell(ctx, x + 5, y - 2, 3.6, 3.6, item.c2 || '#ffd43b', OUT, 1.2);
       break;
+    case 'flipflops': {
+      // шлёпанцы-вьетнамки: яркая подошва под лапкой (чуть ниже пола — её видно из-под туловища) и перемычка
+      // «уголком»: от «гвоздика» между пальцами (ближе к носку) к бокам стопы
+      const strap = item.c2 || '#fff',
+        px = x + 2.5,
+        py = y - 1;
+      fillRR(ctx, x - 10.5, y - 1.5, 22, 5, 2.4, c, OUT, 1.4);
+      line(ctx, x - 8, y - 0.4, x + 8.5, y - 0.4, shade(c, 0.45), 1.2); // светлый край подошвы
+      for (const [col, w] of [
+        [OUT, 3.8],
+        [strap, 2.2],
+      ]) {
+        line(ctx, x - 7.5, y - 5, px, py, col, w);
+        line(ctx, px, py, x + 9, y - 4.5, col, w);
+      }
+      ell(ctx, px, py, 2.1, 2.1, strap, OUT, 1);
+      break;
+    }
     case 'slippers':
       fillRR(ctx, x - 9, y - 8, 18, 9, 5, c, OUT, 1.6);
       ell(ctx, x, y - 8, 4, 3.5, item.c2 || '#fff', OUT, 1.2);
@@ -1055,8 +1073,9 @@ export function drawHamster(ctx, x, y, s, look, pose = {}) {
   }
   collar(ctx, o.body);
   const chestAcc = o.acc && CHEST_ACC.includes(o.acc.kind);
-  if (chestAcc) drawAcc(ctx, o.acc); // на груди, поверх одежды; голова ляжет сверху
-  else if (o.acc && o.acc.kind === 'backpack') {
+  if (chestAcc) {
+    drawAcc(ctx, o.acc); // на груди, поверх одежды; голова ляжет сверху
+  } else if (o.acc && o.acc.kind === 'backpack') {
     // лямки рюкзачка — с плеч на грудь (сам рюкзачок за спиной, спереди его почти не видно)
     for (const sx of [-1, 1]) {
       line(ctx, sx * 15, -36, sx * 17, -12, OUT, 4.6);

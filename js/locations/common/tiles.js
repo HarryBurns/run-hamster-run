@@ -509,6 +509,7 @@ defineTiles({
   },
   s: {
     map: (env) => pal(env).s,
+    beach: true, // песок пляжа и островов: хомячок здесь в шлёпанцах, если они есть (кроме зимы)
     step: 'stepSand',
     z: 2,
     fill: (env) => pal(env).s,
@@ -667,6 +668,7 @@ defineTiles({
     map: '#c98b5a',
     step: 'stepWood',
     bridge: true,
+    beach: true, // доски пирса — продолжение пляжа: тоже в шлёпанцах
     z: 11,
     fill: '#cd9160',
     edge: {

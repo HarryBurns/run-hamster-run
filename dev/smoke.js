@@ -1389,8 +1389,10 @@ async function economy({ page, step, ev, wait, closeAll }) {
     expect(s.v === 3 && s.money === 20000 && s.spent === 0 && s.earned === 0, 'деньги после переноса', [s.v, s.money]);
     expect(s.flags.bankLetter === 2 && s.ledger && s.pearlsSold === 0, 'новые поля', [s.flags, s.ledger, s.pearlsSold]);
     const same = (k) => JSON.stringify(s[k]) === JSON.stringify(old[k]);
-    for (const k of ['name', 'clothes', 'storage', 'dishes', 'seeds', 'stickers', 'day', 'pearls'])
+    for (const k of ['name', 'storage', 'dishes', 'seeds', 'stickers', 'day', 'pearls'])
       expect(same(k), `после переноса изменилось «${k}»`, [s[k], old[k]]);
+    // вещи: всё, что было, и шлёпанцы в подарок (У2)
+    expect(JSON.stringify(s.clothes) === JSON.stringify([...old.clothes, 'flip_pink']), 'вещи после переноса', s.clothes);
     // рецепты: всё, что было, на месте; в конец дописаны только новые рецепты «с начала игры» (repair)
     expect(
       JSON.stringify(s.recipes.slice(0, old.recipes.length)) === JSON.stringify(old.recipes) &&
@@ -1423,6 +1425,7 @@ async function economy({ page, step, ev, wait, closeAll }) {
     s = await state();
     expect((await page.locator('text=Письмо из Хомяк-Банка').count()) === 0, 'письмо банка показано второй раз');
     expect(s.money === 20000 && s.v === 3 && s.flags.bankLetter === 2, 'после второго входа', [s.money, s.flags]);
+    expect(s.clothes.filter((id) => id === 'flip_pink').length === 1, 'шлёпанцы подарены второй раз', s.clothes);
     await closeAll();
   });
   await step('образец: сохранение v2', async () => {
@@ -1441,7 +1444,7 @@ async function economy({ page, step, ev, wait, closeAll }) {
       'учёт денег',
       s.ledger,
     );
-    expect(JSON.stringify(s.clothes) === JSON.stringify(want.clothes), 'вещи');
+    expect(JSON.stringify(s.clothes) === JSON.stringify([...want.clothes, 'flip_pink']), 'вещи (и шлёпанцы в подарок)');
     if ((await ev(() => window.__dev.sceneName)) === 'world') {
       const pos = await ev(townOk);
       expect(pos.ok, 'позиция из сохранения v2 в новом городе', pos);

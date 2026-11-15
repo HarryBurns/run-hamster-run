@@ -205,7 +205,7 @@ export const PRICES = {
     pants_grey: 400, pants_black: 450, tutu_pink: 3000, tutu_white: 3000,
     // обувь
     sn_white: 380, sn_mint: 400, boots_black: 550, ugg_beige: 600, ugg_pink: 650, rain_red: 400, rain_yellow: 400,
-    sand_yellow: 250, sand_pink: 250, flippers: 300, rollers: 600, heels_red: 3500, heels_black: 3500,
+    sand_yellow: 250, sand_pink: 250, flip_sea: 180, flip_lime: 160, flippers: 300, rollers: 600, heels_red: 3500, heels_black: 3500,
     shoes_gold: 12000,
     // голова
     cap_yellow: 200, cap_red: 250, cap_blue: 200, panama_green: 230, panama_white: 220, panama_pink: 230,

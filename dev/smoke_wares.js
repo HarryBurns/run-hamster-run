@@ -166,11 +166,11 @@ module.exports = async function wares({ page, step, ev, wait, closeAll }) {
         'серая карточка сандалий зимой',
         c,
       );
-      // серую карточку не примерить и не купить; все десять пар обуви видны — ничего не спрятано
+      // серую карточку не примерить и не купить; все одиннадцать пар обуви (с шлёпанцами, У2) видны — ничего не спрятано
       await card('Жёлтые сандалии').click();
       await wait(250);
       expect((await page.locator('.overlay .card.sel').count()) === 0, 'вещь, которой нет, примерилась');
-      expect((await page.locator('.overlay .card').count()) === 10, 'в отделе обуви видны не все вещи');
+      expect((await page.locator('.overlay .card').count()) === 11, 'в отделе обуви видны не все вещи');
       c = await cardInfo('Белые кроссовки');
       expect(!c.away && !c.badge && c.btn === 1, 'базовая вещь — без значков и всегда на месте', c);
       await closeAll();
@@ -732,7 +732,7 @@ module.exports = async function wares({ page, step, ev, wait, closeAll }) {
     expect(
       s.v === old.v &&
         s.money === old.money &&
-        JSON.stringify([...s.clothes].sort()) === JSON.stringify([...old.clothes].sort()) &&
+        JSON.stringify([...s.clothes].sort()) === JSON.stringify([...old.clothes, 'flip_pink'].sort()) && // + подарок (У2)
         s.villa.length === old.villa.length,
       'сохранение v3: версия или вещи изменились',
       [s.v, old.v, s.clothes.length, old.clothes.length],
@@ -748,4 +748,90 @@ module.exports = async function wares({ page, step, ev, wait, closeAll }) {
     await ev(() => window.__dev.go('villa'));
     await wait(400);
   });
+
+  // У2: шлёпанцы. На песке пляжа и на пирсе (клетки с beach: true) не зимой хомячок нарисована в шлёпанцах, если они
+  // есть в шкафу; ушла с пляжа — своя обувь. Наряд в сохранении не меняется. Подарок — один раз.
+  await step(
+    'шлёпанцы на пляже (У2): летом на песке — в шлёпанцах, вне пляжа и зимой — своя обувь; подарок один раз',
+    async () => {
+      await fresh();
+      let s = await state();
+      const once = (q) => q.clothes.filter((id) => id === 'flip_pink').length === 1 && q.flags.flipflopsGift === 1;
+      expect(once(s), 'новая игра: розовые шлёпанцы в шкафу с начала', [s.clothes, s.flags]);
+      /** Поставить хомячка на клетку и посмотреть, в чём она нарисована: { surf, feet, worn }. */
+      const at = async (x, y) => {
+        await ev(([x, y]) => window.__dev.World.debugTeleport(x, y), [x, y]);
+        await wait(250);
+        return ev(() => {
+          const W = window.__dev.World;
+          return {
+            surf: W.p.surf,
+            feet: (W.heroLook().outfit.feet || {}).id || null,
+            worn: window.__dev.G.state.look.outfit.feet,
+          };
+        });
+      };
+      const own = s.look.outfit.feet; // в новой игре — ботинки
+      await setDay(DAY.summer);
+      let r = await at(40, 52); // песок пляжа
+      expect(r.surf === 's' && r.feet === 'flip_pink' && r.worn === own, 'летом на пляже — в шлёпанцах', r);
+      r = await at(63, 55); // пирс
+      expect(r.surf === 'i' && r.feet === 'flip_pink', 'на пирсе — в шлёпанцах', r);
+      r = await at(44, 48); // набережная
+      expect(r.surf !== 's' && r.feet === own && r.worn === own, 'ушла с пляжа — своя обувь', r);
+      await setDay(DAY.winter);
+      r = await at(40, 52);
+      expect(r.surf === 's' && r.feet === own, 'зимой на пляже шлёпанцы не надеваются', r);
+      // несколько пар — первая в шкафу; шлёпанцы надеты как обувь — они и остаются
+      await setDay(DAY.summer);
+      await ev(() => window.__dev.actions.addClothes('flip_sea'));
+      r = await at(40, 52);
+      expect(r.feet === 'flip_pink', 'несколько пар — первая в шкафу', r);
+      await ev(() => window.__dev.actions.wear('feet', 'flip_sea'));
+      r = await at(40, 52);
+      expect(r.feet === 'flip_sea' && r.worn === 'flip_sea', 'надетые шлёпанцы не меняются', r);
+      // без шлёпанцев — как раньше
+      await ev(() =>
+        window.__dev.actions.mutate((q) => {
+          q.clothes = q.clothes.filter((id) => !id.startsWith('flip_'));
+          q.look.outfit.feet = 'sn_red';
+        }),
+      );
+      r = await at(40, 52);
+      expect(r.feet === 'sn_red', 'шлёпанцев нет — своя обувь', r);
+
+      // старое сохранение (v3): подарок появляется один раз, с подсказкой; при следующем входе — не повторяется
+      const old = JSON.parse(SAVE_V3);
+      const load = async () => {
+        await ev(() => window.dispatchEvent(new Event('pagehide')));
+        await page.reload();
+        await wait(500);
+        await page.click('text=Продолжить');
+        await wait(4200);
+      };
+      await ev((raw) => {
+        window.__dev.G.state = null;
+        localStorage.removeItem('rhr-save-backup');
+        localStorage.setItem('rhr-save-v1', raw);
+      }, SAVE_V3);
+      await page.reload();
+      await wait(500);
+      await page.click('text=Продолжить');
+      await wait(4200);
+      const toast = () => ev(() => (document.querySelector('#toasts') || {}).textContent || '');
+      let t = await toast();
+      s = await state();
+      expect(once(s) && s.clothes.length === old.clothes.length + 1, 'v3: шлёпанцы в подарок', [s.clothes, s.flags]);
+      expect(t.includes('шлёпанцы'), 'v3: нет подсказки о подарке', t);
+      expect(JSON.stringify(s.look.outfit) === JSON.stringify(old.look.outfit), 'v3: наряд изменился', s.look.outfit);
+      await closeAll();
+      await load();
+      t = await toast();
+      s = await state();
+      expect(once(s) && !t.includes('шлёпанцы'), 'v3: подарок второй раз', [s.clothes, t]);
+      await closeAll();
+      await ev(() => window.__dev.go('villa'));
+      await wait(400);
+    },
+  );
 };

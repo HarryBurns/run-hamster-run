@@ -11,6 +11,7 @@ import {
   START_CLOTHES,
   START_OUTFIT,
   START_RECIPES,
+  CLOTHES,
   CLOTHES_BY_ID,
   NPCS,
   NPC_BY_ID,
@@ -437,6 +438,28 @@ export function playerLook() {
     lookCache = resolveLook(s.look);
   }
   return lookCache;
+}
+let beachBase = null,
+  beachFlip = null,
+  beachCache = null;
+/**
+ * Хомячок на пляже (У2): на ногах — шлёпанцы, если они есть в шкафу (первая пара по порядку шкафа). Если шлёпанцы
+ * уже надеты или их нет — обычный вид. Это только картинка: наряд в сохранении не меняется, ушла с пляжа —
+ * снова своя обувь. Где пляж и когда холодно (зимой шлёпанцы не надеваются) — решает сцена: heroLook()
+ * в engine/topdown/scene.js по клеткам с beach: true.
+ */
+export function beachLook() {
+  const base = playerLook(),
+    feet = base.outfit.feet;
+  if (feet && feet.kind === 'flipflops') return base;
+  const flip = CLOTHES.find((c) => c.kind === 'flipflops' && hasClothes(c.id));
+  if (!flip) return base;
+  if (base !== beachBase || flip !== beachFlip) {
+    beachBase = base;
+    beachFlip = flip;
+    beachCache = { ...base, outfit: { ...base.outfit, feet: flip } };
+  }
+  return beachCache;
 }
 export function outfitTags() {
   const tags = new Set();

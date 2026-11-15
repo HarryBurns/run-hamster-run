@@ -1243,8 +1243,10 @@ module.exports = async function estate({ page, step, ev, wait, closeAll }) {
       s.biz,
       s.visits,
     ]);
-    for (const k of ['name', 'clothes', 'storage', 'stickers', 'day', 'ledger'])
+    for (const k of ['name', 'storage', 'stickers', 'day', 'ledger'])
       expect(JSON.stringify(s[k]) === JSON.stringify(old[k]), `после переноса изменилось «${k}»`);
+    // вещи: всё, что было, и шлёпанцы в подарок (У2)
+    expect(JSON.stringify(s.clothes) === JSON.stringify([...old.clothes, 'flip_pink']), 'после переноса изменилось «clothes»');
     // рецепты: всё, что было, на месте; в конец дописаны только новые рецепты «с начала игры» (repair)
     expect(
       JSON.stringify(s.recipes.slice(0, old.recipes.length)) === JSON.stringify(old.recipes) &&
