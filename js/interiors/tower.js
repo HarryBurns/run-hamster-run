@@ -83,7 +83,11 @@ export function enter(from, params = {}) {
   S.cam.x = p.x;
   clampCam();
 }
-export function leave() {}
+export function leave() {
+  // картинки слоёв панорамы — несколько мегабайт: вне башни они не нужны (пока едет лифт, нарисуются заново)
+  VIEW.layers = [];
+  VIEW.geo = '';
+}
 /** В сохранении башня не хранится: после перезагрузки хомячок окажется у её дверей. */
 export function savePos() {
   return S.back;
