@@ -361,10 +361,13 @@ const mountain = createTopDownScene({
       shutters: '#1971c2',
       smoke: true,
       attic: false,
+      npc: 'vershinkin',
       art: chaletArt,
       frame: [-46, -100, 4 * T + 76, 2 * T + 44],
+      act: 'instructor', // постучать — выйдет Вершинкин
     },
   ],
+  actors: [{ npc: 'vershinkin', at: [27.5, 21.5], home: 'chalet', always: true, act: 'instructor' }],
   spots: {
     pasture: { at: [29.5, 37.5], label: '🐄 Луг с коровами' },
     waterfall: { at: [32.5, 15.5], label: '🌊 Водопад' },

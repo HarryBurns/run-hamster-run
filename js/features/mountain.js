@@ -2,6 +2,7 @@
 // действия реестра, а выполняются они здесь:
 //   задание Сени «На вершину!» (data/quests.js, summit) — своё «как дела» (hintWarm): нет тёплых вещей — где купить,
 //                        а если и назавтра нет — Сеня дарит свою шапку (так задание выполнимо в любой сезон)
+//   instructor          поговорить с инструктором Вершинкиным (житель горы у шале на трассе): задание, санки, болтовня
 //   cableway:up | down   канатная дорога: вагончик едет на гору из леса (вход way:mountain у станции в лесу —
 //                        LANDS.mountain.go) и обратно в лес (станция на горе); короткая картинка-переезд
 // Числа — MOUNTAIN в data/economy.js. Каждое занятие шлёт событие mountain { what } — по нему считают задания.
@@ -11,13 +12,15 @@ import { sfx } from '../core/audio.js';
 import { makeCanvas, ell, fillRR, line, poly } from '../core/draw.js';
 import { go } from '../core/loop.js';
 import { register } from '../core/registry.js';
-import { G, cal, hasClothes, playerLook } from '../core/state.js';
-import { el } from '../core/util.js';
+import { emit } from '../core/events.js';
+import { G, cal, darkness, hasClothes, playerLook } from '../core/state.js';
+import { el, esc, pick } from '../core/util.js';
 import { drawHamster } from '../art/hamster.js';
-import { CLOTHES, CLOTHES_BY_ID, LAND_BY_ID, isWarmItem } from '../data/index.js';
+import { CLOTHES, CLOTHES_BY_ID, LAND_BY_ID, NPC_BY_ID, npcLook, isWarmItem } from '../data/index.js';
+import { dialog } from '../ui/dialog.js';
 import { openLayer } from '../ui/modals.js';
 import { toast } from '../ui/toast.js';
-import { setWaitHook } from './quests.js';
+import { setWaitHook, questTalk } from './quests.js';
 
 const S = () => G.state;
 
@@ -46,6 +49,52 @@ export function hintWarm(w) {
   return 'Ой, а у тебя совсем нет тёплых вещей? Кофты продаются в ТЦ «Модный» каждый день, а шапки, куртки и шарфы — осенью и зимой. Не найдёшь — загляни ко мне завтра, что-нибудь придумаем!';
 }
 setWaitHook('summit', hintWarm);
+
+// ---------- инструктор Вершинкин ----------
+const VERSHINKIN = 'vershinkin';
+/** Что сказать под настроение: ночью — про звёзды, вечером — про закат, днём — про сезон. */
+export function vershinkinLine() {
+  const L = NPC_BY_ID[VERSHINKIN].lines,
+    m = S().minutes;
+  if (darkness() > 0.6 || m >= 22 * 60 || m < 5 * 60) return pick(L.night);
+  if (m >= 18 * 60) return pick(L.evening);
+  return pick(L[cal().season]);
+}
+const sayV = (text, options, happy = false) =>
+  dialog({ look: npcLook(VERSHINKIN), name: NPC_BY_ID[VERSHINKIN].name, text, options, happy });
+/** Разговор с инструктором: сначала задание из журнала (взять, как дела, сдать), потом — санки и болтовня. */
+export async function talkVershinkin() {
+  const s = S();
+  let text;
+  if (!s.flags.metVershinkin) {
+    setFlag('metVershinkin');
+    text = `Привет-привет, ${esc(s.name)}! Я инструктор Вершинкин. Сеня написал, что к нам поднимается чемпионка! На горе есть трасса для санок, горячий источник, а на самой вершине — смотровая площадка с флагом. Добро пожаловать!`;
+  } else text = pick([`Привет, ${esc(s.name)}!`, 'О, снова ты! Здорово!', 'Привет, покорительница вершин!']);
+  emit('talk', { id: VERSHINKIN });
+  sfx('tap');
+  const qt = await questTalk(VERSHINKIN);
+  if (qt && qt.end) return;
+  if (qt && qt.text) text = qt.text;
+  for (;;) {
+    const opts = [];
+    for (const o of MORE_TALK) {
+      const x = o(S());
+      if (x) opts.push(x);
+    }
+    opts.push({ text: '💬 Поболтать', cls: 'blue', go: 'chat' }, { text: 'Пока!', go: 'bye' });
+    const i = await sayV(text, opts);
+    const o = opts[i] || {};
+    if (o.go === 'chat') text = vershinkinLine();
+    else if (o.fn) {
+      const r = await o.fn();
+      if (!r) return;
+      text = r;
+    } else return;
+  }
+}
+/** Дополнительные ответы в разговоре с инструктором: (s) → { text, cls, fn: async () => следующая реплика | null }. */
+const MORE_TALK = [];
+register('instructor', () => talkVershinkin(), 'инструктор Вершинкин: разговор (житель горы у шале)');
 
 // ---------- канатная дорога ----------
 const OUT = '#4a3728';

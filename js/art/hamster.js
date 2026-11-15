@@ -848,6 +848,22 @@ function drawAcc(ctx, item) {
       ctx.fillRect(-16, -59, 4, 2);
       ctx.fillRect(6, -59, 4, 2);
       break;
+    case 'skigoggles': {
+      // лыжные очки подняты на лоб (поверх шапки): резинка вокруг головы и две зеркальные линзы
+      const y = -69;
+      line(ctx, -27, y + 1, 27, y + 1, OUT, 5);
+      line(ctx, -27, y + 1, 27, y + 1, c2, 3);
+      fillRR(ctx, -21, y - 7, 42, 15, 7, c, OUT, 2);
+      fillRR(ctx, -18, y - 4.5, 16, 10, 4, '#ff922b', OUT, 1.2);
+      fillRR(ctx, 2, y - 4.5, 16, 10, 4, '#ff922b', OUT, 1.2);
+      ctx.fillStyle = 'rgba(255,240,180,.85)';
+      ctx.fillRect(-15, y - 3, 6, 2);
+      ctx.fillRect(5, y - 3, 6, 2);
+      ctx.fillStyle = 'rgba(180,60,220,.35)';
+      ctx.fillRect(-16, y + 1, 12, 3);
+      ctx.fillRect(4, y + 1, 12, 3);
+      break;
+    }
     case 'scarf': // на шее: закрывает самый низ подбородка, рот остаётся открытым
       ell(ctx, 0, -30, 21, 6.5, c, OUT, 1.8);
       fillRR(ctx, 7, -31, 10, 20, 3, c, OUT, 1.8);
