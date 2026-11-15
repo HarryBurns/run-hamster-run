@@ -5,15 +5,17 @@
 //   forest:squirrel     белка на дубе: 3 орешка → золотая шишка (украшение для дома, раз в день); 4 шишки → орешек
 //   forest:fire         костёр: вечером и ночью — пожарить зефир (зефир — в ТЦ «Вкусный»)
 //   forest:treehouse    домик на дереве: забраться и посмотреть на лес сверху (окно с видом)
+//   forest:hunt         мини-игра «Грибная охота» (minigames/mushrooms.js) — её предлагает Шишкин: за первые
+//                       FOREST.hunt.paid игр в день он платит монетами и даёт корзинку грибов по звёздам
 // Числа — FOREST в data/economy.js, сезоны — WILD_MONTHS в data/seasons.js. Каждое занятие шлёт событие forest
 // { what } — по нему считают задания. Состояние меняют только действия (core/actions.js); «раз в день» — отметки
 // дня (dayFlags.forest), утром сбрасываются сами.
-import { setFlag, setDayFlag, addItem, award } from '../core/actions.js';
+import { setFlag, setDayFlag, addItem, award, earn } from '../core/actions.js';
 import { sfx } from '../core/audio.js';
 import { emit } from '../core/events.js';
 import { register } from '../core/registry.js';
 import { G, cal, darkness, count, questNow } from '../core/state.js';
-import { esc, pick } from '../core/util.js';
+import { esc, pick, fmtMoney } from '../core/util.js';
 import { makeCanvas, ell, poly, line } from '../core/draw.js';
 import { NPC_BY_ID, npcLook, FOREST, ING_BY_ID, DISH_BY_ID, FIND_BY_ID, QUEST_BY_ID, wildIn, DAYS_PER_MONTH } from '../data/index.js';
 import { dialog } from '../ui/dialog.js';
@@ -21,6 +23,7 @@ import { message, openPanel } from '../ui/panel.js';
 import { toast } from '../ui/toast.js';
 import { questTalk } from './quests.js';
 import { eat } from './cooking.js';
+import { playMinigame } from './minigames.js';
 
 const S = () => G.state;
 const SHISHKIN = 'shishkin';
@@ -52,11 +55,15 @@ export async function talkShishkin() {
   if (qt && qt.text) text = qt.text;
   for (;;) {
     const twigs = count('finds', 'fir_twig');
-    const opts = [{ text: '💬 Поболтать', cls: 'blue', go: 'chat' }];
+    const opts = [{ text: '🍄 Грибная охота', cls: 'yellow', go: 'hunt' }, { text: '💬 Поболтать', cls: 'blue', go: 'chat' }];
     if (twigs) opts.push({ text: `🎄 Сплести венок (веточек ${twigs} из ${FOREST.wreath})`, cls: 'green', go: 'wreath' });
     opts.push({ text: 'Пока!', go: 'bye' });
     const i = await say(text, opts);
     const go = (opts[i] || {}).go;
+    if (go === 'hunt') {
+      await mushroomHunt();
+      return;
+    }
     if (go === 'chat') text = shishkinLine();
     else if (go === 'wreath') {
       if (twigs < FOREST.wreath) {
@@ -312,7 +319,43 @@ export function climbTreehouse() {
   });
 }
 
+// ---------- «Грибная охота» ----------
+/** Сколько охот сегодня ещё с наградой. */
+const huntsLeft = () => Math.max(0, FOREST.hunt.paid - (S2().hunts || 0));
+/** Награда за охоту на stars звёзд: монеты и грибы (пополам белые и обычные). */
+export const huntReward = (stars) => {
+  const n = FOREST.hunt.items[stars - 1],
+    porcini = Math.floor(n / 2);
+  return { coins: FOREST.hunt.coins[stars - 1], porcini, mushroom: n - porcini };
+};
+const rewardText = (r) =>
+  `🪙 ${fmtMoney(r.coins)} и ${ING_BY_ID.mushroom.e}×${r.mushroom} ${ING_BY_ID.porcini.e}×${r.porcini}`;
+/** Сыграть в «Грибную охоту»: за первые игры дня — монеты и грибы в рюкзак. */
+export async function mushroomHunt() {
+  const left = huntsLeft(),
+    note = (html) => `<div class="pay-note${left ? '' : ' off'}">${html}</div>`;
+  const res = await playMinigame('mushrooms', {
+    introNote: left
+      ? note(
+          `🧺 <b>Награда Шишкина:</b> ⭐ 🪙 ${FOREST.hunt.coins[0]} · ⭐⭐ 🪙 ${FOREST.hunt.coins[1]} · ⭐⭐⭐ 🪙 ${FOREST.hunt.coins[2]} — и грибы в корзинку. Сегодня ещё ${left} ${left === 1 ? 'охота' : 'охоты'} с наградой.`,
+        )
+      : note('💛 Сегодня Шишкин уже наградил тебя. Сыграть можно для удовольствия — завтра награда снова!'),
+    resultNote: (stars) =>
+      left ? note(`<span class="sum">🧺 Награда: ${rewardText(huntReward(stars))}</span>`) : note('💛 Эта охота была для удовольствия.'),
+  });
+  if (!res || !left) return res;
+  const r = huntReward(res.stars);
+  setDayFlag('hunts', (S2().hunts || 0) + 1, 'forest');
+  earn(r.coins, 'work');
+  addItem('ing', 'mushroom', r.mushroom);
+  addItem('ing', 'porcini', r.porcini);
+  sfx('coin');
+  toast(`Шишкин: «Вот это грибник!» ${rewardText(r)} — в рюкзаке`, 'good');
+  return res;
+}
+
 const FOREST_ACTS = {
+  hunt: mushroomHunt,
   hive: visitHive,
   squirrel: visitSquirrel,
   fire: visitFire,
