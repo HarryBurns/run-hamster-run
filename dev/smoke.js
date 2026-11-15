@@ -343,8 +343,7 @@ async function extra({ page, step, ev, wait, closeAll, hold }) {
           const x = c.getContext('2d', { willReadFrequently: true });
           drawHamster(x, OX, OY, 1, look, { dir, walk, time: 1, shadow: false });
           const d = x.getImageData(0, 0, W, W).data;
-          const near = (i, r, g, b) =>
-            Math.abs(d[i] - r) < 8 && Math.abs(d[i + 1] - g) < 8 && Math.abs(d[i + 2] - b) < 8;
+          const near = (i, r, g, b) => Math.abs(d[i] - r) < 8 && Math.abs(d[i + 1] - g) < 8 && Math.abs(d[i + 2] - b) < 8;
           const q = { dir, walk, earL: 0, earR: 0, bodyL: 0, bodyR: 0, bowN: 0, bowX: 0, eyeN: 0, eyeX: 0 };
           for (let py = 0; py < W; py++)
             for (let px = 0; px < W; px++) {
@@ -352,8 +351,7 @@ async function extra({ page, step, ev, wait, closeAll, hold }) {
                 hx = px - OX,
                 hy = py - OY;
               if (near(i, 0x2f, 0x2a, 0x2a)) {
-                if (hy < -73)
-                  hx < 0 ? q.earL++ : q.earR++; // выше макушки — только уши
+                if (hy < -73) hx < 0 ? q.earL++ : q.earR++; // выше макушки — только уши
                 else if (hy > -26) hx < 0 ? q.bodyL++ : q.bodyR++; // ниже подбородка — пятна на боках
               } else if (near(i, 0xff, 0x5c, 0x8a)) {
                 q.bowN++;
@@ -1178,13 +1176,10 @@ async function economy({ page, step, ev, wait, closeAll }) {
         G = await import('./js/core/state.js');
       return { now: D.sellPrice(D.ING_BY_ID.carrot, G.cal().month), inSeason: D.ING_BY_ID.carrot.sell };
     });
+    const all = 5 * cp.now;
     const card = await text('.overlay .card');
     expect(cp.now > cp.inSeason, 'морковка зимой должна стоить на рынке дороже, чем в сезон', cp);
-    expect(
-      card.includes('Морковка') && card.includes(`${cp.now} за штуку`) && card.includes('+' + 5 * cp.now),
-      'карточка товара',
-      card,
-    );
+    expect(card.includes('Морковка') && card.includes(`${cp.now} за штуку`) && card.includes('+' + all), 'карточка товара', card);
     await page.click('.overlay .card .btn.green'); // продать 1
     await wait(250);
     let s = await state();
@@ -1192,8 +1187,8 @@ async function economy({ page, step, ev, wait, closeAll }) {
     await page.click('.overlay .card .btn.yellow'); // продать все
     await wait(250);
     s = await state();
-    expect(s.money === s0.money + 5 * cp.now && !s.ing.carrot, 'продать все', [s.money - s0.money, s.ing]);
-    expect(s.dayFlags.marketPaid === 5 * cp.now && s.ledger.today.in.market === 5 * cp.now, 'учёт рынка', [
+    expect(s.money === s0.money + all && !s.ing.carrot, 'продать все', [s.money - s0.money, s.ing]);
+    expect(s.dayFlags.marketPaid === all && s.ledger.today.in.market === all, 'учёт рынка', [
       s.dayFlags,
       s.ledger.today,
     ]);
@@ -1227,7 +1222,7 @@ async function economy({ page, step, ev, wait, closeAll }) {
         pearls: d.F.pearlsLeft(),
       };
     });
-    expect(r.left0 === r.purse - 5 * cp.now && r.sold === Math.floor(r.left0 / r.price), 'кошелёк торговца', r);
+    expect(r.left0 === r.purse - all && r.sold === Math.floor(r.left0 / r.price), 'кошелёк торговца', r);
     expect(r.got === r.sold * r.price && r.again === 0 && r.pearl === 0 && r.pearls === 3, 'продано сверх кошелька', r);
     await ev(() => window.__dev.run('market'));
     await wait(400);
@@ -1276,10 +1271,9 @@ async function economy({ page, step, ev, wait, closeAll }) {
     // блюдо на рынке дешевле кафе, а купленное в магазине — дешевле магазина в любом месяце (перепродажа не окупается)
     const arb = await ev(async () => {
       const d = await import('./js/data/index.js');
+      const loss = (i) => d.MONTHS.every((_, m) => d.sellPrice(i, m) < d.buyPrice(i, m));
       return [
-        ...d.INGREDIENTS.filter((i) => i.price && d.MONTHS.some((_, m) => d.sellPrice(i, m) >= d.buyPrice(i, m))).map(
-          (i) => i.id,
-        ),
+        ...d.INGREDIENTS.filter((i) => i.price && !loss(i)).map((i) => i.id),
         ...d.DISHES.filter((q) => q.cafe && q.sell >= q.price).map((q) => q.id),
       ];
     });
@@ -1391,9 +1385,7 @@ async function economy({ page, step, ev, wait, closeAll }) {
     // рецепты: всё, что было, на месте; в конец дописаны только новые рецепты «с начала игры» (repair)
     expect(
       JSON.stringify(s.recipes.slice(0, old.recipes.length)) === JSON.stringify(old.recipes) &&
-        s.recipes
-          .slice(old.recipes.length)
-          .every((r) => ['mushroom_soup', 'blueberry_muffin', 'lettuce_wrap'].includes(r)),
+        s.recipes.slice(old.recipes.length).every((r) => ['mushroom_soup', 'blueberry_muffin', 'lettuce_wrap'].includes(r)),
       'после переноса изменилось «recipes»',
       [s.recipes, old.recipes],
     );
@@ -1678,210 +1670,180 @@ async function economy({ page, step, ev, wait, closeAll }) {
       });
       if (bad.length) throw new Error(bad.join('; '));
     });
-    await step(
-      'город: что растёт и когда плодоносит — кокосы на четырёх пальмах, сбор только в сезон (У3)',
-      async () => {
-        await ev(() => window.__dev.go('world'));
-        await wait(400);
-        await closeAll();
-        // шаг меняет день и собирает плоды: в конце возвращаем всё как было, чтобы не мешать следующим шагам
-        await ev(() => {
-          const s = window.__dev.G.state;
-          window.__plantsKeep = JSON.stringify(
-            Object.fromEntries(
-              ['day', 'minutes', 'weather', 'guests', 'visitor', 'dayFlags', 'ledger', 'garden', 'ing'].map((k) => [
-                k,
-                s[k],
-              ]),
-            ),
-          );
-        });
-        // день месяца, в котором у продукта сезон (и в котором — нет): по общей таблице сезонов
-        const info = await ev(async () => {
-          const d = window.__dev,
-            W = d.World,
-            m = W.map,
-            P = d.Plants,
-            T = 48,
-            out = [];
-          const D = await import('/js/data/index.js');
-          const plants = m.objs.filter((o) => P.PLANTS[o.type]);
-          const n = {};
-          for (const o of plants) n[P.PLANTS[o.type].gives] = (n[P.PLANTS[o.type].gives] || 0) + 1;
-          // сколько чего растёт: не больше, чем положено по таблице сбора; кокосовых пальм — не больше четырёх
-          for (const [id, q] of Object.entries(D.GATHER)) {
-            if (!n[id]) out.push('на карте нет растений: ' + id);
-            if (n[id] > q.max) out.push(`${id}: на карте ${n[id]}, а положено не больше ${q.max}`);
-          }
-          if (!(n.coconut >= 3 && n.coconut <= 4)) out.push('кокосовых пальм должно быть 3–4, а их ' + n.coconut);
-          // обычная пальма — без плодов и без действия
-          if (m.tappable.some((o) => o.type === 'palm')) out.push('обычную пальму можно потрясти');
-          if (!(m.objs.filter((o) => o.type === 'palm').length > 20)) out.push('куда-то делись обычные пальмы');
-          // в каждом месяце года: плоды есть ровно у тех растений, у чьего продукта сезон, и хоть что-то собрать можно;
-          // кокосовых пальм с плодами — не больше четырёх
-          const s = d.G.state,
-            day0 = s.day,
-            flags0 = s.dayFlags;
-          s.dayFlags = {};
-          const when = {};
-          for (let month = 0; month < 12; month++) {
-            s.day = month * D.DAYS_PER_MONTH;
-            let any = 0;
-            for (const o of plants) {
-              const id = P.PLANTS[o.type].gives,
-                ripe = D.ripeIn(id, month);
-              if (P.hasFruit(o) !== ripe) out.push(`${o.type} (${o.tx}, ${o.ty}): месяц ${month}, плоды не по сезону`);
-              if (ripe) {
-                any++;
-                when[id] = when[id] === undefined ? month : when[id];
-              } else if (when['-' + id] === undefined) when['-' + id] = month;
-            }
-            if (!any) out.push('в месяце ' + month + ' нечего собрать');
-            if (plants.filter((o) => o.type === 'cocoPalm' && P.hasFruit(o)).length > 4)
-              out.push('кокосовых пальм с плодами больше четырёх');
-          }
-          s.day = day0;
-          s.dayFlags = flags0;
-          // до каждого растения на суше можно дойти от двери виллы (встать на соседнюю клетку)
-          const door = m.doorPx(m.bById.villa),
-            from = [Math.floor(door.x / T), Math.floor(door.y / T)];
-          const spots = [];
-          for (const o of plants) {
-            if (o.ty >= 57) continue; // острова: вплавь или на кораблике
-            let near = null;
-            for (const [dx, dy] of [
-              [1, 0],
-              [-1, 0],
-              [0, 1],
-              [0, -1],
-              [1, 1],
-              [-1, 1],
-              [1, -1],
-              [-1, -1],
-            ])
-              if (!near && m.foot(o.tx + dx, o.ty + dy) && m.path(m.foot, from[0], from[1], o.tx + dx, o.ty + dy))
-                near = [o.tx + dx, o.ty + dy];
-            if (!near) out.push(`${o.type} (${o.tx}, ${o.ty}): не подойти`);
-            else if (!spots.some((q) => q.type === o.type)) spots.push({ type: o.type, tx: o.tx, ty: o.ty, near });
-          }
-          return {
-            out,
-            spots,
-            when,
-            n,
-            give: Object.fromEntries(Object.entries(D.GATHER).map(([id, q]) => [id, q.n])),
-          };
-        });
-        if (info.out.length) throw new Error(info.out.join('; '));
-        if (info.spots.length !== 5)
-          throw new Error('не все виды растений есть на суше: ' + JSON.stringify(info.spots));
-        const have = (id) => ev((id) => window.__dev.G.state.ing[id] || 0, id);
-        const setDay = (month, flags) =>
-          ev(
-            ([month, flags]) => {
-              const s = window.__dev.G.state;
-              s.day = month * 3;
-              s.minutes = 12 * 60;
-              s.weather = 'sun';
-              if (flags) s.dayFlags = {};
-            },
-            [month, flags],
-          );
-        const tapPlant = async (sp) => {
-          const pt = await ev(
-            ([x, y, up]) => window.__dev.World.debugScreen((x + 0.5) * 48, (y + 0.5) * 48 - up),
-            [sp.tx, sp.ty, sp.type === 'berryBush' || sp.type === 'mushrooms' ? 2 : 30],
-          );
-          await page.mouse.click(pt.x, pt.y);
-          await wait(1300);
-        };
-        const btn = () =>
-          ev(() => [...document.querySelectorAll('.hud-btns.left .rbtn')].map((e) => e.textContent).join(' | '));
-        let way = 0;
-        for (const sp of info.spots) {
-          const id = await ev((t) => window.__dev.Plants.PLANTS[t].gives, sp.type),
-            give = info.give[id],
-            name = `${sp.type} (${sp.tx}, ${sp.ty})`;
-          // не в сезон: плодов нет, кнопки нет, нажатие ничего не даёт (у дерева — подсказка, когда поспеет)
-          await setDay(info.when['-' + id], true);
-          await ev(([x, y]) => window.__dev.World.debugTeleport(x, y), sp.near);
-          await wait(350);
-          const n0 = await have(id);
-          if (/Сорвать|Стрясти|Собрать/.test(await btn())) throw new Error(name + ': не в сезон есть кнопка сбора');
-          await ev(() => document.querySelectorAll('#toasts .toast').forEach((e) => e.remove()));
-          await tapPlant(sp);
-          if ((await have(id)) !== n0) throw new Error(name + ': плод сорван не в сезон');
-          const hint = await ev(() =>
-            [...document.querySelectorAll('#toasts .toast')].map((e) => e.textContent).join(' | '),
-          );
-          if (sp.type !== 'mushrooms' && !/(поспеют|поспеет) (зимой|весной|летом|осенью)/.test(hint))
-            throw new Error(name + ': не в сезон нет подсказки, когда поспеет: ' + hint);
-          if (sp.type === 'mushrooms' && hint) throw new Error(name + ': грибов нет, а нажатие сработало: ' + hint);
-          // в сезон: рядом с растением — кнопка; сорвали (нажатием на растение, кнопкой или клавишей E) — в рюкзаке
-          await setDay(info.when[id], true);
-          await ev(([x, y]) => window.__dev.World.debugTeleport(x, y), sp.near);
-          await wait(350);
-          const b = await btn();
-          if (!/Сорвать|Стрясти|Собрать/.test(b)) throw new Error(name + ': в сезон нет кнопки сбора: ' + b);
-          if (way % 3 === 0) await tapPlant(sp);
-          else if (way % 3 === 1) {
-            await page.click('.hud-btns.left .rbtn.on');
-            await wait(900);
-          } else {
-            await page.keyboard.press('KeyE');
-            await wait(900);
-          }
-          way++;
-          const n1 = await have(id);
-          if (n1 !== n0 + give) throw new Error(`${name}: в рюкзаке ${n1}, а должно стать ${n0 + give}`);
-          if (/Сорвать|Стрясти|Собрать/.test(await btn())) throw new Error(name + ': плоды собраны, а кнопка осталась');
-          // второй раз за день с того же растения — ничего; наутро плод вырастает снова
-          await tapPlant(sp);
-          if ((await have(id)) !== n1) throw new Error(name + ': с одного растения собрано дважды за день');
-          const again = await ev(
-            ([x, y, month]) => {
-              const d = window.__dev,
-                o = d.World.map.objs.find((q) => q.tx === x && q.ty === y),
-                was = d.Plants.hasFruit(o);
-              d.G.state.day = month * 3; // первый день месяца: завтра — тот же месяц
-              d.actions.nextDay();
-              return { was, now: d.Plants.hasFruit(o) };
-            },
-            [sp.tx, sp.ty, info.when[id]],
-          );
-          if (again.was || !again.now) throw new Error(name + ': плод не отрастает наутро: ' + JSON.stringify(again));
+    await step('город: что растёт и когда плодоносит — кокосы на четырёх пальмах, сбор только в сезон (У3)', async () => {
+      await ev(() => window.__dev.go('world'));
+      await wait(400);
+      await closeAll();
+      // шаг меняет день и собирает плоды: в конце возвращаем всё как было, чтобы не мешать следующим шагам
+      await ev(() => {
+        const s = window.__dev.G.state;
+        window.__plantsKeep = JSON.stringify(
+          Object.fromEntries(
+            ['day', 'minutes', 'weather', 'guests', 'visitor', 'dayFlags', 'ledger', 'garden', 'ing'].map((k) => [k, s[k]]),
+          ),
+        );
+      });
+      // день месяца, в котором у продукта сезон (и в котором — нет): по общей таблице сезонов
+      const info = await ev(async () => {
+        const d = window.__dev,
+          W = d.World,
+          m = W.map,
+          P = d.Plants,
+          T = 48,
+          out = [];
+        const D = await import('/js/data/index.js');
+        const plants = m.objs.filter((o) => P.PLANTS[o.type]);
+        const n = {};
+        for (const o of plants) n[P.PLANTS[o.type].gives] = (n[P.PLANTS[o.type].gives] || 0) + 1;
+        // сколько чего растёт: не больше, чем положено по таблице сбора; кокосовых пальм — не больше четырёх
+        for (const [id, q] of Object.entries(D.GATHER)) {
+          if (!n[id]) out.push('на карте нет растений: ' + id);
+          if (n[id] > q.max) out.push(`${id}: на карте ${n[id]}, а положено не больше ${q.max}`);
         }
-        // всё, что собрали, — еда: лежит в рюкзаке, чернику и банан можно съесть, всё продаётся на рынке
-        const food = await ev(async () => {
+        if (!(n.coconut >= 3 && n.coconut <= 4)) out.push('кокосовых пальм должно быть 3–4, а их ' + n.coconut);
+        // обычная пальма — без плодов и без действия
+        if (m.tappable.some((o) => o.type === 'palm')) out.push('обычную пальму можно потрясти');
+        if (!(m.objs.filter((o) => o.type === 'palm').length > 20)) out.push('куда-то делись обычные пальмы');
+        // в каждом месяце года: плоды есть ровно у тех растений, у чьего продукта сезон, и хоть что-то собрать можно;
+        // кокосовых пальм с плодами — не больше четырёх
+        const s = d.G.state,
+          day0 = s.day,
+          flags0 = s.dayFlags;
+        s.dayFlags = {};
+        const when = {};
+        for (let month = 0; month < 12; month++) {
+          s.day = month * D.DAYS_PER_MONTH;
+          let any = 0;
+          for (const o of plants) {
+            const id = P.PLANTS[o.type].gives,
+              ripe = D.ripeIn(id, month);
+            if (P.hasFruit(o) !== ripe) out.push(`${o.type} (${o.tx}, ${o.ty}): месяц ${month}, плоды не по сезону`);
+            if (ripe) {
+              any++;
+              when[id] = when[id] === undefined ? month : when[id];
+            } else if (when['-' + id] === undefined) when['-' + id] = month;
+          }
+          if (!any) out.push('в месяце ' + month + ' нечего собрать');
+          if (plants.filter((o) => o.type === 'cocoPalm' && P.hasFruit(o)).length > 4)
+            out.push('кокосовых пальм с плодами больше четырёх');
+        }
+        s.day = day0;
+        s.dayFlags = flags0;
+        // до каждого растения на суше можно дойти от двери виллы (встать на соседнюю клетку)
+        const door = m.doorPx(m.bById.villa),
+          from = [Math.floor(door.x / T), Math.floor(door.y / T)];
+        const spots = [];
+        for (const o of plants) {
+          if (o.ty >= 57) continue; // острова: вплавь или на кораблике
+          let near = null;
+          for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, 1], [1, -1], [-1, -1]])
+            if (!near && m.foot(o.tx + dx, o.ty + dy) && m.path(m.foot, from[0], from[1], o.tx + dx, o.ty + dy))
+              near = [o.tx + dx, o.ty + dy];
+          if (!near) out.push(`${o.type} (${o.tx}, ${o.ty}): не подойти`);
+          else if (!spots.some((q) => q.type === o.type)) spots.push({ type: o.type, tx: o.tx, ty: o.ty, near });
+        }
+        return { out, spots, when, n, give: Object.fromEntries(Object.entries(D.GATHER).map(([id, q]) => [id, q.n])) };
+      });
+      if (info.out.length) throw new Error(info.out.join('; '));
+      if (info.spots.length !== 5) throw new Error('не все виды растений есть на суше: ' + JSON.stringify(info.spots));
+      const have = (id) => ev((id) => window.__dev.G.state.ing[id] || 0, id);
+      const setDay = (month, flags) =>
+        ev(([month, flags]) => {
+          const s = window.__dev.G.state;
+          s.day = month * 3;
+          s.minutes = 12 * 60;
+          s.weather = 'sun';
+          if (flags) s.dayFlags = {};
+        }, [month, flags]);
+      const tapPlant = async (sp) => {
+        const pt = await ev(
+          ([x, y, up]) => window.__dev.World.debugScreen((x + 0.5) * 48, (y + 0.5) * 48 - up),
+          [sp.tx, sp.ty, sp.type === 'berryBush' || sp.type === 'mushrooms' ? 2 : 30],
+        );
+        await page.mouse.click(pt.x, pt.y);
+        await wait(1300);
+      };
+      const btn = () =>
+        ev(() => [...document.querySelectorAll('.hud-btns.left .rbtn')].map((e) => e.textContent).join(' | '));
+      let way = 0;
+      for (const sp of info.spots) {
+        const id = await ev((t) => window.__dev.Plants.PLANTS[t].gives, sp.type),
+          give = info.give[id],
+          name = `${sp.type} (${sp.tx}, ${sp.ty})`;
+        // не в сезон: плодов нет, кнопки нет, нажатие ничего не даёт (у дерева — подсказка, когда поспеет)
+        await setDay(info.when['-' + id], true);
+        await ev(([x, y]) => window.__dev.World.debugTeleport(x, y), sp.near);
+        await wait(350);
+        const n0 = await have(id);
+        if (/Сорвать|Стрясти|Собрать/.test(await btn())) throw new Error(name + ': не в сезон есть кнопка сбора');
+        await ev(() => document.querySelectorAll('#toasts .toast').forEach((e) => e.remove()));
+        await tapPlant(sp);
+        if ((await have(id)) !== n0) throw new Error(name + ': плод сорван не в сезон');
+        const hint = await ev(() => [...document.querySelectorAll('#toasts .toast')].map((e) => e.textContent).join(' | '));
+        if (sp.type !== 'mushrooms' && !/(поспеют|поспеет) (зимой|весной|летом|осенью)/.test(hint))
+          throw new Error(name + ': не в сезон нет подсказки, когда поспеет: ' + hint);
+        if (sp.type === 'mushrooms' && hint) throw new Error(name + ': грибов нет, а нажатие сработало: ' + hint);
+        // в сезон: рядом с растением — кнопка; сорвали (нажатием на растение, кнопкой или клавишей E) — в рюкзаке
+        await setDay(info.when[id], true);
+        await ev(([x, y]) => window.__dev.World.debugTeleport(x, y), sp.near);
+        await wait(350);
+        const b = await btn();
+        if (!/Сорвать|Стрясти|Собрать/.test(b)) throw new Error(name + ': в сезон нет кнопки сбора: ' + b);
+        if (way % 3 === 0) await tapPlant(sp);
+        else if (way % 3 === 1) {
+          await page.click('.hud-btns.left .rbtn.on');
+          await wait(900);
+        } else {
+          await page.keyboard.press('KeyE');
+          await wait(900);
+        }
+        way++;
+        const n1 = await have(id);
+        if (n1 !== n0 + give) throw new Error(`${name}: в рюкзаке ${n1}, а должно стать ${n0 + give}`);
+        if (/Сорвать|Стрясти|Собрать/.test(await btn())) throw new Error(name + ': плоды собраны, а кнопка осталась');
+        // второй раз за день с того же растения — ничего; наутро плод вырастает снова
+        await tapPlant(sp);
+        if ((await have(id)) !== n1) throw new Error(name + ': с одного растения собрано дважды за день');
+        const again = await ev(([x, y, month]) => {
           const d = window.__dev,
-            D = await import('/js/data/index.js'),
-            s = d.G.state;
-          return {
-            sell: Object.keys(D.GATHER).filter((id) => !(D.ING_BY_ID[id].sell > 0)),
-            stickers: ['x_gather', 'x_gather_all'].filter((q) => !s.stickers.includes(q)),
-            clipped: d.World.debugSprites().clipped,
-          };
-        });
-        if (food.sell.length) throw new Error('собранное не продать на рынке: ' + food.sell);
-        if (food.stickers.length) throw new Error('нет наклеек за сбор: ' + food.stickers);
-        if (food.clipped.length) throw new Error('спрайты не поместились в рамку: ' + food.clipped.join(', '));
-        const b0 = await have('blueberry');
-        await ev(() => window.__dev.F.openBackpack());
-        await wait(300);
-        await page.click('.overlay .tabs >> text=Продукты');
-        await wait(250);
-        await page.click('.overlay .card:has-text("Черника") .btn');
-        await wait(300);
-        if ((await have('blueberry')) !== b0 - 1) throw new Error('чернику из рюкзака не съесть');
-        await closeAll();
-        await ev(() => {
-          Object.assign(window.__dev.G.state, JSON.parse(window.__plantsKeep));
-          window.__dev.emit('guests');
-          window.__dev.emit('hud');
-        });
-        await wait(200);
-      },
-    );
+            o = d.World.map.objs.find((q) => q.tx === x && q.ty === y),
+            was = d.Plants.hasFruit(o);
+          d.G.state.day = month * 3; // первый день месяца: завтра — тот же месяц
+          d.actions.nextDay();
+          return { was, now: d.Plants.hasFruit(o) };
+        }, [sp.tx, sp.ty, info.when[id]]);
+        if (again.was || !again.now) throw new Error(name + ': плод не отрастает наутро: ' + JSON.stringify(again));
+      }
+      // всё, что собрали, — еда: лежит в рюкзаке, чернику и банан можно съесть, всё продаётся на рынке
+      const food = await ev(async () => {
+        const d = window.__dev,
+          D = await import('/js/data/index.js'),
+          s = d.G.state;
+        return {
+          sell: Object.keys(D.GATHER).filter((id) => !(D.ING_BY_ID[id].sell > 0)),
+          stickers: ['x_gather', 'x_gather_all'].filter((q) => !s.stickers.includes(q)),
+          clipped: d.World.debugSprites().clipped,
+        };
+      });
+      if (food.sell.length) throw new Error('собранное не продать на рынке: ' + food.sell);
+      if (food.stickers.length) throw new Error('нет наклеек за сбор: ' + food.stickers);
+      if (food.clipped.length) throw new Error('спрайты не поместились в рамку: ' + food.clipped.join(', '));
+      const b0 = await have('blueberry');
+      await ev(() => window.__dev.F.openBackpack());
+      await wait(300);
+      await page.click('.overlay .tabs >> text=Продукты');
+      await wait(250);
+      await page.click('.overlay .card:has-text("Черника") .btn');
+      await wait(300);
+      if ((await have('blueberry')) !== b0 - 1) throw new Error('чернику из рюкзака не съесть');
+      await closeAll();
+      await ev(() => {
+        Object.assign(window.__dev.G.state, JSON.parse(window.__plantsKeep));
+        window.__dev.emit('guests');
+        window.__dev.emit('hud');
+      });
+      await wait(200);
+    });
     await step('город: карта — кнопка «дойти» работает для каждого места', async () => {
       const r = await ev(() => {
         const W = window.__dev.World,
