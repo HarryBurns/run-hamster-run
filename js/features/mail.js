@@ -20,6 +20,8 @@ import {
   foodRule,
   JOBS,
   taskNeedsHealth,
+  NPC_BY_ID,
+  guestHosts,
 } from '../data/index.js';
 import { getLocation, homeLocation } from '../engine/topdown/index.js';
 import { enqueue } from '../ui/modals.js';
@@ -122,11 +124,19 @@ function seasonTip(t) {
   return '';
 }
 
+/** «День гостей» (письмо с hosts): кто сегодня ждёт дома — по именам; звёздочка ведёт к ближайшему. */
+function hostsTip(t) {
+  if (!t.hosts) return '';
+  const names = guestHosts(t, S().day).map((id) => `<b>${NPC_BY_ID[id].name}</b>`);
+  const list = names.length > 1 ? names.slice(0, -1).join(', ') + ' и ' + names[names.length - 1] : names[0];
+  return `🏠 Сегодня дома ждут: ${list}. Звёздочка ⭐ на улице покажет ближайший домик.`;
+}
+
 function letterHtml() {
   const m = S().mail,
     t = TASK_BY_ID[m.task],
     c = cal(),
-    tip = m.done ? '' : seasonTip(t);
+    tip = m.done ? '' : hostsTip(t) || seasonTip(t);
   const where = PLACES[t.where] || (t.where === 'beach' ? 'Пляж' : t.where === 'town' ? 'Город' : '');
   return `<div class="letter"><h3>${t.sticker} ${t.title}</h3><p>Дорогая ${esc(S().name)}!</p><p>${t.text}</p>${tip ? `<p class="tip">${tip}</p>` : ''}
     <p class="muted">${c.seasonIcon} ${c.monthName}, день ${c.dom}${where ? ` · Куда идти: <b>${where}</b>` : ''}</p></div>

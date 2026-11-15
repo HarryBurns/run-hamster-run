@@ -2,8 +2,11 @@
 // type: minigame | buy | cook | treat | collect | harvest | plant | salon | place | visit | talk | swim | spa | wheel | gift | sell
 // Монеты за задание — TASK_COINS в economy.js.
 // seasons — в какие сезоны задание приходит (у «Кокосового дня» — из общей таблицы сезонов data/seasons.js).
-// openHouse — «день гостей»: пока это письмо в ящике, друзья (или один — host) весь день дома и ждут в гости.
+// openHouse — «день гостей»: когда письмо прочитано, хозяева весь день дома и ждут в гости: один житель (host) или
+// hosts жителей — свои на каждый день (guestHosts ниже). Остальные гуляют как обычно — на улицах всегда кто-то есть.
 import { seasonsOf } from './seasons.js';
+import { NPCS } from './npcs.js';
+import { pickOn } from './stock.js';
 
 export const TASKS = [
   { id: 'swim', type: 'minigame', game: 'swim', sticker: '🏊', title: 'Соревнования по плаванию', where: 'pool',
@@ -68,16 +71,30 @@ export const TASKS = [
     text: 'В кафе «Семечка» сегодня пахнет особенно вкусно. Купи себе что-нибудь и съешь!' },
   { id: 'market', type: 'sell', sticker: '🧺', title: 'Базарный день', where: 'market',
     text: 'На рынке ждут свежий товар! Продай что-нибудь своё: урожай с грядок, рыбку, кокос или блюдо, которое приготовила сама. Рынок — на площади с фонтаном, под полосатыми навесами: там торгует Грошик.' },
-  { id: 'guesting', type: 'visit', place: 'home', openHouse: true, sticker: '🚪', title: 'В гости к соседям', where: 'town',
-    text: 'Сегодня в городе день гостей! Все твои друзья сидят дома и ждут: зайди в гости в любой домик. А с незнакомым хомячком можно познакомиться прямо на пороге.' },
-  { id: 'teatime', type: 'visit', place: 'tea', openHouse: true, sticker: '🫖', title: 'Чаепитие', where: 'town',
-    text: 'Самый вкусный чай — в гостях! Зайди к кому-нибудь из друзей домой (сегодня все дома) и скажи хозяину: «Попьём чаю?»' },
+  { id: 'guesting', type: 'visit', place: 'home', openHouse: true, hosts: 3, sticker: '🚪', title: 'В гости к соседям', where: 'town',
+    text: 'Сегодня в городе день гостей! Трое соседей весь день сидят дома и ждут тебя: зайди в гости к любому из них. А с незнакомым хомячком можно познакомиться прямо на пороге.' },
+  { id: 'teatime', type: 'visit', place: 'tea', openHouse: true, hosts: 3, sticker: '🫖', title: 'Чаепитие', where: 'town',
+    text: 'Самый вкусный чай — в гостях! Сегодня трое соседей поставили чайник и ждут тебя весь день. Зайди к кому-нибудь из них и скажи хозяину: «Попьём чаю?»' },
   { id: 'stargaze', type: 'visit', place: 'stars', openHouse: true, host: 'prof', sticker: '🔭', title: 'Звёзды в телескоп', where: 'house4',
     text: 'Профессор Орешкин зовёт тебя в гости: сегодня он весь день дома. Поднимись у него на второй этаж и загляни в телескоп. Только звёзды видно, когда стемнеет, — приходи вечером!' },
   { id: 'captain', type: 'visit', place: 'home_bob', openHouse: true, host: 'bob', sticker: '⚓', title: 'В гостях у капитана', where: 'house6',
     text: 'Капитан Боб вернулся из плавания и зовёт тебя в гости — сегодня он весь день дома. Зайди к нему в домик у моря и покрути настоящий штурвал!' },
 ];
 export const TASK_BY_ID = Object.fromEntries(TASKS.map((t) => [t.id, t]));
+/**
+ * Кто ждёт дома в «день гостей» (задание с openHouse) в этот день: host — один житель, hosts — столько жителей,
+ * свои на каждый день (жребий по номеру дня — перезагрузка его не меняет). Не «день гостей» — [].
+ */
+export function guestHosts(t, day) {
+  if (!t || !t.openHouse) return [];
+  if (t.host) return [t.host];
+  return pickOn(
+    day,
+    'guests:' + t.id,
+    NPCS.map((n) => n.id),
+    t.hosts || 3,
+  );
+}
 
 // Особые наклейки (не за задания)
 export const EXTRA_STICKERS = [

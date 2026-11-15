@@ -7,7 +7,7 @@
 import { clamp, seeded } from '../core/util.js';
 import { ell, fillRR, line, poly, emoji } from '../core/draw.js';
 import { NPCS, ING_BY_ID, SEED_BY_ID, TASK_BY_ID, LAND_BY_ID, BIZ_BY_ID } from '../data/index.js';
-import { G, cal, ownsHome, landOpen } from '../core/state.js';
+import { G, cal, ownsHome, landOpen, guestsWaiting } from '../core/state.js';
 import { T, OUT, SP, put, defineTiles, defineObjects } from '../engine/topdown/kinds.js';
 import { createTopDownScene } from '../engine/topdown/scene.js';
 import './common/index.js';
@@ -1060,6 +1060,15 @@ function target(sc) {
     if (palm) return { x: palm.x, y: palm.y - 46, icon: '⭐' };
   }
   const wh = t.where;
+  if (t.hosts) {
+    // «день гостей»: к двери ближайшего хозяина, который сегодня ждёт (письмо назвало их по именам)
+    const doors = guestsWaiting()
+      .map((id) => sc.map.buildings.find((b) => b.npc === id))
+      .filter(Boolean)
+      .map((b) => sc.map.doorPx(b))
+      .sort((a, b) => Math.hypot(a.x - sc.p.x, a.y - sc.p.y) - Math.hypot(b.x - sc.p.x, b.y - sc.p.y));
+    return doors.length ? { x: doors[0].x, y: doors[0].y - T, icon: '⭐' } : null;
+  }
   if (wh === 'town') return null;
   const b = sc.map.bById[wh];
   if (b) {

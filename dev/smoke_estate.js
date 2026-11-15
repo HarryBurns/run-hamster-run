@@ -391,17 +391,47 @@ module.exports = async function estate({ page, step, ev, wait, closeAll }) {
         await closeAll();
         expect((await state()).mail.done, 'задание не выполнено: ' + name);
       };
+      // «день гостей» (З2): письмо называет трёх хозяев дня — их двери открыты, у остальных днём закрыто
+      const hostsNow = () =>
+        ev(async () => {
+          const D = await import('/js/data/index.js'),
+            s = window.__dev.G.state,
+            t = D.TASK_BY_ID[s.mail.task],
+            hosts = D.guestHosts(t, s.day);
+          return {
+            hosts,
+            houses: hosts.map((id) => D.NPC_HOME[id].building),
+            names: hosts.map((id) => D.NPC_BY_ID[id].name),
+            other: D.NPCS.map((n) => n.id).filter((id) => !hosts.includes(id)),
+          };
+        });
       await task('guesting');
-      await enter('house3');
+      let hs = await hostsNow();
+      expect(hs.hosts.length === 3, '«день гостей»: хозяев должно быть трое', hs);
+      await ev(() => window.__dev.F.showLetter());
+      await wait(300);
+      const letter = await text('.overlay .letter');
+      expect(
+        hs.names.every((n) => letter.includes(n)) && /Сегодня дома ждут/.test(letter),
+        'в письме нет хозяев дня',
+        letter,
+      );
+      await closeAll();
+      const busy = hs.other[0],
+        busyHouse = await ev(async (id) => (await import('/js/data/index.js')).NPC_HOME[id].building, busy);
+      await enter(busyHouse);
+      expect((await scene()) === 'world', '«день гостей»: открыта дверь того, кто не ждёт гостей', busy);
+      await enter(hs.houses[0]);
       await wait(400);
-      expect((await scene()) === 'home_busya', '«день гостей»: дверь закрыта');
+      expect((await scene()) === 'home_' + hs.hosts[0], '«день гостей»: дверь хозяина дня закрыта', hs.hosts[0]);
       await reward('В гости к соседям');
       await task('teatime');
-      await enter('house1');
+      hs = await hostsNow();
+      await enter(hs.houses[0]);
       await wait(400);
-      await ev(() => {
-        window.__dev.F.hostDialog('ponchik', { scene: window.__dev.scene });
-      });
+      await ev((id) => {
+        window.__dev.F.hostDialog(id, { scene: window.__dev.scene });
+      }, hs.hosts[0]);
       await wait(400);
       await page.click('.dialog .opts .btn:nth-child(2)');
       await wait(600);
@@ -495,13 +525,54 @@ module.exports = async function estate({ page, step, ev, wait, closeAll }) {
     await closeAll();
     const hidden = await ev(() => window.__dev.World.npcs.filter((n) => n.hidden).map((n) => n.id));
     expect(!hidden.length, 'наутро без приглашения жители не вышли на улицу', hidden);
-    // письмо «день гостей»: все ждут дома — на улице никого
+    // письмо «день гостей» (З2): пока оно не прочитано — все гуляют; прочитали — трое хозяев дня ждут дома
+    // (и утром, и днём), остальные гуляют как обычно — на улицах кто-то есть
     await ev(() => window.__dev.actions.setMail('guesting'));
+    const streets = () =>
+      ev(async () => {
+        const D = await import('/js/data/index.js'),
+          s = window.__dev.G.state,
+          hosts = D.guestHosts(D.TASK_BY_ID[s.mail.task], s.day),
+          npcs = window.__dev.World.npcs;
+        return {
+          hosts,
+          waiting: npcs.filter((n) => hosts.includes(n.id)).every((n) => n.hidden && n.inside),
+          out: npcs.filter((n) => !n.hidden).map((n) => n.id),
+        };
+      });
+    for (const h of [8.3, 12]) {
+      await reenter(h);
+      const r = await streets();
+      expect(r.out.length === 8, `«день гостей», ${h}:00, письмо не прочитано — кто-то уже сидит дома`, r);
+    }
+    await ev(() => window.__dev.actions.readMail());
+    for (const h of [8.3, 12]) {
+      await reenter(h);
+      const r = await streets();
+      expect(r.hosts.length === 3 && r.waiting, `«день гостей», ${h}:00: хозяева дня не ждут дома`, r);
+      expect(
+        r.out.length === 5 && r.out.every((id) => !r.hosts.includes(id)),
+        `«день гостей», ${h}:00: на улицах должны гулять остальные пятеро`,
+        r,
+      );
+    }
+    // прочитали письмо прямо на улице: хозяева сами идут домой (звёздочка ведёт к ближайшему)
+    await ev(() => {
+      const d = window.__dev;
+      d.actions.nextDay();
+      d.actions.setMail('teatime');
+    });
+    await closeAll();
     await reenter(12);
-    expect(
-      await ev(() => window.__dev.World.npcs.every((n) => n.hidden && n.inside)),
-      'в «день гостей» жители на улице',
-    );
+    expect((await streets()).out.length === 8, '«Чаепитие» не прочитано, а кто-то дома');
+    await ev(() => window.__dev.actions.readMail());
+    await wait(200);
+    const tg = await ev(() => {
+      const W = window.__dev.World,
+        t = W.target();
+      return t && { x: Math.round(t.x / 48), y: Math.round(t.y / 48) };
+    });
+    expect(!!tg, '«Чаепитие»: звёздочка не показывает домик хозяина', tg);
   });
 
   // ---------- B. жильё ----------

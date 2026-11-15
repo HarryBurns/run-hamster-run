@@ -13,7 +13,7 @@ import { makeCanvas, ell, fillRR, star } from '../core/draw.js';
 import { emit } from '../core/events.js';
 import { go } from '../core/loop.js';
 import { register, run } from '../core/registry.js';
-import { G, darkness, npcWhere, playerLook } from '../core/state.js';
+import { G, darkness, npcWhere, playerLook, guestsWaiting } from '../core/state.js';
 import { el, esc, pick } from '../core/util.js';
 import { drawHamster, blinkAt } from '../art/hamster.js';
 import { DISH_BY_ID, NPCS, NPC_BY_ID, NPC_HOME, VISIT, npcLook } from '../data/index.js';
@@ -47,10 +47,13 @@ export async function visitHome(id, ctx = {}) {
   }
   if (where === 'out') {
     sfx('pop');
+    // «день гостей»: подсказать, кто сегодня ждёт дома (письмо назвало их по именам)
+    const wait = guestsWaiting().map((q) => NPC_BY_ID[q].name);
     toast(
-      fr.met
+      (fr.met
         ? `Дверь закрыта: ${npc.name} сейчас ${home.away}. Дома ${pron(npc)} утром до ${hhmm(VISIT.morningEnd)} и вечером после ${hhmm(VISIT.eveningStart)} 🚪`
-        : `Здесь живёт ${npc.name}. Сейчас ${pron(npc)} ${home.away} — там и познакомитесь! Дома бывает утром и вечером 🚪`,
+        : `Здесь живёт ${npc.name}. Сейчас ${pron(npc)} ${home.away} — там и познакомитесь! Дома бывает утром и вечером 🚪`) +
+        (wait.length ? ` А в гости сегодня ждут: ${wait.join(', ')}.` : ''),
     );
     return;
   }

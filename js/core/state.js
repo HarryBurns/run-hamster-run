@@ -20,6 +20,7 @@ import {
   DISH_BY_ID,
   SEED_BY_ID,
   TASK_BY_ID,
+  guestHosts,
   HOME_BY_ID,
   BIZ_BY_ID,
   VISIT,
@@ -554,14 +555,19 @@ export const ownedHomes = () => ['villa', ...G.state.homesOwned];
 /** Куплено ли заведение. */
 export const ownsBiz = (id) => !!G.state.biz[id];
 /**
- * Звал ли житель сегодня в гости: сказал «Заходи ко мне сегодня!» (отметка дня invited) или в ящике лежит
- * письмо «день гостей» (задание с openHouse; host — только этот житель).
+ * Звал ли житель сегодня в гости: сказал «Заходи ко мне сегодня!» (отметка дня invited) или он — хозяин из
+ * прочитанного письма «день гостей» (задание с openHouse: host или hosts жителей дня — guestHosts в data/tasks.js).
+ * Пока письмо не прочитано, все гуляют как обычно.
  */
 export function invitedToday(id) {
   const s = G.state;
   if ((s.dayFlags.invited || {})[id]) return true;
-  const t = s.mail && TASK_BY_ID[s.mail.task];
-  return !!(t && t.openHouse && (!t.host || t.host === id));
+  return guestsWaiting().includes(id);
+}
+/** Кто сегодня ждёт в гости по прочитанному письму «день гостей» (пусто — письмо другое или не прочитано). */
+export function guestsWaiting() {
+  const m = G.state.mail;
+  return m && m.read ? guestHosts(TASK_BY_ID[m.task], G.state.day) : [];
 }
 /**
  * Где сейчас житель: 'guest' — в гостях у героини, 'asleep' — спит (поздно), 'home' — дома и рад гостям
