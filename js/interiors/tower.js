@@ -1,5 +1,5 @@
 // Хомяк-Тауэр изнутри: холл → лифт → смотровая площадка на 101-м этаже, по которой можно гулять.
-import { clamp, rnd, seeded, TAU, el } from '../core/util.js';
+import { clamp, rnd, TAU, el } from '../core/util.js';
 import { ell, fillRR, line, poly, mix, rr, star, text, emoji, makeCanvas } from '../core/draw.js';
 import { drawHamster, blinkAt } from '../art/hamster.js';
 import { vendorLook, VENDORS } from '../data/index.js';
@@ -14,6 +14,16 @@ import { sfx } from '../core/audio.js';
 import { openPanel } from '../ui/panel.js';
 import { dialog } from '../ui/dialog.js';
 import { toast } from '../ui/toast.js';
+import {
+  VIEW_H,
+  VIEW_LAYERS,
+  VIEW_TOWN,
+  viewEnv,
+  viewSky,
+  renderViewLayer,
+  paintViewLive,
+  cloud,
+} from './tower_view.js';
 
 const OUT = '#4a3728',
   HS = 1.45;
@@ -439,213 +449,87 @@ export function update(dt) {
 function skyColors() {
   const d = darkness(),
     sea = cal().season;
-  return {
-    d,
-    sea,
-    top: mix({ winter: '#8cc6ee', spring: '#6ec3ff', summer: '#4db5ff', autumn: '#9fbfd6' }[sea], '#12123a', d * 0.94),
-    bot: mix({ winter: '#e9f4fb', spring: '#dff3ff', summer: '#d2f0ff', autumn: '#ffe6c2' }[sea], '#3b2f6b', d * 0.9),
-  };
-}
-function cloud(ctx, x, y, s, a = 1) {
-  ctx.globalAlpha = a;
-  ell(ctx, x, y, 46 * s, 17 * s, '#fff');
-  ell(ctx, x - 26 * s, y + 4 * s, 26 * s, 13 * s, '#fff');
-  ell(ctx, x + 24 * s, y - 9 * s, 28 * s, 16 * s, '#fff');
-  ell(ctx, x + 40 * s, y + 5 * s, 22 * s, 11 * s, '#fff');
-  ctx.globalAlpha = 1;
+  return { d, sea, ...viewSky(sea, d) };
 }
 
-// Панорама с высоты: небо, море с островами, пляж и город внизу. off — сдвиг при ходьбе (параллакс).
-let panoSeed = null;
-function drawPano(ctx, w, bottom, off, VW, t) {
-  const { d, sea, top, bot } = skyColors();
-  const Hy = bottom * 0.3,
-    By = bottom * 0.5,
-    Cy = By + bottom * 0.035;
-  const X = (u) => u * VW - off;
-  // небо
-  const g = ctx.createLinearGradient(0, 0, 0, Hy);
-  g.addColorStop(0, top);
-  g.addColorStop(1, bot);
-  ctx.fillStyle = g;
-  ctx.fillRect(0, 0, w, Hy + 2);
-  if (d > 0.5) {
-    ctx.fillStyle = '#fff';
-    for (let i = 0; i < 60; i++) {
-      ctx.globalAlpha = (d - 0.5) * 2 * (0.4 + ((i * 37) % 10) / 16);
-      ctx.fillRect(((i * 197) % (w + 200)) - off * 0.2, (i * 53) % Hy, 2, 2);
-    }
-    ctx.globalAlpha = 1;
-    ell(ctx, X(0.68), Hy * 0.36, 26, 26, '#fff3bf');
-    ell(ctx, X(0.68) + 10, Hy * 0.36 - 6, 22, 22, top);
-  } else ell(ctx, X(0.68), Hy * 0.4, 30, 30, sea === 'autumn' ? '#ffc078' : '#ffe066');
-  for (let i = 0; i < 5; i++)
-    cloud(
-      ctx,
-      ((i * 0.23 + t * 0.006 * (1 + (i % 3) * 0.4)) % 1.2) * VW - off - 80,
-      Hy * (0.25 + (i % 3) * 0.2),
-      0.7 + (i % 2) * 0.4,
-      d > 0.5 ? 0.25 : 0.9,
-    );
-  // море
-  const sg = ctx.createLinearGradient(0, Hy, 0, By);
-  sg.addColorStop(0, mix('#1c6fc4', '#0f1f52', d * 0.8));
-  sg.addColorStop(1, mix('#63c8f2', '#1f3a78', d * 0.8));
-  ctx.fillStyle = sg;
-  ctx.fillRect(0, Hy, w, By - Hy + 2);
-  ctx.strokeStyle = 'rgba(255,255,255,.45)';
-  ctx.lineWidth = 1.6;
-  for (let i = 0; i < 46; i++) {
-    const k = ((i * 37) % 100) / 100,
-      yy = Hy + 6 + k * (By - Hy - 10),
-      xx = ((i * 0.173 + Math.sin(t * 0.3 + i) * 0.004) % 1) * VW - off,
-      l = 6 + k * 16;
-    line(ctx, xx, yy, xx + l, yy, 'rgba(255,255,255,.45)', 1 + k);
+// ---------- вид с площадки: панорама слоями ----------
+// Слои панорамы (небо, море, пляж, дальние кварталы, площадь, крыши у башни — см. tower_view.js) лежат готовыми
+// картинками в размер экрана. Кадр — это шесть копий со сдвигом: чем ближе слой, тем сильнее он едет при ходьбе
+// (но всегда медленнее самой площадки). Перерисовываются слои, только когда сменились сезон, время суток
+// (темнота идёт ступеньками) или размер экрана; вживую рисуется лишь то, что шевелится, — облака, кораблики, кит.
+const VIEW = { geo: '', envKey: '', env: null, layers: [], todo: [] };
+function viewGeom() {
+  const { w, dpr = 1 } = G.view,
+    z = S.cam.zoom,
+    vw = w / z,
+    maxCam = Math.max(1, DECK_W - vw);
+  return {
+    w,
+    dpr,
+    s: (S.floorY + 4) / VIEW_H, // CSS-пикселей в единице панорамы: её низ — у пола площадки
+    travel: maxCam * z, // на сколько пикселей уезжает площадка от края до края
+    f: clamp(S.cam.x - vw / 2, 0, maxCam) / maxCam, // где камера: 0 — левый край площадки, 1 — правый
+  };
+}
+/** Картинки слоёв для такого экрана, сезона и времени суток. lazy — готовить по одной за вызов (пока едет лифт). */
+function viewLayers(g, lazy) {
+  const geo = [g.w, g.s, g.dpr, Math.round(g.travel)].join(':'),
+    env = viewEnv(cal().season, darkness());
+  if (geo !== VIEW.geo) {
+    VIEW.geo = geo;
+    VIEW.envKey = '';
+    VIEW.layers = [];
   }
-  for (const [u, k, s] of [
-    [0.2, 0.5, 1],
-    [0.44, 0.28, 0.7],
-    [0.6, 0.62, 1.2],
-    [0.83, 0.36, 0.8],
-    [0.34, 0.8, 1.4],
-    [0.93, 0.7, 0.9],
-  ]) {
-    // острова
-    const ix = X(u),
-      iy = Hy + k * (By - Hy);
-    ell(ctx, ix, iy, 26 * s, 6 * s, 'rgba(255,255,255,.5)');
-    ell(ctx, ix, iy - 1, 20 * s, 4.5 * s, sea === 'winter' ? '#f3ead2' : '#ffe9a8');
-    line(ctx, ix, iy - 2, ix + 2 * s, iy - 13 * s, '#a8703f', 1.6 * s);
-    for (let a = 0; a < 5; a++)
-      ell(
-        ctx,
-        ix + 2 * s + Math.cos(-0.3 - a * 0.65) * 6 * s,
-        iy - 13 * s + Math.sin(-0.3 - a * 0.65) * 4 * s,
-        6 * s,
-        2 * s,
-        '#2f9e44',
-        null,
-        1,
-        -0.3 - a * 0.65,
-      );
+  if (env.key !== VIEW.envKey) {
+    VIEW.envKey = env.key;
+    VIEW.env = env;
+    VIEW.todo = VIEW_LAYERS.map((l, i) => i);
   }
-  const bx = ((0.1 + t * 0.004) % 1.1) * VW - off,
-    bk = Hy + 0.45 * (By - Hy); // кораблик
-  poly(ctx, [bx - 14, bk, bx + 14, bk, bx + 9, bk + 6, bx - 9, bk + 6], '#a8703f');
-  poly(ctx, [bx, bk - 20, bx + 12, bk - 3, bx, bk - 2], '#fff');
-  const wk = (t * 0.07) % 1;
-  if (wk < 0.3) {
-    const wx = X(0.52),
-      wy = Hy + 0.22 * (By - Hy);
-    ell(ctx, wx, wy, 12, 4, '#3b5b92');
-    for (let i = 0; i < 4; i++) ell(ctx, wx + (i - 1.5) * 3, wy - 6 - ((t * 20 + i * 5) % 12), 1.6, 1.6, '#fff');
-  } // кит вдалеке
-  fillRR(ctx, X(0.5) - 5, By - (By - Hy) * 0.28, 10, (By - Hy) * 0.28 + 4, 2, '#c98b5a'); // пирс
-  // пляж
-  ctx.fillStyle = sea === 'winter' ? '#f3ead2' : '#ffe9a8';
-  ctx.fillRect(0, By, w, Cy - By + 2);
-  ctx.fillStyle = 'rgba(255,255,255,.8)';
-  ctx.fillRect(0, By - 2, w, 3);
-  for (let i = 0; i < 26; i++) {
-    const ux = X((i * 0.0391 + 0.01) % 1);
-    if (sea !== 'winter') ell(ctx, ux, By + (Cy - By) * 0.5, 5, 3, ['#fa5252', '#4dabf7', '#ffd43b', '#f783ac'][i % 4]);
+  // первый раз нужны все слои сразу; когда темнеет — по одному за кадр, чтобы игра не запнулась
+  while (VIEW.todo.length) {
+    const i = VIEW.todo.shift(),
+      l = VIEW_LAYERS[i],
+      fresh = !VIEW.layers[i];
+    VIEW.layers[i] = renderViewLayer(l, (g.w + l.par * g.travel) / g.s, VIEW.env, g.s * g.dpr);
+    if (lazy || !fresh) break;
   }
-  // город
-  const ground = mix(
-    { winter: '#f1f7fb', spring: '#a8e67a', summer: '#86db5c', autumn: '#cdd36a' }[sea],
-    '#1d2a5c',
-    d * 0.62,
-  );
-  ctx.fillStyle = ground;
-  ctx.fillRect(0, Cy, w, bottom - Cy + 2);
-  const leaf = sea === 'winter' ? '#fff' : sea === 'autumn' ? '#f08c00' : '#40c057';
-  if (!panoSeed) {
-    const r = seeded(4242);
-    panoSeed = Array.from({ length: 90 }, () => [r(), r(), r(), r()]);
-  }
-  const cols = [
-    '#f783ac',
-    '#74c0fc',
-    '#ffd43b',
-    '#b2f2bb',
-    '#ffc9de',
-    '#a5d8ff',
-    '#ffe066',
-    '#e5dbff',
-    '#ffd8a8',
-    '#fff',
-  ];
-  const roofs = ['#f76e5c', '#e8590c', '#1c7ed6', '#2f9e44', '#c2255c', '#845ef7'];
-  for (let row = 0; row < 3; row++) {
-    const ry = Cy + (bottom - Cy) * [0.2, 0.52, 0.95][row],
-      sc = [0.5, 0.8, 1.25][row];
-    ctx.fillStyle = mix('#eadcc0', '#2a2f5e', d * 0.6);
-    ctx.fillRect(0, ry + 2 * sc, w, 7 * sc); // улица
-    for (let i = 0; i < 30; i++) {
-      const [a, b2, c2, e] = panoSeed[row * 30 + i];
-      const x = ((i + a * 0.6) / 30) * VW - off;
-      if (x < -80 || x > w + 80) continue;
-      if (c2 < 0.3) {
-        line(ctx, x, ry, x, ry - 16 * sc, '#a8703f', 2.5 * sc);
-        ell(ctx, x, ry - 20 * sc, 9 * sc, 8 * sc, mix(leaf, '#1d2a5c', d * 0.5));
-        continue;
-      } // дерево
-      const bw = (20 + b2 * 22) * sc,
-        bh = (16 + e * 44) * sc,
-        col = mix(cols[Math.floor(a * 100) % cols.length], '#2a2f5e', d * 0.55);
-      fillRR(ctx, x - bw / 2, ry - bh, bw, bh, 2 * sc, col, OUT, 1);
-      const lit = d > 0.35;
-      for (let wy = ry - bh + 5 * sc; wy < ry - 5 * sc; wy += 8 * sc)
-        for (let wx = x - bw / 2 + 4 * sc; wx < x + bw / 2 - 5 * sc; wx += 8 * sc) {
-          ctx.fillStyle = lit && ((wx * 7 + wy * 3) | 0) % 3 ? '#ffe066' : lit ? '#3b4a6b' : 'rgba(255,255,255,.75)';
-          ctx.fillRect(wx, wy, 4 * sc, 4.5 * sc);
-        }
-      if (e < 0.45)
-        poly(
-          ctx,
-          [x - bw / 2 - 2, ry - bh, x, ry - bh - 10 * sc, x + bw / 2 + 2, ry - bh],
-          sea === 'winter' ? '#fff' : mix(roofs[Math.floor(b2 * 100) % roofs.length], '#2a2f5e', d * 0.5),
-          OUT,
-          1,
-        );
-      else if (sea === 'winter') {
-        ctx.fillStyle = '#fff';
-        ctx.fillRect(x - bw / 2, ry - bh - 2, bw, 3 * sc);
-      }
-    }
-    if (row === 1) {
-      // вилла с бассейном и городской бассейн
-      const vx = X(0.86),
-        s = sc;
-      fillRR(ctx, vx - 40 * s, ry - 34 * s, 80 * s, 34 * s, 3, mix('#fff3d6', '#2a2f5e', d * 0.5), OUT, 1.2);
-      poly(
-        ctx,
-        [vx - 46 * s, ry - 34 * s, vx - 30 * s, ry - 52 * s, vx + 30 * s, ry - 52 * s, vx + 46 * s, ry - 34 * s],
-        sea === 'winter' ? '#fff' : '#f76e5c',
-        OUT,
-        1.2,
-      );
-      fillRR(ctx, vx - 86 * s, ry - 12 * s, 38 * s, 14 * s, 3, '#58c6f2', '#fff', 2);
-      ell(ctx, vx + 64 * s, ry - 4 * s, 14 * s, 6 * s, sea === 'winter' ? '#d9f1ff' : '#5db6dc');
-      fillRR(ctx, X(0.3) - 30 * s, ry - 12 * s, 60 * s, 14 * s, 3, '#58c6f2', '#fff', 2);
+  return VIEW.layers;
+}
+function drawView(ctx, t) {
+  const g = viewGeom(),
+    layers = viewLayers(g),
+    k = g.s * g.dpr,
+    W = Math.round(g.w * g.dpr);
+  for (let i = 0; i < VIEW_LAYERS.length; i++) {
+    const l = VIEW_LAYERS[i],
+      img = layers[i],
+      off = Math.round(g.f * l.par * g.travel * g.dpr); // сдвиг — в целых пикселях экрана: копия 1:1
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.drawImage(img.c, off, 0, W, img.c.height, 0, img.top, W, img.c.height);
+    if (l.live) {
+      ctx.setTransform(k, 0, 0, k, -off, 0);
+      paintViewLive(ctx, l, img.L, VIEW.env, t);
     }
   }
-  for (let i = 0; i < 22; i++) {
-    const px = ((i + 0.5) / 22) * VW - off;
-    line(ctx, px, Cy + 3, px + 1, Cy - 9, '#a8703f', 2);
-    for (let a = 0; a < 5; a++)
-      ell(
-        ctx,
-        px + 1 + Math.cos(-0.3 - a * 0.65) * 6,
-        Cy - 9 + Math.sin(-0.3 - a * 0.65) * 4,
-        6,
-        2,
-        mix(sea === 'winter' ? '#e9f4fb' : '#2f9e44', '#1d2a5c', d * 0.5),
-        null,
-        1,
-        -0.3 - a * 0.65,
-      );
-  }
+  ctx.setTransform(g.dpr, 0, 0, g.dpr, 0, 0);
+}
+/** Для тестов: слои панорамы (размеры картинок, сдвиги) и таблица города, по которой она нарисована. */
+export function debugView() {
+  const g = viewGeom();
+  return {
+    town: VIEW_TOWN.map(([id, x, y, w, h]) => ({ id, x, y, w, h })),
+    built: VIEW.envKey,
+    todo: VIEW.todo.length,
+    screen: Math.round(g.w * g.dpr),
+    layers: VIEW_LAYERS.map((l, i) => ({
+      id: l.id,
+      par: l.par,
+      w: VIEW.layers[i] ? VIEW.layers[i].c.width : 0,
+      h: VIEW.layers[i] ? VIEW.layers[i].c.height : 0,
+      off: Math.round(g.f * l.par * g.travel * g.dpr),
+      maxOff: Math.round(l.par * g.travel * g.dpr),
+    })),
+  };
 }
 
 function liftDoors(ctx, x, open, label) {
@@ -759,11 +643,8 @@ function drawDeck(ctx, t) {
   const { w, h } = G.view,
     z = S.cam.zoom,
     d = darkness();
-  const vw = w / z,
-    maxCam = Math.max(1, DECK_W - vw),
-    off = (clamp(S.cam.x - vw / 2, 0, maxCam) / maxCam) * w * 0.9;
   const railTop = S.floorY - 96 * z;
-  drawPano(ctx, w, S.floorY + 4, off, w + w * 0.9, t);
+  drawView(ctx, t);
   ctx.save();
   S.cam.apply(ctx);
   ctx.lineJoin = 'round';
@@ -949,6 +830,7 @@ function drawRide(ctx, t) {
   const prog = r.dir > 0 ? e : 1 - e,
     floor = Math.round(1 + prog * 100);
   const sky = skyColors();
+  if (r.dir > 0) viewLayers(viewGeom(), true); // пока едем наверх, готовим вид с площадки
   ctx.fillStyle = '#343a40';
   ctx.fillRect(0, 0, w, h);
   const s = Math.min(w / 420, h / 560),

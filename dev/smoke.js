@@ -1890,6 +1890,40 @@ async function economy({ page, step, ev, wait, closeAll }) {
       });
       await wait(400);
     });
+    await step('башня: панорама слоями, без пустых краёв, город как на карте (У1)', async () => {
+      await ev(() => {
+        const d = window.__dev;
+        d.go('tower');
+        d.Tower.debugDeck();
+      });
+      await wait(400);
+      for (const x of [60, 2050]) {
+        await ev((x) => window.__dev.Tower.debugAt(x), x); // левый и правый конец площадки
+        await wait(1500);
+        const v = await ev(() => window.__dev.Tower.debugView());
+        const L = v.layers,
+          atEnd = L.every((l) => l.off === (x < 1000 ? 0 : l.maxOff)),
+          covered = L.every((l) => l.h > 0 && l.w >= v.screen + l.maxOff), // картинки слоя хватает до края экрана
+          speeds = L.every((l, i) => !i || l.maxOff > L[i - 1].maxOff); // чем ближе слой, тем сильнее едет
+        if (L.length < 5 || v.todo || !atEnd || !covered || !speeds)
+          throw new Error(`слои панорамы (x = ${x}): ` + JSON.stringify(v.layers));
+      }
+      const diff = await ev(() => {
+        const d = window.__dev,
+          t = d.Tower.debugView().town,
+          B = d.World.BUILDINGS,
+          same = (a, b) => a.id === b.id && a.x === b.x && a.y === b.y && a.w === b.w && a.h === b.h;
+        return [
+          ...B.filter((b) => !t.some((q) => same(q, b))).map((b) => b.id),
+          ...t.filter((q) => !B.some((b) => b.id === q.id)).map((q) => 'лишнее: ' + q.id),
+        ];
+      });
+      if (diff.length) throw new Error('вид с башни отстал от карты города (VIEW_TOWN): ' + diff.join(', '));
+      await ev(() => {
+        window.__dev.go('world');
+      });
+      await wait(400);
+    });
     await step('башня: шарики-мишени есть только в режиме прицела (Б2)', async () => {
       const st = () =>
         ev(() => {
