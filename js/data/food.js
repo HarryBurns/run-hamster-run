@@ -25,7 +25,7 @@ const ING_LIST = [
   { id: 'sugar', name: 'Сахар', e: '🍬', src: 'shop' },
   { id: 'choco', name: 'Шоколад', e: '🍫', src: 'shop' },
   { id: 'rice', name: 'Рис', e: '🍚', src: 'shop' },
-  { id: 'nuts', name: 'Орешки', e: '🌰', src: 'shop' },
+  { id: 'nuts', name: 'Орешки', e: '🥜', src: 'shop' },
   { id: 'apple', name: 'Яблоко', e: '🍎', src: 'shop', raw: true },
   { id: 'honey', name: 'Мёд', e: '🍯', src: 'shop' },
   // растёт в городе (в сезон можно сорвать бесплатно) и продаётся в магазине
@@ -52,6 +52,10 @@ const ING_LIST = [
   // растёт само: кусты черники и грибы (в городе их мало — основное место сбора будет в лесу)
   { id: 'blueberry', name: 'Черника', e: '🫐', src: 'wild', raw: true },
   { id: 'mushroom', name: 'Гриб', e: '🍄', src: 'wild' },
+  // растёт в лесу (П.9)
+  { id: 'porcini', name: 'Белый гриб', e: '🍄‍🟫', src: 'wild' },
+  // зефир — жарить на костре в лесу
+  { id: 'marshmallow', name: 'Зефир', e: '🍡', src: 'shop', raw: true },
 ];
 export const INGREDIENTS = ING_LIST.map((i) => {
   const price = PRICES.ing[i.id] || 0;
@@ -135,6 +139,10 @@ const DISH_LIST = [
   // из собранного в городе и в лесу
   { id: 'mushroom_soup', name: 'Грибной суп', e: '🥣', needs: { mushroom: 2, carrot: 1 }, start: true },
   { id: 'blueberry_muffin', name: 'Черничный кекс', e: '🧁', needs: { blueberry: 2, flour: 1, egg: 1 }, start: true },
+  // секретный рецепт лесника Шишкина (награда за задание в лесу)
+  { id: 'forest_pie', name: 'Лесной пирог с белыми грибами', e: '🥧', needs: { porcini: 1, flour: 1, egg: 1 } },
+  // жарят только на костре в лесу (на кухне не готовят): просто вкусно
+  { id: 'toasted_marshmallow', name: 'Жареный зефир', e: '🍢', fire: true },
   // из зимней культуры — салата с грядки под парничком
   { id: 'lettuce_wrap', name: 'Лепёшка с салатом', e: '🥙', needs: { lettuce: 1, flour: 1, cheese: 1 }, start: true },
   // только в кафе

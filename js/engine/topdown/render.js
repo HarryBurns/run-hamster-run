@@ -277,22 +277,26 @@ function drawSky(sc, tint, lights, n, clouds, k, ox, oy, w, h, dpr) {
 // ---------- живность: бабочки днём, светлячки ночью ----------
 const WINGS = ['#ffd43b', '#ff8fab', '#ffffff', '#74c0fc'];
 /** Клетки травы, над которыми кто-то летает: редкие, выбраны «случайным» числом клетки. */
+// Сколько их — поле critters в описании локации (множитель, лес — 3), над какими клетками — critterTiles (['g']).
 function critterCells(m, x0, y0, x1, y1, out) {
   let n = 0;
+  const lim = 0.016 * (m.desc.critters || 1),
+    tiles = m.desc.critterTiles || ONLY_GRASS;
   for (let ty = y0; ty <= y1; ty++) {
     const row = m.kinds[ty];
     for (let tx = x0; tx <= x1; tx++) {
       const hs = hash(tx * 13 + 7, ty * 29 + 3);
-      if (hs < 0.016 && row[tx] && row[tx].id === 'g') {
+      if (hs < lim && row[tx] && tiles.includes(row[tx].id)) {
         out[n++] = tx;
         out[n++] = ty;
-        out[n++] = hs * 62;
+        out[n++] = hs * ((62 * 0.016) / lim); // 0..1 (в городе — ровно как прежде: hs * 62)
       }
     }
   }
   return n;
 }
 const critters = [];
+const ONLY_GRASS = ['g'];
 /** Бабочки: в координатах мира, поверх всего, что стоит. */
 function drawButterflies(ctx, m, t, x0, y0, x1, y1) {
   const n = critterCells(m, x0 - 1, Math.max(0, y0 - 1), x1 + 1, y1, critters);
@@ -603,6 +607,7 @@ export function drawFrame(ctx, sc) {
     const clouds = dark < 0.5 && (weather === 'sun' || weather === 'petals' || weather === 'leaves');
     const layer = drawSky(sc, tint, lights, lit ? nl : 0, clouds, k, ox, oy, w, h, dpr);
     if (layer && warmSeason && fine && dark > 0.55) drawFireflies(layer.c, m, t, x0, y0, x1, y1, k, ox, oy, layer.S);
+    if (layer) sc.call('sky', layer.c, sc, layer.c.canvas.width, layer.c.canvas.height); // своё в слое неба (лучи в лесу)
   } else hideSky();
   sc.call('overlay', ctx, sc, w, h); // свой слой поверх всего, в экранных координатах (темнота пещеры и т. п.)
   // стрелка к цели, если она за экраном

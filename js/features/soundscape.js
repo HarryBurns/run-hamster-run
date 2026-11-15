@@ -4,6 +4,7 @@ import { scene } from '../core/loop.js';
 import { setMusic, setAmbience } from '../core/audio.js';
 
 // Сцена сама говорит, что в ней слышно: scene.sound() → { force, day, sea, rain, birds, crickets }.
+// day: 'town' — музыка города по сезону, 'forest' — лесная (лес, П.9), иначе — домашняя.
 export function updateSound() {
   const sc = scene();
   const playing = G.state && sc && !document.getElementById('title');
@@ -21,12 +22,15 @@ export function updateSound() {
     c = cal(),
     night = darkness() > 0.75,
     s = (sc.sound && sc.sound()) || {};
-  setMusic(mg ? 'minigame' : s.force ? s.force : night ? 'night' : s.day === 'town' ? 'town_' + c.season : 'villa');
+  setMusic(
+    mg ? 'minigame' : s.force ? s.force : night ? 'night' : s.day === 'town' ? 'town_' + c.season : s.day === 'forest' ? 'forest' : 'villa',
+  );
   const rain = G.state.weather === 'rain';
   setAmbience({
     sea: mg ? 0 : s.sea || 0,
     rain: rain && !mg ? (s.rain === undefined ? 0.3 : s.rain) : 0,
-    birds: !!s.birds && !mg && !night && !rain && (c.season === 'spring' || c.season === 'summer'),
+    birds:
+      !!s.birds && !mg && !night && !rain && (c.season === 'spring' || c.season === 'summer' || (s.day === 'forest' && c.season === 'autumn')),
     night: !!s.crickets && !mg && night && c.season !== 'winter',
   });
 }

@@ -5,6 +5,9 @@
 //   mangoTree    манговое дерево: в сезон на ветках оранжевые плоды
 //   berryBush    куст черники (пройти сквозь него можно, но медленно): в сезон на нём синие ягоды
 //   mushrooms    грибы: в свой сезон выросли, вне сезона их нет совсем (и нажать не на что)
+//   porcini      белый гриб (лес): летом и осенью, как грибы — вне сезона его нет
+//   wildStrawberry  кустики лесной земляники (лес): весной цветут, летом — ягоды
+//   hazelBush    лещина (лес; сквозь неё можно пройти, но медленно): осенью — орешки
 //
 // Правила одни для всех:
 //  - плод есть только в сезон продукта — месяцы берутся из общей таблицы data/seasons.js;
@@ -16,6 +19,9 @@
 //    когда поспеет.
 // Локация ставит растения обычным m.add('bananaPalm', x, y) и подключает часть: parts: [createPlants()] —
 // она даёт подпись, кнопку и клавишу. Обычные деревья, пальмы и кусты (без плодов) — objects.js.
+// Сколько даёт растение, локация может задать своей таблицей (поле gather в описании: лес — FOREST_GATHER), иначе —
+// GATHER города. Отметка «сегодня собрано» у растений не главной локации — с её именем (forest:12_7), чтобы
+// растения разных локаций на одной клетке не путались.
 import { G } from '../../core/state.js';
 import { addItem, award, setDayFlag, setFlag } from '../../core/actions.js';
 import { emit } from '../../core/events.js';
@@ -79,9 +85,34 @@ export const PLANTS = {
     empty: 'Здесь грибы уже собраны. Завтра вырастут новые! 🍂',
     top: 44,
   },
+  porcini: {
+    gives: 'porcini',
+    verb: 'Срезать белый гриб',
+    btn: 'Срезать',
+    wait: 'Белые грибы вырастут',
+    empty: 'Здесь белый гриб уже срезан. Завтра вырастет новый! 🍂',
+    top: 48,
+  },
+  wildStrawberry: {
+    gives: 'strawberry',
+    verb: 'Собрать землянику',
+    btn: 'Собрать',
+    name: 'Земляника', // в рюкзаке она — клубника (тот же продукт и сезон)
+    wait: 'Земляника поспеет',
+    empty: 'Эту землянику уже собрали. Завтра поспеет новая! 🍓',
+    top: 40,
+  },
+  hazelBush: {
+    gives: 'nuts',
+    verb: 'Собрать орешки',
+    btn: 'Собрать',
+    wait: 'Орешки поспеют',
+    empty: 'С этой лещины орешки уже собраны. Завтра поспеют новые! 🌳',
+    top: 60,
+  },
 };
 const monthNow = () => Math.floor(G.state.day / DAYS_PER_MONTH) % 12;
-const keyOf = (o) => o.tx + '_' + o.ty;
+const keyOf = (o) => o.key || o.tx + '_' + o.ty;
 /** Сезон ли сейчас у растения. */
 export const plantInSeason = (o) => ripeIn(PLANTS[o.type].gives, monthNow());
 /** Есть ли на растении плоды прямо сейчас: сезон, и сегодня с него ещё не собирали. */
@@ -102,14 +133,14 @@ export function gather(sc, o) {
     toast(pl.empty);
     return false;
   }
-  const n = GATHER[id].n;
+  const n = ((sc && sc.desc && sc.desc.gather) || GATHER)[id].n;
   setDayFlag(keyOf(o), 1, 'plants');
   addItem('ing', id, n);
   if (pl.drop)
     for (let i = 0; i < n; i++) sc.drops.push({ x: o.x + pl.drop[0] + i * 11, y: o.y + pl.drop[1] - i * 7, t: 0, e: ing.e });
   setTimeout(() => {
     sfx('pop');
-    toast(`${pl.got ? pl.got + ' ' : ''}+${n} ${ing.e} ${(n > 1 && pl.many) || ing.name}`, 'good');
+    toast(`${pl.got ? pl.got + ' ' : ''}+${n} ${ing.e} ${pl.name || (n > 1 && pl.many) || ing.name}`, 'good');
   }, 450);
   // наклейки: первый плод и «собрала всё, что растёт» (что уже собирала — отметки в flags)
   award('x_gather', { delay: 1400 });
@@ -454,6 +485,81 @@ function paintMushrooms(ctx, v) {
   boletus(ctx, 3, 11, 0.62, caps[2]);
 }
 
+// Белый гриб: крепкий боровик с тёмно-коричневой шляпкой во мху (и малыш рядом)
+function paintPorcini(ctx, v) {
+  shadow(ctx, 0, 12, 18, 5);
+  ell(ctx, -2, 10, 15, 5, '#5fa83f', 'rgba(74,55,40,.4)', 1);
+  ell(ctx, 4, 9, 6, 2.6, v % 2 ? '#e8590c' : '#a0662d', 'rgba(74,55,40,.4)', 0.8, 0.4);
+  boletus(ctx, 9, 9, 0.7, '#8d4a26');
+  boletus(ctx, -3, 9, 1.55, v % 2 ? '#7a3f1d' : '#6b3a1e');
+}
+// Лесная земляника: кустик тройчатых листьев; весной — белые цветочки, летом — красные ягодки
+function paintWildStrawberry(ctx, sea, fruit) {
+  shadow(ctx, 0, 10, 18, 4.5);
+  const leaf = sea === 'autumn' ? '#c2410c' : sea === 'spring' ? '#69c24c' : '#3f9e3a';
+  for (const [x, y] of [
+    [-10, 2],
+    [8, 3],
+    [-1, -5],
+    [12, -4],
+    [-13, -6],
+  ])
+    for (let k = 0; k < 3; k++) {
+      const a = -Math.PI / 2 + (k - 1) * 0.9;
+      ell(ctx, x + Math.cos(a) * 4, y + Math.sin(a) * 4, 4, 2.6, leaf, OUT, 1, a);
+      ell(ctx, x + Math.cos(a) * 4 - 0.8, y + Math.sin(a) * 4 - 0.8, 1.6, 1, 'rgba(255,255,255,.3)', null, 1, a);
+    }
+  if (sea === 'spring') for (const [x, y] of [[-5, -2], [6, -8], [3, 4]]) flower(ctx, x, y, 2.4, '#fff', '#ffd43b');
+  if (!fruit) return;
+  for (const [x, y] of [
+    [-6, 4],
+    [5, -1],
+    [-12, -2],
+    [10, 6],
+    [0, -9],
+  ]) {
+    line(ctx, x, y - 6, x, y - 2, '#2b8a3e', 1);
+    ell(ctx, x, y, 3, 3.6, '#fa5252', OUT, 1);
+    ell(ctx, x - 1, y - 1.2, 1, 0.8, 'rgba(255,255,255,.75)');
+  }
+}
+// Лещина: раскидистый куст; осенью — орешки в зелёных «юбочках»
+const HAZEL_PUFFS = [
+  [-18, -16, 16, 13],
+  [17, -17, 16, 13],
+  [-2, -30, 19, 15],
+  [0, -12, 18, 12],
+];
+function paintHazel(ctx, sea, fruit) {
+  shadow(ctx, 2, 12, 26, 7);
+  if (sea === 'winter') {
+    for (const [ax, ay, bx, by] of [
+      [0, 10, -20, -26],
+      [0, 10, 18, -28],
+      [0, 10, 0, -38],
+    ]) {
+      line(ctx, ax, ay, bx, by, OUT, 5);
+      line(ctx, ax, ay, bx, by, '#a8703f', 2.8);
+    }
+    crown(ctx, [[-20, -28, 7, 4], [18, -30, 7, 4], [0, -40, 8, 4]], ['#cfe3f0', '#ffffff', '#ffffff'], 1.5);
+    return;
+  }
+  const tones = sea === 'autumn' ? ['#d9a400', '#f2c14e', '#ffe08a'] : leafTones(sea, 1);
+  crown(ctx, HAZEL_PUFFS, tones, 2);
+  if (!fruit) return;
+  for (const [x, y] of [
+    [-16, -18],
+    [14, -20],
+    [-2, -32],
+    [6, -10],
+  ])
+    for (const dx of [-3, 3]) {
+      ell(ctx, x + dx, y + 1, 3.6, 4, '#c08a4a', OUT, 1);
+      ell(ctx, x + dx - 1, y - 0.5, 1.2, 1.4, 'rgba(255,255,255,.55)');
+      ell(ctx, x + dx, y - 3, 4, 2, '#82c91e', OUT, 0.9);
+    }
+}
+
 /** Растение, с которого только что собирали или которое потрогали, недолго дрожит (готовым спрайтом). */
 const wobble = (o, t) => (o.shake > t ? Math.sin(t * 34) * 2 : 0);
 
@@ -584,6 +690,36 @@ defineObjects({
       if (hasFruit(o)) put('mushrooms', o.x, o.y, (o.v || 0) % 2);
     },
   },
+  porcini: {
+    tap: { dx: 24, up: 32, down: 18 },
+    tapIf: hasFruit, // как грибы: вне сезона и после сбора его нет
+    use: gather,
+    art: { porcini: [[-26, -32, 28, 20], paintPorcini] },
+    draw(ctx, o) {
+      if (hasFruit(o)) put('porcini', o.x, o.y, (o.v || 0) % 2);
+    },
+  },
+  wildStrawberry: {
+    flat: true,
+    tap: { dx: 24, up: 22, down: 18 },
+    use: gather,
+    art: { wildStrawberry: [[-24, -20, 24, 16], paintWildStrawberry] },
+    draw(ctx, o, env) {
+      if (env.season !== 'winter') put('wildStrawberry', o.x + wobble(o, env.t), o.y, env.season, hasFruit(o) ? 1 : 0);
+    },
+  },
+  hazelBush: {
+    slow: 0.5,
+    rustle: 'paper',
+    tap: { dx: 34, up: 44, down: 18 },
+    use: gather,
+    art: { hazelBush: [[-38, -50, 40, 22], paintHazel] },
+    draw(ctx, o, env) {
+      const h = env.hero,
+        inside = Math.abs(h.x - o.x) < 26 && Math.abs(h.y - o.y) < 26;
+      put('hazelBush', o.x + (inside ? Math.sin(env.t * 22) * 1.8 : wobble(o, env.t)), o.y, env.season, hasFruit(o) ? 1 : 0);
+    },
+  },
 });
 
 /**
@@ -611,6 +747,7 @@ export function createPlants() {
   return {
     built(sc) {
       list = sc.map.objs.filter((o) => PLANTS[o.type]);
+      if (!sc.desc.home) for (const o of list) o.key = `${sc.name}:${o.tx}_${o.ty}`;
     },
     enter() {
       near = null;

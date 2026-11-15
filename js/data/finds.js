@@ -26,6 +26,10 @@ export const FINDS = [
   { id: 'herb_aster', kind: 'herb', e: '💮', name: 'Астра' },
   { id: 'herb_maple', kind: 'herb', e: '🍁', name: 'Кленовый лист' },
   { id: 'herb_oak', kind: 'herb', e: '🍂', name: 'Дубовый листок' },
+  // лес (П.9): шишки — круглый год, еловые веточки — зимой (их не продают: шишки меняет белка, веточки — венок
+  // у лесника Шишкина)
+  { id: 'cone', kind: 'forest', e: '🌰', name: 'Шишка' },
+  { id: 'fir_twig', kind: 'forest', e: '🎄', name: 'Еловая веточка' },
 ];
 export const FIND_BY_ID = Object.fromEntries(FINDS.map((f) => [f.id, f]));
 

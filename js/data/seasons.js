@@ -24,7 +24,10 @@ export const HARVEST_MONTHS = {
   banana: months('spring'), // банановые пальмы
   mango: months('summer'), // манговые деревья
   blueberry: months('summer'), // кусты черники
-  mushroom: months('autumn'), // грибы на опушке и в парке
+  mushroom: months('autumn'), // грибы на опушке и в парке, а больше всего — в лесу
+  // растёт в лесу (П.9; сколько и где — FOREST_GATHER в economy.js): летом — немного, осенью — много
+  porcini: months('summer', 'autumn'), // белые грибы под ёлками
+  nuts: months('autumn'), // лещина (орешки в ТЦ «Вкусный» не в сезон дороже и бывают не каждый день)
   // южные фрукты: их только покупают
   pineapple: months('spring', 'summer'),
   kiwi: months('autumn', 'winter'),
@@ -44,6 +47,15 @@ export const HARVEST_MONTHS = {
   // рыбалка — круглый год (зимой рыбу ловят в лунке)
   fish: ALL_YEAR,
 };
+
+// Кроме урожая, в лесу (П.9) по сезонам живёт ещё кое-что — это не продукты, но сезон у них тот же календарный:
+// пчёлы в улье дают мёд, на ёлках можно отломить веточку к Новому году. Ключ — «что», значение — месяцы.
+export const WILD_MONTHS = {
+  bees: months('summer', 'autumn'), // улей: летом и осенью — баночка мёда в день; весной пчёлы только проснулись
+  firTwig: months('winter'), // еловые веточки под ёлками
+};
+/** Бывает ли это (ключ WILD_MONTHS) в этом месяце (0–11). */
+export const wildIn = (id, month) => WILD_MONTHS[id].includes(month);
 
 /** Месяцы сезона продукта (0–11) или null, если он есть круглый год. */
 export function harvestMonths(id) {

@@ -1,10 +1,11 @@
-// Замер скорости города: время кадра при ходьбе стрелкой и число команд рисования за кадр.
+// Замер скорости города и леса: время кадра при ходьбе стрелкой и число команд рисования за кадр.
 // Нужен, чтобы сравнивать «до/после» любых правок рисования (способ — как в docs/REVIEW.md, приложение).
 //
 // Запуск:  python3 -m http.server 8765 &   затем   node dev/bench.js [http://localhost:8765] [ключи]
 //   --cpu=4                 замедление процессора (1 — без замедления)
 //   --sizes=desktop,phone   desktop — 1280×720 (dpr 1), phone — 390×844 (dpr 3), big — 1920×1080 (dpr 1)
-//   --spots=palms,forest,square,sea,beach,park
+//   --spots=palms,forest,square,sea,beach,park,woods,glade   (forest — лес на севере города; woods и glade — локация
+//                           «Лес» (П.9): густой лес у тропы и поляна с костром)
 //   --seasons=winter,summer зима со снегом и лето без осадков
 //   --sec=4                 сколько секунд идёт один замер
 //   --minutes=1320          время суток в минутах (720 — полдень; 1320 — ночь со светом фонарей и окон)
@@ -27,7 +28,17 @@ const CPU = +opt('cpu', 4),
   SEC = +opt('sec', 4),
   MINUTES = +opt('minutes', 12 * 60);
 const SIZES = { desktop: [1280, 720, 1], phone: [390, 844, 3], big: [1920, 1080, 1] };
-const SPOTS = { palms: [15, 39], forest: [36, 5], square: [50, 21], sea: [40, 65], beach: [40, 53], park: [40, 34] };
+// место: [x, y] в городе или [x, y, сцена] — в другой локации
+const SPOTS = {
+  palms: [15, 39],
+  forest: [36, 5],
+  square: [50, 21],
+  sea: [40, 65],
+  beach: [40, 53],
+  park: [40, 34],
+  woods: [17, 29, 'forest'],
+  glade: [24, 23, 'forest'],
+};
 const SPOT_NAMES = {
   palms: 'Дворики (15,39)',
   forest: 'Лес (36,5)',
@@ -35,9 +46,11 @@ const SPOT_NAMES = {
   sea: 'Море (40,65)',
   beach: 'Пляж (40,53)',
   park: 'Парк (40,34)',
+  woods: 'Лес-сцена (17,29)',
+  glade: 'Лес: костёр',
 };
 const sizes = opt('sizes', 'desktop,phone').split(','),
-  spots = opt('spots', 'palms,forest,square,sea').split(',');
+  spots = opt('spots', 'palms,forest,square,sea,woods').split(',');
 const seasons = opt('seasons', 'winter,summer').split(',');
 const SEASON = { winter: { day: 0, weather: 'snow' }, summer: { day: 18, weather: 'sun' } };
 
@@ -72,18 +85,19 @@ const SEASON = { winter: { day: 0, weather: 'snow' }, summer: { day: 18, weather
     // счётчики: время draw/update города, интервалы между кадрами, число команд канвы внутри draw
     await page.evaluate(() => {
       const B = (window.__bench = { on: false, frames: [], draw: [], cmd: null, cmdFrames: 0 });
-      const sc = window.__dev.scenes.world,
-        d0 = sc.draw;
-      sc.draw = function (c) {
-        if (B.cmd) B.inDraw = true;
-        const t = performance.now();
-        d0.call(this, c);
-        if (B.on) B.draw.push(performance.now() - t);
-        if (B.cmd) {
-          B.inDraw = false;
-          B.cmdFrames++;
-        }
-      };
+      for (const sc of [window.__dev.scenes.world, window.__dev.scenes.forest]) {
+        const d0 = sc.draw;
+        sc.draw = function (c) {
+          if (B.cmd) B.inDraw = true;
+          const t = performance.now();
+          d0.call(this, c);
+          if (B.on) B.draw.push(performance.now() - t);
+          if (B.cmd) {
+            B.inDraw = false;
+            B.cmdFrames++;
+          }
+        };
+      }
       const P = CanvasRenderingContext2D.prototype;
       for (const m of [
         'fill',
@@ -121,17 +135,19 @@ const SEASON = { winter: { day: 0, weather: 'snow' }, summer: { day: 18, weather
     };
     for (const sea of seasons)
       for (const spot of spots) {
-        const [tx, ty] = SPOTS[spot];
+        const [tx, ty, where = 'world'] = SPOTS[spot];
         await cdp.send('Emulation.setCPUThrottlingRate', { rate: 1 });
         await page.evaluate(
-          ([s, tx, ty, minutes]) => {
-            const st = window.__dev.G.state;
+          ([s, tx, ty, minutes, where]) => {
+            const d = window.__dev,
+              st = d.G.state;
             st.day = s.day;
             st.weather = s.weather;
             st.minutes = minutes;
-            window.__dev.World.debugTeleport(tx, ty);
+            if (d.sceneName !== where) d.go(where);
+            d.locations[where].debugTeleport(tx, ty);
           },
-          [SEASON[sea], tx, ty, MINUTES],
+          [SEASON[sea], tx, ty, MINUTES, where],
         );
         await walk(1000); // прогрев: кэши, шрифты
         // 1) число команд (без замедления: счётчик сам тормозит)
@@ -189,6 +205,16 @@ const SEASON = { winter: { day: 0, weather: 'snow' }, summer: { day: 18, weather
   await browser.close();
   const json = opt('json', '');
   if (json) fs.writeFileSync(json, JSON.stringify(rows, null, 1));
+  // лес-сцена против города (тот же размер и сезон): средний кадр
+  const mean = (f) => {
+    const l = rows.filter(f);
+    return l.length ? +(l.reduce((a, r) => a + r.frame, 0) / l.length).toFixed(1) : null;
+  };
+  for (const size of sizes) {
+    const town = mean((r) => r.size === size && !SPOTS[r.spot][2]),
+      wood = mean((r) => r.size === size && !!SPOTS[r.spot][2]);
+    if (town && wood) console.log(`${size}: средний кадр — город ${town} мс, лес-сцена ${wood} мс`);
+  }
   const lim = +opt('max-forest', 0);
   if (lim) {
     const f = rows.filter((r) => r.spot === 'forest' && r.size === 'desktop');

@@ -13,6 +13,7 @@ export {
   defineObjects,
   defineBuildings,
   defineArt,
+  ART,
 } from './kinds.js';
 export { createTopDownScene, locations, getLocation, homeLocation, currentLocation, setTargetHook } from './scene.js';
 export { spotlight } from './render.js';

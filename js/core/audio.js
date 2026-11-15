@@ -432,6 +432,19 @@ const TRACKS = {
     perc: 3,
     density: 0.5,
   },
+  // лес (П.9): неторопливо, «деревянные» щипки и колокольчики, как в сказке
+  forest: {
+    bpm: 84,
+    key: 64,
+    scale: MAJ_PENTA,
+    prog: ['I', 'vi', 'IV', 'V', 'I', 'iii', 'IV', 'V'],
+    lead: ['pluck', 0.07, 1.1],
+    arp: ['bell', 0.024, 0.8],
+    arpPat: [0, 2, 1, 2, 0, -1, 1, 2],
+    bass: 0.075,
+    perc: 0,
+    density: 0.45,
+  },
   night: {
     bpm: 66,
     key: 57,

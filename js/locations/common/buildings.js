@@ -533,7 +533,7 @@ defineBuildings({
     live(ctx, b, t, env) {
       if (b.smoke || env.season === 'winter') smoke(ctx, (b.x + b.w * 0.68) * T + 10, b.y * T - 2, t + b.x);
     },
-    box: (b) => [-30, -60, b.w * T + 30, b.h * T + 14],
+    box: (b) => b.frame || [-30, -60, b.w * T + 30, b.h * T + 14], // frame — своя рамка (дорисовка art шире)
     // свет ночью: окна, слуховое окошко и пятно на земле у двери
     lights: (b) => {
       const g = houseGeom(b);
