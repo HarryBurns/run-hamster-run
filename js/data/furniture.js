@@ -2,6 +2,9 @@
 // kind — как предмет рисуется (см. art/furniture.js). wall: висит на стене. layer: 0 — коврик (рисуется под всем).
 // act — что будет, если потрогать (см. engine/side/items.js):
 //   sleep | wardrobe | fridge | sit | tv | lamp | plant | piano | wheel | music | disco | toy | fish | fire | book | mirror | none
+//   spin (покрутить: штурвал, глобус) | look (рассмотреть) | water (полить цветы) | sport (потренироваться)
+//   telescope | bigfridge | oven — окна и сценки из features/visits.js
+// say — что написать, когда предмет потрогали (для spin, look, sport).
 // shop: home (ТЦ «Уютный дом») | market (вещицы с рынка) | gift (только в подарок).
 // Цены — в таблице PRICES.furn (economy.js); у подарков цены нет (0).
 import { PRICES } from './economy.js';
@@ -66,6 +69,43 @@ F('rocket', 'rocket', 'Игрушечная ракета', 70, 150, { shop: 'gif
 F('rug_craft', 'rug', 'Коврик ручной работы', 190, 16, { shop: 'market', c: '#ffd8a8', cat: 'decor', layer: 0 });
 F('lamp_lantern', 'lamp', 'Мятный фонарик', 50, 150, { shop: 'market', act: 'lamp', c: '#63e6be', cat: 'decor' });
 F('beanbag_melon', 'beanbag', 'Кресло-мешок «Арбуз»', 96, 70, { shop: 'market', act: 'sit', c: '#51cf66', cat: 'seat' });
+
+// «как у соседей»: вещи, которые стоят в домах жителей (interiors/home_*.js), — их можно купить и себе
+F('ship_wheel', 'ship_wheel', 'Штурвал', 96, 96, { wall: true, cat: 'wall', act: 'spin', c: '#b9834f',
+  say: ['Лево руля! Право руля! Полный вперёд! 🚢', 'Штурвал скрипит: «Курс — на приключения!» 🧭'] });
+F('fishnet', 'fishnet', 'Рыбацкая сеть', 180, 84, { wall: true, cat: 'wall' });
+F('seamap', 'seamap', 'Морская карта', 130, 90, { wall: true, cat: 'wall', act: 'look',
+  say: ['На карте — море, острова и крестик. Наверное, там клад! 🗺️', 'Пунктир ведёт от пирса прямо за буйки… 🧭'] });
+F('anchor', 'anchor', 'Якорь', 76, 104, { cat: 'decor', act: 'toy', c: '#868e96' });
+F('lifebuoy', 'lifebuoy', 'Спасательный круг', 66, 66, { wall: true, cat: 'wall' });
+F('hammock', 'hammock', 'Гамак', 230, 124, { cat: 'seat', act: 'sit', c: '#ffa94d' });
+F('globe', 'globe', 'Глобус', 64, 100, { cat: 'fun', act: 'spin', c: '#4dabf7',
+  say: ['Глобус крутится… Стоп! Вот море, а вот наш город — меньше семечки 🌍', 'Вжух! Сколько же на свете мест, где хомячок ещё не был 🌍'] });
+F('telescope', 'telescope', 'Телескоп', 110, 144, { cat: 'fun', act: 'telescope', c: '#f08c00' });
+F('desk', 'desk', 'Письменный стол', 156, 96, { cat: 'furn', act: 'book', c: '#b9834f' });
+F('blackboard', 'blackboard', 'Школьная доска', 156, 96, { wall: true, cat: 'wall', act: 'look',
+  say: ['На доске написано: 2 + 2 = 4, а 2 орешка + 2 орешка = вкусно 🎓', 'Формула идеального печенья: мука + орешки + немножко терпения 🍪'] });
+F('vanity', 'vanity', 'Туалетный столик', 116, 156, { cat: 'furn', act: 'mirror', c: '#ffc9de' });
+F('mannequin', 'mannequin', 'Манекен с платьем', 64, 146, { cat: 'decor', act: 'toy', c: '#f783ac' });
+F('clothes_rack', 'clothes_rack', 'Вешалка с нарядами', 150, 150, { cat: 'furn', act: 'look',
+  say: ['Платья, платья, платья… и одна шляпа с перьями 👗', 'Вот это наряды! На каждый день недели — и ещё на праздник ✨'] });
+F('fridge_giant', 'fridge_giant', 'Гигантский холодильник', 156, 216, { cat: 'furn', act: 'bigfridge', c: '#d0ebff' });
+F('oven', 'oven', 'Духовка с пирогом', 104, 112, { cat: 'furn', act: 'oven', c: '#ffd8a8' });
+F('pot_rack', 'pot_rack', 'Полка с кастрюлями', 156, 70, { wall: true, cat: 'wall' });
+F('barbell', 'barbell', 'Штанга', 160, 76, { cat: 'fun', act: 'sport', c: '#495057',
+  say: ['И-и-раз! И-и-два! Сильные лапки 💪', 'Ух, тяжёлая! Ещё чуть-чуть — и ты чемпионка 🏋️'] });
+F('punchbag', 'punchbag', 'Боксёрская груша', 70, 196, { cat: 'fun', act: 'toy', c: '#e03131' });
+F('trophy_shelf', 'trophy_shelf', 'Полка с кубками', 140, 66, { wall: true, cat: 'wall', act: 'look',
+  say: ['Кубки блестят: «Лучший пловец», «Самый быстрый», «За волю к победе» 🏆', 'Столько кубков! А один — за самый громкий плюх 🏆'] });
+F('rocking_chair', 'rocking_chair', 'Кресло-качалка с пледом', 104, 116, { cat: 'seat', act: 'sit', c: '#f783ac' });
+F('tea_table', 'tea_table', 'Чайный столик', 124, 84, { cat: 'furn', act: 'look', c: '#f1e0c5',
+  say: ['Чайник горячий, чашки ждут гостей 🫖', 'Пахнет мятой и вареньем 🍵'] });
+F('toybox', 'toybox', 'Ящик с игрушками', 112, 80, { cat: 'fun', act: 'toy', c: '#74c0fc' });
+F('dollhouse', 'dollhouse', 'Кукольный домик', 112, 136, { cat: 'fun', act: 'toy', c: '#ffc9de' });
+F('rocking_horse', 'rocking_horse', 'Лошадка-качалка', 116, 100, { cat: 'fun', act: 'toy', c: '#e8a15c' });
+F('seedling_shelf', 'seedling_shelf', 'Стеллаж с рассадой', 136, 166, { cat: 'decor', act: 'plant', c: '#b9834f' });
+F('watering_can', 'watering_can', 'Лейка', 70, 56, { cat: 'decor', act: 'water', c: '#63e6be' });
+F('hanging_plant', 'hanging_plant', 'Кашпо с плющом', 64, 96, { wall: true, cat: 'wall', c: '#37b24d' });
 
 export const FURNITURE = FU;
 export const FURN_BY_ID = Object.fromEntries(FU.map((f) => [f.id, f]));

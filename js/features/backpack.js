@@ -67,7 +67,7 @@ export function openBackpack() {
           grid.appendChild(card);
         }
         body.appendChild(grid);
-        body.appendChild(el('p', 'muted center', 'Чтобы поставить мебель, нажми 🔨 на вилле.'));
+        body.appendChild(el('p', 'muted center', 'Чтобы поставить мебель, нажми 🔨 у себя дома.'));
       }
     },
   });

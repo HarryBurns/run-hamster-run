@@ -391,3 +391,48 @@ h4 { margin: 4px 0; font-size: 16px; }
 .bank-tips { background: #fff3bf; border-radius: 16px; padding: 10px 14px; font-size: 14px; line-height: 1.3; }
 .bank-tips ul { margin: 6px 0 0; padding-left: 20px; }
 .bank-tips li { margin: 4px 0; font-weight: 600; }
+
+/* ---------- жильё и свои заведения ---------- */
+.home-card { align-items: stretch; gap: 12px; }
+.home-card .home-plan { flex: none; align-self: center; border-radius: 12px; background: linear-gradient(#cfeeff, #eaf8ff); }
+.home-card .side { flex: none; display: flex; flex-direction: column; gap: 6px; align-items: stretch; justify-content: center; min-width: 124px; text-align: center; }
+.home-card.soon { opacity: .75; border-style: dashed; }
+.home-card .perks, .biz-facts { font-size: 12.5px; font-weight: 700; }
+.home-card .perks { display: flex; flex-wrap: wrap; gap: 4px 6px; margin-top: 4px; }
+.home-card .perks span { background: #fff3bf; border-radius: 10px; padding: 1px 8px; white-space: nowrap; }
+.home-card .tag { font-size: 12px; background: var(--yellow); border-radius: 10px; padding: 1px 8px; white-space: nowrap; vertical-align: middle; }
+.home-card .own, .biz-row .own { font-weight: 900; color: var(--green-d); white-space: nowrap; }
+.home-card .soon-note { font-size: 12px; font-weight: 700; opacity: .8; max-width: 150px; line-height: 1.2; }
+.home-card .pr, .card-pr .pr, .biz-buy .pr { font-weight: 900; color: #b37400; white-space: nowrap; }
+.home-card .pr.far, .card-pr .pr.far, .biz-buy .pr.far { color: #a39484; }
+.home-card .pr .lack, .card-pr .pr .lack, .biz-buy .pr .lack { font-size: 11px; font-weight: 700; color: #b8869a; line-height: 1.2; white-space: normal; }
+.card-pr { flex: none; text-align: center; }
+@media (max-width: 560px) {
+  .home-card { flex-wrap: wrap; }
+  .home-card .grow { flex-basis: 50%; }
+  .home-card .side { flex: 1 1 100%; flex-direction: row; align-items: center; justify-content: flex-end; flex-wrap: wrap; min-width: 0; }
+}
+.biz-sign { color: #fff; border-radius: 14px; padding: 6px 12px; margin-bottom: 10px; text-align: center; font-size: 15px;
+  box-shadow: 0 3px 0 rgba(74, 55, 40, .2); text-shadow: 0 1px 0 rgba(74, 55, 40, .35); }
+.biz-offer { display: flex; gap: 12px; align-items: flex-start; background: #fff; border: 3px solid var(--line); border-radius: 18px; padding: 10px 12px; }
+.biz-offer .ttl { font-weight: 900; font-size: 18px; }
+.biz-offer .sub { font-size: 13.5px; opacity: .75; font-weight: 600; }
+.biz-facts { margin: 8px 0 0; padding-left: 4px; list-style: none; line-height: 1.35; font-size: 13.5px; }
+.biz-facts li { margin: 4px 0; font-weight: 600; }
+.biz-buy { display: flex; align-items: center; justify-content: center; gap: 14px; margin-top: 12px; font-size: 18px; text-align: center; }
+.biz-till { text-align: center; background: #fff3bf; border-radius: 18px; padding: 10px 12px; }
+.biz-till .big { font-size: 34px; font-weight: 900; line-height: 1.15; margin-bottom: 6px; }
+.biz-till .warn { margin-top: 6px; font-size: 13px; color: #c2255c; }
+.biz-work, .biz-signedit { display: flex; align-items: center; gap: 10px; background: #fff; border: 3px solid var(--line); border-radius: 16px;
+  padding: 8px 12px; margin-top: 8px; font-size: 13.5px; font-weight: 600; line-height: 1.3; }
+.biz-work .grow { flex: 1; min-width: 0; }
+.biz-work .btn { flex: none; }
+.biz-signedit { flex-wrap: wrap; }
+.biz-signedit input { flex: 1 1 160px; min-width: 0; font: inherit; font-weight: 800; border: 3px solid var(--line); border-radius: 12px; padding: 6px 10px; min-height: 40px;
+  user-select: text; -webkit-user-select: text; }
+.biz-signedit .opt-row { margin: 0; }
+.biz-signedit .opt { padding: 5px; min-height: 0; }
+.biz-row .e { font-size: 34px; flex: none; }
+.biz-row.mine { border-color: var(--yellow-d); background: #fffdf2; }
+.pay-note.boss { background: #ffe8cc; }
+.boss-hi { color: var(--pink-d); }

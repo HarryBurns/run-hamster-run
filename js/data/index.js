@@ -9,6 +9,8 @@ export * from './furniture.js';
 export * from './food.js';
 export * from './npcs.js';
 export * from './places.js';
+export * from './estate.js';
+export * from './visits.js';
 export * from './tasks.js';
 export * from './fashion.js';
 export * from './looks.js';

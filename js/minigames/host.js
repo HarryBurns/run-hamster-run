@@ -14,7 +14,12 @@ const LOADERS = {
   doctor: () => import('./doctor.js'),
   chef: () => import('./chef.js'),
   fashion: () => import('./fashion.js'),
+  barista: () => import('./barista.js'),
+  stylist: () => import('./stylist.js'),
+  window: () => import('./window.js'),
 };
+/** Есть ли такая мини-игра. */
+export const hasMinigame = (id) => !!LOADERS[id];
 
 /** Подгрузить модули мини-игр заранее: тогда пропавшая сеть не помешает их открыть. */
 export function preloadMinigames() {

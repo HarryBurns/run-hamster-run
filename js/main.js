@@ -26,6 +26,7 @@ import demoMeadow from './locations/demo_meadow.js';
 import { createSideScene } from './engine/side/scene.js';
 import villa from './interiors/villa.js';
 import demoHouse from './interiors/demo_house.js';
+import { HOUSES } from './interiors/houses.js';
 import TowerScene from './interiors/tower.js';
 import DiveScene from './interiors/dive.js';
 import * as F from './features/index.js';
@@ -40,19 +41,13 @@ const hud = document.getElementById('hud');
 for (const loc of [town, demoMeadow]) registerScene(loc.name, loc); // demo_meadow — пробная, входа в игре нет
 registerScene('tower', TowerScene);
 registerScene('dive', DiveScene);
-for (const house of [villa, demoHouse]) registerScene(house.id, createSideScene(house)); // demo_house — пробный, входа в игре нет
-const HOME = villa.id; // сцена-дом: туда ведёт кнопка «Домой», там начинается игра
+// HOUSES — вилла, покупное жильё и дома жителей (interiors/houses.js); demo_house — пробный, входа в игре нет
+for (const house of [...HOUSES, demoHouse]) registerScene(house.id, createSideScene(house));
+const HOME = villa.id; // сцена-дом: там начинается новая игра, туда возвращает окно «Что-то сломалось»
 
 // ---------- HUD ----------
-async function goHome() {
-  const yes = await confirmBox(
-    'Домой?',
-    '<p class="center">Вернуться на виллу прямо сейчас?</p>',
-    'Да, домой 🏡',
-    'Нет',
-  );
-  if (yes) go(HOME);
-}
+// Кнопка «Домой» ведёт в основной дом (его выбирают в окне «Мои дома») — см. features/homes.js.
+const goHome = () => F.askGoHome();
 initHud(hud, {
   right: [
     { icon: '🎒', label: 'Рюкзак', fn: F.openBackpack },

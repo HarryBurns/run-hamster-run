@@ -3,7 +3,7 @@ import { clamp, rnd, seeded, TAU, el } from '../core/util.js';
 import { ell, fillRR, line, poly, mix, rr, star, text, emoji, makeCanvas } from '../core/draw.js';
 import { drawHamster, blinkAt } from '../art/hamster.js';
 import { vendorLook, VENDORS } from '../data/index.js';
-import { G, playerLook, cal, darkness } from '../core/state.js';
+import { G, playerLook, cal, darkness, ownsHome } from '../core/state.js';
 import { award, bumpFlag } from '../core/actions.js';
 import { emit } from '../core/events.js';
 import { run } from '../core/registry.js';
@@ -93,6 +93,12 @@ export function debugState() {
     zoom: z,
   };
 }
+/** Для тестов: поставить хомячка в точку x (у лифта, у выхода). */
+export function debugAt(x) {
+  S.p.x = x;
+  S.p.tx = null;
+  S.p.state = 'idle';
+}
 export function debugDeck() {
   S.level = 'deck';
   S.p.x = 1100;
@@ -141,9 +147,24 @@ function act(o) {
       });
       break;
     case 'lift':
-      S.ride = { dir: S.level === 'lobby' ? 1 : -1, t: 0, from: S.level };
-      S.level = 'ride';
-      sfx('door');
+      // у хозяйки пентхауса в лифте две кнопки: смотровая площадка и «домой, на сотый»
+      if (S.level === 'lobby' && ownsHome('penthouse')) {
+        dialog({
+          look: vendorLook('tower'),
+          name: VENDORS.tower.name,
+          text: 'Вам на какой этаж? Сотый — ваш пентхаус, сто первый — смотровая площадка.',
+          options: [
+            { text: '🌇 100 — мой пентхаус', cls: 'green' },
+            { text: '🔭 101 — площадка', cls: 'blue' },
+            { text: 'Никуда' },
+          ],
+        }).then((i) => {
+          if (i === 0) run('home:penthouse', { back: S.back });
+          else if (i === 1) startRide();
+        });
+        break;
+      }
+      startRide();
       break;
     case 'scope_city':
       sfx('pop');
@@ -173,6 +194,11 @@ function act(o) {
     default:
       break;
   }
+}
+function startRide() {
+  S.ride = { dir: S.level === 'lobby' ? 1 : -1, t: 0, from: S.level };
+  S.level = 'ride';
+  sfx('door');
 }
 function arrive() {
   const pd = S.p.pending;

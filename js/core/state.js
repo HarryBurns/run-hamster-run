@@ -19,6 +19,9 @@ import {
   DISH_BY_ID,
   SEED_BY_ID,
   TASK_BY_ID,
+  HOME_BY_ID,
+  BIZ_BY_ID,
+  VISIT,
   resolveLook,
   defaultLook,
 } from '../data/index.js';
@@ -42,6 +45,15 @@ export const MIGRATIONS = {
     s.earned = 0;
     if (!s.flags || typeof s.flags !== 'object' || Array.isArray(s.flags)) s.flags = {};
     s.flags.bankLetter = 1;
+  },
+  // v2 → v3, жильё и свой бизнес: купленных домов и заведений пока нет, основной дом — вилла, гости приходят
+  // на виллу. Остальное не трогается. (Эти же поля для любого сохранения дополнит repair().)
+  2: (s) => {
+    s.homesOwned = [];
+    s.homeMain = 'villa';
+    s.guestsAt = 'villa';
+    s.biz = {};
+    s.visits = {};
   },
 };
 export const saveVersion = () => 1 + Object.keys(MIGRATIONS).length;
@@ -142,6 +154,11 @@ export function newGame(name) {
     pos: { scene: 'villa', floor: 1, x: 270 },
     flags: {},
     homes: {}, // мебель в других домах (купленное жильё): ключ дома → список предметов, как в villa
+    homesOwned: [], // купленное жильё: id из HOMES (вилла своя всегда и сюда не входит)
+    homeMain: 'villa', // основной дом: туда ведёт кнопка «Домой»
+    guestsAt: 'villa', // в каком доме сейчас гости
+    biz: {}, // свои заведения: id → { day: когда куплено, till: в кассе, total: получено всего, last, special… }
+    visits: {}, // в гостях у жителей: житель → сколько раз была
     // первый день
     weather: 'snow',
     visitor: null,
@@ -250,6 +267,24 @@ export function repair(s) {
   for (const k of ['clothes', 'villa', 'recipes', 'guests', 'lastTasks', 'stickers', 'garden']) arr(k);
   for (const k of ['storage', 'ing', 'dishes', 'seeds', 'friends', 'best', 'plays', 'flags', 'dayFlags', 'homes'])
     obj(s, k);
+  // жильё и заведения: только известные id; основной дом и дом с гостями — вилла или купленное жильё
+  arr('homesOwned');
+  s.homesOwned = [...new Set(s.homesOwned)].filter((id) => id !== 'villa' && HOME_BY_ID[id]);
+  const isHome = (id) => id === 'villa' || s.homesOwned.includes(id);
+  if (!isHome(s.homeMain)) s.homeMain = 'villa';
+  if (typeof s.guestsAt !== 'string' || !s.guestsAt) s.guestsAt = 'villa';
+  obj(s, 'biz');
+  for (const id of Object.keys(s.biz)) {
+    const b = s.biz[id];
+    if (!BIZ_BY_ID[id] || !b || typeof b !== 'object') {
+      delete s.biz[id];
+      continue;
+    }
+    for (const k of ['day', 'till', 'total', 'last']) if (!Number.isFinite(b[k]) || b[k] < 0) b[k] = 0;
+    if (b.special && !DISH_BY_ID[b.special]) delete b.special;
+  }
+  obj(s, 'visits');
+  for (const id of Object.keys(s.visits)) if (!NPC_BY_ID[id] || !(s.visits[id] > 0)) delete s.visits[id];
   num('money', 0);
   num('spent', 0);
   num('earned', 0);
@@ -419,6 +454,37 @@ export function canCook(dish) {
 export function friendHearts(id) {
   return Math.min(5, Math.floor(G.state.friends[id].pts / 4));
 }
+
+// ---------- жильё, заведения, гости (только чтение) ----------
+/** Свой ли это дом: вилла — всегда, остальное жильё — если куплено. */
+export const ownsHome = (id) => id === 'villa' || G.state.homesOwned.includes(id);
+/** Все свои дома по порядку: вилла и купленное жильё. */
+export const ownedHomes = () => ['villa', ...G.state.homesOwned];
+/** Куплено ли заведение. */
+export const ownsBiz = (id) => !!G.state.biz[id];
+/**
+ * Звал ли житель сегодня в гости: сказал «Заходи ко мне сегодня!» (отметка дня invited) или в ящике лежит
+ * письмо «день гостей» (задание с openHouse; host — только этот житель).
+ */
+export function invitedToday(id) {
+  const s = G.state;
+  if ((s.dayFlags.invited || {})[id]) return true;
+  const t = s.mail && TASK_BY_ID[s.mail.task];
+  return !!(t && t.openHouse && (!t.host || t.host === id));
+}
+/**
+ * Где сейчас житель: 'guest' — в гостях у героини, 'asleep' — спит (поздно), 'home' — дома и рад гостям
+ * (утро, вечер или сам позвал), 'out' — гуляет в городе. Часы — VISIT в data/visits.js.
+ */
+export function npcWhere(id) {
+  const s = G.state,
+    m = s.minutes;
+  if (s.guests.includes(id)) return 'guest';
+  if (m >= VISIT.sleep) return 'asleep';
+  if (invitedToday(id)) return 'home';
+  return m < VISIT.morningEnd || m >= VISIT.eveningStart ? 'home' : 'out';
+}
+
 /** Мебель дома по его ключу в сохранении: 'villa' — вилла, остальные лежат в state.homes. */
 export function houseItems(key) {
   const s = G.state;

@@ -1,4 +1,5 @@
-// Друзья: разговоры с жителями, гости на вилле, телефон.
+// Друзья: разговоры с жителями, гости у героини дома, телефон.
+// В гости к самим жителям — features/visits.js.
 import {
   addItem,
   learnRecipe,
@@ -9,6 +10,7 @@ import {
   inviteGuest,
   removeGuest,
   takeVisitor,
+  inviteHome,
   MAX_GUESTS,
 } from '../core/actions.js';
 import { sfx } from '../core/audio.js';
@@ -16,7 +18,7 @@ import { makeCanvas } from '../core/draw.js';
 import { on, emit } from '../core/events.js';
 import { scene } from '../core/loop.js';
 import { register } from '../core/registry.js';
-import { G, cal, friendHearts, outfitTags } from '../core/state.js';
+import { G, cal, friendHearts, outfitTags, ownsHome, ownedHomes, invitedToday, npcWhere } from '../core/state.js';
 import { el, esc, pick } from '../core/util.js';
 import { drawPortrait } from '../art/hamster.js';
 import {
@@ -28,6 +30,9 @@ import {
   npcLook,
   SEASON_LINES,
   OUTFIT_LINES,
+  HOME_BY_ID,
+  NPC_HOME,
+  INVITE_CHANCE,
 } from '../data/index.js';
 import { dialog } from '../ui/dialog.js';
 import { enqueue } from '../ui/modals.js';
@@ -38,18 +43,33 @@ import { giveSurprise } from './gifts.js';
 
 const S = () => G.state;
 
-register(
-  'home-of',
-  (p) => {
-    const n = NPC_BY_ID[p.arg];
-    toast(
-      `Здесь живёт ${n.name}. ${S().guests.includes(n.id) ? 'Сейчас у тебя в гостях!' : S().minutes >= 22 * 60 ? 'Тс-с, уже спит!' : 'Сейчас гуляет в городе.'}`,
-    );
-  },
-  'домик жителя (пока просто подсказка): home-of:<житель>',
-);
+/** В какой из своих домов придут гости: в тот, где героиня сейчас, а если она не дома — в основной. */
+export function hostHome() {
+  const sc = scene();
+  return sc && sc.owned && sc.desc.guests && ownsHome(sc.houseKey) ? sc.houseKey : S().homeMain;
+}
+/** «на виллу», «в квартиру» — куда бежит гость. */
+const HOME_TO = {
+  villa: 'на виллу',
+  flat: 'в квартиру',
+  bungalow: 'в бунгало',
+  penthouse: 'в пентхаус',
+  cabin: 'в лесной домик',
+  suite: 'в номер-люкс',
+};
+const homeTo = (id) => HOME_TO[id] || 'в гости';
 
-function addPts(id, n) {
+/**
+ * Житель зовёт к себе: «Заходи ко мне сегодня!» — и весь день ждёт дома (дверь открыта). Возвращает его реплику
+ * или '' — если уже звал, спит или сидит в гостях у героини.
+ */
+export function inviteLine(id) {
+  if (invitedToday(id) || npcWhere(id) === 'guest' || npcWhere(id) === 'asleep') return '';
+  inviteHome(id);
+  return NPC_HOME[id].invite;
+}
+
+export function addPts(id, n) {
   const before = friendHearts(id);
   addFriendPts(id, n);
   const after = friendHearts(id),
@@ -128,17 +148,20 @@ export async function npcDialog(id) {
       if (fr.chat !== S().day) {
         markFriendToday(id, 'chat');
         addPts(id, 1);
+        // первый разговор за день: иногда друг зовёт к себе в гости
+        if (Math.random() < INVITE_CHANCE) text = inviteLine(id) || text;
       }
       emit('talk', { id });
     } else if (i === 1) {
       if (S().guests.length >= MAX_GUESTS) text = 'У тебя уже полный дом гостей! Позови меня в другой раз.';
       else {
-        invite(id);
+        const home = hostHome();
+        invite(id, home);
         await dialog({
           look,
           name: npc.name,
           happy: true,
-          text: 'Ура! Уже бегу к тебе на виллу. Встретимся там!',
+          text: `Ура! Уже бегу к тебе ${homeTo(home)}. Встретимся там!`,
           options: [{ text: 'До встречи!', cls: 'green' }],
         });
         return;
@@ -160,24 +183,40 @@ export async function npcDialog(id) {
       text = fav
         ? `${DISH_BY_ID[dish].e} Это же моё любимое блюдо! Спасибо-спасибо-спасибо!`
         : `${DISH_BY_ID[dish].e} Ой, как вкусно! Спасибо тебе большое!`;
+      // в ответ на угощение друг зовёт к себе
+      const inv = inviteLine(id);
+      if (inv) text += ' ' + inv;
     } else return;
   }
 }
 
-function invite(id) {
-  return inviteGuest(id);
+function invite(id, home = hostHome()) {
+  return inviteGuest(id, home);
 }
 
 export async function guestDialog(id) {
   const npc = NPC_BY_ID[id],
     fr = S().friends[id],
     look = npcLook(id);
-  let text = pick([
-    'Какая у тебя красивая вилла!',
-    'А можно мне потом в бассейн?',
-    'У тебя так уютно!',
-    'Чем это так вкусно пахнет?',
-  ]);
+  const here = S().guestsAt;
+  let text = pick(
+    here === 'villa'
+      ? [
+          'Какая у тебя красивая вилла!',
+          'А можно мне потом в бассейн?',
+          'У тебя так уютно!',
+          'Чем это так вкусно пахнет?',
+        ]
+      : [
+          'Как у тебя тут здорово!',
+          'У тебя так уютно!',
+          'Чем это так вкусно пахнет?',
+          here === 'penthouse'
+            ? 'Ух, как высоко! Весь город как на ладошке.'
+            : 'Отличный дом! Можно я буду приходить почаще?',
+          here === 'bungalow' ? 'Слышишь, как шумит море? Красота!' : 'А где ты купила такую мебель?',
+        ],
+  );
   for (;;) {
     const i = await dialog({
       look,
@@ -224,11 +263,27 @@ export async function guestDialog(id) {
 }
 
 export function openPhone() {
+  let where = hostHome(); // куда зовём: если домов несколько, можно выбрать
   openPanel({
     title: 'Телефон: позвать в гости',
     icon: '📱',
     render(body, tab, panel) {
       const night = S().minutes >= 22 * 60;
+      const homes = ownedHomes();
+      if (homes.length > 1) {
+        body.appendChild(el('div', 'muted', 'Куда позвать гостей?'));
+        const row = el('div', 'opt-row');
+        for (const h of homes) {
+          const b = el('button', 'opt' + (h === where ? ' sel' : ''), `${HOME_BY_ID[h].icon} ${HOME_BY_ID[h].name}`);
+          b.onclick = () => {
+            sfx('tap');
+            where = h;
+            panel.refresh();
+          };
+          row.appendChild(b);
+        }
+        body.appendChild(row);
+      }
       for (const n of NPCS) {
         const fr = S().friends[n.id],
           here = S().guests.includes(n.id);
@@ -253,9 +308,9 @@ export function openPhone() {
           );
           b.disabled = here || night || S().guests.length >= MAX_GUESTS;
           b.onclick = () => {
-            if (invite(n.id)) {
+            if (invite(n.id, where)) {
               sfx('bell');
-              toast(`${n.name} уже бежит к тебе на виллу! 🏡`, 'good');
+              toast(`${n.name} уже бежит к тебе ${homeTo(where)}! ${HOME_BY_ID[where].icon}`, 'good');
               panel.refresh();
             }
           };
@@ -278,7 +333,7 @@ function tickVisitor() {
     sc = scene();
   if (s.visitor && s.minutes >= 11 * 60 && sc && sc.canHostGuests && sc.canHostGuests()) {
     const id = takeVisitor();
-    if (s.friends[id].met && inviteGuest(id)) {
+    if (s.friends[id].met && inviteGuest(id, sc.houseKey)) {
       sfx('bell');
       toast(`Тук-тук! ${NPC_BY_ID[id].name} заглянул${NPC_BY_ID[id].fem ? 'а' : ''} в гости 🚪`, 'good');
     }

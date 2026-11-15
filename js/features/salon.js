@@ -9,6 +9,7 @@ import { BEAUTY, vendorLook } from '../data/index.js';
 import { hamsterStage } from '../ui/icons.js';
 import { openPanel } from '../ui/panel.js';
 import { price, buy, lacking, lackText } from './purchase.js';
+import { bizByVendor, bizFoot, bizSign } from './business.js';
 
 const S = () => G.state;
 
@@ -27,7 +28,10 @@ function openSalon() {
     money: true,
     cls: 'wide',
     onClose: () => cancelAnimationFrame(raf),
+    foot: () => bizFoot(bizByVendor('salon')), // салон можно купить: «Купить заведение» или «Моё заведение»
     render(body, tab, panel) {
+      const sign = bizSign(bizByVendor('salon'));
+      if (sign) body.appendChild(sign);
       const split = el('div', 'split');
       const side = el('div', 'side');
       side.appendChild(st.canvas);

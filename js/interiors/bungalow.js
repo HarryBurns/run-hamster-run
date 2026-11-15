@@ -1,0 +1,62 @@
+// Пляжное бунгало: домик под соломенной крышей на песке. В больших окнах — море, в комнате — гамак.
+// Своё жильё: мебель лежит в сохранении (state.homes.bungalow), есть «Обустроить», кровать (сон) и шкаф.
+// Покупка и вход — features/homes.js (действие 'home:bungalow'); дверь ведёт туда, откуда пришли ('home-exit').
+export default {
+  id: 'bungalow',
+  name: 'Пляжное бунгало',
+  floors: 1,
+  width: 1420,
+  maxZoom: 1.1,
+  persist: true,
+  exit: 'home-exit',
+  door: { f: 0, x: 100 },
+  shell: { wall: '#fff3d6', roof: '#e0a84e', chimneyX: null, bushes: true, trees: 'palm', ground: 'sand' },
+  rooms: [
+    {
+      id: 'living',
+      f: 0,
+      x0: 0,
+      x1: 920,
+      name: 'Веранда',
+      wall: '#f6dfb8',
+      paper: 'planks',
+      floor: 'deck',
+      win: 340,
+      winW: 240,
+      view: 'sea',
+    },
+    {
+      id: 'bed',
+      f: 0,
+      x0: 920,
+      x1: 1420,
+      name: 'Спальня',
+      wall: '#a5d8ff',
+      paper: 'waves',
+      floor: 'deck',
+      win: 1090,
+      winW: 180,
+      view: 'sea',
+      main: true,
+    },
+  ],
+  built: [
+    { id: 'door', type: 'door', f: 0, x: 100, c: '#12b886' },
+    { id: 'kitchen', type: 'kitchen', f: 0, x: 740, c: '#ffd43b' },
+  ],
+  furniture: {
+    key: 'bungalow',
+    editable: true,
+    keepOneBed: true,
+    start: [
+      ['hammock', 0, 340],
+      ['plant_palm', 0, 505],
+      ['rug_blue', 0, 1090],
+      ['bed_blue', 0, 1090],
+      ['lamp_lantern', 0, 1235],
+      ['lifebuoy', 0, 1235, 200],
+      ['wardrobe', 0, 1340],
+    ],
+  },
+  guests: { f: 0, enterX: 170, gap: 70, first: [200, 520], roam: [180, 1340] },
+};
