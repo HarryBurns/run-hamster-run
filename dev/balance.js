@@ -79,7 +79,14 @@ const { pathToFileURL } = require('url');
   // всё, что растёт (огород, сбор), — сезонное; рыба и круглогодичные продукты — нет
   for (const i of D.INGREDIENTS)
     if ((i.src === 'garden' || i.src === 'wild') && !D.isSeasonal(i)) bad(`${i.id}: растёт, но не сезонный продукт`);
-  for (const id of Object.keys(GATHER)) if (ING[id] && !D.isSeasonal(ING[id])) bad(`${id}: собирается, но не сезонный`);
+  // (у продукта, который в магазине круглый год, — свой сезон сбора PICK_MONTHS: яблоки)
+  for (const id of Object.keys(GATHER))
+    if (ING[id] && !D.isSeasonal(ING[id]) && !D.PICK_MONTHS[id]) bad(`${id}: собирается, но не сезонный`);
+  for (const [id, ms] of Object.entries(D.PICK_MONTHS)) {
+    if (!ING[id]) bad(`сезон сбора: неизвестный продукт ${id}`);
+    else if (D.isSeasonal(ING[id])) bad(`сезон сбора: ${id} уже сезонный — его сезон в HARVEST_MONTHS`);
+    if (!ms.length || ms.length >= 12 || ms.some((q) => !(q >= 0 && q <= 11))) bad(`сезон сбора: ${id} — месяцы 0–11`);
+  }
   if (!(SEASONAL.inPrice < 1 && SEASONAL.offPrice > 1 && SEASONAL.offSell > 1))
     bad('SEASONAL: в сезон дешевле, вне сезона дороже');
   if (MARKET.shopShare * SEASONAL.offSell >= 1) bad('SEASONAL.offSell: купленное в сезон выгодно продать вне сезона');
@@ -144,12 +151,13 @@ const { pathToFileURL } = require('url');
   // если собрать всё и всё продать: должно быть что собрать в любом сезоне, но меньше одной смены на 2★
   const gatherIn = (month) =>
     Object.entries(GATHER)
-      .filter(([id]) => D.ripeIn(id, month))
+      .filter(([id]) => D.pickIn(id, month))
       .map(([id, q]) => ({ id, n: q.n * q.max, sum: q.n * q.max * ING[id].sell }));
   const gatherSum = (month) => gatherIn(month).reduce((s, q) => s + q.sum, 0);
   for (const [id, q] of Object.entries(GATHER)) {
     if (!ING[id]) bad(`сбор: неизвестный продукт ${id}`);
-    else if (!ING[id].seasons) bad(`сбор: у ${id} нет сезона в таблице сезонов — плод был бы на дереве круглый год`);
+    else if (!ING[id].seasons && !D.PICK_MONTHS[id])
+      bad(`сбор: у ${id} нет сезона в таблице сезонов — плод был бы на дереве круглый год`);
     if (!(q.n > 0 && q.max > 0)) bad(`сбор: ${id} — нужны n и max`);
   }
   if (GATHER.coconut.max > 4) bad('кокосовых пальм должно быть не больше четырёх на всю карту');
@@ -173,11 +181,12 @@ const { pathToFileURL } = require('url');
   const { FOREST_GATHER, FOREST } = D;
   const forestIn = (month) =>
     Object.entries(FOREST_GATHER)
-      .filter(([id]) => D.ripeIn(id, month))
+      .filter(([id]) => D.pickIn(id, month))
       .map(([id, q]) => ({ id, n: q.n * q.max, sum: q.n * q.max * ING[id].sell, off: q.n * q.max * ING[id].sellOff }));
   const forestSum = (month) => forestIn(month).reduce((a, q) => a + q.sum, 0);
   for (const [id, q] of Object.entries(FOREST_GATHER)) {
     if (!ING[id]) bad(`лес: неизвестный продукт ${id}`);
+    else if (D.PICK_MONTHS[id]); // свой сезон сбора (яблоки) — проверен выше
     else if (!ING[id].seasons) bad(`лес: у ${id} нет сезона в таблице сезонов`);
     else if (!D.isSeasonal(ING[id])) bad(`лес: ${id} собирается, но не сезонный`);
     if (!(q.n > 0 && q.max > 0)) bad(`лес: ${id} — нужны n и max`);

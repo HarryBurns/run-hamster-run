@@ -154,6 +154,8 @@ const FRUIT = [
   ['hazelBush', 45, 27],
   ['hazelBush', 39, 29],
   ['hazelBush', 45, 31],
+  // яблоня на опушке, у избушки лесника — в конце лета и осенью
+  ['appleTree', 10, 28],
 ];
 // находки на земле: шишки под ёлками — каждый день, еловые веточки — зимой (WILD_MONTHS.firTwig)
 const CONES = [
@@ -248,8 +250,7 @@ function build(m) {
         const k = rnd(),
           v = Math.floor(rnd() * 3);
         if (floor || edge) m.add(k < 0.55 ? 'spruce' : k < 0.8 ? 'pine' : 'birch', x, y, { v });
-        else if (k < 0.4)
-          m.add('tree', x, y, { v: 1 }); // лиственное — без яблок (вид 1)
+        else if (k < 0.4) m.add('tree', x, y, { v }); // лиственное (плодов на обычных деревьях нет)
         else m.add(k < 0.7 ? 'birch' : 'spruce', x, y, { v });
         continue;
       }

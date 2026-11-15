@@ -169,7 +169,9 @@ go(back.scene, { pos: back });                // выйти из «внутре�
   `whenRipe(id, значки)` («весной», «осенью 🍂 и зимой ❄️»). Из неё берут сезон все: растения в городе
   (`common/plants.js` — есть ли плод), огород (`features/garden.js`: `canSow(семена, месяц)` — культуру сажают
   только в её сезон; посаженное дорастает), продукты (`data/food.js`: поля `months` и `seasons`), задание
-  «Кокосовый день» (`data/tasks.js`) и расчёт баланса. С Э1 в таблице записаны и сезоны огорода (салат — зима
+  «Кокосовый день» (`data/tasks.js`) и расчёт баланса. Продукт, который в магазине круглый год, но растёт на дереве
+  (яблоки), в `HARVEST_MONTHS` не пишут: его месяцы сбора — `PICK_MONTHS` там же (растения и `dev/balance.js` берут
+  `pickIn(id, месяц)`; цена в ТЦ от этого не меняется). С Э1 в таблице записаны и сезоны огорода (салат — зима
   и весна, клубника — весна и лето, помидоры — лето, морковка — лето и осень, подсолнухи и тыква — осень).
 - **Сезоны вещей** (одежда, мебель, украшения) — в том же файле `data/seasons.js`, таблица `WARE_MONTHS`:
   коллекция → месяцы сезона (`cold` — осень и зима, `hot` — весна и лето, `rain` — весна и осень, `spring`,
@@ -413,7 +415,10 @@ export default createTopDownScene({
     `fenceV` (поле `v`: 0 — белый штакетник, 1 — деревянный), `bench`, `fountain`, `lounger`, `umbrella`,
     `starfish`, `crab`, `chest`, `flag`;
   - растения с плодами (`plants.js`): `cocoPalm`, `bananaPalm`, `mangoTree`, `berryBush` (черника, замедляет),
-    `mushrooms`. Плод есть только в сезон продукта (`data/seasons.js`) и пока его сегодня не сорвали (отметка дня
+    `mushrooms`, `appleTree` (яблоня; город и лес). На обычных `tree` и `bush` плодов не рисуется — только цветение
+    весной и пёстрые листья осенью, чтобы ребёнок не путал их с растениями, которые можно сорвать.
+    Плод есть только в сезон продукта (`data/seasons.js`; у яблок, которые в магазине круглый год, — свой сезон
+    сбора `PICK_MONTHS`, читать — `pickIn(id, месяц)`, `whenPick(id)`) и пока его сегодня не сорвали (отметка дня
     `dayFlags.plants`, наутро вырастает снова); с плодами и без — разные спрайты. Что на чём растёт и какие
     подписи — таблица `PLANTS` там же. Локация ставит их обычным `m.add(…)` и подключает часть
     `parts: [createPlants()]` — она показывает подпись «Сорвать…» над растением рядом с хомячком, кнопку в HUD
@@ -991,7 +996,7 @@ js/locations/forest.js       описание локации: карта пра�
                              (перила мостика), sound (лесная музыка, журчание ручья); sealPockets — закрыть «карманы»
 js/locations/forest_art.js   клетки forestFloor, brook, logBridge; предметы spruce, birch, stump, log, mossRock, fern,
                              campfire, hive, squirrelOak, treehouse; здание cableway; дорисовка избушки hutArt
-js/locations/common/plants.js  растения леса: porcini, wildStrawberry, hazelBush (сбор — как в городе)
+js/locations/common/plants.js  растения леса: porcini, wildStrawberry, hazelBush, appleTree (сбор — как в городе)
 js/features/forest.js        действия forester и forest:<hive|squirrel|fire|treehouse|kit|hunt>, награда охоты
 js/minigames/mushrooms.js    мини-игра «Грибная охота»
 js/data/…                    FOREST_GATHER и FOREST (economy.js), WILD_MONTHS (seasons.js: пчёлы, еловые веточки),

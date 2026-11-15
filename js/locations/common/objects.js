@@ -184,24 +184,7 @@ defineArt({
             flower(ctx, x + Math.cos(a) * rx * 0.55, y + Math.sin(a) * ry * 0.5, 2.6, BLOSSOM[(i + k) % 3], '#ffd43b');
           }
         });
-      if (sea === 'summer' && v === 0)
-        for (const [dx, dy] of [
-          [-14, -40],
-          [12, -56],
-          [5, -34],
-          [-4, -64],
-        ]) {
-          ell(ctx, dx, dy, 4.2, 4.2, '#fa5252', OUT, 1.1);
-          ell(ctx, dx - 1.3, dy - 1.4, 1.3, 1, 'rgba(255,255,255,.7)');
-        }
-      if (sea === 'summer' && v === 2)
-        for (const [dx, dy] of [
-          [-20, -42],
-          [16, -50],
-          [2, -36],
-        ]) {
-          ell(ctx, dx, dy, 3.6, 4.4, '#ffd43b', OUT, 1.1);
-        }
+      // плодов на обычном дереве нет: плоды бывают только у растений, с которых их можно сорвать (plants.js)
       if (sea === 'autumn')
         // редкие листья другого цвета — крона пёстрая
         pts.forEach(([x, y, rx, ry], i) => {
@@ -374,6 +357,8 @@ defineArt({
         tones,
         2,
       );
+      // ягод на обычном кусте нет (их собирают только с куста черники, plants.js): весной и летом — цветы
+      // (у одного вида из трёх — просто зелень), осенью — пёстрые листья
       if (sea === 'summer' || sea === 'spring') {
         const c = [null, '#ff6b9d', '#fff'][v % 3];
         if (c)
@@ -384,20 +369,13 @@ defineArt({
             [-2, 5],
           ])
             flower(ctx, dx, dy, 2.2, c, '#ffd43b');
-        else
-          for (const [dx, dy] of [
-            [-8, 0],
-            [6, 4],
-            [2, -8],
-          ])
-            ell(ctx, dx, dy, 2.3, 2.3, '#e03131', OUT, 0.8);
       } else if (sea === 'autumn')
-        for (const [dx, dy] of [
-          [-8, 0],
-          [6, 4],
-          [2, -8],
+        for (const [dx, dy, c] of [
+          [-8, 0, '#e8590c'],
+          [6, 4, '#fcc419'],
+          [2, -8, '#c2410c'],
         ])
-          ell(ctx, dx, dy, 2.3, 2.3, '#c2255c', OUT, 0.8);
+          ell(ctx, dx, dy, 3.2, 2, c, null, 1, dx * 0.2);
     },
   ],
   flowers: [

@@ -1746,7 +1746,7 @@ async function economy({ page, step, ev, wait, closeAll }) {
           let any = 0;
           for (const o of plants) {
             const id = P.PLANTS[o.type].gives,
-              ripe = D.ripeIn(id, month);
+              ripe = D.pickIn(id, month); // сезон урожая или, у яблок, сезон сбора
             if (P.hasFruit(o) !== ripe) out.push(`${o.type} (${o.tx}, ${o.ty}): месяц ${month}, плоды не по сезону`);
             if (ripe) {
               any++;
@@ -1775,7 +1775,7 @@ async function economy({ page, step, ev, wait, closeAll }) {
         return { out, spots, when, n, give: Object.fromEntries(Object.entries(D.GATHER).map(([id, q]) => [id, q.n])) };
       });
       if (info.out.length) throw new Error(info.out.join('; '));
-      if (info.spots.length !== 5) throw new Error('не все виды растений есть на суше: ' + JSON.stringify(info.spots));
+      if (info.spots.length !== 6) throw new Error('не все виды растений есть на суше: ' + JSON.stringify(info.spots));
       const have = (id) => ev((id) => window.__dev.G.state.ing[id] || 0, id);
       const setDay = (month, flags) =>
         ev(([month, flags]) => {
@@ -1810,7 +1810,7 @@ async function economy({ page, step, ev, wait, closeAll }) {
         await tapPlant(sp);
         if ((await have(id)) !== n0) throw new Error(name + ': плод сорван не в сезон');
         const hint = await ev(() => [...document.querySelectorAll('#toasts .toast')].map((e) => e.textContent).join(' | '));
-        if (sp.type !== 'mushrooms' && !/(поспеют|поспеет) (зимой|весной|летом|осенью)/.test(hint))
+        if (sp.type !== 'mushrooms' && !/(поспеют|поспеет) (в конце лета|зимой|весной|летом|осенью)/.test(hint))
           throw new Error(name + ': не в сезон нет подсказки, когда поспеет: ' + hint);
         if (sp.type === 'mushrooms' && hint) throw new Error(name + ': грибов нет, а нажатие сработало: ' + hint);
         // в сезон: рядом с растением — кнопка; сорвали (нажатием на растение, кнопкой или клавишей E) — в рюкзаке

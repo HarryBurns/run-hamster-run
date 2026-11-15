@@ -48,6 +48,16 @@ export const HARVEST_MONTHS = {
   fish: ALL_YEAR,
 };
 
+// СЕЗОН СБОРА у продуктов, которые в магазине есть круглый год (их нет в HARVEST_MONTHS): с дерева их срывают
+// только в эти месяцы, а в ТЦ «Вкусный» они продаются как обычно — круглый год и по одной цене.
+export const PICK_MONTHS = {
+  apple: [7, 8, 9, 10], // яблони в городе и в лесу: в конце лета (август) и осенью
+};
+/** Сезон сбора словами — если он не совпадает с сезонами года целиком. */
+const PICK_WHEN = { apple: 'в конце лета и осенью' };
+/** Можно ли сорвать продукт с растения в этом месяце: свой сезон сбора (PICK_MONTHS) или сезон урожая. */
+export const pickIn = (id, month) => (PICK_MONTHS[id] ? PICK_MONTHS[id].includes(month) : ripeIn(id, month));
+
 // Кроме урожая, в лесу (П.9) по сезонам живёт ещё кое-что — это не продукты, но сезон у них тот же календарный:
 // пчёлы в улье дают мёд, на ёлках можно отломить веточку к Новому году. Ключ — «что», значение — месяцы.
 export const WILD_MONTHS = {
@@ -85,6 +95,16 @@ export function seasonsOf(id) {
 /** Словами, когда сезон: «весной», «осенью и зимой»; icons — со значками сезонов: «осенью 🍂 и зимой ❄️»; '' — круглый год. */
 export function whenRipe(id, icons = false) {
   return whenText(seasonsOf(id) || [], icons);
+}
+/** Сезоны, когда продукт срывают с растения: ['summer', 'autumn'] (PICK_MONTHS или сезон урожая). */
+export function pickSeasons(id) {
+  return PICK_MONTHS[id] ? seasonsIn(PICK_MONTHS[id]) : seasonsOf(id);
+}
+/** Словами, когда продукт можно сорвать: «весной», «в конце лета и осенью»; icon — со значком первого сезона. */
+export function whenPick(id, icon = false) {
+  const list = pickSeasons(id) || [];
+  const text = PICK_WHEN[id] || whenText(list, false);
+  return list.length && icon ? text + ' ' + SEASONS[list[0]].icon : text;
 }
 
 // СЕЗОНЫ ВЕЩЕЙ: одежда, мебель и украшения (вторая половина Э1). Вещь в своей таблице (data/clothes.js,

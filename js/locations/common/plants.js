@@ -8,9 +8,11 @@
 //   porcini      белый гриб (лес): летом и осенью, как грибы — вне сезона его нет
 //   wildStrawberry  кустики лесной земляники (лес): весной цветут, летом — ягоды
 //   hazelBush    лещина (лес; сквозь неё можно пройти, но медленно): осенью — орешки
+//   appleTree    яблоня (город и лес): в конце лета и осенью — красные яблоки; в начале лета — зелёные завязи
 //
 // Правила одни для всех:
-//  - плод есть только в сезон продукта — месяцы берутся из общей таблицы data/seasons.js;
+//  - плод есть только в сезон продукта — месяцы берутся из общей таблицы data/seasons.js (у продукта, который
+//    в магазине круглый год, — его сезон сбора PICK_MONTHS там же: яблоки);
 //  - с одного растения собирают раз в день (отметка дня dayFlags.plants), наутро плод вырастает снова;
 //    сколько плодов за раз — GATHER в data/economy.js;
 //  - с плодами и без плодов растение выглядит по-разному (разные спрайты в кэше);
@@ -29,7 +31,7 @@ import { TAU, dist } from '../../core/util.js';
 import { ell, line, shade } from '../../core/draw.js';
 import { sfx } from '../../core/audio.js';
 import { toast } from '../../ui/toast.js';
-import { ING_BY_ID, GATHER, SEASONS, DAYS_PER_MONTH, ripeIn, seasonsOf, whenRipe } from '../../data/index.js';
+import { ING_BY_ID, GATHER, DAYS_PER_MONTH, pickIn, whenPick } from '../../data/index.js';
 import { T, OUT, SP, ART, put, label, defineObjects } from '../../engine/topdown/kinds.js';
 import { shadow, leafTones, flower } from './paint.js';
 import { crown, paintPalmTop, PALM_STEP, treeDot } from './objects.js';
@@ -110,11 +112,21 @@ export const PLANTS = {
     empty: 'С этой лещины орешки уже собраны. Завтра поспеют новые! 🌳',
     top: 60,
   },
+  appleTree: {
+    gives: 'apple',
+    verb: 'Сорвать яблоки',
+    btn: 'Сорвать',
+    many: 'Яблоки',
+    wait: 'Яблоки поспеют',
+    empty: 'Спелые яблоки с этой яблони уже сорваны. Завтра поспеют новые! 🌳',
+    drop: [-10, -36],
+    top: 104,
+  },
 };
 const monthNow = () => Math.floor(G.state.day / DAYS_PER_MONTH) % 12;
 const keyOf = (o) => o.key || o.tx + '_' + o.ty;
 /** Сезон ли сейчас у растения. */
-export const plantInSeason = (o) => ripeIn(PLANTS[o.type].gives, monthNow());
+export const plantInSeason = (o) => pickIn(PLANTS[o.type].gives, monthNow());
 /** Есть ли на растении плоды прямо сейчас: сезон, и сегодня с него ещё не собирали. */
 export const hasFruit = (o) => plantInSeason(o) && !(G.state.dayFlags.plants || {})[keyOf(o)];
 
@@ -126,7 +138,7 @@ export function gather(sc, o) {
   o.shake = G.time + 0.8;
   sfx('paper');
   if (!plantInSeason(o)) {
-    toast(`${pl.wait} ${whenRipe(id)} ${SEASONS[seasonsOf(id)[0]].icon}`);
+    toast(`${pl.wait} ${whenPick(id, true)}`);
     return false;
   }
   if (!hasFruit(o)) {
@@ -560,6 +572,61 @@ function paintHazel(ctx, sea, fruit) {
     }
 }
 
+// Яблоня: круглая крона, весной — бело-розовый цвет; в начале лета — мелкие зелёные завязи, в сезон — красные
+// яблоки с листиком; зимой — голые ветки под снегом (как у обычного дерева)
+const APPLE_CROWN = [
+  [-22, -38, 18, 15],
+  [20, -40, 18, 15],
+  [-9, -60, 20, 17],
+  [12, -62, 19, 16],
+  [0, -42, 22, 16],
+];
+const APPLE_AT = [
+  [-24, -30],
+  [-8, -26],
+  [10, -28],
+  [25, -33],
+  [-14, -50],
+  [4, -48],
+  [18, -54],
+];
+/** Яблоко: красное с жёлтым бочком, хвостик и листик; small — зелёная завязь. */
+function appleFruit(ctx, x, y, small) {
+  const r = small ? 2.6 : 4.6;
+  ell(ctx, x, y, r, r * 0.95, small ? '#94d82d' : '#f03e3e', OUT, small ? 0.9 : 1.2);
+  if (!small) {
+    ell(ctx, x - 1.6, y + 1.4, 2.2, 1.8, '#ffa94d');
+    ell(ctx, x - 1.6, y - 1.8, 1.4, 1, 'rgba(255,255,255,.75)');
+    line(ctx, x + 0.5, y - r + 0.5, x + 1.5, y - r - 2.5, OUT, 1.2);
+    ell(ctx, x + 3.6, y - r - 1.6, 2.6, 1.3, '#51cf66', OUT, 0.8, -0.5);
+  }
+}
+/** fruit: 0 — без плодов, 1 — спелые яблоки, 2 — зелёные завязи (лето, ещё не сезон). */
+function paintAppleCrown(ctx, sea, fruit) {
+  const tones = leafTones(sea, 0);
+  crown(ctx, APPLE_CROWN, tones);
+  // мелкие овальные листочки — крона не гладкая, как у обычного дерева
+  APPLE_CROWN.forEach(([x, y, rx, ry], i) => {
+    for (let k = 0; k < 3; k++) {
+      const a = i * 2.2 + k * 2.1 + 0.3;
+      ell(ctx, x + Math.cos(a) * rx * 0.5, y + Math.sin(a) * ry * 0.46, 3.6, 2, k % 2 ? tones[0] : tones[2], null, 1, a);
+    }
+  });
+  if (sea === 'spring')
+    APPLE_CROWN.forEach(([x, y, rx, ry], i) => {
+      for (let k = 0; k < 3; k++) {
+        const a = i * 1.9 + k * 2.2;
+        flower(ctx, x + Math.cos(a) * rx * 0.55, y + Math.sin(a) * ry * 0.5, 2.8, k % 2 ? '#ffdeeb' : '#fff', '#ffd43b');
+      }
+    });
+  if (sea === 'autumn')
+    APPLE_CROWN.forEach(([x, y, rx, ry], i) => {
+      const a = i * 1.7 + 0.8;
+      ell(ctx, x + Math.cos(a) * rx * 0.55, y + Math.sin(a) * ry * 0.5, 3.2, 2, i % 2 ? '#fcc419' : '#e8590c', null, 1, a);
+    });
+  if (fruit) for (const [x, y] of fruit === 2 ? APPLE_AT.slice(0, 5) : APPLE_AT) appleFruit(ctx, x, y, fruit === 2);
+}
+
 /** Растение, с которого только что собирали или которое потрогали, недолго дрожит (готовым спрайтом). */
 const wobble = (o, t) => (o.shake > t ? Math.sin(t * 34) * 2 : 0);
 
@@ -718,6 +785,22 @@ defineObjects({
       const h = env.hero,
         inside = Math.abs(h.x - o.x) < 26 && Math.abs(h.y - o.y) < 26;
       put('hazelBush', o.x + (inside ? Math.sin(env.t * 22) * 1.8 : wobble(o, env.t)), o.y, env.season, hasFruit(o) ? 1 : 0);
+    },
+  },
+  appleTree: {
+    solid: true,
+    map: treeDot,
+    tap: { dx: 40, up: 84, down: 18 },
+    use: gather,
+    art: { appleCrown: [[-48, -86, 48, -12], paintAppleCrown] },
+    draw(ctx, o, env) {
+      if (env.season === 'winter') {
+        put('treeWinter', o.x + wobble(o, env.t), o.y, (o.v || 0) % 2);
+        return;
+      }
+      put('treeBase', o.x, o.y, env.season === 'autumn' ? 'autumn' : '');
+      const fruit = hasFruit(o) ? 1 : env.season === 'summer' && !plantInSeason(o) ? 2 : 0;
+      put('appleCrown', o.x + Math.sin(env.t * 1.2 + o.x) * 1.5 + wobble(o, env.t), o.y, env.season, fruit);
     },
   },
 });

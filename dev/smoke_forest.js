@@ -291,8 +291,8 @@ module.exports = async function forest({ page, step, ev, wait, closeAll }) {
         const o = plants.find((q) => q.type === type),
           id = P.PLANTS[type].gives,
           n = D.FOREST_GATHER[id].n;
-        const inM = [...Array(12).keys()].find((mo) => D.ripeIn(id, mo)),
-          offM = [...Array(12).keys()].find((mo) => !D.ripeIn(id, mo));
+        const inM = [...Array(12).keys()].find((mo) => D.pickIn(id, mo)),
+          offM = [...Array(12).keys()].find((mo) => !D.pickIn(id, mo));
         // не в сезон — ничего
         d.actions.mutate((st) => {
           st.day = offM * 3;
@@ -322,7 +322,7 @@ module.exports = async function forest({ page, step, ev, wait, closeAll }) {
       return { out, types };
     });
     expect(!r.out.length, 'сбор в лесу', r.out);
-    expect(r.types.length === 5, 'в лесу пять видов растений', r.types);
+    expect(r.types.length === 6, 'в лесу шесть видов растений (с яблоней)', r.types);
     // шишки: подбираются на ходу, раз в день; зимой — ещё еловые веточки
     await toForest(18, 720, 13, 31);
     await ev(() => window.__dev.locations.forest.walkTo(13.5 * 48, 30.5 * 48, true));
