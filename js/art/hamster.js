@@ -507,6 +507,45 @@ function drawShoe(ctx, item, x, y) {
   }
 }
 
+/**
+ * Лапки-ноги с обувью: feet — [[x, подъём], …], k — куда повёрнут (носки — в сторону шага).
+ * Обувь нарисована носком вправо: при шаге влево разворачивается только она, а не вся лапка.
+ */
+function drawFeet(ctx, shoe, nails, k, feet) {
+  for (const [px0, lift] of feet) {
+    const px = px0 + k * 2;
+    ell(ctx, px, -3 - lift, 8, 5, '#ffc2cf', OUT, 1.6);
+    if (nails) {
+      for (let i = -1; i <= 1; i++) ell(ctx, px + i * 4, -1 - lift, 1.3, 1.3, nails);
+    }
+    if (!shoe) continue;
+    if (k < 0) {
+      ctx.save();
+      ctx.translate(px, 0);
+      ctx.scale(-1, 1);
+      drawShoe(ctx, shoe, 0, -lift);
+      ctx.restore();
+    } else drawShoe(ctx, shoe, px, -lift);
+  }
+}
+
+/** Пара обуви на лапках крупно — для значка вещи: (x, y) — пол между лапками, s — масштаб. */
+export function drawShoePair(ctx, x, y, s, item) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.scale(s, s);
+  ctx.lineJoin = 'round';
+  ctx.fillStyle = 'rgba(0,0,0,.12)';
+  ctx.beginPath();
+  ctx.ellipse(0, 1.5, 26, 4.5, 0, 0, TAU);
+  ctx.fill();
+  drawFeet(ctx, item, null, 0, [
+    [-11, 0],
+    [11, 0],
+  ]);
+  ctx.restore();
+}
+
 // ---------- головные уборы ----------
 function drawHat(ctx, item, side = 1) {
   const c = item.c,
@@ -957,30 +996,11 @@ export function drawHamster(ctx, x, y, s, look, pose = {}) {
   ctx.lineJoin = 'round';
 
   // --- лапки-ноги
-  const feet = [
-    [-10, liftL],
-    [10, liftR],
-  ];
   const fw = pose.sit ? 14 : 10;
-  feet[0][0] = -fw;
-  feet[1][0] = fw;
-  for (const [px0, lift] of feet) {
-    const px = px0 + k * 2; // носки — в сторону шага
-    ell(ctx, px, -3 - lift, 8, 5, '#ffc2cf', OUT, 1.6);
-    if (b.nails) {
-      for (let i = -1; i <= 1; i++) ell(ctx, px + i * 4, -1 - lift, 1.3, 1.3, b.nails);
-    }
-    if (o.feet) {
-      if (k < 0) {
-        // обувь нарисована носком вправо: при шаге влево разворачиваем только её
-        ctx.save();
-        ctx.translate(px, 0);
-        ctx.scale(-1, 1);
-        drawShoe(ctx, o.feet, 0, -lift);
-        ctx.restore();
-      } else drawShoe(ctx, o.feet, px, -lift);
-    }
-  }
+  drawFeet(ctx, o.feet, b.nails, k, [
+    [-fw, liftL],
+    [fw, liftR],
+  ]);
 
   ctx.translate(0, -bob);
   if (k && walking && pose.lean !== false) ctx.rotate(k * LEAN); // на ходу — лёгкий наклон вперёд
@@ -1036,6 +1056,13 @@ export function drawHamster(ctx, x, y, s, look, pose = {}) {
   collar(ctx, o.body);
   const chestAcc = o.acc && CHEST_ACC.includes(o.acc.kind);
   if (chestAcc) drawAcc(ctx, o.acc); // на груди, поверх одежды; голова ляжет сверху
+  else if (o.acc && o.acc.kind === 'backpack') {
+    // лямки рюкзачка — с плеч на грудь (сам рюкзачок за спиной, спереди его почти не видно)
+    for (const sx of [-1, 1]) {
+      line(ctx, sx * 15, -36, sx * 17, -12, OUT, 4.6);
+      line(ctx, sx * 15, -36, sx * 17, -12, shade(o.acc.c, -0.2), 2.8);
+    }
+  }
 
   // --- уши
   for (const sx of [-1, 1]) {
