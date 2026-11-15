@@ -46,7 +46,7 @@ export const BUILDINGS = [
   B('bank', 'bank', 79, 9, 4, 4, { name: 'Хомяк-Банк', icon: '💰', wall: '#ffd43b', floors: 7 }),
   B('realtor', 'realtor', 86, 9, 5, 4, {
     name: 'Агентство «Свой домик»',
-    mapName: 'Агентство «Свой домик»: купить жильё',
+    mapName: 'Агентство «Свой домик»: жильё',
     icon: '🔑',
     wall: '#d8f5a2',
     roof: '#5c940d',

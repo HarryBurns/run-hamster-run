@@ -142,7 +142,7 @@ export function createSideScene(desc) {
     enter(from, params = {}) {
       if (owned) initHouse(furn.key, furn.start);
       // откуда пришли. Если нас возвращают на сохранённое место (params.pos), «откуда» не меняется:
-      // иначе два своих дома, между которыми перешли через окно «Мои дома», вели бы дверями друг в друга.
+      // дверь по-прежнему ведёт туда, откуда в дом вошли (к двери его здания в городе).
       if (params.back && !params.pos) sc.back = params.back;
       resetPlayer();
       if (params.wake) toBed();
