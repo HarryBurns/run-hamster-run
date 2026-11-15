@@ -1086,9 +1086,9 @@ const town = createTopDownScene({
   entries: { villa: { building: 'villa', from: 'villa' }, forest: { at: [2, 1.5] } },
   start: 'villa',
   // Выезды в тайные места. Сцена места и вход в неё — в LANDS (data/places.js): пока сцены нет, выход закрыт
-  // (off), и у ворот — окно действия way:<место> (features/quests.js); тропа в лес тогда ведёт в пробную полянку
-  // (её открывает только автотест). Впишут в LANDS scene — выход откроется сам, как только место открыто (when).
-  exits: [landExit('forest', [1, 0, 2, 0], 'demo_meadow', 'gate'), landExit('desert', [95, 26, 95, 27], 'desert', 'bus')],
+  // (off), и у ворот — окно действия way:<место> (features/quests.js). Есть сцена — выход открыт, как только место
+  // открыто (when): тропа в лес ведёт в лес (locations/forest.js), пока он закрыт — ворота заперты.
+  exits: [landExit('forest', [1, 0, 2, 0], 'forest', 'gate'), landExit('desert', [95, 26, 95, 27], 'desert', 'bus')],
   // где разбрасывать предметы заданий: на пляже и в городе (не во дворе виллы и только там, куда можно дойти с улицы)
   zones: {
     beach: { y: [50, WORLD_SEA.shallowY - 1], tiles: ['s'] },
@@ -1117,7 +1117,8 @@ const town = createTopDownScene({
       ty = Math.floor(sc.p.y / T);
     for (const id of Object.keys(GATES)) {
       const b = GATES[id].behind;
-      if (from === 'demo_meadow' || gateOpen(id) || tx < b[0] || tx > b[2] || ty < b[1] || ty > b[3]) continue;
+      if (from === 'demo_meadow' || from === 'forest' || gateOpen(id) || tx < b[0] || tx > b[2] || ty < b[1] || ty > b[3])
+        continue;
       const st = PLACES.find((pl) => pl.id === id).stand;
       sc.p.x = st[0] * T;
       sc.p.y = st[1] * T;

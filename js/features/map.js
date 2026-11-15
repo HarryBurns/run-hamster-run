@@ -79,13 +79,16 @@ export function openMap() {
         row.appendChild(bt);
       }
       body.appendChild(row);
-      if (loc === homeLocation()) body.appendChild(landsRow(panel));
+      if (loc === homeLocation()) body.appendChild(landsRow(panel, (id, name) => walkTo(id, name, panel)));
     },
   });
 }
 
-/** «Тайные места»: силуэт с замочком, пока место закрыто; нажми — подсказка (или «открыто»). */
-function landsRow(panel) {
+/**
+ * «Тайные места»: силуэт с замочком, пока место закрыто; нажми — подсказка. Открытое место со сценой и входом
+ * в городе (лес — ворота на тропе) — хомячок сама идёт к входу (walk), как по кнопке «дойти».
+ */
+function landsRow(panel, walk) {
   const box = el('div', 'lands');
   box.appendChild(el('div', 'lands-h', '🗝️ Тайные места'));
   const row = el('div', 'lands-row');
@@ -99,6 +102,10 @@ function landsRow(panel) {
     b.title = open ? `${land.name} — открыто!` : `${land.name} — закрыто. Кто знает дорогу: ${land.who}`;
     b.onclick = () => {
       sfx('tap');
+      if (open && land.scene && land.from === 'world' && homeLocation().spot(land.id)) {
+        walk(land.id, `${land.icon} ${land.name}`);
+        return;
+      }
       panel.close();
       run('way:' + land.id);
     };
