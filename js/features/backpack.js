@@ -5,6 +5,7 @@ import { FURN_BY_ID, ING_BY_ID, SEED_BY_ID } from '../data/index.js';
 import { furnIcon } from '../ui/icons.js';
 import { openPanel } from '../ui/panel.js';
 import { eat, dishGrid, ingGrid } from './cooking.js';
+import { canPlantNow, sowHint } from './garden.js';
 
 const S = () => G.state;
 
@@ -34,10 +35,17 @@ export function openBackpack() {
           card.appendChild(el('div', 'e', ING_BY_ID[sd.crop].e));
           card.appendChild(el('div', '', sd.name));
           card.appendChild(el('span', 'cnt', '×' + S().seeds[id]));
+          card.appendChild(
+            el(
+              'div',
+              'note' + (canPlantNow(id) ? ' up' : ' off'),
+              canPlantNow(id) ? 'пора сажать' : sowHint(sd).toLowerCase(),
+            ),
+          );
           grid.appendChild(card);
         }
         body.appendChild(grid);
-        body.appendChild(el('p', 'muted center', 'Сажай на грядках во дворе виллы.'));
+        body.appendChild(el('p', 'muted center', 'Сажай на грядках во дворе виллы — каждую культуру в свой сезон.'));
       } else {
         const ids = Object.keys(S().storage);
         if (!ids.length) {

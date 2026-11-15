@@ -140,7 +140,7 @@ export function newGame(name) {
       fish: 1,
     },
     dishes: { cookies: 2, cocoa: 1 },
-    seeds: { seed_carrot: 2 },
+    seeds: { seed_lettuce: 2 }, // игра начинается в январе: зимой под парничком сажают салат
     recipes: [...START_RECIPES],
     garden: Array.from({ length: 8 }, () => ({ seed: null, age: 0 })),
     friends: Object.fromEntries(NPCS.map((n) => [n.id, { pts: 0, chat: -1, gift: -1, met: false }])),
