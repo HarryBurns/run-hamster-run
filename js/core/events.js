@@ -23,7 +23,10 @@ export const EVENTS = {
   place: 'мебель поставили из кладовки { id }',
   estate: 'куплено жильё или заведение, сменился основной дом, изменились настройки заведения',
   health: 'хомячок простыла или выздоровела { sick, cause, how } (features/health.js)',
-  // --- то, что считают ежедневные задания (features/mail.js) и будущий журнал заданий ---
+  // --- сюжетные задания (features/quests.js) ---
+  quest: 'задание из журнала взяли, оно продвинулось или выполнено { id, done }',
+  land: 'открылось новое место { id } (data/places.js, LANDS)',
+  // --- то, что считают ежедневные задания (features/mail.js) и сюжетные задания (features/quests.js) ---
   minigame: 'сыграна мини-игра { id, stars }',
   buy: 'покупка { cat, id }',
   sell: 'продано на рынке { id, n, sum }',
@@ -51,6 +54,8 @@ export const EVENTS = {
   boat: 'сели на кораблик',
   piano: 'сыграли песенку на пианино',
   thing: 'потрогали особую вещь в доме { id, owner } — штурвал, глобус, лейку, штангу…',
+  wear: 'надели или сняли вещь { slot, id } (id = null — сняли)',
+  herb: 'сорвали находку для гербария { id } (locations/common/herbs.js)',
 };
 
 const listeners = new Map(); // имя → Set функций

@@ -119,4 +119,6 @@ export const EXTRA_STICKERS = [
   { id: 'x_gather_all', sticker: '🍄', title: 'Всё, что растёт в городе' },
   // болезнь (Ф1): вылечилась у доктора в больнице
   { id: 'x_healthy', sticker: '🌡️', title: 'Будь здоров!' },
+  // сюжетные задания (журнал, data/quests.js): наклейка — награда за задание
+  { id: 'q_herbarium', sticker: '🌱', title: 'Юный ботаник' },
 ];

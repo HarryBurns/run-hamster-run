@@ -131,6 +131,7 @@ export const wear = act((slot, id) => {
   S().look.outfit[slot] = id;
   touch();
   emit('look');
+  emit('wear', { slot, id });
 });
 /** Изменить причёску, цвет коготков и прочее из салона красоты. */
 export const setBeauty = act((key, value) => {
@@ -438,6 +439,54 @@ export const recoverSick = act((how = 'self') => {
   touch();
   emit('health', { sick: false, how });
   emit('look');
+  return true;
+});
+
+// ---------- сюжетные задания и новые места (этап 5) ----------
+// Что считать и когда — решает features/quests.js (по событиям); описания заданий — data/quests.js.
+/** Взять задание из журнала. false — оно уже взято. */
+export const takeQuest = act((id) => {
+  const s = S();
+  if (s.quests[id]) return false;
+  s.quests[id] = { day: s.day, n: {}, got: {}, done: null };
+  touch();
+  emit('quest', { id });
+  return true;
+});
+/**
+ * Шаг i задания сделан ещё раз. value — что именно (для шагов «разные»: id жителя и т. п.): одно и то же значение
+ * второй раз не считается. Возвращает, сколько теперь на шаге.
+ */
+export const questCount = act((id, i, value) => {
+  const q = S().quests[id];
+  if (!q || q.done !== null) return 0;
+  if (value !== undefined) {
+    const got = (q.got[i] = q.got[i] || []);
+    if (got.includes(value)) return q.n[i] || 0;
+    got.push(value);
+  }
+  q.n[i] = (q.n[i] || 0) + 1;
+  touch();
+  emit('quest', { id });
+  return q.n[i];
+});
+/** Задание выполнено (награду выдаёт features/quests.js другими действиями). */
+export const finishQuest = act((id) => {
+  const s = S(),
+    q = s.quests[id];
+  if (!q || q.done !== null) return false;
+  q.done = s.day;
+  touch();
+  emit('quest', { id, done: true });
+  return true;
+});
+/** Открылось новое место (лес, пустыня…): с этой минуты туда можно пройти. */
+export const openLand = act((id) => {
+  const s = S();
+  if (Number.isFinite(s.lands[id])) return false;
+  s.lands[id] = s.day;
+  touch();
+  emit('land', { id });
   return true;
 });
 

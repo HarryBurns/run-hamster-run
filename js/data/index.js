@@ -18,3 +18,5 @@ export * from './tasks.js';
 export * from './fashion.js';
 export * from './looks.js';
 export * from './health.js';
+export * from './finds.js';
+export * from './quests.js';

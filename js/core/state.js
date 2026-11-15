@@ -24,6 +24,10 @@ import {
   BIZ_BY_ID,
   VISIT,
   HEALTH,
+  FIND_BY_ID,
+  QUESTS,
+  QUEST_BY_ID,
+  LAND_BY_ID,
   resolveLook,
   defaultLook,
 } from '../data/index.js';
@@ -62,6 +66,15 @@ export const MIGRATIONS = {
   3: (s) => {
     s.sick = null;
     s.immuneUntil = (Number.isFinite(s.day) ? s.day : 0) + HEALTH.grace;
+  },
+  // v4 → v5, журнал сюжетных заданий (этап 5): заданий ещё не брали, новые места закрыты, находок нет.
+  // Отметка questsEarly — задания, которые в новой игре дают не в первый день (Мята), доступны сразу.
+  4: (s) => {
+    s.quests = {};
+    s.lands = {};
+    s.finds = {};
+    if (!s.flags || typeof s.flags !== 'object' || Array.isArray(s.flags)) s.flags = {};
+    s.flags.questsEarly = 1;
   },
 };
 export const saveVersion = () => 1 + Object.keys(MIGRATIONS).length;
@@ -170,6 +183,9 @@ export function newGame(name) {
     visits: {}, // в гостях у жителей: житель → сколько раз была
     sick: null, // простыла (Ф1): { since: день, когда заболела, cause: 'cold' | 'sea' | 'rain' | 'none' } или null
     immuneUntil: HEALTH.grace, // с какого дня снова можно заболеть (в новой игре — не в первые дни)
+    quests: {}, // сюжетные задания (журнал): id → { day: когда взято, n: { шаг: сколько }, got: { шаг: [что] }, done: день | null }
+    lands: {}, // открытые новые места (лес, гора…): id → день, когда открылось
+    finds: {}, // находки (не еда): id → сколько (data/finds.js)
     // первый день
     weather: 'snow',
     visitor: null,
@@ -178,10 +194,12 @@ export function newGame(name) {
   return G.state;
 }
 
-let dirty = false;
+let dirty = false,
+  stamp = 0; // растёт при каждом изменении состояния: по нему читатели держат кэш (questBadge)
 /** Пометить, что состояние изменилось: оно запишется в конце кадра (flush). Зовут действия из core/actions.js. */
 export function touch() {
   dirty = true;
+  stamp++;
 }
 /** Записать сохранение, если с прошлой записи что-то изменилось. Цикл игры зовёт это раз в кадр. */
 export function flush() {
@@ -278,6 +296,22 @@ export function repair(s) {
   for (const k of ['clothes', 'villa', 'recipes', 'guests', 'lastTasks', 'stickers', 'garden']) arr(k);
   for (const k of ['storage', 'ing', 'dishes', 'seeds', 'friends', 'best', 'plays', 'flags', 'dayFlags', 'homes'])
     obj(s, k);
+  // сюжетные задания, новые места, находки: только известные id
+  for (const k of ['quests', 'lands', 'finds']) obj(s, k);
+  for (const id of Object.keys(s.quests)) {
+    const q = s.quests[id];
+    if (!QUEST_BY_ID[id] || !q || typeof q !== 'object' || Array.isArray(q)) {
+      delete s.quests[id];
+      continue;
+    }
+    if (!Number.isFinite(q.day)) q.day = 0;
+    obj(q, 'n');
+    obj(q, 'got');
+    for (const i of Object.keys(q.n)) if (!Number.isFinite(q.n[i]) || q.n[i] < 0) delete q.n[i];
+    for (const i of Object.keys(q.got)) if (!Array.isArray(q.got[i])) delete q.got[i];
+    if (!Number.isFinite(q.done)) q.done = null;
+  }
+  for (const id of Object.keys(s.lands)) if (!LAND_BY_ID[id] || !Number.isFinite(s.lands[id])) delete s.lands[id];
   // жильё и заведения: только известные id; основной дом и дом с гостями — вилла или купленное жильё
   arr('homesOwned');
   s.homesOwned = [...new Set(s.homesOwned)].filter((id) => id !== 'villa' && HOME_BY_ID[id]);
@@ -337,6 +371,7 @@ export function repair(s) {
     ['dishes', DISH_BY_ID],
     ['seeds', SEED_BY_ID],
     ['storage', FURN_BY_ID],
+    ['finds', FIND_BY_ID],
   ]) {
     for (const id of Object.keys(s[bag])) if (!known[id] || !(s[bag][id] > 0)) delete s[bag][id];
   }
@@ -545,4 +580,77 @@ export function npcWhere(id) {
 export function houseItems(key) {
   const s = G.state;
   return key === 'villa' ? s.villa : s.homes[key] || [];
+}
+
+// ---------- сюжетные задания и новые места (этап 5; только чтение) ----------
+// Описания — data/quests.js, места — LANDS в data/places.js; ход задания по событиям считает features/quests.js.
+/** Открыто ли новое место (лес, пустыня…). */
+export const landOpen = (id) => !!G.state && Number.isFinite(G.state.lands[id]);
+/** Сколько в рюкзаке того, что просит шаг «принести»: штук (или разных находок, если distinct). */
+function bringHave(b) {
+  const bag = G.state[b.bag] || {};
+  let n = 0;
+  for (const id of Object.keys(bag)) {
+    if (!(bag[id] > 0)) continue;
+    if (b.id ? id !== b.id : !FIND_BY_ID[id] || FIND_BY_ID[id].kind !== b.kind) continue;
+    n += b.distinct ? 1 : bag[id];
+  }
+  return n;
+}
+/**
+ * Где задание сейчас: { q, status, i, steps } — status: 'locked' (рано), 'ready' (можно взять), 'active', 'done';
+ * i — текущий шаг (первый несделанный; у выполненного — steps.length); steps — [{ have, need, ok }] по шагам.
+ */
+export function questNow(id) {
+  const q = QUEST_BY_ID[id],
+    s = G.state,
+    st = s.quests[id];
+  const status = st ? (st.done !== null ? 'done' : 'active') : !q.when || q.when(s) ? 'ready' : 'locked';
+  const steps = q.steps.map((step, i) => {
+    const need = step.n || 1;
+    let have = 0;
+    if (status === 'done') have = need;
+    else if (st) have = step.bring ? bringHave(step.bring) : (st.n[i] || 0);
+    return { have: Math.min(have, need), need, ok: have >= need };
+  });
+  let i = steps.findIndex((x) => !x.ok);
+  if (i < 0) i = steps.length;
+  return { q, status, i, steps };
+}
+let cacheStamp = -1,
+  cacheState = null,
+  badges = {},
+  wanted = {};
+/** Значки над жителями и нужные находки — пересчитать, если состояние изменилось (сцены спрашивают каждый кадр). */
+function questCache() {
+  if (cacheStamp === stamp && cacheState === G.state) return;
+  cacheStamp = stamp;
+  cacheState = G.state;
+  badges = {};
+  wanted = {};
+  for (const q of QUESTS) {
+    const w = questNow(q.id);
+    if (w.status === 'ready' && !badges[q.npc]) badges[q.npc] = '!';
+    if (w.status !== 'active') continue;
+    const cur = q.steps[w.i];
+    if (cur && cur.talk) badges[cur.talk] = '?';
+    q.steps.forEach((step, i) => {
+      if (step.bring && step.bring.kind && !w.steps[i].ok) wanted[step.bring.kind] = true;
+    });
+  }
+}
+/**
+ * Значок над жителем: '!' — у него можно взять задание, '?' — пора к нему с заданием (сдать или продолжить),
+ * null — ничего. Ответ кэшируется до следующего изменения состояния.
+ */
+export function questBadge(npc) {
+  if (!G.state) return null;
+  questCache();
+  return badges[npc] || null;
+}
+/** Нужны ли сейчас находки этого вида (kind: 'herb'): какое-то взятое задание просит их и ещё не набрано. */
+export function findsWanted(kind) {
+  if (!G.state) return false;
+  questCache();
+  return !!wanted[kind];
 }
