@@ -1096,7 +1096,7 @@ module.exports = async function estate({ page, step, ev, wait, closeAll }) {
       window.__dev.F.openAlbum();
     });
     await wait(300);
-    await page.click('.overlay .tab:nth-child(3)');
+    await page.click('.overlay .tab:has-text("Рекорды")'); // вкладки альбома: журнал, наклейки, друзья, рекорды
     await wait(300);
     expect((await text('.overlay .panel-body')).includes('Бариста'), 'рекорды: нет «Бариста»');
     await closeAll();
