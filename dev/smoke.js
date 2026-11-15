@@ -1686,10 +1686,10 @@ async function economy({ page, step, ev, wait, closeAll }) {
         for (const [id, sp] of Object.entries(W.desc.spots)) reach(sp.at[0], sp.at[1], 'точка ' + id);
         for (const a of W.desc.actors) reach(a.at[0], a.at[1], 'житель ' + a.npc);
         for (const n of W.npcs) if (n.home) reach(n.home[0], n.home[1], 'дом жителя ' + n.id);
-        // выезды закрыты: до ворот дойти можно, за ворота — нет
+        // выезды закрыты: до ворот дойти можно, за ворота — нет (лес закрыт, пока его не откроет задание Мяты: when)
         for (const id of ['forest', 'desert']) {
           const e = W.exit(id);
-          if (!e || !e.off) out.push('выезд ' + id + ' должен быть закрыт');
+          if (!e || !(e.off || (e.when && !e.when()))) out.push('выезд ' + id + ' должен быть закрыт');
           else if (m.path(m.foot, s[0], s[1], e.area[0], e.area[1]))
             out.push('выезд ' + id + ': за закрытые ворота можно пройти');
         }
