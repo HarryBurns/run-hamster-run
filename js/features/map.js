@@ -57,7 +57,7 @@ export function openMap() {
       canvas.onclick = (e) => {
         const r = canvas.getBoundingClientRect();
         const b = loc.mapHit(((e.clientX - r.left) / r.width) * loc.w, ((e.clientY - r.top) / r.height) * loc.h);
-        if (b) walkTo(b.id, b.npc ? `домик (${NPC_BY_ID[b.npc].name})` : b.name, panel);
+        if (b) walkTo(b.id, b.npc ? `домик (${NPC_BY_ID[b.npc].name})` : b.mapName || b.name, panel);
       };
       body.appendChild(canvas);
       body.appendChild(

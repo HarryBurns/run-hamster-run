@@ -2,21 +2,23 @@
 //
 // Жильё — таблица HOMES (data/estate.js), сцены — interiors/<id>.js. Куплено ли — state.homesOwned.
 // Действия реестра:
-//   'realtor'            окно риелтора: купить жильё;  'realtor:mine' («Мои дома»),  'realtor:<id>' — показать этот дом
+//   'realtor'            окно риелтора: купить жильё и «Мои дома» — дверь агентства «Свой домик» в городе;
+//   'realtor:mine'       только список «Мои дома» и выбор основного дома — кнопка в ⚙️ меню (купить там нельзя)
 //   'home:<id>'          дверь своего жилья: куплено — войти (ctx.back — место у двери), нет — окно риелтора
 //   'home-exit'          дверь изнутри (поле exit в описании дома): туда, откуда пришли
-// Своих зданий в городе у жилья и у риелтора пока нет (город перестраивают): временные входы — кнопка
-// «Недвижимость» в Хомяк-Банке и «Мои дома» в меню; пентхаус — ещё и из лифта Хомяк-Тауэра.
-// Когда появятся здания, им достаточно написать act: 'realtor' и act: 'home:flat' (и т. д.).
+// В дом входят через дверь его здания в городе (locations/town.js: квартира — 'home_apartment', бунгало —
+// 'home_bungalow'; пентхаус — из лифта Хомяк-Тауэра). Мгновенного перехода «в любой дом» нет; кнопка «Домой»
+// ведёт в основной дом, а его дверь выводит к двери здания (поле building в HOMES, data/estate.js).
 import { addHome, award, setMainHome } from '../core/actions.js';
 import { sfx } from '../core/audio.js';
 import { makeCanvas, fillRR, line, poly, ell, shade } from '../core/draw.js';
 import { emit } from '../core/events.js';
-import { go, scene, scenes } from '../core/loop.js';
+import { go, scene, sceneName, scenes } from '../core/loop.js';
 import { register } from '../core/registry.js';
 import { G, ownsHome, ownedHomes } from '../core/state.js';
 import { el, fmtMoney } from '../core/util.js';
 import { HOMES, HOME_BY_ID, VENDORS, vendorLook } from '../data/index.js';
+import { currentLocation, homeLocation } from '../engine/topdown/index.js';
 import { HOUSE_BY_ID } from '../interiors/houses.js';
 import { openPanel, message, confirmBox } from '../ui/panel.js';
 import { toast } from '../ui/toast.js';
@@ -27,14 +29,14 @@ const S = () => G.state;
 const onSale = () => HOMES.filter((h) => h.id !== 'villa' && !h.soon);
 
 // ---------- переходы ----------
-/** Место «снаружи» для двери дома, в который переходим не через дверь (из окна «Мои дома», кнопкой «Домой»). */
-function outside() {
-  const sc = scene();
-  let pos = null;
-  if (sc) pos = sc.owned && sc.desc.persist ? sc.back : sc.savePos ? sc.savePos() : null; // из своего дома — его «снаружи»
-  return pos && typeof pos.scene === 'string' && scenes[pos.scene] ? pos : { scene: 'world' };
+/** Место у двери здания, где это жильё (для дома, в который пришли не через дверь, а кнопкой «Домой»). */
+function doorOutside(id) {
+  const loc = homeLocation(),
+    h = HOME_BY_ID[id],
+    d = h && h.building ? loc.spot(h.building) : null;
+  return d ? { scene: loc.name, x: d.x, y: d.y } : { scene: loc.name };
 }
-/** Перейти в свой дом. back — куда выведет его дверь (по умолчанию — туда, где героиня сейчас). */
+/** Перейти в свой дом. back — куда выведет его дверь (по умолчанию — к двери его здания в городе). */
 export function goToHome(id, back) {
   if (!ownsHome(id) || !scenes[id]) return false;
   const sc = scene();
@@ -43,7 +45,7 @@ export function goToHome(id, back) {
     return false;
   }
   sfx('door');
-  go(id, id === 'villa' ? {} : { back: back || outside() });
+  go(id, id === 'villa' ? {} : { back: back || doorOutside(id) });
   return true;
 }
 /** Дверь своего дома изнутри: туда, откуда пришли; если неизвестно — в город. */
@@ -62,7 +64,7 @@ export async function askGoHome() {
     html: `<p class="center big-emoji">${main.icon}</p><p class="center">Вернуться домой прямо сейчас?<br><b>${main.name}</b>${many ? ' — твой основной дом.' : ''}</p>`,
     buttons: [
       { text: 'Да, домой 🏡' },
-      ...(many ? [{ text: '🔑 В другой дом', cls: 'blue' }] : []),
+      ...(many ? [{ text: '⭐ Выбрать основной дом', cls: 'blue' }] : []),
       { text: 'Нет', cls: 'ghost' },
     ],
   });
@@ -145,14 +147,17 @@ async function buyHome(h, panel) {
   if (onSale().every((q) => ownsHome(q.id))) award('x_homes_all', { delay: 2600 });
   sfx('fanfare');
   if (panel && !panel.closed) panel.close();
+  // в дом входят через дверь: предлагаем дойти до неё (как кнопка на карте), если мы в городе
+  const loc = currentLocation(),
+    canWalk = !!h.building && sceneName() === loc.name;
   const i = await message({
     title: 'С новосельем!',
     icon: '🔑',
-    html: `<p class="center big-emoji">${h.icon}🎉</p><p class="center"><b>${h.name}</b> — теперь твой дом${n > 1 ? ' (уже ' + (n + 1) + '-й!)' : ''}.<br>Там уже стоят кровать и шкаф, а остальное расставь сама: кнопка 🔨 «Обустроить».</p>
+    html: `<p class="center big-emoji">${h.icon}🎉</p><p class="center"><b>${h.name}</b> — теперь твой дом${n > 1 ? ' (уже ' + (n + 1) + '-й!)' : ''}.<br>Он ${h.where}. Там уже стоят кровать и шкаф, а остальное расставь сама: кнопка 🔨 «Обустроить».</p>
       <p class="muted center">Все свои дома — в ⚙️ меню, «Мои дома». Там же выбирают основной дом для кнопки «Домой».</p>`,
-    buttons: [{ text: 'Перейти домой 🏡' }, { text: 'Потом', cls: 'ghost' }],
+    buttons: canWalk ? [{ text: 'Идём туда! 🐾' }, { text: 'Потом', cls: 'ghost' }] : [{ text: 'Ура!' }],
   });
-  if (i === 0) goToHome(h.id);
+  if (canWalk && i === 0 && loc.walkToPlace(h.building)) toast(`Идём: ${h.name} 🐾`);
 }
 
 function homeCard(h, panel, mine) {
@@ -166,19 +171,14 @@ function homeCard(h, panel, mine) {
     'grow',
     `<div class="ttl">${h.icon} ${h.name}${owned && main ? ' <span class="tag">⭐ основной</span>' : ''}</div>
      <div class="sub">${h.about}</div>
+     <div class="sub">📍 ${here ? 'Ты сейчас здесь' : 'Где: ' + h.where}</div>
      <div class="perks">${h.perks.map((p) => `<span>${p}</span>`).join('')}</div>`,
   );
   li.appendChild(info);
   const side = el('div', 'side');
   if (owned) {
-    if (!mine) side.appendChild(el('div', 'own', '✓ Твой дом'));
-    const b = el('button', 'btn small ' + (here ? 'ghost' : 'green'), here ? 'Ты здесь' : 'Перейти домой');
-    b.disabled = here;
-    b.onclick = () => {
-      panel.close();
-      goToHome(h.id);
-    };
-    side.appendChild(b);
+    // в дом входят через дверь его здания: отсюда туда не переносят
+    side.appendChild(el('div', 'own', '✓ Твой дом'));
     if (mine && !main) {
       const m = el('button', 'btn small blue', '⭐ Сделать основным');
       m.onclick = () => {
@@ -202,9 +202,27 @@ function homeCard(h, panel, mine) {
   return li;
 }
 
-/** Окно риелтора. tab: 'buy' — купить жильё, 'mine' — мои дома; id жилья — открыть «Купить» (для двери этого дома). */
-export function openRealtor(tab = 'buy') {
+/**
+ * Окно риелтора (дверь агентства): вкладки «Купить жильё» и «Мои дома». tab: 'buy' | 'mine' — какую открыть.
+ * only — только список «Мои дома» с выбором основного дома (кнопка в меню): купить отсюда нельзя.
+ */
+export function openRealtor(tab = 'buy', only = false) {
   const start = tab === 'mine' ? 'mine' : 'buy';
+  const mineList = (body, panel) => {
+    const list = ownedHomes().map((id) => HOME_BY_ID[id]);
+    for (const h of list) body.appendChild(homeCard(h, panel, true));
+    body.appendChild(
+      el(
+        'p',
+        'muted center',
+        list.length > 1
+          ? 'Кнопка «Домой» ведёт в основной дом ⭐. В каждый дом входят через его дверь в городе. Спать можно в любом — проснёшься там, где уснула.'
+          : 'Пока у тебя один дом — вилла. Ещё один можно купить в агентстве «Свой домик» — оно на Северной улице, рядом с Хомяк-Банком.',
+      ),
+    );
+  };
+  if (only)
+    return openPanel({ title: 'Мои дома', icon: '🔑', cls: 'wide', render: (body, t, panel) => mineList(body, panel) });
   return openPanel({
     title: 'Недвижимость',
     portrait: vendorLook('realtor'),
@@ -225,27 +243,27 @@ export function openRealtor(tab = 'buy') {
           ),
         );
         for (const h of HOMES.filter((q) => q.id !== 'villa')) body.appendChild(homeCard(h, panel, false));
-      } else {
-        const list = ownedHomes().map((id) => HOME_BY_ID[id]);
-        for (const h of list) body.appendChild(homeCard(h, panel, true));
-        body.appendChild(
-          el(
-            'p',
-            'muted center',
-            list.length > 1
-              ? 'Кнопка «Домой» ведёт в основной дом ⭐. Спать можно в любом — проснёшься там, где уснула.'
-              : 'Пока у тебя один дом — вилла. Купить ещё можно на вкладке «Купить жильё».',
-          ),
-        );
-      }
+      } else mineList(body, panel);
     },
   });
 }
 
-register('realtor', (p) => openRealtor(p.arg), 'риелтор: realtor (купить жильё), realtor:mine (мои дома)');
+/** Дверь жилья в городе: своё — войти; не куплено — к риелтору (он покажет, что продаётся). */
+function homeDoor(id, ctx) {
+  if (ownsHome(id)) return goToHome(id, ctx.back);
+  const h = HOME_BY_ID[id];
+  if (h) toast(`${h.icon} ${h.name} продаётся! Вот что говорит ${VENDORS.realtor.name} 🔑`);
+  return openRealtor('buy');
+}
+
+register(
+  'realtor',
+  (p) => openRealtor(p.arg, p.arg === 'mine'),
+  'риелтор: realtor (агентство: купить жильё и мои дома), realtor:mine (меню: только список «Мои дома»)',
+);
 register(
   'home',
-  (p, ctx) => (ownsHome(p.arg) ? goToHome(p.arg, ctx.back) : openRealtor('buy')),
+  (p, ctx) => homeDoor(p.arg, ctx),
   'дверь своего жилья: home:<id> — куплено: войти (ctx.back — место у двери), нет — окно риелтора',
 );
 register('home-exit', (p, ctx) => leaveHome(ctx.scene), 'дверь своего дома изнутри: туда, откуда пришли');

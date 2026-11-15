@@ -7,7 +7,8 @@
 //   title         название для окна карты;  home: true — главная локация (город): к ней относятся предметы
 //                 заданий без указания локации, её карту показывают, пока хомячок в доме
 //   w, h, base, build(m)  или  rows, legend    карта — см. map.js
-//   buildings     [{ id, kind, x, y, w, h, name, icon, act, … }] — «пятно» в клетках, дверь снизу по центру;
+//   buildings     [{ id, kind, x, y, w, h, name, mapName, icon, act, … }] — «пятно» в клетках, дверь снизу по центру;
+//                 mapName — подпись для карты и кнопки «дойти» (по умолчанию — name);
 //                 act — действие из реестра, когда хомячок вошёл (ему передаётся { building, back })
 //   places        ОСОБЫЕ МЕСТА: [{ id, act | use(sc), … }] — где оно и как до него дойти:
 //                   at: [x, y] + hit: { dx, up, down } | { r }   нажимают на предмет (зона вокруг центра клетки)
@@ -589,7 +590,7 @@ export function createTopDownScene(desc) {
     mapPlaces() {
       const out = [];
       for (const b of ensure().buildings)
-        if (b.name) out.push([b.id, `${b.icon || BUILDING_KINDS[b.kind].icon || ''} ${b.name}`.trim()]);
+        if (b.name) out.push([b.id, `${b.icon || BUILDING_KINDS[b.kind].icon || ''} ${b.mapName || b.name}`.trim()]);
       for (const [id, s] of Object.entries(spots)) if (s.label) out.push([id, s.label]);
       for (const pl of places) if (pl.map && pl.map.label) out.push([pl.id, pl.map.label]);
       return out;

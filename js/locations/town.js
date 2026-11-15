@@ -7,19 +7,20 @@
 import { clamp, seeded } from '../core/util.js';
 import { ell, fillRR, line, poly, emoji } from '../core/draw.js';
 import { NPCS, ING_BY_ID, SEED_BY_ID, TASK_BY_ID } from '../data/index.js';
-import { G, cal } from '../core/state.js';
+import { G, cal, ownsHome } from '../core/state.js';
 import { T, OUT, SP, put, defineTiles, defineObjects } from '../engine/topdown/kinds.js';
 import { createTopDownScene } from '../engine/topdown/scene.js';
 import './common/index.js';
 import { createSea, WORLD_SEA } from './sea.js';
 import { HOUSE_ART, HOUSE_STYLE } from './town_buildings.js';
+import { signBoard, fitText } from './common/paint.js';
 
 const MW = 96,
   MH = 121;
 
 // ---------- здания ----------
 // x, y, w, h — «пятно» здания в клетках; дверь — снизу по центру. id зданий лежат в заданиях и сохранениях —
-// не переименовывать. Где что стоит — см. схему в docs/GDD.md («Город»).
+// не переименовывать. name — на вывеске; mapName — подпись для карты и кнопки «дойти», если нужна понятнее. Где что стоит — см. схему в docs/GDD.md («Город»).
 const B = (id, kind, x, y, w, h, o = {}) => ({ id, kind, x, y, w, h, ...o });
 export const BUILDINGS = [
   B('villa', 'villa', 11, 4, 10, 5, { name: 'Моя вилла', wall: '#fff3d6', roof: '#f76e5c' }),
@@ -45,6 +46,7 @@ export const BUILDINGS = [
   B('bank', 'bank', 79, 9, 4, 4, { name: 'Хомяк-Банк', icon: '💰', wall: '#ffd43b', floors: 7 }),
   B('realtor', 'realtor', 86, 9, 5, 4, {
     name: 'Агентство «Свой домик»',
+    mapName: 'Агентство «Свой домик»: купить жильё',
     icon: '🔑',
     wall: '#d8f5a2',
     roof: '#5c940d',
@@ -57,18 +59,36 @@ export const BUILDINGS = [
     wall: '#b2f2bb',
     roof: '#2f9e44',
   }),
-  B('market', 'market', 44, 17, 7, 3, { name: 'Рынок', icon: '🧺', wall: '#ffe8cc', roof: '#e8590c' }),
+  B('market', 'market', 44, 17, 7, 3, {
+    name: 'Рынок',
+    mapName: 'Рынок: продать и купить',
+    icon: '🧺',
+    wall: '#ffe8cc',
+    roof: '#e8590c',
+  }),
   B('cafe', 'cafe', 56, 17, 4, 4, { name: 'Кафе «Семечка»', icon: '☕', wall: '#ffdeeb', roof: '#d6336c' }),
   B('hospital', 'hospital', 67, 18, 7, 6, { name: 'Больница', icon: '🏥', wall: '#ffffff', roof: '#fa5252' }),
   B('school', 'school', 77, 18, 7, 6, { name: 'Школа', icon: '🔔', wall: '#ffd8a8', roof: '#e8590c' }),
   // к югу от главной улицы
-  B('home_apartment', 'apartment', 53, 31, 6, 5, { name: 'Жилой дом', icon: '🏢', wall: '#ffe3e3', roof: '#c92a2a' }),
+  B('home_apartment', 'apartment', 53, 31, 6, 5, {
+    name: 'Жилой дом',
+    mapName: 'Жилой дом: квартира',
+    icon: '🏢',
+    wall: '#ffe3e3',
+    roof: '#c92a2a',
+  }),
   B('rest', 'rest', 51, 41, 7, 5, { name: '«Золотой орешек»', icon: '🍽️', wall: '#ffec99', roof: '#c92a2a' }),
   B('pool', 'poolhall', 67, 30, 5, 5, { name: 'Бассейн', icon: '🏊', wall: '#99e9f2', roof: '#0c8599' }),
   B('hotel', 'hotel', 83, 42, 11, 5, { name: 'Отель «Морская звезда»', icon: '🏨', wall: '#fff4e6', roof: '#1098ad' }),
   // на пляже
   B('beachcafe', 'beachcafe', 67, 50, 5, 3, { name: 'Пляжное кафе', icon: '🍹', wall: '#c3fae8', roof: '#12b886' }),
-  B('home_bungalow', 'bungalow', 6, 50, 5, 3, { name: 'Бунгало', icon: '🛖', wall: '#ffe8cc', roof: '#e0a458' }),
+  B('home_bungalow', 'bungalow', 6, 50, 5, 3, {
+    name: 'Бунгало',
+    mapName: 'Пляжное бунгало',
+    icon: '🛖',
+    wall: '#ffe8cc',
+    roof: '#e0a458',
+  }),
   // дома жителей: западный квартал (Мята, Плюша, Профессор; Зефирка и Буся) и восточный (Сеня, Боб, Пончик)
   B('house5', 'house', 4, 30, 4, 4, { wall: '#d3f9d8', roof: '#2f9e44', npc: 'myata' }),
   B('house0', 'house', 12, 31, 4, 4, { wall: '#ffe8cc', roof: '#e8590c', npc: 'plusha' }),
@@ -80,9 +100,12 @@ export const BUILDINGS = [
   B('house1', 'house', 75, 41, 4, 4, { wall: '#d0ebff', roof: '#1971c2', npc: 'ponchik' }),
 ];
 // Что происходит на входе в здание: записи для реестра действий (core/registry.js). Сам город про магазины,
-// мини-игры и диалоги ничего не знает. У домиков жителей действие одно: 'home-of:<житель>'.
+// мини-игры и диалоги ничего не знает. У домиков жителей действие одно: 'home-of:<житель>' (features/visits.js).
+// Агентство — 'realtor'; двери покупного жилья — 'home:<id жилья>' (features/homes.js): куплено — войти, нет —
+// окно риелтора. Пентхаус — из лифта Хомяк-Тауэра. Какое здание — дверь какого жилья, записано и в HOMES
+// (data/estate.js, поле building): туда ведёт кнопка «Домой».
 // 'soon' — временная заглушка «Скоро открытие!» (features/soon.js) для мест, которые ещё строятся:
-// ключ места — realtor, home_apartment, home_bungalow, hotel (и forest, desert — у выездов из города, см. PLACES).
+// ключ места — hotel (и forest, desert — у выездов из города, см. PLACES).
 const ask = (vendor, text, options) => ({ do: 'ask', vendor, text, options });
 const soon = (key) => ({ do: 'soon', key });
 const BUILDING_ACTS = {
@@ -96,9 +119,9 @@ const BUILDING_ACTS = {
   cafe: { do: 'cafe', kind: 'cafe' },
   tower: 'scene:tower',
   bank: 'bank',
-  realtor: soon('realtor'),
-  home_apartment: soon('home_apartment'),
-  home_bungalow: soon('home_bungalow'),
+  realtor: 'realtor',
+  home_apartment: 'home:flat',
+  home_bungalow: 'home:bungalow',
   hotel: soon('hotel'),
   fashion: ask('fashion', 'Дорогая! Подиум ждёт. Выйдешь на показ мод?', [
     { text: '👠 На подиум!', cls: 'green', do: 'minigame:fashion' },
@@ -136,8 +159,36 @@ for (const b of BUILDINGS) {
   if (b.npc) Object.assign(b, HOUSE_STYLE[b.npc], { art: HOUSE_ART[b.npc] });
 }
 
+// ---------- своё: заведения и жильё ----------
+// У купленного заведения (state.biz; id заведения — это id его здания, data/estate.js) у левого угла фасада висит
+// табличка «моё» — в цвете, который хозяйка выбрала для вывески; у купленного жилья — табличка «мой дом»
+// (у бунгало она закрывает нарисованную на здании «Продаётся»). Таблички рисуются каждый кадр поверх спрайта
+// здания: кэш спрайтов зданий не трогаем (поэтому своё название на большой вывеске в городе не показывается).
+const HOME_DOORS = Object.entries(BUILDING_ACTS) // [id здания, id жилья] — по действиям 'home:<id>'
+  .filter(([, a]) => typeof a === 'string' && a.startsWith('home:'))
+  .map(([b, a]) => [b, a.slice(5)]);
+function bladeSign(ctx, b, text, col, w) {
+  const x = b.x * T + 4,
+    y = (b.y + b.h) * T - 104;
+  line(ctx, x + 8, y, x - w + 12, y, OUT, 3.5); // кронштейн от стены
+  for (const dx of [-w + 20, -8]) line(ctx, x + dx, y, x + dx, y + 9, OUT, 1.6);
+  signBoard(ctx, text, x - w / 2 + 6, y + 20, w, 24, 'plate', col);
+}
+function drawOwnBiz(ctx, b) {
+  const st = G.state.biz[b.id];
+  if (st) bladeSign(ctx, b, '👑 моё', st.sign || '#ff6b9d', 56);
+}
+function drawOwnHome(ctx, b) {
+  if (b.id !== 'home_bungalow') return bladeSign(ctx, b, '🔑 мой дом', '#2f9e44', 84);
+  // бунгало: поверх таблички «Продаётся» у крыльца (её место — в paintBungalow, town_buildings.js)
+  const x = (b.x + b.w) * T + 2,
+    bot = (b.y + b.h) * T;
+  fillRR(ctx, x - 22, bot - 43, 44, 22, 3, '#fff', OUT, 1.6);
+  fitText(ctx, 'МОЙ ДОМ', x, bot - 32, 36, 7.5, '#2f9e44');
+}
+
 // ---------- жители ----------
-// Где кто гуляет днём (клетка); вечером каждый идёт к своему домику.
+// Где кто гуляет днём (клетка); утром и вечером каждый — у своего домика (engine/topdown/actors.js).
 const HANG = {
   plusha: [45, 34], // парк, у детской площадки
   ponchik: [57, 23], // столики кафе на площади
@@ -974,6 +1025,16 @@ const town = createTopDownScene({
   },
   parts: [sea],
   target,
+  /** Таблички «моё» у купленных заведений и жилья — сразу после здания в порядке «дальше → ближе». */
+  things(sc, add, v) {
+    const own = (id, draw) => {
+      const b = sc.map.bById[id];
+      if (b && b.x * T < v.x1 + 90 && (b.x + b.w) * T > v.x0 - 30 && b.y * T < v.y1 && (b.y + b.h) * T > v.y0)
+        add((b.y + b.h) * T, draw, b);
+    };
+    for (const id in G.state.biz) own(id, drawOwnBiz);
+    for (const [bid, home] of HOME_DOORS) if (ownsHome(home)) own(bid, drawOwnHome);
+  },
   built(sc) {
     townScene = sc;
     sealPockets(sc.map);
