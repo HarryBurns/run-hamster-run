@@ -38,7 +38,7 @@ import {
   EXTRA_STICKERS,
   QUEST_GIFT_COINS,
 } from '../data/index.js';
-import { homeLocation, setTargetHook } from '../engine/topdown/index.js';
+import { homeLocation, currentLocation, getLocation, setTargetHook } from '../engine/topdown/index.js';
 import { dialog } from '../ui/dialog.js';
 import { enqueue } from '../ui/modals.js';
 import { message } from '../ui/panel.js';
@@ -78,11 +78,23 @@ setTargetHook((sc) => {
   // над жителем — повыше, над значком «!» / «?»
   return { x: p.x, y: where.startsWith('npc:') ? p.y - 62 : p.y, icon: '⭐' };
 });
+/** Где искать того, кто дал задание: «в городе» или «в лесу» (поле loc задания — локация, где оно идёт). */
+const placeOf = (q) => (q.loc ? `в ${LOC_WORDS[q.loc] || 'другом месте'}` : 'в городе');
+const LOC_WORDS = { forest: 'лесу' };
 /** Показать задание на карте (звёздочкой). false — сейчас показать нечего (сегодня всё собрано и т. п.). */
 export function showQuestOnMap(id) {
   const w = questNow(id),
-    where = questWhere(w);
-  const p = where && homeLocation().whereIs(where);
+    where = questWhere(w),
+    q = QUEST_BY_ID[id];
+  // задание в другой локации (лес): звёздочка видна только там — подсказать, куда идти
+  if (q.loc && currentLocation().name !== q.loc) {
+    trackQuest(id);
+    sfx('ok');
+    toast(`${q.icon} Это задание — ${placeOf(q)}. Звёздочка покажет дорогу, когда ты будешь там.`);
+    openMap();
+    return true;
+  }
+  const p = where && (q.loc ? getLocation(q.loc) : homeLocation()).whereIs(where);
   if (!p) {
     toast(
       where === 'herb'
@@ -197,9 +209,14 @@ export async function questTalk(npcId) {
 const say = (npcId, text, options, happy = false) =>
   dialog({ look: npcLook(npcId), name: NPC_BY_ID[npcId].name, text, options, happy });
 
+/** Познакомиться с жителем города (у жителей тайных мест — LAND_NPCS — дружбы нет). */
+const meet = (npc) => {
+  const fr = S().friends[npc];
+  if (fr && !fr.met) meetFriend(npc);
+};
 async function offer(q) {
   const npc = q.npc;
-  if (!S().friends[npc].met) meetFriend(npc);
+  meet(npc);
   emit('talk', { id: npc });
   const i = await say(npc, q.lines.offer, [{ text: `${q.icon} Помогу!`, cls: 'green' }, { text: 'Потом' }]);
   if (i !== 0) return { text: q.lines.later || 'Хорошо, в другой раз!' };
@@ -235,7 +252,7 @@ async function talkStep(q, w) {
   const step = q.steps[w.i],
     npc = step.talk,
     last = w.i === q.steps.length - 1;
-  if (!S().friends[npc].met) meetFriend(npc);
+  meet(npc);
   emit('talk', { id: npc });
   if (!last) {
     // шаг «поговори» в середине цепочки
@@ -367,7 +384,7 @@ export function renderJournal(body, panel) {
       el(
         'div',
         'q-head',
-        `<span class="q-ic">❗</span><div><div class="ttl">Новое задание!</div><div class="sub">${npc.name} хочет о чём-то попросить — найди ${npc.fem ? 'её' : 'его'} в городе. Над головой у ${her(q.npc)} «!».</div></div>`,
+        `<span class="q-ic">❗</span><div><div class="ttl">Новое задание!</div><div class="sub">${npc.name} хочет о чём-то попросить — найди ${npc.fem ? 'её' : 'его'} ${placeOf(q)}. Над головой у ${her(q.npc)} «!».</div></div>`,
       ),
     );
     card.appendChild(mapBtn(w));
