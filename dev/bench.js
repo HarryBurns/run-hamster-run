@@ -1,11 +1,12 @@
-// Замер скорости города и леса: время кадра при ходьбе стрелкой и число команд рисования за кадр.
+// Замер скорости города, леса и горы: время кадра при ходьбе стрелкой и число команд рисования за кадр.
 // Нужен, чтобы сравнивать «до/после» любых правок рисования (способ — как в docs/REVIEW.md, приложение).
 //
 // Запуск:  python3 -m http.server 8765 &   затем   node dev/bench.js [http://localhost:8765] [ключи]
 //   --cpu=4                 замедление процессора (1 — без замедления)
 //   --sizes=desktop,phone   desktop — 1280×720 (dpr 1), phone — 390×844 (dpr 3), big — 1920×1080 (dpr 1)
-//   --spots=palms,forest,square,sea,beach,park,woods,glade   (forest — лес на севере города; woods и glade — локация
-//                           «Лес» (П.9): густой лес у тропы и поляна с костром)
+//   --spots=palms,forest,square,sea,beach,park,woods,glade,peak,slope,meadow   (forest — лес на севере города; woods
+//                           и glade — локация «Лес» (П.9): густой лес у тропы и поляна с костром; peak, slope, meadow —
+//                           «Гора»: вершина в снегу, ельник с облаками и шале, луга с коровами)
 //   --seasons=winter,summer зима со снегом и лето без осадков
 //   --sec=4                 сколько секунд идёт один замер
 //   --minutes=1320          время суток в минутах (720 — полдень; 1320 — ночь со светом фонарей и окон)
@@ -38,6 +39,9 @@ const SPOTS = {
   park: [40, 34],
   woods: [17, 29, 'forest'],
   glade: [24, 23, 'forest'],
+  peak: [20, 7, 'mountain'],
+  slope: [24, 20, 'mountain'],
+  meadow: [24, 33, 'mountain'],
 };
 const SPOT_NAMES = {
   palms: 'Дворики (15,39)',
@@ -48,9 +52,12 @@ const SPOT_NAMES = {
   park: 'Парк (40,34)',
   woods: 'Лес-сцена (17,29)',
   glade: 'Лес: костёр',
+  peak: 'Гора: вершина',
+  slope: 'Гора: ельник',
+  meadow: 'Гора: луга',
 };
 const sizes = opt('sizes', 'desktop,phone').split(','),
-  spots = opt('spots', 'palms,forest,square,sea,woods').split(',');
+  spots = opt('spots', 'palms,forest,square,sea,woods,peak,slope').split(',');
 const seasons = opt('seasons', 'winter,summer').split(',');
 const SEASON = { winter: { day: 0, weather: 'snow' }, summer: { day: 18, weather: 'sun' } };
 
@@ -85,7 +92,7 @@ const SEASON = { winter: { day: 0, weather: 'snow' }, summer: { day: 18, weather
     // счётчики: время draw/update города, интервалы между кадрами, число команд канвы внутри draw
     await page.evaluate(() => {
       const B = (window.__bench = { on: false, frames: [], draw: [], cmd: null, cmdFrames: 0 });
-      for (const sc of [window.__dev.scenes.world, window.__dev.scenes.forest]) {
+      for (const sc of [window.__dev.scenes.world, window.__dev.scenes.forest, window.__dev.scenes.mountain]) {
         const d0 = sc.draw;
         sc.draw = function (c) {
           if (B.cmd) B.inDraw = true;
@@ -205,15 +212,17 @@ const SEASON = { winter: { day: 0, weather: 'snow' }, summer: { day: 18, weather
   await browser.close();
   const json = opt('json', '');
   if (json) fs.writeFileSync(json, JSON.stringify(rows, null, 1));
-  // лес-сцена против города (тот же размер и сезон): средний кадр
+  // лес-сцена и гора против города (тот же размер и сезон): средний кадр
   const mean = (f) => {
     const l = rows.filter(f);
     return l.length ? +(l.reduce((a, r) => a + r.frame, 0) / l.length).toFixed(1) : null;
   };
   for (const size of sizes) {
     const town = mean((r) => r.size === size && !SPOTS[r.spot][2]),
-      wood = mean((r) => r.size === size && !!SPOTS[r.spot][2]);
-    if (town && wood) console.log(`${size}: средний кадр — город ${town} мс, лес-сцена ${wood} мс`);
+      wood = mean((r) => r.size === size && SPOTS[r.spot][2] === 'forest'),
+      hill = mean((r) => r.size === size && SPOTS[r.spot][2] === 'mountain');
+    if (town && (wood || hill))
+      console.log(`${size}: средний кадр — город ${town} мс, лес-сцена ${wood} мс, гора ${hill} мс`);
   }
   const lim = +opt('max-forest', 0);
   if (lim) {

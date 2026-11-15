@@ -623,7 +623,11 @@ defineObjects({
 });
 
 // ---------- станция канатной дороги ----------
-/** Станция на опушке: деревянный навес с колесом, трос уходит на север к горе, кабинка ждёт. Пока закрыто. */
+/**
+ * Станция: деревянный навес с колесом, трос, кабинка ждёт у платформы. В лесу трос уходит на север, к горе
+ * (b.cable — 'up'), на горе — вниз, к лесу ('down'). Табличка — b.signText() («🔒 На гору», пока гора закрыта; текст
+ * входит в ключ спрайта здания, так что открылась гора — станция перерисуется сама).
+ */
 function paintCableway(ctx, b, snow, lit) {
   const g = geom(b),
     { X, W, bot, cx } = g,
@@ -637,29 +641,57 @@ function paintCableway(ctx, b, snow, lit) {
   steps(ctx, cx, bot, 46);
   // крыша-навес
   gable(ctx, X - 4, X + W + 4, top + 34, top - 6, '#2f9e44', snow);
-  // колесо и трос (уходит вверх, к горе)
+  // колесо и трос (в лесу уходит вверх, к горе; на горе — вниз, к лесу)
   ell(ctx, cx, top + 46, 16, 16, '#868e96', OUT, 2.5);
   ell(ctx, cx, top + 46, 6, 6, '#495057', OUT, 1.5);
-  line(ctx, cx - 14, top + 40, cx - 30, g.Y - 160, OUT, 2.2);
-  line(ctx, cx + 14, top + 40, cx + 30, g.Y - 160, OUT, 2.2);
+  for (const k of [-1, 1]) {
+    const [ex, ey] = cableEnd(b, k);
+    line(ctx, cx + k * 14, top + 40, ex, ey, OUT, 2.2);
+  }
   // кабинка у платформы
   line(ctx, cx + 30, top + 60, cx + 30, top + 74, OUT, 2);
   fillRR(ctx, cx + 14, top + 74, 34, 30, 8, '#fa5252', OUT, 2);
   fillRR(ctx, cx + 19, top + 79, 24, 12, 3, lit ? LIT : '#cfeaff', OUT, 1.4);
   ctx.fillStyle = 'rgba(0,0,0,.15)';
   ctx.fillRect(cx + 38, top + 76, 8, 26);
-  // табличка с замочком: «скоро откроется»
-  signBoard(ctx, '🔒 На гору', cx - 30, bot - 50, 70, 18, 'wood');
+  // табличка: куда едем (пока гора закрыта — с замочком)
+  signBoard(ctx, b.signText ? b.signText() : '🔒 На гору', cx - 30, bot - 50, 74, 18, 'wood');
   if (snow) {
     for (const x of [X + 18, X + W - 18]) ell(ctx, x, top + 31, 8, 3, '#ffffff', '#cfe3f0', 1);
     ell(ctx, cx + 31, top + 74, 15, 3.5, '#ffffff', '#cfe3f0', 1);
   }
 }
+/** Куда уходит трос от колеса (k = -1 — левая нитка, 1 — правая). */
+function cableEnd(b, k) {
+  const g = geom(b);
+  return b.cable === 'down' ? [g.cx + k * 34 + 60, g.bot + 70] : [g.cx + k * 30, g.Y - 160];
+}
+/** Вагончик едет по тросу (станция работает — b.running()): выезжает от колеса и уходит вдаль, по кругу. */
+function cablewayLive(ctx, b, t) {
+  if (!b.running || !b.running()) return;
+  const g = geom(b),
+    top = g.Y - 40,
+    [ex, ey] = cableEnd(b, 1),
+    k = (t * 0.12 + b.x * 0.1) % 1,
+    up = b.cable !== 'down';
+  // от колеса к концу троса (в лесу — вверх и меньше: уезжает вдаль)
+  const x0 = g.cx + 14,
+    y0 = top + 40,
+    x = x0 + (ex - x0) * k,
+    y = y0 + (ey - y0) * k,
+    s = up ? 1 - k * 0.55 : 1;
+  ctx.globalAlpha = k > 0.85 ? (1 - k) / 0.15 : 1;
+  line(ctx, x, y, x, y + 12 * s, OUT, 1.8);
+  fillRR(ctx, x - 12 * s, y + 12 * s, 24 * s, 20 * s, 6 * s, '#ffd43b', OUT, 1.8);
+  fillRR(ctx, x - 8 * s, y + 15 * s, 16 * s, 8 * s, 2, '#cfeaff', OUT, 1.2);
+  ctx.globalAlpha = 1;
+}
 defineBuildings({
   cableway: {
     paint: paintCableway,
+    live: cablewayLive,
     icon: '🚡',
-    box: (b) => [-24, -190, b.w * T + 24, b.h * T + 14],
+    box: (b) => (b.cable === 'down' ? [-24, -60, b.w * T + 120, b.h * T + 130] : [-24, -190, b.w * T + 24, b.h * T + 14]),
     hitUp: () => 120,
     lights: (b) => [[(b.x + b.w / 2) * T + 31, b.y * T + 46, 40, 40, 0.8]],
   },

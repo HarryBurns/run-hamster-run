@@ -4,18 +4,19 @@ import { scene } from '../core/loop.js';
 import { setMusic, setAmbience } from '../core/audio.js';
 
 // Сцена сама говорит, что в ней слышно: scene.sound() → { force, day, sea, rain, birds, crickets }.
-// day: 'town' — музыка города по сезону, 'forest' — лесная (лес, П.9), иначе — домашняя.
+// day: 'town' — музыка города по сезону, 'forest' — лесная (лес, П.9), 'mountain' — горная, иначе — домашняя;
+// wind — ветер (0..1, гора), bells — колокольчики коров (0..1, луг на горе).
 export function updateSound() {
   const sc = scene();
   const playing = G.state && sc && !document.getElementById('title');
   if (!playing) {
     setMusic('title');
-    setAmbience({ sea: 0, rain: 0, birds: false, night: false });
+    setAmbience({ sea: 0, rain: 0, birds: false, night: false, wind: 0, bells: 0 });
     return;
   }
   if (document.getElementById('piano')) {
     setMusic(null);
-    setAmbience({ sea: 0, rain: 0, birds: false, night: false });
+    setAmbience({ sea: 0, rain: 0, birds: false, night: false, wind: 0, bells: 0 });
     return;
   } // за пианино фоновая музыка молчит
   const mg = !!document.getElementById('mg'),
@@ -23,7 +24,7 @@ export function updateSound() {
     night = darkness() > 0.75,
     s = (sc.sound && sc.sound()) || {};
   setMusic(
-    mg ? 'minigame' : s.force ? s.force : night ? 'night' : s.day === 'town' ? 'town_' + c.season : s.day === 'forest' ? 'forest' : 'villa',
+    mg ? 'minigame' : s.force ? s.force : night ? 'night' : s.day === 'town' ? 'town_' + c.season : s.day === 'forest' || s.day === 'mountain' ? s.day : 'villa',
   );
   const rain = G.state.weather === 'rain';
   setAmbience({
@@ -32,5 +33,7 @@ export function updateSound() {
     birds:
       !!s.birds && !mg && !night && !rain && (c.season === 'spring' || c.season === 'summer' || (s.day === 'forest' && c.season === 'autumn')),
     night: !!s.crickets && !mg && night && c.season !== 'winter',
+    wind: mg ? 0 : s.wind || 0,
+    bells: mg || night ? 0 : s.bells || 0,
   });
 }

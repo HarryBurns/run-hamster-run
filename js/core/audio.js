@@ -445,6 +445,20 @@ const TRACKS = {
     perc: 0,
     density: 0.45,
   },
+  // гора (П.9): бодрее леса, «альпийские» колокольчики и щипки — как песенка на лыжной прогулке
+  mountain: {
+    bpm: 98,
+    key: 62,
+    scale: MAJ_PENTA,
+    prog: ['I', 'IV', 'V', 'I', 'vi', 'IV', 'ii', 'V'],
+    lead: ['bell', 0.068, 0.9],
+    arp: ['pluck', 0.026, 0.5],
+    arpPat: [0, 1, 2, 1, 2, 1, 0, -1],
+    bass: 0.07,
+    perc: 0,
+    density: 0.5,
+    swing: 0.12,
+  },
   night: {
     bpm: 66,
     key: 57,
@@ -705,9 +719,10 @@ export function setMusic(id) {
 // =====================================================================
 //                              ОКРУЖЕНИЕ
 // =====================================================================
-const amb = { sea: 0, rain: 0, birds: false, night: false };
+const amb = { sea: 0, rain: 0, birds: false, night: false, wind: 0, bells: 0 };
 let seaNode = null,
-  rainNode = null;
+  rainNode = null,
+  windNode = null;
 export function setAmbience(a) {
   Object.assign(amb, a);
 }
@@ -732,6 +747,14 @@ function chirp(t0) {
     n = 2 + Math.floor(Math.random() * 3);
   for (let i = 0; i < n; i++)
     tone(base * (1 + (i % 2) * 0.12), t0 + i * 0.09, 0.07, 'sine', 0.018, base * 1.25, ambBus);
+}
+/** Колокольчик коровы на лугу (гора): два-три «звяк» с призвуком. */
+function cowbell(t0, vol) {
+  const f = 760 + Math.random() * 160;
+  for (let i = 0; i < 2 + Math.floor(Math.random() * 2); i++) {
+    tone(f, t0 + i * 0.16, 0.35, 'triangle', 0.03 * vol, null, ambBus);
+    tone(f * 2.7, t0 + i * 0.16, 0.18, 'sine', 0.012 * vol, null, ambBus);
+  }
 }
 function cricket() {
   for (let i = 0; i < 3; i++) tone(4300, i * 0.07, 0.04, 'sine', 0.008, null, ambBus);
@@ -767,6 +790,14 @@ function tick() {
       if (!rainNode) rainNode = loopNoise('highpass', 2400);
       rainNode.g.gain.setTargetAtTime(amb.rain * 0.035, now, 0.4);
     }
+    if (amb.wind > 0.01 || windNode) {
+      // ветер на горе: низкий шум, то сильнее, то тише
+      if (!windNode) windNode = loopNoise('bandpass', 420, 0.5);
+      const gust = 0.5 + 0.5 * Math.sin(now * 0.33) * Math.sin(now * 0.71 + 1);
+      windNode.g.gain.setTargetAtTime(amb.wind * 0.05 * (0.35 + gust * 0.65), now, 0.5);
+      windNode.f.frequency.setTargetAtTime(300 + gust * 380, now, 0.6);
+    }
+    if (amb.bells > 0.05 && Math.random() < 0.006) cowbell(0, amb.bells);
     if (amb.birds && Math.random() < 0.012) chirp(0);
     if (amb.night && Math.random() < 0.03) cricket();
   }

@@ -515,3 +515,7 @@ h4 { margin: 4px 0; font-size: 16px; }
 .land .lk { position: absolute; left: 21px; top: 20px; font-size: 13px; }
 .land.open { background: #d3f9d8; }
 .land.open .ic { filter: none; }
+/* канатная дорога (гора, П.9): картинка переезда в затемнении */
+.cable-ride { background: #2b3a67; }
+.cable-ride .msg p { margin: 12px 0 0; font-weight: 900; }
+.cable-ride canvas { display: block; margin: 0 auto; max-width: 100%; height: auto; box-shadow: 0 6px 0 rgba(0,0,0,.25); }

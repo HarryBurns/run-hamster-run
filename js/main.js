@@ -24,6 +24,7 @@ import { initHud, buildHud, updateHud } from './ui/hud.js';
 import town from './locations/town.js';
 import demoMeadow from './locations/demo_meadow.js';
 import forest from './locations/forest.js';
+import mountain from './locations/mountain.js';
 import { createSideScene } from './engine/side/scene.js';
 import villa from './interiors/villa.js';
 import demoHouse from './interiors/demo_house.js';
@@ -39,7 +40,7 @@ const hud = document.getElementById('hud');
 
 // Сцены игры. Локации — описания (locations/*.js) для «движка локаций», дома — описания (interiors/*.js)
 // для «движка домов».
-for (const loc of [town, forest, demoMeadow]) registerScene(loc.name, loc); // demo_meadow — пробная, входа в игре нет
+for (const loc of [town, forest, mountain, demoMeadow]) registerScene(loc.name, loc); // demo_meadow — пробная, входа в игре нет
 registerScene('tower', TowerScene);
 registerScene('dive', DiveScene);
 // HOUSES — вилла, покупное жильё и дома жителей (interiors/houses.js); demo_house — пробный, входа в игре нет

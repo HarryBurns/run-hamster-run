@@ -13,7 +13,7 @@
 // находки на земле), улей, белка, костёр, домик на дереве, бельчонок из задания Шишкина, станция канатной дороги
 // (way:mountain — замочек, LANDS). Атмосфера: днём лучики сквозь кроны, зимой падает снег, ночью темно,
 // светлячки летом (их рисует движок над травой), у ручья журчит вода.
-import { G, cal, questNow, darkness, ownsHome } from '../core/state.js';
+import { G, cal, questNow, darkness, ownsHome, landOpen } from '../core/state.js';
 import { clamp, seeded } from '../core/util.js';
 import { FOREST_GATHER, FOREST, QUEST_BY_ID, wildIn, DAYS_PER_MONTH } from '../data/index.js';
 import { T, put, createTopDownScene } from '../engine/topdown/index.js';
@@ -405,8 +405,18 @@ const forest = createTopDownScene({
       frame: [-56, -100, 3 * T + 56, 2 * T + 44],
       act: 'home:cabin',
     },
-    // станция канатной дороги: на гору (откроется заданием Сени — LANDS.mountain); пока — окно с замочком
-    { id: 'station', kind: 'cableway', ...AT.station, name: 'Канатная дорога', icon: '🚡', act: 'way:mountain' },
+    // станция канатной дороги: на гору (открывает задание Сени — LANDS.mountain); пока закрыто — окно с замочком,
+    // открыто — вагончик ездит по тросу, а вход везёт наверх (way:mountain → cableway:up, features/mountain.js)
+    {
+      id: 'station',
+      kind: 'cableway',
+      ...AT.station,
+      name: 'Канатная дорога',
+      icon: '🚡',
+      act: 'way:mountain',
+      signText: () => (landOpen('mountain') ? '🚡 На гору' : '🔒 На гору'),
+      running: () => landOpen('mountain'),
+    },
   ],
   actors: [{ npc: 'shishkin', at: [9, 31], home: 'hut', always: true, act: 'forester' }],
   places: [
@@ -452,7 +462,8 @@ const forest = createTopDownScene({
     gate: { at: [10.5, 39.5], label: '🏙️ Тропа в город' },
   },
   // из города приходят по тропе (вход gate, у ворот); выход — нижняя кромка тропы: назад в город, за ворота виллы
-  entries: { gate: { at: [10.5, 37.5], from: 'world' } },
+  // с горы — на станцию канатной дороги (features/mountain.js, cableway:down)
+  entries: { gate: { at: [10.5, 37.5], from: 'world' }, station: { building: 'station' } },
   exits: [{ id: 'town', area: [10, 39, 11, 39], to: 'world', entry: 'forest' }],
   // где разбрасывать предметы заданий (письма с loc: 'forest'): поляны и тропы
   zones: { glade: { tiles: ['g', 'y'], reach: { from: [10, 37] } } },

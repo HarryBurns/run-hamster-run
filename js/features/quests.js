@@ -470,6 +470,10 @@ export function openWay(id) {
   if (!land) return;
   sfx('tap');
   if (landOpen(id)) {
+    if (land.go) {
+      run(land.go); // своя дорога (вагончик канатной дороги)
+      return;
+    }
     if (land.scene) {
       go(land.scene, { at: land.entry });
       return;
