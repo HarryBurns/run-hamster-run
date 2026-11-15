@@ -58,6 +58,7 @@ initHud(hud, {
   task: { info: F.taskChip, fn: F.showLetter },
   map: { icon: '🗺️', label: 'Карта', fn: F.openMap },
   home: { icon: '🏡', label: 'Домой', fn: goHome },
+  sick: { fn: F.showSickHelp },
 });
 
 /** Игра спотыкается в каждом кадре: честно сказать об этом и предложить выход. */

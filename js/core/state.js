@@ -23,6 +23,7 @@ import {
   HOME_BY_ID,
   BIZ_BY_ID,
   VISIT,
+  HEALTH,
   resolveLook,
   defaultLook,
 } from '../data/index.js';
@@ -56,6 +57,12 @@ export const MIGRATIONS = {
     s.biz = {};
     s.visits = {};
   },
+  // v3 → v4, болезнь (Ф1): здорова; чтобы простуда не застала врасплох в первую же ночь после обновления игры,
+  // первые HEALTH.grace дня (как в новой игре) не болеет. Остальное не трогается.
+  3: (s) => {
+    s.sick = null;
+    s.immuneUntil = (Number.isFinite(s.day) ? s.day : 0) + HEALTH.grace;
+  },
 };
 export const saveVersion = () => 1 + Object.keys(MIGRATIONS).length;
 
@@ -67,6 +74,7 @@ export const G = {
   cover: 0, // сколько открыто того, что закрывает сцену целиком (мини-игра, пианино, затемнение сна): сцену не рисуем
   dim: 0, // сколько открыто окон с затемнением: сцену под ними рисуем через кадр-другой
   view: { w: 0, h: 0, dpr: 1 }, // размер экрана в CSS-пикселях и сколько пикселей канвы в одном CSS-пикселе
+  sneezeAt: null, // когда простуженная хомячок последний раз чихнула (по G.time; features/health.js)
 };
 
 // Мебель, которая стоит на вилле в начале игры. floor: 0..2, x — центр, y — высота над полом (для настенных)
@@ -160,6 +168,8 @@ export function newGame(name) {
     guestsAt: 'villa', // в каком доме сейчас гости
     biz: {}, // свои заведения: id → { day: когда куплено, till: в кассе, total: получено всего, last, special… }
     visits: {}, // в гостях у жителей: житель → сколько раз была
+    sick: null, // простыла (Ф1): { since: день, когда заболела, cause: 'cold' | 'sea' | 'rain' | 'none' } или null
+    immuneUntil: HEALTH.grace, // с какого дня снова можно заболеть (в новой игре — не в первые дни)
     // первый день
     weather: 'snow',
     visitor: null,
@@ -290,6 +300,11 @@ export function repair(s) {
   num('spent', 0);
   num('earned', 0);
   num('pearlsSold', 0);
+  // болезнь: { since, cause } или null; заболеть «в будущем» нельзя
+  num('immuneUntil', 0);
+  const sk = s.sick;
+  if (!sk || typeof sk !== 'object' || !Number.isFinite(sk.since) || typeof sk.cause !== 'string') s.sick = null;
+  else if (Number.isFinite(s.day) && sk.since > s.day) sk.since = s.day;
   // учёт денег за сегодня и вчера
   if (!s.ledger || typeof s.ledger !== 'object') s.ledger = newLedger();
   for (const k of ['today', 'yesterday']) {
@@ -432,12 +447,30 @@ let lookCache = null,
   lookKey = '';
 export function playerLook() {
   const s = G.state;
-  const key = JSON.stringify(s.look);
+  const key = JSON.stringify(s.look) + (s.sick ? '+sick' : '');
   if (key !== lookKey) {
     lookKey = key;
-    lookCache = resolveLook(s.look);
+    // простуженная (Ф1) — с красным носиком, румянцем и градусником: это видно во всех сценах (art/hamster.js)
+    lookCache = s.sick ? { ...resolveLook(s.look), sick: true } : resolveLook(s.look);
   }
   return lookCache;
+}
+
+// ---------- болезнь (Ф1; только чтение) ----------
+/** Простыла ли хомячок. */
+export const isSick = () => !!(G.state && G.state.sick);
+/** Можно ли купаться и нырять (простуженной — нельзя). */
+export const canSwim = () => !isSick();
+/** Во сколько раз медленнее ходит: простуженная — HEALTH.slow, но тёплое питьё сегодня возвращает обычный шаг. */
+export const walkK = () => (isSick() && !G.state.dayFlags.sickTea ? HEALTH.slow : 1);
+/**
+ * Чих: 0…1 — как далеко зашёл (0–0,55 «а-а-а…», дальше «апчхи!»), null — сейчас не чихает. Когда чихнуть, решает
+ * features/health.js (G.sneezeAt — время по G.time, не сохраняется); сцены передают это в позу (pose.sneeze).
+ */
+export function sneezePhase() {
+  if (G.sneezeAt == null || !isSick()) return null;
+  const k = (G.time - G.sneezeAt) / 1.1;
+  return k >= 0 && k < 1 ? k : null;
 }
 let beachBase = null,
   beachFlip = null,

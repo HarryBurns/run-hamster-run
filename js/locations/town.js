@@ -128,10 +128,15 @@ const BUILDING_ACTS = {
     { text: '👠 На подиум!', cls: 'green', do: 'minigame:fashion' },
     { text: 'Не сейчас' },
   ]),
-  hospital: ask('hospital', 'Ой, как хорошо, что ты пришла! Пациентов много. Поможешь их вылечить?', [
-    { text: '🩺 Лечить', cls: 'green', do: 'minigame:doctor' },
-    { text: 'Не сейчас' },
-  ]),
+  // больница: простуженную (Ф1) сразу ведут на приём к доктору, иначе медсестра зовёт поработать (features/health.js)
+  hospital: {
+    do: 'hospital',
+    ask: ask('hospital', 'Ой, как хорошо, что ты пришла! Пациентов много. Поможешь их вылечить?', [
+      { text: '🩺 Лечить', cls: 'green', do: 'minigame:doctor' },
+      { text: '🌡️ Как не простыть?', do: 'health-tips' },
+      { text: 'Не сейчас' },
+    ]),
+  },
   school: ask('school', 'Здравствуй! Детям как раз нужна учительница. Проведёшь урок?', [
     { text: '👩‍🏫 Провести урок', cls: 'green', do: 'minigame:teacher' },
     { text: 'Не сейчас' },

@@ -28,6 +28,8 @@ import { ell, fillRR, line, rr, shade } from '../../core/draw.js';
 import { sfx } from '../../core/audio.js';
 import { emit } from '../../core/events.js';
 import { toast } from '../../ui/toast.js';
+import { canSwim } from '../../core/state.js';
+import { SICK_TEXT } from '../../data/index.js';
 import { OUT } from './rooms.js';
 
 // ---------- общее поведение ----------
@@ -306,6 +308,7 @@ export const FIXTURES = {
     h: 90,
     state: 'swim',
     use(sc, b) {
+      if (!canSwim()) return void toast(SICK_TEXT.water); // простуженной в бассейн нельзя (Ф1); ванна и сауна — можно
       sc.settle('swim', b, clamp(sc.p.x, b.x - b.w / 2 + 60, b.x + b.w / 2 - 60));
       sfx('splash');
       emit('homeswim');

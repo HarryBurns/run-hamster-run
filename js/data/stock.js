@@ -26,6 +26,8 @@ function roll(n, key) {
   h ^= h >>> 15;
   return (h >>> 0) / 4294967296;
 }
+/** Тот же жребий для других «решений дня» (заболела ли хомячок этой ночью — data/health.js): 0…1 по числу и ключу. */
+export const dayRoll = roll;
 
 /** Сколько штук товара привезли в день day: 0 — сегодня его нет, Infinity — сколько угодно. */
 export function stockOn(day, key, rule) {

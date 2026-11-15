@@ -154,7 +154,7 @@ export function eat(id) {
   sfx('eat');
   toast(`Ням-ням! ${d.e} ${d.name}`, 'good');
   emit('happy'); // сцена-дом, если мы в ней, покажет радость
-  emit('eat');
+  emit('eat', { id });
 }
 
 export function dishGrid(body, panel, onPick, btnText = 'Съесть') {
@@ -190,7 +190,7 @@ export function eatRaw(id) {
   sfx('eat');
   toast(`Ням-ням! ${i.e} ${i.name}`, 'good');
   emit('happy');
-  emit('eat');
+  emit('eat', { ing: id });
 }
 
 /** Продукты в рюкзаке или холодильнике; то, что едят сырым, можно съесть прямо отсюда (panel — чтобы обновить окно). */

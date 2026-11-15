@@ -11,7 +11,7 @@
 //
 // СВЕТ. Ночью (темнота > 0,3) у предметов с полем light: [dx, dy, радиус] и у зданий, чей вид отдаёт
 // lights(b) → [[x, y, rx, ry?, сила?], …], появляются пятна света: темнота в этих местах «прорезана» (drawNight).
-import { G, cal } from '../../core/state.js';
+import { G, cal, sneezePhase } from '../../core/state.js';
 import { clamp, rnd, dist } from '../../core/util.js';
 import { ell, fillRR, poly, rr, shade, star, emoji } from '../../core/draw.js';
 import { drawHamster, blinkAt } from '../../art/hamster.js';
@@ -407,7 +407,7 @@ function drawHero(ctx, sc, look, ent, t) {
   }
   const kind = TILES[ent.surf] || {},
     swim = kind.swim;
-  const pose = { time: t, dir: ent.dir, walk: ent.moving ? ent.walkT : null, blink: blinkAt(t, 0) };
+  const pose = { time: t, dir: ent.dir, walk: ent.moving ? ent.walkT : null, blink: blinkAt(t, 0), sneeze: sneezePhase() };
   if (swim) {
     pose.clipBelow = swim.clip;
     pose.walk = ent.walkT;

@@ -18,6 +18,8 @@ import {
   TASK_COINS_DEFAULT,
   canSow,
   foodRule,
+  JOBS,
+  taskNeedsHealth,
 } from '../data/index.js';
 import { getLocation, homeLocation } from '../engine/topdown/index.js';
 import { enqueue } from '../ui/modals.js';
@@ -48,9 +50,11 @@ export function newDayMail() {
         (!t.needsCrop || ripe) &&
         (t.type !== 'wheel' || hasWheel) &&
         (t.type !== 'piano' || hasPiano) &&
-        (t.id !== 'buy_clothes' || newClothesToday().length > 0), // «Обновка» — только когда на витринах есть что купить
+        (t.id !== 'buy_clothes' || newClothesToday().length > 0) && // «Обновка» — только когда на витринах есть что купить
+        (!s.sick || !taskNeedsHealth(t, JOBS)), // простуженной (Ф1) не приходят работа, купание и ныряние
     );
-    if (!pool.length) pool = TASKS.filter((t) => !t.seasons || t.seasons.includes(sea));
+    if (!pool.length)
+      pool = TASKS.filter((t) => (!t.seasons || t.seasons.includes(sea)) && (!s.sick || !taskNeedsHealth(t, JOBS)));
     id = pick(pool).id;
   }
   setMail(id);

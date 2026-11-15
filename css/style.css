@@ -60,6 +60,11 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .chip.task { max-width: min(60vw, 330px); cursor: pointer; white-space: normal; line-height: 1.15; position: relative; }
 .chip.task::after { content: ""; position: absolute; inset: -8px -4px; } /* зона нажатия больше самой плашки */
 .chip.task.done { background: #d3f9d8; }
+/* простыла (Ф1): значок рядом с датой, по нажатию — что делать */
+.chip.sick { cursor: pointer; background: #ffe3e3; padding: 4px 9px; font-size: 18px; position: relative; animation: sick-wobble 2.4s ease-in-out infinite; }
+.chip.sick::after { content: ""; position: absolute; inset: -8px -4px; }
+.chip.sick[hidden] { display: none; }
+@keyframes sick-wobble { 0%, 80%, 100% { transform: rotate(0); } 86% { transform: rotate(-12deg); } 93% { transform: rotate(10deg); } }
 .hud-spacer { flex: 1; }
 .hud-btns {
   position: absolute; right: calc(8px + env(safe-area-inset-right)); bottom: calc(10px + env(safe-area-inset-bottom));

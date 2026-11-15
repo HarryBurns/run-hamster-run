@@ -62,7 +62,7 @@
 // pending — «что сделать, когда дойдём»: { fn(sc) } | { place } | { b: здание } | { npc } | { obj }.
 // Способ передвижения героя (кораблик): sc.p.ride = { speed, pass(tx, ty), step: { sfx, pause }, moved(sc),
 // draw(ctx, sc, p, t, look), drop(sc) } — пока он задан, герой ходит по его правилам; null — пешком.
-import { G, darkness, cal, playerLook, beachLook } from '../../core/state.js';
+import { G, darkness, cal, playerLook, beachLook, walkK, canSwim } from '../../core/state.js';
 import { addItem, setFlag, setDayFlag, collectMailItem } from '../../core/actions.js';
 import { emit } from '../../core/events.js';
 import { run } from '../../core/registry.js';
@@ -72,7 +72,7 @@ import { Camera } from '../../core/camera.js';
 import { clamp, dist, seeded } from '../../core/util.js';
 import { sfx } from '../../core/audio.js';
 import { toast } from '../../ui/toast.js';
-import { TASK_BY_ID } from '../../data/index.js';
+import { TASK_BY_ID, SICK_TEXT } from '../../data/index.js';
 import { T, SP, TILES, OBJECTS, BUILDING_KINDS, tileOf } from './kinds.js';
 import { createMap, mapSize } from './map.js';
 import { moveAlong, canStand, makeResidents, settleResidents, updateResidents, hitResident } from './actors.js';
@@ -118,6 +118,15 @@ export function createTopDownScene(desc) {
   }
   const placeOn = (pl) => !pl.when || pl.when();
 
+  /** Герой сейчас в воде (на клетке, где плавают). */
+  const inWater = () => !!(TILES[sc.p.surf] && TILES[sc.p.surf].swim);
+  let waterHintT = -9;
+  /** Простуженная пытается зайти в воду: добрая подсказка (не чаще раза в 4 секунды). */
+  const waterHint = () => {
+    if (G.time - waterHintT < 4) return;
+    waterHintT = G.time;
+    toast(SICK_TEXT.water);
+  };
   const sc = {
     name: desc.id,
     desc,
@@ -179,8 +188,11 @@ export function createTopDownScene(desc) {
     },
 
     // ---------- «дойти и сделать» ----------
-    /** Кто и где сейчас может пройти: правило героя (пешком или «верхом»). */
-    pass: () => (sc.p.ride ? sc.p.ride.pass : map.foot),
+    /**
+     * Кто и где сейчас может пройти: правило героя (пешком или «верхом»). Простуженная (Ф1) в воду не заходит
+     * (map.noSwim); если она уже в воде — по воде можно, чтобы выйти на берег.
+     */
+    pass: () => (sc.p.ride ? sc.p.ride.pass : canSwim() || inWater() ? map.foot : map.noSwim),
     /** Отправить героя в точку мира. exact — встать ровно в неё. false — туда не дойти. */
     walkTo: (px, py, exact) => map.route(sc.p, px, py, exact, sc.pass()),
     /** Подойти к клетке рядом с точкой (сама она может быть занята) и выполнить pending. */
@@ -432,6 +444,7 @@ export function createTopDownScene(desc) {
         }
       }
       if (sc.walkTo(w.x, w.y, true)) sfx('step');
+      else if (!p.ride && !canSwim() && TILES[map.at(tx, ty)] && TILES[map.at(tx, ty)].swim) waterHint();
     },
     interact() {
       const p = sc.p;
@@ -496,7 +509,8 @@ export function createTopDownScene(desc) {
         (keys.has('ArrowRight') || keys.has('KeyD') ? 1 : 0) - (keys.has('ArrowLeft') || keys.has('KeyA') ? 1 : 0);
       const ky =
         (keys.has('ArrowDown') || keys.has('KeyS') ? 1 : 0) - (keys.has('ArrowUp') || keys.has('KeyW') ? 1 : 0);
-      const sp = p.ride ? p.ride.speed : (TILES[p.surf] && TILES[p.surf].speed) || 225;
+      // пешком простуженная (Ф1) ходит медленнее; кораблик плывёт как обычно
+      const sp = p.ride ? p.ride.speed : ((TILES[p.surf] && TILES[p.surf].speed) || 225) * walkK();
       if (kx || ky) {
         p.path = [];
         p.pending = null;
@@ -505,6 +519,13 @@ export function createTopDownScene(desc) {
         const k = ((so ? OBJECTS[so.type].slow : 1) * sp * dt) / Math.hypot(kx, ky);
         if (canStand(pass, p.x + kx * k, p.y)) p.x += kx * k;
         if (canStand(pass, p.x, p.y + ky * k)) p.y += ky * k;
+        if (!p.ride && !canSwim()) {
+          // упёрлась в воду — подсказать, почему не идёт
+          const wx = tileOf(p.x + kx * T * 0.6),
+            wy = tileOf(p.y + ky * T * 0.6),
+            wk = TILES[m.at(wx, wy)];
+          if (wk && wk.swim && !inWater()) waterHint();
+        }
         if (kx) p.dir = kx;
         p.moving = true;
         p.walkT += dt * 2.4;

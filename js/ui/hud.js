@@ -6,6 +6,7 @@
 //     main: { icon, label, on, fn },            // главная кнопка вместо «Домой» («Обустроить», «Всплыть»)
 //     noMap: true,                              // спрятать «Карту»
 //     cls: 'decor' }                            // класс на весь HUD (в режиме обустройства кнопки прячутся)
+// Рядом с датой — значок 🤒, пока хомячок простыла (Ф1); по нажатию — config.sick.fn.
 import { G, cal } from '../core/state.js';
 import { on } from '../core/events.js';
 import { scene, sceneName } from '../core/loop.js';
@@ -15,7 +16,7 @@ import { moneyAnchor } from './coins.js';
 
 let root = null,
   cfg = null;
-let chipDate, chipMoney, chipTask, leftBox;
+let chipDate, chipSick, chipMoney, chipTask, leftBox;
 let leftSig = ''; // что сейчас показано в левом столбике (чтобы не пересобирать его зря)
 let dropAnchor = null; // плашка монет — место, где всплывает «+350» (ui/coins.js)
 
@@ -35,12 +36,14 @@ function rbtn(icon, label, fn) {
  *   task: { info(), fn }              плашка задания: info() → { text, cls }, fn — по нажатию
  *   map: { icon, label, fn }          кнопка «Карта»
  *   home: { icon, label, fn }         главная кнопка по умолчанию — «Домой»
+ *   sick: { fn }                      значок 🤒 «простыла» рядом с датой — по нажатию
  */
 export function initHud(rootEl, config) {
   root = rootEl;
   cfg = config;
   on('hud', updateHud);
   on('money', updateHud);
+  on('health', updateHud);
 }
 
 /** Собрать HUD заново (в начале игры). */
@@ -48,6 +51,13 @@ export function buildHud() {
   root.innerHTML = '';
   const top = el('div', 'hud-top');
   chipDate = el('div', 'chip');
+  chipSick = el('div', 'chip sick', '🤒');
+  chipSick.title = 'Простыла — что делать?';
+  chipSick.hidden = true;
+  chipSick.onclick = () => {
+    sfx('tap');
+    if (cfg.sick) cfg.sick.fn();
+  };
   chipMoney = el('div', 'chip money');
   if (dropAnchor) dropAnchor();
   dropAnchor = moneyAnchor(chipMoney);
@@ -56,7 +66,7 @@ export function buildHud() {
     sfx('tap');
     cfg.task.fn();
   };
-  top.append(chipDate, chipMoney, chipTask);
+  top.append(chipDate, chipSick, chipMoney, chipTask);
   const right = el('div', 'hud-btns');
   right.append(...cfg.right.map((b) => rbtn(b.icon, b.label, b.fn)));
   leftBox = el('div', 'hud-btns left');
@@ -68,6 +78,7 @@ export function updateHud() {
   if (!G.state || !chipDate) return;
   const c = cal();
   chipDate.innerHTML = `${c.seasonIcon} <b>${c.monthName}</b>, день ${c.dom} · ${c.phaseIcon} ${c.time}`;
+  chipSick.hidden = !G.state.sick;
   chipMoney.innerHTML = `🪙 <b>${fmtMoney(G.state.money)}</b>`;
   const t = cfg.task.info();
   chipTask.textContent = t.text;

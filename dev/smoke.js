@@ -993,7 +993,7 @@ async function economy({ page, step, ev, wait, closeAll }) {
     await wait(500);
     const s = await state();
     const chip = norm(await ev(() => document.querySelector('.chip.money').textContent));
-    expect(s.money === 3000 && s.earned === 0 && s.spent === 0 && s.v === 3, 'новая игра', [s.money, s.earned, s.v]);
+    expect(s.money === 3000 && s.earned === 0 && s.spent === 0 && s.v === 4, 'новая игра', [s.money, s.earned, s.v]);
     expect(s.ledger && s.ledger.today.out === 0 && s.ledger.yesterday, 'нет учёта денег', s.ledger);
     expect(chip.includes('3 000'), 'плашка монет', chip);
     // все цены по карману или хотя бы разумны: ничего дешевле 10 и ничего «за миллион»
@@ -1386,7 +1386,7 @@ async function economy({ page, step, ev, wait, closeAll }) {
     const letter = await text('.overlay .panel-body');
     expect(letter.includes('20 000') && letter.includes(old.name) && /стройк/i.test(letter), 'письмо банка', letter);
     let s = await state();
-    expect(s.v === 3 && s.money === 20000 && s.spent === 0 && s.earned === 0, 'деньги после переноса', [s.v, s.money]);
+    expect(s.v === 4 && s.money === 20000 && s.spent === 0 && s.earned === 0, 'деньги после переноса', [s.v, s.money]);
     expect(s.flags.bankLetter === 2 && s.ledger && s.pearlsSold === 0, 'новые поля', [s.flags, s.ledger, s.pearlsSold]);
     const same = (k) => JSON.stringify(s[k]) === JSON.stringify(old[k]);
     for (const k of ['name', 'storage', 'dishes', 'seeds', 'stickers', 'day', 'pearls'])
@@ -1396,7 +1396,7 @@ async function economy({ page, step, ev, wait, closeAll }) {
     // рецепты: всё, что было, на месте; в конец дописаны только новые рецепты «с начала игры» (repair)
     expect(
       JSON.stringify(s.recipes.slice(0, old.recipes.length)) === JSON.stringify(old.recipes) &&
-        s.recipes.slice(old.recipes.length).every((r) => ['mushroom_soup', 'blueberry_muffin', 'lettuce_wrap'].includes(r)),
+        s.recipes.slice(old.recipes.length).every((r) => ['mushroom_soup', 'blueberry_muffin', 'lettuce_wrap', 'honey_tea'].includes(r)),
       'после переноса изменилось «recipes»',
       [s.recipes, old.recipes],
     );
@@ -1424,7 +1424,7 @@ async function economy({ page, step, ev, wait, closeAll }) {
     await wait(2200);
     s = await state();
     expect((await page.locator('text=Письмо из Хомяк-Банка').count()) === 0, 'письмо банка показано второй раз');
-    expect(s.money === 20000 && s.v === 3 && s.flags.bankLetter === 2, 'после второго входа', [s.money, s.flags]);
+    expect(s.money === 20000 && s.v === 4 && s.flags.bankLetter === 2, 'после второго входа', [s.money, s.flags]);
     expect(s.clothes.filter((id) => id === 'flip_pink').length === 1, 'шлёпанцы подарены второй раз', s.clothes);
     await closeAll();
   });
@@ -1435,7 +1435,7 @@ async function economy({ page, step, ev, wait, closeAll }) {
     await wait(2200);
     const s = await state();
     expect((await page.locator('text=Письмо из Хомяк-Банка').count()) === 0, 'письмо банка в новой игре');
-    expect(s.v === 3 && s.name === want.name && s.money === want.money && s.earned === want.earned, 'образец v2', [
+    expect(s.v === 4 && s.name === want.name && s.money === want.money && s.earned === want.earned, 'образец v2', [
       s.v,
       s.money,
     ]);

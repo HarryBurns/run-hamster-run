@@ -3,7 +3,7 @@ import { clamp, rnd, TAU, el } from '../core/util.js';
 import { ell, fillRR, line, poly, mix, rr, star, text, emoji, makeCanvas } from '../core/draw.js';
 import { drawHamster, blinkAt } from '../art/hamster.js';
 import { vendorLook, VENDORS } from '../data/index.js';
-import { G, playerLook, cal, darkness, ownsHome } from '../core/state.js';
+import { G, playerLook, cal, darkness, ownsHome, walkK, sneezePhase } from '../core/state.js';
 import { award, bumpFlag } from '../core/actions.js';
 import { emit } from '../core/events.js';
 import { run } from '../core/registry.js';
@@ -418,12 +418,12 @@ export function update(dt) {
     p.state = 'idle';
     p.tx = null;
     p.pending = null;
-    p.x = clamp(p.x + kx * 320 * dt, 50, width() - 50);
+    p.x = clamp(p.x + kx * 320 * walkK() * dt, 50, width() - 50);
     p.dir = kx;
     p.moving = true;
   } else if (p.tx !== null) {
     const dx = p.tx - p.x,
-      step = 340 * dt;
+      step = 340 * walkK() * dt;
     if (Math.abs(dx) <= step) {
       p.x = p.tx;
       p.tx = null;
@@ -557,6 +557,7 @@ function drawPlayer(ctx, t) {
       blink: blinkAt(t),
       happy: p.happy > 0,
       armsUp: p.happy > 0 && Math.sin(t * 10) > 0,
+      sneeze: sneezePhase(),
     };
   if (p.state === 'aim') pose.armsUp = true;
   if (p.state === 'sit') drawHamster(ctx, p.x, -36, HS, playerLook(), { ...pose, sit: true, shadow: false });

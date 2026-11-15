@@ -29,6 +29,7 @@ import { runMinigame } from '../minigames/host.js';
 import { openLayer } from '../ui/modals.js';
 import { toast } from '../ui/toast.js';
 import { clothesPanel, scoreOutfit } from './wardrobe.js';
+import { isJobGame, sickRefusal } from './health.js';
 
 const S = () => G.state;
 
@@ -170,6 +171,11 @@ function payJob(id, stars, biz) {
 
 export async function playMinigame(id, extra = {}) {
   const s = S();
+  // простуженная не работает (Ф1): вежливый отказ; рыбалка и прочее «не работа» — можно
+  if (s.sick && isJobGame(id)) {
+    await sickRefusal(id);
+    return null;
+  }
   const plays = s.plays[id] || 0;
   const closeLayer = openLayer({ cover: true }); // мини-игра закрывает весь экран: город под ней не рисуем
   let res = null;

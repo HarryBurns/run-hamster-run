@@ -17,6 +17,7 @@ export * from './panorama.js';
 export * from './minigames.js';
 export * from './cooking.js';
 export * from './gifts.js';
+export * from './health.js';
 export * from './sleep.js';
 export * from './friends.js';
 export * from './visits.js';

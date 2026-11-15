@@ -165,6 +165,12 @@ export function createMap(desc) {
     if (k.walk !== undefined && (k.walk === false || (typeof k.walk === 'function' && !k.walk()))) return false;
     return !solid[ty][tx];
   };
+  /** Может ли пройти герой пешком, не заходя в воду, где плавают (простуженная, Ф1). */
+  m.noSwim = (tx, ty) => {
+    const row = kinds[ty],
+      k = row && row[tx];
+    return !!k && !k.swim && m.foot(tx, ty);
+  };
   /** Может ли пройти житель: только по суше. */
   m.dry = (tx, ty) => {
     const row = kinds[ty],

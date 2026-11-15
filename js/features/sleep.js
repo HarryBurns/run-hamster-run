@@ -10,6 +10,7 @@ import { enqueue } from '../ui/modals.js';
 import { message, confirmBox } from '../ui/panel.js';
 import { toast } from '../ui/toast.js';
 import { newDayMail } from './mail.js';
+import { planNight, applyNight, morningNews } from './health.js';
 
 const S = () => G.state;
 
@@ -26,7 +27,9 @@ export async function askSleep() {
   sfx('sleep');
   const release = await fadeTo('Спокойной ночи… 💤', 1700);
   const s = S();
+  const night = planNight(); // болезнь (Ф1): решается по прошедшему дню, применяется к новому — до письма дня
   nextDay();
+  applyNight(night);
   newDayMail();
   const c = cal();
   if (s.day > 0 && s.day % 36 === 0) award('x_year', { delay: 2500 });
@@ -43,10 +46,11 @@ export async function askSleep() {
           html: `<div class="center big-emoji">${c.seasonIcon}</div><p class="center">Наступил${c.season === 'winter' || c.season === 'spring' ? 'а' : c.season === 'summer' ? 'о' : 'а'} ${c.seasonName.toLowerCase()}! Сегодня ${c.monthName.toLowerCase()}, день ${c.dom}.<br>${{ winter: 'Доставай тёплую куртку и шапку!', spring: 'Пора сажать грядки и гулять в лёгкой курточке.', summer: 'Купальник, панамка — и на пляж!', autumn: 'Самое время для дождевика и резиновых сапожек.' }[c.season]}</p>`,
         }),
       );
-    else toast(`Доброе утро! ${c.seasonIcon} ${c.monthName}, день ${c.dom}. В ящике новое письмо ✉️`);
+    else if (!night.fall) toast(`Доброе утро! ${c.seasonIcon} ${c.monthName}, день ${c.dom}. В ящике новое письмо ✉️`);
     // итог вчерашнего дня: сколько монет заработано (подробно — в Хомяк-Банке)
     const got = Object.values(s.ledger.yesterday.in).reduce((a, b) => a + b, 0);
     if (got > 0) setTimeout(() => toast(`Вчера ты заработала 🪙 ${fmtMoney(got)}. Молодец!`, 'good'), 1800);
+    morningNews(night);
   }, 600);
 }
 

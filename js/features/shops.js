@@ -245,7 +245,7 @@ function openCafe(kind, title) {
               sfx('eat');
               toast(`Ням-ням! ${d.e} ${d.name}`, 'good');
               emit('buy', { cat: 'dish', id: d.id });
-              emit('eat');
+              emit('eat', { id: d.id });
               panel.refresh();
             }
           },

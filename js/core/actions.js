@@ -12,7 +12,16 @@
 // Автотест (dev/smoke.js, шаг «состояние меняют только действия») ловит записи в состояние мимо этого файла.
 import { G, touch, cal, hasClothes, houseItems } from './state.js';
 import { emit } from './events.js';
-import { NPCS, FURN_BY_ID, HOME_BY_ID, BIZ_BY_ID, BIZ_RULES, DISH_BY_ID, SECRET_RECIPES } from '../data/index.js';
+import {
+  NPCS,
+  FURN_BY_ID,
+  HOME_BY_ID,
+  BIZ_BY_ID,
+  BIZ_RULES,
+  DISH_BY_ID,
+  SECRET_RECIPES,
+  HEALTH,
+} from '../data/index.js';
 
 let depth = 0;
 /** Идёт ли сейчас действие (для проверки в тестах). */
@@ -408,6 +417,28 @@ export const nextDay = act(() => {
   s.ledger = { today: { in: {}, out: 0 }, yesterday: s.ledger.today };
   touch();
   emit('guests');
+});
+
+// ---------- болезнь (Ф1) ----------
+// Заболеть или выздороветь решает features/health.js (при смене дня — по таблицам data/health.js, у доктора — сразу).
+/** Хомячок простыла сегодня утром; cause — из-за чего ('cold', 'sea', 'rain', 'none'). */
+export const fallSick = act((cause = 'none') => {
+  const s = S();
+  s.sick = { since: s.day, cause };
+  touch();
+  emit('health', { sick: true, cause });
+  emit('look');
+});
+/** Выздоровела (how: 'doctor' — у доктора, 'self' — сама): следующие HEALTH.immune дней не болеет. */
+export const recoverSick = act((how = 'self') => {
+  const s = S();
+  if (!s.sick) return false;
+  s.sick = null;
+  s.immuneUntil = s.day + HEALTH.immune;
+  touch();
+  emit('health', { sick: false, how });
+  emit('look');
+  return true;
 });
 
 // ---------- отметки ----------

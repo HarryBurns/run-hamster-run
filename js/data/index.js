@@ -17,3 +17,4 @@ export * from './visits.js';
 export * from './tasks.js';
 export * from './fashion.js';
 export * from './looks.js';
+export * from './health.js';

@@ -13,7 +13,7 @@
 import { clamp, rnd, seeded, TAU, dist } from '../core/util.js';
 import { ell, fillRR, line, poly, emoji } from '../core/draw.js';
 import { drawHamster, blinkAt } from '../art/hamster.js';
-import { G } from '../core/state.js';
+import { G, canSwim } from '../core/state.js';
 import { award, setFlag, setDayFlag, patchState, touchState } from '../core/actions.js';
 import { emit } from '../core/events.js';
 import { run } from '../core/registry.js';
@@ -21,6 +21,7 @@ import { go, scene } from '../core/loop.js';
 import { toast } from '../ui/toast.js';
 import { sfx } from '../core/audio.js';
 import { T, OUT, PS, SP, put, tileOf, defineObjects } from '../engine/topdown/kinds.js';
+import { SICK_TEXT } from '../data/index.js';
 import './common/index.js';
 
 /** Море города: где оно на карте, острова (центр в клетках, размеры и что на них стоит). */
@@ -651,7 +652,9 @@ export function createSea(cfg) {
   const canDive = () => !!sc && sc.built && isDeep(ch(tileOf(sc.p.x), tileOf(sc.p.y)));
   /** Нырнуть там, где стоим (если глубоко). */
   function dive() {
-    if (canDive()) go('dive', { x: sc.p.x, boat: isBoating(), width: m.w * T });
+    if (!canDive()) return;
+    if (!canSwim()) return void toast(SICK_TEXT.water); // простуженной нырять нельзя (Ф1)
+    go('dive', { x: sc.p.x, boat: isBoating(), width: m.w * T });
   }
   /** Где всплыть: ближайшая глубокая клетка к точке (x, y). */
   function surfaceAt(x, y) {

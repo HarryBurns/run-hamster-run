@@ -29,7 +29,7 @@
 //
 // Сцена умеет: ходьбу по нажатию и стрелками, лифт, «дойти и сделать», мебель и встроенные предметы,
 // гостей и жильцов, режим «Обустроить» с кладовкой, сон (событие wake), HUD и звук.
-import { G, playerLook, houseItems } from '../../core/state.js';
+import { G, playerLook, houseItems, walkK, sneezePhase } from '../../core/state.js';
 import { initHouse } from '../../core/actions.js';
 import { emit, scope } from '../../core/events.js';
 import { run } from '../../core/registry.js';
@@ -378,7 +378,7 @@ export function createSideScene(desc) {
         if (p.state !== 'idle' && p.state !== 'swim') sc.standUp();
         p.path = [];
         p.pending = null;
-        p.x = clamp(p.x + kx * 320 * dt, 34, WTOT - 40);
+        p.x = clamp(p.x + kx * 320 * walkK() * dt, 34, WTOT - 40); // простуженная — медленнее (Ф1)
         p.dir = kx;
         p.walkT += dt * 2.6;
         p.moving = true;
@@ -395,7 +395,7 @@ export function createSideScene(desc) {
       const st = p.path[0];
       if (st.t === 'walk') {
         const dx = st.x - p.x,
-          step = 340 * dt;
+          step = 340 * walkK() * dt;
         p.moving = true;
         p.walkT += dt * 2.6;
         if (Math.abs(dx) <= step) {
@@ -484,6 +484,7 @@ export function createSideScene(desc) {
       blink: blinkAt(t),
       happy: p.happy > 0,
       armsUp: p.happy > 0 && Math.sin(t * 10) > 0,
+      sneeze: sneezePhase(),
     };
     let y = fy(p.f),
       pose = { ...base, walk: p.moving ? p.walkT : null };
