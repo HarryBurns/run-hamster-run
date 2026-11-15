@@ -1,12 +1,24 @@
 // Подзорная труба на башне: вид на город.
-import { makeCanvas, ell, fillRR, poly, mix } from '../core/draw.js';
+//
+// Картинка складывается из тех же слоёв, что и вид со смотровой площадки (interiors/tower_view.js): небо, море
+// с островами, пляж с пальмами набережной, дальние кварталы, площадь, крыши у башни. Слои идут строго от дальнего
+// к ближнему, поэтому пальмы набережной всегда позади домов, которые ближе к зрителю, а город тот же, что на карте.
+import { makeCanvas, fillRR } from '../core/draw.js';
 import { register } from '../core/registry.js';
-import { cal, playerLook, darkness } from '../core/state.js';
+import { G, cal, playerLook, darkness } from '../core/state.js';
 import { el } from '../core/util.js';
 import { drawHamster } from '../art/hamster.js';
 import { openPanel } from '../ui/panel.js';
+import { VIEW_H, VIEW_LAYERS, viewEnv, renderViewLayer, paintViewLive } from '../interiors/tower_view.js';
 
 register('panorama', () => openPanorama(), 'подзорная труба: вид на город');
+
+const W = 900,
+  H = 480,
+  FLOOR = 26, // пол площадки внизу картинки
+  TOP = 30; // сколько неба срезано сверху (в единицах панорамы)
+// Чем дальше слой, тем сильнее он сжат по ширине: улицы сходятся вдаль, а по краям видны пустыня и лес.
+const ZOOM = { sky: 1, sea: 0.7, beach: 0.75, far: 0.8, mid: 0.87, near: 0.94 };
 
 export function openPanorama() {
   openPanel({
@@ -14,81 +26,43 @@ export function openPanorama() {
     icon: '🔭',
     cls: 'wide',
     render(body) {
-      const w = 900,
-        h = 480;
-      const { canvas, ctx } = makeCanvas(w, h);
+      const { canvas, ctx } = makeCanvas(W, H);
       canvas.className = 'pano';
       canvas.style.width = '100%';
       canvas.style.height = 'auto';
       const c = cal(),
-        d = darkness();
-      const g = ctx.createLinearGradient(0, 0, 0, h * 0.6);
-      g.addColorStop(0, mix('#58b9ff', '#151540', d));
-      g.addColorStop(1, mix('#ffe8c2', '#4a3a78', d));
-      ctx.fillStyle = g;
-      ctx.fillRect(0, 0, w, h);
-      if (d > 0.5) {
-        ell(ctx, 720, 90, 40, 40, '#fff3bf');
-        for (let i = 0; i < 50; i++) ell(ctx, (i * 173) % w, (i * 71) % 220, 1.5, 1.5, '#fff');
-      } else {
-        ell(ctx, 720, 110, 46, 46, '#ffe066');
-        for (const [x, y] of [
-          [150, 80],
-          [420, 130],
-          [600, 60],
-        ]) {
-          ell(ctx, x, y, 50, 18, '#fff');
-          ell(ctx, x + 30, y - 12, 34, 16, '#fff');
+        env = viewEnv(c.season, darkness()),
+        m = (H - FLOOR) / (VIEW_H - TOP), // CSS-пикселей в единице панорамы
+        k = (m * canvas.width) / W, // и пикселей канвы
+        L = W / m,
+        dy = Math.round(TOP * k);
+      for (const l of VIEW_LAYERS) {
+        const img = renderViewLayer(l, L, env, k, ZOOM[l.id]);
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.drawImage(img.c, 0, img.top - dy);
+        if (l.live) {
+          ctx.setTransform(k, 0, 0, k, 0, -dy);
+          paintViewLive(ctx, l, L, env, G.time, ZOOM[l.id]);
         }
       }
-      ctx.fillStyle = mix('#3fb0ea', '#1c2f6b', d);
-      ctx.fillRect(0, 250, w, 90);
-      for (let i = 0; i < 30; i++) ell(ctx, (i * 97) % w, 262 + ((i * 31) % 70), 16, 2, 'rgba(255,255,255,.5)');
-      ctx.fillStyle = c.season === 'winter' ? '#f3ead2' : '#ffe9a8';
-      ctx.fillRect(0, 330, w, 30);
-      const grass = { winter: '#f6fbff', spring: '#a8e67a', summer: '#86db5c', autumn: '#cdd36a' }[c.season];
-      ctx.fillStyle = grass;
-      ctx.fillRect(0, 356, w, 130);
-      const cols = ['#f783ac', '#74c0fc', '#ffd43b', '#b2f2bb', '#ffc9de', '#a5d8ff', '#ffe066', '#e5dbff'];
-      for (let i = 0; i < 12; i++) {
-        const bw = 44 + ((i * 13) % 30),
-          bh = 50 + ((i * 37) % 90),
-          bx = 40 + i * 72,
-          by = 430 - (i % 3) * 12;
-        fillRR(ctx, bx, by - bh, bw, bh, 5, cols[i % cols.length], '#4a3728', 2);
-        for (let yy = by - bh + 10; yy < by - 12; yy += 16)
-          for (let xx = bx + 8; xx < bx + bw - 10; xx += 14) fillRR(ctx, xx, yy, 8, 9, 2, d > 0.4 ? '#ffe066' : '#fff');
-        if (i % 2)
-          poly(
-            ctx,
-            [bx - 4, by - bh, bx + bw / 2, by - bh - 22, bx + bw + 4, by - bh],
-            c.season === 'winter' ? '#fff' : '#f76e5c',
-            '#4a3728',
-            2,
-          );
+      ctx.setTransform(canvas.width / W, 0, 0, canvas.width / W, 0, 0);
+      if (env.d > 0) {
+        ctx.fillStyle = `rgba(24,24,72,${env.d * 0.25})`;
+        ctx.fillRect(0, 0, W, H);
       }
-      for (let i = 0; i < 9; i++) {
-        const px = 30 + i * 105;
-        fillRR(ctx, px - 3, 322, 6, 40, 2, '#c98b5a');
-        for (let k = 0; k < 5; k++)
-          ell(
-            ctx,
-            px + Math.cos(-0.2 - k * 0.7) * 16,
-            322 + Math.sin(-0.2 - k * 0.7) * 10,
-            16,
-            5,
-            c.season === 'winter' ? '#fff' : '#40c057',
-            null,
-            1,
-            -0.2 - k * 0.7,
-          );
-      }
-      fillRR(ctx, 0, h - 26, w, 26, 0, '#868e96');
-      for (let x = 10; x < w; x += 40) fillRR(ctx, x, h - 70, 6, 50, 2, '#adb5bd');
-      fillRR(ctx, 0, h - 76, w, 10, 4, '#dee2e6', '#4a3728', 2);
-      drawHamster(ctx, 130, h - 22, 1.5, playerLook(), { happy: true, armsUp: true });
+      // ограждение площадки и сама хомячок — ближе всего
+      fillRR(ctx, 0, H - FLOOR, W, FLOOR, 0, '#868e96');
+      for (let x = 10; x < W; x += 40) fillRR(ctx, x, H - 70, 6, 50, 2, '#adb5bd');
+      fillRR(ctx, 0, H - 76, W, 10, 4, '#dee2e6', '#4a3728', 2);
+      drawHamster(ctx, 56, H - 20, 1.2, playerLook(), { happy: true, armsUp: true }); // с краю: не заслонять город
       body.appendChild(canvas);
-      body.appendChild(el('p', 'center', `Ух ты! Отсюда видно весь город, пляж и даже твою виллу. ${c.seasonIcon}`));
+      body.appendChild(
+        el(
+          'p',
+          'center',
+          `Ух ты! Отсюда видно весь город: рынок на площади, парк с прудом, пляж с пирсом и острова в море. А справа, под красной крышей, — твоя вилла! ${c.seasonIcon}`,
+        ),
+      );
     },
   });
 }
