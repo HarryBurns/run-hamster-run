@@ -1890,6 +1890,34 @@ async function economy({ page, step, ev, wait, closeAll }) {
       });
       await wait(400);
     });
+    await step('башня: шарики-мишени есть только в режиме прицела (Б2)', async () => {
+      const st = () =>
+        ev(() => {
+          const s = window.__dev.Tower.debugState();
+          return { state: s.state, n: s.balloons.length, live: s.balloons.filter((b) => !b.out).length };
+        });
+      await ev(() => {
+        const d = window.__dev;
+        d.go('tower');
+        d.Tower.debugDeck();
+      });
+      await wait(3500); // раньше шарики летели всегда: за это время появлялось два-три
+      const idle = await st();
+      if (idle.n) throw new Error('шарики вне режима прицела: ' + JSON.stringify(idle));
+      await ev(() => window.__dev.Tower.debugAt(1300)); // у столика с самолётиками
+      await page.keyboard.press('KeyE');
+      await wait(2500);
+      const aim = await st();
+      if (aim.state !== 'aim' || !aim.live) throw new Error('в режиме прицела нет шариков: ' + JSON.stringify(aim));
+      await hold('ArrowLeft', 250); // ушла от столика
+      await wait(1300);
+      const after = await st();
+      if (after.state === 'aim' || after.n) throw new Error('шарики остались после прицела: ' + JSON.stringify(after));
+      await ev(() => {
+        window.__dev.go('world');
+      });
+      await wait(400);
+    });
     await step('башня: вход через дверь здания и выход обратно к двери', async () => {
       await ev(() => {
         window.__dev.enterBuilding('tower');

@@ -88,7 +88,7 @@ export function debugState() {
     state: S.p.state,
     px: S.p.x,
     planes: S.planes.length,
-    balloons: S.balloons.map((b) => ({ ...sc(b.x, b.y), vx: b.vx, vy: b.vy })),
+    balloons: S.balloons.map((b) => ({ ...sc(b.x, b.y), vx: b.vx, vy: b.vy, out: !!b.out })),
     pops: G.state.flags.balloons || 0,
     zoom: z,
   };
@@ -181,6 +181,7 @@ function act(o) {
       p.dir = 1;
       S.aim = null;
       sfx('pop');
+      if (!S.balloons.some((b) => !b.out)) spawnBalloon(rnd(-250, -130)); // первая мишень — сразу, не ждать
       if (!S.planeHint) {
         S.planeHint = true;
         toast('Нажми на небо и тяни: пунктир покажет, куда полетит самолётик. Отпусти — и он летит! ✈️');
@@ -198,6 +199,8 @@ function act(o) {
 function startRide() {
   S.ride = { dir: S.level === 'lobby' ? 1 : -1, t: 0, from: S.level };
   S.level = 'ride';
+  S.balloons = [];
+  S.aim = null;
   sfx('door');
 }
 function arrive() {
@@ -298,24 +301,39 @@ function launch(tg) {
   S.p.happy = 0.6;
   sfx('whistle');
 }
+// Шарики-мишени есть, только пока хомячок держит самолётик (режим прицела). Вышла из режима, ушла от столика —
+// шарики за BALLOON_OUT секунд улетают вверх и тают; вне режима небо над площадкой без мишеней.
+const BALLOON_IN = 0.4,
+  BALLOON_OUT = 0.9;
+function spawnBalloon(y = -70) {
+  const vw = G.view.w / S.cam.zoom;
+  S.balloons.push({
+    x: S.cam.x + rnd(-vw / 2 + 40, vw / 2 - 40),
+    y,
+    vx: rnd(-14, 14),
+    vy: rnd(-46, -26),
+    ph: rnd(0, 6),
+    age: 0,
+    out: 0,
+    c: ['#fa5252', '#ffd43b', '#4dabf7', '#51cf66', '#f783ac', '#b197fc'][Math.floor(rnd(0, 6))],
+  });
+}
+const balloonAlpha = (b) => Math.min(1, b.age / BALLOON_IN) * (b.out ? Math.max(0, 1 - b.out / BALLOON_OUT) : 1);
 function updatePlanes(dt) {
   const top = -(S.floorY / S.cam.zoom) - 80,
-    vw = G.view.w / S.cam.zoom;
+    aiming = S.p.state === 'aim';
   // воздушные шарики поднимаются из города — в них можно попасть
-  if (S.balloons.length < 4 && Math.random() < dt * 0.7)
-    S.balloons.push({
-      x: S.cam.x + rnd(-vw / 2 + 40, vw / 2 - 40),
-      y: -70,
-      vx: rnd(-14, 14),
-      vy: rnd(-46, -26),
-      ph: rnd(0, 6),
-      c: ['#fa5252', '#ffd43b', '#4dabf7', '#51cf66', '#f783ac', '#b197fc'][Math.floor(rnd(0, 6))],
-    });
+  if (aiming && S.balloons.filter((b) => !b.out).length < 4 && Math.random() < dt * 0.7) spawnBalloon();
   for (const b of S.balloons) {
+    b.age += dt;
+    if (!aiming || b.out) {
+      b.out += dt;
+      b.vy -= 260 * dt; // улетает всё быстрее
+    }
     b.x += (b.vx + Math.sin(G.time * 1.3 + b.ph) * 16) * dt;
     b.y += b.vy * dt;
   }
-  S.balloons = S.balloons.filter((b) => b.y > top && !b.dead);
+  S.balloons = S.balloons.filter((b) => b.y > top && !b.dead && b.out < BALLOON_OUT);
   for (const q of S.planes) {
     if (q.land) {
       q.land += dt;
@@ -331,7 +349,7 @@ function updatePlanes(dt) {
       continue;
     } // сел на пол площадки
     for (const b of S.balloons)
-      if (!b.dead && Math.hypot(q.x - b.x, q.y - b.y) < 40) {
+      if (!b.dead && b.out < BALLOON_OUT / 2 && Math.hypot(q.x - b.x, q.y - b.y) < 40) {
         b.dead = true;
         sfx('pop');
         sfx('coin');
@@ -835,11 +853,13 @@ function drawDeck(ctx, t) {
   drawPlayer(ctx, t);
   // шарики, самолётики и прицел
   for (const b of S.balloons) {
+    ctx.globalAlpha = balloonAlpha(b); // появляются и тают плавно
     line(ctx, b.x, b.y + 26, b.x + Math.sin(t * 2 + b.ph) * 5, b.y + 64, 'rgba(74,55,40,.6)', 1.5);
     ell(ctx, b.x, b.y, 22, 27, b.c, OUT, 2);
     poly(ctx, [b.x - 5, b.y + 26, b.x + 5, b.y + 26, b.x, b.y + 33], b.c, OUT, 1.5);
     ell(ctx, b.x - 8, b.y - 10, 5, 8, 'rgba(255,255,255,.55)');
   }
+  ctx.globalAlpha = 1;
   for (const c of S.pops) {
     ctx.globalAlpha = 1 - c.t / 0.9;
     fillRR(ctx, c.x - 4, c.y - 4, 8, 8, 2, c.c);
