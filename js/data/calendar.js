@@ -8,3 +8,5 @@ export const SEASONS = {
   autumn: { name: 'Осень', icon: '🍂', when: 'осенью' },
 };
 export const DAYS_PER_MONTH = 3;
+/** Месяц (0–11) по номеру игрового дня. */
+export const monthOfDay = (day) => Math.floor(day / DAYS_PER_MONTH) % 12;

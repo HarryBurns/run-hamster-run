@@ -2,11 +2,13 @@
 //
 // Отсюда берут сезон все, кому он нужен:
 //   - растения в городе (locations/common/plants.js): плод есть только в свои месяцы;
-//   - продукты (data/food.js): поля months и seasons у продукта; южные фрукты (south) ТЦ «Вкусный» продаёт
-//     только в сезон, а вне сезона они есть на рынке и дороже (features/shops.js, features/market.js);
+//   - огород (features/garden.js): культуру сажают только в её сезон (что уже посажено — дорастает);
+//   - продукты (data/food.js): поля months и seasons у продукта; у сезонного продукта цена в ТЦ «Вкусный» и на
+//     рынке зависит от сезона (buyPrice, sellPrice), а вне сезона он бывает на прилавке не каждый день и понемногу
+//     (foodRule — правило для «ассортимента дня», data/stock.js);
 //   - задания (data/tasks.js): «Кокосовый день» приходит только когда кокосы есть на пальмах;
-//   - расчёт баланса (dev/balance.js): сколько даёт сбор в каждом сезоне.
-// Ассортимент магазинов «по сезону» (Э1 в docs/BACKLOG.md) делать по этой же таблице.
+//   - расчёт баланса (dev/balance.js): сколько дают сбор и огород в каждом сезоне, нет ли выгодной перепродажи.
+// Сезонную мебель, украшения и одежду (вторая половина Э1 в docs/BACKLOG.md) записывать в эту же таблицу.
 //
 // Месяцы — числами: 0 — январь … 11 — декабрь (как cal().month). Сезон можно записать целиком — months('summer') —
 // или по месяцам: [6, 7, 8]. Продукта в таблице нет — значит, он есть круглый год (мука, молоко, яйца…).
@@ -23,7 +25,7 @@ export const HARVEST_MONTHS = {
   mango: months('summer'), // манговые деревья
   blueberry: months('summer'), // кусты черники
   mushroom: months('autumn'), // грибы на опушке и в парке
-  // южные фрукты: в сезон — в ТЦ «Вкусный», вне сезона — только на рынке и дороже
+  // южные фрукты: их только покупают
   pineapple: months('spring', 'summer'),
   kiwi: months('autumn', 'winter'),
   orange: months('winter', 'spring'),
@@ -32,12 +34,14 @@ export const HARVEST_MONTHS = {
   grapes: months('autumn'),
   melon: months('summer', 'autumn'),
   avocado: months('spring'),
-  // огород и рыбалка: пока круглый год (зимой грядки под парничком, рыбу ловят в лунке)
-  carrot: ALL_YEAR,
-  tomato: ALL_YEAR,
-  strawberry: ALL_YEAR,
-  seeds: ALL_YEAR,
-  pumpkin: ALL_YEAR,
+  // огород: культуру сажают (и она поспевает) в свой сезон — в каждом сезоне есть что посадить
+  lettuce: months('winter', 'spring'), // зимой — под парничком
+  strawberry: months('spring', 'summer'),
+  tomato: months('summer'),
+  carrot: months('summer', 'autumn'),
+  seeds: months('autumn'), // подсолнухи
+  pumpkin: months('autumn'),
+  // рыбалка — круглый год (зимой рыбу ловят в лунке)
   fish: ALL_YEAR,
 };
 
@@ -61,7 +65,7 @@ export function seasonsOf(id) {
   const start = list.findIndex((s) => !list.includes(ORDER[(ORDER.indexOf(s) + 3) % 4]));
   return start > 0 ? [...list.slice(start), ...list.slice(0, start)] : list;
 }
-/** Словами, когда сезон: «весной», «осенью и зимой»; '' — круглый год. */
-export function whenRipe(id) {
-  return (seasonsOf(id) || []).map((s) => SEASONS[s].when).join(' и ');
+/** Словами, когда сезон: «весной», «осенью и зимой»; icons — со значками сезонов: «осенью 🍂 и зимой ❄️»; '' — круглый год. */
+export function whenRipe(id, icons = false) {
+  return (seasonsOf(id) || []).map((s) => SEASONS[s].when + (icons ? ' ' + SEASONS[s].icon : '')).join(' и ');
 }

@@ -3,21 +3,37 @@
 // Рынок стоит на площади с фонтаном (здание 'market' в locations/town.js, act: 'market') — продают только там.
 // Другому прилавку достаточно написать act: 'market' (или { do: 'market', tab: 'buy' }).
 //
-// Правила (числа — в data/economy.js, раздел MARKET):
-//  - цена продукта на рынке — поле sell (data/food.js): своё (урожай, рыба, кокос, черника, грибы) стоит дорого, купленное
-//    в магазине — дешевле, чем в магазине; блюдо — по продуктам, из которых оно приготовлено;
-//  - у торговца на день ограниченный кошелёк: когда монеты кончились — приходи завтра.
+// Правила (числа — в data/economy.js, разделы MARKET, SEASONAL и STOCK):
+//  - торговец платит за продукт заметно меньше, чем тот сейчас стоит в магазине (sellPrice в data/food.js): перепродажа
+//    никогда не выгодна; своё сезонное (урожай, собранное) в сезон идёт дешевле, вне сезона — в полтора раза дороже;
+//    улов и жемчуг — по своей цене; блюдо — по продуктам, из которых оно приготовлено;
+//  - у торговца на день ограниченный кошелёк: когда монеты кончились — приходи завтра;
+//  - «Купить редкости»: вещицы ручной работы и то, чего сегодня нет в ТЦ «Вкусный», — овощи и фрукты не по сезону
+//    (по 1–2 штуки и не каждый день; правило — features/pantry.js).
 import { addItem, addClothes, award, earn, sellPearls, setDayFlag, wear } from '../core/actions.js';
 import { sfx } from '../core/audio.js';
 import { emit } from '../core/events.js';
 import { register } from '../core/registry.js';
 import { G, cal, hasClothes } from '../core/state.js';
 import { el, fmtMoney, seeded } from '../core/util.js';
-import { INGREDIENTS, DISHES, CLOTHES, FURNITURE, MARKET, VENDORS, vendorLook, inMall } from '../data/index.js';
+import {
+  INGREDIENTS,
+  DISHES,
+  CLOTHES,
+  FURNITURE,
+  MARKET,
+  VENDORS,
+  vendorLook,
+  isSeasonal,
+  inSeason,
+  sellPrice,
+} from '../data/index.js';
 import { clothesIcon, furnIcon } from '../ui/icons.js';
 import { openPanel } from '../ui/panel.js';
 import { toast } from '../ui/toast.js';
 import { buy, priceTag, buyBtn } from './purchase.js';
+import { foodToday, buyFood, seasonText } from './pantry.js';
+import { leftText } from './stock.js';
 
 const S = () => G.state;
 
@@ -28,12 +44,13 @@ export const purseLeft = () => Math.max(0, MARKET.purse - (S().dayFlags.marketPa
 export const pearlsLeft = () => Math.max(0, (S().pearls || 0) - (S().pearlsSold || 0));
 
 /**
- * Что у игрока есть на продажу: [{ bag, id, e, name, n, sell, group }].
- * group: own — своё (урожай, улов, находки: всё, у чего есть цена в MARKET.sell), dish — домашние блюда,
- *        shop — купленное в магазине.
+ * Что у игрока есть на продажу: [{ bag, id, e, name, n, sell, group, season }].
+ * group: own — урожай, улов и находки (всё, что растёт, ловится и находится), dish — домашние блюда,
+ *        shop — остальные продукты из магазина. season — 'in' | 'off' у сезонного продукта (цена от него зависит).
  */
 export function sellable() {
   const s = S(),
+    month = cal().month,
     out = [];
   for (const i of INGREDIENTS) {
     const n = s.ing[i.id] || 0;
@@ -44,8 +61,9 @@ export function sellable() {
         e: i.e,
         name: i.name,
         n,
-        sell: i.sell,
-        group: MARKET.sell[i.id] ? 'own' : 'shop',
+        sell: sellPrice(i, month),
+        group: isSeasonal(i) || MARKET.sell[i.id] ? 'own' : 'shop',
+        season: !isSeasonal(i) ? null : inSeason(i, month) ? 'in' : 'off',
       });
   }
   if (pearlsLeft() > 0)
@@ -102,8 +120,9 @@ function trinketsToday() {
   }
   return pool.slice(0, MARKET.trinkets);
 }
-/** Южные фрукты, которых сейчас нет в ТЦ «Вкусный» (не сезон): на рынке они есть всегда, но дороже. */
-const rareFruits = () => INGREDIENTS.filter((i) => i.src === 'shop' && !inMall(i, cal().month));
+/** Не по сезону: чего сегодня нет в ТЦ «Вкусный», а торговец привёз (и что у него уже раскупили). */
+export const rareFood = () =>
+  INGREDIENTS.map((ing) => ({ ing, f: foodToday(ing) })).filter((q) => q.f.market.state !== 'none');
 
 function renderSell(body, panel) {
   const left = purseLeft();
@@ -128,7 +147,7 @@ function renderSell(body, panel) {
   if (!left)
     body.appendChild(el('p', 'center', '«Ох, все монеты на сегодня раздал! Приходи завтра — принесу полный кошелёк».'));
   for (const [group, title] of [
-    ['own', '🥕 Урожай, улов и находки'],
+    ['own', '🥕 Урожай, улов и находки <span class="muted">— не в сезон за них дают больше</span>'],
     ['dish', '🍰 Домашние блюда'],
     ['shop', '🛒 Продукты из магазина <span class="muted">— за них дают меньше, чем они стоили</span>'],
   ]) {
@@ -142,6 +161,14 @@ function renderSell(body, panel) {
       card.appendChild(el('div', 'nm', g.name));
       card.appendChild(el('span', 'cnt', '×' + g.n));
       card.appendChild(el('div', 'pr', `🪙 ${fmtMoney(g.sell)} <span class="per">за штуку</span>`));
+      if (g.season)
+        card.appendChild(
+          el(
+            'div',
+            'note ' + (g.season === 'off' ? 'up' : 'off'),
+            g.season === 'in' ? 'сезон: дешевле' : 'не сезон: дороже ↑',
+          ),
+        );
       const one = el('button', 'btn small green', `Продать 1<br><b>+${fmtMoney(g.sell)}</b>`);
       one.disabled = canTake(g, 1) < 1;
       one.onclick = () => {
@@ -174,7 +201,7 @@ function renderBuy(body, panel) {
     el(
       'p',
       'muted',
-      'Здесь то, чего нет в магазинах: фрукты не по сезону и вещицы ручной работы. Вещицы каждый день новые!',
+      'Здесь то, чего нет в магазинах: вещицы ручной работы и немного овощей и фруктов не по сезону — то, чего сегодня не привезли в ТЦ «Вкусный». Каждый день всё новое!',
     ),
   );
   body.appendChild(el('h4', 'sect', '🎁 Сегодня привезли'));
@@ -208,28 +235,32 @@ function renderBuy(body, panel) {
     grid.appendChild(card);
   }
   body.appendChild(grid);
-  const fruits = rareFruits();
-  if (fruits.length) {
-    body.appendChild(el('h4', 'sect', '🥭 Фрукты не по сезону'));
-    grid = el('div', 'grid');
-    for (const ing of fruits) {
-      const card = el('div', 'card');
-      card.appendChild(el('div', 'e', ing.e));
-      card.appendChild(el('div', 'nm', ing.name));
-      card.appendChild(priceTag(ing.rare));
-      if (S().ing[ing.id]) card.appendChild(el('span', 'cnt', '×' + S().ing[ing.id]));
+  body.appendChild(el('h4', 'sect', '🥭 Не по сезону <span class="muted">— мало и дороже</span>'));
+  const rare = rareFood();
+  if (!rare.length) {
+    body.appendChild(
+      el('p', 'muted', '«Сегодня не по сезону ничего не привёз. Загляни завтра — или спроси в ТЦ «Вкусный»!»'),
+    );
+    return;
+  }
+  grid = el('div', 'grid');
+  for (const { ing, f } of rare) {
+    const card = el('div', 'card' + (f.market.state === 'ok' ? '' : ' away'));
+    card.appendChild(el('div', 'e', ing.e));
+    card.appendChild(el('div', 'nm', ing.name));
+    if (S().ing[ing.id]) card.appendChild(el('span', 'cnt', '×' + S().ing[ing.id]));
+    if (f.market.state === 'ok') {
+      card.appendChild(priceTag(f.price));
+      card.appendChild(el('div', 'note', leftText(f.market)));
       card.appendChild(
-        buyBtn('Купить', ing.rare, () => {
-          if (!buy(ing.rare)) return;
-          addItem('ing', ing.id, 1);
-          emit('buy', { cat: 'food' });
-          panel.refresh();
+        buyBtn('Купить', f.price, () => {
+          if (buyFood(ing, 1, 'market')) panel.refresh();
         }),
       );
-      grid.appendChild(card);
-    }
-    body.appendChild(grid);
+    } else card.appendChild(el('div', 'muted', `Раскупили! Сезон — ${seasonText(ing)}.`));
+    grid.appendChild(card);
   }
+  body.appendChild(grid);
 }
 
 /** Окно рынка. tab: 'sell' (по умолчанию) или 'buy'. */

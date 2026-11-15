@@ -4,6 +4,7 @@
 export * from './calendar.js';
 export * from './seasons.js';
 export * from './economy.js';
+export * from './stock.js';
 export * from './clothes.js';
 export * from './beauty.js';
 export * from './furniture.js';

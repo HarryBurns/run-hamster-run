@@ -9,7 +9,7 @@ const { pathToFileURL } = require('url');
   const D = await import(pathToFileURL(path.join(__dirname, '..', 'js', 'data', 'index.js')).href);
   const { JOBS, PAID_SHIFTS, MARKET, PRICES, TASK_COINS, TASK_COINS_DEFAULT, START_MONEY } = D;
   const { HOMES, BUSINESSES, BIZ_RULES, HOME_PRICES, BIZ } = D;
-  const { GATHER, HARVEST_MONTHS, SEASONS, SEASON_OF_MONTH, MONTHS } = D;
+  const { GATHER, HARVEST_MONTHS, SEASONS, SEASON_OF_MONTH, MONTHS, SEASONAL, STOCK, TREATS, DAYS_PER_MONTH } = D;
   const problems = [];
   const bad = (msg) => problems.push(msg);
   const fmt = (n) => Math.round(n).toLocaleString('ru-RU');
@@ -22,7 +22,7 @@ const { pathToFileURL } = require('url');
   for (const f of D.FURNITURE)
     if (['home', 'market'].includes(f.shop) && !(f.price > 0)) bad(`мебель без цены: ${f.id}`);
   for (const i of D.INGREDIENTS) {
-    if (i.src === 'shop' && !(i.price > 0)) bad(`продукт без цены: ${i.id}`);
+    if (i.src !== 'fish' && !(i.price > 0)) bad(`продукт без цены: ${i.id}`);
     if (!(i.sell > 0)) bad(`продукт без цены на рынке: ${i.id}`);
   }
   for (const s of D.SEEDS) if (!(s.price > 0)) bad(`семена без цены: ${s.id}`);
@@ -52,14 +52,36 @@ const { pathToFileURL } = require('url');
     if (f.act === 'spin' || f.act === 'look' || f.act === 'sport') if (!f.say) bad(`мебель без подписи (say): ${f.id}`);
 
   // ---------- 2. нет «вечного двигателя» ----------
-  // (а) всё, что можно купить, на рынке стоит не больше доли MARKET.shopShare от самой низкой цены покупки
+  // (а) перепродажа никогда не выгодна. Для каждого продукта, который можно купить, и для каждого месяца:
+  //     рынок платит игроку не больше половины того, что продукт стоит сейчас; и даже купленное в сезон (дёшево)
+  //     и придержанное до «не сезона» (продукты не портятся) продаётся дешевле, чем куплено
+  const ALL_MONTHS = MONTHS.map((_, m) => m);
+  const seasonal = D.INGREDIENTS.filter((i) => D.isSeasonal(i));
   for (const i of D.INGREDIENTS) {
-    if (i.src !== 'shop') continue;
-    if (i.sell > i.price * MARKET.shopShare + 1e-9)
-      bad(`${i.id}: купить за ${i.price}, продать за ${i.sell} — больше ${MARKET.shopShare * 100}%`);
-    if (i.south && !(i.rare > i.price)) bad(`${i.id}: не в сезон на рынке должен стоить дороже, чем в ТЦ`);
-    if (i.south && !i.seasons) bad(`${i.id}: южный фрукт без сезона в таблице сезонов (data/seasons.js)`);
+    if (!(i.price > 0)) continue;
+    for (const m of ALL_MONTHS) {
+      const buy = D.buyPrice(i, m),
+        sell = D.sellPrice(i, m);
+      if (!(buy > 0)) bad(`${i.id}: ${MONTHS[m]} — нет цены покупки`);
+      if (sell > buy * 0.5 + 1e-9) bad(`${i.id}: ${MONTHS[m]} — купить за ${buy}, продать за ${sell}: больше половины`);
+    }
+    const minBuy = Math.min(...ALL_MONTHS.map((m) => D.buyPrice(i, m))),
+      maxSell = Math.max(...ALL_MONTHS.map((m) => D.sellPrice(i, m)));
+    if (maxSell >= minBuy * 0.75)
+      bad(`${i.id}: купить в сезон за ${minBuy}, придержать и продать за ${maxSell} — слишком близко`);
+    if (D.isSeasonal(i)) {
+      if (!(i.priceIn < i.price && i.price < i.priceOff))
+        bad(`${i.id}: в сезон должно быть дешевле обычного, вне сезона — дороже`);
+      if (!(i.sell < i.sellOff)) bad(`${i.id}: вне сезона рынок должен платить больше, чем в сезон`);
+    }
   }
+  // всё, что растёт (огород, сбор), — сезонное; рыба и круглогодичные продукты — нет
+  for (const i of D.INGREDIENTS)
+    if ((i.src === 'garden' || i.src === 'wild') && !D.isSeasonal(i)) bad(`${i.id}: растёт, но не сезонный продукт`);
+  for (const id of Object.keys(GATHER)) if (ING[id] && !D.isSeasonal(ING[id])) bad(`${id}: собирается, но не сезонный`);
+  if (!(SEASONAL.inPrice < 1 && SEASONAL.offPrice > 1 && SEASONAL.offSell > 1))
+    bad('SEASONAL: в сезон дешевле, вне сезона дороже');
+  if (MARKET.shopShare * SEASONAL.offSell >= 1) bad('SEASONAL.offSell: купленное в сезон выгодно продать вне сезона');
   // (а2) общая таблица сезонов: только известные продукты и месяцы 0–11
   for (const [id, ms] of Object.entries(HARVEST_MONTHS)) {
     if (!ING[id]) bad(`таблица сезонов: неизвестный продукт ${id}`);
@@ -74,8 +96,8 @@ const { pathToFileURL } = require('url');
       continue;
     }
     const needs = Object.entries(d.needs);
-    const buyable = needs.every(([id]) => ING[id].src === 'shop');
-    const cost = needs.reduce((s, [id, n]) => s + ING[id].price * n, 0);
+    const buyable = needs.every(([id]) => ING[id].price > 0);
+    const cost = needs.reduce((s, [id, n]) => s + ING[id].priceIn * n, 0); // по самым низким ценам (в сезон)
     const raw = needs.reduce((s, [id, n]) => s + ING[id].sell * n, 0);
     cook.push({ d, cost, raw, buyable });
     if (buyable && d.sell * 3 >= cost) bad(`${d.id}: продукты ${cost}, шедевр (3 порции) продаётся за ${d.sell * 3}`);
@@ -84,12 +106,20 @@ const { pathToFileURL } = require('url');
     // (в) блюдо из кафе нельзя выгодно перепродать
     if (d.cafe && d.sell >= d.price) bad(`${d.id}: в кафе ${d.price}, на рынке ${d.sell}`);
   }
-  // (г) семена окупаются, но грядка не «печатает» монеты быстрее работы
+  // (г) семена окупаются (даже если продать урожай в сезон, дёшево), но грядка не «печатает» монеты быстрее работы;
+  //     у каждой культуры есть сезон посадки, и в каждом месяце есть что посадить
   const beds = D.SEEDS.map((s) => ({
     s,
-    perDay: (ING[s.crop].sell * s.n - s.price) / s.days,
+    perDay: (ING[s.crop].sell * s.n - s.price) / s.days, // урожай продан в сезон
+    perDayOff: (ING[s.crop].sellOff * s.n - s.price) / s.days, // урожай придержан и продан не в сезон
   }));
-  for (const b of beds) if (b.perDay <= 0) bad(`${b.s.id}: урожай не окупает семена`);
+  for (const b of beds) {
+    if (b.perDay <= 0) bad(`${b.s.id}: урожай не окупает семена`);
+    if (!ING[b.s.crop].months) bad(`${b.s.id}: у культуры нет сезона посадки в таблице сезонов`);
+    if (!b.s.sow) bad(`${b.s.id}: нет слова для подсказки «… сажают осенью» (sow)`);
+  }
+  const bedsIn = (month) => beds.filter((b) => D.canSow(b.s, month));
+  for (const m of ALL_MONTHS) if (!bedsIn(m).length) bad(`огород: в месяце «${MONTHS[m]}» нечего посадить`);
   // (д) вещи и мебель продать нельзя совсем — проверять нечего; рынок ограничен кошельком торговца
   if (!(MARKET.purse > 0)) bad('у торговца нет кошелька (MARKET.purse)');
 
@@ -99,8 +129,13 @@ const { pathToFileURL } = require('url');
   const avg2 = payAt(2) / jobs.length;
   const taskAll = D.TASKS.map((t) => TASK_COINS[t.id] || TASK_COINS_DEFAULT);
   const taskAvg = taskAll.reduce((a, b) => a + b, 0) / taskAll.length;
-  const bestBed = Math.max(...beds.map((b) => b.perDay));
-  const avgBed = beds.reduce((s, b) => s + b.perDay, 0) / beds.length;
+  // огород по сезонам: средняя и лучшая культура из тех, что можно сажать в этом месяце; за год — в среднем
+  const avgOf = (list) => list.reduce((a, b) => a + b, 0) / list.length;
+  const bedAvgIn = (m) => avgOf(bedsIn(m).map((b) => b.perDay)),
+    bedBestIn = (m) => Math.max(...bedsIn(m).map((b) => b.perDay)),
+    bedBestOffIn = (m) => Math.max(...bedsIn(m).map((b) => b.perDayOff));
+  const avgBed = avgOf(ALL_MONTHS.map(bedAvgIn));
+  const bestBed = Math.max(...ALL_MONTHS.map(bedBestIn));
   const fish = ING.fish.sell;
 
   const avg3 = payAt(3) / jobs.length;
@@ -117,11 +152,65 @@ const { pathToFileURL } = require('url');
     if (!(q.n > 0 && q.max > 0)) bad(`сбор: ${id} — нужны n и max`);
   }
   if (GATHER.coconut.max > 4) bad('кокосовых пальм должно быть не больше четырёх на всю карту');
+  const gatherOffSum = (month) => gatherIn(month).reduce((s, q) => s + q.n * ING[q.id].sellOff, 0);
   for (let month = 0; month < 12; month++) {
     if (!gatherIn(month).length) bad(`сбор: в месяце «${MONTHS[month]}» в городе нечего собрать`);
     if (gatherSum(month) >= avg2)
       bad(`сбор: ${MONTHS[month]} — ${gatherSum(month)} монет в день, это не меньше смены на 2★ (${fmt(avg2)})`);
+    // сбор + все 8 грядок под лучшей культурой сезона: продано сразу — меньше трёх смен на 2★;
+    // придержано и продано не в сезон — всё равно не больше кошелька торговца
+    const now = gatherSum(month) + 8 * bedBestIn(month),
+      later = gatherOffSum(month) + 8 * bedBestOffIn(month);
+    if (now >= 3 * avg2)
+      bad(`сбор и огород: ${MONTHS[month]} — ${fmt(now)} монет в день, это не меньше трёх смен на 2★`);
+    if (later > MARKET.purse)
+      bad(`сбор и огород: ${MONTHS[month]} — если продать не в сезон, ${fmt(later)} в день: больше кошелька торговца`);
   }
+  // (ж) ассортимент дня: в любой день двух игровых лет на прилавках хватает всего, чтобы готовить, сажать и угощать.
+  // «Точно есть» — круглогодичное не из лакомств и сезонное в сезон; несезонное и лакомства — как повезёт.
+  for (const [k, r] of Object.entries(STOCK))
+    if (!(r.days >= 1 && r.days < r.of && r.min >= 1 && r.max >= r.min && r.max <= 5))
+      bad(`STOCK.${k}: странное правило`);
+  const treats = [...TREATS.ing, ...TREATS.dish];
+  if (treats.length < 4 || treats.length > 6) bad(`лакомств дня должно быть 4–6, а их ${treats.length}`);
+  for (const id of TREATS.ing)
+    if (!ING[id] || D.isSeasonal(ING[id])) bad(`лакомство дня: ${id} — нет такого продукта или он сезонный`);
+  for (const id of TREATS.dish)
+    if (!D.DISH_BY_ID[id] || !D.DISH_BY_ID[id].cafe) bad(`лакомство дня: ${id} — нет такого блюда в кафе`);
+  const sure = (ing, month) => ing.price > 0 && D.foodRule(ing, month) === null;
+  const startDishes = D.DISHES.filter((d) => d.needs && d.start);
+  const cookableIn = (month) => startDishes.filter((d) => Object.keys(d.needs).every((id) => sure(ING[id], month)));
+  for (const m of ALL_MONTHS)
+    if (cookableIn(m).length < 4)
+      bad(`${MONTHS[m]}: из того, что точно есть в ТЦ, готовится только ${cookableIn(m).length} блюд(а) — мало`);
+  for (const kind of new Set(D.DISHES.filter((d) => d.cafe).map((d) => d.cafe)))
+    if (D.DISHES.filter((d) => d.cafe === kind && !d.treat).length < 2)
+      bad(`кафе ${kind}: меньше двух блюд, которые есть всегда`);
+  // несезонное: в ТЦ бывает, но не каждый день и понемногу; за месяц (DAYS_PER_MONTH дней) хоть раз появляется
+  const YEAR2 = 2 * 12 * DAYS_PER_MONTH;
+  const offStats = { days: 0, mall: 0, market: 0, none: 0 };
+  for (const i of seasonal) {
+    let gap = 0;
+    for (let day = 0; day < YEAR2; day++) {
+      const month = D.monthOfDay(day);
+      if (D.inSeason(i, month)) {
+        gap = 0;
+        continue;
+      }
+      const mall = D.stockOn(day, 'food:' + i.id, D.foodRule(i, month)),
+        market = mall ? 0 : D.stockOn(day, 'market:' + i.id, STOCK.offMarket);
+      offStats.days++;
+      if (mall) offStats.mall++;
+      else if (market) offStats.market++;
+      else offStats.none++;
+      if (mall > STOCK.offMall.max || market > STOCK.offMarket.max)
+        bad(`${i.id}: день ${day} — не в сезон привезли слишком много`);
+      gap = mall ? 0 : gap + 1;
+      if (gap > DAYS_PER_MONTH) bad(`${i.id}: не в сезон нет в ТЦ дольше месяца подряд (день ${day})`);
+    }
+  }
+  if (!(offStats.mall > 0 && offStats.market > 0 && offStats.none > 0))
+    bad('ассортимент дня: несезонное должно быть то в ТЦ, то на рынке, то нигде');
   const coco = ING.coconut.sell,
     cocoMax = GATHER.coconut.n * GATHER.coconut.max; // игра начинается зимой: первые дни собирают кокосы
   const taskMax = Math.max(...taskAll);
@@ -132,7 +221,12 @@ const { pathToFileURL } = require('url');
     {
       id: 'calm',
       name: 'спокойная игра (3 смены в день)',
-      start: { work: 3 * avg2, task: taskAvg, market: cocoMax * coco, how: `3 смены на 2★, задание, ${cocoMax} кокоса` },
+      start: {
+        work: 3 * avg2,
+        task: taskAvg,
+        market: cocoMax * coco,
+        how: `3 смены на 2★, задание, ${cocoMax} кокоса`,
+      },
       week: {
         work: 2 * avg2 + avg3,
         task: taskAvg,
@@ -221,19 +315,57 @@ const { pathToFileURL } = require('url');
   line('задание из конверта', `${range(taskAll)} (в среднем ${fmt(taskAvg)})`);
   line('кошелёк торговца на рынке (предел продаж в день)', fmt(MARKET.purse));
   console.log('\nРынок: что почём');
-  for (const id of Object.keys(MARKET.sell)) line(id === 'pearl' ? 'жемчужина' : ING[id].name, fmt(MARKET.sell[id]));
-  line('покупные продукты', `${MARKET.shopShare * 100}% от цены в ТЦ`);
+  for (const id of Object.keys(MARKET.sell))
+    line(id === 'pearl' ? 'жемчужина' : ING[id].name.toLowerCase(), fmt(MARKET.sell[id]));
+  line(
+    'всё, что продаётся в ТЦ',
+    `${MARKET.shopShare * 100}% от самой низкой цены в ТЦ; сезонное не в сезон — × ${SEASONAL.offSell}`,
+  );
+  console.log('\nСезонные продукты: купить в сезон / не в сезон · продать в сезон / не в сезон');
+  for (const i of seasonal)
+    line(
+      `${i.name} (${i.seasons.map((q) => SEASONS[q].name.toLowerCase()).join(', ')})`,
+      `${i.priceIn} / ${i.priceOff} · ${i.sell} / ${i.sellOff}`,
+    );
+  line(
+    'не в сезон: дней, когда продукт есть в ТЦ / только на рынке / нигде',
+    `${Math.round((offStats.mall / offStats.days) * 100)}% / ${Math.round((offStats.market / offStats.days) * 100)}% / ${Math.round((offStats.none / offStats.days) * 100)}%`,
+  );
+  console.log('\nОгород: урожай продан в сезон (и если придержать до «не сезона»)');
   for (const b of beds)
     line(
-      `грядка: ${b.s.name} (${b.s.n} шт. за ${b.s.days} дн., семена ${b.s.price})`,
-      `${fmt(b.perDay)} в день с грядки`,
+      `грядка: ${b.s.name} (${b.s.n} шт. за ${b.s.days} дн., семена ${b.s.price}; ${ING[b.s.crop].seasons.map((q) => SEASONS[q].name.toLowerCase()).join(', ')})`,
+      `${fmt(b.perDay)} в день с грядки (${fmt(b.perDayOff)})`,
     );
-  line('8 грядок, в среднем / лучшая культура', `${fmt(8 * avgBed)} / ${fmt(8 * bestBed)} в день`);
+  for (const s of Object.keys(SEASONS)) {
+    const month = SEASON_OF_MONTH.indexOf(s);
+    line(
+      `${SEASONS[s].name.toLowerCase()}: сажают ${bedsIn(month)
+        .map((b) => ING[b.s.crop].name.toLowerCase())
+        .join(', ')}`,
+      `8 грядок: в среднем ${fmt(8 * bedAvgIn(month))}, лучшая культура ${fmt(8 * bedBestIn(month))} в день`,
+    );
+  }
+  line('8 грядок за год, в среднем / лучшая культура', `${fmt(8 * avgBed)} / ${fmt(8 * bestBed)} в день`);
+  console.log(
+    '\nЧто точно есть в ТЦ «Вкусный» (без несезонного и лакомств дня): сколько стартовых блюд из этого готовится',
+  );
+  for (const s of Object.keys(SEASONS)) {
+    const month = SEASON_OF_MONTH.indexOf(s);
+    line(
+      SEASONS[s].name.toLowerCase(),
+      `${cookableIn(month).length} из ${startDishes.length}: ${cookableIn(month)
+        .map((d) => d.name.toLowerCase())
+        .join(', ')}`,
+    );
+  }
   console.log('\nСбор в городе: раз в день с растения, только в сезон (если собрать всё и всё продать)');
   for (const s of Object.keys(SEASONS)) {
     const month = SEASON_OF_MONTH.indexOf(s);
     line(
-      `${SEASONS[s].name.toLowerCase()}: ${gatherIn(month).map((q) => `${ING[q.id].name.toLowerCase()} ×${q.n}`).join(', ')}`,
+      `${SEASONS[s].name.toLowerCase()}: ${gatherIn(month)
+        .map((q) => `${ING[q.id].name.toLowerCase()} ×${q.n}`)
+        .join(', ')}`,
       `${fmt(gatherSum(month))} в день`,
     );
   }
@@ -244,7 +376,10 @@ const { pathToFileURL } = require('url');
       `сырьём ${raw} → ${d.sell} / ${d.sell * 2} / ${d.sell * 3}`,
     );
   console.log('\nЦены');
-  line('продукты в ТЦ', range(D.INGREDIENTS.filter((i) => i.src === 'shop').map((i) => i.price)));
+  line(
+    'продукты в ТЦ (сезонные — от цены в сезон до цены не в сезон)',
+    range(D.INGREDIENTS.filter((i) => i.price).flatMap((i) => [i.priceIn, i.priceOff])),
+  );
   line('семена', range(D.SEEDS.map((s) => s.price)));
   line('блюда в кафе', range(D.DISHES.filter((d) => d.cafe).map((d) => d.price)));
   line('салон красоты', range(Object.values(D.BEAUTY).map((b) => b.price)));
@@ -257,7 +392,7 @@ const { pathToFileURL } = require('url');
     range([...shopCl(['market']), ...D.FURNITURE.filter((f) => f.shop === 'market').map((f) => f.price)]),
   );
   const dishCosts = cook.filter((c) => c.buyable).map((c) => c.cost);
-  line('набор продуктов на блюдо (всё из ТЦ)', range(dishCosts));
+  line('набор продуктов на блюдо (всё из ТЦ, сезонное — в сезон)', range(dishCosts));
   for (const [k, v] of Object.entries(outfits)) line('одеться: ' + k, fmt(v));
   for (const [k, v] of Object.entries(rooms)) line('обставить: ' + k, fmt(v));
   console.log('\nИгровой день: работа + задание + рынок');

@@ -14,13 +14,17 @@ import {
   DISHES,
   SEASONS,
   vendorLook,
-  inMall,
+  canSow,
+  dishRule,
+  whenRipe,
 } from '../data/index.js';
 import { furnIcon } from '../ui/icons.js';
 import { openPanel } from '../ui/panel.js';
 import { toast } from '../ui/toast.js';
 import { buy, priceTag, buyBtn } from './purchase.js';
 import { bizByVendor, bizFoot, bizSign } from './business.js';
+import { foodToday, buyFood, mallAwayText } from './pantry.js';
+import { stockToday, takeStock, comeBack, leftText, awayCard } from './stock.js';
 
 const S = () => G.state;
 
@@ -39,16 +43,24 @@ function openHomeMall() {
     render(body, tab, panel) {
       const grid = el('div', 'grid');
       if (tab === 'seeds') {
-        for (const sd of SEEDS) {
-          const ing = ING_BY_ID[sd.crop];
+        // сначала то, что можно сажать прямо сейчас; остальное купить можно, но посадить — только в свой сезон
+        const month = cal().month;
+        for (const sd of [...SEEDS].sort((x, y) => canSow(y, month) - canSow(x, month))) {
+          const ing = ING_BY_ID[sd.crop],
+            now = canSow(sd, month);
           const card = el('div', 'card');
           card.appendChild(el('div', 'e', ing.e));
           card.appendChild(el('div', 'nm', sd.name));
           card.appendChild(el('div', 'muted', `растёт ${sd.days} ${plural(sd.days, 'день', 'дня', 'дней')}`));
+          card.appendChild(
+            now
+              ? el('span', 'badge season r', 'Пора сажать!')
+              : el('div', 'note off', `Сажают ${whenRipe(sd.crop, true)}`),
+          );
           card.appendChild(priceTag(sd.price));
           if (count('seeds', sd.id)) card.appendChild(el('span', 'cnt', '×' + count('seeds', sd.id)));
           card.appendChild(
-            buyBtn('Купить', sd.price, () => {
+            buyBtn(now ? 'Купить' : 'Купить впрок', sd.price, () => {
               if (buy(sd.price)) {
                 addItem('seeds', sd.id, 1);
                 emit('buy', { cat: 'seeds' });
@@ -58,11 +70,16 @@ function openHomeMall() {
           );
           grid.appendChild(card);
         }
+        const c = cal();
         body.appendChild(
           el(
             'p',
             'muted',
-            'Семена сажают на грядках во дворе виллы. Урожай можно съесть, приготовить или продать на рынке.',
+            `Семена сажают на грядках во дворе виллы — каждую культуру в свой сезон. Сейчас ${c.seasonName.toLowerCase()} ${c.seasonIcon}: можно сажать ${SEEDS.filter(
+              (q) => canSow(q, month),
+            )
+              .map((q) => ING_BY_ID[q.crop].e + ' ' + q.sow.toLowerCase())
+              .join(', ')}. Урожай можно съесть, приготовить или продать на рынке.`,
           ),
         );
       } else {
@@ -89,6 +106,37 @@ function openHomeMall() {
   });
 }
 
+/** Карточка продукта в ТЦ «Вкусный»: цена на сегодня, значок сезона, сколько осталось; нет в продаже — серая. */
+function foodCard(ing, panel) {
+  const f = foodToday(ing),
+    have = count('ing', ing.id);
+  if (f.mall.state !== 'ok') return awayCard(ing.e, ing.name, mallAwayText(ing), have);
+  const card = el('div', 'card');
+  card.appendChild(el('div', 'e', ing.e));
+  card.appendChild(el('div', 'nm', ing.name));
+  card.appendChild(priceTag(f.price));
+  if (f.season === 'in') card.appendChild(el('span', 'badge season r', 'Сезон!'));
+  if (f.season === 'off') card.appendChild(el('span', 'badge off', 'Не сезон'));
+  if (ing.treat) card.appendChild(el('span', 'badge treat', 'Сегодня!'));
+  if (f.mall.limited) card.appendChild(el('div', 'note', leftText(f.mall)));
+  if (have) card.appendChild(el('span', 'cnt', '×' + have));
+  const row = el('div', 'row');
+  for (const n of f.mall.limited ? [1] : [1, 5]) {
+    row.appendChild(
+      buyBtn(
+        '+' + n,
+        f.price * n,
+        () => {
+          if (buyFood(ing, n, 'food')) panel.refresh();
+        },
+        n === 1 ? 'green' : 'blue',
+      ),
+    );
+  }
+  card.appendChild(row);
+  return card;
+}
+
 function openFoodMall() {
   openPanel({
     title: 'ТЦ «Вкусный»',
@@ -96,54 +144,36 @@ function openFoodMall() {
     money: true,
     cls: 'wide',
     render(body, tab, panel) {
+      const c = cal(),
+        sea = SEASONS[c.season];
       body.appendChild(
         el(
           'p',
           'muted',
-          'Морковку, клубнику, помидоры, тыкву и семечки вырасти на грядках, рыбку поймай сама. А кокосы, бананы, манго, чернику и грибы можно собрать в городе бесплатно — каждый в свой сезон. Лишнее можно продать на рынке — он на площади с фонтаном.',
+          `Всё, что растёт, — сезонное. В свой сезон его много и оно дешевле (а что-то можно вырастить на грядке или собрать в городе бесплатно). Не в сезон — дороже, по паре штук и не каждый день. Рыбку поймай сама, а лишнее продай на рынке у фонтана.`,
         ),
       );
-      const month = cal().month;
-      const shop = INGREDIENTS.filter((i) => i.src === 'shop');
-      const grid = el('div', 'grid');
-      for (const ing of shop.filter((i) => inMall(i, month))) {
-        const card = el('div', 'card');
-        card.appendChild(el('div', 'e', ing.e));
-        card.appendChild(el('div', 'nm', ing.name));
-        card.appendChild(priceTag(ing.price));
-        if (ing.south) card.appendChild(el('span', 'badge season', 'Сезон!'));
-        if (count('ing', ing.id)) card.appendChild(el('span', 'cnt', '×' + count('ing', ing.id)));
-        const row = el('div', 'row');
-        for (const n of [1, 5]) {
-          row.appendChild(
-            buyBtn(
-              '+' + n,
-              ing.price * n,
-              () => {
-                if (buy(ing.price * n)) {
-                  addItem('ing', ing.id, n);
-                  emit('buy', { cat: 'food' });
-                  panel.refresh();
-                }
-              },
-              n === 1 ? 'green' : 'blue',
-            ),
-          );
-        }
-        card.appendChild(row);
-        grid.appendChild(card);
-      }
-      // южные фрукты не в сезон: в ТЦ их нет, но видно, когда привезут и где взять сейчас
-      for (const ing of shop.filter((i) => !inMall(i, month))) {
-        const card = el('div', 'card away');
-        card.appendChild(el('div', 'e', ing.e));
-        card.appendChild(el('div', 'nm', ing.name));
-        const when = ing.seasons.map((q) => SEASONS[q].icon + ' ' + SEASONS[q].when).join(' и ');
-        card.appendChild(el('div', 'muted', `Не сезон: привезут ${when}. А сейчас есть на рынке.`));
-        if (count('ing', ing.id)) card.appendChild(el('span', 'cnt', '×' + count('ing', ing.id)));
-        grid.appendChild(card);
-      }
-      body.appendChild(grid);
+      const all = INGREDIENTS.filter((i) => i.price > 0).map((ing) => ({ ing, f: foodToday(ing) }));
+      const section = (title, list) => {
+        if (!list.length) return;
+        body.appendChild(el('h4', 'sect', title));
+        const grid = el('div', 'grid');
+        for (const { ing } of list) grid.appendChild(foodCard(ing, panel));
+        body.appendChild(grid);
+      };
+      const here = (q) => q.f.mall.state === 'ok';
+      section(
+        `${sea.icon} Сезон: ${sea.name.toLowerCase()} — много и дешевле`,
+        all.filter((q) => q.f.season === 'in'),
+      );
+      section(
+        '🛒 Всегда на полке',
+        all.filter((q) => !q.f.season).sort((x, y) => here(y) - here(x)),
+      );
+      section(
+        '📦 Не сезон — мало, дороже и не каждый день',
+        all.filter((q) => q.f.season === 'off').sort((x, y) => here(y) - here(x)),
+      );
     },
   });
 }
@@ -161,13 +191,32 @@ function openCafe(kind, title) {
       if (sign) body.appendChild(sign);
       const grid = el('div', 'grid');
       for (const d of DISHES.filter((q) => q.cafe === kind)) {
+        // «лакомства дня» бывают не каждый день и понемногу (ассортимент дня — stock.js)
+        const st = stockToday('cafe', d.id, dishRule(d));
+        if (st.state !== 'ok') {
+          const back = comeBack('cafe', d.id, () => dishRule(d));
+          grid.appendChild(
+            awayCard(
+              d.e,
+              d.name,
+              st.state === 'sold' ? `Раскупили! Ещё приготовят ${back}.` : `Сегодня нет — загляни ${back}.`,
+              count('dishes', d.id),
+            ),
+          );
+          continue;
+        }
         const card = el('div', 'card');
         card.appendChild(el('div', 'e', d.e));
         card.appendChild(el('div', 'nm', d.name));
         card.appendChild(priceTag(d.price));
+        if (st.limited) {
+          card.appendChild(el('span', 'badge treat', 'Сегодня!'));
+          card.appendChild(el('div', 'note', leftText(st)));
+        }
         if (count('dishes', d.id)) card.appendChild(el('span', 'cnt', '×' + count('dishes', d.id)));
         const b = buyBtn('Купить', d.price, () => {
           if (buy(d.price, d.name)) {
+            takeStock(st);
             addItem('dishes', d.id, 1);
             emit('buy', { cat: 'dish', id: d.id });
             panel.refresh();
@@ -178,6 +227,7 @@ function openCafe(kind, title) {
           d.price,
           () => {
             if (buy(d.price)) {
+              takeStock(st);
               sfx('eat');
               toast(`Ням-ням! ${d.e} ${d.name}`, 'good');
               emit('buy', { cat: 'dish', id: d.id });
