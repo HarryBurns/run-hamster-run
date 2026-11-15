@@ -475,6 +475,41 @@ const D = {
     line(c, -8, -h / 4, 6, -h / 4 - 14, 'rgba(255,255,255,.9)', 4);
     line(c, 2, -h / 4 + 6, 10, -h / 4 - 2, 'rgba(255,255,255,.9)', 3);
   },
+  // из леса (П.9): золотая шишка на подставке и еловый венок с бантом
+  goldcone(c, d, w, h, st) {
+    fillRR(c, -22, -12, 44, 12, 4, '#8d5524', OUT);
+    c.save();
+    c.translate(0, -12 - (st.on ? Math.abs(Math.sin(st.t * 10)) * 4 : 0));
+    ell(c, 0, -34, 17, 30, '#f2b705', OUT);
+    for (let r = 0; r < 6; r++)
+      for (let i = -1; i <= 1; i++) {
+        const y = -58 + r * 9,
+          x = i * 8 + (r % 2) * 4 - 2;
+        if (Math.abs(x) > 15 - Math.abs(r - 2.5) * 2) continue;
+        ell(c, x, y, 5, 4, r % 2 ? '#ffd43b' : '#fcc419', 'rgba(74,55,40,.55)', 1);
+      }
+    ell(c, -7, -48, 4, 9, 'rgba(255,255,255,.55)', null, 1, -0.3);
+    line(c, 0, -64, 0, -72, OUT, 3);
+    c.restore();
+    star(c, 16, -70, 4, '#fff');
+  },
+  firwreath(c, d, w, h, st) {
+    const r = w / 2 - 12;
+    for (let i = 0; i < 18; i++) {
+      const a = (i / 18) * Math.PI * 2;
+      ell(c, Math.cos(a) * r, Math.sin(a) * r, 13, 9, i % 2 ? '#2f9e44' : '#37b24d', OUT, 1.4, a + 1.2);
+    }
+    for (let i = 0; i < 18; i++) {
+      const a = (i / 18) * Math.PI * 2 + 0.17;
+      ell(c, Math.cos(a) * r, Math.sin(a) * r, 8, 5, '#51cf66', null, 1, a + 1.2);
+    }
+    for (const a of [0.4, 2.1, 3.6, 5.2]) ell(c, Math.cos(a) * r, Math.sin(a) * r, 4.5, 4.5, '#fa5252', OUT, 1.2);
+    for (const a of [1.2, 2.9, 4.4]) ell(c, Math.cos(a) * (r - 2), Math.sin(a) * (r - 2), 4, 5, '#a0662d', OUT, 1.1);
+    // бантик снизу
+    poly(c, [0, r, -16, r - 8, -16, r + 10], '#e03131', OUT, 1.6);
+    poly(c, [0, r, 16, r - 8, 16, r + 10], '#e03131', OUT, 1.6);
+    ell(c, 0, r, 5, 5, '#c92a2a', OUT, 1.4);
+  },
   garland(c, d, w, h, st) {
     c.beginPath();
     c.moveTo(-w / 2, -h / 2);

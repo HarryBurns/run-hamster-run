@@ -5,7 +5,8 @@
 //   spin (покрутить: штурвал, глобус) | look (рассмотреть) | water (полить цветы) | sport (потренироваться)
 //   telescope | bigfridge | oven — окна и сценки из features/visits.js
 // say — что написать, когда предмет потрогали (для spin, look, sport).
-// shop: home (ТЦ «Уютный дом») | market (вещицы с рынка) | gift (только в подарок).
+// shop: home (ТЦ «Уютный дом») | market (вещицы с рынка) | gift (только в подарок) | forest (только из леса: золотая
+//   шишка от белки, еловый венок от лесника Шишкина — features/forest.js; не продаются и не дарятся).
 // Цены — в таблице PRICES.furn (economy.js); у подарков цены нет (0).
 // season — сезонная вещь: коллекция из таблицы сезонов вещей (WARE_MONTHS в data/seasons.js): 'cold' (осень и
 //   зима), 'hot' (весна и лето), 'spring', 'newyear'… В сезон вещь в магазине всегда, не в сезон — редко.
@@ -68,6 +69,9 @@ F('throne', 'throne', 'Трон', 110, 170, { shop: 'gift', act: 'sit', cat: 'se
 F('sunflower', 'plant', 'Гигантский подсолнух', 90, 210, { shop: 'gift', act: 'plant', v: 4, cat: 'decor' });
 F('neon', 'neon', 'Неоновая вывеска', 150, 70, { shop: 'gift', wall: true, cat: 'wall' });
 F('cup', 'cup', 'Кубок чемпиона', 56, 80, { shop: 'gift', cat: 'decor', act: 'toy' });
+// из леса (П.9)
+F('golden_cone', 'goldcone', 'Золотая шишка', 60, 84, { shop: 'forest', cat: 'decor', act: 'look', say: 'Подарок белки из леса. Блестит!' });
+F('fir_wreath', 'firwreath', 'Еловый венок', 90, 90, { shop: 'forest', wall: true, cat: 'wall', act: 'look', say: 'Пахнет лесом и Новым годом!' });
 F('rocket', 'rocket', 'Игрушечная ракета', 70, 150, { shop: 'gift', cat: 'fun', act: 'toy' });
 // рынок: вещицы ручной работы
 F('rug_craft', 'rug', 'Коврик ручной работы', 190, 16, { shop: 'market', c: '#ffd8a8', cat: 'decor', layer: 0 });

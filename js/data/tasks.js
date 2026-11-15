@@ -105,6 +105,10 @@ export const EXTRA_STICKERS = [
   { id: 'x_tower', sticker: '🛗', title: 'На 101-й этаж!' },
   { id: 'x_ace', sticker: '🎯', title: 'Меткий пилот' },
   // гости, жильё, своё дело
+  // лес (П.9)
+  { id: 'x_squirrel', sticker: '🐿️', title: 'Подарок белки' },
+  { id: 'x_marshmallow', sticker: '🔥', title: 'Зефир у костра' },
+  { id: 'x_treehouse', sticker: '🏡', title: 'Домик на дереве' },
   { id: 'x_visit', sticker: '🧸', title: 'Первые гости' },
   { id: 'x_visit_all', sticker: '🏘️', title: 'В гостях у всех' },
   { id: 'x_tea', sticker: '☕', title: 'Чай с другом' },

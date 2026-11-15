@@ -56,6 +56,7 @@ export const EVENTS = {
   thing: 'потрогали особую вещь в доме { id, owner } — штурвал, глобус, лейку, штангу…',
   wear: 'надели или сняли вещь { slot, id } (id = null — сняли)',
   herb: 'сорвали находку для гербария { id } (locations/common/herbs.js)',
+  forest: 'занятие в лесу { what } — hive (мёд), squirrel (обмен у белки), fire (жарили зефир), treehouse (домик на дереве), wreath (венок), kit (нашли бельчонка), kitHome (отнесли маме) — features/forest.js',
 };
 
 const listeners = new Map(); // имя → Set функций

@@ -1007,7 +1007,7 @@ async function economy({ page, step, ev, wait, closeAll }) {
       const d = await import('./js/data/index.js');
       const all = [
         ...d.CLOTHES.filter((c) => !['start', 'gift'].includes(c.shop)),
-        ...d.FURNITURE.filter((f) => f.shop !== 'gift'),
+        ...d.FURNITURE.filter((f) => !['gift', 'forest'].includes(f.shop)), // подарки и лесные — без цены
         ...d.INGREDIENTS.filter((i) => i.src === 'shop'),
         ...d.SEEDS,
         ...d.DISHES.filter((q) => q.cafe),
