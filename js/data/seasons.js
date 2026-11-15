@@ -8,7 +8,7 @@
 //     (foodRule — правило для «ассортимента дня», data/stock.js);
 //   - задания (data/tasks.js): «Кокосовый день» приходит только когда кокосы есть на пальмах;
 //   - расчёт баланса (dev/balance.js): сколько дают сбор и огород в каждом сезоне, нет ли выгодной перепродажи.
-// Сезонную мебель, украшения и одежду (вторая половина Э1 в docs/BACKLOG.md) записывать в эту же таблицу.
+// Сезоны вещей (одежда, мебель, украшения) — в этом же файле, таблица WARE_MONTHS ниже.
 //
 // Месяцы — числами: 0 — январь … 11 — декабрь (как cal().month). Сезон можно записать целиком — months('summer') —
 // или по месяцам: [6, 7, 8]. Продукта в таблице нет — значит, он есть круглый год (мука, молоко, яйца…).
@@ -56,16 +56,58 @@ export function ripeIn(id, month) {
   return !m || m.includes(month);
 }
 const ORDER = Object.keys(SEASONS); // по кругу: зима → весна → лето → осень
-/** В какие сезоны продукт поспевает: ['summer', 'autumn'] или null — круглый год. */
-export function seasonsOf(id) {
-  const m = harvestMonths(id);
-  if (!m) return null;
+/** Сезоны, на которые приходятся месяцы m, по порядку: ['summer', 'autumn']. */
+function seasonsIn(m) {
   const list = ORDER.filter((s) => m.some((q) => SEASON_OF_MONTH[q] === s));
   // начинаем с сезона, перед которым перерыв: «осенью и зимой», а не «зимой и осенью»
   const start = list.findIndex((s) => !list.includes(ORDER[(ORDER.indexOf(s) + 3) % 4]));
   return start > 0 ? [...list.slice(start), ...list.slice(0, start)] : list;
 }
+/** Сезоны словами: «весной», «осенью и зимой»; icons — со значками: «осенью 🍂 и зимой ❄️». */
+const whenText = (list, icons) => list.map((s) => SEASONS[s].when + (icons ? ' ' + SEASONS[s].icon : '')).join(' и ');
+/** В какие сезоны продукт поспевает: ['summer', 'autumn'] или null — круглый год. */
+export function seasonsOf(id) {
+  const m = harvestMonths(id);
+  return m ? seasonsIn(m) : null;
+}
 /** Словами, когда сезон: «весной», «осенью и зимой»; icons — со значками сезонов: «осенью 🍂 и зимой ❄️»; '' — круглый год. */
 export function whenRipe(id, icons = false) {
-  return (seasonsOf(id) || []).map((s) => SEASONS[s].when + (icons ? ' ' + SEASONS[s].icon : '')).join(' и ');
+  return whenText(seasonsOf(id) || [], icons);
+}
+
+// СЕЗОНЫ ВЕЩЕЙ: одежда, мебель и украшения (вторая половина Э1). Вещь в своей таблице (data/clothes.js,
+// data/furniture.js) называет «коллекцию» полем season: 'cold'; здесь — в какие месяцы у коллекции сезон.
+// У вещи поля season нет — она продаётся круглый год. Что значит «в сезон» и «не в сезон» для прилавка и цены —
+// data/wares.js (числа — WARES в economy.js).
+/** Месяц праздника и по месяцу до и после: around(11) → [10, 11, 0]. */
+const around = (month) => [(month + 11) % 12, month, (month + 1) % 12];
+export const WARE_MONTHS = {
+  cold: months('autumn', 'winter'), // тёплое: пуховики, шапки, шарфы, угги; камин, кресло-качалка с пледом
+  hot: months('spring', 'summer'), // летнее: купальники, шорты, сандалии, панамки, тёмные очки; гамак, цветы, лейка
+  rain: months('spring', 'autumn'), // от дождя: куртка-дождевик, резиновые сапожки
+  spring: months('spring'), // весенние куртки, рассада
+  autumn: months('autumn'), // осенние куртки
+  // праздничное: месяц праздника и по месяцу до и после (сами праздники — отдельный этап, п. 13 плана)
+  newyear: around(11), // Новый год — декабрь: гирлянда-огоньки, новогодний колпак
+  halloween: around(9), // Хэллоуин — октябрь: шляпа волшебницы
+};
+/** Как сказать про праздничную коллекцию, когда у неё сезон (у остальных — по сезонам года). */
+const WARE_WHEN = { newyear: 'к Новому году 🎄', halloween: 'к Хэллоуину 🎃' };
+
+/**
+ * Что с коллекцией вещей в этом месяце (0–11): 'new' — сезон только начался, 'in' — сезон, 'last' — последний
+ * месяц сезона, 'off' — не сезон; null — у вещи сезона нет (season — имя коллекции или undefined).
+ */
+export function warePhase(season, month) {
+  const m = WARE_MONTHS[season];
+  if (!m || m.length >= 12) return null;
+  if (!m.includes(month)) return 'off';
+  if (!m.includes((month + 11) % 12)) return 'new';
+  return m.includes((month + 1) % 12) ? 'in' : 'last';
+}
+/** Словами, когда у коллекции сезон: «осенью 🍂 и зимой ❄️», «к Новому году 🎄»; '' — круглый год. */
+export function whenWare(season, icons = true) {
+  const m = WARE_MONTHS[season];
+  if (!m || m.length >= 12) return '';
+  return WARE_WHEN[season] || whenText(seasonsIn(m), icons);
 }

@@ -8,6 +8,7 @@ export * from './stock.js';
 export * from './clothes.js';
 export * from './beauty.js';
 export * from './furniture.js';
+export * from './wares.js';
 export * from './food.js';
 export * from './npcs.js';
 export * from './places.js';
