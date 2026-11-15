@@ -212,6 +212,14 @@ const { pathToFileURL } = require('url');
   // белка: орешек за шишки не дороже, чем стоят шишки (шишки не продаются); золотая шишка — украшение, не продаётся
   if (!(FOREST.squirrel.nuts >= 2 && FOREST.squirrel.cones >= 3)) bad('FOREST.squirrel: обмен слишком щедрый');
   if (D.FURNITURE.some((f) => f.shop === 'forest' && f.price)) bad('лесные украшения не продаются — у них не должно быть цены');
+  // гора (П.9): «Спуск на санках» — монеты только за первые MOUNTAIN.sled.paid игр в день, лучшая — меньше смены на 2★;
+  // эдельвейсы и украшения с горы не продаются
+  const { MOUNTAIN } = D,
+    sled = MOUNTAIN.sled;
+  if (!(sled.coins.length === 3 && sled.paid >= 1)) bad('MOUNTAIN.sled: нужны coins на 1–3★ и paid');
+  if (sled.coins[2] >= avg2) bad(`«Спуск на санках» на 3★ даёт ${sled.coins[2]} — это не меньше смены на 2★ (${fmt(avg2)})`);
+  if (D.FURNITURE.some((f) => f.shop === 'mountain' && f.price)) bad('украшения с горы не продаются — у них не должно быть цены');
+  if (!(MOUNTAIN.edelweiss === 1 && MOUNTAIN.frame >= 3)) bad('MOUNTAIN: эдельвейс — один в день, рамка — из трёх и больше');
 
   // (ж) ассортимент дня: в любой день двух игровых лет на прилавках хватает всего, чтобы готовить, сажать и угощать.
   // «Точно есть» — круглогодичное не из лакомств и сезонное в сезон; несезонное и лакомства — как повезёт.
@@ -510,6 +518,10 @@ const { pathToFileURL } = require('url');
   line('белка', `${FOREST.squirrel.nuts} орешка → золотая шишка (украшение, раз в день); ${FOREST.squirrel.cones} шишки → орешек`);
   line('улей', `${FOREST.honey} мёд в день летом и осенью (${ING.honey.sell} на рынке)`);
   line('«Грибная охота» (1★ / 2★ / 3★, первые ' + hunt.paid + ' в день)', `${hunt.coins.join(' / ')} монет + ${hunt.items.join(' / ')} грибов`);
+  console.log('\nГора (П.9)');
+  line('«Спуск на санках» (1★ / 2★ / 3★, первые ' + D.MOUNTAIN.sled.paid + ' в день)', `${D.MOUNTAIN.sled.coins.join(' / ')} монет`);
+  line('эдельвейсы (находка, не продаются)', `${D.MOUNTAIN.edelweiss} в день летом; ${D.MOUNTAIN.frame} → «Эдельвейсы в рамке» (украшение)`);
+  line('горячий источник, смотровая площадка, снеговик', 'бесплатно: наклейки, тепло и морковка для носа (из рюкзака)');
   console.log('\nГотовка: продукты → порция на рынке (1 / 2 / 3 порции за одну готовку)');
   for (const { d, cost, raw, buyable } of cook.sort((a, b) => b.d.sell - a.d.sell).slice(0, 8))
     line(

@@ -480,6 +480,15 @@ const mountain = createTopDownScene({
       act: 'way:caves',
       map: { icon: '🔒', at: [29.5, 5.2], label: '💎 Вход в пещеры' },
     },
+    // старт трассы для санок: «Спуск на санках» (та же мини-игра, что у Вершинкина)
+    {
+      id: 'sled',
+      cell: [AT.run[0], AT.run[2]],
+      stand: [AT.run[0] + 1, AT.run[2] + 0.6],
+      act: 'mountain:sled',
+      key: false,
+      map: { icon: '🛷', at: [AT.run[0] + 1, AT.run[2] + 0.5], label: '🛷 Трасса для санок' },
+    },
     ...EDELWEISS.map(([x, y], i) => ({
       id: 'edelweiss' + i,
       at: [x, y],
@@ -494,7 +503,6 @@ const mountain = createTopDownScene({
   spots: {
     pasture: { at: [29.5, 37.5], label: '🐄 Луг с коровами' },
     waterfall: { at: [32.5, 15.5], label: '🌊 Водопад' },
-    run: { at: [30.5, 9.5], label: '🛷 Трасса' },
   },
   // из леса приезжают на канатной дороге (вход station — у двери станции)
   entries: { station: { building: 'station' } },

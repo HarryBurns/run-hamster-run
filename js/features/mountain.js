@@ -7,19 +7,21 @@
 //   mountain:edelweiss  эдельвейс: летом один в день (находка); из трёх Вершинкин делает «Эдельвейсы в рамке»
 //   mountain:view       смотровая площадка с флагом: окно-панорама — лес, город и море; в первый раз — наклейка
 //   mountain:snowman    снеговик-строитель: покатать три кома, надеть ведро, нос-морковка из рюкзака; стоит до конца дня
+//   mountain:sled       мини-игра «Спуск на санках» (minigames/sled.js) — её предлагает Вершинкин (и старт трассы):
+//                       за первые MOUNTAIN.sled.paid игр в день он платит монетами по звёздам
 //   instructor          поговорить с инструктором Вершинкиным (житель горы у шале на трассе): задание, санки, болтовня
 //   cableway:up | down   канатная дорога: вагончик едет на гору из леса (вход way:mountain у станции в лесу —
 //                        LANDS.mountain.go) и обратно в лес (станция на горе); короткая картинка-переезд
 // Числа — MOUNTAIN в data/economy.js. Каждое занятие шлёт событие mountain { what } — по нему считают задания.
 // Состояние меняют только действия (core/actions.js); «раз в день» — отметки дня (dayFlags.mountain).
-import { setFlag, setDayFlag, addClothes, addItem, award } from '../core/actions.js';
+import { setFlag, setDayFlag, addClothes, addItem, award, earn } from '../core/actions.js';
 import { sfx } from '../core/audio.js';
 import { makeCanvas, ell, fillRR, line, poly } from '../core/draw.js';
 import { go } from '../core/loop.js';
 import { register } from '../core/registry.js';
 import { emit } from '../core/events.js';
 import { G, cal, darkness, hasClothes, playerLook, isSick, count } from '../core/state.js';
-import { el, esc, pick } from '../core/util.js';
+import { el, esc, pick, fmtMoney } from '../core/util.js';
 import { drawHamster } from '../art/hamster.js';
 import {
   CLOTHES,
@@ -40,6 +42,7 @@ import { openLayer } from '../ui/modals.js';
 import { openPanel } from '../ui/panel.js';
 import { toast } from '../ui/toast.js';
 import { frostToday } from './health.js';
+import { playMinigame } from './minigames.js';
 import { setWaitHook, questTalk } from './quests.js';
 
 const S = () => G.state;
@@ -101,6 +104,7 @@ export async function talkVershinkin() {
       const x = o(S());
       if (x) opts.push(x);
     }
+    opts.unshift({ text: '🛷 Спуск на санках', cls: 'yellow', fn: async () => (await sledRide(), null) });
     opts.push({ text: '💬 Поболтать', cls: 'blue', go: 'chat' }, { text: 'Пока!', go: 'bye' });
     const i = await sayV(text, opts);
     const o = opts[i] || {};
@@ -392,17 +396,43 @@ export function buildSnowman() {
   });
 }
 
+// ---------- «Спуск на санках» ----------
+/** Сколько спусков сегодня ещё с наградой. */
+const sledsLeft = () => Math.max(0, MOUNTAIN.sled.paid - (S2().sleds || 0));
+/** Спуститься на санках: за первые игры дня Вершинкин платит монетами по звёздам. */
+export async function sledRide() {
+  const left = sledsLeft(),
+    c = MOUNTAIN.sled.coins,
+    note = (html) => `<div class="pay-note${left ? '' : ' off'}">${html}</div>`;
+  const res = await playMinigame('sled', {
+    introNote: left
+      ? note(
+          `🛷 <b>Приз Вершинкина:</b> ⭐ 🪙 ${c[0]} · ⭐⭐ 🪙 ${c[1]} · ⭐⭐⭐ 🪙 ${c[2]}. Сегодня ещё ${left} ${left === 1 ? 'спуск' : 'спуска'} с призом.`,
+        )
+      : note('💛 Сегодня Вершинкин уже вручил тебе призы. Скатиться можно для удовольствия — завтра призы снова!'),
+    resultNote: (stars) =>
+      left ? note(`<span class="sum">🪙 Приз: +${fmtMoney(c[stars - 1])}</span>`) : note('💛 Этот спуск был для удовольствия.'),
+  });
+  if (!res || !left) return res;
+  setDayFlag('sleds', (S2().sleds || 0) + 1, 'mountain');
+  earn(c[res.stars - 1], 'work');
+  sfx('coin');
+  toast(`Вершинкин: «Вот это спуск!» 🪙 +${fmtMoney(c[res.stars - 1])}`, 'good');
+  return res;
+}
+
 // ---------- действия на горе ----------
 const MOUNTAIN_ACTS = {
   spring: (ctx) => visitSpring(ctx && ctx.scene),
   edelweiss: pickEdelweiss,
   view: climbLookout,
   snowman: buildSnowman,
+  sled: sledRide,
 };
 register(
   'mountain',
   (p, ctx) => MOUNTAIN_ACTS[p.arg] && MOUNTAIN_ACTS[p.arg](ctx),
-  'гора: mountain:spring | edelweiss | view | snowman',
+  'гора: mountain:spring | edelweiss | view | snowman | sled',
 );
 
 // ---------- канатная дорога ----------

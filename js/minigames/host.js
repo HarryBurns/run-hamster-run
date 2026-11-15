@@ -18,6 +18,7 @@ const LOADERS = {
   stylist: () => import('./stylist.js'),
   window: () => import('./window.js'),
   mushrooms: () => import('./mushrooms.js'), // лес: «Грибная охота» у лесника Шишкина
+  sled: () => import('./sled.js'), // гора: «Спуск на санках» у инструктора Вершинкина
 };
 /** Есть ли такая мини-игра. */
 export const hasMinigame = (id) => !!LOADERS[id];
