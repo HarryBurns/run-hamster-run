@@ -666,7 +666,7 @@ module.exports = async function wares({ page, step, ev, wait, closeAll }) {
     await closeAll();
   });
 
-  await step('витрина дня: свой бутик — та же витрина, выручка идёт; сохранение v3 — версия та же', async () => {
+  await step('витрина дня: свой бутик — та же витрина, выручка идёт; сохранение v3 — вещи на месте', async () => {
     await fresh();
     await setDay(DAY.spring, 5000);
     await ev(() => window.__dev.actions.addBiz('boutique'));
@@ -716,7 +716,7 @@ module.exports = async function wares({ page, step, ev, wait, closeAll }) {
     await closeAll();
     expect(till[0] === till[1], 'выручка бутика за день', till);
 
-    // сохранение-образец v3: новых полей нет — версия та же, вещи на месте; купленное носится и не в сезон
+    // сохранение-образец v3: Э1 версию не меняла (с Ф1 оно переносится в v4), вещи на месте; купленное носится и не в сезон
     const old = JSON.parse(SAVE_V3);
     await ev((raw) => {
       window.__dev.G.state = null;
@@ -730,7 +730,7 @@ module.exports = async function wares({ page, step, ev, wait, closeAll }) {
     await closeAll();
     s = await state();
     expect(
-      s.v === old.v &&
+      s.v === 4 &&
         s.money === old.money &&
         JSON.stringify([...s.clothes].sort()) === JSON.stringify([...old.clothes, 'flip_pink'].sort()) && // + подарок (У2)
         s.villa.length === old.villa.length,
