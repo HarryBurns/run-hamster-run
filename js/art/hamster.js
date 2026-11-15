@@ -72,6 +72,12 @@ function pattern(ctx, item, x, y, w, h) {
   }
 }
 
+/** Светлый ли цвет '#rrggbb' (для оттенка деталей). */
+function isLight(c) {
+  const n = parseInt(c.slice(1, 7), 16);
+  return ((n >> 16) & 255) * 0.3 + ((n >> 8) & 255) * 0.59 + (n & 255) * 0.11 > 150;
+}
+
 // ---------- одежда на тело ----------
 function sleevesOf(item) {
   if (!item) return null;
@@ -291,8 +297,8 @@ function drawBody(ctx, item) {
         ctx.fillRect(-19, -14, 11, 2.5);
         ctx.fillRect(8, -14, 11, 2.5);
       } else {
-        ctx.fillStyle = item.c2 || '#fff';
-        ctx.fillRect(-30, -34, 60, 6);
+        ctx.fillStyle = item.c2 || '#fff'; // полоска поперёк груди — ниже воротника
+        ctx.fillRect(-30, -16, 60, 5);
       }
       ctx.fillStyle = dark;
       ctx.fillRect(-1, -50, 2, 52);
@@ -300,7 +306,7 @@ function drawBody(ctx, item) {
         ctx.fillStyle = item.c2 || '#fff';
         for (let i = 0; i < 3; i++) {
           ctx.beginPath();
-          ctx.arc(4, -34 + i * 10, 2, 0, TAU);
+          ctx.arc(4, -16 + i * 6.5, 2, 0, TAU);
           ctx.fill();
         }
       }
@@ -358,16 +364,19 @@ function drawBody(ctx, item) {
       break;
     }
     case 'tuxedo': {
+      // Подбородок закрывает тело до y ≈ -30, поэтому манишка, лацканы и бабочка — ниже, на груди.
       bodyPath(ctx, 2);
       ctx.fillStyle = c;
       ctx.fill();
       ctx.save();
       ctx.clip();
-      poly(ctx, [-9, -50, 9, -50, 0, -14], '#fff');
+      poly(ctx, [-12, -40, 12, -40, 0, -8], '#fff'); // манишка: вырез «уголком» из-под подбородка
+      const lapel = shade(c, isLight(c) ? -0.12 : 0.25); // атласные лацканы: у светлого — темнее, у тёмного — светлее
+      for (const sx of [-1, 1]) poly(ctx, [sx * 12, -40, sx * 19, -30, sx * 3, -10, 0, -8], lapel, OUT, 1.3); // лацканы
       ctx.fillStyle = OUT;
-      for (let i = 0; i < 3; i++) {
+      for (const yy of [-17, -12]) {
         ctx.beginPath();
-        ctx.arc(0, -32 + i * 7, 1.4, 0, TAU);
+        ctx.arc(0, yy, 1.3, 0, TAU);
         ctx.fill();
       }
       ctx.restore();
@@ -375,8 +384,10 @@ function drawBody(ctx, item) {
       ctx.strokeStyle = OUT;
       ctx.lineWidth = 2;
       ctx.stroke();
-      poly(ctx, [0, -39, -9, -44, -9, -34], item.c2 || '#e03131', OUT, 1.2);
-      poly(ctx, [0, -39, 9, -44, 9, -34], item.c2 || '#e03131', OUT, 1.2);
+      const bow = item.c2 || '#e03131'; // бабочка — сразу под подбородком
+      poly(ctx, [0, -24, -9, -29, -9, -19], bow, OUT, 1.3);
+      poly(ctx, [0, -24, 9, -29, 9, -19], bow, OUT, 1.3);
+      ell(ctx, 0, -24, 2.6, 2.6, shade(bow, -0.2), OUT, 1.1);
       break;
     }
     default:
@@ -411,16 +422,18 @@ function printOn(ctx, kind, x, y) {
 
 function collar(ctx, item) {
   if (!item) return;
+  // Воротники лежат под подбородком (низ головы: y ≈ -29 посередине, -36 у плеч) — иначе голова их закрывает.
   if (item.kind === 'jacketW') {
-    for (let i = -3; i <= 3; i++) ell(ctx, i * 6, -40 + Math.abs(i) * 0.9, 5.5, 4.5, item.c2 || '#fff7e6');
-    ctx.beginPath();
-    ctx.ellipse(0, -39, 22, 6, 0, 0, Math.PI);
-    ctx.strokeStyle = OUT;
-    ctx.lineWidth = 1.5;
-    ctx.stroke();
+    // меховой воротник пуховика — пушистые комочки вдоль подбородка
+    for (let i = -3; i <= 3; i++) {
+      const x = i * 6.5;
+      ell(ctx, x, -52 + 23 * Math.sqrt(1 - (x / 27) ** 2) + 2.5, 5.5, 4.5, item.c2 || '#fff7e6', OUT, 1.1);
+    }
   } else if (item.kind === 'jacketA' || item.kind === 'jacketS') {
-    poly(ctx, [-14, -43, -2, -38, -10, -33], shade(item.c, -0.15), OUT, 1.5);
-    poly(ctx, [14, -43, 2, -38, 10, -33], shade(item.c, -0.15), OUT, 1.5);
+    // отложной воротник: два уголка из-под подбородка по сторонам от застёжки
+    const col = shade(item.c, -0.15);
+    poly(ctx, [-17, -35, -2, -30, -4, -20, -12, -24], col, OUT, 1.5);
+    poly(ctx, [17, -35, 2, -30, 4, -20, 12, -24], col, OUT, 1.5);
   } else if (item.kind === 'hoodie') {
     ell(ctx, 0, -45, 25, 13, shade(item.c, -0.14), OUT, 2); // капюшон за головой
   } else if (item.kind === 'sweater') {
