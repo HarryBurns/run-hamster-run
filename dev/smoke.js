@@ -5,7 +5,8 @@
 // Третий аргумент «extra» — только экономика и проверки сохранений, цикла и окон (быстро):  node dev/smoke.js <url> extra
 // Третий аргумент «estate» — только гости, жильё и бизнес (dev/smoke_estate.js):  node dev/smoke.js <url> estate
 // Третий аргумент «step:<часть названия>» — только шаги с таким текстом в названии:  node dev/smoke.js <url> step:растёт
-// (сезонность продуктов, Э1 — dev/smoke_seasons.js:  node dev/smoke.js <url> step:сезонность)
+// (сезонность продуктов, Э1 — dev/smoke_seasons.js:  node dev/smoke.js <url> step:сезонность;
+//  сезонные вещи и «привоз», Э1 — dev/smoke_wares.js:  node dev/smoke.js <url> "step:витрина дня")
 // Скорость проверяется отдельно:  node dev/bench.js [url] --spots=forest --sizes=desktop --max-forest=45
 const { chromium } = require('playwright');
 const fs = require('fs');
@@ -14,6 +15,7 @@ const SAVE_V1 = fs.readFileSync(path.join(__dirname, 'saves', 'v1.json'), 'utf8'
 const SAVE_V2 = fs.readFileSync(path.join(__dirname, 'saves', 'v2.json'), 'utf8'); // сделано кодом с новой экономикой (этап 3)
 const estate = require('./smoke_estate.js'); // этап 4: в гости, жильё, бизнес, «Бариста», перенос v2 → v3
 const seasons = require('./smoke_seasons.js'); // Э1: сезонность продуктов, ассортимент дня, огород по сезонам
+const wares = require('./smoke_wares.js'); // Э1: сезонные вещи и «привоз» — витрины одежды, мебели, рынок
 
 const BASE = process.argv[2] || 'http://localhost:8765';
 const ONLY_ESTATE = process.argv[3] === 'estate';
@@ -565,7 +567,7 @@ async function extra({ page, step, ev, wait, closeAll, hold }) {
       window.__dev.enterBuilding('mall_home');
     });
     await wait(400);
-    await click('.overlay .card .btn');
+    await click('.overlay .card .btn.green'); // первой может стоять дорогая вещь из привоза — берём ту, что по карману
     await closeAll();
     await ev(() => {
       window.__dev.enterBuilding('salon');
@@ -2416,6 +2418,7 @@ async function economy({ page, step, ev, wait, closeAll }) {
     });
     await economy({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
     await seasons({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
+    await wares({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
     await estate({ page, step: (n, f, o) => step(n, f, { ...o, extra: true, estate: true }), ev, wait, closeAll });
     if (tag === 'desktop')
       await extra({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll, hold });
