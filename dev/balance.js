@@ -167,6 +167,43 @@ const { pathToFileURL } = require('url');
     if (later > MARKET.purse)
       bad(`сбор и огород: ${MONTHS[month]} — если продать не в сезон, ${fmt(later)} в день: больше кошелька торговца`);
   }
+  // (е2) сбор в лесу (П.9) — главное место сбора: заметно щедрее города, но меньше полутора смен на 2★ за день;
+  // город + лес + 8 грядок под лучшей культурой — меньше трёх смен, а придержанное и проданное не в сезон —
+  // не больше кошелька торговца. Сезоны — та же таблица (HARVEST_MONTHS); шишки и еловые веточки — не еда.
+  const { FOREST_GATHER, FOREST } = D;
+  const forestIn = (month) =>
+    Object.entries(FOREST_GATHER)
+      .filter(([id]) => D.ripeIn(id, month))
+      .map(([id, q]) => ({ id, n: q.n * q.max, sum: q.n * q.max * ING[id].sell, off: q.n * q.max * ING[id].sellOff }));
+  const forestSum = (month) => forestIn(month).reduce((a, q) => a + q.sum, 0);
+  for (const [id, q] of Object.entries(FOREST_GATHER)) {
+    if (!ING[id]) bad(`лес: неизвестный продукт ${id}`);
+    else if (!ING[id].seasons) bad(`лес: у ${id} нет сезона в таблице сезонов`);
+    else if (!D.isSeasonal(ING[id])) bad(`лес: ${id} собирается, но не сезонный`);
+    if (!(q.n > 0 && q.max > 0)) bad(`лес: ${id} — нужны n и max`);
+  }
+  for (let month = 0; month < 12; month++) {
+    const f = forestSum(month);
+    if (f >= 1.5 * avg2) bad(`лес: ${MONTHS[month]} — ${f} монет в день, это не меньше полутора смен на 2★`);
+    const now = gatherSum(month) + f + 8 * bedBestIn(month),
+      later = gatherOffSum(month) + forestIn(month).reduce((a, q) => a + q.off, 0) + 8 * bedBestOffIn(month);
+    if (now >= 3 * avg2)
+      bad(`город, лес и огород: ${MONTHS[month]} — ${fmt(now)} монет в день, это не меньше трёх смен на 2★`);
+    if (later > MARKET.purse)
+      bad(`город, лес и огород: ${MONTHS[month]} — если продать не в сезон, ${fmt(later)} в день: больше кошелька торговца`);
+  }
+  const yearAvg = (fn) => avgOf(ALL_MONTHS.map(fn));
+  if (!(yearAvg(forestSum) >= 1.5 * yearAvg(gatherSum)))
+    bad(`лес должен быть главным местом сбора: за год в среднем ${fmt(yearAvg(forestSum))} против ${fmt(yearAvg(gatherSum))} в городе`);
+  // «Грибная охота»: монеты и грибы — только за первые FOREST.hunt.paid игр в день; лучшая игра — меньше смены на 2★
+  const hunt = FOREST.hunt,
+    huntBest = hunt.coins[2] + hunt.items[2] * Math.max(ING.mushroom.sellOff, ING.porcini.sellOff);
+  if (!(hunt.coins.length === 3 && hunt.items.length === 3 && hunt.paid >= 1)) bad('FOREST.hunt: нужны coins и items на 1–3★ и paid');
+  if (huntBest >= avg2) bad(`«Грибная охота» на 3★ даёт ${huntBest} — это не меньше смены на 2★ (${fmt(avg2)})`);
+  // белка: орешек за шишки не дороже, чем стоят шишки (шишки не продаются); золотая шишка — украшение, не продаётся
+  if (!(FOREST.squirrel.nuts >= 2 && FOREST.squirrel.cones >= 3)) bad('FOREST.squirrel: обмен слишком щедрый');
+  if (D.FURNITURE.some((f) => f.shop === 'forest' && f.price)) bad('лесные украшения не продаются — у них не должно быть цены');
+
   // (ж) ассортимент дня: в любой день двух игровых лет на прилавках хватает всего, чтобы готовить, сажать и угощать.
   // «Точно есть» — круглогодичное не из лакомств и сезонное в сезон; несезонное и лакомства — как повезёт.
   for (const [k, r] of Object.entries(STOCK))
@@ -450,6 +487,20 @@ const { pathToFileURL } = require('url');
       `${fmt(gatherSum(month))} в день`,
     );
   }
+  console.log('\nСбор в лесу (П.9): раз в день с растения, только в сезон (если собрать всё и всё продать)');
+  for (const s of Object.keys(SEASONS)) {
+    const month = SEASON_OF_MONTH.indexOf(s),
+      list = forestIn(month);
+    line(
+      `${SEASONS[s].name.toLowerCase()}: ${list.map((q) => `${ING[q.id].name.toLowerCase()} ×${q.n}`).join(', ') || 'только шишки' + (s === 'winter' ? ' и еловые веточки' : '')}`,
+      `${fmt(forestSum(month))} в день (город — ${fmt(gatherSum(month))})`,
+    );
+  }
+  line('за год в среднем: лес / город', `${fmt(yearAvg(forestSum))} / ${fmt(yearAvg(gatherSum))} в день`);
+  line('находки (не продаются)', `шишки — ${FOREST.cones} в день круглый год, еловые веточки — ${FOREST.twigs} зимой`);
+  line('белка', `${FOREST.squirrel.nuts} орешка → золотая шишка (украшение, раз в день); ${FOREST.squirrel.cones} шишки → орешек`);
+  line('улей', `${FOREST.honey} мёд в день летом и осенью (${ING.honey.sell} на рынке)`);
+  line('«Грибная охота» (1★ / 2★ / 3★, первые ' + hunt.paid + ' в день)', `${hunt.coins.join(' / ')} монет + ${hunt.items.join(' / ')} грибов`);
   console.log('\nГотовка: продукты → порция на рынке (1 / 2 / 3 порции за одну готовку)');
   for (const { d, cost, raw, buyable } of cook.sort((a, b) => b.d.sell - a.d.sell).slice(0, 8))
     line(

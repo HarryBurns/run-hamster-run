@@ -9,6 +9,7 @@ import { emit } from '../core/events.js';
 import { cal } from '../core/state.js';
 import {
   GATHER,
+  FOREST_GATHER,
   SEASONS,
   STOCK,
   buyPrice,
@@ -88,7 +89,16 @@ export function whereToGet(ing) {
       text: `сегодня в ТЦ нет${f.mall.state === 'sold' ? ' (раскупили)' : ''} — ${back ? 'привезут ' + back : 'загляни позже'}`,
     };
   }
-  const own = ing.src === 'garden' ? 'вырасти на грядке' : GATHER[ing.id] ? 'собери в городе' : '';
+  const own =
+    ing.src === 'garden'
+      ? 'вырасти на грядке'
+      : GATHER[ing.id] && FOREST_GATHER[ing.id]
+        ? 'собери в городе или в лесу'
+        : GATHER[ing.id]
+          ? 'собери в городе'
+          : FOREST_GATHER[ing.id]
+            ? 'собери в лесу'
+            : '';
   if (f.season === 'in')
     return { ok: true, text: `сейчас сезон ${SEASONS[c.season].icon}: ${own ? own + ' или ' : ''}купи в ТЦ «Вкусный»` };
   const lead = `не сезон (сезон — ${seasonText(ing)})`;
