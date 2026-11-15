@@ -46,7 +46,8 @@ export function drawMushroom(ctx, kind, x, y, s) {
   ctx.strokeStyle = OUT;
   ctx.lineWidth = 1.8 * Math.min(1.4, s);
   ctx.stroke();
-  if (kind === 'aspen') for (let i = 0; i < 5; i++) ell(ctx, (i % 2 ? 2 : -2) * s, -h * (0.2 + i * 0.15), 1.2 * s, 0.8 * s, '#495057');
+  if (kind === 'aspen')
+    for (let i = 0; i < 5; i++) ell(ctx, (i % 2 ? 2 : -2) * s, -h * (0.2 + i * 0.15), 1.2 * s, 0.8 * s, '#495057');
   if (m.skirt) ell(ctx, 0, -h * 0.72, 6 * s, 2.4 * s, '#ffffff', OUT, 1.2);
   // шляпка
   const cw = (m.shape === 'bell' ? 12 : kind === 'porcini' ? 17 : 15) * s;
@@ -58,7 +59,8 @@ export function drawMushroom(ctx, kind, x, y, s) {
     ctx.quadraticCurveTo(cw * 0.5, -h - 12 * s, cw, -h - 8 * s);
     ctx.quadraticCurveTo(cw * 0.6, -h - 1 * s, 3 * s, -h + 2 * s);
     ctx.lineTo(-3 * s, -h + 2 * s);
-    ctx.quadraticCurveTo(-cw * 0.6, -h - 1 * s, -cw, -h - 8 * s);  } else if (m.shape === 'bell') {
+    ctx.quadraticCurveTo(-cw * 0.6, -h - 1 * s, -cw, -h - 8 * s);
+  } else if (m.shape === 'bell') {
     ctx.moveTo(-cw, -h + 2 * s);
     ctx.bezierCurveTo(-cw, -h - 20 * s, cw, -h - 20 * s, cw, -h + 2 * s);
     ctx.quadraticCurveTo(0, -h - 2 * s, -cw, -h + 2 * s);
@@ -143,10 +145,22 @@ export default {
     const flies = []; // гриб летит в корзинку
     // места, где прячутся грибы: 3 × 3 кучки листьев (доли экрана), чуть вразброс
     const SPOTS = [];
-    for (let r = 0; r < 3; r++) for (let c = 0; c < 3; c++) SPOTS.push({ fx: 0.2 + c * 0.3 + (r % 2 ? 0.05 : -0.04), fy: 0.38 + r * 0.22, m: null });
+    for (let r = 0; r < 3; r++)
+      for (let c = 0; c < 3; c++)
+        SPOTS.push({ fx: 0.2 + c * 0.3 + (r % 2 ? 0.05 : -0.04), fy: 0.38 + r * 0.22, m: null });
     const season = host.season || 'summer';
-    const grass = season === 'autumn' ? ['#c3cc66', '#a8b44f'] : season === 'winter' ? ['#e9f2f8', '#cfdeea'] : ['#86d45c', '#5fb83f'];
-    const leaves = season === 'autumn' ? ['#e8590c', '#f59f00', '#fcc419'] : season === 'winter' ? ['#ffffff', '#e3eef6', '#cfe3f0'] : ['#2f9e44', '#40c057', '#69db7c'];
+    const grass =
+      season === 'autumn'
+        ? ['#c3cc66', '#a8b44f']
+        : season === 'winter'
+          ? ['#e9f2f8', '#cfdeea']
+          : ['#86d45c', '#5fb83f'];
+    const leaves =
+      season === 'autumn'
+        ? ['#e8590c', '#f59f00', '#fcc419']
+        : season === 'winter'
+          ? ['#ffffff', '#e3eef6', '#cfe3f0']
+          : ['#2f9e44', '#40c057', '#69db7c'];
 
     function spawn() {
       const free = SPOTS.filter((s) => !s.m);
@@ -209,7 +223,9 @@ export default {
     cv.canvas.__mh = () =>
       SPOTS.map((s) => {
         const g = geo(s);
-        return s.m && !s.m.hit && rise(s.m) > 0.9 ? { good: MUSHROOMS[s.m.kind].good, x: g.x, y: g.y - 34 * g.k } : null;
+        return s.m && !s.m.hit && rise(s.m) > 0.9
+          ? { good: MUSHROOMS[s.m.kind].good, x: g.x, y: g.y - 34 * g.k }
+          : null;
       }).filter(Boolean);
 
     function draw() {
@@ -235,7 +251,8 @@ export default {
       ctx.beginPath();
       ctx.arc(bx, by - 18, 26, Math.PI, 0);
       ctx.stroke();
-      for (let i = 0; i < Math.min(got, 12); i++) drawMushroom(ctx, GOOD[i % 3], bx - 24 + (i % 6) * 10, by - 12 + Math.floor(i / 6) * 8, 0.5);
+      for (let i = 0; i < Math.min(got, 12); i++)
+        drawMushroom(ctx, GOOD[i % 3], bx - 24 + (i % 6) * 10, by - 12 + Math.floor(i / 6) * 8, 0.5);
       // грибы за кучками листьев (сначала гриб, потом кучка — кучка его закрывает снизу)
       const order = SPOTS.slice().sort((a, b) => a.fy - b.fy);
       for (const s of order) {
@@ -254,7 +271,17 @@ export default {
         ell(ctx, gg.x + 4, gg.y + 6 * gg.k, 36 * gg.k, 10 * gg.k, 'rgba(52,38,70,.18)');
         for (let i = 0; i < 7; i++) {
           const a = (i / 7) * Math.PI;
-          ell(ctx, gg.x + Math.cos(a) * 24 * gg.k, gg.y + 2 * gg.k - Math.sin(a) * 5 * gg.k, 12 * gg.k, 7 * gg.k, leaves[i % 3], OUT, 1.5, a);
+          ell(
+            ctx,
+            gg.x + Math.cos(a) * 24 * gg.k,
+            gg.y + 2 * gg.k - Math.sin(a) * 5 * gg.k,
+            12 * gg.k,
+            7 * gg.k,
+            leaves[i % 3],
+            OUT,
+            1.5,
+            a,
+          );
         }
       }
       // летят в корзинку

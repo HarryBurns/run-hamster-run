@@ -30,14 +30,75 @@ const BRIDGE = [21, 22]; // ряды мостика (через него идё�
 // ---------- тропы и поляны ----------
 // Тропа — ломаная в клетках; r — полуширина: 0,75 — в две клетки (точки на границе клеток), 0,55 — в одну.
 const PATHS = [
-  { r: 0.75, pts: [[11, 40], [11, 34], [15, 31], [20, 26.5], [24.5, 24]] }, // от ворот к костру
-  { r: 0.55, pts: [[11, 34.5], [7.5, 33.5], [5.5, 32.5]] }, // к избушке
-  { r: 0.55, pts: [[24.5, 18], [22.5, 14.5], [18.5, 12.5], [13.5, 12.5]] }, // на север, к домику на дереве
-  { r: 0.55, pts: [[22.5, 14.5], [25.5, 10.5], [27.5, 7.5]] }, // к грибной поляне
-  { r: 0.55, pts: [[7.5, 33.5], [8.5, 24.5], [11.5, 16.5], [13, 12.5]] }, // западная тропка: кругом
-  { r: 0.75, pts: [[28, 22], [39, 22], [41.5, 19]] }, // на восток, через мостик
-  { r: 0.55, pts: [[41.5, 18.5], [42.5, 12.5], [44.5, 8.5], [44, 6]] }, // к станции канатной дороги
-  { r: 0.55, pts: [[39.5, 22], [40.5, 26.5], [40.5, 32.5]] }, // к белке и ягодам
+  {
+    r: 0.75,
+    pts: [
+      [11, 40],
+      [11, 34],
+      [15, 31],
+      [20, 26.5],
+      [24.5, 24],
+    ],
+  }, // от ворот к костру
+  {
+    r: 0.55,
+    pts: [
+      [11, 34.5],
+      [7.5, 33.5],
+      [5.5, 32.5],
+    ],
+  }, // к избушке
+  {
+    r: 0.55,
+    pts: [
+      [24.5, 18],
+      [22.5, 14.5],
+      [18.5, 12.5],
+      [13.5, 12.5],
+    ],
+  }, // на север, к домику на дереве
+  {
+    r: 0.55,
+    pts: [
+      [22.5, 14.5],
+      [25.5, 10.5],
+      [27.5, 7.5],
+    ],
+  }, // к грибной поляне
+  {
+    r: 0.55,
+    pts: [
+      [7.5, 33.5],
+      [8.5, 24.5],
+      [11.5, 16.5],
+      [13, 12.5],
+    ],
+  }, // западная тропка: кругом
+  {
+    r: 0.75,
+    pts: [
+      [28, 22],
+      [39, 22],
+      [41.5, 19],
+    ],
+  }, // на восток, через мостик
+  {
+    r: 0.55,
+    pts: [
+      [41.5, 18.5],
+      [42.5, 12.5],
+      [44.5, 8.5],
+      [44, 6],
+    ],
+  }, // к станции канатной дороги
+  {
+    r: 0.55,
+    pts: [
+      [39.5, 22],
+      [40.5, 26.5],
+      [40.5, 32.5],
+    ],
+  }, // к белке и ягодам
 ];
 // поляны: круг [cx, cy, r] или прямоугольник [x0, y0, x1, y1] (в клетках) — там не растут деревья
 const GLADES = {
@@ -54,27 +115,61 @@ const inGlade = (x, y) => {
   const cx = x + 0.5,
     cy = y + 0.5;
   return Object.values(GLADES).some((g) =>
-    g.c ? Math.hypot(cx - g.c[0], cy - g.c[1]) <= g.c[2] : x >= g.box[0] && x <= g.box[2] && y >= g.box[1] && y <= g.box[3],
+    g.c
+      ? Math.hypot(cx - g.c[0], cy - g.c[1]) <= g.c[2]
+      : x >= g.box[0] && x <= g.box[2] && y >= g.box[1] && y <= g.box[3],
   );
 };
 
 // ---------- что растёт и где (сколько всего — FOREST_GATHER; автотест сверяет с картой) ----------
 const FRUIT = [
   // грибы — осенью: на грибной поляне, у костра, под ёлками
-  ['mushrooms', 26, 8], ['mushrooms', 29, 7], ['mushrooms', 25, 5], ['mushrooms', 21, 12],
-  ['mushrooms', 16, 13], ['mushrooms', 21, 19], ['mushrooms', 26, 24], ['mushrooms', 9, 22],
+  ['mushrooms', 26, 8],
+  ['mushrooms', 29, 7],
+  ['mushrooms', 25, 5],
+  ['mushrooms', 21, 12],
+  ['mushrooms', 16, 13],
+  ['mushrooms', 21, 19],
+  ['mushrooms', 26, 24],
+  ['mushrooms', 9, 22],
   // белые грибы — летом и осенью
-  ['porcini', 22, 17], ['porcini', 17, 11], ['porcini', 28, 9], ['porcini', 10, 27],
+  ['porcini', 22, 17],
+  ['porcini', 17, 11],
+  ['porcini', 28, 9],
+  ['porcini', 10, 27],
   // черника — летом, на ягодной поляне
-  ['berryBush', 38, 32], ['berryBush', 40, 34], ['berryBush', 42, 31], ['berryBush', 44, 33], ['berryBush', 45, 35], ['berryBush', 38, 35],
+  ['berryBush', 38, 32],
+  ['berryBush', 40, 34],
+  ['berryBush', 42, 31],
+  ['berryBush', 44, 33],
+  ['berryBush', 45, 35],
+  ['berryBush', 38, 35],
   // лесная земляника — весной и летом
-  ['wildStrawberry', 8, 29], ['wildStrawberry', 12, 31], ['wildStrawberry', 21, 23], ['wildStrawberry', 27, 19],
+  ['wildStrawberry', 8, 29],
+  ['wildStrawberry', 12, 31],
+  ['wildStrawberry', 21, 23],
+  ['wildStrawberry', 27, 19],
   // лещина — осенью орешки
-  ['hazelBush', 39, 25], ['hazelBush', 45, 27], ['hazelBush', 39, 29], ['hazelBush', 45, 31],
+  ['hazelBush', 39, 25],
+  ['hazelBush', 45, 27],
+  ['hazelBush', 39, 29],
+  ['hazelBush', 45, 31],
 ];
 // находки на земле: шишки под ёлками — каждый день, еловые веточки — зимой (WILD_MONTHS.firTwig)
-const CONES = [[13, 30], [18, 28], [22, 15], [26, 11], [31, 23], [40, 20]];
-const TWIGS = [[16, 30], [19, 13], [29, 5], [43, 9]];
+const CONES = [
+  [13, 30],
+  [18, 28],
+  [22, 15],
+  [26, 11],
+  [31, 23],
+  [40, 20],
+];
+const TWIGS = [
+  [16, 30],
+  [19, 13],
+  [29, 5],
+  [43, 9],
+];
 // особые места
 const AT = {
   hut: { x: 4, y: 30, w: 3, h: 2 },
@@ -104,7 +199,8 @@ function build(m) {
   const rnd = seeded(912);
   // 1. лесная подстилка большими пятнами (где гуще ели)
   const dense = (x, y) => Math.sin(x * 0.31) + Math.sin(y * 0.27 + 1) + Math.sin((x + y) * 0.19 + 2);
-  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (dense(x, y) > 0.5 && !inGlade(x, y)) m.set(x, y, 'forestFloor');
+  for (let y = 0; y < H; y++)
+    for (let x = 0; x < W; x++) if (dense(x, y) > 0.5 && !inGlade(x, y)) m.set(x, y, 'forestFloor');
   // 2. тропы
   const path = new Set();
   for (const { r, pts } of PATHS)
@@ -152,7 +248,8 @@ function build(m) {
         const k = rnd(),
           v = Math.floor(rnd() * 3);
         if (floor || edge) m.add(k < 0.55 ? 'spruce' : k < 0.8 ? 'pine' : 'birch', x, y, { v });
-        else if (k < 0.4) m.add('tree', x, y, { v: 1 }); // лиственное — без яблок (вид 1)
+        else if (k < 0.4)
+          m.add('tree', x, y, { v: 1 }); // лиственное — без яблок (вид 1)
         else m.add(k < 0.7 ? 'birch' : 'spruce', x, y, { v });
         continue;
       }
@@ -170,6 +267,7 @@ function build(m) {
     m.add(type, x, y, o);
   };
   for (const [type, x, y] of FRUIT) put1(type, x, y, { v: (x + y) % 2 });
+  for (const [x, y] of [...CONES, ...TWIGS]) m.clear(x, y); // там лежат находки — клетка свободна
   put1('campfire', ...AT.fire, { burning: fireBurning });
   put1('log', AT.fire[0] - 2, AT.fire[1]);
   put1('log', AT.fire[0] + 2, AT.fire[1]);
@@ -193,7 +291,12 @@ function sealPockets(m) {
   seen[38 * W + 10] = 1;
   while (q.length) {
     const [x, y] = q.pop();
-    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+    for (const [dx, dy] of [
+      [1, 0],
+      [-1, 0],
+      [0, 1],
+      [0, -1],
+    ]) {
       const nx = x + dx,
         ny = y + dy;
       if (nx < 0 || ny < 0 || nx >= W || ny >= H || seen[ny * W + nx] || !m.foot(nx, ny)) continue;
@@ -206,16 +309,33 @@ function sealPockets(m) {
 
 /** Находки дня: шишки — всегда, еловые веточки — зимой. Утром появляются снова (движок, dayFlags.finds). */
 function dailyPickups(sc) {
-  const list = CONES.map(([x, y], i) => ({ id: 'cone' + i, at: [x, y], icon: '🌰', give: ['finds', 'cone', 1], text: '+1 🌰 Шишка' }));
+  const list = CONES.map(([x, y], i) => ({
+    id: 'cone' + i,
+    at: [x, y],
+    icon: '🌰',
+    give: ['finds', 'cone', 1],
+    text: '+1 🌰 Шишка',
+  }));
   if (wildIn('firTwig', monthNow()))
     TWIGS.forEach(([x, y], i) =>
-      list.push({ id: 'twig' + i, at: [x, y], icon: '🎄', give: ['finds', 'fir_twig', 1], text: '+1 🎄 Еловая веточка' }),
+      list.push({
+        id: 'twig' + i,
+        at: [x, y],
+        icon: '🎄',
+        give: ['finds', 'fir_twig', 1],
+        text: '+1 🎄 Еловая веточка',
+      }),
     );
   sc.setPickups(list);
 }
 
 // ---------- снег зимой (если в этот день нет снегопада в погоде) ----------
-const flakes = Array.from({ length: 50 }, (_, i) => ({ x: (i * 0.618) % 1, y: (i * 0.377) % 1, s: 0.6 + ((i * 0.29) % 0.7), ph: i }));
+const flakes = Array.from({ length: 50 }, (_, i) => ({
+  x: (i * 0.618) % 1,
+  y: (i * 0.377) % 1,
+  s: 0.6 + ((i * 0.29) % 0.7),
+  ph: i,
+}));
 function drawSnow(ctx, w, h, t) {
   ctx.fillStyle = 'rgba(255,255,255,.9)';
   ctx.beginPath();
@@ -242,7 +362,22 @@ const forest = createTopDownScene({
   gather: FOREST_GATHER, // сколько дают растения леса (common/plants.js)
   buildings: [
     // избушка лесника на опушке: постучать — выйдет Шишкин
-    { id: 'hut', kind: 'house', ...AT.hut, npc: 'shishkin', name: 'Избушка лесника', icon: '🛖', wall: '#d9a066', roof: '#5c7c34', shutters: '#8d5524', smoke: true, attic: false, art: hutArt, frame: [-40, -80, 3 * T + 44, 2 * T + 30], act: 'forester' },
+    {
+      id: 'hut',
+      kind: 'house',
+      ...AT.hut,
+      npc: 'shishkin',
+      name: 'Избушка лесника',
+      icon: '🛖',
+      wall: '#d9a066',
+      roof: '#5c7c34',
+      shutters: '#8d5524',
+      smoke: true,
+      attic: false,
+      art: hutArt,
+      frame: [-64, -100, 3 * T + 64, 2 * T + 44],
+      act: 'forester',
+    },
     // станция канатной дороги: на гору (откроется заданием Сени — LANDS.mountain); пока — окно с замочком
     { id: 'station', kind: 'cableway', ...AT.station, name: 'Канатная дорога', icon: '🚡', act: 'way:mountain' },
   ],
@@ -340,7 +475,9 @@ const forest = createTopDownScene({
     const x = (AT.kit[0] + 0.5) * T,
       y = (AT.kit[1] + 0.5) * T;
     if (x > v.x0 && x < v.x1 && y > v.y0 && y < v.y1)
-      add(y + 12, (ctx, _v, t) => put('squirrelKit', x, y + 8 + (Math.sin(t * 6) > 0.6 ? -4 : 0), Math.round(Math.sin(t * 4) * 2), -1));
+      add(y + 12, (ctx, _v, t) =>
+        put('squirrelKit', x, y + 8 + (Math.sin(t * 6) > 0.6 ? -4 : 0), Math.round(Math.sin(t * 4) * 2), -1),
+      );
   },
   /** Лучики сквозь кроны днём — в слое неба (он есть, когда видны тени облаков: днём без дождя и снега). */
   sky(c, sc, lw, lh) {

@@ -8,7 +8,8 @@
 // (сезонность продуктов, Э1 — dev/smoke_seasons.js:  node dev/smoke.js <url> step:сезонность;
 //  сезонные вещи и «привоз», Э1 — dev/smoke_wares.js:  node dev/smoke.js <url> "step:витрина дня";
 //  болезнь, Ф1 — dev/smoke_health.js:  node dev/smoke.js <url> step:болезнь;
-//  журнал сюжетных заданий, этап 5 — dev/smoke_quests.js:  node dev/smoke.js <url> step:журнал)
+//  журнал сюжетных заданий, этап 5 — dev/smoke_quests.js:  node dev/smoke.js <url> step:журнал;
+//  лес, П.9 — dev/smoke_forest.js:  node dev/smoke.js <url> step:лес)
 // Скорость проверяется отдельно:  node dev/bench.js [url] --spots=forest --sizes=desktop --max-forest=45
 const { chromium } = require('playwright');
 const fs = require('fs');
@@ -20,6 +21,7 @@ const seasons = require('./smoke_seasons.js'); // Э1: сезонность пр
 const wares = require('./smoke_wares.js'); // Э1: сезонные вещи и «привоз» — витрины одежды, мебели, рынок
 const health = require('./smoke_health.js'); // Ф1: болезнь — причины, эффекты, доктор, иммунитет, перенос v3 → v4
 const quests = require('./smoke_quests.js'); // этап 5: журнал сюжетных заданий, гербарий Мяты, тайные места, v4 → v5
+const forest = require('./smoke_forest.js'); // П.9: лес — вход, сбор, улей, белка, костёр, «Грибная охота», задание Шишкина
 
 const BASE = process.argv[2] || 'http://localhost:8765';
 const ONLY_ESTATE = process.argv[3] === 'estate';
@@ -886,7 +888,7 @@ async function extra({ page, step, ev, wait, closeAll, hold }) {
       window.__dev.actions.setMail('snow');
     });
   });
-  await step('переход между локациями: город → пробная локация → город', async () => {
+  await step('переход между локациями: город → лес → город', async () => {
     const send = (name, x, y) =>
       ev(([name, x, y]) => window.__dev.locations[name].walkTo(x * 48, y * 48, true), [name, x, y]);
     await ev(() => {
@@ -894,7 +896,9 @@ async function extra({ page, step, ev, wait, closeAll, hold }) {
       d.go('world');
       d.World.debugTeleport(2, 4);
     });
-    // в игре тропа в лес закрыта воротами: за них не пройти — остались в городе, перед воротами
+    // пока лес закрыт, тропа перекрыта воротами: за них не пройти — остались в городе, перед воротами
+    const wasOpen = await ev(() => window.__dev.QuestState.landOpen('forest'));
+    if (wasOpen) await ev(() => window.__dev.actions.mutate((s) => delete s.lands.forest));
     await send('world', 1.5, 0.5);
     await wait(900);
     let r = await where();
@@ -909,22 +913,22 @@ async function extra({ page, step, ev, wait, closeAll, hold }) {
         throw new Error('у ворот в лес нет окна «Тропа в лес заросла»: ' + t);
       await closeAll();
     }
-    // открываем выход (так его откроет задание) и идём к краю ещё раз: ворота распахнуты
+    // лес открыт (так его открывает задание Мяты — действие openLand): ворота распахнуты, тропа ведёт в лес
     await ev(() => {
       const d = window.__dev;
-      d.World.exit('forest').off = false;
+      d.actions.openLand('forest');
       d.World.debugTeleport(2, 4);
     });
     await wait(100);
     await send('world', 1.5, 0.5);
     await wait(1200);
     r = await where();
-    if (r.scene !== 'demo_meadow' || !near(r, { x: 11 * T, y: 11.5 * T }))
-      throw new Error('переход в пробную локацию: ' + JSON.stringify(r));
+    if (r.scene !== 'forest' || !near(r, { x: 10.5 * T, y: 37.5 * T }))
+      throw new Error('переход в лес: ' + JSON.stringify(r));
     const saved = JSON.parse((await stored()).save).pos;
-    if (saved.scene !== 'demo_meadow') throw new Error('позиция после перехода: ' + JSON.stringify(saved));
-    // обратно: по тропинке до нижнего края
-    await send('demo_meadow', 10.5, 13.5);
+    if (saved.scene !== 'forest') throw new Error('позиция после перехода: ' + JSON.stringify(saved));
+    // обратно: по тропе до южной кромки леса
+    await send('forest', 10.5, 39.5);
     await wait(1200);
     r = await where();
     if (r.scene !== 'world' || !near(r, { x: 2 * T, y: 1.5 * T }))
@@ -933,15 +937,22 @@ async function extra({ page, step, ev, wait, closeAll, hold }) {
     r = await where();
     if (r.scene !== 'world') throw new Error('после возвращения хомячка затянуло обратно');
     // стоим на клетке выхода в момент входа — он не срабатывает, пока не сойдём с неё и не вернёмся
-    await ev(() => window.__dev.go('demo_meadow', { at: [10.5, 13.5] }));
+    await ev(() => window.__dev.go('forest', { at: [10.5, 39.5] }));
     await wait(400);
     r = await where();
-    if (r.scene !== 'demo_meadow') throw new Error('выход сработал сразу при входе на его клетку');
-    await ev(() => {
+    if (r.scene !== 'forest') throw new Error('выход сработал сразу при входе на его клетку');
+    // пробная полянка по-прежнему ведёт в город, к тропе
+    await ev(() => window.__dev.go('demo_meadow', { at: [10.5, 12.5] }));
+    await wait(200);
+    await send('demo_meadow', 10.5, 13.5);
+    await wait(1200);
+    r = await where();
+    if (r.scene !== 'world') throw new Error('из пробной полянки — не в город: ' + JSON.stringify(r));
+    await ev((wasOpen) => {
       const d = window.__dev;
-      d.World.exit('forest').off = true;
+      if (!wasOpen) d.actions.mutate((s) => delete s.lands.forest);
       d.go('world');
-    });
+    }, wasOpen);
     await wait(200);
   });
 }
@@ -1506,6 +1517,7 @@ async function economy({ page, step, ev, wait, closeAll }) {
           ...errors.slice(before).filter((q) => !q.includes(o.expectErrors)),
         );
       console.log(`${errors.length === before ? 'ok  ' : 'FAIL'} [${tag}] ${name}`);
+      if (errors.length > before && process.env.SMOKE_VERBOSE) console.log('     ' + errors.slice(before).join('\n     '));
     };
     // закрыть все окна и диалоги
     const closeAll = async () => {
@@ -2436,6 +2448,7 @@ async function economy({ page, step, ev, wait, closeAll }) {
     await wares({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
     await health({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
     await quests({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
+    await forest({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
     await estate({ page, step: (n, f, o) => step(n, f, { ...o, extra: true, estate: true }), ev, wait, closeAll });
     if (tag === 'desktop')
       await extra({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll, hold });

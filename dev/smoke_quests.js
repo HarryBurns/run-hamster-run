@@ -265,7 +265,9 @@ module.exports = async function quests({ page, step, ev, wait, closeAll }) {
     expect(s.stickers.includes('q_herbarium') && s.clothes.includes('bag_straw'), 'наклейка и корзинка', s.stickers);
     expect(s.money === money + 500, 'монеты за задание', s.money - money);
     expect(!Object.keys(s.finds).length, 'находки не отданы', s.finds);
-    expect((await badge('myata')) === null && (await chip()) === null, 'после задания — значок или плашка');
+    // плашка теперь зовёт к следующему заданию — лесника Шишкина в открывшемся лесу
+    const ch = await chip();
+    expect((await badge('myata')) === null && (!ch || /Шишкин/.test(ch.text)), 'после задания — значок или плашка', ch);
     // журнал: выполнено; тропа в лес — «Лес открыт!»
     await ev(() => window.__dev.F.openAlbum('quests'));
     await wait(400);
@@ -274,9 +276,13 @@ module.exports = async function quests({ page, step, ev, wait, closeAll }) {
     await ev(() => {
       window.__dev.run('way:forest');
     });
-    await wait(400);
-    expect(/Лес открыт/.test(await panelText()) && /Шишкин/.test(await panelText()), 'тропа в лес после задания', await panelText());
+    await wait(600);
+    // лес готов (П.9): тропа ведёт в сцену леса, а там — лесник Шишкин с заданием «!»
+    expect((await ev(() => window.__dev.sceneName)) === 'forest', 'тропа в лес после задания ведёт не в лес', await ev(() => window.__dev.sceneName));
+    expect((await badge('shishkin')) === '!', 'в лесу у Шишкина нет задания «!»', await badge('shishkin'));
     await closeAll();
+    await noon();
+    await wait(300);
     // карта: лес без замочка, остальные — с замочком
     await ev(() => window.__dev.F.openMap());
     await wait(500);

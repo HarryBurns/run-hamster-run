@@ -66,8 +66,19 @@ function floorDeco(ctx, x, y, tx, ty, env, r) {
   if (sea === 'autumn') {
     const n = 1 + Math.floor(r(60) * 3);
     for (let i = 0; i < n; i++)
-      ell(ctx, x + r(61 + i) * T, y + r(64 + i) * T, 3.8, 2.1, ['#e8590c', '#f59f00', '#fcc419', '#c2410c'][Math.floor(r(67 + i) * 4)], null, 1, r(70 + i) * 3);
-  } else if (sea === 'spring' && r(80) < 0.18) flower(ctx, x + 8 + r(81) * 32, y + 8 + r(82) * 32, 2.4, '#ffffff', '#ffd43b');
+      ell(
+        ctx,
+        x + r(61 + i) * T,
+        y + r(64 + i) * T,
+        3.8,
+        2.1,
+        ['#e8590c', '#f59f00', '#fcc419', '#c2410c'][Math.floor(r(67 + i) * 4)],
+        null,
+        1,
+        r(70 + i) * 3,
+      );
+  } else if (sea === 'spring' && r(80) < 0.18)
+    flower(ctx, x + 8 + r(81) * 32, y + 8 + r(82) * 32, 2.4, '#ffffff', '#ffd43b');
 }
 /** Ручей: блики бегут по течению (сверху вниз), зимой — лёд с трещинками. */
 function brookLive(ctx, cells, n, env) {
@@ -224,7 +235,9 @@ function paintLog(ctx, snow) {
 function paintMossRock(ctx, v, snow) {
   shadow(ctx, 0, 12, 20, 6);
   const big = v % 2;
-  const pts = big ? [-20, 12, -17, -8, -6, -20, 10, -16, 20, -2, 18, 12] : [-16, 12, -14, -4, -4, -13, 9, -10, 16, 2, 14, 12];
+  const pts = big
+    ? [-20, 12, -17, -8, -6, -20, 10, -16, 20, -2, 18, 12]
+    : [-16, 12, -14, -4, -4, -13, 9, -10, 16, 2, 14, 12];
   poly(ctx, pts, STONE, OUT, 2.2);
   poly(ctx, big ? [10, -16, 20, -2, 18, 12, 6, 12, 4, -4] : [9, -10, 16, 2, 14, 12, 4, 12, 3, -2], STONE_D);
   poly(ctx, pts, null, OUT, 2.2);

@@ -17,7 +17,17 @@ import { register } from '../core/registry.js';
 import { G, cal, darkness, count, questNow } from '../core/state.js';
 import { esc, pick, fmtMoney } from '../core/util.js';
 import { makeCanvas, ell, poly, line } from '../core/draw.js';
-import { NPC_BY_ID, npcLook, FOREST, ING_BY_ID, DISH_BY_ID, FIND_BY_ID, QUEST_BY_ID, wildIn, DAYS_PER_MONTH } from '../data/index.js';
+import {
+  NPC_BY_ID,
+  npcLook,
+  FOREST,
+  ING_BY_ID,
+  DISH_BY_ID,
+  FIND_BY_ID,
+  QUEST_BY_ID,
+  wildIn,
+  DAYS_PER_MONTH,
+} from '../data/index.js';
 import { dialog } from '../ui/dialog.js';
 import { message, openPanel } from '../ui/panel.js';
 import { toast } from '../ui/toast.js';
@@ -55,8 +65,12 @@ export async function talkShishkin() {
   if (qt && qt.text) text = qt.text;
   for (;;) {
     const twigs = count('finds', 'fir_twig');
-    const opts = [{ text: '🍄 Грибная охота', cls: 'yellow', go: 'hunt' }, { text: '💬 Поболтать', cls: 'blue', go: 'chat' }];
-    if (twigs) opts.push({ text: `🎄 Сплести венок (веточек ${twigs} из ${FOREST.wreath})`, cls: 'green', go: 'wreath' });
+    const opts = [
+      { text: '🍄 Грибная охота', cls: 'yellow', go: 'hunt' },
+      { text: '💬 Поболтать', cls: 'blue', go: 'chat' },
+    ];
+    if (twigs)
+      opts.push({ text: `🎄 Сплести венок (веточек ${twigs} из ${FOREST.wreath})`, cls: 'green', go: 'wreath' });
     opts.push({ text: 'Пока!', go: 'bye' });
     const i = await say(text, opts);
     const go = (opts[i] || {}).go;
@@ -74,7 +88,8 @@ export async function talkShishkin() {
       addItem('storage', 'fir_wreath', 1);
       sfx('win');
       emit('forest', { what: 'wreath' });
-      text = 'Вот, держи еловый венок! Повесь дома на стену — будет пахнуть лесом и Новым годом 🎄 Он уже в кладовке: дома нажми 🔨.';
+      text =
+        'Вот, держи еловый венок! Повесь дома на стену — будет пахнуть лесом и Новым годом 🎄 Он уже в кладовке: дома нажми 🔨.';
     } else return;
   }
 }
@@ -112,7 +127,11 @@ export function visitHive() {
   emit('gather', { id: 'honey', n: FOREST.honey });
   return true;
 }
-register('forest', (p) => FOREST_ACTS[p.arg] && FOREST_ACTS[p.arg](), 'лес: forest:hive | squirrel | fire | treehouse | kit');
+register(
+  'forest',
+  (p) => FOREST_ACTS[p.arg] && FOREST_ACTS[p.arg](),
+  'лес: forest:hive | squirrel | fire | treehouse | kit',
+);
 
 // ---------- белка ----------
 /** Бельчонок из задания Шишкина найден и ещё не дома. */
@@ -135,7 +154,11 @@ export async function visitSquirrel() {
       cls: gold && nuts >= sq.nuts ? 'green' : 'ghost',
       go: 'gold',
     });
-    opts.push({ text: `${FIND_BY_ID.cone.e}×${sq.cones} → ${ING_BY_ID.nuts.e} Орешек`, cls: cones >= sq.cones ? 'blue' : 'ghost', go: 'nut' });
+    opts.push({
+      text: `${FIND_BY_ID.cone.e}×${sq.cones} → ${ING_BY_ID.nuts.e} Орешек`,
+      cls: cones >= sq.cones ? 'blue' : 'ghost',
+      go: 'nut',
+    });
     opts.push({ text: 'Пока!', cls: 'ghost', go: 'bye' });
     const i = await message({
       title: 'Белка Рыжик',
@@ -157,7 +180,10 @@ export async function visitSquirrel() {
     }
     if (go === 'gold') {
       if (!gold) toast('🐿️ Золотую шишку я уже подарила сегодня. Приходи завтра!');
-      else if (nuts < sq.nuts) toast(`🐿️ Нужно ${sq.nuts} орешка, а у тебя ${nuts}. Орешки растут на лещине осенью и продаются в ТЦ «Вкусный».`);
+      else if (nuts < sq.nuts)
+        toast(
+          `🐿️ Нужно ${sq.nuts} орешка, а у тебя ${nuts}. Орешки растут на лещине осенью и продаются в ТЦ «Вкусный».`,
+        );
       else {
         addItem('ing', 'nuts', -sq.nuts);
         addItem('storage', 'golden_cone', 1);
@@ -240,7 +266,11 @@ export function paintTreeView(ctx, w, h, season, dark) {
   const mx = w * 0.3,
     my = h * 0.12;
   poly(ctx, [mx - 150, h * 0.62, mx, my, mx + 160, h * 0.62], night ? '#4c5a8a' : '#9aa9c9', '#4a3728', 2);
-  poly(ctx, [mx - 44, my + 40, mx, my, mx + 46, my + 42, mx + 22, my + 34, mx + 6, my + 46, mx - 16, my + 36], '#ffffff');
+  poly(
+    ctx,
+    [mx - 44, my + 40, mx, my, mx + 46, my + 42, mx + 22, my + 34, mx + 6, my + 46, mx - 16, my + 36],
+    '#ffffff',
+  );
   line(ctx, w * 0.62, h * 0.66, mx + 10, my + 50, '#4a3728', 1.5);
   ell(ctx, mx + 10, my + 52, 6, 5, '#fa5252', '#4a3728', 1.2);
   ctx.font = '20px sans-serif';
@@ -267,7 +297,8 @@ export function paintTreeView(ctx, w, h, season, dark) {
         yy = y + ((i * 13) % 9) - 4;
       if (pine) {
         poly(ctx, [x - 20 * sc, yy + 18 * sc, x, yy - 40 * sc, x + 20 * sc, yy + 18 * sc], col, '#4a3728', 1.4);
-        if (season === 'winter') poly(ctx, [x - 8 * sc, yy - 22 * sc, x, yy - 40 * sc, x + 8 * sc, yy - 22 * sc], '#ffffff');
+        if (season === 'winter')
+          poly(ctx, [x - 8 * sc, yy - 22 * sc, x, yy - 40 * sc, x + 8 * sc, yy - 22 * sc], '#ffffff');
       } else {
         ell(ctx, x, yy, 26 * sc, 20 * sc, col, '#4a3728', 1.4);
         ell(ctx, x - 8 * sc, yy - 7 * sc, 10 * sc, 6 * sc, 'rgba(255,255,255,.28)');
@@ -341,7 +372,9 @@ export async function mushroomHunt() {
         )
       : note('💛 Сегодня Шишкин уже наградил тебя. Сыграть можно для удовольствия — завтра награда снова!'),
     resultNote: (stars) =>
-      left ? note(`<span class="sum">🧺 Награда: ${rewardText(huntReward(stars))}</span>`) : note('💛 Эта охота была для удовольствия.'),
+      left
+        ? note(`<span class="sum">🧺 Награда: ${rewardText(huntReward(stars))}</span>`)
+        : note('💛 Эта охота была для удовольствия.'),
   });
   if (!res || !left) return res;
   const r = huntReward(res.stars);
