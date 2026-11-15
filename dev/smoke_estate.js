@@ -373,6 +373,17 @@ module.exports = async function estate({ page, step, ev, wait, closeAll }) {
   await step(
     'гости: задания «В гости к соседям», «Чаепитие», «Звёзды в телескоп», приглашение в разговоре',
     async () => {
+      // сюжетные задания жителей города (Сеня — «На вершину!», как только открыт лес) здесь не мешают: они сданы,
+      // иначе в гостях житель сначала заговорит о задании (так и должно быть в игре)
+      await ev(async () => {
+        const D = await import('/js/data/index.js'),
+          d = window.__dev;
+        d.actions.mutate((s) => {
+          for (const q of D.QUESTS)
+            if (D.NPCS.some((n) => n.id === q.npc) && !(s.quests[q.id] && s.quests[q.id].done !== null))
+              s.quests[q.id] = { day: s.day, n: {}, got: {}, done: s.day };
+        });
+      });
       const task = async (id) => {
         await ev((id) => {
           const d = window.__dev;
