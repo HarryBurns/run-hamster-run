@@ -99,7 +99,7 @@ defineTiles({
   snowPath: {
     like: 'y',
     z: 5.05, // свой слой (у слоя одна заливка на всех с тем же z) — над земляной тропинкой
-    map: '#dde8f1',
+    map: '#c9d8e6',
     step: 'stepSnow',
     fill: '#e1ebf3',
     edge: { wob: 5, out: [['rgba(160,190,215,.5)', 5]], in: [['rgba(170,195,220,.5)', 6]] },

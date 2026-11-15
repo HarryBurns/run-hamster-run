@@ -9,7 +9,8 @@
 //  сезонные вещи и «привоз», Э1 — dev/smoke_wares.js:  node dev/smoke.js <url> "step:витрина дня";
 //  болезнь, Ф1 — dev/smoke_health.js:  node dev/smoke.js <url> step:болезнь;
 //  журнал сюжетных заданий, этап 5 — dev/smoke_quests.js:  node dev/smoke.js <url> step:журнал;
-//  лес, П.9 — dev/smoke_forest.js:  node dev/smoke.js <url> step:лес)
+//  лес, П.9 — dev/smoke_forest.js:  node dev/smoke.js <url> step:лес;
+//  гора, П.9 — dev/smoke_mountain.js:  node dev/smoke.js <url> step:гора)
 // Скорость проверяется отдельно:  node dev/bench.js [url] --spots=forest --sizes=desktop --max-forest=45
 const { chromium } = require('playwright');
 const fs = require('fs');
@@ -22,6 +23,7 @@ const wares = require('./smoke_wares.js'); // Э1: сезонные вещи и 
 const health = require('./smoke_health.js'); // Ф1: болезнь — причины, эффекты, доктор, иммунитет, перенос v3 → v4
 const quests = require('./smoke_quests.js'); // этап 5: журнал сюжетных заданий, гербарий Мяты, тайные места, v4 → v5
 const forest = require('./smoke_forest.js'); // П.9: лес — вход, сбор, улей, белка, костёр, «Грибная охота», задание Шишкина
+const mountain = require('./smoke_mountain.js'); // П.9: гора — задание Сени, канатная дорога, источник, снеговик, санки, Вершинкин
 
 const BASE = process.argv[2] || 'http://localhost:8765';
 const ONLY_ESTATE = process.argv[3] === 'estate';
@@ -2456,6 +2458,7 @@ async function economy({ page, step, ev, wait, closeAll }) {
     await health({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
     await quests({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
     await forest({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
+    await mountain({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
     await estate({ page, step: (n, f, o) => step(n, f, { ...o, extra: true, estate: true }), ev, wait, closeAll });
     if (tag === 'desktop')
       await extra({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll, hold });

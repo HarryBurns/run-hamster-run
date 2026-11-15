@@ -123,7 +123,7 @@ export const AT = {
 const EDELWEISS = [
   [8, 24],
   [17, 30],
-  [33, 26],
+  [30, 25],
 ];
 const S2 = () => G.state.dayFlags.mountain || {};
 export const edelweissOn = () => cal().season === 'summer' && !S2().edelweiss;
@@ -449,6 +449,7 @@ const mountain = createTopDownScene({
       kind: 'house',
       ...AT.chalet,
       name: 'Шале',
+      mapName: 'Шале Вершинкина',
       icon: '🏠',
       wall: '#c98b5a',
       roof: '#c92a2a',
