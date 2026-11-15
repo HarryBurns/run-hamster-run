@@ -443,8 +443,8 @@ export function createTopDownScene(desc) {
           return;
         }
       }
-      if (sc.walkTo(w.x, w.y, true)) sfx('step');
-      else if (!p.ride && !canSwim() && TILES[map.at(tx, ty)] && TILES[map.at(tx, ty)].swim) waterHint();
+      if (sc.walkTo(w.x, w.y, true)) sfx('step'); // простуженная (Ф1) дойдёт только до берега — и подсказка
+      if (!p.ride && !canSwim() && TILES[map.at(tx, ty)] && TILES[map.at(tx, ty)].swim) waterHint();
     },
     interact() {
       const p = sc.p;
