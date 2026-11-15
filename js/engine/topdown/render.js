@@ -429,12 +429,16 @@ function drawHero(ctx, sc, look, ent, t) {
 }
 
 // ---------- здания ----------
-/** Здание из кэша спрайтов. От времени зависят только снег на крыше и свет в окнах — они входят в ключ. */
+/**
+ * Здание из кэша спрайтов. От времени зависят только снег на крыше и свет в окнах — они входят в ключ; вывеска,
+ * которую можно переименовать (b.signText — своё название заведения), — тоже.
+ */
 function drawBuilding(ctx, m, b, season, dark, env) {
   const kind = BUILDING_KINDS[b.kind],
     snow = season === 'winter' ? 1 : 0,
     lit = dark > 0.35 ? 1 : 0,
-    key = `b:${m.id}:${b.id}:${snow}:${lit}`;
+    sign = b.signText ? b.signText() || '' : '',
+    key = `b:${m.id}:${b.id}:${snow}:${lit}${sign ? ':' + sign : ''}`;
   let s = SP.find(key);
   if (!s) {
     // рамка — вокруг левого верхнего угла «пятна» здания

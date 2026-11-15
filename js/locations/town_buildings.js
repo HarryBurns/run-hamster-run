@@ -30,7 +30,9 @@ import {
 } from './common/buildings.js';
 import { signBoard, awning, flower, fitText, leafTones, WOOD, WOOD_D, WOOD_L, LIT, GOLD } from './common/paint.js';
 
-const title = (b) => `${b.icon || ''} ${b.name || ''}`.trim();
+/** Своё название заведения на вывеске (поле signText — его ставит town.js у купленных заведений) или null. */
+const own = (b) => (b.signText && b.signText()) || null;
+const title = (b) => `${b.icon || ''} ${own(b) || b.name || ''}`.trim();
 const doorLight = facadeLights;
 
 // ---------- мелочи для витрин ----------
@@ -300,7 +302,7 @@ function paintSalon(ctx, b, snow, lit) {
     [W - 40, g.wy + 6],
   ])
     emoji(ctx, '💗', X + dx, dy, 11);
-  signBoard(ctx, title(b), cx, g.top + 28, W - 14, 26, 'plate', '#e64980');
+  signBoard(ctx, title(b), cx, g.top + 28, W - 14, 26, 'plate', '#e64980', false, !!own(b));
   // ножницы над вывеской
   ctx.save();
   ctx.translate(cx, g.top - 4);
@@ -345,7 +347,7 @@ function paintBoutique(ctx, b, snow, lit) {
   });
   door(ctx, cx + doorX(b), bot, 34, 64, '#fff8ec', { glass: true, lit, frame: '#845ef7', arch: true });
   wallLamp(ctx, X + W - 14, bot - 70, lit);
-  signBoard(ctx, title(b), cx, g.top + 30, W - 14, 26, 'plate', '#845ef7');
+  signBoard(ctx, title(b), cx, g.top + 30, W - 14, 26, 'plate', '#845ef7', false, !!own(b));
   bow(ctx, cx, g.top - 2, 1.1, '#ff8fab');
 }
 function chalkboard(ctx, x, bot) {
@@ -416,7 +418,7 @@ function paintCafe(ctx, b, snow, lit) {
   });
   door(ctx, cx + doorX(b), bot, 34, 64, '#d6336c', { glass: true, lit, frame: '#fff8ec' });
   chalkboard(ctx, X + W - 18, bot + 2);
-  signBoard(ctx, title(b), cx - 14, g.top + 28, W - 62, 25, 'plate', '#d6336c');
+  signBoard(ctx, title(b), cx - 14, g.top + 28, W - 62, 25, 'plate', '#d6336c', false, !!own(b));
   bigCup(ctx, X + W - 34, g.top + 14, !snow);
 }
 function nut(ctx, x, y, r) {
@@ -485,7 +487,7 @@ function paintRest(ctx, b, snow, lit) {
   // фонарики под карнизом и вывеска с орешком
   lanterns(ctx, X + 16, cx - 60, Y + 66, lit);
   lanterns(ctx, cx + 60, X + W - 16, Y + 66, lit);
-  signBoard(ctx, b.name, cx, Y + 26, 216, 30, 'neon', GOLD, lit);
+  signBoard(ctx, own(b) || b.name, cx, Y + 26, 216, 30, 'neon', GOLD, lit, !!own(b));
   nut(ctx, cx, Y - 12, 20);
 }
 function paintPool(ctx, b, snow, lit) {
@@ -663,7 +665,7 @@ function paintBeachCafe(ctx, b, snow, lit) {
         ['#ffd43b', '#ff8fab', '#63e6be'][(i + j) % 3],
       );
   thatch(ctx, [X - 14, Y + 50, X + 34, Y - 26, X + W - 34, Y - 26, X + W + 14, Y + 50], snow);
-  signBoard(ctx, title(b), cx, Y + 10, 170, 26, 'wood');
+  signBoard(ctx, title(b), cx, Y + 10, 170, 26, 'wood', undefined, false, !!own(b));
   lanterns(ctx, X + 4, X + W - 4, Y + 56, lit);
 }
 

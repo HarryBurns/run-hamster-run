@@ -120,6 +120,26 @@ export function fitText(ctx, str, cx, cy, maxW, size, fill, stroke) {
   ctx.fillText(str, cx, cy + 1);
   return size;
 }
+const fitOne = fitText;
+/**
+ * Текст в одну или две строки (для названий, которые придумал игрок): если в одну строку буквы пришлось бы ужать
+ * сильнее, чем до 72 %, — перенос по пробелу ближе к середине, обе строки помельче. Без пробелов — одна строка.
+ */
+export function fitLines(ctx, str, cx, cy, maxW, size, fill, stroke) {
+  ctx.font = `900 ${size}px ${FONT}`;
+  const tw = ctx.measureText(str).width;
+  const cuts = [...str.matchAll(/ /g)].map((q) => q.index);
+  if (tw <= maxW / 0.72 || !cuts.length) return fitText(ctx, str, cx, cy, maxW, size, fill, stroke);
+  const mid = str.length / 2,
+    at = cuts.reduce((a, b) => (Math.abs(b - mid) < Math.abs(a - mid) ? b : a)),
+    lines = [str.slice(0, at), str.slice(at + 1)],
+    s2 = size * 0.74;
+  ctx.font = `900 ${s2}px ${FONT}`;
+  const wide = Math.max(...lines.map((l) => ctx.measureText(l).width)),
+    k = Math.min(1, maxW / wide);
+  lines.forEach((l, i) => fitText(ctx, l, cx, cy + (i - 0.5) * s2 * k * 1.02, maxW, s2 * k, fill, stroke));
+  return s2 * k;
+}
 /**
  * ВЫВЕСКА с текстом, центр (cx, cy), ширина w, высота h. kind:
  *   'wood'    деревянная доска с гвоздиками (лавки, дома, указатели)
@@ -128,9 +148,10 @@ export function fitText(ctx, str, cx, cy, maxW, size, fill, stroke) {
  *   'banner'  светлая лента-маркиза
  * Возвращает ничего; текст сам ужимается под ширину.
  */
-export function signBoard(ctx, text, cx, cy, w, h, kind = 'wood', col = '#e64980', lit = false) {
+export function signBoard(ctx, text, cx, cy, w, h, kind = 'wood', col = '#e64980', lit = false, wrap = false) {
   const x = cx - w / 2,
-    y = cy - h / 2;
+    y = cy - h / 2,
+    fitText = wrap ? fitLines : fitOne; // wrap — длинное название переносится на вторую строку
   if (kind === 'wood') {
     fillRR(ctx, x, y + 2, w, h, 5, 'rgba(0,0,0,.18)');
     fillRR(ctx, x, y, w, h, 5, WOOD_L, OUT, 2);

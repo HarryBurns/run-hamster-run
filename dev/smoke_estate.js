@@ -871,6 +871,29 @@ module.exports = async function estate({ page, step, ev, wait, closeAll }) {
     );
     await standAt('cafe');
     await wait(300); // кадр с табличкой рисуется без ошибок (их ловит общий обработчик автотеста)
+    // своё название — и на большой вывеске здания (З1): оно в ключе спрайта; переименовали — новая картинка
+    const signKeys = (title) =>
+      ev((title) => {
+        const d = window.__dev,
+          b = d.World.map.bById.cafe,
+          SP = d.topdown.SP;
+        const keys = [0, 1].flatMap((snow) => [0, 1].map((lit) => `b:world:cafe:${snow}:${lit}:${title}`));
+        return { text: b.signText(), drawn: keys.some((k) => SP.find(k)) };
+      }, title);
+    let sk = await signKeys('Кафе «Пуговка»');
+    expect(sk.text === 'Кафе «Пуговка»' && sk.drawn, 'своё название не на вывеске здания', sk);
+    await run('biz:cafe');
+    await page.fill('.overlay .biz-signedit input', 'Вкусное кафе у Пуговки');
+    await page.press('.overlay .biz-signedit input', 'Enter');
+    await wait(300);
+    await closeAll();
+    await wait(300);
+    sk = await signKeys('Вкусное кафе у Пуговки');
+    expect(sk.text === 'Вкусное кафе у Пуговки' && sk.drawn, 'вывеска не обновилась после переименования', sk);
+    // название как было — на вывеске снова прежнее (своего названия нет)
+    await ev(() => window.__dev.actions.setBizOpt('cafe', 'title', null));
+    expect((await ev(() => window.__dev.World.map.bById.cafe.signText())) === null, 'вывеска без своего названия');
+    await ev(() => window.__dev.actions.setBizOpt('cafe', 'title', 'Кафе «Пуговка»'));
   });
   await step('бизнес: выручка на следующий день, утреннее напоминание, касса, «Мои заведения», банк', async () => {
     await ev(() => window.__dev.go('villa'));

@@ -6,7 +6,7 @@
 // заданий, точки входа и выхода — и свои виды клеток и предметов (грядка, почтовый ящик, лунка, табличка).
 import { clamp, seeded } from '../core/util.js';
 import { ell, fillRR, line, poly, emoji } from '../core/draw.js';
-import { NPCS, ING_BY_ID, SEED_BY_ID, TASK_BY_ID, LAND_BY_ID } from '../data/index.js';
+import { NPCS, ING_BY_ID, SEED_BY_ID, TASK_BY_ID, LAND_BY_ID, BIZ_BY_ID } from '../data/index.js';
 import { G, cal, ownsHome, landOpen } from '../core/state.js';
 import { T, OUT, SP, put, defineTiles, defineObjects } from '../engine/topdown/kinds.js';
 import { createTopDownScene } from '../engine/topdown/scene.js';
@@ -160,17 +160,25 @@ const BUILDING_ACTS = {
     { text: 'Пока!' },
   ]),
 };
+/** Своё название купленного заведения (state.biz[id].title) — для большой вывески на здании; иначе null. */
+const ownTitle = (id) => {
+  const st = G.state && G.state.biz[id];
+  return (st && st.title) || null;
+};
 for (const b of BUILDINGS) {
   b.act = BUILDING_ACTS[b.id] || (b.npc ? 'home-of:' + b.npc : null);
   // дома жителей — по характеру хозяина: ставни, дорисовка поверх общего домика
   if (b.npc) Object.assign(b, HOUSE_STYLE[b.npc], { art: HOUSE_ART[b.npc] });
+  // заведение, которое можно купить: на вывеске — название, которое дала хозяйка (входит в ключ спрайта здания)
+  if (BIZ_BY_ID[b.id]) b.signText = () => ownTitle(b.id);
 }
 
 // ---------- своё: заведения и жильё ----------
 // У купленного заведения (state.biz; id заведения — это id его здания, data/estate.js) у левого угла фасада висит
 // табличка «моё» — в цвете, который хозяйка выбрала для вывески; у купленного жилья — табличка «мой дом»
 // (у бунгало она закрывает нарисованную на здании «Продаётся»). Таблички рисуются каждый кадр поверх спрайта
-// здания: кэш спрайтов зданий не трогаем (поэтому своё название на большой вывеске в городе не показывается).
+// здания: кэш спрайтов зданий не трогаем. Своё название заведения — на большой вывеске самого здания (поле
+// signText выше: название входит в ключ спрайта, после переименования картинка перерисуется сама).
 const HOME_DOORS = Object.entries(BUILDING_ACTS) // [id здания, id жилья] — по действиям 'home:<id>'
   .filter(([, a]) => typeof a === 'string' && a.startsWith('home:'))
   .map(([b, a]) => [b, a.slice(5)]);
