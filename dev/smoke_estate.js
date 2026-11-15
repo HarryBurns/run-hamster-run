@@ -35,6 +35,43 @@ module.exports = async function estate({ page, step, ev, wait, closeAll }) {
     await wait(450);
   };
   const lastOv = () => page.locator('.overlay').last();
+  /** Место у двери здания в городе (туда выводит дверь дома, в который вошли через это здание). */
+  const doorOf = (id) => ev((id) => window.__dev.World.doorOf(id), id);
+  /** Встать в городе у двери здания (на клетку ниже) — как если бы хомячок туда дошёл. */
+  const standAt = async (id) => {
+    await ev((id) => {
+      const d = window.__dev;
+      if (d.sceneName !== 'world') d.go('world');
+      const p = d.World.doorOf(id);
+      d.World.p.path = [];
+      d.World.p.pending = null;
+      d.World.p.x = p.x;
+      d.World.p.y = p.y + 30;
+    }, id);
+    await wait(250);
+  };
+  /** Выйти из дома через его дверь (хозяина, если он есть, отодвинуть). */
+  const leaveByDoor = async () => {
+    await ev(() => {
+      const sc = window.__dev.scene,
+        door = sc.desc.door || { f: 0, x: 100 };
+      for (const a of sc.actors) {
+        a.x = a.tx = door.x > 600 ? 220 : 1000;
+        a.wait = 99;
+      }
+      sc.standUp();
+      sc.p.path = [];
+      sc.p.f = door.f;
+      sc.p.x = door.x;
+    });
+    await page.keyboard.press('KeyE');
+    await wait(450);
+  };
+  const outAt = async (id, msg) => {
+    const at = await doorOf(id),
+      out = await ev(() => ({ scene: window.__dev.sceneName, ...window.__dev.World.playerPos() }));
+    expect(out.scene === 'world' && Math.abs(out.x - at.x) < 2 && Math.abs(out.y - at.y) < 2, msg, [out, at]);
+  };
   const putSave = async (raw) => {
     await ev((raw) => {
       window.__dev.G.state = null;
@@ -182,7 +219,6 @@ module.exports = async function estate({ page, step, ev, wait, closeAll }) {
     expect((await scene()) === 'world' && (await toasts()).includes('в гостях'), 'хозяин в гостях у героини');
     await ev(() => window.__dev.actions.removeGuest('bob'));
   });
-
   // что потрогать в каждом доме и что должно получиться: [предмет, проверка]
   const THINGS = {
     plusha: [
@@ -399,20 +435,112 @@ module.exports = async function estate({ page, step, ev, wait, closeAll }) {
     },
   );
 
+  await step('гости: кто ждёт дома — не гуляет по городу; утром и вечером жители у своих дверей', async () => {
+    // где житель: [id, клеток до двери своего дома, клеток до дневного места, спрятан, «зашёл домой»]
+    const where = (id) =>
+      ev((id) => {
+        const n = window.__dev.World.npcs.find((q) => q.id === id),
+          T = 48,
+          far = (c) => Math.round(Math.hypot(n.x / T - c[0] - 0.5, n.y / T - c[1] - 0.5));
+        return { home: far(n.home), hang: far(n.hang), hidden: n.hidden, inside: n.inside };
+      }, id);
+    const reenter = async (h) => {
+      await ev(() => window.__dev.go('villa'));
+      await setTime(h);
+      await ev(() => window.__dev.go('world'));
+      await wait(300);
+    };
+    await newGame();
+    // первое письмо — не «день гостей» (иначе дома сидели бы все); Плюша позвала в гости: её на улице нет
+    await ev(() => {
+      window.__dev.actions.setMail('cook');
+      window.__dev.actions.inviteHome('plusha');
+    });
+    await reenter(13);
+    let r = await where('plusha');
+    expect(r.hidden && r.inside, 'позвала в гости, а гуляет по городу', r);
+    // остальные днём — у своих мест, утром и вечером — у своих дверей
+    r = await where('myata');
+    expect(!r.hidden && r.hang <= 4, 'днём жительница не у своего места', r);
+    for (const h of [8, 19.5]) {
+      await reenter(h);
+      r = await where('myata');
+      expect(!r.hidden && r.home <= 4, h + ':00 — жительница далеко от дома', r);
+    }
+    // позвали прямо на улице: житель идёт к своей двери и «заходит»
+    await reenter(13);
+    await ev(() => window.__dev.actions.inviteHome('ponchik'));
+    await wait(1500);
+    r = await where('ponchik');
+    expect(!r.hidden || r.inside, 'позвал в гости и сразу пропал посреди улицы', r);
+    await ev(() => {
+      const n = window.__dev.World.npcs.find((q) => q.id === 'ponchik');
+      n.path = [];
+      n.x = (n.home[0] + 0.5) * 48;
+      n.y = (n.home[1] + 0.5) * 48;
+    });
+    await wait(300);
+    r = await where('ponchik');
+    expect(r.hidden && r.inside, 'дошёл до двери, но остался на улице', r);
+    // ночью на улице никого; наутро (новый день) приглашения нет — все снова на улице
+    await setTime(23);
+    await wait(200);
+    expect(await ev(() => window.__dev.World.npcs.every((n) => n.hidden)), 'ночью жители на улице');
+    await ev(() => {
+      window.__dev.actions.nextDay();
+      window.__dev.actions.setMail('cook');
+    });
+    await closeAll();
+    await reenter(12);
+    await closeAll();
+    const hidden = await ev(() => window.__dev.World.npcs.filter((n) => n.hidden).map((n) => n.id));
+    expect(!hidden.length, 'наутро без приглашения жители не вышли на улицу', hidden);
+    // письмо «день гостей»: все ждут дома — на улице никого
+    await ev(() => window.__dev.actions.setMail('guesting'));
+    await reenter(12);
+    expect(
+      await ev(() => window.__dev.World.npcs.every((n) => n.hidden && n.inside)),
+      'в «день гостей» жители на улице',
+    );
+  });
+
   // ---------- B. жильё ----------
+  // [жильё, цена, название на карточке, здание в городе, через дверь которого туда входят]
   const HOMES = [
-    ['flat', 25000, 'Квартира'],
-    ['bungalow', 60000, 'бунгало'],
-    ['penthouse', 150000, 'Пентхаус'],
+    ['flat', 25000, 'Квартира', 'home_apartment'],
+    ['bungalow', 60000, 'бунгало', 'home_bungalow'],
+    ['penthouse', 150000, 'Пентхаус', 'tower'],
   ];
+  /** Войти в своё жильё так, как это делает игрок: дверь здания; пентхаус — лифт Хомяк-Тауэра, «100 — мой пентхаус». */
+  const enterHome = async (id) => {
+    const building = HOMES.find((h) => h[0] === id)[3];
+    await ev(() => {
+      if (window.__dev.sceneName !== 'world') window.__dev.go('world');
+    });
+    await enter(building);
+    if (id === 'penthouse') {
+      await ev(() => window.__dev.Tower.debugAt(940));
+      await page.keyboard.press('KeyE');
+      await wait(450);
+      expect((await text('.dialog .say')).includes('пентхаус'), 'лифт не спросил этаж');
+      await page.click('.dialog .btn.green');
+      await wait(500);
+    }
+    expect((await scene()) === id, 'через дверь не вошли в своё жильё ' + id, await scene());
+  };
   await step('жильё: риелтор — нехватка монет, покупка каждого дома, мебель, сон, обустройство, дверь', async () => {
     await newGame();
     await ev(() => window.__dev.go('world'));
     await wait(300);
-    // вход к риелтору — из банка; денег мало: видно «накопить ещё», покупка не проходит
+    // риелтор — в своём агентстве; в банке кнопки «Недвижимость» больше нет
     await enter('bank');
-    await page.click('.overlay .panel-foot >> text=Недвижимость');
-    await wait(450);
+    expect(
+      (await page.locator('.overlay .panel-foot >> text=Недвижимость').count()) === 0,
+      'в банке осталась «Недвижимость»',
+    );
+    await closeAll();
+    // денег мало: видно «накопить ещё», покупка не проходит
+    await enter('realtor');
     expect((await text('.overlay .panel-head .title')) === 'Недвижимость', 'окно риелтора');
     expect((await page.locator('.overlay .home-card').count()) === 5, 'карточки жилья');
     expect((await page.locator('.overlay .home-card canvas.home-plan').count()) === 5, 'картинки-планы');
@@ -424,19 +552,25 @@ module.exports = async function estate({ page, step, ev, wait, closeAll }) {
     let s = await state();
     expect(/не хватает 22 000/.test(await toasts()) && s.money === 3000 && !s.homesOwned.length, 'покупка без монет');
     await closeAll();
-    // дверь некупленного жилья (так её вызовет здание в городе) открывает окно риелтора
-    await run('home:flat');
-    expect(
-      (await scene()) === 'world' && (await page.locator('.overlay .home-card').count()) === 5,
-      'дверь некупленного жилья',
-    );
-    await closeAll();
+    // дверь некупленного жилья открывает окно риелтора
+    for (const b of ['home_apartment', 'home_bungalow']) {
+      await clearToasts();
+      await enter(b);
+      expect(
+        (await scene()) === 'world' &&
+          (await page.locator('.overlay .home-card').count()) === 5 &&
+          (await toasts()).includes('продаётся'),
+        'дверь некупленного жилья ' + b,
+        await toasts(),
+      );
+      await closeAll();
+    }
     await setMoney(400000);
     let money = 400000;
-    for (const [id, price, name] of HOMES) {
-      await ev(() => window.__dev.go('world'));
-      const at = await ev(() => window.__dev.World.playerPos());
-      await run('realtor');
+    for (const [id, price, name, building] of HOMES) {
+      // покупаем у риелтора; квартиру — прямо у её двери (тогда «Идём туда!» сразу приводит в дом)
+      await standAt(id === 'flat' ? building : 'realtor');
+      await enter(id === 'flat' ? building : 'realtor');
       const card = `.overlay .home-card:has(.ttl:has-text("${name}"))`;
       await page.click(card + ' .btn');
       await wait(400);
@@ -448,15 +582,25 @@ module.exports = async function estate({ page, step, ev, wait, closeAll }) {
       await lastOv().locator('.panel-foot .btn.green').click();
       await wait(700);
       expect(await page.locator('text=С новосельем!').count(), 'нет поздравления', id);
-      await page.click('.overlay .panel-foot .btn.green'); // «Перейти домой»
-      await wait(700);
+      expect((await page.locator('.overlay >> text=Перейти домой').count()) === 0, 'осталась кнопка «Перейти домой»');
       money -= price;
       s = await state();
       expect(s.money === money && s.homesOwned.includes(id) && s.ledger.today.out >= price, 'покупка', [
         s.money,
         s.homesOwned,
       ]);
-      expect((await scene()) === id, 'не перешли в новый дом', await scene());
+      expect((await scene()) === 'world', 'после покупки сразу оказались в доме', await scene());
+      if (id === 'flat') {
+        // «Идём туда!» — хомячок сам идёт к двери и входит
+        await lastOv().locator('.panel-foot .btn.green').click();
+        for (let i = 0; i < 20 && (await scene()) !== id; i++) await wait(250);
+        expect((await scene()) === id, '«Идём туда!» не привело в новый дом', await scene());
+      } else {
+        await lastOv().locator('.panel-foot .btn.ghost').click(); // «Потом»
+        await wait(300);
+        await enterHome(id); // через дверь здания (пентхаус — из лифта башни)
+      }
+      s = await state();
       const ids = s.homes[id].map((i) => i.id);
       expect(
         ids.some((q) => q.startsWith('bed_')) && ids.some((q) => q.startsWith('wardrobe')),
@@ -514,21 +658,9 @@ module.exports = async function estate({ page, step, ev, wait, closeAll }) {
       expect(s.homes[id].length === ids.length, 'предмет из кладовки не встал', Object.keys(s.storage));
       await page.click('text=Готово');
       await wait(300);
-      // дверь ведёт туда, откуда пришли
-      await ev(() => {
-        const sc = window.__dev.scene;
-        sc.standUp();
-        sc.p.path = [];
-        sc.p.f = 0;
-        sc.p.x = 100;
-      });
-      await page.keyboard.press('KeyE');
-      await wait(450);
-      const out = await ev(() => ({ scene: window.__dev.sceneName, ...window.__dev.World.playerPos() }));
-      expect(out.scene === 'world' && Math.abs(out.x - at.x) < 2 && Math.abs(out.y - at.y) < 2, 'дверь нового дома', [
-        out,
-        at,
-      ]);
+      // дверь ведёт к двери здания, через которое вошли (пентхаус — к дверям башни)
+      await leaveByDoor();
+      await outAt(building, 'дверь нового дома ' + id);
     }
     s = await state();
     for (const st of ['x_home2', 'x_homes_all']) expect(s.stickers.includes(st), 'нет наклейки ' + st);
@@ -543,40 +675,55 @@ module.exports = async function estate({ page, step, ev, wait, closeAll }) {
     await page.click('.overlay >> text=Мои дома');
     await wait(450);
     expect((await page.locator('.overlay .home-card').count()) === 4, 'мои дома');
+    expect((await text('.overlay .panel-head .title')) === 'Мои дома', 'заголовок окна «Мои дома»');
+    // из меню — только список и выбор основного дома: ни вкладки «Купить», ни мгновенного перехода
+    expect((await page.locator('.overlay .tab').count()) === 0, 'в «Моих домах» из меню есть вкладки');
+    expect(
+      (await page.locator('.overlay .home-card .btn:has-text("Перейти")').count()) === 0,
+      'остался «Перейти домой»',
+    );
     expect((await text('.overlay .home-card .tag')).includes('основной'), 'основной дом по умолчанию — вилла');
     await page.click('.overlay .home-card:has(.ttl:has-text("Квартира")) >> text=Сделать основным');
     await wait(300);
     expect((await state()).homeMain === 'flat', 'основной дом не выбран');
     await closeAll();
-    // «Домой» из города ведёт в основной дом; есть и «В другой дом»
+    // «Домой» (с пляжа, далеко от дома) ведёт в основной дом; его дверь выводит к двери жилого дома
+    await standAt('beachcafe');
     await page.click('.hud-btns.left .rbtn:last-child');
     await wait(400);
     expect((await text('.overlay .panel-body')).includes('Квартира'), 'вопрос «Домой?»');
-    expect(await page.locator('.overlay .panel-foot >> text=В другой дом').count(), 'нет кнопки «В другой дом»');
+    expect(await page.locator('.overlay .panel-foot >> text=основной дом').count(), 'нет кнопки выбора основного дома');
     await page.click('.overlay .panel-foot .btn.green');
     await wait(500);
     expect((await scene()) === 'flat', '«Домой» ведёт не в основной дом', await scene());
-    // из одного своего дома в другой — через «Мои дома»; дверь второго ведёт на улицу, а не в первый
+    await leaveByDoor();
+    await outAt('home_apartment', 'дверь квартиры после «Домой»');
+    // «Мои дома» в своём доме: «ты здесь», перейти в другой дом отсюда нельзя — только через его дверь
+    await enterHome('flat');
     await run('realtor:mine');
-    expect((await text('.overlay .home-card:has(.ttl:has-text("Квартира")) .btn')).includes('Ты здесь'), '«Ты здесь»');
-    await page.click('.overlay .home-card:has(.ttl:has-text("бунгало")) >> text=Перейти домой');
-    await wait(500);
-    expect((await scene()) === 'bungalow', 'переход в бунгало');
-    await ev(() => {
-      window.__dev.scene.p.x = 100;
+    expect(
+      (await text('.overlay .home-card:has(.ttl:has-text("Квартира"))')).includes('Ты сейчас здесь'),
+      '«Ты здесь»',
+    );
+    expect(
+      (await page.locator('.overlay .home-card .btn:has-text("Перейти")').count()) === 0,
+      'остался «Перейти домой»',
+    );
+    await closeAll();
+    await leaveByDoor();
+    await enterHome('bungalow');
+    await leaveByDoor();
+    await outAt('home_bungalow', 'дверь бунгало ведёт не к бунгало');
+    // таблички «мой дом» на зданиях купленного жилья
+    const signs = await ev(() => {
+      const W = window.__dev.World,
+        ids = [];
+      W.desc.things(W, (y, f, b) => ids.push(b.id), { x0: 0, y0: 0, x1: 1e6, y1: 1e6 });
+      return ids.sort().join();
     });
-    await page.keyboard.press('KeyE');
-    await wait(450);
-    expect((await scene()) === 'world', 'дверь бунгало ведёт не на улицу', await scene());
+    expect(signs === 'home_apartment,home_bungalow', 'таблички «мой дом»', signs);
     // пентхаус: лифт Хомяк-Тауэра спрашивает этаж
-    await enter('tower');
-    await ev(() => window.__dev.Tower.debugAt(940));
-    await page.keyboard.press('KeyE');
-    await wait(450);
-    expect((await text('.dialog .say')).includes('пентхаус'), 'лифт не спросил этаж');
-    await page.click('.dialog .btn.green');
-    await wait(500);
-    expect((await scene()) === 'penthouse', 'пентхаус');
+    await enterHome('penthouse');
     // гости приходят в тот дом, где героиня; телефон предлагает выбрать
     await ev(() => {
       const d = window.__dev;
@@ -599,12 +746,8 @@ module.exports = async function estate({ page, step, ev, wait, closeAll }) {
     await wait(300);
     expect((await ev(() => window.__dev.scene.actors.length)) === 0, 'гость оказался не в том доме');
     // перезагрузка: игра открывается в своём доме, дверь помнит, куда ведёт
-    await ev(() => window.__dev.go('world'));
-    const at = await ev(() => window.__dev.World.playerPos());
-    await ev(() => {
-      window.__dev.F.goToHome('bungalow');
-    });
-    await wait(400);
+    await enterHome('bungalow');
+    const at = await doorOf('home_bungalow');
     await ev(() => window.dispatchEvent(new Event('pagehide')));
     await page.reload();
     await wait(500);
@@ -711,6 +854,23 @@ module.exports = async function estate({ page, step, ev, wait, closeAll }) {
     await enter('cafe');
     expect((await text('.overlay .biz-sign')).includes('Кафе «Пуговка»'), 'своё название на табличке');
     await closeAll();
+    // в городе у каждого своего заведения висит табличка «моё» (рисуется поверх здания, в цвете вывески)
+    const signs = await ev(() => {
+      const W = window.__dev.World,
+        ids = [];
+      W.desc.things(W, (y, f, b) => ids.push(b.id), { x0: 0, y0: 0, x1: 1e6, y1: 1e6 });
+      return ids.sort().join();
+    });
+    expect(
+      signs ===
+        BIZ.map((b) => b[1])
+          .sort()
+          .join(),
+      'таблички «моё» на зданиях',
+      signs,
+    );
+    await standAt('cafe');
+    await wait(300); // кадр с табличкой рисуется без ошибок (их ловит общий обработчик автотеста)
   });
   await step('бизнес: выручка на следующий день, утреннее напоминание, касса, «Мои заведения», банк', async () => {
     await ev(() => window.__dev.go('villa'));
@@ -1118,6 +1278,26 @@ module.exports = async function estate({ page, step, ev, wait, closeAll }) {
       await run(act);
       await closeAll();
     }
+    // образец сделан на старом городе: дверь квартиры помнит место, где теперь стоит вилла, —
+    // в новом городе хомячок выходит на свободную клетку, от которой можно дойти до двери виллы
+    await leaveByDoor();
+    const pos = await ev(() => {
+      const d = window.__dev,
+        W = d.World,
+        m = W.map,
+        T = 48,
+        tx = Math.floor(W.p.x / T),
+        ty = Math.floor(W.p.y / T),
+        door = m.doorPx(m.bById.villa),
+        dx = Math.floor(door.x / T),
+        dy = Math.floor(door.y / T);
+      const way = (tx === dx && ty === dy) || !!m.path(m.foot, tx, ty, dx, dy);
+      return { scene: d.sceneName, free: W.pass()(tx, ty), way, tx, ty };
+    });
+    expect(pos.scene === 'world' && pos.free && pos.way, 'образец v3: выход из квартиры в новом городе', pos);
+    // а войти обратно — через дверь жилого дома
+    await enter('home_apartment');
+    expect((await scene()) === 'flat', 'образец v3: в свою квартиру через дверь жилого дома', await scene());
     // неизвестные id в новых полях тихо убираются
     const bad = JSON.parse(SAVE_V3);
     bad.homesOwned.push('castle', 'flat');

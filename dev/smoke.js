@@ -1191,7 +1191,7 @@ async function economy({ page, step, ev, wait, closeAll }) {
     const fruit = Object.keys(s.ing).find((id) => !s2.ing[id]);
     expect(fruit && s.money < s2.money, 'фрукт не по сезону не куплен', s.ing);
     await closeAll();
-    // в ТЦ «Вкусный» этого фрукта сейчас нет; рынок — у прилавков на площади (кнопки в ТЦ больше нет) и в рюкзаке
+    // в ТЦ «Вкусный» этого фрукта сейчас нет; рынок — только у прилавков на площади (кнопок в ТЦ и в рюкзаке нет)
     await ev(() => window.__dev.enterBuilding('mall_food'));
     await wait(450);
     expect((await page.locator('.overlay .card.away').count()) > 0, 'в ТЦ «Вкусный» нет отметки «не сезон»');
@@ -1203,9 +1203,8 @@ async function economy({ page, step, ev, wait, closeAll }) {
     await closeAll();
     await ev(() => window.__dev.F.openBackpack());
     await wait(400);
-    await page.click('.overlay .panel-foot .btn');
-    await wait(450);
-    expect((await titles()) === 'Рынок', 'из рюкзака рынок не открылся', await titles());
+    expect((await titles()) === 'Рюкзак', 'рюкзак не открылся', await titles());
+    expect((await page.locator('.overlay .panel-foot .btn').count()) === 0, 'в рюкзаке осталась кнопка «Продать»');
     await closeAll();
     // блюдо на рынке дешевле кафе, а купленное в магазине — дешевле магазина (перепродажа не окупается)
     const arb = await ev(async () => {
@@ -1660,13 +1659,92 @@ async function economy({ page, step, ev, wait, closeAll }) {
         window.__dev.G.state.weather = 'sun';
       });
     });
-    await step('город: новые места — рынок на площади и «Скоро открытие!»', async () => {
+    await step(
+      'город: от двери виллы пешком можно дойти до двери каждого здания, у каждого есть действие',
+      async () => {
+        const r = await ev(async () => {
+          const d = window.__dev,
+            W = d.World,
+            m = W.map,
+            T = 48,
+            bad = [];
+          const { NPC_HOME } = await import('./js/data/index.js');
+          const v = m.doorPx(m.bById.villa),
+            s = [Math.floor(v.x / T), Math.floor(v.y / T)];
+          const acts = new Set(d.listActions().map((a) => a.name));
+          for (const b of m.buildings) {
+            const p = m.doorPx(b),
+              tx = Math.floor(p.x / T),
+              ty = Math.floor(p.y / T);
+            if (b.id !== 'villa' && !m.path(m.foot, s[0], s[1], tx, ty))
+              bad.push(b.id + ': от виллы не дойти до двери');
+            const name = !b.act ? '' : typeof b.act === 'string' ? b.act.split(':')[0] : b.act.do;
+            if (!name) bad.push(b.id + ': у двери нет действия');
+            else if (!acts.has(name)) bad.push(b.id + ': действия «' + name + '» нет в реестре');
+            // домик жителя ведёт в дом именно этого жителя
+            if (b.npc) {
+              if (b.act !== 'home-of:' + b.npc) bad.push(b.id + ': действие ' + JSON.stringify(b.act));
+              if (!NPC_HOME[b.npc] || NPC_HOME[b.npc].building !== b.id) bad.push(b.id + ': в NPC_HOME другой домик');
+              if (!d.scenes['home_' + b.npc]) bad.push(b.id + ': нет сцены home_' + b.npc);
+            }
+          }
+          const act = (id) => {
+            const a = (m.bById[id] || {}).act;
+            return typeof a === 'string' ? a : JSON.stringify(a);
+          };
+          return {
+            bad,
+            ids: m.buildings.map((b) => b.id),
+            acts: ['realtor', 'home_apartment', 'home_bungalow', 'market', 'hotel'].map(act),
+          };
+        });
+        if (r.bad.length) throw new Error(r.bad.join('; '));
+        const need = [
+          'villa',
+          'salon',
+          'boutique',
+          'mall_fashion',
+          'mall_home',
+          'fashion',
+          'tower',
+          'bank',
+          'realtor',
+          'mall_food',
+        ];
+        need.push(
+          'market',
+          'cafe',
+          'hospital',
+          'school',
+          'home_apartment',
+          'rest',
+          'pool',
+          'hotel',
+          'beachcafe',
+          'home_bungalow',
+        );
+        for (let i = 0; i < 8; i++) need.push('house' + i);
+        for (const id of need) if (!r.ids.includes(id)) throw new Error('в городе нет здания ' + id);
+        const want = ['realtor', 'home:flat', 'home:bungalow', 'market', '{"do":"soon","key":"hotel"}'];
+        if (r.acts.join() !== want.join()) throw new Error('действия новых зданий: ' + r.acts.join(' | '));
+      },
+    );
+    await step('город: новые места — рынок, агентство, двери жилья и «Скоро открытие!»', async () => {
+      const title = () => ev(() => (document.querySelector('.overlay .panel-head .title') || {}).textContent || '');
       await ev(() => window.__dev.enterBuilding('market'));
       await wait(450);
-      const title = await ev(() => (document.querySelector('.overlay .panel-head .title') || {}).textContent || '');
-      if (!title.includes('Рынок')) throw new Error('у прилавков рынок не открылся: ' + title);
+      if (!(await title()).includes('Рынок')) throw new Error('у прилавков рынок не открылся: ' + (await title()));
       await closeAll();
-      for (const id of ['realtor', 'home_apartment', 'home_bungalow', 'hotel']) {
+      // агентство и двери некупленного жилья открывают окно риелтора
+      for (const id of ['realtor', 'home_apartment', 'home_bungalow']) {
+        await ev((id) => window.__dev.enterBuilding(id), id);
+        await wait(450);
+        if ((await title()) !== 'Недвижимость')
+          throw new Error(id + ': окно риелтора не открылось: ' + (await title()));
+        if ((await ev(() => window.__dev.sceneName)) !== 'world') throw new Error(id + ': ушли из города');
+        await closeAll();
+      }
+      for (const id of ['hotel']) {
         await ev(() => document.querySelectorAll('#toasts .toast').forEach((t) => t.remove()));
         await ev((id) => window.__dev.enterBuilding(id), id);
         await wait(200);
