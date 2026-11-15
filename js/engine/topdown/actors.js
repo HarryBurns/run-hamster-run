@@ -3,13 +3,18 @@
 // В описании локации:  actors: [{ npc, at: [x, y], home, act, always }]
 //   npc     кто (id из data/npcs.js)
 //   at      клетка, возле которой житель гуляет днём
-//   home    куда он идёт вечером (с 19:00): id здания (встанет у двери) или клетка [x, y]; без home — остаётся
+//   home    его дом: id здания (встанет у двери) или клетка [x, y]; без home — всегда гуляет у своего места
 //   act     действие из реестра, когда хомячок подошёл (по умолчанию 'npc:<id>' — разговор)
 //   always  true — не уходит спать ночью (иначе с 22:00 до 6:30 жителя на улице нет)
-// Житель, который сейчас в гостях у хомячка дома, на улице не показывается.
-import { G } from '../../core/state.js';
+// Где житель (часы — VISIT в data/visits.js, те же, что у двери его домика):
+//   днём (9:00–19:00) гуляет возле своего места at;
+//   утром и вечером, когда к нему можно зайти в гости, — у себя во дворе, возле двери (а не на другом конце города);
+//   позвал в гости («Заходи ко мне сегодня!», письмо «день гостей» — invitedToday) — идёт домой и ждёт внутри:
+//   дошёл до двери — и на улице его нет до конца дня;
+//   в гостях у хомячка дома или ночью — на улице его нет.
+import { G, invitedToday } from '../../core/state.js';
 import { rnd, dist } from '../../core/util.js';
-import { NPC_BY_ID, npcLook } from '../../data/index.js';
+import { NPC_BY_ID, VISIT, npcLook } from '../../data/index.js';
 import { drawHamster, blinkAt } from '../../art/hamster.js';
 import { T, PS, SP, OBJECTS, tileOf } from './kinds.js';
 
@@ -82,8 +87,33 @@ export function makeResidents(m) {
       walkT: 0,
       moving: false,
       hidden: false,
+      inside: false, // позвал в гости и уже зашёл к себе домой
+      goingHome: false, // позвал в гости и идёт к своей двери
     };
   });
+}
+
+/** Утро или вечер: хозяева у себя (к ним можно зайти в гости). */
+const homeTime = (min) => min >= VISIT.eveningStart || min < VISIT.morningEnd;
+const cellDist = (n, c) => dist(n.x, n.y, (c[0] + 0.5) * T, (c[1] + 0.5) * T);
+
+/**
+ * Расставить жителей по местам, когда хомячок входит в локацию (его здесь не было — могло пройти полдня):
+ * кто ждёт гостей — уже дома; утром и вечером — у своей двери; днём — у своего места.
+ */
+export function settleResidents(sc) {
+  const min = G.state.minutes;
+  for (const n of sc.npcs) {
+    if (!n.home) continue;
+    n.inside = invitedToday(n.id);
+    const c = homeTime(min) || n.inside ? n.home : n.hang;
+    if (cellDist(n, c) <= T * 4) continue; // уже рядом — пусть стоит, где стоял
+    n.x = (c[0] + 0.5) * T;
+    n.y = (c[1] + 0.5) * T;
+    n.path = [];
+    n.moving = false;
+    n.goingHome = false;
+  }
 }
 
 /** Шаг логики жителей: кто спрятан, кто идёт, кому пора выбрать новую точку. */
@@ -92,23 +122,33 @@ export function updateResidents(sc, dt) {
     min = G.state.minutes,
     night = min >= 22 * 60 || min < 6.5 * 60;
   for (const n of sc.npcs) {
-    n.hidden = (night && !n.def.always) || G.state.guests.includes(n.id);
+    // позвал в гости: идёт домой, у двери «заходит» — и больше не стоит на улице, пока ждёт
+    const waits = !!n.home && invitedToday(n.id);
+    if (!waits) n.inside = n.goingHome = false;
+    else if (!n.inside && cellDist(n, n.home) < T * 1.2) n.inside = true;
+    n.hidden = (night && !n.def.always) || G.state.guests.includes(n.id) || n.inside;
     if (n.hidden || G.modal) continue;
     if (n.path.length) {
-      moveAlong(m, n, 90, dt);
+      if (moveAlong(m, n, 90, dt) && n.goingHome) n.inside = true; // дошёл до своей двери
       continue;
     }
+    if (waits) n.wait = Math.min(n.wait, 0.8); // домой не мешкает
     n.wait -= dt;
     if (n.wait > 0) continue;
     n.wait = rnd(2.5, 7);
-    const [ax, ay] = min >= 19 * 60 && n.home ? n.home : n.hang;
-    const far = dist(n.x, n.y, (ax + 0.5) * T, (ay + 0.5) * T) > T * 4;
+    const [ax, ay] = n.home && (waits || homeTime(min)) ? n.home : n.hang;
+    const far = waits || dist(n.x, n.y, (ax + 0.5) * T, (ay + 0.5) * T) > T * 4;
     const tx = far ? ax : tileOf(n.x) + Math.round(rnd(-2, 2)),
       ty = far ? ay : tileOf(n.y) + Math.round(rnd(-2, 2));
     if (!far && dist((tx + 0.5) * T, (ty + 0.5) * T, (ax + 0.5) * T, (ay + 0.5) * T) > T * 3.5) continue;
     const k = m.kindAt(tx, ty);
     if (k && k.wet) continue;
-    m.route(n, (tx + 0.5) * T, (ty + 0.5) * T, false, m.dry);
+    const ok = m.route(n, (tx + 0.5) * T, (ty + 0.5) * T, false, m.dry);
+    if (waits) {
+      // пути до двери нет (или уже пришёл) — не стоять же на улице весь день
+      if (ok && n.path.length) n.goingHome = true;
+      else n.inside = true;
+    }
   }
 }
 

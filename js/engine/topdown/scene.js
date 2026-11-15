@@ -74,7 +74,7 @@ import { toast } from '../../ui/toast.js';
 import { TASK_BY_ID } from '../../data/index.js';
 import { T, SP, TILES, OBJECTS, BUILDING_KINDS, tileOf } from './kinds.js';
 import { createMap, mapSize } from './map.js';
-import { moveAlong, canStand, makeResidents, updateResidents, hitResident } from './actors.js';
+import { moveAlong, canStand, makeResidents, settleResidents, updateResidents, hitResident } from './actors.js';
 import { drawFrame, drawMiniMapBase, drawMiniMapPlayer, initWeather, updateWeather, hideSky } from './render.js';
 import { groundStats } from './ground.js';
 
@@ -310,6 +310,7 @@ export function createTopDownScene(desc) {
         p.y = e.y;
       } else if (params.pos) sc.restorePos(params.pos);
       sc.call('enter', sc, from, params);
+      settleResidents(sc);
       // позиция из сохранения могла испортиться или оказаться в стене — тогда встаём рядом, а если никак — у входа
       const pass = sc.pass(),
         onMap = map.inside(p.x, p.y);
