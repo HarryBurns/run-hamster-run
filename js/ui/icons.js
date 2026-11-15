@@ -21,6 +21,10 @@ export function clothesIcon(item, size = 84) {
     } else if (item.slot === 'feet') {
       s = size / 56;
       dy = -22 * s;
+    } else if (item.slot === 'acc' && ['necklace', 'bowtie', 'medal', 'scarf'].includes(item.kind)) {
+      // вещи на шее и груди: голова и грудь покрупнее
+      s = size / 78;
+      dy = 12 * s;
     } else if (
       item.slot === 'acc' &&
       !['wings', 'backpack', 'bag', 'cape', 'camera', 'tie', 'lei'].includes(item.kind)

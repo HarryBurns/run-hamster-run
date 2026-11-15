@@ -6,6 +6,9 @@ import { ell, rr, fillRR, line, poly, star, shade } from '../core/draw.js';
 const OUT = '#4a3728'; // цвет контура
 const BACK_ACC = ['wings', 'backpack', 'cape']; // аксессуары, которые рисуются за спиной
 const FACE_ACC = ['glasses', 'sunglasses']; // аксессуары на мордочке: поворачиваются вместе с ней
+// Аксессуары на груди: рисуются поверх одежды, но ДО головы — висят из-под подбородка (его низ: y = -29),
+// а не лежат на мордочке. Шарф — исключение: он обмотан вокруг шеи и рисуется поверх подбородка.
+const CHEST_ACC = ['necklace', 'bag', 'bowtie', 'tie', 'lei', 'camera', 'medal'];
 
 /**
  * Насколько закрыты глаза в момент времени t: 0 — открыты, 1 — закрыты.
@@ -767,61 +770,61 @@ function drawAcc(ctx, item) {
       ctx.fillRect(-16, -59, 4, 2);
       ctx.fillRect(6, -59, 4, 2);
       break;
-    case 'scarf':
-      ell(ctx, 0, -37, 21, 7, c, OUT, 1.8);
-      fillRR(ctx, 7, -38, 10, 20, 3, c, OUT, 1.8);
+    case 'scarf': // на шее: закрывает самый низ подбородка, рот остаётся открытым
+      ell(ctx, 0, -30, 21, 6.5, c, OUT, 1.8);
+      fillRR(ctx, 7, -31, 10, 20, 3, c, OUT, 1.8);
       ctx.fillStyle = c2;
-      ctx.fillRect(8, -24, 8, 3);
-      ctx.fillRect(8, -30, 8, 3);
-      for (let i = -14; i < 6; i += 8) ctx.fillRect(i, -40, 4, 6);
+      ctx.fillRect(8, -17, 8, 3);
+      ctx.fillRect(8, -23, 8, 3);
+      for (let i = -14; i < 6; i += 8) ctx.fillRect(i, -33, 4, 6);
       break;
-    case 'necklace':
+    case 'necklace': // нитка выходит из-под подбородка и лежит на груди
       for (let i = 0; i <= 6; i++) {
-        const a = Math.PI * (0.15 + (0.7 * i) / 6);
-        ell(ctx, Math.cos(a) * 16, -42 + Math.sin(a) * 9, 2.4, 2.4, c, OUT, 0.8);
+        const a = Math.PI * (0.1 + (0.8 * i) / 6);
+        ell(ctx, Math.cos(a) * 15, -34 + Math.sin(a) * 11, 2.4, 2.4, c, OUT, 0.8);
       }
-      if (item.pendant) printOn(ctx, item.pendant, 0, -31);
+      if (item.pendant) printOn(ctx, item.pendant, 0, -17);
       break;
-    case 'bag':
-      line(ctx, -14, -42, 22, -16, shade(c, -0.3), 2.5);
+    case 'bag': // ремешок — с плеча
+      line(ctx, -19, -37, 22, -16, shade(c, -0.3), 2.5);
       fillRR(ctx, 15, -20, 17, 14, 4, c, OUT, 1.6);
       ell(ctx, 23.5, -15, 2, 2, c2);
       break;
-    case 'bowtie':
-      poly(ctx, [0, -37, -10, -43, -10, -31], c, OUT, 1.5);
-      poly(ctx, [0, -37, 10, -43, 10, -31], c, OUT, 1.5);
-      ell(ctx, 0, -37, 3, 3, c2, OUT, 1.2);
+    case 'bowtie': // под самым подбородком
+      poly(ctx, [0, -24.5, -10, -30.5, -10, -18.5], c, OUT, 1.5);
+      poly(ctx, [0, -24.5, 10, -30.5, 10, -18.5], c, OUT, 1.5);
+      ell(ctx, 0, -24.5, 3, 3, c2, OUT, 1.2);
       break;
-    case 'tie':
-      poly(ctx, [-4, -41, 4, -41, 2, -35, -2, -35], c, OUT, 1.2);
-      poly(ctx, [-2.5, -35, 2.5, -35, 5, -18, 0, -12, -5, -18], c, OUT, 1.4);
+    case 'tie': // узел у подбородка, сам галстук — по груди
+      poly(ctx, [-4, -30, 4, -30, 2, -24, -2, -24], c, OUT, 1.2);
+      poly(ctx, [-2.5, -24, 2.5, -24, 5, -10, 0, -5, -5, -10], c, OUT, 1.4);
       ctx.fillStyle = c2;
-      ctx.fillRect(-3.5, -29, 7, 2.5);
-      ctx.fillRect(-4.2, -23, 8.4, 2.5);
+      ctx.fillRect(-3.3, -19.5, 6.6, 2.5);
+      ctx.fillRect(-4.2, -14, 8.4, 2.5);
       break;
     case 'lei': {
       const cols = [c, '#ffd43b', '#fff', c2, c, '#ffd43b', '#fff', c2, c];
       for (let i = 0; i <= 8; i++) {
         const a = Math.PI * (0.08 + (0.84 * i) / 8),
           px = Math.cos(a) * 19,
-          py = -41 + Math.sin(a) * 13;
+          py = -36 + Math.sin(a) * 13;
         ell(ctx, px, py, 4.6, 4.6, cols[i], OUT, 1);
         ell(ctx, px, py, 1.5, 1.5, '#ffa94d');
       }
       break;
     }
-    case 'camera':
-      line(ctx, -15, -42, -9, -24, shade(c, -0.3), 2);
-      line(ctx, 15, -42, 9, -24, shade(c, -0.3), 2);
-      fillRR(ctx, -12, -28, 24, 16, 4, c, OUT, 1.6);
-      ell(ctx, 0, -20, 5.5, 5.5, '#74c0fc', OUT, 1.4);
-      fillRR(ctx, 4, -31, 6, 4, 1, c2, OUT, 1);
+    case 'camera': // ремешок с шеи, камера на груди
+      line(ctx, -14, -38, -9, -21, shade(c, -0.3), 2);
+      line(ctx, 14, -38, 9, -21, shade(c, -0.3), 2);
+      fillRR(ctx, -12, -25, 24, 16, 4, c, OUT, 1.6);
+      ell(ctx, 0, -17, 5.5, 5.5, '#74c0fc', OUT, 1.4);
+      fillRR(ctx, 4, -28, 6, 4, 1, c2, OUT, 1);
       break;
-    case 'medal':
-      line(ctx, -8, -42, 0, -28, '#e03131', 3);
-      line(ctx, 8, -42, 0, -28, '#1c7ed6', 3);
-      ell(ctx, 0, -25, 6, 6, c, OUT, 1.4);
-      star(ctx, 0, -25, 3, '#fff');
+    case 'medal': // лента из-под подбородка, медаль на груди
+      line(ctx, -10, -37, 0, -19, '#e03131', 3);
+      line(ctx, 10, -37, 0, -19, '#1c7ed6', 3);
+      ell(ctx, 0, -15, 6, 6, c, OUT, 1.4);
+      star(ctx, 0, -15, 3, '#fff');
       break;
     default:
       break;
@@ -1010,6 +1013,8 @@ export function drawHamster(ctx, x, y, s, look, pose = {}) {
     ctx.restore();
   }
   collar(ctx, o.body);
+  const chestAcc = o.acc && CHEST_ACC.includes(o.acc.kind);
+  if (chestAcc) drawAcc(ctx, o.acc); // на груди, поверх одежды; голова ляжет сверху
 
   // --- уши
   for (const sx of [-1, 1]) {
@@ -1116,7 +1121,7 @@ export function drawHamster(ctx, x, y, s, look, pose = {}) {
     drawTuft(ctx, b.tuft, b.hair || look.spots || shade(fur, -0.35));
   if (hat) drawHat(ctx, hat, k || 1);
   if (b.bow) drawBow(ctx, b.bow, hat ? -24 : -15, hat ? -62 : -74);
-  if (o.acc && !BACK_ACC.includes(o.acc.kind)) {
+  if (o.acc && !chestAcc && !BACK_ACC.includes(o.acc.kind)) {
     if (k && FACE_ACC.includes(o.acc.kind)) {
       // очки сидят на глазах — поворачиваются вместе с мордочкой
       ctx.save();
@@ -1125,9 +1130,10 @@ export function drawHamster(ctx, x, y, s, look, pose = {}) {
       ctx.restore();
     } else drawAcc(ctx, o.acc);
   } else if (o.acc && o.acc.kind === 'cape') {
-    ell(ctx, -12, -41, 3.2, 3.2, '#ffd43b', OUT, 1);
-    ell(ctx, 12, -41, 3.2, 3.2, '#ffd43b', OUT, 1);
-    line(ctx, -12, -41, 12, -41, '#ffd43b', 2);
+    // застёжка плаща — на груди под подбородком
+    line(ctx, -11, -26, 11, -26, '#ffd43b', 2);
+    ell(ctx, -11, -26, 3.2, 3.2, '#ffd43b', OUT, 1);
+    ell(ctx, 11, -26, 3.2, 3.2, '#ffd43b', OUT, 1);
   }
 
   ctx.restore();
