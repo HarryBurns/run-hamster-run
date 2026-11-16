@@ -20,3 +20,4 @@ export * from './looks.js';
 export * from './health.js';
 export * from './finds.js';
 export * from './quests.js';
+export * from './hotel.js';

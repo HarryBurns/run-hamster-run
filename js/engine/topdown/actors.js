@@ -128,7 +128,8 @@ export function updateResidents(sc, dt) {
     const waits = !!n.home && invitedToday(n.id);
     if (!waits) n.inside = n.goingHome = false;
     else if (!n.inside && cellDist(n, n.home) < T * 1.2) n.inside = true;
-    n.hidden = (night && !n.def.always) || G.state.guests.includes(n.id) || n.inside;
+    // away(id) в описании жителя — он сейчас не здесь (житель отдыхает у бассейна отеля — locations/town.js)
+    n.hidden = (night && !n.def.always) || G.state.guests.includes(n.id) || n.inside || (!!n.def.away && n.def.away(n.id));
     if (n.hidden || G.modal || n.def.still) continue;
     if (n.path.length) {
       if (moveAlong(m, n, 90, dt) && n.goingHome) n.inside = true; // дошёл до своей двери

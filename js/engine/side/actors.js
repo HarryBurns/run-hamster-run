@@ -3,8 +3,10 @@
 //
 // В описании дома:
 //   guests: { f, enterX, gap, first: [x0, x1], roam: [x0, x1] }   дом принимает гостей; где они появляются и гуляют
-//   actors: [{ npc, f, x, roam: [x0, x1] | null, act }]          жильцы: кто, где стоит, где бродит,
-//                                                                 act — действие из реестра по нажатию
+//   actors: [{ npc, f, x, roam: [x0, x1] | null, act, when }]    жильцы: кто, где стоит, где бродит,
+//                                                                 act — действие из реестра по нажатию,
+//                                                                 when() — когда он здесь (нет — его не видно и не
+//                                                                 нажать: аниматор по расписанию, житель у бассейна)
 // У гостя действие всегда 'guest:<житель>'.
 import { G, questBadge } from '../../core/state.js';
 import { rnd } from '../../core/util.js';
@@ -28,8 +30,11 @@ export function makeResidents(desc) {
     walkT: 0,
     happy: 0,
     roam: a.roam || null,
+    when: a.when || null,
   }));
 }
+/** Здесь ли сейчас жилец (у кого есть when — только когда when() даёт «да»). */
+export const actorHere = (g) => !g.when || !!g.when();
 
 /**
  * Привести гостей в соответствие со списком в сохранении: ушедших убрать, новых впустить.
@@ -71,6 +76,7 @@ export function actorHappy(sc, id) {
 
 export function hitActor(sc, wx, wy) {
   for (const g of sc.actors) {
+    if (!actorHere(g)) continue;
     const y = sc.geo.fy(g.f);
     if (Math.abs(wx - g.x) < 42 && wy > y - 130 && wy < y + 8) return g;
   }
@@ -81,7 +87,7 @@ export function hitActor(sc, wx, wy) {
 export function updateActors(sc, dt) {
   for (const g of sc.actors) {
     if (g.happy > 0) g.happy -= dt;
-    if (!g.roam) continue;
+    if (!g.roam || !actorHere(g)) continue;
     if (g.wait > 0) {
       g.wait -= dt;
       continue;
@@ -105,7 +111,7 @@ export function updateActors(sc, dt) {
 export function drawActors(ctx, sc, t) {
   for (const g of sc.actors) {
     const n = NPC_BY_ID[g.id];
-    if (!n) continue;
+    if (!n || !actorHere(g)) continue;
     const y = sc.geo.fy(g.f);
     drawHamster(ctx, g.x, y, HS * (n.small ? 0.78 : 1), npcLook(g.id), {
       time: t + g.ph,

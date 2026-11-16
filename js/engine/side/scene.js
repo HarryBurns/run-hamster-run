@@ -22,10 +22,11 @@
 //                 и место снаружи, откуда в дом вошли (поле out); иначе в сохранении остаётся место снаружи, у двери
 //   owner         чей это дом (id жителя) — для занятий: реплики хозяина, «изюминки» дома
 //   guests        { f, enterX, gap, first, roam } — сюда приходят приглашённые друзья (см. actors.js)
-//   actors        [{ npc, f, x, roam, act }] — кто здесь живёт или работает
+//   actors        [{ npc, f, x, roam, act, when }] — кто здесь живёт или работает (when() — когда он здесь)
 //   shell         { wall, roof, chimneyX, bushes, flat, ground, trees } — дом снаружи (см. rooms.js)
 //   maxZoom       не приближать сильнее (для маленьких домов);  music — дневная музыка ('villa' | 'town')
-//   art           { back(ctx, sc, t), front(ctx, sc, t) } — свой рисунок позади и поверх хомячка (если нужен)
+//   art           { back(ctx, sc, t), mid(ctx, sc, t), front(ctx, sc, t) } — свой рисунок позади всех, между жильцами
+//                 и хомячком (стойка, за которой стоит работник, а хомячок проходит перед ней) и поверх хомячка
 //
 // Сцена умеет: ходьбу по нажатию и стрелками, лифт, «дойти и сделать», мебель и встроенные предметы,
 // гостей и жильцов, режим «Обустроить» с кладовкой, сон (событие wake), HUD и звук.
@@ -44,7 +45,7 @@ import { drawHamster, blinkAt } from '../../art/hamster.js';
 import { geometry, drawSky, drawHouse, drawLift, HS } from './rooms.js';
 import { buildFixtures } from './fixtures.js';
 import { hitItem, useItem, drawItems, isParty, SEAT_H } from './items.js';
-import { makeResidents, syncGuests, actorHappy, hitActor, updateActors, drawActors } from './actors.js';
+import { makeResidents, syncGuests, actorHappy, hitActor, updateActors, drawActors, actorHere } from './actors.js';
 import { setDecor, decorDown, decorMove, decorUp } from './decor.js';
 
 export function createSideScene(desc) {
@@ -354,7 +355,7 @@ export function createSideScene(desc) {
       }
     }
     for (const g of sc.actors) {
-      if (g.f !== p.f) continue;
+      if (g.f !== p.f || !actorHere(g)) continue;
       const dd = Math.abs(g.x - p.x);
       if (dd < bd + 20) {
         bd = dd;
@@ -542,6 +543,7 @@ export function createSideScene(desc) {
     for (const b of drawOrder) if (b.def.back) b.def.back(ctx, b.x - (b.def.ref || 0), fy(b.f), t, sc, b);
     drawItems(ctx, sc, t);
     drawActors(ctx, sc, t);
+    if (desc.art && desc.art.mid) desc.art.mid(ctx, sc, t);
     drawPlayer(ctx, t);
     for (const b of drawOrder) if (b.def.front) b.def.front(ctx, b.x - (b.def.ref || 0), fy(b.f), t, sc, b);
     if (desc.art && desc.art.front) desc.art.front(ctx, sc, t);

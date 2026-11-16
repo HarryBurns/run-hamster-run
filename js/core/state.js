@@ -21,6 +21,7 @@ import {
   SEED_BY_ID,
   TASK_BY_ID,
   guestHosts,
+  poolGuestOn,
   HOME_BY_ID,
   BIZ_BY_ID,
   VISIT,
@@ -581,6 +582,19 @@ export function npcWhere(id) {
   if (m >= VISIT.sleep) return 'asleep';
   if (invitedToday(id)) return 'home';
   return m < VISIT.morningEnd || m >= VISIT.eveningStart ? 'home' : 'out';
+}
+
+/**
+ * Кто из жителей сейчас отдыхает у бассейна курортного отеля (П.17) — id или null. Расписание — poolGuestOn
+ * (data/hotel.js); кого ждут в гостях, кто сам позвал к себе или у кого есть дело по журналу заданий («!» / «?»), —
+ * тот остаётся в городе. Пока житель у бассейна, в городе его не видно (locations/town.js, поле away).
+ */
+export function hotelPoolGuest() {
+  const s = G.state;
+  if (!s) return null;
+  const id = poolGuestOn(s.day, s.minutes);
+  if (!id || s.guests.includes(id) || invitedToday(id) || guestsWaiting().includes(id) || questBadge(id)) return null;
+  return id;
 }
 
 /** Мебель дома по его ключу в сохранении: 'villa' — вилла, остальные лежат в state.homes. */

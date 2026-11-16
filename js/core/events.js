@@ -68,6 +68,8 @@ export const EVENTS = {
     'секретный пляж { what } — piece (нашли кусочек карты Зефирки, поле id: tower | ship | isle), turtles (черепашата доплыли до моря), glow (ночью вошла в светящуюся воду), shell (подобрали ракушку), frame (ракушки в рамке), treasure (выкопали клад) — features/cove.js, locations/cove.js',
   island:
     'удалённый остров { what } — spot (нашли остров в подзорную трубу), volcano (посмотрела на вулкан), obsidian (взяла вулканическое стекло), flower (подобрала цветок для леи), dance (потанцевала на празднике огней), lei (Вождь сплёл лею), totem (Вождь вырезал тотем) — features/island.js',
+  hotel:
+    'курортный отель «Морская звезда» { what } — room (сняла номер), night (проснулась в номере), buffet (поела у шведского стола), spa (массаж или маска), dance (зарядка или дискотека с аниматором; поле kind: morning | evening), slide (скатилась с горки) — features/hotel.js',
   warmup: 'хомячок согрелась (горячий источник на горе): мороза за день как не бывало — features/health.js',
   forest: 'занятие в лесу { what } — hive (мёд), squirrel (обмен у белки), fire (жарили зефир), treehouse (домик на дереве), wreath (венок), kit (нашли бельчонка), kitHome (отнесли маме) — features/forest.js',
 };
