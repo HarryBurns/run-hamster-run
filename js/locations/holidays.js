@@ -14,7 +14,7 @@
 // ночью), miniMap (значки праздника на карте), update (конверты Китайского Нового года — находки дня).
 // Вторая часть П.13 (1 Мая, Иван Купала, Хеллоуин, день рождения хомячка) — строки в DECOR и BLOCK, места — в HOLIDAY_PLACES.
 import { G, darkness } from '../core/state.js';
-import { ell, emoji, line } from '../core/draw.js';
+import { ell, emoji } from '../core/draw.js';
 import { sfx } from '../core/audio.js';
 import { seeded } from '../core/util.js';
 import { HOLIDAY_BY_ID, HOLIDAY, decorOn, holidayOffset } from '../data/index.js';
@@ -158,7 +158,7 @@ function bursts(sc, t) {
     const r = seeded(i * 7919 + 13),
       k = (t - i * BURST) / LIFE;
     if (k < 0 || k > 1) continue;
-    out.push({ i, x: cam.x + (r() - 0.5) * vw * 0.8, y: cam.y - vh * 0.22 + (r() - 0.5) * vh * 0.36, k, c: COLORS[Math.floor(r() * COLORS.length)], c2: COLORS[Math.floor(r() * COLORS.length)], n: 16 + Math.floor(r() * 8), s: (0.16 + r() * 0.1) * Math.min(vw, vh * 1.4) });
+    out.push({ i, x: cam.x + (r() - 0.5) * vw * 0.8, y: cam.y - vh * 0.22 + (r() - 0.5) * vh * 0.36, k, ...(() => { const ci = Math.floor(r() * COLORS.length), ci2 = Math.floor(r() * COLORS.length); return { ci, ci2, c: COLORS[ci], c2: COLORS[ci2] }; })(), n: 16 + Math.floor(r() * 8), s: (0.16 + r() * 0.1) * Math.min(vw, vh * 1.4) });
   }
   return out;
 }
@@ -167,49 +167,29 @@ function drawBurst(ctx, b) {
   if (b.k < 0.25) {
     const q = b.k / 0.25,
       y = b.y + 140 * (1 - q);
-    line(ctx, b.x, y, b.x, y + 26, 'rgba(255,230,160,.8)', 2.4);
-    ell(ctx, b.x, y, 3, 3, '#fff');
+    for (let i = 0; i < 3; i++) put('hSpark', b.x, y + i * 9, 6); // ракета с хвостиком
     return;
   }
+  // залп: искры — готовые картинки из кэша спрайтов (копии, а не линии: так растр почти не дорожает), свечение и
+  // вспышка — в слое неба (крюк sky)
   const q = (b.k - 0.25) / 0.75,
     rad = b.s * (1 - (1 - q) * (1 - q)),
-    fall = q * q * b.s * 0.3,
-    a = 1 - q * q;
-  ctx.save();
-  if (q < 0.2) ell(ctx, b.x, b.y, b.s * 0.3 * (1 - q * 4), b.s * 0.3 * (1 - q * 4), 'rgba(255,250,220,.8)'); // вспышка
-  ctx.globalAlpha = Math.max(0, a);
-  // одним путём на кольцо: искры-чёрточки, потом головки искр (так залп — несколько команд рисования, а не сотня)
-  for (const [ring, col, n] of [
-    [1, b.c, b.n],
-    [0.62, b.c2, Math.round(b.n * 0.7)],
+    fall = q * q * b.s * 0.3;
+  ctx.globalAlpha = Math.max(0, 1 - q * q);
+  for (const [ring, ci, n] of [
+    [1, b.ci, b.n],
+    [0.62, b.ci2, Math.round(b.n * 0.7)],
   ]) {
-    const r2 = rad * ring,
-      heads = new Path2D(),
-      trail = new Path2D();
-    ctx.beginPath();
+    const r2 = rad * ring;
     for (let j = 0; j < n; j++) {
       const ang = (j / n) * Math.PI * 2 + b.i + ring,
         cs = Math.cos(ang),
-        sn = Math.sin(ang),
-        x = b.x + cs * r2,
-        y = b.y + sn * r2 * 0.85 + fall;
-      ctx.moveTo(b.x + cs * r2 * 0.72, b.y + sn * r2 * 0.61 + fall * 0.8);
-      ctx.lineTo(x, y);
-      heads.moveTo(x + 4, y);
-      heads.arc(x, y, 4, 0, 6.2832);
-      const tx = b.x + cs * r2 * 0.55,
-        ty = b.y + sn * r2 * 0.47 + fall * 0.6;
-      trail.moveTo(tx + 2, ty);
-      trail.arc(tx, ty, 2, 0, 6.2832);
+        sn = Math.sin(ang);
+      put('hSpark', b.x + cs * r2, b.y + sn * r2 * 0.85 + fall, ci);
+      if (j % 2 === 0) put('hSpark', b.x + cs * r2 * 0.8, b.y + sn * r2 * 0.68 + fall * 0.8, ci);
     }
-    ctx.strokeStyle = col;
-    ctx.lineWidth = 3.4;
-    ctx.stroke();
-    ctx.fillStyle = col;
-    ctx.fill(heads);
-    ctx.fill(trail);
   }
-  ctx.restore();
+  ctx.globalAlpha = 1;
 }
 /** Фейерверк сейчас: в новогоднюю ночь, когда стемнело. */
 const fireworksNow = () => holidayNowIs('newyear') && darkness() > 0.3;

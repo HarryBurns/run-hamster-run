@@ -570,7 +570,17 @@ function paintRope(ctx) {
   }
 }
 
+/** Искра фейерверка: цветная точка с ореолом и белой серединкой; i — цвет (6 — белая, у ракеты). */
+const SPARKS = ['#ff6b6b', '#ffd43b', '#69db7c', '#4dabf7', '#da77f2', '#ff922b', '#fff8dc'];
+function paintSpark(ctx, i) {
+  const c = SPARKS[i] || '#fff';
+  ell(ctx, 0, 0, 7, 7, c + '55');
+  ell(ctx, 0, 0, 4.2, 4.2, c);
+  ell(ctx, 0, 0, 1.8, 1.8, '#fff');
+}
+
 defineArt({
+  hSpark: [[-9, -9, 9, 9], (ctx, i) => paintSpark(ctx, i || 0)],
   hFir: [[-104, -272, 104, 36], (ctx, dressed, frame) => (ctx.scale(FIR_SCALE, FIR_SCALE), paintFir(ctx, !!dressed, frame || 0))],
   hSnowman: [[-40, -104, 40, 18], (ctx, v) => paintSnowman(ctx, v || 0)],
   hCandle: [[-16, -22, 16, 10], (ctx, f) => paintCandle(ctx, f || 0)],
