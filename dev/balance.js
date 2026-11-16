@@ -242,6 +242,36 @@ const { pathToFileURL } = require('url');
   if (CAVES.geode !== GEM_IDS.length) bad('CAVES.geode: шкатулка — по одному самоцвету каждого вида');
   if (!(CAVES.shrooms >= 1 && CAVES.shrooms <= 2 && CAVES.lamp >= 3)) bad('CAVES: светящихся грибов — 1–2 в день, ночник — из трёх и больше');
   if (D.FURNITURE.some((f) => f.shop === 'caves' && f.price)) bad('украшения из пещер не продаются — у них не должно быть цены');
+  // пустыня (П.9): плоды кактуса — сезонный сбор (1–2 в день); окаменелости — только из «Раскопок» за первые
+  // DESERT.dig.paid игр в день (по одной), продаются на рынке, купить их негде; лучшая раскопка (монеты + самая
+  // дорогая окаменелость) и загадка пирамиды на 3★ — меньше смены на 2★; весь сбор (город, лес, пустыня, огород)
+  // — меньше трёх смен
+  const { DESERT, DESERT_GATHER, FOSSIL_IDS } = D,
+    fossilMax = Math.max(...Object.values(DESERT.fossils)),
+    digBestD = DESERT.dig.coins[2] + fossilMax,
+    desertIn = (month) =>
+      Object.entries(DESERT_GATHER)
+        .filter(([id]) => D.pickIn(id, month))
+        .reduce((a, [id, q]) => a + q.n * q.max * ING[id].sell, 0);
+  for (const [id, q] of Object.entries(DESERT_GATHER)) {
+    if (!ING[id]) bad(`пустыня: неизвестный продукт ${id}`);
+    else if (!ING[id].seasons || !D.isSeasonal(ING[id])) bad(`пустыня: ${id} собирается, но не сезонный`);
+    if (!(q.n > 0 && q.n * q.max <= 2)) bad(`пустыня: ${id} — собирать 1–2 в день`);
+  }
+  for (let month = 0; month < 12; month++)
+    if (gatherSum(month) + forestSum(month) + desertIn(month) + 8 * bedBestIn(month) >= 3 * avg2)
+      bad(`город, лес, пустыня и огород: ${MONTHS[month]} — сбор не меньше трёх смен на 2★ (${fmt(gatherSum(month) + forestSum(month) + desertIn(month) + 8 * bedBestIn(month))} из ${fmt(3 * avg2)})`);
+  if (!(DESERT.dig.coins.length === 3 && DESERT.dig.paid >= 1)) bad('DESERT.dig: нужны coins на 1–3★ и paid');
+  if (digBestD >= avg2) bad(`«Раскопки» на 3★ дают до ${digBestD} (монеты и окаменелость) — это не меньше смены на 2★ (${fmt(avg2)})`);
+  if (DESERT.pairs.coins[2] >= avg2) bad(`загадка пирамиды на 3★ даёт ${DESERT.pairs.coins[2]} — это не меньше смены на 2★`);
+  for (const id of FOSSIL_IDS) if (!(DESERT.fossils[id] > 0)) bad(`окаменелость без цены на рынке: ${id}`);
+  for (const id of Object.keys(DESERT.fossils))
+    if (!D.FIND_BY_ID[id] || D.FIND_BY_ID[id].kind !== 'fossil') bad(`DESERT.fossils: ${id} — не окаменелость из data/finds.js`);
+  for (const id of FOSSIL_IDS) for (const t of Object.keys(PRICES)) if (PRICES[t][id] !== undefined) bad(`окаменелость ${id} можно купить (${t}) — перепродажа`);
+  if (DESERT.collection !== FOSSIL_IDS.length) bad('DESERT.collection: коллекция — по одной окаменелости каждого вида');
+  if (D.FURNITURE.some((f) => f.shop === 'desert' && f.price)) bad('украшения из пустыни не продаются — у них не должно быть цены');
+  if (!D.isSunHat(D.CLOTHES_BY_ID.sunhat_wide) || D.CLOTHES_BY_ID.sunhat_wide.season || D.CLOTHES_BY_ID.sunhat_wide.stock || !PRICES.clothes.sunhat_wide)
+    bad('«Шляпа от солнца» (задание Буси) должна продаваться всегда и защищать от солнца');
 
   // (ж) ассортимент дня: в любой день двух игровых лет на прилавках хватает всего, чтобы готовить, сажать и угощать.
   // «Точно есть» — круглогодичное не из лакомств и сезонное в сезон; несезонное и лакомства — как повезёт.
@@ -554,6 +584,17 @@ const { pathToFileURL } = require('url');
   line('«Кристаллы»: лучшая игра / лучший день', `до ${fmt(digBest)} / до ${fmt(cavesDay)} (смена на 2★ — ${fmt(avg2)})`);
   line('светящиеся грибы (находка, не продаются)', `${CAVES.shrooms} в день; ${CAVES.lamp} → «Грибной ночник» (украшение)`);
   line('шкатулка самоцветов', `по одному каждого вида (${GEM_IDS.length}) → украшение`);
+  console.log('\nПустыня (П.9)');
+  line('плоды кактуса (весна и лето)', `${DESERT_GATHER.cactus_fruit.n * DESERT_GATHER.cactus_fruit.max} в день (${ING.cactus_fruit.sell} на рынке)`);
+  line('«Раскопки» (1★ / 2★ / 3★, первые ' + DESERT.dig.paid + ' в день)', `${DESERT.dig.coins.join(' / ')} монет + 1 окаменелость`);
+  line(
+    'окаменелости на рынке',
+    FOSSIL_IDS.map((id) => `${D.FIND_BY_ID[id].name.toLowerCase()} ${DESERT.fossils[id]}`).join(', ') + `; в день не больше ${DESERT.dig.paid}`,
+  );
+  line('«Раскопки»: лучшая игра / лучший день', `до ${fmt(digBestD)} / до ${fmt(DESERT.dig.paid * digBestD)} (смена на 2★ — ${fmt(avg2)})`);
+  line('загадка пирамиды «Пары» (раз в день)', `${DESERT.pairs.coins.join(' / ')} монет`);
+  line('коллекция окаменелостей', `по одной каждого вида (${FOSSIL_IDS.length}) → украшение`);
+  line('«Шляпа от солнца» (ТЦ «Модный», всегда)', `${PRICES.clothes.sunhat_wide} монет`);
   console.log('\nГотовка: продукты → порция на рынке (1 / 2 / 3 порции за одну готовку)');
   for (const { d, cost, raw, buyable } of cook.sort((a, b) => b.d.sell - a.d.sell).slice(0, 8))
     line(

@@ -11,7 +11,8 @@
 //  журнал сюжетных заданий, этап 5 — dev/smoke_quests.js:  node dev/smoke.js <url> step:журнал;
 //  лес, П.9 — dev/smoke_forest.js:  node dev/smoke.js <url> step:лес;
 //  гора, П.9 — dev/smoke_mountain.js:  node dev/smoke.js <url> step:гора;
-//  пещеры, П.9 — dev/smoke_caves.js:  node dev/smoke.js <url> step:пещеры)
+//  пещеры, П.9 — dev/smoke_caves.js:  node dev/smoke.js <url> step:пещеры;
+//  пустыня, П.9 — dev/smoke_desert.js:  node dev/smoke.js <url> step:пустыня)
 // Скорость проверяется отдельно:  node dev/bench.js [url] --spots=forest --sizes=desktop --max-forest=45
 const { chromium } = require('playwright');
 const fs = require('fs');
@@ -26,6 +27,7 @@ const quests = require('./smoke_quests.js'); // этап 5: журнал сюж�
 const forest = require('./smoke_forest.js'); // П.9: лес — вход, сбор, улей, белка, костёр, «Грибная охота», задание Шишкина
 const mountain = require('./smoke_mountain.js'); // П.9: гора — задание Сени, канатная дорога, источник, снеговик, санки, Вершинкин
 const caves = require('./smoke_caves.js'); // П.9: пещеры — задание Орешкина, фонарик, темнота, «Кристаллы», Камушкин
+const desert = require('./smoke_desert.js'); // П.9: пустыня — задание Буси, караван, «Раскопки», «Пары», верблюд, Бархан
 
 const BASE = process.argv[2] || 'http://localhost:8765';
 const ONLY_ESTATE = process.argv[3] === 'estate';
@@ -2462,6 +2464,7 @@ async function economy({ page, step, ev, wait, closeAll }) {
     await forest({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
     await mountain({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
     await caves({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
+    await desert({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
     await estate({ page, step: (n, f, o) => step(n, f, { ...o, extra: true, estate: true }), ev, wait, closeAll });
     if (tag === 'desktop')
       await extra({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll, hold });
