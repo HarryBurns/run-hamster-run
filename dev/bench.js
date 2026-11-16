@@ -21,7 +21,8 @@
 //   --sec=4                 сколько секунд идёт один замер
 //   --minutes=1320          время суток в минутах (720 — полдень; 1320 — ночь со светом фонарей и окон)
 //   --day=35                день игры вместо дня сезона (праздники, П.13: 35 — Новый год с ёлкой и фейерверком ночью,
-//                           1 — Рождество, 3 — Китайский Новый год с драконом, 5 — Масленица с каруселью)
+//                           1 — Рождество, 3 — Китайский Новый год с драконом, 5 — Масленица с каруселью; часть 2:
+//                           12 — 1 Мая, 18 — Иван Купала с костром на пляже, 29 — Хеллоуин с тыквами, 36 — день рождения)
 //   --json=файл             сохранить цифры (чтобы потом сравнить)
 //   --quest                 взять задание «Гербарий для Мяты»: над местами для гербария — кружки со значками
 //   --max-forest=40         порог: код возврата 1, если средний кадр в лесу (настольный размер) дольше, мс
@@ -75,6 +76,7 @@ const SPOTS = {
   hrooms: [900, 1, 'hotel'],
   hroof: [1000, 2, 'hotel'],
   villa: [800, 0, 'villa'],
+  villadoor: [16, 11],
 };
 const SPOT_NAMES = {
   palms: 'Дворики (15,39)',
@@ -108,11 +110,13 @@ const SPOT_NAMES = {
   hrooms: 'Отель: номера',
   hroof: 'Отель: крыша',
   villa: 'Вилла (для сравнения)',
+  villadoor: 'Двор виллы, у двери',
 };
 const sizes = opt('sizes', 'desktop,phone').split(','),
   spots = opt('spots', 'palms,forest,square,sea,embank,woods,peak,slope,hall,mine,oasis,dunes,jcamp,jbridge,cbeach,clagoon,ivillage,ivolcano,hlobby,hroof').split(',');
 const seasons = opt('seasons', 'winter,summer').split(',');
-const SEASON = { winter: { day: 0, weather: 'snow' }, summer: { day: 18, weather: 'sun' } };
+// лето — 3 июля (день 20): 1 июля (день 18) — Иван Купала с костром на пляже, его меряют отдельно (--day=18)
+const SEASON = { winter: { day: 0, weather: 'snow' }, summer: { day: 20, weather: 'sun' } };
 
 (async () => {
   const browser = await chromium.launch();

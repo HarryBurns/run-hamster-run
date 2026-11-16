@@ -799,7 +799,7 @@ module.exports = async function holidays({ page, step, ev, wait, closeAll }) {
       await wait(500);
       if (i % 4 === 3) await mutate('s.minutes += 20;'); // время в игре идёт быстрее
       // сохранение и загрузка посреди праздника: ход не теряется
-      if (i === 6) {
+      if (i === 1) {
         const before = (await hol()).day.guests || [];
         await ev(() => window.dispatchEvent(new Event('pagehide')));
         await page.reload();
@@ -817,8 +817,14 @@ module.exports = async function holidays({ page, step, ev, wait, closeAll }) {
     expect(h.steps[0] === 'guests:3/3' && s.guests.length === 3, 'три гостя', [h, s.guests]);
     expect(s.money > s0.money || Object.values(s.dishes).reduce((a, b) => a + b, 0) > Object.values(s0.dishes).reduce((a, b) => a + b, 0), 'подарки от друзей', s.dishes);
     await wait(1500);
-    expect((await panelText()).includes('Все гости в сборе'), 'окно «Все гости в сборе»');
-    await page.click('.overlay .btn:has-text("Задуть свечи")');
+    if ((await panelText()).includes('Все гости в сборе')) await page.click('.overlay .btn:has-text("Задуть свечи")');
+    else {
+      // окно уже закрыли — торт предлагает гость
+      expect((await hol()).day.asked === 1, 'окна «Все гости в сборе» не было');
+      await ev((id) => { window.__dev.run('guest:' + id); }, s.guests[0]);
+      await wait(600);
+      await page.click('.dialog .btn:has-text("Задуть свечи")');
+    }
     await wait(500);
     await tapThrough();
     await wait(1200);
