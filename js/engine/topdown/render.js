@@ -142,9 +142,8 @@ function drawRainOnGround(ctx, m, t, x0, y0, x1, y1) {
  * Цвет неба поверх кадра: [r, g, b, a] или null. Утром — розоватая дымка, к закату — тёплый свет, в сумерках —
  * синева, ночью — тёмно-синяя темнота (dark — 0..1 из sc.darkness()). В дождь — серо-голубая пелена.
  */
-function skyTint(dark) {
-  const m = G.state.minutes,
-    rain = G.state.weather === 'rain';
+function skyTint(dark, rain) {
+  const m = G.state.minutes;
   let r = 0,
     g = 0,
     b = 0,
@@ -496,7 +495,7 @@ export function drawFrame(ctx, sc) {
   drawGround(ctx, sc, env, k, ox, oy, cw, chh); // земля: куски из кэша и «живое» поверх (вода, грядки)
   drawSurf(ctx, sc, env, x0, y0, x1, y1);
   const sky = desc.sky !== false,
-    weather = sky ? G.state.weather : 'sun';
+    weather = sky && !desc.dry ? G.state.weather : 'sun'; // в пустыне (dry) не бывает дождя и снега
   if (weather === 'rain') drawRainOnGround(ctx, m, t, x0, y0, x1, y1);
   sc.call('ground', ctx, sc, env); // разметка — то, что лежит прямо на земле и меняется
   // свет: ночью собираем пятна света от фонарей, окон и дверей; в тёмной локации (крюк gloom — пещера) — всегда
@@ -602,9 +601,9 @@ export function drawFrame(ctx, sc) {
   ctx.restore();
 
   if (sky) {
-    drawWeather(ctx, sc, w, h);
+    if (!desc.dry) drawWeather(ctx, sc, w, h);
     // небо: цвет времени суток, ночью — темнота с пятнами света, днём — тени облаков (отдельный слой, см. drawSky)
-    const tint = skyTint(dark);
+    const tint = skyTint(dark, weather === 'rain');
     if (lit) {
       light(p.x, p.y - 24, 70, 70, 0.4); // хомячка видно и в темноте
       if (tg) light(tg.x, tg.y - 70, 46, 46, 0.7); // и звёздочку цели

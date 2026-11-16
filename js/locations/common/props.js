@@ -254,8 +254,10 @@ defineObjects({
         },
       ],
     },
+    // text, text2 — строка или функция () => строка (табличка, которая меняется в игре: «🔒 Спроси Бусю» → «🚌 Караван»)
     draw(ctx, o) {
-      put('signpost', o.x, o.y, o.text || '', o.text2 || '');
+      const tx = (v) => (typeof v === 'function' ? v() : v) || '';
+      put('signpost', o.x, o.y, tx(o.text), tx(o.text2));
     },
   },
   postbox: {
@@ -825,7 +827,7 @@ defineObjects({
   barrier: {
     art: {
       barrier: [
-        [-20, -40, 22, 88],
+        [-20, -92, 64, 88], // открытая стрела поднята вверх-вправо
         (ctx, open) => {
           shadow(ctx, 0, 14, 12, 4);
           fillRR(ctx, -8, -22, 16, 36, 3, '#ffd43b', OUT, 2);

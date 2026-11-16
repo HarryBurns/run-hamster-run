@@ -39,11 +39,13 @@
 //                 круг света вокруг героя, lights: [[x, y, rx, ry, сила], …] — ещё пятна (мир), warm — тёплый оттенок
 //                 в пятнах (0,3) }. Рисуется маленьким слоем неба поверх кадра (render.js, drawSky) — почти даром;
 //                 предметы с полем light светят в темноте сами
+//   dry: true     здесь не бывает дождя и снега (пустыня): небо и ночь как обычно, а погода всегда «солнце»
 //   sky: false    под крышей или под землёй: без погоды и ночного затемнения;  dark — своя темнота 0..1
 //                 (число или функция);  season — всегда рисовать этим сезоном ('winter' — снежная вершина)
 //   sound(sc)     что слышно: { day, sea, rain, birds, crickets, wind, bells }
 //   cold(sc)      холодно ли здесь сейчас без тёплой вещи (true / false); без него — как в городе: в холодные месяцы
 //                 (болезнь, features/health.js; на вершине горы мороз круглый год)
+//   hot(sc)       жарко ли здесь сейчас без шляпы от солнца (пустыня днём) — добрая подсказка (features/desert.js)
 //   parts         ЧАСТИ локации: объекты с теми же крюками, что и у самого описания (море города — sea.js)
 //
 // КРЮКИ — функции в описании или в его частях (всё, что у локации уникально):
@@ -392,7 +394,7 @@ export function createTopDownScene(desc) {
       currentName = sc.name;
       layout();
       sc.cam.snap(p.x, p.y);
-      if (desc.sky !== false) initWeather(sc);
+      if (desc.sky !== false && !desc.dry) initWeather(sc);
     },
     leave() {
       hideSky(); // слой неба (темнота, тени облаков) — только над локацией
@@ -612,7 +614,7 @@ export function createTopDownScene(desc) {
       // камера
       layout();
       sc.cam.follow(p.x, p.y - 20, dt, 6);
-      if (desc.sky !== false) updateWeather(sc, dt);
+      if (desc.sky !== false && !desc.dry) updateWeather(sc, dt);
       sc.call('update', sc, dt);
       for (const q of sc.drops) q.t += dt;
       sc.drops = sc.drops.filter((q) => q.t < 0.9);
@@ -634,6 +636,10 @@ export function createTopDownScene(desc) {
     },
     /** Холодно ли здесь без тёплой вещи: true / false, или null — «как в городе» (решает features/health.js). */
     cold: () => (desc.cold ? !!desc.cold(sc) : null),
+    /** Жарко ли здесь сейчас без шляпы от солнца (пустыня днём): true / false; без крюка hot — false. */
+    hot: () => (desc.hot ? !!desc.hot(sc) : false),
+    /** Сухо ли здесь всегда: под крышей (sky: false) или в пустыне (dry: true) — дождь и снег сюда не долетают. */
+    dry: () => desc.sky === false || !!desc.dry,
     sound: () =>
       desc.sound ? desc.sound(sc) : { day: 'town', rain: desc.sky !== false ? 1 : 0, birds: true, crickets: true },
 

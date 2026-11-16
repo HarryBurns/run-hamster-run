@@ -209,7 +209,8 @@ function tick({ dt }) {
       );
     if (coldMin >= HEALTH.outMin) markCareless('cold');
   }
-  if (s.weather === 'rain' && !dressedForRain(o) && !cf.rain) {
+  // под землёй и в пустыне дождя нет (sc.dry — крюк сцены), там не промокнуть
+  if (s.weather === 'rain' && !(sc.dry && sc.dry()) && !dressedForRain(o) && !cf.rain) {
     wetMin += min;
     if (wetMin >= HEALTH.warnMin)
       warnOnce(
