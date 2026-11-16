@@ -59,6 +59,7 @@ export const MG_NAMES = {
   sandcastle: '🏰 Замок из песка',
   bowling: '🥥 Кокосовый боулинг',
   tug: '🪢 Перетягивание каната',
+  splash: '💦 Водяная битва',
   slide: '🌀 Горка',
   porter: '🧳 Носильщица',
 };
