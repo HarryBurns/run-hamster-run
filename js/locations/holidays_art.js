@@ -1,5 +1,8 @@
 // ПРАЗДНИКИ (П.13): рисунки украшений города для кэша спрайтов — ёлка, снеговики, гирлянды, свечи в окнах, венки,
-// домик-вертеп, дракон, фонарики, карусель, чучело, ярмарочные домики, канат. Где что стоит и когда — locations/holidays.js.
+// домик-вертеп, дракон, фонарики, карусель, чучело, ярмарочные домики, канат; часть 2 — шарики, тележка с шариками,
+// клумбы субботника, кадки с цветами (1 Мая), купальский костёр, цветочные венки, корзинка, вёдра для водяной битвы
+// (Иван Купала), тыквы-фонарики, столик с тыквами, привидения из простыней, паутинка (Хеллоуин), шарики и гирлянда
+// «С днём рождения!» в доме (paintBdayRoom). Где что стоит и когда — locations/holidays.js.
 //
 // Всё неподвижное — в спрайтах (defineArt / SP.put), параметры рисунка (наряжена ли ёлка, кадр мигания гирлянды,
 // поворот карусели) входят в ключ: кадров у каждого рисунка 2–8, так что в кадре — только копии готовых картинок.
@@ -7,7 +10,7 @@
 import { TAU } from '../core/util.js';
 import { ell, fillRR, line, poly, star, shade, heart } from '../core/draw.js';
 import { OUT, defineArt } from '../engine/topdown/kinds.js';
-import { shadow, snowCap, signBoard, WOOD, WOOD_D, GOLD } from './common/paint.js';
+import { shadow, snowCap, signBoard, flower, WOOD, WOOD_D, GOLD } from './common/paint.js';
 import { trunk } from './common/objects.js';
 
 const BULBS = ['#ff6b6b', '#ffd43b', '#69db7c', '#4dabf7', '#da77f2', '#ff922b'];
@@ -210,18 +213,42 @@ export function stringPoints(dx, dy, n) {
 }
 export function paintString(ctx, style, dx, dy, frame) {
   const len = Math.hypot(dx, dy),
-    n = Math.max(3, Math.round(len / (style === 'cny' ? 44 : 22)));
+    n = Math.max(3, Math.round(len / (style === 'cny' ? 44 : style === 'may' || style === 'hal' ? 24 : 22)));
   ctx.strokeStyle = 'rgba(74,55,40,.8)';
   ctx.lineWidth = 1.6;
   ctx.beginPath();
   ctx.moveTo(0, 0);
   ctx.quadraticCurveTo(dx / 2, dy / 2 + 68, dx, dy);
   ctx.stroke();
+  if (style === 'hal') cobweb(ctx, 0, 0, 1); // паутинка у фонаря, где крепится гирлянда
   stringPoints(dx, dy, n).forEach(([x, y], i) => {
     if (style === 'cny') return lantern(ctx, x, y + 2, 0.75, i);
     if (style === 'mas') {
       const c = BULBS[i % BULBS.length];
       poly(ctx, [x - 7, y - 1, x + 7, y - 1, x, y + 15], c, OUT, 1.1);
+      return;
+    }
+    if (style === 'may') {
+      // красные и пёстрые флажки, через два — маленький шарик
+      if (i % 3 === 2) {
+        line(ctx, x, y, x, y + 8, 'rgba(74,55,40,.7)', 1);
+        balloon(ctx, x, y + 15, 6.5, BULBS[(i * 2) % BULBS.length]);
+        return;
+      }
+      poly(ctx, [x - 7, y - 1, x + 7, y - 1, x, y + 15], i % 2 ? '#e03131' : '#fff', OUT, 1.1);
+      return;
+    }
+    if (style === 'kup') {
+      // зелёная гирлянда из листьев с цветами
+      ell(ctx, x - 5, y + 3, 6, 3.2, '#2f9e44', OUT, 0.8, 0.5);
+      ell(ctx, x + 5, y + 3, 6, 3.2, '#40c057', OUT, 0.8, -0.5);
+      flower(ctx, x, y + 6, 3.6, ['#ff8fab', '#ffd43b', '#fff', '#b197fc'][i % 4]);
+      return;
+    }
+    if (style === 'hal') {
+      // оранжевые и фиолетовые флажки, через два — летучая мышка (добрая)
+      if (i % 3 === 1) return bat(ctx, x, y + 8, 0.8);
+      poly(ctx, [x - 7, y - 1, x + 7, y - 1, x, y + 15], i % 2 ? '#7048e8' : '#ff922b', OUT, 1.1);
       return;
     }
     const on = (i + frame) % 2 === 0;
@@ -570,6 +597,430 @@ function paintRope(ctx) {
   }
 }
 
+// ==================== часть 2: 1 Мая, Иван Купала, Хеллоуин, день рождения ====================
+// ---------- шарики ----------
+/** Воздушный шарик: (x, y) — середина, r — радиус; ниточка — от узелка вниз (рисует вызвавший). */
+export function balloon(ctx, x, y, r, col) {
+  ell(ctx, x, y, r * 0.86, r, col, OUT, 1.3);
+  ell(ctx, x - r * 0.32, y - r * 0.38, r * 0.2, r * 0.32, 'rgba(255,255,255,.65)', null, 0, -0.4);
+  poly(ctx, [x - r * 0.16, y + r * 1.1, x + r * 0.16, y + r * 1.1, x, y + r * 0.94], col, OUT, 0.9);
+}
+const BALLOONS = [
+  ['#ff6b6b', '#ffd43b', '#4dabf7'],
+  ['#da77f2', '#69db7c', '#ff922b'],
+  ['#ff8fab', '#74c0fc', '#ffe066'],
+];
+/** Связка из трёх шариков на грузике (v — набор цветов). */
+function paintBalloons(ctx, v) {
+  shadow(ctx, 0, 4, 12, 4);
+  const cols = BALLOONS[v % BALLOONS.length],
+    tops = [
+      [-14, -74],
+      [12, -82],
+      [0, -100],
+    ];
+  for (const [x, y] of tops) {
+    ctx.strokeStyle = 'rgba(74,55,40,.7)';
+    ctx.lineWidth = 1.1;
+    ctx.beginPath();
+    ctx.moveTo(0, -6);
+    ctx.quadraticCurveTo(x * 0.3, (y - 6) / 2, x, y + 15);
+    ctx.stroke();
+  }
+  tops.forEach(([x, y], i) => balloon(ctx, x, y, 13, cols[i]));
+  fillRR(ctx, -5, -8, 10, 8, 3, '#868e96', OUT, 1.2); // грузик
+}
+/** Тележка с шариками (1 Мая): колёса, ящик, большая связка и табличка. */
+function paintBalloonCart(ctx) {
+  shadow(ctx, 0, 6, 44, 10);
+  for (let i = 0; i < 9; i++) {
+    const a = -Math.PI / 2 + (i - 4) * 0.28,
+      L = 92 + (i % 3) * 14;
+    const x = Math.cos(a) * L * 0.55,
+      y = -40 + Math.sin(a) * L;
+    line(ctx, 0, -40, x, y + 14, 'rgba(74,55,40,.6)', 1);
+    balloon(ctx, x, y, 12 + (i % 2) * 2, BULBS[i % BULBS.length]);
+  }
+  fillRR(ctx, -34, -38, 68, 28, 5, '#4dabf7', OUT, 2);
+  for (let i = 0; i < 4; i++) fillRR(ctx, -28 + i * 15, -34, 10, 20, 3, i % 2 ? '#fff' : '#d0ebff', OUT, 1);
+  line(ctx, 34, -30, 50, -44, OUT, 3);
+  for (const x of [-20, 20]) {
+    ell(ctx, x, -6, 9, 9, '#495057', OUT, 1.6);
+    ell(ctx, x, -6, 3, 3, '#adb5bd');
+  }
+  signBoard(ctx, '🎈 Шарики', 0, -50, 70, 18, 'plate', '#e03131');
+}
+/** Большая кадка с цветами (1 Мая). */
+function paintFlowerPot(ctx, v) {
+  shadow(ctx, 0, 5, 26, 7);
+  poly(ctx, [-22, -30, 22, -30, 16, 0, -16, 0], v ? '#e8590c' : '#c2255c', OUT, 2);
+  fillRR(ctx, -25, -34, 50, 8, 3, v ? '#fd7e14' : '#e64980', OUT, 1.6);
+  for (let i = 0; i < 6; i++) ell(ctx, -16 + i * 6.4, -40 - (i % 2) * 6, 7, 5, i % 2 ? '#2f9e44' : '#40c057', OUT, 0.8, i);
+  const cols = v ? ['#ffd43b', '#fff', '#ff6b6b'] : ['#ff8fab', '#b197fc', '#ffd43b'];
+  for (let i = 0; i < 5; i++) flower(ctx, -16 + i * 8, -48 - (i % 2) * 9, 5, cols[i % 3]);
+}
+// ---------- клумба субботника ----------
+/** Где стоят клумбы субботника (1 Мая): [x, y основания в клетках] — их же знает locations/holidays.js. */
+export const MAY_BEDS = [
+  [45, 22.75],
+  [43, 34.75],
+  [39, 24.75],
+];
+/**
+ * Клумба субботника вокруг (0, 0) — середина нижнего края: stage 0 — утоптанная земля, 1 — вскопана, 2 — цветы;
+ * bloom — насколько распустились (0..1); sign — табличка «Субботник» (в городе, пока не посадили).
+ */
+export function paintMayBed(ctx, stage, sign = false, bloom = 1) {
+  shadow(ctx, 0, 2, 46, 10);
+  ell(ctx, 0, -16, 44, 18, '#adb5bd', OUT, 2); // бордюр из камушков
+  ell(ctx, 0, -17, 38, 14, stage ? '#6b4226' : '#9c7a5b');
+  if (stage >= 1)
+    for (let i = 0; i < 12; i++) ell(ctx, -30 + ((i * 17) % 60), -22 + ((i * 7) % 12), 3, 2, 'rgba(40,20,5,.45)');
+  else for (let i = 0; i < 5; i++) line(ctx, -24 + i * 12, -20, -18 + i * 12, -12, 'rgba(255,255,255,.25)', 1.4);
+  if (stage >= 2) {
+    const r = 3 + bloom * 3;
+    const pts = [
+      [-24, -18],
+      [-10, -26],
+      [6, -22],
+      [22, -18],
+      [-16, -10],
+      [0, -12],
+      [16, -8],
+    ];
+    pts.forEach(([x, y], i) => {
+      line(ctx, x, y + 6, x, y - bloom * 6, '#2f9e44', 2);
+      ell(ctx, x - 4, y + 2, 4, 2, '#40c057', null, 0, -0.5);
+      flower(ctx, x, y - bloom * 6, r, ['#ff6b6b', '#ffd43b', '#ff8fab', '#b197fc', '#fff', '#ff922b', '#74c0fc'][i]);
+    });
+  }
+  if (sign) {
+    // ящик с рассадой
+    fillRR(ctx, 30, -14, 22, 12, 3, WOOD, OUT, 1.4);
+    for (let i = 0; i < 3; i++) {
+      line(ctx, 35 + i * 6, -14, 35 + i * 6, -22, '#2f9e44', 2);
+      ell(ctx, 35 + i * 6, -23, 3, 2, '#69db7c');
+    }
+  }
+}
+/** Табличка у клумбы субботника (стоит — в общем порядке «дальше → ближе»): done — «Готово!». */
+function paintMaySign(ctx, done) {
+  line(ctx, 0, 0, 0, -30, OUT, 2.4);
+  signBoard(ctx, done ? '🌷 Готово!' : 'Субботник', 0, -38, 66, 16, 'plate', done ? '#e64980' : '#2f9e44');
+}
+// ---------- Иван Купала ----------
+/** Купальский костёр: камни кругом, шалашик из поленьев, пламя (frame 0..3), искорки. */
+function paintBonfire(ctx, frame) {
+  shadow(ctx, 0, 4, 46, 12);
+  for (let i = 0; i < 10; i++) {
+    const a = (i / 10) * TAU;
+    ell(ctx, Math.cos(a) * 34, -10 + Math.sin(a) * 11, 7, 5, i % 2 ? '#adb5bd' : '#868e96', OUT, 1.2);
+  }
+  // поленья шалашиком за пламенем
+  for (const [x0, x1] of [
+    [-24, 8],
+    [24, -8],
+  ])
+    line(ctx, x0, -6, x1 * 0.4, -50, OUT, 7), line(ctx, x0, -6, x1 * 0.4, -50, '#a0662d', 4.4);
+  const f = frame % 4,
+    wob = [0, 3, -2, 2][f];
+  const fl = (s, col, dy, lw) => {
+    ctx.beginPath();
+    ctx.moveTo(-20 * s, -10);
+    ctx.quadraticCurveTo(-26 * s, -42 * s + dy, -8 * s + wob * s, -64 * s + dy);
+    ctx.quadraticCurveTo(-6 * s, -50 * s + dy, wob * s, -84 * s + dy);
+    ctx.quadraticCurveTo(10 * s, -56 * s + dy, 12 * s + wob * 0.5 * s, -70 * s + dy);
+    ctx.quadraticCurveTo(26 * s, -40 * s + dy, 20 * s, -10);
+    ctx.closePath();
+    ctx.fillStyle = col;
+    ctx.fill();
+    if (lw) {
+      ctx.strokeStyle = '#e8590c';
+      ctx.lineWidth = lw;
+      ctx.stroke();
+    }
+  };
+  fl(1, '#ff922b', 0, 1.8);
+  fl(0.7, '#ffd43b', [0, -4, 2, -2][f]);
+  fl(0.38, '#fff3bf', 2);
+  // поленья спереди (крест-накрест) и искорки
+  for (const [x0, x1] of [
+    [-26, 14],
+    [26, -14],
+  ])
+    line(ctx, x0, -4, x1, -16, OUT, 7), line(ctx, x0, -4, x1, -16, '#c98b5a', 4.4);
+  for (let i = 0; i < 4; i++) ell(ctx, -16 + i * 10 + wob, -80 - ((i * 7 + f * 9) % 24), 1.8, 1.8, '#ffd43b');
+}
+/** Цветочный венок: кольцо, n цветов (последний — с анимацией a), candle — свечка посередине (по воде). */
+export function wreathRing(ctx, x, y, r, n = 8, a = 1, candle = false) {
+  ctx.lineWidth = r * 0.22;
+  ctx.strokeStyle = '#2f9e44';
+  ctx.beginPath();
+  ctx.ellipse(x, y, r, r * 0.5, 0, 0, TAU);
+  ctx.stroke();
+  ctx.lineWidth = 1.4;
+  ctx.strokeStyle = OUT;
+  ctx.beginPath();
+  ctx.ellipse(x, y, r * 1.12, r * 0.6, 0, 0, TAU);
+  ctx.stroke();
+  for (let i = 0; i < 12; i++) {
+    const q = (i / 12) * TAU;
+    ell(ctx, x + Math.cos(q) * r, y + Math.sin(q) * r * 0.5, r * 0.12, r * 0.06, i % 2 ? '#40c057' : '#2b8a3e', null, 0, q + 1);
+  }
+  const cols = ['#ff8fab', '#ffd43b', '#fff', '#b197fc', '#ff6b6b', '#74c0fc', '#ffa94d', '#fff'];
+  for (let i = 0; i < n; i++) {
+    const q = (i / Math.max(6, n)) * TAU + 0.4,
+      k = i === n - 1 ? a : 1,
+      fx = x + Math.cos(q) * r,
+      fy = y + Math.sin(q) * r * 0.5 - (1 - k) * r * 1.4;
+    flower(ctx, fx, fy, r * 0.17 * (0.6 + 0.4 * k), cols[i % cols.length]);
+  }
+  if (candle) {
+    fillRR(ctx, x - r * 0.08, y - r * 0.42, r * 0.16, r * 0.4, 2, '#fff', OUT, 1);
+    ell(ctx, x, y - r * 0.5, r * 0.07, r * 0.12, '#ffd43b', OUT, 0.8);
+    ell(ctx, x, y - r * 0.45, r * 0.4, r * 0.25, 'rgba(255,212,59,.25)');
+  }
+}
+/** Корзинка с цветами и готовым венком у воды. */
+function paintFlowerBasket(ctx) {
+  shadow(ctx, 0, 4, 34, 8);
+  wreathRing(ctx, 22, -6, 14, 6);
+  poly(ctx, [-26, -24, 6, -24, 2, 0, -22, 0], '#d9a066', OUT, 1.8);
+  for (let i = 0; i < 4; i++) line(ctx, -24 + i * 2, -18 + i * 5, 4 - i * 1, -18 + i * 5, 'rgba(140,90,40,.6)', 1);
+  ctx.strokeStyle = OUT;
+  ctx.lineWidth = 2.4;
+  ctx.beginPath();
+  ctx.arc(-10, -24, 14, Math.PI, 0);
+  ctx.stroke();
+  for (let i = 0; i < 6; i++) flower(ctx, -22 + i * 5, -27 - (i % 2) * 5, 4.2, ['#ff8fab', '#ffd43b', '#fff', '#b197fc'][i % 4]);
+  signBoard(ctx, '🌼 Венки', -10, -56, 60, 16, 'plate', '#2f9e44');
+  line(ctx, -10, -48, -10, -38, OUT, 1.6);
+}
+/** Вёдра и водяные пистолеты (водяная битва). */
+function paintSplashStand(ctx) {
+  shadow(ctx, 0, 4, 40, 9);
+  fillRR(ctx, -34, -24, 68, 8, 3, '#22b8cf', OUT, 1.8);
+  for (const x of [-28, 24]) fillRR(ctx, x, -18, 4, 18, 2, '#0c8599', OUT, 1.2);
+  for (const [x, c] of [
+    [-18, '#ff6b6b'],
+    [16, '#ffd43b'],
+  ]) {
+    poly(ctx, [x - 11, -44, x + 11, -44, x + 8, -24, x - 8, -24], c, OUT, 1.6);
+    ell(ctx, x, -44, 11, 3.5, '#74c0fc', OUT, 1.2);
+    ctx.strokeStyle = OUT;
+    ctx.lineWidth = 1.4;
+    ctx.beginPath();
+    ctx.arc(x, -44, 10, Math.PI * 1.1, Math.PI * 1.9);
+    ctx.stroke();
+  }
+  // пистолеты на столике
+  fillRR(ctx, -6, -32, 16, 6, 3, '#20c997', OUT, 1.2);
+  fillRR(ctx, -2, -28, 4, 6, 2, '#12b886', OUT, 1);
+  for (let i = 0; i < 3; i++) ell(ctx, -30 + i * 30, -50 - i * 4, 2.4, 3.4, '#74c0fc', 'rgba(28,126,214,.7)', 0.8);
+  signBoard(ctx, '💦 Водяная битва', 0, -66, 100, 16, 'plate', '#1c7ed6');
+  line(ctx, 0, -58, 0, -50, OUT, 1.6);
+}
+/** Цветочный венок на двери домика (Иван Купала): с лентами. */
+function paintDoorWreath(ctx) {
+  wreathRing(ctx, 0, 0, 12, 6);
+  for (const [x, c] of [
+    [-4, '#ff6b6b'],
+    [4, '#4dabf7'],
+  ])
+    line(ctx, x, 6, x * 2, 22, c, 2.2);
+}
+// ---------- Хеллоуин ----------
+/** Летучая мышка (добрая, с улыбкой). */
+export function bat(ctx, x, y, s = 1) {
+  ctx.fillStyle = '#5f3dc4';
+  ctx.beginPath();
+  ctx.moveTo(x, y - 2 * s);
+  ctx.quadraticCurveTo(x - 8 * s, y - 9 * s, x - 15 * s, y - 4 * s);
+  ctx.quadraticCurveTo(x - 11 * s, y - 1 * s, x - 10 * s, y + 3 * s);
+  ctx.quadraticCurveTo(x - 6 * s, y, x, y + 3 * s);
+  ctx.quadraticCurveTo(x + 6 * s, y, x + 10 * s, y + 3 * s);
+  ctx.quadraticCurveTo(x + 11 * s, y - 1 * s, x + 15 * s, y - 4 * s);
+  ctx.quadraticCurveTo(x + 8 * s, y - 9 * s, x, y - 2 * s);
+  ctx.fill();
+  ell(ctx, x, y, 5 * s, 5 * s, '#7048e8', OUT, 0.9);
+  ell(ctx, x - 2 * s, y - 1 * s, 1.2 * s, 1.4 * s, '#fff');
+  ell(ctx, x + 2 * s, y - 1 * s, 1.2 * s, 1.4 * s, '#fff');
+}
+/** Паутинка в уголке: (x, y) — угол, dir 1 — вправо-вниз. */
+export function cobweb(ctx, x, y, dir = 1) {
+  ctx.strokeStyle = 'rgba(255,255,255,.85)';
+  ctx.lineWidth = 0.9;
+  for (let i = 0; i <= 4; i++) {
+    const a = (i / 4) * Math.PI * 0.5;
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.lineTo(x + dir * Math.cos(a) * 22, y + Math.sin(a) * 22);
+    ctx.stroke();
+  }
+  for (const r of [7, 13, 19]) {
+    ctx.beginPath();
+    for (let i = 0; i <= 4; i++) {
+      const a = (i / 4) * Math.PI * 0.5,
+        px = x + dir * Math.cos(a) * r,
+        py = y + Math.sin(a) * r;
+      if (i) ctx.quadraticCurveTo(x + dir * Math.cos(a - 0.2) * r * 0.85, y + Math.sin(a - 0.2) * r * 0.85, px, py);
+      else ctx.moveTo(px, py);
+    }
+    ctx.stroke();
+  }
+}
+/**
+ * Тыква вокруг (0, 0) — середина низа: stage — сколько вырезано (1 — глазик, 2 — оба, 3 — носик, 4 — улыбка,
+ * 5 — свечка), lit — горит ли свечка внутри, frame — мерцание. Лицо доброе: круглые глазки и широкая улыбка.
+ */
+export function jackFace(ctx, stage = 5, lit = 1, frame = 0) {
+  const body = '#ff922b',
+    dark = '#e8590c';
+  if (lit) ell(ctx, 0, -26, 50, 40, frame ? 'rgba(255,212,59,.22)' : 'rgba(255,212,59,.16)');
+  for (const [x, rx] of [
+    [-20, 18],
+    [20, 18],
+    [-9, 18],
+    [9, 18],
+    [0, 17],
+  ])
+    ell(ctx, x, -26, rx, 26, x === 0 ? body : x < -10 || x > 10 ? dark : body, OUT, 1.8);
+  ell(ctx, -8, -38, 5, 9, 'rgba(255,255,255,.35)', null, 0, 0.3);
+  // хвостик и листик
+  fillRR(ctx, -3, -60, 7, 10, 3, '#5c940d', OUT, 1.4);
+  ell(ctx, 10, -56, 8, 4, '#69db7c', OUT, 1, -0.4);
+  const hole = lit ? (frame ? '#ffe066' : '#ffd43b') : '#5c2d0b';
+  if (stage >= 1) ell(ctx, -11, -33, 5.5, 6.5, hole, OUT, 1.2);
+  if (stage >= 2) ell(ctx, 11, -33, 5.5, 6.5, hole, OUT, 1.2);
+  if (stage >= 3) poly(ctx, [0, -27, -4, -21, 4, -21], hole, OUT, 1);
+  if (stage >= 4) {
+    ctx.beginPath();
+    ctx.moveTo(-16, -17);
+    ctx.quadraticCurveTo(0, -2, 16, -17);
+    ctx.quadraticCurveTo(0, -9, -16, -17);
+    ctx.closePath();
+    ctx.fillStyle = hole;
+    ctx.fill();
+    ctx.strokeStyle = OUT;
+    ctx.lineWidth = 1.2;
+    ctx.stroke();
+  }
+  if (stage >= 1 && !lit) {
+    ell(ctx, -11, -35, 1.6, 1.6, 'rgba(255,255,255,.5)');
+    ell(ctx, 11, -35, 1.6, 1.6, 'rgba(255,255,255,.5)');
+  }
+}
+/** Тыква-фонарик в городе: v 0 — одна, 1 — горка (две простые и фонарик сверху). */
+function paintJack(ctx, frame, v) {
+  shadow(ctx, 0, 3, 22, 6);
+  if (v) {
+    for (const x of [-14, 14]) {
+      ctx.save();
+      ctx.translate(x, 0);
+      ctx.scale(0.42, 0.42);
+      jackFace(ctx, 0, 0, 0);
+      ctx.restore();
+    }
+    ctx.translate(0, -18);
+  }
+  ctx.scale(0.55, 0.55);
+  jackFace(ctx, 5, 1, frame);
+}
+/** Столик с тыквами (Хеллоуин): тыквы разного размера, ложечка, табличка. */
+function paintPumpkinTable(ctx) {
+  shadow(ctx, 0, 6, 40, 9);
+  fillRR(ctx, -36, -26, 72, 8, 3, '#7048e8', OUT, 1.8);
+  for (let i = 0; i < 3; i++) fillRR(ctx, -32 + i * 22, -18, 18, 4, 1, i % 2 ? '#ff922b' : '#9775fa');
+  for (const x of [-30, 26]) fillRR(ctx, x, -18, 5, 20, 2, '#5f3dc4', OUT, 1.2);
+  for (const [x, sc] of [
+    [-18, 0.36],
+    [6, 0.46],
+    [26, 0.3],
+  ]) {
+    ctx.save();
+    ctx.translate(x, -26);
+    ctx.scale(sc, sc);
+    jackFace(ctx, x === 6 ? 5 : 0, 0, 0);
+    ctx.restore();
+  }
+  signBoard(ctx, '🎃 Тыквы', 0, -76, 70, 18, 'plate', '#e8590c');
+  line(ctx, 0, -67, 0, -56, OUT, 1.6);
+}
+/** Привидение из простыни: доброе, с румянцем; frame — машет краешком. Висит над землёй (тень — внизу). */
+function paintGhost(ctx, frame) {
+  ell(ctx, 0, 0, 16, 4, 'rgba(52,38,70,.14)');
+  const w = frame ? 2 : -2;
+  ctx.beginPath();
+  ctx.moveTo(-20, -24);
+  ctx.quadraticCurveTo(-24, -76, 0, -78);
+  ctx.quadraticCurveTo(24, -76, 20, -24);
+  for (let i = 0; i < 4; i++) {
+    const x0 = 20 - i * 10;
+    ctx.quadraticCurveTo(x0 - 5, -16 + (i % 2 ? w : -w), x0 - 10, -24);
+  }
+  ctx.closePath();
+  ctx.fillStyle = '#fff';
+  ctx.fill();
+  ctx.strokeStyle = OUT;
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  ell(ctx, 8, -60, 5, 7, 'rgba(160,180,220,.3)');
+  // ручки-краешки
+  ell(ctx, -22, -42 + w, 6, 4, '#fff', OUT, 1.4, -0.6);
+  ell(ctx, 22, -42 - w, 6, 4, '#fff', OUT, 1.4, 0.6);
+  // глазки, румянец, улыбка
+  ell(ctx, -7, -56, 3, 4, '#212529');
+  ell(ctx, 7, -56, 3, 4, '#212529');
+  ell(ctx, -6, -57.5, 1, 1.2, '#fff');
+  ell(ctx, 8, -57.5, 1, 1.2, '#fff');
+  ell(ctx, -12, -49, 3.4, 2, 'rgba(255,143,171,.7)');
+  ell(ctx, 12, -49, 3.4, 2, 'rgba(255,143,171,.7)');
+  ctx.strokeStyle = '#212529';
+  ctx.lineWidth = 1.4;
+  ctx.beginPath();
+  ctx.arc(0, -50, 3.5, 0.15 * Math.PI, 0.85 * Math.PI);
+  ctx.stroke();
+}
+// ---------- день рождения: в доме ----------
+/**
+ * Праздник в комнате (день рождения): гирлянда-флажки «С днём рождения!» под потолком от x0 до x1 и связки шариков
+ * у стен. y — пол, top — потолок (единицы дома). Рисуется прямо в кадр дома (там нет кэша спрайтов) — это несколько
+ * десятков команд, только в одном доме и один день.
+ */
+export function paintBdayRoom(ctx, x0, x1, y, top, t) {
+  const word = 'С ДНЁМ РОЖДЕНИЯ!',
+    n = word.length,
+    yy = top + 26;
+  ctx.strokeStyle = 'rgba(74,55,40,.7)';
+  ctx.lineWidth = 1.6;
+  ctx.beginPath();
+  ctx.moveTo(x0, yy);
+  ctx.quadraticCurveTo((x0 + x1) / 2, yy + 40, x1, yy);
+  ctx.stroke();
+  ctx.font = '900 12px ui-rounded, "Trebuchet MS", sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  for (let i = 0; i < n; i++) {
+    const q = (i + 1) / (n + 1),
+      x = x0 + (x1 - x0) * q,
+      fy = yy + Math.sin(q * Math.PI) * 20 * 1;
+    if (word[i] === ' ') continue;
+    poly(ctx, [x - 11, fy, x + 11, fy, x, fy + 24], BULBS[i % BULBS.length], OUT, 1.1);
+    ctx.fillStyle = '#fff';
+    ctx.fillText(word[i], x, fy + 8);
+  }
+  for (const [bx, v] of [
+    [x0 + 30, 0],
+    [x1 - 30, 1],
+  ]) {
+    const sway = Math.sin(t * 1.4 + bx) * 3;
+    ctx.save();
+    ctx.translate(bx + sway, y);
+    paintBalloons(ctx, v);
+    ctx.restore();
+  }
+}
+
 /** Искра фейерверка: цветная точка с ореолом и белой серединкой; i — цвет (6 — белая, у ракеты). */
 const SPARKS = ['#ff6b6b', '#ffd43b', '#69db7c', '#4dabf7', '#da77f2', '#ff922b', '#fff8dc'];
 function paintSpark(ctx, i) {
@@ -579,8 +1030,46 @@ function paintSpark(ctx, i) {
   ell(ctx, 0, 0, 1.8, 1.8, '#fff');
 }
 
+/** Хвостик искры: маленькая полупрозрачная точка того же цвета. */
+function paintSparkTail(ctx, i) {
+  const c = SPARKS[i] || '#fff';
+  ell(ctx, 0, 0, 3.6, 3.6, c + '66');
+  ell(ctx, 0, 0, 1.8, 1.8, c + 'cc');
+}
+/** Сколько направлений у искры-чёрточки салюта (повёрнутые копии — отдельные картинки в кэше). */
+export const STREAK_DIRS = 16;
+/**
+ * Искра салюта — чёрточка с хвостиком: яркая головка в (0, 0), хвост тянется назад, сужаясь и бледнея. d — направление
+ * полёта (0..STREAK_DIRS−1, 0 — вправо, по часовой), i — цвет.
+ */
+function paintStreak(ctx, d, i) {
+  const c = SPARKS[i] || '#fff';
+  ctx.rotate((d / STREAK_DIRS) * TAU);
+  for (let k = 8; k >= 1; k--) {
+    const q = k / 8;
+    ell(ctx, -q * 30, 0, 4.4 * (1 - q * 0.75), 3 * (1 - q * 0.75), c + (k > 4 ? '66' : 'bb'));
+  }
+  ell(ctx, 0, 0, 6.4, 5, c + '77');
+  ell(ctx, 0, 0, 4.2, 3.4, c);
+  ell(ctx, 0.8, 0, 2, 1.6, '#fff');
+}
+
 defineArt({
   hSpark: [[-9, -9, 9, 9], (ctx, i) => paintSpark(ctx, i || 0)],
+  hSparkT: [[-5, -5, 5, 5], (ctx, i) => paintSparkTail(ctx, i || 0)],
+  hStreak: [[-36, -36, 36, 36], (ctx, d, i) => paintStreak(ctx, d || 0, i || 0)],
+  hBalloons: [[-32, -122, 32, 10], (ctx, v) => paintBalloons(ctx, v || 0)],
+  hBalloonCart: [[-78, -182, 78, 18], (ctx) => paintBalloonCart(ctx)],
+  hFlowerPot: [[-40, -74, 40, 14], (ctx, v) => paintFlowerPot(ctx, v || 0)],
+  hMayBed: [[-50, -46, 58, 14], (ctx, planted) => paintMayBed(ctx, planted ? 2 : 0, !planted)],
+  hMaySign: [[-40, -50, 40, 6], (ctx, done) => paintMaySign(ctx, done)],
+  hBonfire: [[-58, -126, 58, 20], (ctx, f) => paintBonfire(ctx, f || 0)],
+  hFlowerBasket: [[-52, -76, 52, 16], (ctx) => paintFlowerBasket(ctx)],
+  hSplashStand: [[-54, -78, 54, 14], (ctx) => paintSplashStand(ctx)],
+  hDoorWreath: [[-18, -12, 18, 26], (ctx) => paintDoorWreath(ctx)],
+  hJack: [[-34, -66, 34, 10], (ctx, f, v) => paintJack(ctx, f || 0, v || 0)],
+  hPumpkinTable: [[-58, -100, 58, 16], (ctx) => paintPumpkinTable(ctx)],
+  hGhost: [[-32, -84, 32, 8], (ctx, f) => paintGhost(ctx, f || 0)],
   hFir: [[-104, -272, 104, 36], (ctx, dressed, frame) => (ctx.scale(FIR_SCALE, FIR_SCALE), paintFir(ctx, !!dressed, frame || 0))],
   hSnowman: [[-40, -104, 40, 18], (ctx, v) => paintSnowman(ctx, v || 0)],
   hCandle: [[-16, -22, 16, 10], (ctx, f) => paintCandle(ctx, f || 0)],
