@@ -232,38 +232,73 @@ export default {
     }
     function draw() {
       const w = cv.w,
-        h = cv.h;
+        h = cv.h,
+        tall = h > w * 1.15, // телефон стоя: сцена выше и крупнее, над ней — зрители и ярмарка, кружок — пониже
+        hor = tall ? 0.4 : 0.56;
       // небо, ёлочки, снег
       const g = ctx.createLinearGradient(0, 0, 0, h);
       g.addColorStop(0, '#a5d8ff');
-      g.addColorStop(0.55, '#e7f5ff');
-      g.addColorStop(0.56, '#ffffff');
+      g.addColorStop(hor - 0.01, '#e7f5ff');
+      g.addColorStop(hor, '#ffffff');
       g.addColorStop(1, '#eef4fb');
       ctx.fillStyle = g;
       ctx.fillRect(0, 0, w, h);
       for (let i = 0; i < 7; i++) {
         const x = ((i * 0.17 + 0.05) % 1) * w,
-          y = h * 0.56;
+          y = h * hor;
+        if (tall && i % 2) continue;
         poly(ctx, [x - 18, y, x, y - 44 - (i % 3) * 8, x + 18, y], '#2f9e44', OUT, 1.6);
         poly(ctx, [x - 9, y - 26, x, y - 46 - (i % 3) * 8, x + 9, y - 26], '#fff');
       }
+      if (tall) {
+        // солнце, облака и ярмарка вдали — чтобы верх экрана не пустовал
+        ell(ctx, w * 0.82, h * 0.1, 26, 26, '#ffe066', '#fab005', 2);
+        for (let i = 0; i < 2; i++) {
+          const cx = ((t * 6 + i * w * 0.6) % (w + 140)) - 70,
+            cy = h * (0.08 + i * 0.08);
+          ell(ctx, cx, cy, 30, 11, 'rgba(255,255,255,.95)');
+          ell(ctx, cx + 16, cy - 7, 18, 11, 'rgba(255,255,255,.95)');
+        }
+        const by = h * hor;
+        for (const [x, c, word] of [
+          [w * 0.18, '#e03131', '🥞'],
+          [w * 0.82, '#1c7ed6', '🎪'],
+        ]) {
+          fillRR(ctx, x - 40, by - 62, 80, 62, 3, '#fff4e6', OUT, 1.6);
+          for (let i = 0; i < 4; i++) poly(ctx, [x - 44 + i * 22, by - 76, x - 22 + i * 22, by - 76, x - 22 + i * 22, by - 62, x - 44 + i * 22, by - 62], i % 2 ? '#fff' : c, OUT, 1.2);
+          poly(ctx, [x - 46, by - 76, x, by - 98, x + 46, by - 76], c, OUT, 1.6);
+          ctx.font = '26px sans-serif';
+          ctx.textAlign = 'center';
+          ctx.fillText(word, x, by - 24);
+        }
+        // зрители на горке болеют за команды
+        const fans = (host.friends || []).slice(5, 8).map((f) => f.look);
+        fans.forEach((lk, i) => {
+          const x = w * (0.36 + i * 0.14),
+            y = h * hor + 4 + Math.abs(Math.sin(t * 5 + i)) * -5;
+          host.drawHamster(ctx, x, y, 0.5, lk, { time: t + i, dir: i === 0 ? 1 : i === 2 ? -1 : 0, happy: true, armsUp: Math.sin(t * 5 + i) > 0 });
+        });
+      }
+
       // флажки над полем
       ctx.strokeStyle = 'rgba(74,55,40,.5)';
       ctx.lineWidth = 1.2;
       ctx.beginPath();
-      ctx.moveTo(0, h * 0.12);
-      ctx.quadraticCurveTo(w / 2, h * 0.24, w, h * 0.12);
+      const fy = tall ? 0.2 : 0.12; // флажки над полем
+      ctx.moveTo(0, h * fy);
+      ctx.quadraticCurveTo(w / 2, h * (fy + 0.12), w, h * fy);
       ctx.stroke();
       for (let i = 1; i < 12; i++) {
         const q = i / 12,
           x = q * w,
-          y = h * 0.12 + Math.sin(q * Math.PI) * h * 0.06;
+          y = h * fy + Math.sin(q * Math.PI) * h * 0.06;
         poly(ctx, [x - 7, y, x + 7, y, x, y + 14], ['#ff6b6b', '#ffd43b', '#69db7c', '#4dabf7', '#da77f2'][i % 5], OUT, 1);
       }
-      const cy = h * 0.66,
+      const cy = h * (tall ? 0.56 : 0.66),
         mid = w / 2,
         span = Math.min(w * 0.18, 130),
-        s = Math.max(0.5, Math.min(1.3, Math.min(w / 700, h / 420) * 1.15 + 0.15)); // на телефоне команды помельче
+        // на телефоне команды помельче; стоя — крупнее, насколько позволяет ширина
+        s = tall ? Math.max(0.5, Math.min(1.1, w / 520)) : Math.max(0.5, Math.min(1.3, Math.min(w / 700, h / 420) * 1.15 + 0.15));
       // черты
       line(ctx, mid - span, cy - 46, mid - span, cy + 46, 'rgba(77,171,247,.85)', 4);
       line(ctx, mid + span, cy - 46, mid + span, cy + 46, 'rgba(255,146,43,.85)', 4);
@@ -278,9 +313,9 @@ export default {
       team(theirs, mid + span * 1.35 + shift, gap, cy + 10 * s, 0.9 * s, -1, fallThem, 0.5);
       // кружок ритма
       if (phase === 'go' && !over) {
-        const r = Math.min(46, h * 0.08),
+        const r = tall ? Math.min(58, w * 0.15) : Math.min(46, h * 0.08),
           mx = w / 2,
-          my = h - r - 18;
+          my = tall ? h * 0.83 : h - r - 18;
         meter(ctx, mx, my, r, fill, fill >= FULL);
         ctx.font = '900 15px ui-rounded, "Trebuchet MS", sans-serif';
         ctx.fillStyle = OUT;
