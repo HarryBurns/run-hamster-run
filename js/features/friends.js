@@ -44,6 +44,16 @@ import { questTalk } from './quests.js';
 
 const S = () => G.state;
 
+/**
+ * Крюки разговора — чтобы праздники (features/holidays.js) могли вмешаться в разговор с жителем, а друзья ничего
+ * не знали о праздниках (иначе импорты пошли бы по кругу):
+ *   greet(id)  → реплика вместо «Привет!» (праздничное поздравление) или null;
+ *   chat(id)   → реплика на «Поболтать» или null — обычная болтовня;
+ *   talk(id)   → async, свой разговор до обычного: { end: true } — разговор окончен, { text } — дальше с этой репликой,
+ *                null — как обычно (новогодний подарок другу).
+ */
+export const talkHooks = { greet: null, chat: null, talk: null };
+
 /** В какой из своих домов придут гости: в тот, где героиня сейчас, а если она не дома — в основной. */
 export function hostHome() {
   const sc = scene();
@@ -103,6 +113,8 @@ export function addPts(id, n) {
 }
 
 function chatLine(npc) {
+  const own = talkHooks.chat && talkHooks.chat(npc.id);
+  if (own) return own;
   const tags = outfitTags(),
     sea = cal().season,
     r = Math.random();
@@ -131,11 +143,17 @@ export async function npcDialog(id) {
     markFriendToday(id, 'chat');
     emit('talk', { id });
   } else
-    text = pick([`Привет, ${esc(S().name)}!`, 'О, привет!', `${esc(S().name)}! Рад${npc.fem ? 'а' : ''} тебя видеть!`]);
+    text =
+      (talkHooks.greet && talkHooks.greet(id)) ||
+      pick([`Привет, ${esc(S().name)}!`, 'О, привет!', `${esc(S().name)}! Рад${npc.fem ? 'а' : ''} тебя видеть!`]);
   // есть задание из журнала (взять, как дела, сдать) — сначала оно (features/quests.js)
   const qt = await questTalk(id);
   if (qt && qt.end) return;
   if (qt && qt.text) text = qt.text;
+  // праздник: свой разговор (подарок другу на Новый год — features/holidays_winter.js)
+  const ht = talkHooks.talk && (await talkHooks.talk(id, text));
+  if (ht && ht.end) return;
+  if (ht && ht.text) text = ht.text;
   for (;;) {
     const i = await dialog({
       look,
@@ -184,7 +202,7 @@ export async function npcDialog(id) {
         markFriendToday(id, 'gift');
         addPts(id, fav ? 4 : 2);
       }
-      emit('gift', { id });
+      emit('gift', { id, dish });
       text = fav
         ? `${DISH_BY_ID[dish].e} Это же моё любимое блюдо! Спасибо-спасибо-спасибо!`
         : `${DISH_BY_ID[dish].e} Ой, как вкусно! Спасибо тебе большое!`;

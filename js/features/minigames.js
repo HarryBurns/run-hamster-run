@@ -58,6 +58,7 @@ export const MG_NAMES = {
   glyphs: '🗿 Узор храма',
   sandcastle: '🏰 Замок из песка',
   bowling: '🥥 Кокосовый боулинг',
+  tug: '🪢 Перетягивание каната',
   slide: '🌀 Горка',
   porter: '🧳 Носильщица',
 };

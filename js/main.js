@@ -67,10 +67,14 @@ initHud(hud, {
     info: F.taskChip,
     fn: () => {
       F.trackQuest(null);
+      F.trackHoliday(false);
       F.showLetter();
     },
   },
-  quest: { info: F.questChip, fn: () => F.openAlbum('quests') },
+  // плашка журнала: сегодня праздник — его ход (П.13), иначе задание из журнала
+  quest: { info: () => F.holidayChip() || F.questChip(), fn: () => F.openAlbum('quests') },
+  // плашка даты: значок праздника сегодня и завтра; по нажатию — праздничный календарь (П.13)
+  date: { badge: F.holidayBadge, fn: F.openHolidays },
   map: { icon: '🗺️', label: 'Карта', fn: F.openMap },
   home: { icon: '🏡', label: 'Домой', fn: goHome },
   sick: { fn: F.showSickHelp },

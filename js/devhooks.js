@@ -16,6 +16,8 @@ import town, { sea, BUILDINGS } from './locations/town.js';
 import * as topdown from './engine/topdown/index.js';
 import { PLANTS, hasFruit, plantInSeason, gather } from './locations/common/plants.js';
 import * as Tower from './interiors/tower.js';
+import { debugDecor } from './locations/holidays.js';
+import { HOLIDAY_BY_ID, holidayDoy, YEAR_DAYS } from './data/index.js';
 
 /**
  * Следить, что состояние меняют только действия из core/actions.js: подменяет G.state «прозрачной обёрткой»,
@@ -128,5 +130,32 @@ export function installDevHooks({ F }) {
     /** Поставить хомячка на вилле: этаж и x. */
     villaAt: (floor, x) => loop.go('villa', { pos: { scene: 'villa', floor, x } }),
     openPiano: () => registry.run('piano'),
+    /**
+     * Праздники (П.13): перескочить к празднику и посмотреть, что с ним.
+     *   holiday.to('newyear')               — утро самого праздника (год 1; отметки дня чистые, погода — снег)
+     *   holiday.to('xmas', 'eve', 2)        — канун ('eve'), праздник ('day'), следующий день ('after'); год 2
+     *   holiday.dayOf('cny', 'day', 1)      — номер дня без перехода
+     *   holiday.state()                     — где праздник сейчас (шаги, подарок года, украшения)
+     *   holiday.decor()                     — что стоит в городе (украшения, фейерверк, закрытые клетки, конверты)
+     */
+    holiday: {
+      dayOf(id, when = 'day', year = 1) {
+        const h = HOLIDAY_BY_ID[id];
+        return (year - 1) * YEAR_DAYS + holidayDoy(h) + (when === 'eve' ? -1 : when === 'after' ? 1 : 0);
+      },
+      to(id, when = 'day', year = 1, minutes = 10 * 60) {
+        const day = this.dayOf(id, when, year);
+        actions.mutate((s) => {
+          s.day = Math.max(0, day);
+          s.minutes = minutes;
+          s.dayFlags = {};
+          s.weather = 'snow';
+        });
+        events.emit('hud');
+        return G.state.day;
+      },
+      state: () => F.debugHoliday(),
+      decor: () => debugDecor(topdown.getLocation('world')),
+    },
   };
 }

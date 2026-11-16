@@ -29,6 +29,13 @@ const S = () => G.state;
 const hhmm = (m) => `${Math.floor(m / 60)}:${String(m % 60).padStart(2, '0')}`;
 const pron = (npc) => (npc.fem ? 'она' : 'он');
 
+/**
+ * Крюк двери домика — чтобы праздники (features/holidays_winter.js: колядки на Рождество) могли постучаться по-своему,
+ * а гости ничего не знали о праздниках: knock(id, ctx, where) → true — дверь «занята» праздником (обычный визит не
+ * нужен), false / null — как обычно. where — где хозяин (npcWhere).
+ */
+export const doorHooks = { knock: null };
+
 // ---------- дверь домика ----------
 /** Подошли к двери домика жителя. back — место у двери снаружи (туда вернёт выход из дома). */
 export async function visitHome(id, ctx = {}) {
@@ -45,6 +52,7 @@ export async function visitHome(id, ctx = {}) {
     toast(`Тс-с! ${npc.name} уже спит 😴 Приходи завтра.`);
     return;
   }
+  if (doorHooks.knock && (await doorHooks.knock(id, ctx, where))) return;
   if (where === 'out') {
     sfx('pop');
     // «день гостей»: подсказать, кто сегодня ждёт дома (письмо назвало их по именам)
@@ -238,7 +246,7 @@ export async function hostDialog(id, ctx = {}) {
         markFriendToday(id, 'gift');
         addPts(id, fav ? 4 : 2);
       }
-      emit('gift', { id });
+      emit('gift', { id, dish });
       emit('guestHappy', { id });
       text = fav
         ? `${DISH_BY_ID[dish].e} Это же моё любимое блюдо! И прямо к столу! Спасибо-спасибо!`

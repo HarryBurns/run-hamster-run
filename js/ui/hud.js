@@ -8,6 +8,8 @@
 //     cls: 'decor' }                            // класс на весь HUD (в режиме обустройства кнопки прячутся)
 // Рядом с датой — значок 🤒, пока хомячок простыла (Ф1); по нажатию — config.sick.fn.
 // После плашки письма — плашка задания из журнала (config.quest; на телефоне — коротко: значок и «3/5»).
+// На плашке даты — значок праздника, когда он сегодня или завтра (config.date.badge(); П.13); по нажатию на дату —
+// config.date.fn (праздничный календарь).
 import { G, cal } from '../core/state.js';
 import { on } from '../core/events.js';
 import { scene, sceneName } from '../core/loop.js';
@@ -39,6 +41,7 @@ function rbtn(icon, label, fn) {
  *   home: { icon, label, fn }         главная кнопка по умолчанию — «Домой»
  *   sick: { fn }                      значок 🤒 «простыла» рядом с датой — по нажатию
  *   quest: { info(), fn }             плашка задания из журнала: info() → { text, short, cls } или null (не показывать)
+ *   date: { badge(), fn }             плашка даты: badge() → HTML значка праздника ('' — нет), fn — по нажатию
  */
 export function initHud(rootEl, config) {
   root = rootEl;
@@ -52,7 +55,11 @@ export function initHud(rootEl, config) {
 export function buildHud() {
   root.innerHTML = '';
   const top = el('div', 'hud-top');
-  chipDate = el('div', 'chip');
+  chipDate = el('div', 'chip date');
+  chipDate.onclick = () => {
+    sfx('tap');
+    if (cfg.date) cfg.date.fn();
+  };
   chipSick = el('div', 'chip sick', '🤒');
   chipSick.title = 'Простыла — что делать?';
   chipSick.hidden = true;
@@ -85,7 +92,9 @@ export function buildHud() {
 export function updateHud() {
   if (!G.state || !chipDate) return;
   const c = cal();
-  chipDate.innerHTML = `${c.seasonIcon} <b>${c.monthName}</b>, день ${c.dom} · ${c.phaseIcon} ${c.time}`;
+  const hol = cfg.date && cfg.date.badge ? cfg.date.badge() : '';
+  const dateHtml = `${c.seasonIcon} <b>${c.monthName}</b>, день ${c.dom}${hol} · ${c.phaseIcon} ${c.time}`;
+  if (chipDate.innerHTML !== dateHtml) chipDate.innerHTML = dateHtml;
   chipSick.hidden = !G.state.sick;
   chipMoney.innerHTML = `🪙 <b>${fmtMoney(G.state.money)}</b>`;
   const t = cfg.task.info();

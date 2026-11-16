@@ -56,7 +56,20 @@ const toHim = (npc) => (NPC_BY_ID[npc].fem ? 'ней' : 'нему'); // «к н�
 // ---------- звёздочка-указатель ----------
 // К какому заданию показывает звёздочка (та же, что у письма; важнее письма). Берут задание — звёздочка ведёт
 // к первому шагу; «Показать на карте» в журнале — к текущему шагу; нажали на плашку письма — снова к письму.
-let tracked = null;
+let tracked = null,
+  extraTarget = null,
+  journalTop = null;
+/**
+ * Звёздочка не задания из журнала, а чего-то ещё (праздник — features/holidays.js): fn(sc) → { x, y, icon } | null.
+ * Спрашивается, только пока ни одно задание из журнала не показывается звёздочкой.
+ */
+export function setExtraTarget(fn) {
+  extraTarget = fn;
+}
+/** Своя карточка в начале журнала (праздник сегодня — features/holidays.js): fn(body, panel). */
+export function setJournalTop(fn) {
+  journalTop = fn;
+}
 /** Показывать звёздочкой задание id (null — снова письмо). */
 export function trackQuest(id) {
   tracked = id;
@@ -70,7 +83,8 @@ function questWhere(w) {
   return step ? step.where || (step.talk ? 'npc:' + step.talk : null) : null;
 }
 setTargetHook((sc) => {
-  if (!tracked || !S()) return null;
+  if (!S()) return null;
+  if (!tracked) return extraTarget ? extraTarget(sc) : null;
   const w = questNow(tracked);
   if (w.status === 'done') {
     tracked = null;
@@ -368,6 +382,7 @@ function celebrate(q, got) {
 // ---------- журнал (вкладка альбома) ----------
 /** Нарисовать журнал в тело окна альбома. panel — окно (закрыть, когда идём к карте). */
 export function renderJournal(body, panel) {
+  if (journalTop) journalTop(body, panel);
   const all = QUESTS.map((q) => questNow(q.id));
   const active = all.filter((w) => w.status === 'active'),
     ready = all.filter((w) => w.status === 'ready'),

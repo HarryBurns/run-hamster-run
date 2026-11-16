@@ -34,6 +34,8 @@ export * from './jungle.js';
 export * from './cove.js';
 export * from './island.js';
 export * from './hotel.js';
+export * from './holidays.js';
+export * from './holidays_winter.js';
 export * from './backpack.js';
 export * from './album.js';
 export * from './piano.js';

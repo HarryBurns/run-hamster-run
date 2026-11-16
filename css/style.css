@@ -519,3 +519,19 @@ h4 { margin: 4px 0; font-size: 16px; }
 .cable-ride { background: #2b3a67; }
 .cable-ride .msg p { margin: 12px 0 0; font-weight: 900; }
 .cable-ride canvas { display: block; margin: 0 auto; max-width: 100%; height: auto; box-shadow: 0 6px 0 rgba(0,0,0,.25); }
+
+/* ---------- праздники (П.13, features/holidays.js) ---------- */
+.chip.date { cursor: pointer; position: relative; }
+.chip.date::after { content: ""; position: absolute; inset: -8px -4px; }
+.hol-badge { display: inline-block; margin-left: 3px; animation: quest-pulse 1.8s ease-in-out infinite; }
+.hol-badge.eve { opacity: .7; animation: none; }
+.chip.quest.holiday { background: #ffd8a8; animation: quest-pulse 2.4s ease-in-out infinite; }
+.quest.holiday { border: 3px solid #ffc078; background: #fff4e6; }
+.quest.holiday.soon { background: #fff9db; border-color: #ffe066; }
+.hol-gift { margin: 6px 0; }
+.hol-steps { text-align: left; margin: 6px auto; padding-left: 22px; max-width: 360px; }
+.hol-steps li { margin: 3px 0; }
+.hol-row.now { background: #ffe8cc; }
+.hol-scene-panel .panel-body { text-align: center; }
+.hol-scene-panel .panel-body .btn { margin: 4px auto 0; }
+.hol-fade { background: #22306a; }
