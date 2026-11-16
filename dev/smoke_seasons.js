@@ -590,7 +590,7 @@ module.exports = async function seasons({ page, step, ev, wait, closeAll }) {
         const sold = d.F.sellGoods(d.F.sellable()[0], 1);
         // какие письма приходят в этом сезоне
         const tasks = new Set();
-        for (let i = 0; i < 80; i++) {
+        for (let i = 0; i < 300; i++) {
           d.F.newDayMail();
           tasks.add(d.G.state.mail.task);
         }
