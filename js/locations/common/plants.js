@@ -10,6 +10,7 @@
 //   hazelBush    лещина (лес; сквозь неё можно пройти, но медленно): осенью — орешки
 //   appleTree    яблоня (город и лес): в конце лета и осенью — красные яблоки; в начале лета — зелёные завязи
 //   pricklyPear  кактус-опунция (пустыня): весной и летом на лепёшках-«ушках» — малиновые плоды
+//   pineapple    ананас (джунгли): розетка колючих листьев; весной и летом в серединке — золотой ананас с хохолком
 //
 // Правила одни для всех:
 //  - плод есть только в сезон продукта — месяцы берутся из общей таблицы data/seasons.js (у продукта, который
@@ -132,6 +133,15 @@ export const PLANTS = {
     got: 'Осторожно, колючки!',
     drop: [10, -40],
     top: 92,
+  },
+  pineapple: {
+    gives: 'pineapple',
+    verb: 'Сорвать ананас',
+    btn: 'Сорвать',
+    wait: 'Ананасы поспеют',
+    empty: 'Этот ананас уже сорван. Завтра поспеет новый! 🍍',
+    drop: [0, -34],
+    top: 70,
   },
 };
 const monthNow = () => Math.floor(G.state.day / DAYS_PER_MONTH) % 12;
@@ -617,6 +627,73 @@ function paintPricklyPear(ctx, fruit) {
   }
 }
 
+// Ананас: розетка длинных колючих листьев (дальние — темнее), в сезон в серединке — ананас с хохолком
+function paintPineapple(ctx, fruit) {
+  shadow(ctx, 0, 12, 22, 6);
+  const leaf = (a, len, col) => {
+    ctx.save();
+    ctx.translate(0, 6);
+    ctx.rotate(a);
+    ctx.beginPath();
+    ctx.moveTo(-3.4, 0);
+    ctx.quadraticCurveTo(-4, -len * 0.6, 0, -len);
+    ctx.quadraticCurveTo(4, -len * 0.6, 3.4, 0);
+    ctx.closePath();
+    ctx.fillStyle = col;
+    ctx.fill();
+    ctx.strokeStyle = OUT;
+    ctx.lineWidth = 1.3;
+    ctx.stroke();
+    line(ctx, 0, -2, 0, -len + 5, 'rgba(255,255,255,.3)', 1);
+    ctx.restore();
+  };
+  for (const [a, len] of [
+    [-1.25, 30],
+    [1.25, 30],
+    [-0.8, 34],
+    [0.8, 34],
+  ])
+    leaf(a, len, '#4c8a45');
+  for (const [a, len] of [
+    [-1.45, 26],
+    [1.45, 26],
+    [-0.45, 30],
+    [0.45, 30],
+    [0, 26],
+  ])
+    leaf(a, len, '#62a85a');
+  if (!fruit) return;
+  // ананас: шершавый золотой бочонок в клеточку и зелёный хохолок
+  for (const a of [-0.5, -0.2, 0.2, 0.5, 0]) leaf(a * 1.1, 14, '#5c940d');
+  ctx.save();
+  ctx.translate(0, -24);
+  ell(ctx, 0, 0, 9, 13, '#f59f00', OUT, 1.6);
+  ctx.beginPath();
+  ctx.ellipse(0, 0, 9, 13, 0, 0, TAU);
+  ctx.clip();
+  ctx.strokeStyle = 'rgba(140,80,10,.55)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  for (let k = -16; k <= 16; k += 5) {
+    ctx.moveTo(k - 10, -14);
+    ctx.lineTo(k + 10, 14);
+    ctx.moveTo(k + 10, -14);
+    ctx.lineTo(k - 10, 14);
+  }
+  ctx.stroke();
+  ell(ctx, -3, -4, 2.6, 5, 'rgba(255,240,170,.55)');
+  ctx.restore();
+  ctx.save();
+  ctx.translate(0, -36);
+  for (const a of [-0.7, -0.3, 0, 0.3, 0.7]) {
+    ctx.save();
+    ctx.rotate(a);
+    ell(ctx, 0, -6, 2.4, 7, '#5c940d', OUT, 1.1);
+    ctx.restore();
+  }
+  ctx.restore();
+}
+
 // Яблоня: круглая крона, весной — бело-розовый цвет; в начале лета — мелкие зелёные завязи, в сезон — красные
 // яблоки с листиком; зимой — голые ветки под снегом (как у обычного дерева)
 const APPLE_CROWN = [
@@ -839,6 +916,15 @@ defineObjects({
     art: { pricklyPear: [[-32, -78, 34, 20], paintPricklyPear] },
     draw(ctx, o) {
       put('pricklyPear', o.x, o.y, hasFruit(o) ? 1 : 0);
+    },
+  },
+  pineapple: {
+    solid: true,
+    tap: { dx: 28, up: 52, down: 18 },
+    use: gather,
+    art: { pineapple: [[-30, -56, 30, 20], paintPineapple] },
+    draw(ctx, o, env) {
+      put('pineapple', o.x + wobble(o, env.t), o.y, hasFruit(o) ? 1 : 0);
     },
   },
   appleTree: {

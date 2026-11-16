@@ -141,6 +141,13 @@ export const EXTRA_STICKERS = [
   { id: 'x_wish', sticker: '🌠', title: 'Звездопад желаний' },
   { id: 'x_pyramid', sticker: '🔺', title: 'Тайна пирамиды' },
   { id: 'x_fossils', sticker: '🦴', title: 'Коллекция окаменелостей' },
+  // джунгли (П.9)
+  { id: 'x_vines', sticker: '🐒', title: 'Полёт на лианах' },
+  { id: 'x_parrot', sticker: '🦜', title: 'Говорящий попугай' },
+  { id: 'x_fall', sticker: '💦', title: 'Под водопадом' },
+  { id: 'x_temple', sticker: '🗿', title: 'Узор древнего храма' },
+  { id: 'x_feathers', sticker: '🪶', title: 'Перья в рамке' },
+  { id: 'x_bridge', sticker: '🌉', title: 'Подвесной мост' },
   { id: 'x_visit', sticker: '🧸', title: 'Первые гости' },
   { id: 'x_visit_all', sticker: '🏘️', title: 'В гостях у всех' },
   { id: 'x_tea', sticker: '☕', title: 'Чай с другом' },
@@ -164,4 +171,6 @@ export const EXTRA_STICKERS = [
   { id: 'q_miner', sticker: '⛏️', title: 'Друг шахтёра' },
   { id: 'q_desert', sticker: '🏜️', title: 'Королева песков' },
   { id: 'q_nomad', sticker: '🔔', title: 'Друг каравана' },
+  { id: 'q_jungle', sticker: '🧭', title: 'Морской волк' },
+  { id: 'q_explorer', sticker: '📓', title: 'Юная исследовательница' },
 ];

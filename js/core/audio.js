@@ -500,6 +500,20 @@ const TRACKS = {
     density: 0.5,
     swing: 0.1,
   },
+  // джунгли (П.9): весёлая «маримба» — щипки и колокольчики вприпрыжку, с барабанчиками
+  jungle: {
+    bpm: 108,
+    key: 65,
+    scale: MAJ_PENTA,
+    prog: ['I', 'V', 'vi', 'IV', 'I', 'ii', 'IV', 'V'],
+    lead: ['pluck', 0.074, 0.6],
+    arp: ['bell', 0.026, 0.45],
+    arpPat: [0, 2, 1, 2, -1, 2, 1, 0],
+    bass: 0.08,
+    perc: 2,
+    density: 0.62,
+    swing: 0.18,
+  },
   night: {
     bpm: 66,
     key: 57,

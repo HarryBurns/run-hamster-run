@@ -22,6 +22,8 @@ const LOADERS = {
   crystals: () => import('./crystals.js'), // пещеры: «Кристаллы» у шахтёра Камушкина
   dig: () => import('./dig.js'), // пустыня: «Раскопки» у кочевника Бархана
   pairs: () => import('./pairs.js'), // пустыня: загадка пирамиды «Пары»
+  vines: () => import('./vines.js'), // джунгли: «Лианы» у исследовательницы Лианы
+  glyphs: () => import('./glyphs.js'), // джунгли: «Узор храма» в руинах
 };
 /** Есть ли такая мини-игра. */
 export const hasMinigame = (id) => !!LOADERS[id];

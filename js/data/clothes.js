@@ -116,6 +116,7 @@ C('wreath', 'head', 'wreath', 'Венок из цветов', '#fff', { shop: 'g
 // пустыня (П.9): широкополая шляпа от солнца — в ТЦ «Модный» каждый день, в любой сезон (её просит купить Буся —
 // задание «Звезда подиума», data/quests.js); платок кочевника — подарок Бархана за задание «Бубенчик верблюда»
 C('sunhat_wide', 'head', 'sunhat', 'Шляпа от солнца', '#f4dca6', { c2: '#e8590c', tags: ['summer', 'beach', 'sport'] });
+C('panama_explorer', 'head', 'panama', 'Панама исследовательницы', '#c9b47c', { c2: '#5c7a2e', shop: 'gift', tags: ['summer', 'sport'] });
 C('scarf_nomad', 'head', 'turban', 'Платок кочевника', '#4dabf7', { c2: '#ffd43b', shop: 'gift', tags: ['summer', 'fancy'] });
 // --- аксессуары
 C('glasses_red', 'acc', 'glasses', 'Красные очки', '#e03131', { tags: ['cute'] });

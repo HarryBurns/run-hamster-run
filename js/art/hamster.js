@@ -992,6 +992,16 @@ function drawAcc(ctx, item) {
       ell(ctx, 0, -17, 5.5, 5.5, '#74c0fc', OUT, 1.4);
       fillRR(ctx, 4, -28, 6, 4, 1, c2, OUT, 1);
       break;
+    case 'binoculars': // бинокль на ремешке: две трубки на груди
+      line(ctx, -14, -38, -9, -22, shade(c, 0.2), 2);
+      line(ctx, 14, -38, 9, -22, shade(c, 0.2), 2);
+      fillRR(ctx, -12, -26, 10, 15, 3, c, OUT, 1.5);
+      fillRR(ctx, 2, -26, 10, 15, 3, c, OUT, 1.5);
+      fillRR(ctx, -3, -23, 6, 5, 1, shade(c, 0.25), OUT, 1);
+      ell(ctx, -7, -11.5, 4, 2, c2, OUT, 1);
+      ell(ctx, 7, -11.5, 4, 2, c2, OUT, 1);
+      line(ctx, -9.5, -24, -9.5, -15, 'rgba(255,255,255,.35)', 1.6);
+      break;
     case 'medal': // лента из-под подбородка, медаль на груди
       line(ctx, -10, -37, 0, -19, '#e03131', 3);
       line(ctx, 10, -37, 0, -19, '#1c7ed6', 3);

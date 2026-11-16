@@ -12,6 +12,7 @@ import { T, OUT, SP, put, defineTiles, defineObjects } from '../engine/topdown/k
 import { createTopDownScene } from '../engine/topdown/scene.js';
 import './common/index.js';
 import { createSea, WORLD_SEA } from './sea.js';
+import './jungle_art.js'; // остров причала джунглей за буйками (WORLD_SEA.port): тропические деревья и попугай
 import { HOUSE_ART, HOUSE_STYLE } from './town_buildings.js';
 import { signBoard, fitText } from './common/paint.js';
 import { createPlants, hasFruit } from './common/plants.js';
@@ -1104,8 +1105,8 @@ const town = createTopDownScene({
   },
   actors: ACTORS,
   // кто вышел из виллы — стоит у её двери; forest — куда приходят с лесной тропы (за воротами); bus — у остановки
-  // каравана, куда привозит караван-автобус из пустыни
-  entries: { villa: { building: 'villa', from: 'villa' }, forest: { at: [2, 1.5] }, bus: { at: [91.5, 26.4] } },
+  // каравана, куда привозит караван-автобус из пустыни; pier — конец пирса, куда кораблик привозит из джунглей
+  entries: { villa: { building: 'villa', from: 'villa' }, forest: { at: [2, 1.5] }, bus: { at: [91.5, 26.4] }, pier: { at: [63.5, 60.6] } },
   start: 'villa',
   // Выезды в тайные места. Сцена места и вход в неё — в LANDS (data/places.js): пока сцены нет, выход закрыт
   // (off), и у ворот — окно действия way:<место> (features/quests.js). Есть сцена — выход открыт, как только место

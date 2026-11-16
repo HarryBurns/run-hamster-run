@@ -9,11 +9,14 @@
 //
 // Настройки: shallowY — первая строка мелководья у берега, seaY — с этой строки глубокое море, buoyY — линия
 // буйков (дальше — открытое море, туда только на кораблике), boatHome — стоянка кораблика, isles — острова,
-// icebergs — айсберги, key — под каким ключом кораблик лежит в сохранении, creatures — сколько кого в море.
+// icebergs — айсберги, key — под каким ключом кораблик лежит в сохранении, creatures — сколько кого в море,
+// port — причал тайного места за буйками (джунгли, П.9): остров с причалом, кораблик подходит к его концу — действие
+// way:<место> (закрыто — окно «кто знает дорогу», открыто — переезд картинкой). Остров причала — не «необитаемый»:
+// в счёт островов (наклейка «Все острова открыты») не входит.
 import { clamp, rnd, seeded, TAU, dist } from '../core/util.js';
 import { ell, fillRR, line, poly, emoji } from '../core/draw.js';
 import { drawHamster, blinkAt } from '../art/hamster.js';
-import { G, canSwim } from '../core/state.js';
+import { G, canSwim, landOpen } from '../core/state.js';
 import { award, setFlag, setDayFlag, patchState, touchState } from '../core/actions.js';
 import { emit } from '../core/events.js';
 import { run } from '../core/registry.js';
@@ -21,7 +24,7 @@ import { go, scene } from '../core/loop.js';
 import { toast } from '../ui/toast.js';
 import { sfx } from '../core/audio.js';
 import { T, OUT, PS, SP, put, tileOf, defineObjects } from '../engine/topdown/kinds.js';
-import { SICK_TEXT } from '../data/index.js';
+import { SICK_TEXT, LAND_BY_ID } from '../data/index.js';
 import './common/index.js';
 
 /** Море города: где оно на карте, острова (центр в клетках, размеры и что на них стоит). */
@@ -32,6 +35,8 @@ export const WORLD_SEA = {
   buoyY: 89,
   boatHome: [65.5, 61.5], // у пирса
   creatures: { fish: 28, shark: 7, whale: 7 },
+  // причал джунглей (П.9): остров на юге за буйками, причал смотрит на север; dock — куда подплыть кораблику
+  port: { land: 'jungle', x: 66, y: 113, rx: 5, ry: 3, pier: [65, 66, 107, 110], dock: [66, 106.2], sign: [67, 110] },
   icebergs: [
     [8, 102],
     [27, 113],
@@ -380,6 +385,7 @@ const isDeep = (c) => c === 'w' || c === 'O';
 const isSea = (c) => c === 'w' || c === 'O' || c === 'h'; // где проходит кораблик
 
 export function createSea(cfg) {
+  const PORT = cfg.port || null;
   const ISLES = cfg.isles,
     SEA_Y = cfg.seaY,
     BUOY_Y = cfg.buoyY;
@@ -419,6 +425,17 @@ export function createSea(cfg) {
           if (d <= 1) g.ground[y][x] = is.ice ? 'I' : 's';
           else if (d <= 2.1 && isDeep(g.ground[y][x])) g.ground[y][x] = 'h';
         }
+    if (PORT) {
+      for (let y = Math.floor(PORT.y - PORT.ry - 2); y <= PORT.y + PORT.ry + 2; y++)
+        for (let x = Math.floor(PORT.x - PORT.rx - 2); x <= PORT.x + PORT.rx + 2; x++) {
+          const d = ((x + 0.5 - PORT.x) / PORT.rx) ** 2 + ((y + 0.5 - PORT.y) / PORT.ry) ** 2;
+          if (d <= 0.5) g.ground[y][x] = 'jfloor';
+          else if (d <= 1) g.ground[y][x] = 's';
+          else if (d <= 2.1 && isDeep(g.ground[y][x])) g.ground[y][x] = 'h';
+        }
+      const [px0, px1, py0, py1] = PORT.pier;
+      for (let y = py0; y <= py1; y++) for (let x = px0; x <= px1; x++) g.ground[y][x] = 'i';
+    }
   }
   /** Предметы: то, что стоит на островах, буйки и айсберги. */
   function buildObjects(g) {
@@ -427,6 +444,23 @@ export function createSea(cfg) {
         g.add(type, Math.floor(is.x) + dx, Math.floor(is.y) + dy, type === 'umbrella' ? { beach: true } : {});
     for (let x = 1; x < g.w; x += 5) g.add('buoy', x, BUOY_Y);
     for (const [x, y] of cfg.icebergs || []) g.add('iceberg', x, y);
+    if (PORT) {
+      // остров причала: джунгли (рисунки — jungle_art.js) и табличка с замочком, пока место закрыто
+      const X = Math.floor(PORT.x),
+        Y = Math.floor(PORT.y);
+      for (const [type, dx, dy, v] of [
+        ['jtree', -2, -1, 0],
+        ['jtree', 2, 0, 2],
+        ['palm', -4, 0],
+        ['palm', 4, -1],
+        ['bamboo', 0, 1, 1],
+        ['jtree', -1, 2, 1],
+        ['perch', 2, 2, 0],
+      ])
+        g.add(type, X + dx, Y + dy, v === undefined ? {} : { v });
+      const land = LAND_BY_ID[PORT.land];
+      g.add('signpost', ...PORT.sign, { text: `${land.icon} ${land.name}`, text2: () => (landOpen(PORT.land) ? '⛵ Причал' : '🔒 Спроси Боба') });
+    }
   }
 
   // ---------- кораблик ----------
@@ -503,9 +537,37 @@ export function createSea(cfg) {
     getOff(okSpot ? ox : p.x, okSpot ? oy : p.y);
     sfx('splash');
   }
+  // ---------- причал тайного места за буйками ----------
+  const PORT_PX = PORT ? { x: PORT.dock[0] * T, y: PORT.dock[1] * T } : null;
+  let portNear = false;
+  /** Нажали у причала (или рядом с табличкой). */
+  const nearPort = (x, y, r) => !!PORT_PX && dist(x, y, PORT_PX.x, PORT_PX.y) < r;
+  /** Причалить: окно места (закрыто — кто знает дорогу; открыто — кораблик плывёт туда картинкой). */
+  function dock() {
+    portNear = true;
+    run('way:' + PORT.land);
+  }
+  /** Хомячок на кораблике подплыл к причалу — причалить (один раз, пока не отплывёт подальше). */
+  function updatePort() {
+    if (!PORT_PX || !isBoating()) return;
+    const d = dist(sc.p.x, sc.p.y, PORT_PX.x, PORT_PX.y);
+    if (d < T * 1.9 && !portNear && !sc.p.path.length) dock();
+    else if (d > T * 4) portNear = false;
+  }
+  /** Клетка на острове причала (там не «открывают необитаемые острова»). */
+  const onPortIsle = (px, py) =>
+    !!PORT && ((px / T - PORT.x) / (PORT.rx + 1.5)) ** 2 + ((py / T - PORT.y) / (PORT.ry + 1.5)) ** 2 <= 1;
+
   /** Нажатие, когда хомячок на кораблике. */
   function boatTap(w, tx, ty) {
     const p = sc.p;
+    if (nearPort(w.x, w.y, T * 2.6)) {
+      // к причалу: подплыть к его концу и причалить
+      if (sc.walkTo(PORT_PX.x, PORT_PX.y, false)) p.pending = { fn: dock };
+      else dock();
+      sfx('paddle');
+      return;
+    }
     for (const f of creatures)
       if (f.kind === 'fish' && dist(w.x, w.y, f.x, f.y) < 44) {
         if (sc.walkTo(f.x - 50, f.y + 20, true)) p.pending = { fn: feedFish };
@@ -713,6 +775,12 @@ export function createSea(cfg) {
         boatTap(w, tx, ty);
         return true;
       }
+      // пешком на острове причала: нажали на причал или табличку — окно места
+      if (PORT && nearPort(w.x, w.y, T * 4) && dist(s.p.x, s.p.y, PORT_PX.x, PORT_PX.y) < T * 8) {
+        s.goNear(PORT.sign[0] * T + T / 2, (PORT.sign[1] + 1) * T + T / 2, { fn: dock });
+        sfx('tap');
+        return true;
+      }
       const bt = boatState();
       if (dist(w.x, w.y, bt.x, bt.y - 20) < 60) {
         s.goNear(bt.x, bt.y, { fn: boardBoat });
@@ -744,13 +812,14 @@ export function createSea(cfg) {
     idle: dive,
     update(s, dt) {
       updateSea(dt);
+      updatePort();
     },
     surface(s, c) {
       const p = s.p;
       if (p.ride) {
         if (c === 'O' && award('x_far')) toast('Это открытое море. Где-то здесь прячутся дальние острова…');
       }
-      if ((c === 's' || c === 'I') && tileOf(p.y) > SEA_Y) landOnIsle();
+      if ((c === 's' || c === 'I') && tileOf(p.y) > SEA_Y && !onPortIsle(p.x, p.y)) landOnIsle();
     },
     things(s, add, v) {
       for (const c of creatures)
@@ -785,6 +854,13 @@ export function createSea(cfg) {
       ctx.setLineDash([]);
       const bt = boatState();
       emoji(ctx, '⛵', (bt.x / T) * k, (bt.y / T) * k - k, Math.max(12, k * 2.6));
+      if (PORT) {
+        // причал тайного места: значок, пока закрыто — с замочком
+        const land = LAND_BY_ID[PORT.land],
+          sz = Math.max(12, k * 2.6);
+        emoji(ctx, land.icon, PORT.dock[0] * k, PORT.dock[1] * k + k, sz);
+        if (!landOpen(PORT.land)) emoji(ctx, '🔒', PORT.dock[0] * k + sz * 0.55, PORT.dock[1] * k + k + sz * 0.3, sz * 0.6);
+      }
     },
     /** Кнопки HUD: сойти с кораблика, нырнуть. */
     buttons() {
@@ -794,6 +870,8 @@ export function createSea(cfg) {
       return out;
     },
 
+    /** Причал тайного места за буйками: где кораблику причалить (единицы мира) — для тестов. */
+    portAt: () => PORT_PX,
     // ---------- для тестов ----------
     debugSea() {
       const n = {};
@@ -954,7 +1032,8 @@ function drawSeaCreature(ctx, c, t) {
   ctx.restore();
 }
 
-function drawBoat(ctx, x, y, dir, t, look, moving) {
+/** Кораблик (и хомячок в нём, если look): (x, y) — середина на воде; рисуется линиями, каждый кадр. */
+export function drawBoat(ctx, x, y, dir, t, look, moving) {
   const bob = Math.sin(t * 2.2 + x * 0.01) * 3;
   ell(ctx, x, y + 16, 62, 12, 'rgba(255,255,255,.4)');
   if (moving) {

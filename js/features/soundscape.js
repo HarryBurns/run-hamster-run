@@ -4,7 +4,9 @@ import { scene } from '../core/loop.js';
 import { setMusic, setAmbience } from '../core/audio.js';
 
 // Сцена сама говорит, что в ней слышно: scene.sound() → { force, day, sea, rain, birds, crickets }.
-// day: 'town' — музыка города по сезону, 'forest' — лесная (лес, П.9), 'mountain' — горная, 'desert' — пустыни, иначе — домашняя;
+// day: 'town' — музыка города по сезону, 'forest' — лесная (лес, П.9), 'mountain' — горная, 'desert' — пустыни,
+// 'jungle' — джунглей (там птицы поют весь год), иначе — домашняя; drizzle — свой тёплый дождик сцены (джунгли:
+// слышен, даже когда в городе сухо);
 // wind — ветер (0..1, гора), bells — колокольчики коров (0..1, луг на горе), drips — капли (0..1, пещеры; своя
 // музыка пещер — force: 'caves').
 export function updateSound() {
@@ -25,15 +27,19 @@ export function updateSound() {
     night = darkness() > 0.75,
     s = (sc.sound && sc.sound()) || {};
   setMusic(
-    mg ? 'minigame' : s.force ? s.force : night ? 'night' : s.day === 'town' ? 'town_' + c.season : ['forest', 'mountain', 'desert'].includes(s.day) ? s.day : 'villa',
+    mg ? 'minigame' : s.force ? s.force : night ? 'night' : s.day === 'town' ? 'town_' + c.season : ['forest', 'mountain', 'desert', 'jungle'].includes(s.day) ? s.day : 'villa',
   );
-  const rain = G.state.weather === 'rain';
+  const rain = G.state.weather === 'rain' || !!s.drizzle;
   setAmbience({
     sea: mg ? 0 : s.sea || 0,
     rain: rain && !mg ? (s.rain === undefined ? 0.3 : s.rain) : 0,
     birds:
-      !!s.birds && !mg && !night && !rain && (c.season === 'spring' || c.season === 'summer' || (s.day === 'forest' && c.season === 'autumn')),
-    night: !!s.crickets && !mg && night && c.season !== 'winter',
+      !!s.birds &&
+      !mg &&
+      !night &&
+      (!rain || s.day === 'jungle') &&
+      (c.season === 'spring' || c.season === 'summer' || s.day === 'jungle' || (s.day === 'forest' && c.season === 'autumn')),
+    night: !!s.crickets && !mg && night && (c.season !== 'winter' || s.day === 'jungle'),
     wind: mg ? 0 : s.wind || 0,
     bells: mg || night ? 0 : s.bells || 0,
     drips: mg ? 0 : s.drips || 0,

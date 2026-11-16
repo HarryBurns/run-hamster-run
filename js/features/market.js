@@ -6,7 +6,7 @@
 // Правила (числа — в data/economy.js, разделы MARKET, SEASONAL и STOCK):
 //  - торговец платит за продукт заметно меньше, чем тот сейчас стоит в магазине (sellPrice в data/food.js): перепродажа
 //    никогда не выгодна; своё сезонное (урожай, собранное) в сезон идёт дешевле, вне сезона — в полтора раза дороже;
-//    улов, жемчуг, самоцветы из пещер (CAVES.gems) и окаменелости из пустыни (DESERT.fossils) — по своей цене; блюдо — по продуктам, из которых оно приготовлено;
+//    улов, жемчуг, самоцветы из пещер (CAVES.gems) окаменелости из пустыни (DESERT.fossils) и перья попугаев из джунглей (JUNGLE.feathers) — по своей цене; блюдо — по продуктам, из которых оно приготовлено;
 //  - у торговца на день ограниченный кошелёк: когда монеты кончились — приходи завтра;
 //  - «Купить редкости»: вещицы ручной работы и то, чего сегодня нет в ТЦ «Вкусный», — овощи и фрукты не по сезону
 //    (по 1–2 штуки и не каждый день; правило — features/pantry.js).
@@ -16,7 +16,7 @@ import { emit } from '../core/events.js';
 import { register } from '../core/registry.js';
 import { G, cal, hasClothes } from '../core/state.js';
 import { el, fmtMoney } from '../core/util.js';
-import { INGREDIENTS, DISHES, MARKET, CAVES, DESERT, FIND_BY_ID, VENDORS, vendorLook, isSeasonal, inSeason, sellPrice, isSunHat } from '../data/index.js';
+import { INGREDIENTS, DISHES, MARKET, CAVES, DESERT, JUNGLE, FIND_BY_ID, VENDORS, vendorLook, isSeasonal, inSeason, sellPrice, isSunHat } from '../data/index.js';
 import { clothesIcon, furnIcon } from '../ui/icons.js';
 import { openPanel } from '../ui/panel.js';
 import { toast } from '../ui/toast.js';
@@ -68,7 +68,8 @@ export function sellable() {
     });
   // самоцветы из пещер (находки вида gem; цены — CAVES.gems): добывают в мини-игре «Кристаллы», их мало в день
   // окаменелости из пустыни (находки вида fossil; цены — DESERT.fossils): выкапывают в «Раскопках», их мало в день
-  for (const [id, sell] of [...Object.entries(CAVES.gems), ...Object.entries(DESERT.fossils)]) {
+  // перья попугаев из джунглей (находки вида feather; цены — JUNGLE.feathers): по перу от каждого попугая в день
+  for (const [id, sell] of [...Object.entries(CAVES.gems), ...Object.entries(DESERT.fossils), ...Object.entries(JUNGLE.feathers)]) {
     const n = s.finds[id] || 0;
     if (n > 0) out.push({ bag: 'finds', id, e: FIND_BY_ID[id].e, name: FIND_BY_ID[id].name, n, sell, group: 'own' });
   }

@@ -47,11 +47,18 @@ export const FINDS = [
   { id: 'fossil_leaf', kind: 'fossil', e: '🍃', name: 'Отпечаток листа' },
   { id: 'fossil_tooth', kind: 'fossil', e: '🦷', name: 'Зуб древнего ящера' },
   { id: 'fossil_bone', kind: 'fossil', e: '🦴', name: 'Косточка динозавра' },
+  // джунгли (П.9): перья попугаев — каждый из трёх попугаев роняет своё перо раз в день, когда с ним поболтаешь; их
+  // берёт рынок (JUNGLE.feathers), из трёх разных Лиана сделает «Перья в рамке»
+  { id: 'feather_red', kind: 'feather', e: '🪶', name: 'Красное перо ары', c: '#e03131' },
+  { id: 'feather_blue', kind: 'feather', e: '🪶', name: 'Синее перо', c: '#1c7ed6' },
+  { id: 'feather_yellow', kind: 'feather', e: '🪶', name: 'Жёлтое перо', c: '#fcc419' },
 ];
 /** Окаменелости по порядку — от частой к редкой («Раскопки» выдают их по кругу, features/desert.js). */
 export const FOSSIL_IDS = FINDS.filter((f) => f.kind === 'fossil').map((f) => f.id);
 /** Самоцветы по порядку — от частого к редкому (мини-игра «Кристаллы» выдаёт их по кругу, features/caves.js). */
 export const GEM_IDS = FINDS.filter((f) => f.kind === 'gem').map((f) => f.id);
+/** Перья попугаев по порядку попугаев (Кеша — красный, Рико — синий, Лимончик — жёлтый; features/jungle.js). */
+export const FEATHER_IDS = FINDS.filter((f) => f.kind === 'feather').map((f) => f.id);
 export const FIND_BY_ID = Object.fromEntries(FINDS.map((f) => [f.id, f]));
 
 /**

@@ -530,6 +530,41 @@ const D = {
     ell(c, 0, -22, 6, 6, '#ffd43b', OUT, 1.4);
     star(c, 30, -70, 4, '#fff');
   },
+  // из джунглей (П.9): три пера попугаев под стеклом в бамбуковой рамке
+  featherframe(c, d, w, h) {
+    fillRR(c, -w / 2, -h / 2, w, h, 6, '#c9a24a', OUT);
+    for (let i = 0; i < 4; i++) {
+      line(c, -w / 2 + 3, -h / 2 + 12 + i * 24, -w / 2 + 7, -h / 2 + 12 + i * 24, 'rgba(74,55,40,.5)', 1.4);
+      line(c, w / 2 - 7, -h / 2 + 12 + i * 24, w / 2 - 3, -h / 2 + 12 + i * 24, 'rgba(74,55,40,.5)', 1.4);
+    }
+    fillRR(c, -w / 2 + 8, -h / 2 + 8, w - 16, h - 16, 3, '#fff4d6', OUT, 1.5);
+    for (const [x, a, col, col2] of [
+      [-16, -0.25, '#e03131', '#ffd43b'],
+      [0, 0, '#1c7ed6', '#74c0fc'],
+      [16, 0.25, '#fcc419', '#69db7c'],
+    ]) {
+      c.save();
+      c.translate(x, 10);
+      c.rotate(a);
+      line(c, 0, 22, 0, -30, OUT, 1.6);
+      c.beginPath();
+      c.moveTo(0, -32);
+      c.quadraticCurveTo(10, -14, 3, 14);
+      c.lineTo(0, 16);
+      c.lineTo(-3, 14);
+      c.quadraticCurveTo(-10, -14, 0, -32);
+      c.closePath();
+      c.fillStyle = col;
+      c.fill();
+      c.strokeStyle = OUT;
+      c.lineWidth = 1.3;
+      c.stroke();
+      ell(c, 0, -20, 3, 6, col2);
+      line(c, 0, -28, 0, 12, 'rgba(255,255,255,.55)', 1);
+      c.restore();
+    }
+    line(c, -w / 2 + 12, -h / 2 + 12, -w / 2 + 22, -h / 2 + 30, 'rgba(255,255,255,.7)', 3);
+  },
   fossils(c, d, w, h) {
     // витрина-ящичек под стеклом: на песке — аммонит, отпечаток листа, зуб и косточка
     fillRR(c, -48, -16, 96, 16, 5, '#a0662d', OUT, 2);

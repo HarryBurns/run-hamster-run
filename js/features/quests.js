@@ -84,7 +84,7 @@ setTargetHook((sc) => {
 });
 /** Где искать того, кто дал задание: «в городе» или «в лесу» (поле loc задания — локация, где оно идёт). */
 const placeOf = (q) => (q.loc ? `в ${LOC_WORDS[q.loc] || 'другом месте'}` : 'в городе');
-const LOC_WORDS = { forest: 'лесу', mountain: 'горах', caves: 'пещерах', desert: 'пустыне' };
+const LOC_WORDS = { forest: 'лесу', mountain: 'горах', caves: 'пещерах', desert: 'пустыне', jungle: 'джунглях' };
 /** Показать задание на карте (звёздочкой). false — сейчас показать нечего (сегодня всё собрано и т. п.). */
 export function showQuestOnMap(id) {
   const w = questNow(id),

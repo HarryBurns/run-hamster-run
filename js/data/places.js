@@ -32,7 +32,8 @@ export const PLACES = {
 //   ready        что сказать у открытого входа, пока сцены нет
 //   opened       «открыт» в нужном роде для окна «Задание выполнено!» («Гора открыта!», «Пещеры открыты!»)
 //   go           своё действие вместо простого перехода (гора: 'cableway:up' — вагончик едет вверх, features/mountain.js;
-//                пустыня: 'caravan:go' — караван-автобус едет в пески, features/desert.js)
+//                пустыня: 'caravan:go' — караван-автобус едет в пески, features/desert.js; джунгли: 'voyage:go' —
+//                кораблик плывёт к причалу в джунглях, features/jungle.js)
 export const LANDS = [
   {
     id: 'forest', name: 'Лес', icon: '🌲', npc: 'myata', who: 'Мята из парка', quest: 'herbarium',
@@ -58,7 +59,15 @@ export const LANDS = [
     door: 'Тёмный проход в скале заколочен досками.', from: 'mountain', at: 'на горе, в скале у вершины', opened: 'открыты',
     scene: 'caves', entry: 'gate', // сцена — locations/caves.js, вход gate — у выхода к свету
   },
-  { id: 'jungle', name: 'Джунгли', icon: '🦜', opened: 'открыты', npc: 'bob', who: 'Капитан Боб с пирса', quest: null, door: null, from: 'sea', scene: null, entry: null },
+  // джунгли: причал за буйками на юге моря (остров с причалом — WORLD_SEA.port в locations/sea.js); кораблик подходит
+  // к причалу — и картинка-переезд (go: voyage:go — features/jungle.js) привозит к причалу в джунглях; обратно —
+  // с причала в джунглях к пирсу города
+  {
+    id: 'jungle', name: 'Джунгли', icon: '🦜', opened: 'открыты', npc: 'bob', who: 'Капитан Боб с пирса', quest: 'cabin_boy',
+    door: 'У причала за буйками висит табличка: «Без капитана не швартоваться!»', from: 'sea',
+    at: 'за буйками, на юге моря: доплыви на кораблике от пирса до причала с пальмами',
+    scene: 'jungle', entry: 'pier', go: 'voyage:go', // сцена — locations/jungle.js, вход pier — у причала в джунглях
+  },
   { id: 'cove', name: 'Секретный пляж', icon: '🐢', npc: 'zefirka', who: 'Зефирка с пляжа', quest: null, door: null, from: 'sea', scene: null, entry: null },
   { id: 'island', name: 'Удалённый остров', icon: '🌋', npc: null, who: 'Лифтёр Этажкин из Хомяк-Тауэра', quest: null, door: null, from: 'sea', scene: null, entry: null },
 ];
