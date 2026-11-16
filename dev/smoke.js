@@ -13,7 +13,8 @@
 //  гора, П.9 — dev/smoke_mountain.js:  node dev/smoke.js <url> step:гора;
 //  пещеры, П.9 — dev/smoke_caves.js:  node dev/smoke.js <url> step:пещеры;
 //  пустыня, П.9 — dev/smoke_desert.js:  node dev/smoke.js <url> step:пустыня;
-//  джунгли, П.9 — dev/smoke_jungle.js:  node dev/smoke.js <url> step:джунгли)
+//  джунгли, П.9 — dev/smoke_jungle.js:  node dev/smoke.js <url> step:джунгли;
+//  секретный пляж, П.9 — dev/smoke_sbeach.js:  node dev/smoke.js <url> "step:секретный пляж")
 // Скорость проверяется отдельно:  node dev/bench.js [url] --spots=forest --sizes=desktop --max-forest=45
 const { chromium } = require('playwright');
 const fs = require('fs');
@@ -30,6 +31,7 @@ const mountain = require('./smoke_mountain.js'); // П.9: гора — зада�
 const caves = require('./smoke_caves.js'); // П.9: пещеры — задание Орешкина, фонарик, темнота, «Кристаллы», Камушкин
 const desert = require('./smoke_desert.js'); // П.9: пустыня — задание Буси, караван, «Раскопки», «Пары», верблюд, Бархан
 const jungle = require('./smoke_jungle.js'); // П.9: джунгли — задание Боба, причал, «Лианы», «Узор храма», попугаи, Лиана
+const sbeach = require('./smoke_sbeach.js'); // П.9: секретный пляж — задание Зефирки, грот, черепашата, «Замок из песка», Жемчужинка
 
 const BASE = process.argv[2] || 'http://localhost:8765';
 const ONLY_ESTATE = process.argv[3] === 'estate';
@@ -1026,7 +1028,7 @@ async function economy({ page, step, ev, wait, closeAll }) {
       const d = await import('./js/data/index.js');
       const all = [
         ...d.CLOTHES.filter((c) => !['start', 'gift'].includes(c.shop)),
-        ...d.FURNITURE.filter((f) => !['gift', 'forest', 'mountain', 'caves', 'desert', 'jungle'].includes(f.shop)), // подарки и украшения тайных мест — без цены
+        ...d.FURNITURE.filter((f) => !['gift', 'forest', 'mountain', 'caves', 'desert', 'jungle', 'cove'].includes(f.shop)), // подарки и украшения тайных мест — без цены
         ...d.INGREDIENTS.filter((i) => i.src === 'shop'),
         ...d.SEEDS,
         ...d.DISHES.filter((q) => q.cafe),
@@ -2468,6 +2470,7 @@ async function economy({ page, step, ev, wait, closeAll }) {
     await caves({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
     await desert({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
     await jungle({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
+    await sbeach({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
     await estate({ page, step: (n, f, o) => step(n, f, { ...o, extra: true, estate: true }), ev, wait, closeAll });
     if (tag === 'desktop')
       await extra({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll, hold });

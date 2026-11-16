@@ -303,6 +303,31 @@ const { pathToFileURL } = require('url');
   if (JUNGLE.frame !== FEATHER_IDS.length) bad('JUNGLE.frame: рамка — по одному перу каждого цвета');
   if (D.FURNITURE.some((f) => f.shop === 'jungle' && f.price)) bad('украшения из джунглей не продаются — у них не должно быть цены');
   if (D.CLOTHES_BY_ID.panama_explorer.price || D.CLOTHES_BY_ID.panama_explorer.shop !== 'gift') bad('панама исследовательницы — только в подарок');
+  // секретный пляж (П.9): фруктов нет — сбор пляжа только ракушки (находки: летом COVE.shells.summer в день, иначе
+  // COVE.shells.other; купить негде, рынок берёт по COVE.shells.sell); «Замок из песка» на 3★ — меньше смены на 2★;
+  // клад — один раз за игру. Правило про весь сбор не ослабляем: ракушки пляжа вместе со сбором города, леса, пустыни,
+  // джунглей и огорода — по-прежнему меньше трёх с половиной смен и кошелька торговца (не выйдет — ограничить ракушки)
+  const { COVE, SHELL_IDS } = D,
+    shellMax = Math.max(...Object.values(COVE.shells.sell)),
+    shellsDay = Math.max(COVE.shells.summer, COVE.shells.other) * shellMax;
+  for (const id of SHELL_IDS) if (!(COVE.shells.sell[id] > 0)) bad(`ракушка без цены на рынке: ${id}`);
+  for (const id of Object.keys(COVE.shells.sell))
+    if (!D.FIND_BY_ID[id] || D.FIND_BY_ID[id].kind !== 'shell') bad(`COVE.shells.sell: ${id} — не ракушка из data/finds.js`);
+  for (const id of SHELL_IDS) for (const t of Object.keys(PRICES)) if (PRICES[t][id] !== undefined) bad(`ракушка ${id} можно купить (${t}) — перепродажа`);
+  if (!(COVE.shells.summer <= 2 && COVE.shells.other >= 1 && COVE.shells.other <= COVE.shells.summer)) bad('COVE.shells: ракушек — 1–2 в день');
+  if (shellsDay >= avg2 / 4) bad(`ракушки за день (${shellsDay}) — не меньше четверти смены на 2★`);
+  for (let month = 0; month < 12; month++) {
+    const shellsM = (D.SEASON_OF_MONTH[month] === 'summer' ? COVE.shells.summer : COVE.shells.other) * shellMax,
+      all = gatherSum(month) + forestSum(month) + desertIn(month) + jungleIn(month) + 8 * bedBestIn(month) + shellsM;
+    if (all >= 3.5 * avg2 || all > MARKET.purse)
+      bad(`весь сбор с ракушками пляжа: ${MONTHS[month]} — ${fmt(all)} в день, не меньше трёх с половиной смен на 2★ или кошелька торговца`);
+  }
+  if (!(COVE.castle.coins.length === 3 && COVE.castle.paid >= 1)) bad('COVE.castle: нужны coins на 1–3★ и paid');
+  if (COVE.castle.coins[2] >= avg2) bad(`«Замок из песка» на 3★ даёт ${COVE.castle.coins[2]} — это не меньше смены на 2★ (${fmt(avg2)})`);
+  if (COVE.frame !== SHELL_IDS.length) bad('COVE.frame: рамка — по одной ракушке каждого вида');
+  if (!(COVE.treasure.coins > 0 && COVE.treasure.coins <= 1000)) bad('COVE.treasure: клад — до 1000 монет, один раз за игру');
+  if (D.FURNITURE.some((f) => f.shop === 'cove' && f.price)) bad('украшения с секретного пляжа не продаются — у них не должно быть цены');
+  if (D.CLOTHES_BY_ID.clip_shell.price || D.CLOTHES_BY_ID.clip_shell.shop !== 'gift') bad('заколка-ракушка — только в подарок');
   if (!D.isSunHat(D.CLOTHES_BY_ID.sunhat_wide) || D.CLOTHES_BY_ID.sunhat_wide.season || D.CLOTHES_BY_ID.sunhat_wide.stock || !PRICES.clothes.sunhat_wide)
     bad('«Шляпа от солнца» (задание Буси) должна продаваться всегда и защищать от солнца');
 
@@ -640,6 +665,12 @@ const { pathToFileURL } = require('url');
   line('«Лианы» (1★ / 2★ / 3★, первые ' + JUNGLE.vines.paid + ' в день)', `${JUNGLE.vines.coins.join(' / ')} монет`);
   line('«Узор храма» (раз в день)', `${JUNGLE.glyphs.coins.join(' / ')} монет`);
   line('перья в рамке', `по одному каждого цвета (${FEATHER_IDS.length}) → украшение`);
+  console.log('\nСекретный пляж (П.9)');
+  line('редкие ракушки на рынке', D.SHELL_IDS.map((id) => `${D.FIND_BY_ID[id].name.toLowerCase()} ${D.COVE.shells.sell[id]}`).join(', ') + `; в день летом ${D.COVE.shells.summer}, иначе ${D.COVE.shells.other} (до ${fmt(D.COVE.shells.summer * Math.max(...Object.values(D.COVE.shells.sell)))})`);
+  line('«Замок из песка» (1★ / 2★ / 3★, первые ' + D.COVE.castle.paid + ' в день)', `${D.COVE.castle.coins.join(' / ')} монет`);
+  line('клад под крестиком (один раз за игру)', `${fmt(D.COVE.treasure.coins)} монет + «Сундучок с сокровищами» (украшение)`);
+  line('ракушки в рамке', `по одной каждого вида (${D.SHELL_IDS.length}) → украшение`);
+  line('черепашата (вечером, с ' + D.COVE.turtles.from + ':00)', `летом ${D.COVE.turtles.summer}, иначе ${D.COVE.turtles.other} — наклейка, без монет`);
   console.log('\nГотовка: продукты → порция на рынке (1 / 2 / 3 порции за одну готовку)');
   for (const { d, cost, raw, buyable } of cook.sort((a, b) => b.d.sell - a.d.sell).slice(0, 8))
     line(

@@ -891,4 +891,11 @@ function hud() {
 function sound() {
   return { force: 'underwater', day: 'villa', sea: 0, rain: 0.3 };
 }
-export default { enter, leave, update, draw, pointerDown, pointerMove, pointerUp, interact, savePos, hud, sound };
+/** Для тестов: подплыть в точку (x, y) мира под водой; где сундучок с кусочком карты Зефирки (виден ли). */
+function debugSwim(x, y) {
+  D.p.x = x;
+  D.p.y = y;
+  D.p.tx = null;
+}
+const debugMapChest = () => ({ x: MAP_X, y: bedY(MAP_X) - 60, on: mapChest() });
+export default { enter, leave, update, draw, pointerDown, pointerMove, pointerUp, interact, savePos, hud, sound, debugSwim, debugMapChest };

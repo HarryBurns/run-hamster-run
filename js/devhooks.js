@@ -68,6 +68,7 @@ const World = Object.assign(Object.create(town), {
   debugSea: sea.debugSea,
   debugSeaShow: sea.debugSeaShow,
   portAt: sea.portAt, // причал джунглей за буйками: куда подплыть кораблику
+  grottoAt: sea.grottoAt, // буёк-ракушка над подводным гротом секретного пляжа
 });
 
 export function installDevHooks({ F }) {
