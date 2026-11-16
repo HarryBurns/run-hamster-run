@@ -407,9 +407,10 @@ module.exports = async function jungle({ page, step, ev, wait, closeAll }) {
     await wait(600);
     s = await state();
     expect(s.finds.feather_red === 1 && s.finds.feather_blue === 1 && s.finds.feather_yellow === 1, 'перья попугаев', s.finds);
-    // подвесной мост: ступила — наклейка
+    // подвесной мост: ступила — наклейка (раньше по мосту могли пройти другие шаги — наклейку снимаем)
     await clearToasts();
     await ev(() => {
+      window.__dev.actions.mutate((st) => (st.stickers = st.stickers.filter((id) => id !== 'x_bridge')));
       const sc = window.__dev.locations.jungle;
       sc.debugTeleport(21, 18);
       sc.walkTo(21.5 * 48, 12.5 * 48, true);
