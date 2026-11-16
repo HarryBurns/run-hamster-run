@@ -26,7 +26,8 @@
 //   shell         { wall, roof, chimneyX, bushes, flat, ground, trees } — дом снаружи (см. rooms.js)
 //   maxZoom       не приближать сильнее (для маленьких домов);  music — дневная музыка ('villa' | 'town')
 //   art           { back(ctx, sc, t), mid(ctx, sc, t), front(ctx, sc, t) } — свой рисунок позади всех, между жильцами
-//                 и хомячком (стойка, за которой стоит работник, а хомячок проходит перед ней) и поверх хомячка
+//                 и хомячком (стойка, за которой стоит работник, а хомячок проходит перед ней) и поверх хомячка;
+//                 что сейчас на экране — sc.view ({ x0, y0, x1, y1 } в единицах дома): невидимое можно не рисовать
 //
 // Сцена умеет: ходьбу по нажатию и стрелками, лифт, «дойти и сделать», мебель и встроенные предметы,
 // гостей и жильцов, режим «Обустроить» с кладовкой, сон (событие wake), HUD и звук.
@@ -537,15 +538,18 @@ export function createSideScene(desc) {
     ctx.save();
     sc.cam.apply(ctx);
     ctx.lineJoin = 'round';
-    drawHouse(ctx, desc, geo);
+    // что видно на экране (единицы дома, с запасом): комнаты и встроенные предметы других этажей не рисуем
+    const view = (sc.view = sc.cam.visible(40));
+    const floorSeen = (f) => fy(f) - geo.RH - 60 < view.y1 && fy(f) + geo.SLAB + 20 > view.y0;
+    drawHouse(ctx, desc, geo, view);
     if (geo.lift) drawLift(ctx, geo, sc.liftY);
     if (desc.art && desc.art.back) desc.art.back(ctx, sc, t);
-    for (const b of drawOrder) if (b.def.back) b.def.back(ctx, b.x - (b.def.ref || 0), fy(b.f), t, sc, b);
+    for (const b of drawOrder) if (b.def.back && floorSeen(b.f)) b.def.back(ctx, b.x - (b.def.ref || 0), fy(b.f), t, sc, b);
     drawItems(ctx, sc, t);
     drawActors(ctx, sc, t);
     if (desc.art && desc.art.mid) desc.art.mid(ctx, sc, t);
     drawPlayer(ctx, t);
-    for (const b of drawOrder) if (b.def.front) b.def.front(ctx, b.x - (b.def.ref || 0), fy(b.f), t, sc, b);
+    for (const b of drawOrder) if (b.def.front && floorSeen(b.f)) b.def.front(ctx, b.x - (b.def.ref || 0), fy(b.f), t, sc, b);
     if (desc.art && desc.art.front) desc.art.front(ctx, sc, t);
     drawParts(ctx);
     ctx.restore();

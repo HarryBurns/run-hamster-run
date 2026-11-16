@@ -192,7 +192,9 @@ export function drawItems(ctx, sc, t) {
     sel = sc.decor.on ? sc.decor.sel : null;
   for (const it of itemsSorted(sc)) {
     const d = FURN_BY_ID[it.id],
-      y = sc.geo.fy(it.floor);
+      y = sc.geo.fy(it.floor),
+      v = sc.view; // что видно на экране (scene.js): предметы за краем не рисуем
+    if (v && (it.x + d.w / 2 + 40 < v.x0 || it.x - d.w / 2 - 40 > v.x1 || y - 300 > v.y1 || y + 40 < v.y0)) continue;
     const on = isOn(sc, it, d);
     if (sel && sel.uid === it.uid) {
       const r = furnRect(d, it.x, y, it.y);

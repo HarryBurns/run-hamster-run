@@ -126,7 +126,7 @@ function skyline(ctx, x0, x1, y, maxH, d, seed) {
     xx += bw + 3;
   }
 }
-/** Открытая терраса вместо стены: небо, далёкий город внизу, стеклянные перила, гирлянда лампочек. */
+/** Открытая терраса вместо стены: небо, далёкий город внизу (view: 'sea' — море), стеклянные перила, гирлянда лампочек. */
 function terrace(ctx, geo, r, y) {
   const { RH } = geo,
     d = darkness(),
@@ -160,7 +160,26 @@ function terrace(ctx, geo, r, y) {
       ell(ctx, cx + 22, cy - 9, 24, 13, 'rgba(255,255,255,.85)');
     }
   }
-  skyline(ctx, r.x0, r.x1, y - 4, 50, d, 3);
+  if (r.view === 'sea') {
+    // вид на море (крыша отеля): полоса моря у горизонта, блики одним путём, кораблик
+    ctx.fillStyle = mix('#4dabf7', '#16214d', d * 0.85);
+    ctx.fillRect(r.x0, y - 70, w, 70);
+    ctx.strokeStyle = 'rgba(255,255,255,.6)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    for (let xx = r.x0 + ((G.time * 9) % 60); xx < r.x1; xx += 60) {
+      ctx.moveTo(xx, y - 52);
+      ctx.lineTo(xx + 22, y - 52);
+      ctx.moveTo(xx + 30, y - 36);
+      ctx.lineTo(xx + 48, y - 36);
+    }
+    ctx.stroke();
+    if (d < 0.6) {
+      const bx = r.x0 + ((G.time * 14) % (w + 80)) - 40;
+      poly(ctx, [bx - 16, y - 66, bx + 16, y - 66, bx + 11, y - 58, bx - 11, y - 58], '#e8590c');
+      poly(ctx, [bx, y - 67, bx, y - 92, bx + 15, y - 70], '#fff');
+    }
+  } else skyline(ctx, r.x0, r.x1, y - 4, 50, d, 3);
   ctx.restore();
   // перила: стекло между столбиками
   ctx.fillStyle = 'rgba(208,235,255,.45)';
@@ -359,7 +378,7 @@ function greenery(ctx, kind, WTOT, season) {
  *   flat: true — плоская крыша (квартира, пентхаус);  trees: 'palm' | 'fir' — что растёт вместо кустов;
  *   ground: 'sand' — пляж и полоска моря, 'tower' — дом стоит на вершине небоскрёба, иначе — трава.
  */
-export function drawHouse(ctx, desc, geo) {
+export function drawHouse(ctx, desc, geo, view = null) {
   const { RH, SLAB, WTOT, fy, top } = geo;
   const c = cal(),
     d = darkness(),
@@ -437,8 +456,10 @@ export function drawHouse(ctx, desc, geo) {
     fillRR(ctx, sh.chimneyX, top - 130, 60, 90, 4, '#e8590c', OUT, 3);
     fillRR(ctx, sh.chimneyX - 8, top - 140, 76, 16, 4, '#f1e0c5', OUT, 2);
   }
-  // комнаты
+  // комнаты (только те, что видны на экране — view в единицах дома; без view — все)
+  const seen = (r) => !view || (r.x1 > view.x0 && r.x0 < view.x1 && fy(r.f) - RH < view.y1 && fy(r.f) + SLAB > view.y0);
   for (const r of desc.rooms) {
+    if (!seen(r)) continue;
     const y = fy(r.f);
     wallpaper(ctx, geo, r, y);
     // окна: win — x центра или список x; winW — ширина стекла (панорамное окно); view — что за окном

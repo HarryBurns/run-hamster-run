@@ -15,7 +15,8 @@
 //                           ivolcano, ibeach — «Удалённый остров»: площадь деревни с костром, хижинами и тотемами, смотровая
 //                           у кратера вулкана, причал и пляж с пальмами; embank — набережная у курортного отеля (город);
 //                           hlobby, hrooms, hroof — курортный отель (П.17, сцена движка домов): холл с ресепшеном,
-//                           коридор номеров, бассейн с горкой на крыше — для них x — точка на этаже, y — этаж)
+//                           коридор номеров, бассейн с горкой на крыше — для них x — точка на этаже, y — этаж;
+//                           villa — первый этаж виллы, для сравнения с отелем)
 //   --seasons=winter,summer зима со снегом и лето без осадков
 //   --sec=4                 сколько секунд идёт один замер
 //   --minutes=1320          время суток в минутах (720 — полдень; 1320 — ночь со светом фонарей и окон)
@@ -70,6 +71,7 @@ const SPOTS = {
   hlobby: [300, 0, 'hotel'],
   hrooms: [900, 1, 'hotel'],
   hroof: [1000, 2, 'hotel'],
+  villa: [800, 0, 'villa'],
 };
 const SPOT_NAMES = {
   palms: 'Дворики (15,39)',
@@ -102,6 +104,7 @@ const SPOT_NAMES = {
   hlobby: 'Отель: холл',
   hrooms: 'Отель: номера',
   hroof: 'Отель: крыша',
+  villa: 'Вилла (для сравнения)',
 };
 const sizes = opt('sizes', 'desktop,phone').split(','),
   spots = opt('spots', 'palms,forest,square,sea,embank,woods,peak,slope,hall,mine,oasis,dunes,jcamp,jbridge,cbeach,clagoon,ivillage,ivolcano,hlobby,hroof').split(',');
@@ -141,7 +144,7 @@ const SEASON = { winter: { day: 0, weather: 'snow' }, summer: { day: 18, weather
     await page.evaluate(() => {
       const B = (window.__bench = { on: false, frames: [], draw: [], cmd: null, cmdFrames: 0 });
       const S = window.__dev.scenes;
-      for (const sc of [S.world, S.forest, S.mountain, S.caves, S.desert, S.jungle, S.cove, S.island, S.hotel].filter(Boolean)) {
+      for (const sc of [S.world, S.forest, S.mountain, S.caves, S.desert, S.jungle, S.cove, S.island, S.hotel, S.villa].filter(Boolean)) {
         const d0 = sc.draw;
         sc.draw = function (c) {
           if (B.cmd) B.inDraw = true;

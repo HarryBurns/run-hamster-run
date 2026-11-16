@@ -38,6 +38,12 @@ const HF = () => (G.state && G.state.dayFlags.hotel) || {};
 export const roomRented = () => !!HF().room;
 const evening = () => G.state && animatorNow(G.state.minutes) === 'evening';
 
+/** Видна ли на экране полоса x0..x1 этажа f (v — sc.view; нет — видно всё). */
+function seen(v, f, x0, x1) {
+  const y = -f * 276;
+  return !v || (x1 > v.x0 && x0 < v.x1 && y - 280 < v.y1 && y + 30 > v.y0);
+}
+
 // ---------- рисунки ----------
 function label(ctx, str, x, y, size = 15, col = OUT) {
   ctx.font = `800 ${size}px ui-rounded, "Trebuchet MS", sans-serif`;
@@ -322,7 +328,7 @@ export default {
     { id: 'spa', f: 0, x0: 1340, x1: W, name: 'Спа', wall: '#e6fcf5', paper: 'waves', floor: 'tile', win: null },
     { id: 'hall', f: 1, x0: 0, x1: 1300, name: 'Коридор номеров', wall: '#fff0f6', paper: 'stripes', floor: 'wood', win: null },
     { id: 'room', f: 1, x0: 1300, x1: W, name: `Номер ${HOTEL_ROOM}`, wall: '#e7f5ff', paper: 'dots', floor: 'wood', win: 1460, winW: 160, view: 'sea', main: true },
-    { id: 'roof', f: 2, x0: 0, x1: W, name: 'Бассейн на крыше', wall: '#c9ecff', paper: 'open', floor: 'deck', win: null },
+    { id: 'roof', f: 2, x0: 0, x1: W, name: 'Бассейн на крыше', wall: '#c9ecff', paper: 'open', floor: 'deck', win: null, view: 'sea' },
   ],
   built: [
     { id: 'door', type: 'door', f: 0, x: HX.door, c: '#1098ad' },
@@ -358,19 +364,22 @@ export default {
     { npc: 'hlopushka', f: 2, x: HX.stage, roam: [HX.stage - 70, HX.stage + 70], act: 'hotel:animator', when: () => !!G.state && !!animatorNow(G.state.minutes) },
     ...POOL_GUESTS.map((id) => ({ npc: id, f: 2, x: HX.loungers[1] - 60, roam: [1380, 1560], act: 'npc:' + id, when: () => hotelPoolGuest() === id })),
   ],
+  // рисуем только то, что видно на экране (sc.view — scene.js): этаж и полоса по x
   art: {
     back(ctx, sc, t) {
-      drawLobby(ctx, t);
-      drawBuffetBack(ctx);
-      drawSpaBack(ctx, t);
-      drawCorridor(ctx);
-      drawRoom(ctx);
-      drawSlide(ctx);
-      drawTerrace(ctx, t);
+      const v = sc.view,
+        on = (f, x0, x1) => seen(v, f, x0, x1);
+      if (on(0, 0, 820)) drawLobby(ctx, t);
+      if (on(0, 780, 1340)) drawBuffetBack(ctx);
+      if (on(0, 1340, W)) drawSpaBack(ctx, t);
+      if (on(1, 0, 1300)) drawCorridor(ctx);
+      if (on(1, 1300, W)) drawRoom(ctx);
+      if (on(2, 900, 1300)) drawSlide(ctx);
+      if (on(2, 1250, W)) drawTerrace(ctx, t);
     },
-    mid(ctx) {
-      drawDesk(ctx);
-      drawBuffetCounter(ctx);
+    mid(ctx, sc) {
+      if (seen(sc.view, 0, HX.desk - 130, HX.desk + 130)) drawDesk(ctx);
+      if (seen(sc.view, 0, HX.buffet - 190, HX.buffet + 190)) drawBuffetCounter(ctx);
     },
   },
 };
