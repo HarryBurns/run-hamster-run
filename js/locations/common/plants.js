@@ -9,6 +9,7 @@
 //   wildStrawberry  кустики лесной земляники (лес): весной цветут, летом — ягоды
 //   hazelBush    лещина (лес; сквозь неё можно пройти, но медленно): осенью — орешки
 //   appleTree    яблоня (город и лес): в конце лета и осенью — красные яблоки; в начале лета — зелёные завязи
+//   pricklyPear  кактус-опунция (пустыня): весной и летом на лепёшках-«ушках» — малиновые плоды
 //
 // Правила одни для всех:
 //  - плод есть только в сезон продукта — месяцы берутся из общей таблицы data/seasons.js (у продукта, который
@@ -121,6 +122,16 @@ export const PLANTS = {
     empty: 'Спелые яблоки с этой яблони уже сорваны. Завтра поспеют новые! 🌳',
     drop: [-10, -36],
     top: 104,
+  },
+  pricklyPear: {
+    gives: 'cactus_fruit',
+    verb: 'Сорвать плод кактуса',
+    btn: 'Сорвать',
+    wait: 'Плоды кактуса поспеют',
+    empty: 'С этого кактуса плод уже сорван. Завтра поспеет новый! 🌵',
+    got: 'Осторожно, колючки!',
+    drop: [10, -40],
+    top: 92,
   },
 };
 const monthNow = () => Math.floor(G.state.day / DAYS_PER_MONTH) % 12;
@@ -572,6 +583,40 @@ function paintHazel(ctx, sea, fruit) {
     }
 }
 
+// Опунция: стопка зелёных лепёшек-«ушек» с колючками; плоды — малиновые бочонки по краю верхних лепёшек.
+const PEAR_PADS = [
+  // x, y, rx, ry, наклон — от нижних к верхним
+  [0, -14, 15, 19, 0],
+  [-16, -34, 11, 15, -0.5],
+  [14, -38, 12, 16, 0.45],
+  [-2, -52, 11, 15, 0.05],
+];
+function paintPricklyPear(ctx, fruit) {
+  shadow(ctx, 2, 12, 22, 6);
+  for (const [x, y, rx, ry, a] of PEAR_PADS) {
+    ell(ctx, x, y, rx, ry, '#5c940d', OUT, 2, a);
+    ell(ctx, x - rx * 0.3, y - ry * 0.25, rx * 0.45, ry * 0.5, 'rgba(255,255,255,.18)', null, 1, a);
+    ell(ctx, x + rx * 0.35, y + ry * 0.3, rx * 0.45, ry * 0.45, 'rgba(30,60,10,.18)', null, 1, a);
+    // колючки — светлые точки
+    ctx.fillStyle = '#f8f9e6';
+    for (let i = 0; i < 6; i++) {
+      const q = i * 1.7 + x;
+      ctx.fillRect(x + Math.cos(q) * rx * 0.55 - 0.8, y + Math.sin(q) * ry * 0.6 - 0.8, 1.6, 1.6);
+    }
+  }
+  if (!fruit) return;
+  for (const [x, y] of [
+    [-22, -48],
+    [-10, -66],
+    [6, -67],
+    [22, -53],
+  ]) {
+    ell(ctx, x, y, 4.6, 5.6, '#d6336c', OUT, 1.3);
+    ell(ctx, x - 1.4, y - 1.8, 1.4, 1.8, 'rgba(255,255,255,.6)');
+    ell(ctx, x, y - 5, 2.6, 1.2, '#f783ac', OUT, 0.8);
+  }
+}
+
 // Яблоня: круглая крона, весной — бело-розовый цвет; в начале лета — мелкие зелёные завязи, в сезон — красные
 // яблоки с листиком; зимой — голые ветки под снегом (как у обычного дерева)
 const APPLE_CROWN = [
@@ -785,6 +830,15 @@ defineObjects({
       const h = env.hero,
         inside = Math.abs(h.x - o.x) < 26 && Math.abs(h.y - o.y) < 26;
       put('hazelBush', o.x + (inside ? Math.sin(env.t * 22) * 1.8 : wobble(o, env.t)), o.y, env.season, hasFruit(o) ? 1 : 0);
+    },
+  },
+  pricklyPear: {
+    solid: true,
+    tap: { dx: 30, up: 70, down: 18 },
+    use: gather,
+    art: { pricklyPear: [[-32, -78, 34, 20], paintPricklyPear] },
+    draw(ctx, o) {
+      put('pricklyPear', o.x, o.y, hasFruit(o) ? 1 : 0);
     },
   },
   appleTree: {

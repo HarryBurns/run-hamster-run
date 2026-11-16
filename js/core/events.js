@@ -60,6 +60,8 @@ export const EVENTS = {
     'занятие на горе { what } — spring (горячий источник), edelweiss (сорвали эдельвейс), summit (смотровая площадка), snowman (слепили снеговика), frame (эдельвейс в рамке), mitten (нашли варежку) — features/mountain.js',
   caves:
     'занятие в пещерах { what } — shroom (сорвали светящийся гриб), paint (древние рисунки), bats (вспугнули летучих мышей), lake (подземное озеро), pick (нашли кирку Камушкина), geode (шкатулка самоцветов), lamp (грибной ночник) — features/caves.js',
+  desert:
+    'занятие в пустыне { what } — fruit (плод кактуса), ride (прокатились на верблюде), mirage (подошли к миражу), wish (загадали желание), bell (нашли бубенчик), fossils (коллекция окаменелостей), oasis (оазис) — features/desert.js',
   warmup: 'хомячок согрелась (горячий источник на горе): мороза за день как не бывало — features/health.js',
   forest: 'занятие в лесу { what } — hive (мёд), squirrel (обмен у белки), fire (жарили зефир), treehouse (домик на дереве), wreath (венок), kit (нашли бельчонка), kitHome (отнесли маме) — features/forest.js',
 };

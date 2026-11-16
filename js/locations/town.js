@@ -604,7 +604,8 @@ function build(m) {
   put1('gate', 1, 2, { open: () => gateOpen('forest'), text: '🌲 ЛЕС' });
   put1('signpost', 3, 4, { text: '🌲 В лес', solid: true });
   put1('busstop', 89, 25);
-  put1('signpost', 92, 25, { text: '🐫 Пустыня' });
+  // табличка остановки: пока пустыня закрыта — замочек и подсказка, кто знает дорогу (Буся)
+  put1('signpost', 92, 25, { text: '🐪 В пустыню', text2: () => (landOpen('desert') ? '🚌 Караван' : '🔒 Спроси Бусю') });
   put1('barrier', 94, 26, { open: () => gateOpen('desert') });
   put1('hedge', 95, 25); // за шлагбаум — только по дороге
   put1('hedge', 95, 28);
@@ -1083,7 +1084,8 @@ function target(sc) {
 function landExit(id, area, to, entry) {
   const land = LAND_BY_ID[id];
   if (!land.scene) return { id, area, to, entry, off: true };
-  return { id, area, to: land.scene, entry: land.entry || entry, when: () => landOpen(id) };
+  // своя дорога (go — пустыня: караван-автобус везёт картинкой): за шлагбаумом выполняется действие, а не переход
+  return { id, area, to: land.scene, entry: land.entry || entry, when: () => landOpen(id), ...(land.go ? { act: land.go } : null) };
 }
 
 const town = createTopDownScene({
@@ -1101,8 +1103,9 @@ const town = createTopDownScene({
     park: { at: [40.5, 34.5], label: '🌳 Парк' },
   },
   actors: ACTORS,
-  // кто вышел из виллы — стоит у её двери; forest — куда приходят с лесной тропы (за воротами)
-  entries: { villa: { building: 'villa', from: 'villa' }, forest: { at: [2, 1.5] } },
+  // кто вышел из виллы — стоит у её двери; forest — куда приходят с лесной тропы (за воротами); bus — у остановки
+  // каравана, куда привозит караван-автобус из пустыни
+  entries: { villa: { building: 'villa', from: 'villa' }, forest: { at: [2, 1.5] }, bus: { at: [91.5, 26.4] } },
   start: 'villa',
   // Выезды в тайные места. Сцена места и вход в неё — в LANDS (data/places.js): пока сцены нет, выход закрыт
   // (off), и у ворот — окно действия way:<место> (features/quests.js). Есть сцена — выход открыт, как только место

@@ -41,7 +41,15 @@ export const FINDS = [
   { id: 'gem_topaz', kind: 'gem', e: '🔶', name: 'Топаз' },
   { id: 'gem_sapphire', kind: 'gem', e: '🔷', name: 'Сапфир' },
   { id: 'gem_ruby', kind: 'gem', e: '♦️', name: 'Рубин' },
+  // пустыня (П.9): окаменелости — находка в мини-игре «Раскопки» (по одной за первые DESERT.dig.paid игр в день,
+  // виды по кругу); их берёт рынок (DESERT.fossils), из четырёх разных Бархан соберёт «Коллекцию окаменелостей»
+  { id: 'fossil_shell', kind: 'fossil', e: '🐚', name: 'Ракушка-аммонит' },
+  { id: 'fossil_leaf', kind: 'fossil', e: '🍃', name: 'Отпечаток листа' },
+  { id: 'fossil_tooth', kind: 'fossil', e: '🦷', name: 'Зуб древнего ящера' },
+  { id: 'fossil_bone', kind: 'fossil', e: '🦴', name: 'Косточка динозавра' },
 ];
+/** Окаменелости по порядку — от частой к редкой («Раскопки» выдают их по кругу, features/desert.js). */
+export const FOSSIL_IDS = FINDS.filter((f) => f.kind === 'fossil').map((f) => f.id);
 /** Самоцветы по порядку — от частого к редкому (мини-игра «Кристаллы» выдаёт их по кругу, features/caves.js). */
 export const GEM_IDS = FINDS.filter((f) => f.kind === 'gem').map((f) => f.id);
 export const FIND_BY_ID = Object.fromEntries(FINDS.map((f) => [f.id, f]));

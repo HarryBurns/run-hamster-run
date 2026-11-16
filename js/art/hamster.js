@@ -652,6 +652,47 @@ function drawHat(ctx, item, side = 1) {
       ell(ctx, -1.8, -76.5, 1.6, 1.6, '#ffffff');
       break;
     }
+    case 'turban': {
+      // платок-тюрбан кочевника (пустыня): намотан на голову складками, конец свисает сбоку, спереди — застёжка
+      const tail = -side;
+      ctx.beginPath();
+      ctx.moveTo(tail * 18, -72);
+      ctx.quadraticCurveTo(tail * 32, -58, tail * 27, -36);
+      ctx.lineTo(tail * 19, -38);
+      ctx.quadraticCurveTo(tail * 22, -56, tail * 10, -68);
+      ctx.closePath();
+      ctx.fillStyle = shade(c, -0.12);
+      ctx.fill();
+      ctx.strokeStyle = OUT;
+      ctx.lineWidth = 1.6;
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.ellipse(0, -66, 27, 25, 0, Math.PI, 0);
+      ctx.closePath();
+      ctx.fillStyle = c;
+      ctx.fill();
+      ctx.lineWidth = 1.8;
+      ctx.stroke();
+      ctx.save();
+      ctx.clip();
+      ctx.strokeStyle = shade(c, -0.18);
+      ctx.lineWidth = 2.2;
+      ctx.beginPath();
+      for (const [y0, y1] of [
+        [-72, -84],
+        [-66, -78],
+        [-78, -88],
+      ]) {
+        ctx.moveTo(-28, y0);
+        ctx.quadraticCurveTo(0, y1 - 4, 28, y0 - 8);
+      }
+      ctx.stroke();
+      ctx.restore();
+      fillRR(ctx, -27, -70, 54, 8, 4, shade(c, -0.08), OUT, 1.6);
+      ell(ctx, 0, -76, 5, 5.5, c2, OUT, 1.4);
+      ell(ctx, -1.4, -77.6, 1.6, 1.6, 'rgba(255,255,255,.8)');
+      break;
+    }
     case 'earmuffs':
       ctx.beginPath();
       ctx.ellipse(0, -62, 27, 22, 0, Math.PI * 1.08, -0.08 * Math.PI);

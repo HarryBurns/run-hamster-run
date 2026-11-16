@@ -29,6 +29,7 @@ export * from './quests.js';
 export * from './forest.js';
 export * from './mountain.js';
 export * from './caves.js';
+export * from './desert.js';
 export * from './backpack.js';
 export * from './album.js';
 export * from './piano.js';

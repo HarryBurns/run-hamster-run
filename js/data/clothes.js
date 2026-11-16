@@ -113,6 +113,10 @@ C('earmuffs', 'head', 'earmuffs', 'Меховые наушники', '#ffc9de', 
 C('tophat', 'head', 'tophat', 'Цилиндр', '#343a40', { c2: '#e03131', shop: 'boutique', tags: ['fancy'] });
 C('crown', 'head', 'crown', 'Корона', '#ffd43b', { shop: 'boutique', stock: 'special', tags: ['fancy'] });
 C('wreath', 'head', 'wreath', 'Венок из цветов', '#fff', { shop: 'gift', tags: ['fancy', 'spring', 'summer', 'cute'] });
+// пустыня (П.9): широкополая шляпа от солнца — в ТЦ «Модный» каждый день, в любой сезон (её просит купить Буся —
+// задание «Звезда подиума», data/quests.js); платок кочевника — подарок Бархана за задание «Бубенчик верблюда»
+C('sunhat_wide', 'head', 'sunhat', 'Шляпа от солнца', '#f4dca6', { c2: '#e8590c', tags: ['summer', 'beach', 'sport'] });
+C('scarf_nomad', 'head', 'turban', 'Платок кочевника', '#4dabf7', { c2: '#ffd43b', shop: 'gift', tags: ['summer', 'fancy'] });
 // --- аксессуары
 C('glasses_red', 'acc', 'glasses', 'Красные очки', '#e03131', { tags: ['cute'] });
 C('glasses_black', 'acc', 'glasses', 'Умные очки', '#343a40', { tags: ['fancy'] });
@@ -178,4 +182,8 @@ export const CLOTHES_BY_ID = Object.fromEntries(CL.map((c) => [c.id, c]));
 export const START_CLOTHES = CL.filter((c) => c.shop === 'start').map((c) => c.id);
 /** Шлёпанцы в подарок (У2): в новой игре — в шкафу с начала, в старом сохранении — один раз при загрузке (main.js). */
 export const FLIPFLOPS_GIFT = 'flip_pink';
+// Шляпы от солнца: в пустыне в них не жарко (features/desert.js), задание Буси засчитывает покупку любой из них.
+export const SUN_HAT_KINDS = ['sunhat', 'panama', 'pith', 'cowboy', 'turban'];
+/** Защищает ли вещь от солнца (шляпа, панамка, шлем исследователя, платок кочевника). */
+export const isSunHat = (c) => !!c && c.slot === 'head' && SUN_HAT_KINDS.includes(c.kind);
 export const START_OUTFIT = { head: 'beanie_red', body: 'jw_blue', legs: 'pants_jeans', feet: 'boots_brown', acc: 'scarf_yellow' };

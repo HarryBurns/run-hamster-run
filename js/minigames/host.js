@@ -20,6 +20,8 @@ const LOADERS = {
   mushrooms: () => import('./mushrooms.js'), // лес: «Грибная охота» у лесника Шишкина
   sled: () => import('./sled.js'), // гора: «Спуск на санках» у инструктора Вершинкина
   crystals: () => import('./crystals.js'), // пещеры: «Кристаллы» у шахтёра Камушкина
+  dig: () => import('./dig.js'), // пустыня: «Раскопки» у кочевника Бархана
+  pairs: () => import('./pairs.js'), // пустыня: загадка пирамиды «Пары»
 };
 /** Есть ли такая мини-игра. */
 export const hasMinigame = (id) => !!LOADERS[id];

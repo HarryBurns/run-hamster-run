@@ -39,7 +39,7 @@ export const TASK_COINS = {
 /** Мешочек монет вместо сюрприза, когда все подарки уже подарены. */
 export const SURPRISE_COINS = 1000;
 // Сюжетные задания (журнал, data/quests.js): награда разовая — задание делают один раз за игру.
-export const QUEST_COINS = { herbarium: 500, squirrel_kit: 600, summit: 700, lost_mitten: 600, cave_light: 700, lucky_pick: 600 };
+export const QUEST_COINS = { herbarium: 500, squirrel_kit: 600, summit: 700, lost_mitten: 600, cave_light: 700, lucky_pick: 600, runway_star: 700, camel_bell: 600 };
 /** Подарок за задание уже лежит в шкафу — вместо него мешочек монет. */
 export const QUEST_GIFT_COINS = 600;
 
@@ -219,6 +219,25 @@ export const CAVES = {
   geode: 4, // «Шкатулка самоцветов» — по одному самоцвету каждого вида (украшение, не продаётся)
 };
 
+// ---------- пустыня (П.9) ----------
+// Сбор — как в лесу: продукт → n с растения за раз, max — сколько таких растений в пустыне (автотест сверяет с картой).
+export const DESERT_GATHER = {
+  cactus_fruit: { n: 1, max: 2 }, // весной и летом: плоды опунции — два кактуса, по плоду в день с каждого
+};
+// Окаменелости — находки (сумка finds), их выкапывают только в мини-игре «Раскопки» у кочевника Бархана: за первые
+// dig.paid игр в день — монеты по звёздам и одна окаменелость (виды — по кругу, FOSSIL_IDS); дальше — для
+// удовольствия, без находки. Значит, окаменелостей в день не больше dig.paid. Продают их на рынке (кошелёк торговца
+// общий) по ценам fossils; купить окаменелость негде. Лучшая игра (монеты + самая дорогая окаменелость) — меньше
+// смены на 2★ (проверяет dev/balance.js).
+export const DESERT = {
+  dig: { coins: [40, 80, 120], paid: 2 },
+  fossils: { fossil_shell: 30, fossil_leaf: 40, fossil_tooth: 55, fossil_bone: 75 },
+  collection: 4, // «Коллекция окаменелостей» — по одной окаменелости каждого вида (украшение, не продаётся)
+  pairs: { coins: [50, 100, 150] }, // загадка пирамиды «Пары»: приз — раз в день, по звёздам
+  ride: 9, // сколько секунд верблюд везёт хомячка по кругу
+  heat: 15, // через столько игровых минут (минута — 0,6 с) днём без шляпы — добрая подсказка про солнце (раз в день)
+};
+
 // ---------- цены ----------
 // Порядки: продукты 10–60 (сезонные — до 350 не в сезон), семена 15–60, блюда в кафе 60–250, салон 100–400, простая одежда 150–650,
 // куртки 800–1 500, бутик 2 500–15 000, «королевское» 30 000–80 000, мебель 100–3 000, пианино 8 000.
@@ -231,6 +250,8 @@ export const PRICES = {
     banana: 20, coconut: 150, mango: 60, blueberry: 40, mushroom: 80,
     // растёт в лесу (П.9); зефир — для костра в лесу
     porcini: 90, marshmallow: 30,
+    // растёт в пустыне (П.9): плоды опунции
+    cactus_fruit: 30,
     // южные фрукты
     pineapple: 60, kiwi: 30, orange: 20, lemon: 20, peach: 30, grapes: 40, melon: 50, avocado: 45,
     // огород: в магазине дороже, чем вырастить самой
@@ -274,7 +295,7 @@ export const PRICES = {
     cap_yellow: 200, cap_red: 250, cap_blue: 200, panama_green: 230, panama_white: 220, panama_pink: 230,
     sunhat: 400, sunhat_blue: 400, beanie_blue: 300, beanie_pink: 320, earmuffs: 380, hat_cowboy: 500,
     beret_red: 380, beret_black: 2500, hat_chef: 300, hat_pith: 450, catears: 350, hair_flower: 250, hat_party: 150,
-    tophat: 7000, crown: 50000,
+    tophat: 7000, crown: 50000, sunhat_wide: 350,
     // аксессуары
     glasses_red: 250, glasses_black: 250, sung_yellow: 350, sung_pink: 350, scarf_blue: 280, scarf_pink: 280,
     bag_yellow: 450, backpack: 400, tie_red: 300, tie_blue: 300, lei: 280, camera: 900,

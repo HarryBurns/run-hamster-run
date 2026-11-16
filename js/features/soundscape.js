@@ -4,7 +4,7 @@ import { scene } from '../core/loop.js';
 import { setMusic, setAmbience } from '../core/audio.js';
 
 // Сцена сама говорит, что в ней слышно: scene.sound() → { force, day, sea, rain, birds, crickets }.
-// day: 'town' — музыка города по сезону, 'forest' — лесная (лес, П.9), 'mountain' — горная, иначе — домашняя;
+// day: 'town' — музыка города по сезону, 'forest' — лесная (лес, П.9), 'mountain' — горная, 'desert' — пустыни, иначе — домашняя;
 // wind — ветер (0..1, гора), bells — колокольчики коров (0..1, луг на горе), drips — капли (0..1, пещеры; своя
 // музыка пещер — force: 'caves').
 export function updateSound() {
@@ -25,7 +25,7 @@ export function updateSound() {
     night = darkness() > 0.75,
     s = (sc.sound && sc.sound()) || {};
   setMusic(
-    mg ? 'minigame' : s.force ? s.force : night ? 'night' : s.day === 'town' ? 'town_' + c.season : s.day === 'forest' || s.day === 'mountain' ? s.day : 'villa',
+    mg ? 'minigame' : s.force ? s.force : night ? 'night' : s.day === 'town' ? 'town_' + c.season : ['forest', 'mountain', 'desert'].includes(s.day) ? s.day : 'villa',
   );
   const rain = G.state.weather === 'rain';
   setAmbience({

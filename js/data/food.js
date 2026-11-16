@@ -54,6 +54,8 @@ const ING_LIST = [
   { id: 'mushroom', name: 'Гриб', e: '🍄', src: 'wild' },
   // растёт в лесу (П.9)
   { id: 'porcini', name: 'Белый гриб', e: '🍄‍🟫', src: 'wild' },
+  // растёт в пустыне (П.9): плоды опунции — сладкие, их едят просто так
+  { id: 'cactus_fruit', name: 'Плод кактуса', e: '🌵', src: 'wild', raw: true },
   // зефир — жарить на костре в лесу
   { id: 'marshmallow', name: 'Зефир', e: '🍡', src: 'shop', raw: true },
 ];

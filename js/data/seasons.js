@@ -28,6 +28,9 @@ export const HARVEST_MONTHS = {
   // растёт в лесу (П.9; сколько и где — FOREST_GATHER в economy.js): летом — немного, осенью — много
   porcini: months('summer', 'autumn'), // белые грибы под ёлками
   nuts: months('autumn'), // лещина (орешки в ТЦ «Вкусный» не в сезон дороже и бывают не каждый день)
+  // растёт в пустыне (П.9; сколько — DESERT_GATHER в economy.js): опунция цветёт после весенних дождей и плодоносит
+  // весной и летом
+  cactus_fruit: months('spring', 'summer'),
   // южные фрукты: их только покупают
   pineapple: months('spring', 'summer'),
   kiwi: months('autumn', 'winter'),

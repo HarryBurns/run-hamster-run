@@ -31,16 +31,20 @@ export const PLACES = {
 //                Пещеры — так же: вход — скала у вершины горы (место caves, way:caves), сцена caves.
 //   ready        что сказать у открытого входа, пока сцены нет
 //   opened       «открыт» в нужном роде для окна «Задание выполнено!» («Гора открыта!», «Пещеры открыты!»)
-//   go           своё действие вместо простого перехода (гора: 'cableway:up' — вагончик едет вверх, features/mountain.js)
+//   go           своё действие вместо простого перехода (гора: 'cableway:up' — вагончик едет вверх, features/mountain.js;
+//                пустыня: 'caravan:go' — караван-автобус едет в пески, features/desert.js)
 export const LANDS = [
   {
     id: 'forest', name: 'Лес', icon: '🌲', npc: 'myata', who: 'Мята из парка', quest: 'herbarium',
     door: 'Тропа в лес заросла.', from: 'world', at: 'за виллой, на северо-западе города',
     scene: 'forest', entry: 'gate', // сцена — locations/forest.js, вход gate — у ворот на южной опушке
   },
+  // пустыня: остановка каравана на восточной окраине (особое место desert и выход за шлагбаум в locations/town.js);
+  // караван-автобус везёт туда картинкой (go: caravan:go — features/desert.js), обратно — с остановки в пустыне
   {
-    id: 'desert', name: 'Пустыня', icon: '🐫', opened: 'открыта', npc: 'busya', who: 'Буся из ТЦ «Модный»', quest: null,
-    door: 'Автобус к барханам пока не ходит.', from: 'world', at: 'на восточной окраине, у остановки каравана', scene: null, entry: null,
+    id: 'desert', name: 'Пустыня', icon: '🐫', opened: 'открыта', npc: 'busya', who: 'Буся из ТЦ «Модный»', quest: 'runway_star',
+    door: 'Караван-автобус к барханам пока не ходит.', from: 'world', at: 'на восточной окраине, у остановки каравана',
+    scene: 'desert', entry: 'stop', go: 'caravan:go', // сцена — locations/desert.js, вход stop — у остановки в пустыне
   },
   // вход на гору — из леса, станция канатной дороги (здание station в locations/forest.js, действие way:mountain)
   {

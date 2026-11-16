@@ -6,7 +6,7 @@ import { register } from '../core/registry.js';
 import { G, cal, hasClothes } from '../core/state.js';
 import { el } from '../core/util.js';
 import { blinkAt } from '../art/hamster.js';
-import { CLOTHES, CLOTHES_BY_ID, SLOTS, vendorLook, resolveLook } from '../data/index.js';
+import { CLOTHES, CLOTHES_BY_ID, SLOTS, vendorLook, resolveLook, isSunHat } from '../data/index.js';
 import { clothesIcon, hamsterStage } from '../ui/icons.js';
 import { openPanel } from '../ui/panel.js';
 import { buy, buyBtn } from './purchase.js';
@@ -107,7 +107,7 @@ export function clothesPanel(mode, opts = {}) {
                 addClothes(it.id);
                 wear(it.slot, it.id);
                 delete tryOn[it.slot];
-                emit('buy', { cat: 'clothes', id: it.id });
+                emit('buy', { cat: 'clothes', id: it.id, sun: isSunHat(it) });
                 panel.refresh();
               }),
             );

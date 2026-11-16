@@ -119,7 +119,7 @@ function landsRow(panel, walk) {
       }
       // открытое место, вход в которое не из города (гора — из леса): подсказать, где вход
       if (open && land.scene && land.from !== 'world') {
-        toast(`${land.icon} ${land.name} открыт${land.name.endsWith('а') ? 'а' : ''}! Вход — ${land.at}.`);
+        toast(`${land.icon} ${land.name} ${land.opened || 'открыт'}! Вход — ${land.at}.`);
         return;
       }
       panel.close();

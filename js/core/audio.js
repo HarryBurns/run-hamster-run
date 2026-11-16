@@ -369,7 +369,8 @@ const CH = {
   VII: [10, 14, 17],
 };
 const MAJ_PENTA = [0, 2, 4, 7, 9],
-  MIN_PENTA = [0, 3, 5, 7, 10];
+  MIN_PENTA = [0, 3, 5, 7, 10],
+  DESERT_PENTA = [0, 1, 4, 7, 8]; // «восточный» лад: с пониженной второй и шестой ступенью
 // lead/arp: [тембр, громкость, длина в долях]; тембры: pluck | bell | soft | square
 const TRACKS = {
   title: {
@@ -484,6 +485,20 @@ const TRACKS = {
     bass: 0.06,
     perc: 0,
     density: 0.35,
+  },
+  // пустыня (П.9): неспешный «караванный» шаг, щипки как у уда и колокольчики — восточный лад, но весело
+  desert: {
+    bpm: 92,
+    key: 62,
+    scale: DESERT_PENTA,
+    prog: ['I', 'I', 'VI', 'I', 'iv', 'VI', 'I', 'I'],
+    lead: ['pluck', 0.072, 0.8],
+    arp: ['bell', 0.024, 0.6],
+    arpPat: [0, 1, 2, 1, 0, -1, 2, 1],
+    bass: 0.075,
+    perc: 1,
+    density: 0.5,
+    swing: 0.1,
   },
   night: {
     bpm: 66,
