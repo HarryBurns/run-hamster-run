@@ -358,6 +358,33 @@ const { pathToFileURL } = require('url');
   if (!(ISLAND.fest.from >= 18 && ISLAND.fest.to <= 23 && ISLAND.fest.to > ISLAND.fest.from)) bad('праздник огней — вечером');
   if (!D.isSunHat(D.CLOTHES_BY_ID.sunhat_wide) || D.CLOTHES_BY_ID.sunhat_wide.season || D.CLOTHES_BY_ID.sunhat_wide.stock || !PRICES.clothes.sunhat_wide)
     bad('«Шляпа от солнца» (задание Буси) должна продаваться всегда и защищать от солнца');
+  // курортный отель (П.17): открыт с начала игры. «Горка» — приз за первые HOTEL.slide.paid игр в день, лучшая — меньше
+  // смены на 2★; носильщица — обычная работа (JOBS.porter: 2★ не меньше средней смены); номер на ночь и спа — траты,
+  // шведский стол — только «съесть тут» (с собой не купить, поэтому скидку нельзя перепродать на рынке); люкс продаётся
+  const { HOTEL, BUFFET, DISH_BY_ID, animatorNow, poolGuestOn, POOL_GUESTS } = D;
+  if (!(HOTEL.slide.coins.length === 3 && HOTEL.slide.paid >= 1)) bad('HOTEL.slide: нужны coins на 1–3★ и paid');
+  if (HOTEL.slide.coins[2] >= avg2) bad(`«Горка» на 3★ даёт ${HOTEL.slide.coins[2]} — это не меньше смены на 2★ (${fmt(avg2)})`);
+  if (!JOBS.porter) bad('нет работы носильщицей (JOBS.porter)');
+  else {
+    const pp = JOBS.porter.pay;
+    if (!(pp[0] < pp[1] && pp[1] < pp[2])) bad('носильщица: зарплата должна расти со звёздами');
+    if (pp[1] < avg2) bad(`носильщица на 2★ (${pp[1]}) — меньше средней смены на 2★ (${fmt(avg2)})`);
+  }
+  if (!(HOTEL.room >= 100 && HOTEL.room <= 1000)) bad(`номер на ночь за ${HOTEL.room} — вне 100–1 000`);
+  if (!(HOTEL.spa >= 50 && HOTEL.spa <= 500)) bad(`спа за ${HOTEL.spa} — вне 50–500`);
+  if (!(HOTEL.buffet > 0 && HOTEL.buffet < 1)) bad('HOTEL.buffet: скидка шведского стола — доля цены от 0 до 1');
+  for (const id of BUFFET) if (!DISH_BY_ID[id] || !(DISH_BY_ID[id].price > 0)) bad(`шведский стол: блюдо без цены ${id}`);
+  const am = HOTEL.animator;
+  if (!(am.morning[0] >= 6 && am.morning[1] <= 12 && am.evening[0] >= 18 && am.evening[1] <= 23)) bad('аниматор: зарядка — утром, дискотека — вечером');
+  if (animatorNow(am.morning[0] * 60) !== 'morning' || animatorNow(am.evening[0] * 60 + 10) !== 'evening' || animatorNow(14 * 60)) bad('animatorNow не совпадает с HOTEL.animator');
+  if (HOMES.find((h) => h.id === 'suite').soon) bad('номер-люкс всё ещё «скоро» — отель открыт');
+  if (HOMES.find((h) => h.id === 'suite').building !== 'hotel') bad('номер-люкс: дверь — в отеле (building: hotel)');
+  {
+    let days = 0;
+    for (let d = 0; d < 72; d++) if (poolGuestOn(d, HOTEL.poolGuest.from * 60 + 30)) days++;
+    if (days < 18 || days > 54) bad(`житель у бассейна отеля — ${days} дней из 72 (ждём примерно через день)`);
+    if (POOL_GUESTS.some((id) => !D.NPC_BY_ID[id] || D.LAND_NPCS.some((n) => n.id === id))) bad('у бассейна отеля отдыхают только жители города');
+  }
 
   // (ж) ассортимент дня: в любой день двух игровых лет на прилавках хватает всего, чтобы готовить, сажать и угощать.
   // «Точно есть» — круглогодичное не из лакомств и сезонное в сезон; несезонное и лакомства — как повезёт.
@@ -715,6 +742,18 @@ const { pathToFileURL } = require('url');
     }
     return `${fmt(best)} в день (три с половиной смены на 2★ — ${fmt(3.5 * avg2)}, кошелёк торговца — ${fmt(MARKET.purse)})`;
   })());
+  console.log('\nКурортный отель «Морская звезда» (П.17, открыт сразу)');
+  line('носильщица (1★ / 2★ / 3★, две смены в день)', `${D.JOBS.porter.pay.join(' / ')} монет`);
+  line('«Горка» (1★ / 2★ / 3★, первые ' + D.HOTEL.slide.paid + ' в день)', `${D.HOTEL.slide.coins.join(' / ')} монет`);
+  line('номер на ночь / спа (массаж или маска)', `${fmt(D.HOTEL.room)} / ${fmt(D.HOTEL.spa)} монет`);
+  line('шведский стол (только «съесть тут»)', `блюда ${range(D.BUFFET.map((id) => D.DISH_BY_ID[id].price))}; раз в день × ${D.HOTEL.buffet}, после ночи в отеле — даром`);
+  line('номер-люкс (агентство «Свой домик»)', `${fmt(D.HOME_PRICES.suite)} монет`);
+  line('аниматор', `зарядка ${D.HOTEL.animator.morning.join('–')} ч, дискотека ${D.HOTEL.animator.evening.join('–')} ч — танец и наклейка, без монет`);
+  {
+    let days = 0;
+    for (let d = 0; d < 72; d++) if (D.poolGuestOn(d, D.HOTEL.poolGuest.from * 60 + 30)) days++;
+    line('житель у бассейна отеля', `${D.HOTEL.poolGuest.from}–${D.HOTEL.poolGuest.to} ч, ${days} дней из 72`);
+  }
   console.log('\nГотовка: продукты → порция на рынке (1 / 2 / 3 порции за одну готовку)');
   for (const { d, cost, raw, buyable } of cook.sort((a, b) => b.d.sell - a.d.sell).slice(0, 8))
     line(
