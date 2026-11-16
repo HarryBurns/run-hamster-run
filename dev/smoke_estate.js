@@ -591,9 +591,13 @@ module.exports = async function estate({ page, step, ev, wait, closeAll }) {
   const HOMES = [
     ['flat', 25000, 'Квартира', 'home_apartment'],
     ['bungalow', 60000, 'бунгало', 'home_bungalow'],
+    ['suite', 80000, 'люкс', 'hotel'],
     ['penthouse', 150000, 'Пентхаус', 'tower'],
   ];
-  /** Войти в своё жильё так, как это делает игрок: дверь здания; пентхаус — лифт Хомяк-Тауэра, «100 — мой пентхаус». */
+  /**
+   * Войти в своё жильё так, как это делает игрок: дверь здания; пентхаус — лифт Хомяк-Тауэра, «100 — мой пентхаус»;
+   * номер-люкс — дверь отеля, потом золотая дверь «Люкс» в коридоре второго этажа (П.17).
+   */
   const enterHome = async (id) => {
     const building = HOMES.find((h) => h[0] === id)[3];
     await ev(() => {
@@ -608,7 +612,17 @@ module.exports = async function estate({ page, step, ev, wait, closeAll }) {
       await page.click('.dialog .btn.green');
       await wait(500);
     }
+    if (id === 'suite') {
+      expect((await scene()) === 'hotel', 'дверь отеля не ведёт в отель', await scene());
+      await run('hotel:suite');
+    }
     expect((await scene()) === id, 'через дверь не вошли в своё жильё ' + id, await scene());
+  };
+  /** Дверь люкса ведёт в коридор отеля, к золотой двери; дальше — дверь отеля на набережную. */
+  const leaveSuite = async () => {
+    const r = await ev(() => ({ scene: window.__dev.sceneName, f: window.__dev.scene.p.f, x: window.__dev.scene.p.x }));
+    expect(r.scene === 'hotel' && r.f === 1 && Math.abs(r.x - 1190) < 2, 'дверь люкса ведёт не в коридор отеля', r);
+    await leaveByDoor();
   };
   await step('жильё: риелтор — нехватка монет, покупка каждого дома, мебель, сон, обустройство, дверь', async () => {
     await newGame();
@@ -742,11 +756,12 @@ module.exports = async function estate({ page, step, ev, wait, closeAll }) {
       await wait(300);
       // дверь ведёт к двери здания, через которое вошли (пентхаус — к дверям башни)
       await leaveByDoor();
+      if (id === 'suite') await leaveSuite();
       await outAt(building, 'дверь нового дома ' + id);
     }
     s = await state();
     for (const st of ['x_home2', 'x_homes_all']) expect(s.stickers.includes(st), 'нет наклейки ' + st);
-    expect(s.villa.length > 20 && Object.keys(s.homes).length === 3, 'мебель домов', Object.keys(s.homes));
+    expect(s.villa.length > 20 && Object.keys(s.homes).length === 4, 'мебель домов', Object.keys(s.homes));
   });
   await step('жильё: «Мои дома», основной дом, «Домой», пентхаус из лифта башни, гости, перезагрузка', async () => {
     // «Мои дома» — из меню
@@ -756,7 +771,7 @@ module.exports = async function estate({ page, step, ev, wait, closeAll }) {
     await wait(350);
     await page.click('.overlay >> text=Мои дома');
     await wait(450);
-    expect((await page.locator('.overlay .home-card').count()) === 4, 'мои дома');
+    expect((await page.locator('.overlay .home-card').count()) === 5, 'мои дома');
     expect((await text('.overlay .panel-head .title')) === 'Мои дома', 'заголовок окна «Мои дома»');
     // из меню — только список и выбор основного дома: ни вкладки «Купить», ни мгновенного перехода
     expect((await page.locator('.overlay .tab').count()) === 0, 'в «Моих домах» из меню есть вкладки');
@@ -803,7 +818,7 @@ module.exports = async function estate({ page, step, ev, wait, closeAll }) {
       W.desc.things(W, (y, f, b) => ids.push(b.id), { x0: 0, y0: 0, x1: 1e6, y1: 1e6 });
       return ids.sort().join();
     });
-    expect(signs === 'home_apartment,home_bungalow', 'таблички «мой дом»', signs);
+    expect(signs === 'home_apartment,home_bungalow,hotel', 'таблички «мой дом» (и «мой люкс» на отеле)', signs);
     // пентхаус: лифт Хомяк-Тауэра спрашивает этаж
     await enterHome('penthouse');
     // гости приходят в тот дом, где героиня; телефон предлагает выбрать
@@ -813,7 +828,7 @@ module.exports = async function estate({ page, step, ev, wait, closeAll }) {
       d.F.openPhone();
     });
     await wait(350);
-    expect((await page.locator('.overlay .opt').count()) === 4, 'телефон: выбор дома');
+    expect((await page.locator('.overlay .opt').count()) === 5, 'телефон: выбор дома');
     expect((await text('.overlay .opt.sel')).includes('Пентхаус'), 'телефон: по умолчанию — где героиня');
     await page.click('.overlay .list-item .btn.green');
     await wait(400);

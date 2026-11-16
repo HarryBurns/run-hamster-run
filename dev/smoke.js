@@ -15,7 +15,8 @@
 //  пустыня, П.9 — dev/smoke_desert.js:  node dev/smoke.js <url> step:пустыня;
 //  джунгли, П.9 — dev/smoke_jungle.js:  node dev/smoke.js <url> step:джунгли;
 //  секретный пляж, П.9 — dev/smoke_sbeach.js:  node dev/smoke.js <url> "step:секретный пляж";
-//  удалённый остров, П.9 — dev/smoke_island.js:  node dev/smoke.js <url> "step:удалённый остров")
+//  удалённый остров, П.9 — dev/smoke_island.js:  node dev/smoke.js <url> "step:удалённый остров";
+//  курортный отель, П.17 — dev/smoke_hotel.js:  node dev/smoke.js <url> step:отель)
 // Скорость проверяется отдельно:  node dev/bench.js [url] --spots=forest --sizes=desktop --max-forest=45
 const { chromium } = require('playwright');
 const fs = require('fs');
@@ -34,6 +35,7 @@ const desert = require('./smoke_desert.js'); // П.9: пустыня — зад�
 const jungle = require('./smoke_jungle.js'); // П.9: джунгли — задание Боба, причал, «Лианы», «Узор храма», попугаи, Лиана
 const sbeach = require('./smoke_sbeach.js'); // П.9: секретный пляж — задание Зефирки, грот, черепашата, «Замок из песка», Жемчужинка
 const island = require('./smoke_island.js'); // П.9: удалённый остров — задание Этажкина, плавание на юг, Вождь Кокос, боулинг, праздник огней
+const hotel = require('./smoke_hotel.js'); // П.17: курортный отель — номер на ночь, шведский стол, спа, аниматор, «Горка», носильщица, люкс
 
 const BASE = process.argv[2] || 'http://localhost:8765';
 const ONLY_ESTATE = process.argv[3] === 'estate';
@@ -2019,11 +2021,11 @@ async function economy({ page, step, ev, wait, closeAll }) {
         );
         for (let i = 0; i < 8; i++) need.push('house' + i);
         for (const id of need) if (!r.ids.includes(id)) throw new Error('в городе нет здания ' + id);
-        const want = ['realtor', 'home:flat', 'home:bungalow', 'market', '{"do":"soon","key":"hotel"}'];
+        const want = ['realtor', 'home:flat', 'home:bungalow', 'market', 'scene:hotel'];
         if (r.acts.join() !== want.join()) throw new Error('действия новых зданий: ' + r.acts.join(' | '));
       },
     );
-    await step('город: новые места — рынок, агентство, двери жилья, «Скоро открытие!» и тайные места', async () => {
+    await step('город: новые места — рынок, агентство, двери жилья, «Морская звезда» и тайные места', async () => {
       const title = () => ev(() => (document.querySelector('.overlay .panel-head .title') || {}).textContent || '');
       await ev(() => window.__dev.enterBuilding('market'));
       await wait(450);
@@ -2038,14 +2040,16 @@ async function economy({ page, step, ev, wait, closeAll }) {
         if ((await ev(() => window.__dev.sceneName)) !== 'world') throw new Error(id + ': ушли из города');
         await closeAll();
       }
-      for (const id of ['hotel']) {
+      // курортный отель открыт с начала игры (П.17): дверь ведёт в его сцену, заглушки «Скоро открытие!» больше нет
+      {
         await ev(() => document.querySelectorAll('#toasts .toast').forEach((t) => t.remove()));
-        await ev((id) => window.__dev.enterBuilding(id), id);
-        await wait(200);
+        await ev(() => window.__dev.enterBuilding('hotel'));
+        await wait(300);
         const t = await ev(() => (document.querySelector('#toasts') || {}).textContent || '');
-        if (!t.includes('Скоро открытие')) throw new Error(id + ': нет подсказки «Скоро открытие!»: ' + t);
-        if (await ev(() => document.querySelectorAll('.overlay, .dialog').length))
-          throw new Error(id + ': открылось окно');
+        if (t.includes('Скоро открытие')) throw new Error('отель: подсказка «Скоро открытие!»: ' + t);
+        if ((await ev(() => window.__dev.sceneName)) !== 'hotel') throw new Error('дверь отеля не ведёт в отель');
+        await ev(() => window.__dev.go('world'));
+        await wait(300);
       }
       // выезды в лес и пустыню — не «скоро», а тайные места: доброе окно «кто знает дорогу»
       for (const [key, who] of [
@@ -2474,6 +2478,7 @@ async function economy({ page, step, ev, wait, closeAll }) {
     await jungle({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
     await sbeach({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
     await island({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
+    await hotel({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
     await estate({ page, step: (n, f, o) => step(n, f, { ...o, extra: true, estate: true }), ev, wait, closeAll });
     if (tag === 'desktop')
       await extra({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll, hold });

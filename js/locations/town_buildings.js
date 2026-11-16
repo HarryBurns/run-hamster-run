@@ -1626,5 +1626,5 @@ defineBuildings({
   realtor: { paint: paintRealtor, doorX: 62, box: wideBox(50), lights: (b) => doorLight(b) },
   apartment: { paint: paintApartment, box: wideBox(150), hitUp: () => 90, lights: (b) => doorLight(b, 100, 84) },
   bungalow: { paint: paintBungalow, box: wideBox(60, 50), lights: (b) => doorLight(b) },
-  hotel: { paint: paintHotel, box: wideBox(250, 70), hitUp: () => 150, lights: (b) => doorLight(b, 150, 120) },
+  hotel: { paint: paintHotel, box: wideBox(270, 70), hitUp: () => 150, lights: (b) => doorLight(b, 150, 120) },
 });

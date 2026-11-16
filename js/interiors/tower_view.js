@@ -54,7 +54,7 @@ export const VIEW_TOWN = [
   ['home_apartment', 53, 31, 6, 5, '#ffe3e3', '#c92a2a', 6, 'flat'],
   ['rest', 51, 41, 7, 5, '#ffec99', '#c92a2a', 2.4, 'hip'],
   ['pool', 67, 30, 5, 5, '#99e9f2', '#0c8599', 2.4, 'flat'],
-  ['hotel', 83, 42, 11, 5, '#fff4e6', '#1098ad', 3.8, 'hip'],
+  ['hotel', 83, 42, 11, 5, '#fff4e6', '#1098ad', 5, 'hip'], // курортный отель (П.17): пять этажей, горка с крыши
   ['beachcafe', 67, 50, 5, 3, '#c3fae8', '#12b886', 1.6, 'hip'],
   ['home_bungalow', 6, 50, 5, 3, '#ffe8cc', '#e0a458', 1.5, 'hip'],
   ['house5', 4, 30, 4, 4, '#d3f9d8', '#2f9e44', 1.7, 'hip'],
@@ -350,6 +350,18 @@ function building(ctx, env, P, b) {
     poly(ctx, [x0 + u * 0.8, ry - u * 1.4, x0 + u * 2.2, ry - u, x0 + u * 0.8, ry - u * 0.6], env.c('#ff6b9d'));
   } else if (id === 'hotel') {
     for (const s of [-0.3, 0, 0.3]) ell(ctx, cx + s * w, cy, u * 0.5, u * 0.42, env.c('#ffe066'));
+    // водная горка-спираль у восточного крыла (башня смотрит на юг — восток слева)
+    ctx.strokeStyle = env.c('#ffd43b');
+    ctx.lineWidth = lw * 2.4;
+    ctx.beginPath();
+    for (let k = 0; k <= 16; k++) {
+      const q = k / 16,
+        yy = ry + rh * 0.6 + q * (yb - ry - rh * 0.6),
+        xx = x0 - u * 0.5 + Math.sin(q * Math.PI * 4) * u * 0.4;
+      if (k) ctx.lineTo(xx, yy);
+      else ctx.moveTo(xx, yy);
+    }
+    ctx.stroke();
   } else if (id.startsWith('mall') || id === 'pool' || id === 'home_apartment') {
     // коробочки вентиляции и окно в крыше
     fillRR(ctx, x0 + w * 0.14, cy - u * 0.5, u * 1.1, u * 0.8, 1, env.c('#f1f3f5'), out, lw * 0.8);

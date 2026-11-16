@@ -1,4 +1,4 @@
-// Замер скорости города, леса, горы, пещер, пустыни, джунглей, секретного пляжа и удалённого острова: время кадра при ходьбе стрелкой и число команд рисования за кадр.
+// Замер скорости города, леса, горы, пещер, пустыни, джунглей, секретного пляжа, удалённого острова и курортного отеля: время кадра при ходьбе стрелкой и число команд рисования за кадр.
 // Нужен, чтобы сравнивать «до/после» любых правок рисования (способ — как в docs/REVIEW.md, приложение).
 //
 // Запуск:  python3 -m http.server 8765 &   затем   node dev/bench.js [http://localhost:8765] [ключи]
@@ -13,7 +13,9 @@
 //                           зарослях, подвесной мост над рекой, водопад с попугаем; cbeach, clagoon, cgrotto — «Секретный
 //                           пляж»: песок у гнезда и куличиков, мелководье с камнем Жемчужинки, грот в скалах; ivillage,
 //                           ivolcano, ibeach — «Удалённый остров»: площадь деревни с костром, хижинами и тотемами, смотровая
-//                           у кратера вулкана, причал и пляж с пальмами)
+//                           у кратера вулкана, причал и пляж с пальмами; embank — набережная у курортного отеля (город);
+//                           hlobby, hrooms, hroof — курортный отель (П.17, сцена движка домов): холл с ресепшеном,
+//                           коридор номеров, бассейн с горкой на крыше — для них x — точка на этаже, y — этаж)
 //   --seasons=winter,summer зима со снегом и лето без осадков
 //   --sec=4                 сколько секунд идёт один замер
 //   --minutes=1320          время суток в минутах (720 — полдень; 1320 — ночь со светом фонарей и окон)
@@ -64,6 +66,10 @@ const SPOTS = {
   ivillage: [20, 19, 'island'],
   ivolcano: [24, 4, 'island'],
   ibeach: [17, 27, 'island'],
+  embank: [88, 51],
+  hlobby: [300, 0, 'hotel'],
+  hrooms: [900, 1, 'hotel'],
+  hroof: [1000, 2, 'hotel'],
 };
 const SPOT_NAMES = {
   palms: 'Дворики (15,39)',
@@ -92,9 +98,13 @@ const SPOT_NAMES = {
   ivillage: 'Остров: деревня',
   ivolcano: 'Остров: вулкан',
   ibeach: 'Остров: причал',
+  embank: 'Набережная, отель',
+  hlobby: 'Отель: холл',
+  hrooms: 'Отель: номера',
+  hroof: 'Отель: крыша',
 };
 const sizes = opt('sizes', 'desktop,phone').split(','),
-  spots = opt('spots', 'palms,forest,square,sea,woods,peak,slope,hall,mine,oasis,dunes,jcamp,jbridge,cbeach,clagoon,ivillage,ivolcano').split(',');
+  spots = opt('spots', 'palms,forest,square,sea,embank,woods,peak,slope,hall,mine,oasis,dunes,jcamp,jbridge,cbeach,clagoon,ivillage,ivolcano,hlobby,hroof').split(',');
 const seasons = opt('seasons', 'winter,summer').split(',');
 const SEASON = { winter: { day: 0, weather: 'snow' }, summer: { day: 18, weather: 'sun' } };
 
@@ -130,7 +140,8 @@ const SEASON = { winter: { day: 0, weather: 'snow' }, summer: { day: 18, weather
     // счётчики: время draw/update города, интервалы между кадрами, число команд канвы внутри draw
     await page.evaluate(() => {
       const B = (window.__bench = { on: false, frames: [], draw: [], cmd: null, cmdFrames: 0 });
-      for (const sc of [window.__dev.scenes.world, window.__dev.scenes.forest, window.__dev.scenes.mountain, window.__dev.scenes.caves, window.__dev.scenes.desert, window.__dev.scenes.jungle, window.__dev.scenes.cove, window.__dev.scenes.island]) {
+      const S = window.__dev.scenes;
+      for (const sc of [S.world, S.forest, S.mountain, S.caves, S.desert, S.jungle, S.cove, S.island, S.hotel].filter(Boolean)) {
         const d0 = sc.draw;
         sc.draw = function (c) {
           if (B.cmd) B.inDraw = true;
@@ -189,8 +200,10 @@ const SEASON = { winter: { day: 0, weather: 'snow' }, summer: { day: 18, weather
             st.day = s.day;
             st.weather = s.weather;
             st.minutes = minutes;
-            if (d.sceneName !== where) d.go(where);
-            d.locations[where].debugTeleport(tx, ty);
+            if (d.locations[where]) {
+              if (d.sceneName !== where) d.go(where);
+              d.locations[where].debugTeleport(tx, ty);
+            } else d.go(where, { pos: { scene: where, floor: ty, x: tx } }); // сцена движка домов (отель): этаж и x
           },
           [SEASON[sea], tx, ty, MINUTES, where],
         );
@@ -263,10 +276,11 @@ const SEASON = { winter: { day: 0, weather: 'snow' }, summer: { day: 18, weather
       sand = mean((r) => r.size === size && SPOTS[r.spot][2] === 'desert'),
       jung = mean((r) => r.size === size && SPOTS[r.spot][2] === 'jungle'),
       cove = mean((r) => r.size === size && SPOTS[r.spot][2] === 'cove'),
-      isle = mean((r) => r.size === size && SPOTS[r.spot][2] === 'island');
-    if (town && (wood || hill || cave || sand || jung || cove || isle))
+      isle = mean((r) => r.size === size && SPOTS[r.spot][2] === 'island'),
+      hotel = mean((r) => r.size === size && SPOTS[r.spot][2] === 'hotel');
+    if (town && (wood || hill || cave || sand || jung || cove || isle || hotel))
       console.log(
-        `${size}: средний кадр — город ${town} мс, лес-сцена ${wood} мс, гора ${hill} мс, пещеры ${cave} мс, пустыня ${sand} мс, джунгли ${jung} мс, секретный пляж ${cove} мс, удалённый остров ${isle} мс`,
+        `${size}: средний кадр — город ${town} мс, лес-сцена ${wood} мс, гора ${hill} мс, пещеры ${cave} мс, пустыня ${sand} мс, джунгли ${jung} мс, секретный пляж ${cove} мс, удалённый остров ${isle} мс, отель ${hotel} мс`,
       );
   }
   const lim = +opt('max-forest', 0);
