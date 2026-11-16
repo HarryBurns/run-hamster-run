@@ -637,8 +637,8 @@ module.exports = async function wares({ page, step, ev, wait, closeAll }) {
     });
     expect(mail.usual && !mail.full, 'письмо «Обновка» и витрина дня', mail);
     await closeAll();
-    // праздничные подарки-сюрпризы — только около своего праздника: шляпа волшебницы к Хэллоуину. Новогодний колпак
-    // сюрпризом больше не дарят никогда: это подарок самого праздника (П.13, shop: 'holiday' — features/holidays.js)
+    // праздничные вещи сюрпризом больше не дарят никогда: новогодний колпак (П.13, часть 1) и шляпа волшебницы (часть 2)
+    // — подарки самих праздников (shop: 'holiday' — features/holidays.js); ни в июле, ни в октябре, ни в декабре
     const gifts = await ev(async () => {
       const d = window.__dev,
         has = (id) => d.G.state.clothes.includes(id);
@@ -658,9 +658,9 @@ module.exports = async function wares({ page, step, ev, wait, closeAll }) {
     });
     expect(
       String(gifts.july) === 'false,false' &&
-        String(gifts.october) === 'false,true' &&
-        String(gifts.december) === 'false,true',
-      'праздничные подарки не по сезону',
+        String(gifts.october) === 'false,false' &&
+        String(gifts.december) === 'false,false',
+      'праздничные вещи (колпак, шляпа волшебницы) подарили сюрпризом',
       gifts,
     );
     await wait(300);
