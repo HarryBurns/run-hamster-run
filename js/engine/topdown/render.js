@@ -196,7 +196,7 @@ export function hideSky() {
  * (lights — [x, y, rx, ry, сила] в единицах мира) с тёплым оттенком → тени облаков → огоньки светлячков.
  * Возвращает контекст слоя и перевод «мир → точки слоя» (для светлячков) или null, если слой не нужен.
  */
-function drawSky(sc, tint, lights, n, clouds, k, ox, oy, w, h, dpr) {
+function drawSky(sc, tint, lights, n, clouds, k, ox, oy, w, h, dpr, warm = 0.3) {
   if (!tint && !clouds) {
     hideSky();
     return null;
@@ -242,7 +242,7 @@ function drawSky(sc, tint, lights, n, clouds, k, ox, oy, w, h, dpr) {
       // тёплый оттенок там, где темнота прорезана
       c.globalAlpha = 1;
       c.globalCompositeOperation = 'destination-over';
-      c.fillStyle = `rgba(255,186,96,${(tint[3] * 0.3).toFixed(3)})`;
+      c.fillStyle = `rgba(255,186,96,${(tint[3] * warm).toFixed(3)})`;
       c.fillRect(0, 0, lw, lh);
       c.globalCompositeOperation = 'source-over';
     }
@@ -499,8 +499,9 @@ export function drawFrame(ctx, sc) {
     weather = sky ? G.state.weather : 'sun';
   if (weather === 'rain') drawRainOnGround(ctx, m, t, x0, y0, x1, y1);
   sc.call('ground', ctx, sc, env); // разметка — то, что лежит прямо на земле и меняется
-  // свет: ночью собираем пятна света от фонарей, окон и дверей
-  const lit = sky && dark > 0.3,
+  // свет: ночью собираем пятна света от фонарей, окон и дверей; в тёмной локации (крюк gloom — пещера) — всегда
+  const gloom = !sky && desc.gloom ? desc.gloom(sc) : null,
+    lit = (sky && dark > 0.3) || !!gloom,
     lights = sc.lights || (sc.lights = []);
   let nl = 0;
   const light = (x, y, rx, ry, a) => {
@@ -612,6 +613,12 @@ export function drawFrame(ctx, sc) {
     const layer = drawSky(sc, tint, lights, lit ? nl : 0, clouds, k, ox, oy, w, h, dpr);
     if (layer && warmSeason && fine && dark > 0.55) drawFireflies(layer.c, m, t, x0, y0, x1, y1, k, ox, oy, layer.S);
     if (layer) sc.call('sky', layer.c, sc, layer.c.canvas.width, layer.c.canvas.height); // своё в слое неба (лучи в лесу)
+  } else if (gloom) {
+    // тёмная локация: темнота с «дырами» света — тем же маленьким слоем неба (растягивает страница, кадр не дорожает)
+    if (gloom.hero) light(p.x, p.y - 24, gloom.hero[0], gloom.hero[1], gloom.hero[2]);
+    if (tg) light(tg.x, tg.y - 70, 46, 46, 0.7);
+    if (gloom.lights) for (const q of gloom.lights) light(q[0], q[1], q[2], q[3], q[4]);
+    drawSky(sc, gloom.tint, lights, nl, false, k, ox, oy, w, h, dpr, gloom.warm);
   } else hideSky();
   sc.call('overlay', ctx, sc, w, h); // свой слой поверх всего, в экранных координатах (темнота пещеры и т. п.)
   // стрелка к цели, если она за экраном
@@ -635,7 +642,9 @@ export function drawFrame(ctx, sc) {
   }
 }
 /**
- * Темнота с кругом света — для крюка overlay тёмных локаций (пещера с фонариком):
+ * Темнота с кругом света одним градиентом поверх кадра. Дорого на слабом устройстве (градиент на весь экран каждый
+ * кадр) — для тёмной локации лучше крюк gloom (пещеры, locations/caves.js): та же темнота в маленьком слое неба.
+ * Пример для крюка overlay:
  *   overlay(ctx, sc, w, h) { const s = sc.cam.toScreen(sc.p.x, sc.p.y - 30); spotlight(ctx, w, h, s.x, s.y, 170); }
  * (sx, sy) — центр света на экране, r — радиус, alpha — насколько темно вокруг.
  */

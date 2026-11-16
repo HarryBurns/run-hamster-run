@@ -4,7 +4,7 @@ import { TAU } from '../core/util.js';
 import { ell, rr, fillRR, line, poly, star, shade } from '../core/draw.js';
 
 const OUT = '#4a3728'; // цвет контура
-const BACK_ACC = ['wings', 'backpack', 'cape']; // аксессуары, которые рисуются за спиной
+const BACK_ACC = ['wings', 'backpack', 'cape', 'pickaxe']; // аксессуары, которые рисуются за спиной
 const FACE_ACC = ['glasses', 'sunglasses']; // аксессуары на мордочке: поворачиваются вместе с ней
 // Аксессуары на груди: рисуются поверх одежды, но ДО головы — висят из-под подбородка (его низ: y = -29),
 // а не лежат на мордочке. Шарф — исключение: он обмотан вокруг шеи и рисуется поверх подбородка.
@@ -633,6 +633,25 @@ function drawHat(ctx, item, side = 1) {
       fillRR(ctx, -27, -70, 54, 9, 4, c2, OUT, 1.8);
       ell(ctx, 0, -92, 7, 7, item.c2 ? '#fff' : shade(c, 0.6), OUT, 1.6);
       break;
+    case 'helmet': {
+      // каска шахтёра (пещеры): купол с ребром, козырёк по кругу, спереди — фонарик со стёклышком
+      ell(ctx, 0, -66, 31, 7, c2, OUT, 1.8);
+      ctx.beginPath();
+      ctx.ellipse(0, -67, 25, 24, 0, Math.PI, 0);
+      ctx.closePath();
+      ctx.fillStyle = c;
+      ctx.fill();
+      ctx.strokeStyle = OUT;
+      ctx.lineWidth = 1.8;
+      ctx.stroke();
+      line(ctx, 0, -91, 0, -70, c2, 3);
+      ell(ctx, -11, -82, 6, 3.5, 'rgba(255,255,255,.55)', null, 1, -0.5);
+      fillRR(ctx, -8, -80, 16, 11, 3, '#495057', OUT, 1.4);
+      ell(ctx, 0, -74.5, 6.5, 6.5, '#fff3bf', OUT, 1.5);
+      ell(ctx, 0, -74.5, 4, 4, '#ffe066');
+      ell(ctx, -1.8, -76.5, 1.6, 1.6, '#ffffff');
+      break;
+    }
     case 'earmuffs':
       ctx.beginPath();
       ctx.ellipse(0, -62, 27, 22, 0, Math.PI * 1.08, -0.08 * Math.PI);
@@ -800,6 +819,24 @@ function drawHat(ctx, item, side = 1) {
 }
 
 function drawAccBack(ctx, item, t) {
+  if (item.kind === 'pickaxe') {
+    // кирка на плече (шахтёр Камушкин): рукоять из-за спины, железный клюв над правым плечом
+    line(ctx, -6, -6, 34, -78, OUT, 6.5);
+    line(ctx, -6, -6, 34, -78, item.c2 || '#a0662d', 4);
+    ctx.beginPath();
+    ctx.moveTo(16, -92);
+    ctx.quadraticCurveTo(34, -88, 52, -64);
+    ctx.lineTo(48, -62);
+    ctx.quadraticCurveTo(36, -78, 18, -84);
+    ctx.closePath();
+    ctx.fillStyle = item.c || '#adb5bd';
+    ctx.fill();
+    ctx.strokeStyle = OUT;
+    ctx.lineWidth = 1.8;
+    ctx.stroke();
+    line(ctx, 22, -88, 36, -84, 'rgba(255,255,255,.6)', 1.6);
+    return;
+  }
   if (item.kind === 'wings') {
     const f = 1 + Math.sin(t * 6) * 0.08;
     ctx.save();
@@ -1243,6 +1280,29 @@ export function drawHamster(ctx, x, y, s, look, pose = {}) {
       const q = 0.35 + i * 0.15;
       ell(ctx, x0 + (x1 - x0) * q, y0 + (y1 - y0) * q - 1.2, 0.5, 0.5, OUT);
     }
+  }
+  // борода и усы (шахтёр Камушкин — beauty.beard: цвет): пышная борода под ротиком, усы — под носом
+  if (b.beard) {
+    const bc = b.beard,
+      bo = shade(bc, -0.3);
+    ctx.beginPath();
+    ctx.moveTo(fx(-17), -42);
+    ctx.quadraticCurveTo(fx(-20), -30, fx(-11), -24);
+    ctx.quadraticCurveTo(fx(-6), -18, turn, -16);
+    ctx.quadraticCurveTo(fx(6), -18, fx(11), -24);
+    ctx.quadraticCurveTo(fx(20), -30, fx(17), -42);
+    ctx.quadraticCurveTo(fx(9), -38, turn, -39);
+    ctx.quadraticCurveTo(fx(-9), -38, fx(-17), -42);
+    ctx.closePath();
+    ctx.fillStyle = bc;
+    ctx.fill();
+    ctx.strokeStyle = bo;
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+    for (const dx of [-8, 0, 8]) line(ctx, fx(dx), -34, fx(dx * 0.7), -24, bo, 1);
+    ell(ctx, fx(-6.5), -44.5, 7.5, 3.6, bc, bo, 1.3, 0.25);
+    ell(ctx, fx(6.5), -44.5, 7.5, 3.6, bc, bo, 1.3, -0.25);
+    ell(ctx, turn, -48.5, 3.1, 2.3, '#ff8fa3', OUT, 1); // носик поверх усов
   }
   if (pose.sleep) {
     ctx.fillStyle = '#74c0fc';

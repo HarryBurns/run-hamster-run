@@ -37,6 +37,7 @@ const { pathToFileURL } = require('url');
     seeds: D.SEED_BY_ID,
     cafe: D.DISH_BY_ID,
     beauty: D.BEAUTY,
+    tools: D.FIND_BY_ID, // инструменты (фонарик) — находки вида tool
   };
   for (const [table, ids] of Object.entries(PRICES))
     for (const id of Object.keys(ids))
@@ -220,6 +221,27 @@ const { pathToFileURL } = require('url');
   if (sled.coins[2] >= avg2) bad(`«Спуск на санках» на 3★ даёт ${sled.coins[2]} — это не меньше смены на 2★ (${fmt(avg2)})`);
   if (D.FURNITURE.some((f) => f.shop === 'mountain' && f.price)) bad('украшения с горы не продаются — у них не должно быть цены');
   if (!(MOUNTAIN.edelweiss === 1 && MOUNTAIN.frame >= 3)) bad('MOUNTAIN: эдельвейс — один в день, рамка — из трёх и больше');
+  // пещеры (П.9): самоцветы — только из «Кристаллов» за первые CAVES.crystals.paid игр в день; продаются на рынке,
+  // купить их негде; лучшая игра (монеты + самоцветы по самой высокой цене) — меньше смены на 2★
+  const { CAVES, GEM_IDS } = D,
+    dig = CAVES.crystals,
+    gemMax = Math.max(...Object.values(CAVES.gems)),
+    digBest = dig.coins[2] + dig.gems[2] * gemMax,
+    cavesDay = dig.paid * digBest;
+  if (!(dig.coins.length === 3 && dig.gems.length === 3 && dig.paid >= 1)) bad('CAVES.crystals: нужны coins и gems на 1–3★ и paid');
+  if (digBest >= avg2) bad(`«Кристаллы» на 3★ дают до ${digBest} (монеты и самоцветы) — это не меньше смены на 2★ (${fmt(avg2)})`);
+  for (const id of GEM_IDS) if (!(CAVES.gems[id] > 0)) bad(`самоцвет без цены на рынке: ${id}`);
+  for (const id of Object.keys(CAVES.gems))
+    if (!D.FIND_BY_ID[id] || D.FIND_BY_ID[id].kind !== 'gem') bad(`CAVES.gems: ${id} — не самоцвет из data/finds.js`);
+  for (const id of GEM_IDS) for (const t of Object.keys(PRICES)) if (PRICES[t][id] !== undefined) bad(`самоцвет ${id} можно купить (${t}) — перепродажа`);
+  for (const id of Object.keys(PRICES.tools || {})) {
+    const f = D.FIND_BY_ID[id];
+    if (!f || f.kind !== 'tool') bad(`PRICES.tools: ${id} — не инструмент из data/finds.js`);
+    if (CAVES.gems[id] !== undefined || MARKET.sell[id] !== undefined) bad(`инструмент ${id} покупает рынок`);
+  }
+  if (CAVES.geode !== GEM_IDS.length) bad('CAVES.geode: шкатулка — по одному самоцвету каждого вида');
+  if (!(CAVES.shrooms >= 1 && CAVES.shrooms <= 2 && CAVES.lamp >= 3)) bad('CAVES: светящихся грибов — 1–2 в день, ночник — из трёх и больше');
+  if (D.FURNITURE.some((f) => f.shop === 'caves' && f.price)) bad('украшения из пещер не продаются — у них не должно быть цены');
 
   // (ж) ассортимент дня: в любой день двух игровых лет на прилавках хватает всего, чтобы готовить, сажать и угощать.
   // «Точно есть» — круглогодичное не из лакомств и сезонное в сезон; несезонное и лакомства — как повезёт.
@@ -522,6 +544,16 @@ const { pathToFileURL } = require('url');
   line('«Спуск на санках» (1★ / 2★ / 3★, первые ' + D.MOUNTAIN.sled.paid + ' в день)', `${D.MOUNTAIN.sled.coins.join(' / ')} монет`);
   line('эдельвейсы (находка, не продаются)', `${D.MOUNTAIN.edelweiss} в день летом; ${D.MOUNTAIN.frame} → «Эдельвейсы в рамке» (украшение)`);
   line('горячий источник, смотровая площадка, снеговик', 'бесплатно: наклейки, тепло и морковка для носа (из рюкзака)');
+  console.log('\nПещеры (П.9)');
+  line('фонарик (ТЦ «Уютный дом», продать нельзя)', `${PRICES.tools.flashlight} монет, один на всю игру`);
+  line('«Кристаллы» (1★ / 2★ / 3★, первые ' + dig.paid + ' в день)', `${dig.coins.join(' / ')} монет + ${dig.gems.join(' / ')} самоцвета`);
+  line(
+    'самоцветы на рынке',
+    GEM_IDS.map((id) => `${D.FIND_BY_ID[id].name.toLowerCase()} ${CAVES.gems[id]}`).join(', ') + `; в день не больше ${dig.paid * dig.gems[2]}`,
+  );
+  line('«Кристаллы»: лучшая игра / лучший день', `до ${fmt(digBest)} / до ${fmt(cavesDay)} (смена на 2★ — ${fmt(avg2)})`);
+  line('светящиеся грибы (находка, не продаются)', `${CAVES.shrooms} в день; ${CAVES.lamp} → «Грибной ночник» (украшение)`);
+  line('шкатулка самоцветов', `по одному каждого вида (${GEM_IDS.length}) → украшение`);
   console.log('\nГотовка: продукты → порция на рынке (1 / 2 / 3 порции за одну готовку)');
   for (const { d, cost, raw, buyable } of cook.sort((a, b) => b.d.sell - a.d.sell).slice(0, 8))
     line(
@@ -790,11 +822,15 @@ const { pathToFileURL } = require('url');
   {
     const { FINDS, HERB_KINDS, QUESTS, QUEST_COINS, QUEST_GIFT_COINS, CLOTHES_BY_ID, LAND_BY_ID, EXTRA_STICKERS } = D;
     console.log('\nЖурнал заданий: находки и награды');
-    // находки — не еда и не товар: их нельзя продать, приготовить или купить, поэтому «вечного двигателя» нет
+    // находки — не еда и не товар: их нельзя приготовить, купить (кроме инструментов) и продать (кроме самоцветов —
+    // их ограничивает мини-игра), поэтому «вечного двигателя» нет
     for (const f of FINDS) {
       if (ING[f.id] || D.DISH_BY_ID[f.id]) bad(`находка ${f.id} — это ещё и еда`);
       if (MARKET.sell[f.id] !== undefined) bad(`находку ${f.id} покупает рынок`);
-      for (const t of Object.keys(PRICES)) if (PRICES[t] && PRICES[t][f.id] !== undefined) bad(`у находки ${f.id} есть цена (${t})`);
+      // самоцветы рынок берёт (CAVES.gems — их мало в день, раздел про пещеры выше), инструмент продаётся в ТЦ
+      if (D.CAVES.gems[f.id] !== undefined && f.kind !== 'gem') bad(`находку ${f.id} покупает рынок`);
+      for (const t of Object.keys(PRICES))
+        if (PRICES[t] && PRICES[t][f.id] !== undefined && !(t === 'tools' && f.kind === 'tool')) bad(`у находки ${f.id} есть цена (${t})`);
     }
     for (const [type, bySeason] of Object.entries(HERB_KINDS))
       for (const sea of Object.keys(SEASONS)) {

@@ -285,6 +285,19 @@ const SOUNDS = {
   },
   stepSnow: () => noise(0, 0.09, 0.05, 1400 + Math.random() * 500, 'bandpass', sfxBus, 2),
   stepSand: () => noise(0, 0.08, 0.03, 2600 + Math.random() * 600, 'highpass'),
+  // пещеры (П.9): кирка звякнула о кристалл; кирка о камень (промах); летучие мыши вспорхнули
+  clink: () => {
+    tone(1568 + Math.random() * 200, 0, 0.35, 'sine', 0.09);
+    tone(2349, 0.02, 0.25, 'triangle', 0.04);
+    tone(3136, 0.05, 0.18, 'sine', 0.025);
+  },
+  thud: () => {
+    tone(160, 0, 0.09, 'triangle', 0.08, 90);
+    noise(0, 0.06, 0.04, 900, 'lowpass');
+  },
+  flap: () => {
+    for (let i = 0; i < 5; i++) noise(i * 0.07, 0.05, 0.03, 1400 + i * 120, 'bandpass');
+  },
   stepStone: () => {
     tone(300 + Math.random() * 60, 0, 0.03, 'triangle', 0.025, 200);
     noise(0, 0.03, 0.012, 3000, 'highpass');
@@ -458,6 +471,19 @@ const TRACKS = {
     perc: 0,
     density: 0.5,
     swing: 0.12,
+  },
+  // пещеры (П.9): медленно и таинственно, но не страшно — «стеклянные» колокольчики с долгим эхом
+  caves: {
+    bpm: 72,
+    key: 57,
+    scale: MIN_PENTA,
+    prog: ['i', 'VI', 'iv', 'VII', 'i', 'III', 'VI', 'VII'],
+    lead: ['bell', 0.06, 1.6],
+    arp: ['bell', 0.02, 1.2],
+    arpPat: [0, -1, 2, -1, 1, -1, 2, -1],
+    bass: 0.06,
+    perc: 0,
+    density: 0.35,
   },
   night: {
     bpm: 66,
@@ -719,7 +745,7 @@ export function setMusic(id) {
 // =====================================================================
 //                              ОКРУЖЕНИЕ
 // =====================================================================
-const amb = { sea: 0, rain: 0, birds: false, night: false, wind: 0, bells: 0 };
+const amb = { sea: 0, rain: 0, birds: false, night: false, wind: 0, bells: 0, drips: 0 };
 let seaNode = null,
   rainNode = null,
   windNode = null;
@@ -755,6 +781,12 @@ function cowbell(t0, vol) {
     tone(f, t0 + i * 0.16, 0.35, 'triangle', 0.03 * vol, null, ambBus);
     tone(f * 2.7, t0 + i * 0.16, 0.18, 'sine', 0.012 * vol, null, ambBus);
   }
+}
+/** Капля в пещере (П.9): короткое «плинк» вверх, иногда с эхом. */
+function drip(vol) {
+  const f = 900 + Math.random() * 700;
+  tone(f, 0, 0.09, 'sine', 0.035 * vol, f * 1.9, ambBus);
+  if (Math.random() < 0.5) tone(f * 1.1, 0.22, 0.07, 'sine', 0.012 * vol, f * 2, ambBus);
 }
 function cricket() {
   for (let i = 0; i < 3; i++) tone(4300, i * 0.07, 0.04, 'sine', 0.008, null, ambBus);
@@ -798,6 +830,7 @@ function tick() {
       windNode.f.frequency.setTargetAtTime(300 + gust * 380, now, 0.6);
     }
     if (amb.bells > 0.05 && Math.random() < 0.006) cowbell(0, amb.bells);
+    if (amb.drips > 0.05 && Math.random() < 0.02) drip(amb.drips);
     if (amb.birds && Math.random() < 0.012) chirp(0);
     if (amb.night && Math.random() < 0.03) cricket();
   }

@@ -235,7 +235,7 @@ function paintEdelweiss(ctx) {
 
 // ---------- вход в пещеры ----------
 /** Скала со входом в пещеры: тёмная арка, доски крест-накрест, табличка с замочком. */
-function paintCaveRock(ctx, snow) {
+function paintCaveRock(ctx, snow, open) {
   shadow(ctx, 0, 16, 84, 12);
   poly(ctx, [-84, 16, -78, -40, -52, -86, -16, -108, 22, -100, 56, -78, 82, -36, 86, 16], '#aeb6c2', OUT, 2.6);
   poly(ctx, [22, -100, 56, -78, 82, -36, 86, 16, 40, 16, 34, -50], '#8e98a8');
@@ -257,20 +257,28 @@ function paintCaveRock(ctx, snow) {
   ctx.lineWidth = 2.4;
   ctx.stroke();
   ell(ctx, 0, 4, 18, 8, 'rgba(70,60,90,.6)');
-  // доски крест-накрест
-  for (const [ax, ay, bx, by] of [
-    [-24, -24, 24, 6],
-    [24, -24, -24, 6],
-  ]) {
-    line(ctx, ax, ay, bx, by, OUT, 8);
-    line(ctx, ax, ay, bx, by, WOOD, 5);
-  }
-  // табличка с замочком
+  if (open) {
+    // пещеры открыты (задание Профессора Орешкина): досок нет, в глубине — тёплый отсвет фонаря Камушкина
+    ell(ctx, 0, -6, 14, 18, 'rgba(255,212,120,.28)');
+    ell(ctx, 0, -2, 7, 9, 'rgba(255,230,160,.4)');
+    line(ctx, -26, 16, -40, -6, OUT, 4);
+    line(ctx, -26, 16, -40, -6, WOOD, 2.4);
+    fillRR(ctx, -48, -14, 14, 12, 3, '#ffe066', OUT, 1.6);
+  } else
+    // доски крест-накрест
+    for (const [ax, ay, bx, by] of [
+      [-24, -24, 24, 6],
+      [24, -24, -24, 6],
+    ]) {
+      line(ctx, ax, ay, bx, by, OUT, 8);
+      line(ctx, ax, ay, bx, by, WOOD, 5);
+    }
+  // табличка: закрыто — замочек, открыто — самоцвет
   fillRR(ctx, -20, -76, 40, 20, 5, WOOD_L, OUT, 2);
   ctx.font = '14px sans-serif';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText('🔒', 0, -66);
+  ctx.fillText(open ? '💎' : '🔒', 0, -66);
   if (snow) {
     poly(ctx, [-60, -76, -52, -86, -16, -108, 22, -100, 50, -80, 30, -86, 0, -96, -30, -84], '#ffffff', SNOW_D, 1.2);
     ell(ctx, 66, -24, 14, 4, '#ffffff', SNOW_D, 1.1);
@@ -509,7 +517,7 @@ defineObjects({
     ],
     map: () => '#7d8796',
     art: { caveRock: [[-98, -122, 98, 34], paintCaveRock] },
-    draw: (ctx, o) => put('caveRock', o.x, o.y, 1),
+    draw: (ctx, o) => put('caveRock', o.x, o.y, 1, o.open && o.open() ? 1 : 0),
   },
   fallRock: {
     solid: [

@@ -28,6 +28,7 @@ export const PLACES = {
 //                Как у леса: scene: 'forest', entry: 'gate' — тропа из города ведёт туда сама (выход forest
 //                в locations/town.js и действие way:forest берут сцену отсюда). Гора будет так же: вход — станция
 //                канатной дороги в лесу (действие way:mountain), впиши scene и entry — и она повезёт на гору.
+//                Пещеры — так же: вход — скала у вершины горы (место caves, way:caves), сцена caves.
 //   ready        что сказать у открытого входа, пока сцены нет
 //   go           своё действие вместо простого перехода (гора: 'cableway:up' — вагончик едет вверх, features/mountain.js)
 export const LANDS = [
@@ -48,8 +49,9 @@ export const LANDS = [
   },
   // вход в пещеры — на горе: тёмный проход в скале (особое место caves в locations/mountain.js, действие way:caves)
   {
-    id: 'caves', name: 'Пещеры', icon: '💎', npc: 'prof', who: 'Профессор Орешкин из школы', quest: null,
-    door: 'Тёмный проход в скале заколочен досками.', from: 'mountain', at: 'на горе, в скале у вершины', scene: null, entry: null,
+    id: 'caves', name: 'Пещеры', icon: '💎', npc: 'prof', who: 'Профессор Орешкин из школы', quest: 'cave_light',
+    door: 'Тёмный проход в скале заколочен досками.', from: 'mountain', at: 'на горе, в скале у вершины',
+    scene: 'caves', entry: 'gate', // сцена — locations/caves.js, вход gate — у выхода к свету
   },
   { id: 'jungle', name: 'Джунгли', icon: '🦜', npc: 'bob', who: 'Капитан Боб с пирса', quest: null, door: null, from: 'sea', scene: null, entry: null },
   { id: 'cove', name: 'Секретный пляж', icon: '🐢', npc: 'zefirka', who: 'Зефирка с пляжа', quest: null, door: null, from: 'sea', scene: null, entry: null },

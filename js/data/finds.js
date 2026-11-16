@@ -32,7 +32,18 @@ export const FINDS = [
   { id: 'fir_twig', kind: 'forest', e: '🎄', name: 'Еловая веточка' },
   // гора (П.9): эдельвейс — редкий горный цветок, летом один в день; из трёх Вершинкин сделает «Эдельвейс в рамке»
   { id: 'edelweiss', kind: 'mountain', e: '🤍', name: 'Эдельвейс' },
+  // пещеры (П.9): фонарик — инструмент из ТЦ «Уютный дом» (PRICES.tools; продать нельзя), с ним в пещере светло;
+  // светящиеся грибы — CAVES.shrooms в день, из трёх Камушкин делает «Грибной ночник»; самоцветы — добыча
+  // в мини-игре «Кристаллы», их берёт рынок (CAVES.gems), из четырёх разных — «Шкатулка самоцветов»
+  { id: 'flashlight', kind: 'tool', e: '🔦', name: 'Фонарик' },
+  { id: 'glow_shroom', kind: 'caves', e: '🍄', name: 'Светящийся гриб' },
+  { id: 'gem_crystal', kind: 'gem', e: '💎', name: 'Горный хрусталь' },
+  { id: 'gem_topaz', kind: 'gem', e: '🔶', name: 'Топаз' },
+  { id: 'gem_sapphire', kind: 'gem', e: '🔷', name: 'Сапфир' },
+  { id: 'gem_ruby', kind: 'gem', e: '♦️', name: 'Рубин' },
 ];
+/** Самоцветы по порядку — от частого к редкому (мини-игра «Кристаллы» выдаёт их по кругу, features/caves.js). */
+export const GEM_IDS = FINDS.filter((f) => f.kind === 'gem').map((f) => f.id);
 export const FIND_BY_ID = Object.fromEntries(FINDS.map((f) => [f.id, f]));
 
 /**

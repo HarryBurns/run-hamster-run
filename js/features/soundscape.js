@@ -5,18 +5,19 @@ import { setMusic, setAmbience } from '../core/audio.js';
 
 // Сцена сама говорит, что в ней слышно: scene.sound() → { force, day, sea, rain, birds, crickets }.
 // day: 'town' — музыка города по сезону, 'forest' — лесная (лес, П.9), 'mountain' — горная, иначе — домашняя;
-// wind — ветер (0..1, гора), bells — колокольчики коров (0..1, луг на горе).
+// wind — ветер (0..1, гора), bells — колокольчики коров (0..1, луг на горе), drips — капли (0..1, пещеры; своя
+// музыка пещер — force: 'caves').
 export function updateSound() {
   const sc = scene();
   const playing = G.state && sc && !document.getElementById('title');
   if (!playing) {
     setMusic('title');
-    setAmbience({ sea: 0, rain: 0, birds: false, night: false, wind: 0, bells: 0 });
+    setAmbience({ sea: 0, rain: 0, birds: false, night: false, wind: 0, bells: 0, drips: 0 });
     return;
   }
   if (document.getElementById('piano')) {
     setMusic(null);
-    setAmbience({ sea: 0, rain: 0, birds: false, night: false, wind: 0, bells: 0 });
+    setAmbience({ sea: 0, rain: 0, birds: false, night: false, wind: 0, bells: 0, drips: 0 });
     return;
   } // за пианино фоновая музыка молчит
   const mg = !!document.getElementById('mg'),
@@ -35,5 +36,6 @@ export function updateSound() {
     night: !!s.crickets && !mg && night && c.season !== 'winter',
     wind: mg ? 0 : s.wind || 0,
     bells: mg || night ? 0 : s.bells || 0,
+    drips: mg ? 0 : s.drips || 0,
   });
 }

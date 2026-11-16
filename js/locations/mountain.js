@@ -4,14 +4,15 @@
 // Как устроена: карта 40 × 45 правилами (build), снизу вверх: станция канатной дороги (приехали из леса) → альпийские
 // луга (по сезону: весной крокусы, летом цветы и эдельвейсы, осенью сухая трава, зимой снег), горячий источник,
 // коровы на лугу → ельник с шале инструктора Вершинкина и трассой для санок → вечный снег на вершине: снежная
-// поляна для снеговика, вход в пещеры в скале (закрыт — LANDS.caves), смотровая площадка с флагом. Серпантин-тропа
+// поляна для снеговика, вход в пещеры в скале (закрыт досками, пока пещеры не открыты — LANDS.caves; открыт —
+// way:caves ведёт в сцену caves), смотровая площадка с флагом. Серпантин-тропа
 // петляет от станции до вершины; скалы и валуны непроходимы; с уступа на востоке падает водопад, горный ручей
 // бежит вниз (в него не зайти). Всё случайное — от seeded(), карта всегда одна и та же. Клетки, до которых от станции
 // не дойти, после постройки закрываются (sealPockets).
 //
 // Атмосфера: облака ниже вершины плывут в слое неба (крюк sky), наверху ветер несёт снежинки (overlay), зимой
 // снег идёт везде; своя музыка, ветер и колокольчики коров (sound → features/soundscape.js).
-import { G, cal, questNow } from '../core/state.js';
+import { G, cal, questNow, landOpen } from '../core/state.js';
 import { keys } from '../core/input.js';
 import { clamp, seeded } from '../core/util.js';
 import { ell } from '../core/draw.js';
@@ -222,7 +223,7 @@ function build(m) {
   for (let x = 25; x <= 34; x++) put1('crag', x, 3, { v: x % 2, snow: 1 });
   for (const x of [26, 27, 31, 32, 33]) put1('crag', x, 4, { v: (x + 1) % 2, snow: 1 });
   for (const x of [28, 29, 30]) m.clear(x, 5);
-  m.add('caveRock', ...AT.cave);
+  m.add('caveRock', ...AT.cave, { open: () => landOpen('caves') }); // открыто — без досок (пещеры, П.9)
   // уступ с водопадом
   for (const x of [FALL[0], FALL[0] + 1]) m.clear(x, FALL[1]);
   m.add('fallRock', ...FALL, { snow: 1 });
@@ -264,6 +265,8 @@ function build(m) {
   put1('bench', 32, 16);
   put1('signpost', 23, 40, { text: '🔭 Вершина', text2: '♨️ Источник' });
   put1('signpost', 22, 13, { text: '⛄ Поляна', text2: '💎 Пещеры' });
+  // под указателем — ни ёлок, ни камней: на телефоне ёлка закрывала доску «Пещеры»
+  for (let y = 14; y <= 15; y++) for (let x = 19; x <= 23; x++) if (!['y', 'snowPath'].includes(m.at(x, y))) m.clear(x, y);
   // перед зданиями — свободно (там двери)
   for (const b of [AT.station, AT.chalet])
     for (let x = b.x - 1; x <= b.x + b.w; x++) for (let y = b.y; y <= b.y + b.h + 1; y++) m.clear(x, y);
@@ -494,7 +497,7 @@ const mountain = createTopDownScene({
       hit: { dx: 80, up: 110, down: 26 },
       stand: [29.5, 6.6],
       act: 'way:caves',
-      map: { icon: '🔒', at: [29.5, 5.2], label: '💎 Вход в пещеры' },
+      map: { icon: '💎', at: [29.5, 5.2], label: '💎 Вход в пещеры', lock: () => !landOpen('caves') },
     },
     // варежка Вершинкина (задание «Потерянная варежка»): видна, пока её не нашли
     { id: 'mitten', at: MITTEN, hit: { r: 40 }, stand: [MITTEN[0] + 0.5, MITTEN[1] + 1.4], when: mittenHidden, act: 'mountain:mitten', key: false },
@@ -523,7 +526,7 @@ const mountain = createTopDownScene({
     waterfall: { at: [32.5, 15.5], label: '🌊 Водопад' },
   },
   // из леса приезжают на канатной дороге (вход station — у двери станции)
-  entries: { station: { building: 'station' } },
+  entries: { station: { building: 'station' }, caves: { at: [29.5, 7.3] } }, // caves — вышли из пещер к скале
   // где разбрасывать предметы заданий (письма с loc: 'mountain'): тропы и луга
   zones: { meadow: { tiles: ['g', 'y'], reach: { from: [20, 42] } } },
   built(sc) {

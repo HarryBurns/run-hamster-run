@@ -511,6 +511,55 @@ const D = {
     }
     line(c, -w / 2 + 12, -h / 2 + 12, -w / 2 + 22, -h / 2 + 30, 'rgba(255,255,255,.7)', 3);
   },
+  // из пещер (П.9): шкатулка с четырьмя самоцветами и ночник из светящихся грибов
+  geode(c, d, w, h) {
+    // откинутая крышка
+    poly(c, [-38, -40, 38, -40, 32, -66, -32, -66], '#8d5524', OUT, 2);
+    poly(c, [-30, -44, 30, -44, 26, -60, -26, -60], '#c2255c');
+    // ящичек
+    fillRR(c, -42, -40, 84, 40, 6, '#a0662d', OUT, 2);
+    fillRR(c, -36, -44, 72, 14, 4, '#c2255c', OUT, 1.5);
+    const gem = (x, y, col, r) => {
+      poly(c, [x, y - r, x + r * 0.9, y - r * 0.2, x, y + r * 0.8, x - r * 0.9, y - r * 0.2], col, OUT, 1.4);
+      poly(c, [x, y - r, x + r * 0.9, y - r * 0.2, x, y - r * 0.1], 'rgba(255,255,255,.55)');
+    };
+    gem(-24, -46, '#e7f5ff', 9);
+    gem(-8, -48, '#ffa94d', 9);
+    gem(8, -48, '#4dabf7', 9);
+    gem(24, -46, '#fa5252', 9);
+    ell(c, 0, -22, 6, 6, '#ffd43b', OUT, 1.4);
+    star(c, 30, -70, 4, '#fff');
+  },
+  shroomlamp(c, d, w, h, st) {
+    if (st.on) {
+      const g = c.createRadialGradient(0, -40, 4, 0, -40, 90);
+      g.addColorStop(0, 'rgba(99,230,190,.5)');
+      g.addColorStop(1, 'rgba(99,230,190,0)');
+      c.fillStyle = g;
+      c.fillRect(-100, -140, 200, 200);
+    }
+    fillRR(c, -26, -14, 52, 14, 5, '#8d5524', OUT, 1.8);
+    // стеклянная банка
+    fillRR(c, -24, -84, 48, 72, 14, st.on ? 'rgba(195,250,232,.55)' : 'rgba(220,240,250,.45)', OUT, 2);
+    for (const [x, y, r, col] of [
+      [-9, -30, 10, '#63e6be'],
+      [9, -38, 12, '#96f2d7'],
+      [-2, -52, 8, '#38d9a9'],
+    ]) {
+      line(c, x, y, x, -14, '#f1f3f5', 4);
+      c.beginPath();
+      c.ellipse(x, y, r, r * 0.7, 0, Math.PI, 0);
+      c.closePath();
+      c.fillStyle = st.on ? col : shade(col, -0.25);
+      c.fill();
+      c.strokeStyle = OUT;
+      c.lineWidth = 1.3;
+      c.stroke();
+      ell(c, x - r * 0.35, y - r * 0.35, r * 0.25, r * 0.18, 'rgba(255,255,255,.8)');
+    }
+    fillRR(c, -20, -92, 40, 10, 3, '#adb5bd', OUT, 1.6);
+    line(c, -16, -76, -16, -30, 'rgba(255,255,255,.7)', 3);
+  },
   firwreath(c, d, w, h, st) {
     const r = w / 2 - 12;
     for (let i = 0; i < 18; i++) {

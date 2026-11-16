@@ -8,6 +8,8 @@ import { el, plural } from '../core/util.js';
 import {
   FURNITURE,
   FURN_CATS,
+  FIND_BY_ID,
+  PRICES,
   INGREDIENTS,
   ING_BY_ID,
   SEEDS,
@@ -40,10 +42,42 @@ function openHomeMall() {
     portrait: vendorLook('home'),
     money: true,
     cls: 'wide',
-    tabs: [...FURN_CATS.map((c) => ({ id: c.id, name: `${c.icon} ${c.name}` })), { id: 'seeds', name: '🌱 Семена' }],
+    tabs: [
+      ...FURN_CATS.map((c) => ({ id: c.id, name: `${c.icon} ${c.name}` })),
+      { id: 'seeds', name: '🌱 Семена' },
+      { id: 'tools', name: '🔦 Для походов' },
+    ],
     render(body, tab, panel) {
       const grid = el('div', 'grid');
-      if (tab === 'seeds') {
+      if (tab === 'tools') {
+        // инструменты (сумка finds, вид tool): есть всегда, нужен один — второй не продаём
+        body.appendChild(
+          el('p', 'muted', 'Всё для походов и приключений. Фонарик пригодится там, где темно, — например, в пещерах под горой.'),
+        );
+        for (const [id, price] of Object.entries(PRICES.tools)) {
+          const f = FIND_BY_ID[id],
+            have = count('finds', id);
+          const card = el('div', 'card tool-' + id);
+          card.appendChild(el('div', 'e', f.e));
+          card.appendChild(el('div', 'nm', f.name));
+          card.appendChild(priceTag(price));
+          if (have) {
+            card.appendChild(el('span', 'cnt', '✓'));
+            card.appendChild(el('div', 'note', 'Уже в рюкзаке — он у тебя есть!'));
+          } else
+            card.appendChild(
+              buyBtn('Купить', price, () => {
+                if (!buy(price, f.name)) return;
+                addItem('finds', id, 1);
+                emit('buy', { cat: 'tool', id });
+                sfx('coin');
+                toast(`${f.e} ${f.name} — в рюкзаке!`, 'good');
+                panel.refresh();
+              }),
+            );
+          grid.appendChild(card);
+        }
+      } else if (tab === 'seeds') {
         // сначала то, что можно сажать прямо сейчас; остальное купить можно, но посадить — только в свой сезон
         const month = cal().month;
         for (const sd of [...SEEDS].sort((x, y) => canSow(y, month) - canSow(x, month))) {
@@ -259,7 +293,7 @@ function openCafe(kind, title) {
   });
 }
 
-register('home-mall', () => openHomeMall(), 'ТЦ «Уютный дом»: мебель и семена');
+register('home-mall', () => openHomeMall(), 'ТЦ «Уютный дом»: мебель, семена и «Для походов» (фонарик)');
 
 register('food-mall', () => openFoodMall(), 'ТЦ «Вкусный»: продукты');
 

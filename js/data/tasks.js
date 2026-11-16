@@ -131,6 +131,10 @@ export const EXTRA_STICKERS = [
   { id: 'x_snowman', sticker: '⛄', title: 'Снеговик-строитель' },
   { id: 'x_spring', sticker: '♨️', title: 'Горячий источник' },
   { id: 'x_edelweiss', sticker: '🤍', title: 'Эдельвейсы в рамке' },
+  // пещеры (П.9)
+  { id: 'x_cavepaint', sticker: '🎨', title: 'Древние рисунки' },
+  { id: 'x_gems', sticker: '💎', title: 'Шкатулка самоцветов' },
+  { id: 'x_bats', sticker: '🦇', title: 'Друзья летучих мышей' },
   { id: 'x_visit', sticker: '🧸', title: 'Первые гости' },
   { id: 'x_visit_all', sticker: '🏘️', title: 'В гостях у всех' },
   { id: 'x_tea', sticker: '☕', title: 'Чай с другом' },
@@ -150,4 +154,6 @@ export const EXTRA_STICKERS = [
   { id: 'q_forest', sticker: '🌲', title: 'Друг леса' },
   { id: 'q_summit', sticker: '🏔️', title: 'Покоритель вершин' },
   { id: 'q_mountain', sticker: '🧤', title: 'Друг гор' },
+  { id: 'q_caves', sticker: '🔦', title: 'Юный спелеолог' },
+  { id: 'q_miner', sticker: '⛏️', title: 'Друг шахтёра' },
 ];
