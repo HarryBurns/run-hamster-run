@@ -11,6 +11,7 @@
 //
 // СВЕТ. Ночью (темнота > 0,3) у предметов с полем light: [dx, dy, радиус] и у зданий, чей вид отдаёт
 // lights(b) → [[x, y, rx, ry?, сила?], …], появляются пятна света: темнота в этих местах «прорезана» (drawNight).
+// Своё (праздничные украшения, фейерверк) локация добавляет крюком lights(sc, light).
 import { G, cal, sneezePhase } from '../../core/state.js';
 import { clamp, rnd, dist } from '../../core/util.js';
 import { ell, fillRR, poly, rr, shade, star, emoji } from '../../core/draw.js';
@@ -586,6 +587,8 @@ export function drawFrame(ctx, sc) {
     emoji(ctx, q.e, q.x, q.y + kk * kk * 62, 22);
   }
   sc.call('over', ctx, sc, t);
+  // свои пятна света ночью (праздничные украшения, фейерверк): light(x, y, rx, ry?, сила?) в единицах мира
+  if (lit) sc.call('lights', sc, light);
   const warmSeason = season === 'spring' || season === 'summer',
     fine = weather === 'sun' || weather === 'petals';
   if (sky && warmSeason && fine && dark < 0.25) drawButterflies(ctx, m, t, x0, y0, x1, y1);

@@ -17,6 +17,7 @@ import { HOUSE_ART, HOUSE_STYLE } from './town_buildings.js';
 import { signBoard, fitText } from './common/paint.js';
 import { createPlants, hasFruit } from './common/plants.js';
 import { createHerbs } from './common/herbs.js';
+import { createHolidayDecor, HOLIDAY_PLACES, blockHolidayCells } from './holidays.js';
 
 const MW = 96,
   MH = 121;
@@ -308,6 +309,8 @@ const PLACES = [
     act: 'cove:piece:isle',
     reach: 1.4,
   },
+  // праздники (П.13): ёлка, вертеп, фонарики, карусель, блины, канат — работают, пока город украшен (locations/holidays.js)
+  ...HOLIDAY_PLACES,
 ];
 const POOLS = [
   [6, 16, 8, 7],
@@ -494,6 +497,7 @@ const HERB_SPOTS = [
   ['pine', 66, 23], // у Морского проспекта
 ];
 const herbs = createHerbs(HERB_SPOTS);
+const holidayDecor = createHolidayDecor(); // украшения к праздникам (П.13): ёлка, гирлянды, фонарики, ярмарка, фейерверк
 function build(m) {
   const g = m.ground,
     solid = m.solid,
@@ -1032,6 +1036,8 @@ function build(m) {
     m.clear(x, y);
     add('palm', x, y, { v });
   }
+  // ---- клетки под праздничными украшениями (П.13): пока ёлка или карусель стоят, туда не пройти ----
+  blockHolidayCells(m);
 }
 
 /**
@@ -1043,7 +1049,9 @@ function sealPockets(m) {
   const w = m.w,
     h = 50;
   const seen = new Uint8Array(w * h);
-  const ok = (x, y) => x >= 0 && y >= 0 && x < w && y < h && (m.foot(x, y) || (m.kinds[y][x].gate && !m.solid[y][x]));
+  // ворота и клетки под праздничными украшениями (locations/holidays.js) считаются проходимыми: закрыты они не навсегда
+  const ok = (x, y) =>
+    x >= 0 && y >= 0 && x < w && y < h && (m.foot(x, y) || ((m.kinds[y][x].gate || m.kinds[y][x].holiday) && !m.solid[y][x]));
   const d = m.doorPx(m.bById.villa);
   const q = [[Math.floor(d.x / T), Math.floor(d.y / T)]];
   seen[q[0][1] * w + q[0][0]] = 1;
@@ -1158,7 +1166,7 @@ const town = createTopDownScene({
     beach: { y: [50, WORLD_SEA.shallowY - 1], tiles: ['s'] },
     town: { y: [3, 49], tiles: ['r', 'g', 'k', 'y'], avoid: [[0, 0, 28, 25]], reach: { from: [15, 26], tiles: ['g'] } },
   },
-  parts: [sea, plants, herbs],
+  parts: [sea, plants, herbs, holidayDecor],
   target,
   /** Таблички «моё» у купленных заведений и жилья — сразу после здания в порядке «дальше → ближе». */
   things(sc, add, v) {
