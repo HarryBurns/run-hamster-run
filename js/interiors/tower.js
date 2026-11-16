@@ -934,7 +934,7 @@ export default { enter, leave, update, draw, pointerDown, pointerMove, pointerUp
 // ---------- вид в подзорную трубу: море ----------
 /** Чайка с кусочком карты Зефирки сидит на камне в море (задание «Карта сокровищ Зефирки», П.9). */
 const gullWaits = () => stepWaits('treasure_map', { what: 'piece', id: 'tower' });
-export const GULL = [262, 232]; // где камень с чайкой (в точках картинки трубы)
+export const GULL = [266, 204]; // где камень с чайкой (в точках картинки трубы)
 /** Чайка на камне: в клюве — кусочек карты, вокруг блёстки (нажми — уронит). */
 function drawGull(ctx, t) {
   const [x, y] = GULL;
