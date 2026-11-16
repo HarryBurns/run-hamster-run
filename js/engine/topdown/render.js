@@ -195,8 +195,8 @@ export function hideSky() {
  * (lights — [x, y, rx, ry, сила] в единицах мира) с тёплым оттенком → тени облаков → огоньки светлячков.
  * Возвращает контекст слоя и перевод «мир → точки слоя» (для светлячков) или null, если слой не нужен.
  */
-function drawSky(sc, tint, lights, n, clouds, k, ox, oy, w, h, dpr, warm = 0.3) {
-  if (!tint && !clouds) {
+function drawSky(sc, tint, lights, n, clouds, k, ox, oy, w, h, dpr, warm = 0.3, keep = false) {
+  if (!tint && !clouds && !keep) {
     hideSky();
     return null;
   }
@@ -608,8 +608,9 @@ export function drawFrame(ctx, sc) {
       light(p.x, p.y - 24, 70, 70, 0.4); // хомячка видно и в темноте
       if (tg) light(tg.x, tg.y - 70, 46, 46, 0.7); // и звёздочку цели
     }
-    const clouds = dark < 0.5 && (weather === 'sun' || weather === 'petals' || weather === 'leaves');
-    const layer = drawSky(sc, tint, lights, lit ? nl : 0, clouds, k, ox, oy, w, h, dpr);
+    const fair = dark < 0.5 && (weather === 'sun' || weather === 'petals' || weather === 'leaves'),
+      clouds = fair && desc.clouds !== false; // clouds: false — без теней облаков (пустыня), но слой днём есть
+    const layer = drawSky(sc, tint, lights, lit ? nl : 0, clouds, k, ox, oy, w, h, dpr, undefined, fair);
     if (layer && warmSeason && fine && dark > 0.55) drawFireflies(layer.c, m, t, x0, y0, x1, y1, k, ox, oy, layer.S);
     if (layer) sc.call('sky', layer.c, sc, layer.c.canvas.width, layer.c.canvas.height); // своё в слое неба (лучи в лесу)
   } else if (gloom) {

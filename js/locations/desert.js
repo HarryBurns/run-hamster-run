@@ -22,7 +22,7 @@ import { keys } from '../core/input.js';
 import { clamp, seeded } from '../core/util.js';
 import { drawHamster, blinkAt } from '../art/hamster.js';
 import { DESERT, DESERT_GATHER, QUEST_BY_ID } from '../data/index.js';
-import { T, PS, put, createTopDownScene } from '../engine/topdown/index.js';
+import { T, PS, SP, put, createTopDownScene } from '../engine/topdown/index.js';
 import { createPlants } from './common/plants.js';
 import './desert_art.js';
 import './common/index.js';
@@ -133,7 +133,7 @@ const inDune = (x, y) =>
 const CALM = [
   [18, 32, 27, 38], // остановка и автобус
   [22, 14, 31, 21], // шатёр и верблюд
-  [4, 5, 13, 11], // пирамида
+  [3, 5, 14, 13], // пирамида и тропа к ней
   [30, 5, 38, 12], // раскопки
   [29, 21, 38, 28], // верблюжья тропа
   [34, 27, 43, 34], // мираж: открытые барханы
@@ -302,6 +302,7 @@ export function startCamelRide(sc) {
     draw(ctx, _sc, e, t, look) {
       const leg = 1 + (Math.floor(t * 4) % 2);
       put('camel', e.x, e.y + 8, e.dir || 1, leg);
+      SP.world(); // спрайт рисуется в пикселях устройства — дальше снова координаты мира
       const sx = e.x - (e.dir || 1) * 4,
         sy = e.y - 38 + (leg === 1 ? -1.5 : 0);
       drawHamster(ctx, sx, sy, PS * 0.86, look, { time: t, dir: e.dir || 1, clipBelow: -24, happy: true, blink: blinkAt(t) });
@@ -425,6 +426,7 @@ const desert = createTopDownScene({
   bg: '#e9c58a',
   season: 'summer', // в пустыне всегда жарко: земля и пальмы — летние
   dry: true, // дождя и снега не бывает
+  clouds: false, // и туч нет: тени облаков на песке выглядели бы грязными пятнами
   gather: DESERT_GATHER, // сколько дают опунции (common/plants.js)
   build,
   buildings: [

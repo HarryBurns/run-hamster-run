@@ -383,15 +383,16 @@ export function paintCaravan(ctx, w, h, k, toDesert, look, t) {
     fillRR(ctx, w * x + 4, h * 0.62, 7, 12, 3, '#4f9a3a', OUT, 1.2);
   }
   // дорога
-  fillRR(ctx, -10, h * 0.72, w + 20, 16, 8, '#d9b06c', OUT, 1.6);
-  for (let x = ((t * 120) % 40) - 40; x < w; x += 40) fillRR(ctx, x, h * 0.72 + 7, 18, 3, 1.5, '#fff3d6');
+  fillRR(ctx, -10, h * 0.7, w + 20, 22, 8, '#d9b06c', OUT, 1.6);
+  for (let x = ((t * 120) % 40) - 40; x < w; x += 40) fillRR(ctx, x, h * 0.7 + 10, 18, 3, 1.5, '#fff3d6');
   // автобус: едет вправо (в пустыню) или влево (в город)
   const dir = toDesert ? 1 : -1,
-    bx = toDesert ? -110 + k * (w + 60) : w + 20 - k * (w + 120),
-    by = h * 0.72 + 4 + Math.sin(t * 18) * 1.2;
+    z = w / 560, // масштаб картинки
+    bx = toDesert ? -150 * z + k * (w + 120 * z) : w + 30 * z - k * (w + 180 * z),
+    by = h * 0.74 + Math.sin(t * 18) * 1.2;
   ctx.save();
   ctx.translate(bx, by);
-  ctx.scale(0.62, 0.62);
+  ctx.scale(0.95 * z, 0.95 * z);
   paintBus(ctx, dir);
   // хомячок в окошке
   ctx.save();
@@ -405,13 +406,13 @@ export function paintCaravan(ctx, w, h, k, toDesert, look, t) {
   for (let i = 0; i < 4; i++) {
     const ph = (t * 2 + i / 4) % 1;
     ctx.globalAlpha = 0.5 * (1 - ph);
-    ell(ctx, bx + (toDesert ? -8 - ph * 40 : 90 + ph * 40), by + 6 - ph * 10, 6 + ph * 10, 4 + ph * 6, '#e6c288');
+    ell(ctx, bx + (toDesert ? -30 * z - ph * 50 * z : 120 * z + ph * 50 * z), by + 4 - ph * 12, (8 + ph * 12) * z, (5 + ph * 7) * z, '#e6c288');
   }
   ctx.globalAlpha = 1;
   // верблюд идёт рядом (караван!)
   ctx.save();
-  ctx.translate(toDesert ? bx - 70 : bx + 150, h * 0.7 + 2);
-  ctx.scale(0.42, 0.42);
+  ctx.translate(toDesert ? bx - 95 * z : bx + 215 * z, h * 0.69);
+  ctx.scale(0.6 * z, 0.6 * z);
   paintCamel(ctx, dir, 1 + (Math.floor(t * 6) % 2));
   ctx.restore();
 }

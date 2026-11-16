@@ -560,7 +560,7 @@ defineObjects({
       [2, 0],
     ],
     map: () => '#fcc419',
-    art: { safariBus: [[-34, -82, 132, 22], (ctx) => paintBus(ctx, 1)] },
+    art: { safariBus: [[-40, -86, 140, 26], (ctx) => paintBus(ctx, 1)] },
     draw: (ctx, o) => put('safariBus', o.x, o.y),
   },
   // верблюд Финик у привязи; o.away() — на нём сейчас катаются (рисует способ передвижения героя)
