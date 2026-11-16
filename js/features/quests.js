@@ -64,7 +64,7 @@ export function trackQuest(id) {
 export const trackedQuest = () => tracked;
 /** Куда ведёт задание сейчас: имя точки для sc.whereIs (житель, место, здание…) или null. */
 function questWhere(w) {
-  if (w.status === 'ready') return 'npc:' + w.q.npc;
+  if (w.status === 'ready') return w.q.npcAt || 'npc:' + w.q.npc; // лифтёр стоит в башне: звёздочка — к её двери
   if (w.status !== 'active') return null;
   const step = w.q.steps[w.i];
   return step ? step.where || (step.talk ? 'npc:' + step.talk : null) : null;
@@ -83,8 +83,16 @@ setTargetHook((sc) => {
   return { x: p.x, y: where.startsWith('npc:') ? p.y - 62 : p.y, icon: '⭐' };
 });
 /** Где искать того, кто дал задание: «в городе» или «в лесу» (поле loc задания — локация, где оно идёт). */
-const placeOf = (q) => (q.loc ? `в ${LOC_WORDS[q.loc] || 'другом месте'}` : 'в городе');
-const LOC_WORDS = { forest: 'лесу', mountain: 'горах', caves: 'пещерах', desert: 'пустыне', jungle: 'джунглях', cove: 'секретном пляже' };
+const placeOf = (q) => (q.loc ? LOC_WORDS[q.loc] || 'в другом месте' : 'в городе');
+const LOC_WORDS = {
+  forest: 'в лесу',
+  mountain: 'в горах',
+  caves: 'в пещерах',
+  desert: 'в пустыне',
+  jungle: 'в джунглях',
+  cove: 'на секретном пляже',
+  island: 'на удалённом острове',
+};
 /** Показать задание на карте (звёздочкой). false — сейчас показать нечего (сегодня всё собрано и т. п.). */
 export function showQuestOnMap(id) {
   const w = questNow(id),
@@ -272,8 +280,14 @@ async function talkStep(q, w) {
   meet(npc);
   emit('talk', { id: npc });
   if (!last) {
-    // шаг «поговори» в середине цепочки
+    // шаг «поговори» в середине цепочки; give — житель что-то дарит (Капитан Боб — компас)
     questCount(q.id, w.i);
+    if (step.give) {
+      const [bag, id, n = 1] = step.give;
+      addItem(bag, id, n);
+      const f = FIND_BY_ID[id];
+      if (f) setTimeout(() => toast(`🎁 +${n} ${f.e} ${f.name} — уже в рюкзаке!`, 'good'), 300);
+    }
     await say(npc, step.say || 'Спасибо, что зашла!', [{ text: 'Хорошо!', cls: 'green' }], true);
     return { end: true };
   }

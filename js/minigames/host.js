@@ -25,6 +25,7 @@ const LOADERS = {
   vines: () => import('./vines.js'), // джунгли: «Лианы» у исследовательницы Лианы
   glyphs: () => import('./glyphs.js'), // джунгли: «Узор храма» в руинах
   sandcastle: () => import('./sandcastle.js'), // секретный пляж: «Замок из песка» у русалочки Жемчужинки
+  bowling: () => import('./bowling.js'), // удалённый остров: «Кокосовый боулинг» у Вождя Кокоса
 };
 /** Есть ли такая мини-игра. */
 export const hasMinigame = (id) => !!LOADERS[id];

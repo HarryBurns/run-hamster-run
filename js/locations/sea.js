@@ -15,6 +15,9 @@
 // в счёт островов (наклейка «Все острова открыты») не входит.
 // grotto — подводный грот тайного места (секретный пляж, П.9): буёк-ракушка, скалы и круги на воде (значок на
 // мини-карте); нырнула рядом (кнопка 🤿 или нажатие на буёк) — действие way:<место> вместо обычного ныряния.
+// far — отметка дальнего пути (удалённый остров, П.9): у самого юга моря, за последними буйками, — плотик со столбом
+// и табличкой «🧭 Далеко на юг»; кораблик подплыл к ней — действие way:<место> (закрыто — окно «кто знает дорогу»,
+// открыто — долгое плавание картинкой).
 import { clamp, rnd, seeded, TAU, dist } from '../core/util.js';
 import { ell, fillRR, line, poly, emoji } from '../core/draw.js';
 import { drawHamster, blinkAt } from '../art/hamster.js';
@@ -25,7 +28,8 @@ import { run } from '../core/registry.js';
 import { go, scene } from '../core/loop.js';
 import { toast } from '../ui/toast.js';
 import { sfx } from '../core/audio.js';
-import { T, OUT, PS, SP, put, tileOf, defineObjects } from '../engine/topdown/kinds.js';
+import { T, OUT, PS, SP, put, tileOf, defineObjects, defineArt } from '../engine/topdown/kinds.js';
+import { signBoard } from './common/paint.js';
 import './cove_art.js'; // буёк-ракушка над подводным гротом (рисунок seaMarker)
 import { SICK_TEXT, LAND_BY_ID } from '../data/index.js';
 import './common/index.js';
@@ -43,6 +47,9 @@ export const WORLD_SEA = {
   // подводный грот секретного пляжа (П.9): буёк-ракушка у скал на востоке моря, круги на воде; нырнуть здесь — заплыв
   // через грот (way:cove: закрыто — окно «кто знает дорогу», открыто — переезд картинкой)
   grotto: { land: 'cove', x: 89.5, y: 75.5 },
+  // отметка дальнего пути к удалённому острову (П.9): у самого юга моря, за последними буйками, между айсбергами
+  // и причалом джунглей; кораблик подплыл — way:island (закрыто — окно про Лифтёра Этажкина, открыто — плавание на юг)
+  far: { land: 'island', x: 45.5, y: 117.5 },
   icebergs: [
     [8, 102],
     [27, 113],
@@ -471,6 +478,38 @@ export function createSea(cfg) {
     }
   }
 
+  // ---------- отметка дальнего пути (удалённый остров) ----------
+  const FAR = cfg.far || null,
+    FAR_PX = FAR ? { x: FAR.x * T, y: FAR.y * T } : null;
+  let farNear = false;
+  /** Отплыть по дальнему пути: окно места (закрыто — кто знает дорогу; открыто — долгое плавание картинкой). */
+  function farGo() {
+    farNear = true;
+    run('way:' + FAR.land);
+  }
+  /** Хомячок на кораблике подплыл к отметке — отплыть (один раз, пока не отплывёт подальше). */
+  function updateFar() {
+    if (!FAR_PX || !isBoating()) return;
+    const d = dist(sc.p.x, sc.p.y, FAR_PX.x, FAR_PX.y);
+    if (d < T * 1.9 && !farNear && !sc.p.path.length) farGo();
+    else if (d > T * 4) farNear = false;
+  }
+  const drawFar = (ctx, g, t) => {
+    const x = g.x,
+      y = g.y,
+      bob = Math.round(Math.sin(t * 1.6) * 2);
+    for (let i = 0; i < 2; i++) {
+      const ph = (t * 0.35 + i * 0.5) % 1;
+      ell(ctx, x, y + 12, 34 + ph * 30, 9 + ph * 8, null, `rgba(255,255,255,${(0.55 * (1 - ph)).toFixed(2)})`, 2);
+    }
+    put('farMarker', x, y + bob);
+    SP.world();
+    // стрелка на юг покачивается под табличкой
+    const ay = y - 30 + bob + Math.sin(t * 3) * 3;
+    poly(ctx, [x + 22, ay - 6, x + 32, ay - 6, x + 32, ay + 4, x + 37, ay + 4, x + 27, ay + 14, x + 17, ay + 4, x + 22, ay + 4], '#ffd43b', OUT, 1.6);
+    if (!landOpen(g.land)) emoji(ctx, '🔒', x + 40, y - 100 + bob, 18);
+  };
+
   // ---------- кораблик ----------
   function boardBoat() {
     const p = sc.p,
@@ -618,6 +657,13 @@ export function createSea(cfg) {
   function boatTap(w, tx, ty) {
     const p = sc.p;
     if (grottoTap(w)) return;
+    if (FAR_PX && dist(w.x, w.y, FAR_PX.x, FAR_PX.y - 40) < T * 2.4) {
+      // к отметке «Далеко на юг»: подплыть и отплыть
+      if (sc.walkTo(FAR_PX.x, FAR_PX.y + T * 0.6, false)) p.pending = { fn: farGo };
+      else farGo();
+      sfx('paddle');
+      return;
+    }
     if (nearPort(w.x, w.y, T * 2.6)) {
       // к причалу: подплыть к его концу и причалить
       if (sc.walkTo(PORT_PX.x, PORT_PX.y, false)) p.pending = { fn: dock };
@@ -811,6 +857,8 @@ export function createSea(cfg) {
     },
     /** Буёк над подводным гротом (единицы мира) — для тестов. */
     grottoAt: () => GROT_PX,
+    /** Отметка «Далеко на юг» (единицы мира) — для тестов. */
+    farAt: () => FAR_PX,
 
     // ---------- крюки движка ----------
     built(s) {
@@ -880,6 +928,7 @@ export function createSea(cfg) {
       updateSea(dt);
       updatePort();
       updateGrotto();
+      updateFar();
     },
     surface(s, c) {
       const p = s.p;
@@ -895,6 +944,8 @@ export function createSea(cfg) {
         const bt = boatState();
         add(bt.y + 12, drawFreeBoat, bt, true);
       }
+      if (FAR_PX && FAR_PX.x > v.x0 - 120 && FAR_PX.x < v.x1 + 120 && FAR_PX.y > v.y0 && FAR_PX.y < v.y1 + 140)
+        add(FAR_PX.y, drawFar, { ...FAR_PX, land: FAR.land });
       if (GROT_PX && GROT_PX.x > v.x0 - 120 && GROT_PX.x < v.x1 + 120 && GROT_PX.y > v.y0 && GROT_PX.y < v.y1)
         add(GROT_PX.y, drawGrotto, { ...GROT_PX, land: GROT.land });
     },
@@ -930,6 +981,12 @@ export function createSea(cfg) {
         ell(ctx, GROT.x * k, GROT.y * k, k * 1.4, k * 1.4, null, '#fff', 1.5);
         emoji(ctx, land.icon, GROT.x * k, GROT.y * k - k * 1.6, sz);
         if (!landOpen(GROT.land)) emoji(ctx, '🔒', GROT.x * k + sz * 0.55, GROT.y * k - k * 1.6 + sz * 0.3, sz * 0.6);
+      }
+      if (FAR) {
+        // отметка дальнего пути: компас, пока закрыто — с замочком
+        const sz = Math.max(12, k * 2.6);
+        emoji(ctx, '🧭', FAR.x * k, FAR.y * k - k, sz);
+        if (!landOpen(FAR.land)) emoji(ctx, '🔒', FAR.x * k + sz * 0.55, FAR.y * k - k + sz * 0.3, sz * 0.6);
       }
       if (PORT) {
         // причал тайного места: значок, пока закрыто — с замочком
@@ -969,6 +1026,18 @@ export function createSea(cfg) {
 }
 
 // ---------- рисунки ----------
+/** Отметка «Далеко на юг»: плотик из брёвен, столб и табличка (неподвижное — в кэше спрайтов). */
+function paintFarMarker(ctx) {
+  ell(ctx, 0, 12, 40, 9, 'rgba(255,255,255,.45)');
+  for (let i = -2; i <= 2; i++) fillRR(ctx, i * 13 - 6, -2, 12, 18, 5, i % 2 ? '#a0662d' : '#b5793a', OUT, 1.6);
+  line(ctx, -30, 4, 30, 4, 'rgba(74,55,40,.6)', 2);
+  line(ctx, 0, 4, 0, -96, OUT, 6);
+  line(ctx, 0, 4, 0, -96, '#c98b5a', 3.6);
+  signBoard(ctx, '🧭 Далеко на юг', 0, -80, 104, 26, 'wood');
+  poly(ctx, [0, -112, 12, -104, 0, -96], '#ff6b6b', OUT, 1.4);
+  line(ctx, 0, -96, 0, -114, OUT, 2);
+}
+defineArt({ farMarker: [[-60, -120, 60, 24], paintFarMarker] });
 function drawSeaCreature(ctx, c, t) {
   const x = c.x,
     y = c.y,

@@ -149,6 +149,33 @@ function drawLegs(ctx, item) {
     // прожилки плавника
     line(ctx, 34, 2, 44, -4, shade(item.c, -0.25), 1.2);
     line(ctx, 34, 4, 44, 6, shade(item.c, -0.25), 1.2);
+  } else if (item.kind === 'grass') {
+    // юбочка из травы (удалённый остров): пояс-жгут и бахрома из травинок двух тонов, чуть веером
+    const c2 = item.c2 || shade(item.c, -0.25);
+    for (let pass = 0; pass < 2; pass++) {
+      ctx.strokeStyle = pass ? item.c : c2;
+      ctx.lineWidth = pass ? 3 : 4.4;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      for (let i = -6; i <= 6; i++) {
+        if (pass && i % 2) continue;
+        const x0 = i * 3.4,
+          x1 = i * 4.4;
+        ctx.moveTo(x0, -20);
+        ctx.quadraticCurveTo(x0 + i * 0.3, -10, x1, -1 + (Math.abs(i) % 3));
+      }
+      ctx.stroke();
+    }
+    ctx.strokeStyle = 'rgba(74,55,40,.55)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    for (let i = -6; i <= 6; i += 3) {
+      ctx.moveTo(i * 3.4, -19);
+      ctx.quadraticCurveTo(i * 3.7, -10, i * 4.4, -2);
+    }
+    ctx.stroke();
+    fillRR(ctx, -22, -24, 44, 6, 3, shade(item.c, -0.35), OUT, 1.4);
+    for (let i = -2; i <= 2; i++) ell(ctx, i * 8, -21, 2.2, 2.2, ['#ff6b6b', '#ffd43b', '#fff', '#ffd43b', '#ff6b6b'][i + 2]);
   } else if (item.kind === 'skirt') {
     const skirtPath = () => {
       ctx.beginPath();
@@ -903,6 +930,30 @@ function drawHat(ctx, item, side = 1) {
       fillRR(ctx, -4, 4, 8, 4, 2, shade(c, -0.15), OUT, 1);
       ell(ctx, 6, -6, 2.4, 2.4, c2 === shade(c, -0.25) ? '#fff' : c2, OUT, 0.8);
       ctx.restore();
+      break;
+    }
+    case 'chief': {
+      // убор вождя (удалённый остров): веер перьев и пальмовых листьев на плетёном ободке, спереди цветок
+      const feathers = [c, '#ffd43b', '#1c7ed6', c, '#ffd43b'];
+      for (let i = -2; i <= 2; i++) {
+        ctx.save();
+        ctx.translate(i * 9, -76);
+        ctx.rotate(i * 0.26);
+        ell(ctx, 0, -14, 5.5, 15, feathers[i + 2], OUT, 1.5);
+        line(ctx, 0, -2, 0, -26, 'rgba(74,55,40,.5)', 1.1);
+        ctx.restore();
+      }
+      for (const s2 of [-1, 1]) {
+        ctx.save();
+        ctx.translate(s2 * 21, -72);
+        ctx.rotate(s2 * 1.05);
+        ell(ctx, 0, -10, 4.5, 12, c2, OUT, 1.4);
+        ctx.restore();
+      }
+      fillRR(ctx, -23, -76, 46, 9, 4, '#c9a24a', OUT, 1.6);
+      for (let x = -18; x <= 18; x += 6) line(ctx, x, -75, x + 3, -68, 'rgba(74,55,40,.45)', 1.2);
+      for (let k = 0; k < 5; k++) ell(ctx, Math.cos(k * 1.257) * 4.5, -72 + Math.sin(k * 1.257) * 4.5, 3.2, 3.2, '#ff8fab', OUT, 0.9);
+      ell(ctx, 0, -72, 2.2, 2.2, '#ffd43b');
       break;
     }
     case 'flower':

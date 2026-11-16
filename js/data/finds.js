@@ -57,6 +57,15 @@ export const FINDS = [
   { id: 'shell_pink', kind: 'shell', e: '🐚', name: 'Розовая ракушка', c: '#ff8fab' },
   { id: 'shell_spiral', kind: 'shell', e: '🐚', name: 'Витая ракушка', c: '#f4c27a' },
   { id: 'shell_sun', kind: 'shell', e: '🐚', name: 'Ракушка-солнышко', c: '#ffd43b' },
+  // удалённый остров (П.9): компас — подарок Капитана Боба за задание Лифтёра Этажкина (инструмент, только в подарок:
+  // не продаётся и не покупается); вулканическое стекло — одно в день у подножия вулкана (рынок — ISLAND.obsidian,
+  // из трёх Вождь Кокос вырежет «Маленький тотем»); цветы для леи — один в день, каждый день в новом месте, виды
+  // по кругу (рынок — ISLAND.flowers, из трёх разных Вождь сплетёт «Лею из цветов»)
+  { id: 'compass', kind: 'tool', e: '🧭', name: 'Компас' },
+  { id: 'obsidian', kind: 'volcano', e: '🪨', name: 'Вулканическое стекло', c: '#343a40' },
+  { id: 'flower_plumeria', kind: 'lei', e: '🌼', name: 'Цветок плюмерии', c: '#fff3bf' },
+  { id: 'flower_hibiscus', kind: 'lei', e: '🌺', name: 'Цветок гибискуса', c: '#ff6b6b' },
+  { id: 'flower_orchid', kind: 'lei', e: '🌸', name: 'Орхидея', c: '#da77f2' },
 ];
 /** Окаменелости по порядку — от частой к редкой («Раскопки» выдают их по кругу, features/desert.js). */
 export const FOSSIL_IDS = FINDS.filter((f) => f.kind === 'fossil').map((f) => f.id);
@@ -66,6 +75,8 @@ export const GEM_IDS = FINDS.filter((f) => f.kind === 'gem').map((f) => f.id);
 export const FEATHER_IDS = FINDS.filter((f) => f.kind === 'feather').map((f) => f.id);
 /** Редкие ракушки секретного пляжа по порядку — море выносит их по кругу (features/cove.js). */
 export const SHELL_IDS = FINDS.filter((f) => f.kind === 'shell').map((f) => f.id);
+/** Цветы для леи по порядку — каждый день распускается следующий (features/island.js). */
+export const LEI_IDS = FINDS.filter((f) => f.kind === 'lei').map((f) => f.id);
 export const FIND_BY_ID = Object.fromEntries(FINDS.map((f) => [f.id, f]));
 
 /**

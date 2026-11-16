@@ -6,7 +6,7 @@
 // Правила (числа — в data/economy.js, разделы MARKET, SEASONAL и STOCK):
 //  - торговец платит за продукт заметно меньше, чем тот сейчас стоит в магазине (sellPrice в data/food.js): перепродажа
 //    никогда не выгодна; своё сезонное (урожай, собранное) в сезон идёт дешевле, вне сезона — в полтора раза дороже;
-//    улов, жемчуг, самоцветы из пещер (CAVES.gems) окаменелости из пустыни (DESERT.fossils) перья попугаев из джунглей (JUNGLE.feathers) и редкие ракушки с секретного пляжа (COVE.shells.sell) — по своей цене; блюдо — по продуктам, из которых оно приготовлено;
+//    улов, жемчуг, самоцветы из пещер (CAVES.gems) окаменелости из пустыни (DESERT.fossils) перья попугаев из джунглей (JUNGLE.feathers) редкие ракушки с секретного пляжа (COVE.shells.sell) и находки удалённого острова (ISLAND) — по своей цене; блюдо — по продуктам, из которых оно приготовлено;
 //  - у торговца на день ограниченный кошелёк: когда монеты кончились — приходи завтра;
 //  - «Купить редкости»: вещицы ручной работы и то, чего сегодня нет в ТЦ «Вкусный», — овощи и фрукты не по сезону
 //    (по 1–2 штуки и не каждый день; правило — features/pantry.js).
@@ -16,7 +16,7 @@ import { emit } from '../core/events.js';
 import { register } from '../core/registry.js';
 import { G, cal, hasClothes } from '../core/state.js';
 import { el, fmtMoney } from '../core/util.js';
-import { INGREDIENTS, DISHES, MARKET, CAVES, DESERT, JUNGLE, COVE, FIND_BY_ID, VENDORS, vendorLook, isSeasonal, inSeason, sellPrice, isSunHat } from '../data/index.js';
+import { INGREDIENTS, DISHES, MARKET, CAVES, DESERT, JUNGLE, COVE, ISLAND, FIND_BY_ID, VENDORS, vendorLook, isSeasonal, inSeason, sellPrice, isSunHat } from '../data/index.js';
 import { clothesIcon, furnIcon } from '../ui/icons.js';
 import { openPanel } from '../ui/panel.js';
 import { toast } from '../ui/toast.js';
@@ -70,7 +70,15 @@ export function sellable() {
   // окаменелости из пустыни (находки вида fossil; цены — DESERT.fossils): выкапывают в «Раскопках», их мало в день
   // перья попугаев из джунглей (находки вида feather; цены — JUNGLE.feathers): по перу от каждого попугая в день
   // ракушки с секретного пляжа (находки вида shell; цены — COVE.shells.sell): море выносит 1–2 в день
-  for (const [id, sell] of [...Object.entries(CAVES.gems), ...Object.entries(DESERT.fossils), ...Object.entries(JUNGLE.feathers), ...Object.entries(COVE.shells.sell)]) {
+  // находки с удалённого острова (вулканическое стекло — ISLAND.obsidian, цветы для леи — ISLAND.flowers): по одной в день
+  for (const [id, sell] of [
+    ...Object.entries(CAVES.gems),
+    ...Object.entries(DESERT.fossils),
+    ...Object.entries(JUNGLE.feathers),
+    ...Object.entries(COVE.shells.sell),
+    ['obsidian', ISLAND.obsidian],
+    ...Object.entries(ISLAND.flowers),
+  ]) {
     const n = s.finds[id] || 0;
     if (n > 0) out.push({ bag: 'finds', id, e: FIND_BY_ID[id].e, name: FIND_BY_ID[id].name, n, sell, group: 'own' });
   }

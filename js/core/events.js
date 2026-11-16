@@ -66,6 +66,8 @@ export const EVENTS = {
     'занятие в джунглях { what } — fall (искупались под водопадом), parrot (попугай заговорил), feather (попугай уронил перо), bridge (перешли подвесной мост), notebook (нашли дневник Лианы), frame (перья в рамке) — features/jungle.js',
   cove:
     'секретный пляж { what } — piece (нашли кусочек карты Зефирки, поле id: tower | ship | isle), turtles (черепашата доплыли до моря), glow (ночью вошла в светящуюся воду), shell (подобрали ракушку), frame (ракушки в рамке), treasure (выкопали клад) — features/cove.js, locations/cove.js',
+  island:
+    'удалённый остров { what } — spot (нашли остров в подзорную трубу), volcano (посмотрела на вулкан), obsidian (взяла вулканическое стекло), flower (подобрала цветок для леи), dance (потанцевала на празднике огней), lei (Вождь сплёл лею), totem (Вождь вырезал тотем) — features/island.js',
   warmup: 'хомячок согрелась (горячий источник на горе): мороза за день как не бывало — features/health.js',
   forest: 'занятие в лесу { what } — hive (мёд), squirrel (обмен у белки), fire (жарили зефир), treehouse (домик на дереве), wreath (венок), kit (нашли бельчонка), kitHome (отнесли маме) — features/forest.js',
 };

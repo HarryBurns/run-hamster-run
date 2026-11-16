@@ -39,7 +39,7 @@ export const TASK_COINS = {
 /** Мешочек монет вместо сюрприза, когда все подарки уже подарены. */
 export const SURPRISE_COINS = 1000;
 // Сюжетные задания (журнал, data/quests.js): награда разовая — задание делают один раз за игру.
-export const QUEST_COINS = { herbarium: 500, squirrel_kit: 600, summit: 700, lost_mitten: 600, cave_light: 700, lucky_pick: 600, runway_star: 700, camel_bell: 600, cabin_boy: 700, lost_notebook: 600, treasure_map: 700, pearl_castle: 600 };
+export const QUEST_COINS = { herbarium: 500, squirrel_kit: 600, summit: 700, lost_mitten: 600, cave_light: 700, lucky_pick: 600, runway_star: 700, camel_bell: 600, cabin_boy: 700, lost_notebook: 600, treasure_map: 700, pearl_castle: 600, far_island: 800, chief_fest: 600 };
 /** Подарок за задание уже лежит в шкафу — вместо него мешочек монет. */
 export const QUEST_GIFT_COINS = 600;
 
@@ -281,6 +281,24 @@ export const COVE = {
   castle: { coins: [40, 80, 120], paid: 2 },
   treasure: { coins: 800 },
   turtles: { from: 17, to: 23, summer: 5, other: 3 },
+};
+
+// ---------- удалённый остров (П.9) ----------
+// Фруктов здесь нет (пальмы острова — без плодов): сбор острова — только находки. Вулканическое стекло — одно в день
+// у подножия вулкана (dayFlags.island.obsidian), цветы для леи — один в день (жребий дня по местам, вид — по кругу).
+// Купить их негде; рынок берёт по ценам obsidian и flowers (кошелёк торговца общий). Из трёх кусочков стекла Вождь
+// Кокос вырежет «Маленький тотем» (totem — сколько нужно), из трёх разных цветов — сплетёт «Лею из цветов» (lei).
+// Почему нет «вечного двигателя»: всё вместе — не больше 50 монет в день (проверяет dev/balance.js, раздел
+// «Удалённый остров», вместе со всем сбором города, леса, пустыни, джунглей, огорода и ракушками пляжа).
+// «Кокосовый боулинг»: за первые bowling.paid игр в день — монеты по звёздам. Праздник огней — каждый вечер
+// с fest.from до fest.to часов (потанцевать — сценка и наклейка, без монет).
+export const ISLAND = {
+  obsidian: 35,
+  flowers: { flower_plumeria: 10, flower_hibiscus: 12, flower_orchid: 15 },
+  totem: 3,
+  lei: 3,
+  bowling: { coins: [40, 80, 120], paid: 2 },
+  fest: { from: 19, to: 22 },
 };
 
 // ---------- цены ----------

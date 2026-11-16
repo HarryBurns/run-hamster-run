@@ -528,6 +528,20 @@ const TRACKS = {
     density: 0.48,
     swing: 0.14,
   },
+  // удалённый остров (П.9): весёлые барабаны-томы и короткие щипки «укулеле» — как песня у костра
+  island: {
+    bpm: 104,
+    key: 64,
+    scale: MAJ_PENTA,
+    prog: ['I', 'IV', 'V', 'I', 'vi', 'IV', 'V', 'V'],
+    lead: ['pluck', 0.07, 0.55],
+    arp: ['pluck', 0.03, 0.3],
+    arpPat: [0, 1, 2, 1, 0, 2, 1, 2],
+    bass: 0.075,
+    perc: 5,
+    density: 0.6,
+    swing: 0.2,
+  },
   night: {
     bpm: 66,
     key: 57,
@@ -735,7 +749,7 @@ function schedStep(tr, t) {
   else if (pos === 8)
     voice('pluck', hz(d.key - 12 + chord[2] - (chord[2] > 9 ? 12 : 0)), tt, spb * 1.2, d.bass * 0.8, dry);
   else if (d.perc >= 2 && pos === 14) voice('pluck', hz(d.key - 12 + chord[0]), tt, spb * 0.4, d.bass * 0.6, dry);
-  // ударные: 1 — шейкер, 2 — лёгкий бит, 3 — бубенцы, 4 — диско
+  // ударные: 1 — шейкер, 2 — лёгкий бит, 3 — бубенцы, 4 — диско, 5 — барабаны острова
   if (d.perc === 1) {
     if (pos % 4 === 2) drum('hat', tt, 0.018, dry);
   } else if (d.perc === 2) {
@@ -747,6 +761,11 @@ function schedStep(tr, t) {
       voice('bell', 3520 + (pos % 8 ? 400 : 0), tt, 0.12, 0.012, dry);
       voice('bell', 4700, tt + 0.03, 0.1, 0.008, dry);
     }
+  } else if (d.perc === 5) {
+    // барабаны острова: низкий там-там на счёт и звонкие бонги в перебивку
+    if (pos === 0 || pos === 6 || pos === 10) voice('pluck', hz(d.key - 24), tt, spb * 0.35, 0.09, dry);
+    if (pos === 3 || pos === 12 || pos === 14) voice('pluck', hz(d.key - 12 + 7), tt, spb * 0.2, 0.05, dry);
+    if (pos % 4 === 2) drum('hat', tt, 0.012, dry);
   } else if (d.perc === 4) {
     if (pos % 4 === 0) drum('kick', tt, 0.15, dry);
     if (pos % 8 === 4) drum('snare', tt, 0.04, dry);

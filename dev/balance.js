@@ -328,6 +328,34 @@ const { pathToFileURL } = require('url');
   if (!(COVE.treasure.coins > 0 && COVE.treasure.coins <= 1000)) bad('COVE.treasure: клад — до 1000 монет, один раз за игру');
   if (D.FURNITURE.some((f) => f.shop === 'cove' && f.price)) bad('украшения с секретного пляжа не продаются — у них не должно быть цены');
   if (D.CLOTHES_BY_ID.clip_shell.price || D.CLOTHES_BY_ID.clip_shell.shop !== 'gift') bad('заколка-ракушка — только в подарок');
+  // удалённый остров (П.9): фруктов нет — сбор острова только находки (вулканическое стекло — одно в день, цветок для
+  // леи — один в день); купить их негде, рынок берёт по ISLAND.obsidian и ISLAND.flowers; «Кокосовый боулинг» на 3★ —
+  // меньше смены на 2★. Правило про весь сбор не ослабляем: находки острова вместе со сбором города, леса, пустыни,
+  // джунглей, огорода и ракушками пляжа — меньше трёх с половиной смен и кошелька торговца (не выйдет — ограничить
+  // находки острова). Компас — инструмент только в подарок (без цены, рынок не берёт)
+  const { ISLAND, LEI_IDS } = D,
+    islandDay = ISLAND.obsidian + Math.max(...Object.values(ISLAND.flowers));
+  for (const id of LEI_IDS) if (!(ISLAND.flowers[id] > 0)) bad(`цветок без цены на рынке: ${id}`);
+  for (const id of Object.keys(ISLAND.flowers))
+    if (!D.FIND_BY_ID[id] || D.FIND_BY_ID[id].kind !== 'lei') bad(`ISLAND.flowers: ${id} — не цветок для леи из data/finds.js`);
+  if (!D.FIND_BY_ID.obsidian || D.FIND_BY_ID.obsidian.kind !== 'volcano' || !(ISLAND.obsidian > 0)) bad('вулканическое стекло: нет находки или цены');
+  for (const id of ['obsidian', ...LEI_IDS, 'compass']) for (const t of Object.keys(PRICES)) if (PRICES[t][id] !== undefined) bad(`находку ${id} можно купить (${t}) — перепродажа`);
+  if (!D.FIND_BY_ID.compass || D.FIND_BY_ID.compass.kind !== 'tool') bad('компас — инструмент (находка вида tool)');
+  if (MARKET.sell.compass !== undefined || ISLAND.flowers.compass !== undefined) bad('компас покупает рынок');
+  if (islandDay >= avg2 / 4) bad(`находки острова за день (${islandDay}) — не меньше четверти смены на 2★`);
+  for (let month = 0; month < 12; month++) {
+    const shellsM = (D.SEASON_OF_MONTH[month] === 'summer' ? COVE.shells.summer : COVE.shells.other) * shellMax,
+      all = gatherSum(month) + forestSum(month) + desertIn(month) + jungleIn(month) + 8 * bedBestIn(month) + shellsM + islandDay;
+    if (all >= 3.5 * avg2 || all > MARKET.purse)
+      bad(`весь сбор с находками острова: ${MONTHS[month]} — ${fmt(all)} в день, не меньше трёх с половиной смен на 2★ или кошелька торговца`);
+  }
+  if (!(ISLAND.bowling.coins.length === 3 && ISLAND.bowling.paid >= 1)) bad('ISLAND.bowling: нужны coins на 1–3★ и paid');
+  if (ISLAND.bowling.coins[2] >= avg2) bad(`«Кокосовый боулинг» на 3★ даёт ${ISLAND.bowling.coins[2]} — это не меньше смены на 2★ (${fmt(avg2)})`);
+  if (ISLAND.lei !== LEI_IDS.length) bad('ISLAND.lei: лея — по одному цветку каждого вида');
+  if (!(ISLAND.totem >= 3)) bad('ISLAND.totem: тотем — из трёх кусочков стекла и больше');
+  if (D.FURNITURE.some((f) => f.shop === 'island' && f.price)) bad('украшения с острова не продаются — у них не должно быть цены');
+  for (const id of ['grass_skirt', 'lei_island']) if (D.CLOTHES_BY_ID[id].price || D.CLOTHES_BY_ID[id].shop !== 'gift') bad(`${D.CLOTHES_BY_ID[id].name} — только в подарок`);
+  if (!(ISLAND.fest.from >= 18 && ISLAND.fest.to <= 23 && ISLAND.fest.to > ISLAND.fest.from)) bad('праздник огней — вечером');
   if (!D.isSunHat(D.CLOTHES_BY_ID.sunhat_wide) || D.CLOTHES_BY_ID.sunhat_wide.season || D.CLOTHES_BY_ID.sunhat_wide.stock || !PRICES.clothes.sunhat_wide)
     bad('«Шляпа от солнца» (задание Буси) должна продаваться всегда и защищать от солнца');
 
@@ -671,6 +699,22 @@ const { pathToFileURL } = require('url');
   line('клад под крестиком (один раз за игру)', `${fmt(D.COVE.treasure.coins)} монет + «Сундучок с сокровищами» (украшение)`);
   line('ракушки в рамке', `по одной каждого вида (${D.SHELL_IDS.length}) → украшение`);
   line('черепашата (вечером, с ' + D.COVE.turtles.from + ':00)', `летом ${D.COVE.turtles.summer}, иначе ${D.COVE.turtles.other} — наклейка, без монет`);
+  console.log('\nУдалённый остров (П.9)');
+  line(
+    'находки на рынке',
+    `вулканическое стекло ${D.ISLAND.obsidian} (одно в день), цветы для леи ${Object.values(D.ISLAND.flowers).join(' / ')} (один в день); в день до ${fmt(D.ISLAND.obsidian + Math.max(...Object.values(D.ISLAND.flowers)))}`,
+  );
+  line('«Кокосовый боулинг» (1★ / 2★ / 3★, первые ' + D.ISLAND.bowling.paid + ' в день)', `${D.ISLAND.bowling.coins.join(' / ')} монет`);
+  line('лея из цветов / маленький тотем', `${D.ISLAND.lei} разных цветка → вещь (один раз) / ${D.ISLAND.totem} кусочка стекла → украшение`);
+  line('праздник огней (каждый вечер)', `с ${D.ISLAND.fest.from}:00 до ${D.ISLAND.fest.to}:00 — танец и наклейка, без монет`);
+  line('весь сбор с ракушками пляжа и находками острова — самый щедрый месяц', (() => {
+    let best = 0;
+    for (let mo = 0; mo < 12; mo++) {
+      const sh = (D.SEASON_OF_MONTH[mo] === 'summer' ? D.COVE.shells.summer : D.COVE.shells.other) * Math.max(...Object.values(D.COVE.shells.sell));
+      best = Math.max(best, gatherSum(mo) + forestSum(mo) + desertIn(mo) + jungleIn(mo) + 8 * bedBestIn(mo) + sh + D.ISLAND.obsidian + Math.max(...Object.values(D.ISLAND.flowers)));
+    }
+    return `${fmt(best)} в день (три с половиной смены на 2★ — ${fmt(3.5 * avg2)}, кошелёк торговца — ${fmt(MARKET.purse)})`;
+  })());
   console.log('\nГотовка: продукты → порция на рынке (1 / 2 / 3 порции за одну готовку)');
   for (const { d, cost, raw, buyable } of cook.sort((a, b) => b.d.sell - a.d.sell).slice(0, 8))
     line(

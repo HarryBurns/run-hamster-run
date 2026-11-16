@@ -155,6 +155,14 @@ export const EXTRA_STICKERS = [
   { id: 'x_glow', sticker: '✨', title: 'Светящееся море' },
   { id: 'x_shells', sticker: '🐚', title: 'Ракушки в рамке' },
   { id: 'x_cove_treasure', sticker: '💰', title: 'Клад секретного пляжа' },
+  // удалённый остров (П.9)
+  { id: 'x_far_voyage', sticker: '⛵', title: 'Далёкое плавание' },
+  { id: 'x_bowling', sticker: '🥥', title: 'Кокосовый боулинг' },
+  { id: 'x_fest', sticker: '🔥', title: 'Праздник огней' },
+  { id: 'x_volcano', sticker: '🌋', title: 'У подножия вулкана' },
+  { id: 'x_island_night', sticker: '🛖', title: 'Ночь на острове' },
+  { id: 'x_lei', sticker: '🌺', title: 'Лея из цветов' },
+  { id: 'x_totem', sticker: '🗿', title: 'Маленький тотем' },
   { id: 'x_visit', sticker: '🧸', title: 'Первые гости' },
   { id: 'x_visit_all', sticker: '🏘️', title: 'В гостях у всех' },
   { id: 'x_tea', sticker: '☕', title: 'Чай с другом' },
@@ -182,4 +190,6 @@ export const EXTRA_STICKERS = [
   { id: 'q_explorer', sticker: '📓', title: 'Юная исследовательница' },
   { id: 'q_cove', sticker: '🗺️', title: 'Охотница за сокровищами' },
   { id: 'q_mermaid', sticker: '🧜‍♀️', title: 'Подружка русалочки' },
+  { id: 'q_island', sticker: '🌏', title: 'Дальняя путешественница' },
+  { id: 'q_chief', sticker: '🌴', title: 'Подружка островитян' },
 ];

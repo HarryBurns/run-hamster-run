@@ -3,7 +3,7 @@ import { clamp, rnd, TAU, el } from '../core/util.js';
 import { ell, fillRR, line, poly, mix, rr, star, text, emoji, makeCanvas } from '../core/draw.js';
 import { drawHamster, blinkAt } from '../art/hamster.js';
 import { vendorLook, VENDORS } from '../data/index.js';
-import { G, playerLook, cal, darkness, ownsHome, walkK, sneezePhase, stepWaits } from '../core/state.js';
+import { G, playerLook, cal, darkness, ownsHome, walkK, sneezePhase, stepWaits, questBadge } from '../core/state.js';
 import { award, bumpFlag } from '../core/actions.js';
 import { emit } from '../core/events.js';
 import { run } from '../core/registry.js';
@@ -153,12 +153,8 @@ function act(o) {
       sfx('pop');
       break;
     case 'talk':
-      dialog({
-        look: vendorLook('tower'),
-        name: VENDORS.tower.name,
-        text: 'Добро пожаловать в Хомяк-Тауэр! Лифт справа: заходи — и вжух на 101-й этаж. Наверху смотровая площадка, подзорные трубы и бумажные самолётики!',
-        options: [{ text: 'Спасибо!', cls: 'green' }],
-      });
+      // лифтёр Этажкин: задание «Остров на горизонте» и болтовня — действие liftman (features/island.js)
+      run('liftman');
       break;
     case 'lift':
       // у хозяйки пентхауса в лифте две кнопки: смотровая площадка и «домой, на сотый»
@@ -639,6 +635,14 @@ function drawLobby(ctx, t) {
   ell(ctx, 668, -110, 9, 7, '#ffd43b', OUT, 1.5);
   line(ctx, 668, -117, 668, -122, OUT, 2);
   emoji(ctx, '🔭', 560, -50, 30);
+  // значок задания над лифтёром: «!» — можно взять «Остров на горизонте», «?» — пора рассказать
+  const mark = questBadge('etazhkin');
+  if (mark) {
+    const by = -196 + Math.round(Math.sin(t * 3) * 3);
+    ell(ctx, 610, by + 2, 17, 17, 'rgba(60,40,30,.28)');
+    ell(ctx, 610, by, 17, 17, mark === '!' ? '#ffd43b' : '#8ce99a', OUT, 2.5);
+    text(ctx, mark, 610, by + 1, 24, OUT);
+  }
   liftDoors(ctx, 940, 0, '▲ 101');
   drawPlayer(ctx, t);
   ctx.restore();
@@ -685,8 +689,9 @@ function drawDeck(ctx, t) {
     ell(ctx, -44 * dir, 0, 7, 12, '#343a40', OUT, 2);
     ctx.restore();
     emoji(ctx, x < 1000 ? '🏙️' : '🌊', x, -164 + Math.sin(t * 3 + x) * 4, 26);
-    // задание Зефирки: в подзорную трубу на море видна чайка с кусочком карты — над трубой блестит звёздочка
-    if (x > 1000 && gullWaits()) star(ctx, x + 34, -200 + Math.sin(t * 4) * 5, 9 + Math.sin(t * 6) * 2, '#ffe066', OUT, 2);
+    // задания Зефирки и Этажкина: в подзорную трубу на море видна чайка с кусочком карты или далёкий остров —
+    // над трубой блестит звёздочка
+    if (x > 1000 && (gullWaits() || islandWaits())) star(ctx, x + 34, -200 + Math.sin(t * 4) * 5, 9 + Math.sin(t * 6) * 2, '#ffe066', OUT, 2);
   }
   // скамейка
   fillRR(ctx, 900, -44, 180, 12, 5, '#d9a066', OUT, 2);
@@ -932,6 +937,28 @@ function sound() {
 export default { enter, leave, update, draw, pointerDown, pointerMove, pointerUp, interact, savePos, sound };
 
 // ---------- вид в подзорную трубу: море ----------
+/** Остров с вулканом у самого горизонта ищут для Лифтёра Этажкина (задание «Остров на горизонте», П.9). */
+const islandWaits = () => stepWaits('far_island', { what: 'spot' });
+export const FAR_ISLE = [172, 112]; // где на картинке трубы далёкий остров (подножие вулкана — на линии горизонта)
+/** Далёкий остров с вулканом на горизонте: дымок, ночью — красная искорка на вершине; пока его ищут — блёстки. */
+function drawFarIsle(ctx, t, d, find) {
+  const [x, y] = FAR_ISLE;
+  ell(ctx, x, y + 5, 30, 3, 'rgba(255,255,255,.5)');
+  poly(ctx, [x - 28, y + 5, x - 7, y - 16, x + 4, y - 16, x + 26, y + 5], mix('#7d6a5a', '#2b2f52', d * 0.7), OUT, 1.4);
+  poly(ctx, [x - 7, y - 16, x - 4, y - 12, x + 1, y - 13, x + 4, y - 16], mix('#ff6b35', '#ff3d00', d), null);
+  ell(ctx, x - 20, y + 2, 7, 4, mix('#2f9e44', '#1d3b38', d * 0.7));
+  ell(ctx, x + 18, y + 2, 8, 4, mix('#2f9e44', '#1d3b38', d * 0.7));
+  for (let i = 0; i < 4; i++) {
+    const ph = (t * 0.25 + i / 4) % 1;
+    ell(ctx, x - 1 + ph * 10, y - 20 - ph * 26, 3 + ph * 6, 2.5 + ph * 4, `rgba(240,240,245,${(0.75 * (1 - ph)).toFixed(2)})`);
+  }
+  if (d > 0.4) ell(ctx, x - 1, y - 17, 6, 4, `rgba(255,120,60,${(0.4 + 0.3 * Math.sin(t * 4)).toFixed(2)})`);
+  if (find)
+    for (let i = 0; i < 3; i++) {
+      const ph = (t * 0.9 + i / 3) % 1;
+      star(ctx, x + Math.cos(i * 2.1) * 26, y - 22 - ph * 14, 4 * (1 - ph) + 1.2, '#fff3bf');
+    }
+}
 /** Чайка с кусочком карты Зефирки сидит на камне в море (задание «Карта сокровищ Зефирки», П.9). */
 const gullWaits = () => stepWaits('treasure_map', { what: 'piece', id: 'tower' });
 export const GULL = [266, 204]; // где камень с чайкой (в точках картинки трубы)
@@ -968,15 +995,20 @@ export function openSeaScope() {
     render(body, _tab, panel) {
       const N = 320,
         { canvas, ctx } = makeCanvas(N, N);
-      const gull = gullWaits();
-      if (gull)
+      const gull = gullWaits(),
+        isle = islandWaits();
+      if (gull || isle)
         canvas.onclick = (e) => {
           const r = canvas.getBoundingClientRect(),
             px = ((e.clientX - r.left) / r.width) * N,
             py = ((e.clientY - r.top) / r.height) * N;
-          if (Math.hypot(px - GULL[0] - 6, py - GULL[1] + 10) > 48) return;
-          panel.close();
-          run('cove:piece:tower');
+          if (gull && Math.hypot(px - GULL[0] - 6, py - GULL[1] + 10) <= 48) {
+            panel.close();
+            run('cove:piece:tower');
+          } else if (isle && Math.hypot(px - FAR_ISLE[0], py - FAR_ISLE[1] + 8) <= 44) {
+            panel.close();
+            run('island:spot');
+          }
         };
       canvas.style.cssText +=
         ';display:block;margin:0 auto;border-radius:50%;border:10px solid #343a40;max-width:100%;height:auto';
@@ -995,6 +1027,7 @@ export function openSeaScope() {
         sg.addColorStop(1, mix('#58c6f2', '#1f3a78', sky.d * 0.8));
         ctx.fillStyle = sg;
         ctx.fillRect(0, 118, N, N);
+        drawFarIsle(ctx, t, sky.d, isle); // далёкий остров с вулканом — у самой линии горизонта
         for (let i = 0; i < 16; i++)
           line(
             ctx,
@@ -1067,7 +1100,9 @@ export function openSeaScope() {
           'center',
           gull
             ? '👀 Ой! На камне сидит чайка, а в клюве у неё — кусочек бумаги! Это же кусочек карты Зефирки! <b>Нажми на чайку.</b>'
-            : 'В море — необитаемые острова, а между ними плавают киты, акулы и рыбки. Туда можно доплыть от пляжа!',
+            : isle
+              ? '👀 Смотри: у самого горизонта, далеко-далеко на юге, — крошечный остров, а над ним дымок! Это вулкан! <b>Нажми на остров.</b>'
+              : 'В море — необитаемые острова, а между ними плавают киты, акулы и рыбки. Туда можно доплыть от пляжа! А у самого горизонта дымит далёкий вулкан…',
         ),
       );
     },

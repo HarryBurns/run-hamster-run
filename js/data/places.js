@@ -18,7 +18,7 @@ export const PLACES = {
 // openLand). Вход в место из города — действие 'way:<id>' (features/quests.js): закрыто — доброе окно с
 // подсказкой, кто знает дорогу; открыто — переход в сцену места.
 //   name, icon   как место называется и его значок (на карте — силуэт с замочком, пока закрыто)
-//   npc          житель, который открывает место (id из data/npcs.js; лифтёр — не житель, у него null)
+//   npc          житель, который открывает место (id из data/npcs.js; лифтёр Этажкин — тоже там, в LAND_NPCS)
 //   who          кто знает дорогу — словами, для подсказки («Мята из парка»)
 //   quest        задание-открытие (id из data/quests.js) или null — задание ещё не придумано
 //   door         первая фраза у закрытого входа («Тропа в лес заросла.»); у мест без входа из города — null
@@ -34,7 +34,7 @@ export const PLACES = {
 //   go           своё действие вместо простого перехода (гора: 'cableway:up' — вагончик едет вверх, features/mountain.js;
 //                пустыня: 'caravan:go' — караван-автобус едет в пески, features/desert.js; джунгли: 'voyage:go' —
 //                кораблик плывёт к причалу в джунглях, features/jungle.js; секретный пляж: 'grotto:go' — заплыв через
-//                подводный грот, features/cove.js)
+//                подводный грот, features/cove.js; удалённый остров: 'faraway:go' — долгое плавание на юг, features/island.js)
 export const LANDS = [
   {
     id: 'forest', name: 'Лес', icon: '🌲', npc: 'myata', who: 'Мята из парка', quest: 'herbarium',
@@ -78,6 +78,14 @@ export const LANDS = [
     at: 'в море, у скал с буйком-ракушкой на востоке: подплыви к кругам на воде и нырни',
     scene: 'cove', entry: 'grotto', go: 'grotto:go', // сцена — locations/cove.js, вход grotto — у грота на пляже
   },
-  { id: 'island', name: 'Удалённый остров', icon: '🌋', npc: null, who: 'Лифтёр Этажкин из Хомяк-Тауэра', quest: null, door: null, from: 'sea', scene: null, entry: null },
+  // удалённый остров: далеко на юге моря, за последними буйками, — отметка «🧭 Далеко на юг» (WORLD_SEA.far
+  // в locations/sea.js); кораблик подплыл к ней — картинка-переезд подольше (go: faraway:go — features/island.js)
+  // привозит к причалу острова; обратно — с причала на острове к пирсу города
+  {
+    id: 'island', name: 'Удалённый остров', icon: '🌋', opened: 'открыт', npc: 'etazhkin', who: 'Лифтёр Этажкин из Хомяк-Тауэра', quest: 'far_island',
+    door: 'Дальше — только открытый океан. Без компаса в нём не найти дорогу.', from: 'sea',
+    at: 'далеко на юге моря: плыви на кораблике за последние буйки, к отметке «🧭 Далеко на юг»',
+    scene: 'island', entry: 'pier', go: 'faraway:go', // сцена — locations/island.js, вход pier — у причала на острове
+  },
 ];
 export const LAND_BY_ID = Object.fromEntries(LANDS.map((l) => [l.id, l]));
