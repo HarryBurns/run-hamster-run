@@ -1,4 +1,4 @@
-// Замер скорости города, леса, горы, пещер, пустыни, джунглей и секретного пляжа: время кадра при ходьбе стрелкой и число команд рисования за кадр.
+// Замер скорости города, леса, горы, пещер, пустыни, джунглей, секретного пляжа и удалённого острова: время кадра при ходьбе стрелкой и число команд рисования за кадр.
 // Нужен, чтобы сравнивать «до/после» любых правок рисования (способ — как в docs/REVIEW.md, приложение).
 //
 // Запуск:  python3 -m http.server 8765 &   затем   node dev/bench.js [http://localhost:8765] [ключи]
@@ -11,7 +11,9 @@
 //                           oasis, dunes, digsite — «Пустыня»: оазис с шатром и верблюдом, барханы у остановки
 //                           с автобусом, раскопки у пирамиды; jcamp, jbridge, jfall — «Джунгли»: лагерь Лианы в густых
 //                           зарослях, подвесной мост над рекой, водопад с попугаем; cbeach, clagoon, cgrotto — «Секретный
-//                           пляж»: песок у гнезда и куличиков, мелководье с камнем Жемчужинки, грот в скалах)
+//                           пляж»: песок у гнезда и куличиков, мелководье с камнем Жемчужинки, грот в скалах; ivillage,
+//                           ivolcano, ibeach — «Удалённый остров»: площадь деревни с костром, хижинами и тотемами, смотровая
+//                           у кратера вулкана, причал и пляж с пальмами)
 //   --seasons=winter,summer зима со снегом и лето без осадков
 //   --sec=4                 сколько секунд идёт один замер
 //   --minutes=1320          время суток в минутах (720 — полдень; 1320 — ночь со светом фонарей и окон)
@@ -59,6 +61,9 @@ const SPOTS = {
   cbeach: [12, 12, 'cove'],
   clagoon: [17, 16, 'cove'],
   cgrotto: [8, 7, 'cove'],
+  ivillage: [20, 19, 'island'],
+  ivolcano: [24, 4, 'island'],
+  ibeach: [17, 27, 'island'],
 };
 const SPOT_NAMES = {
   palms: 'Дворики (15,39)',
@@ -84,9 +89,12 @@ const SPOT_NAMES = {
   cbeach: 'Пляж: песок',
   clagoon: 'Пляж: у воды',
   cgrotto: 'Пляж: грот',
+  ivillage: 'Остров: деревня',
+  ivolcano: 'Остров: вулкан',
+  ibeach: 'Остров: причал',
 };
 const sizes = opt('sizes', 'desktop,phone').split(','),
-  spots = opt('spots', 'palms,forest,square,sea,woods,peak,slope,hall,mine,oasis,dunes,jcamp,jbridge,cbeach,clagoon').split(',');
+  spots = opt('spots', 'palms,forest,square,sea,woods,peak,slope,hall,mine,oasis,dunes,jcamp,jbridge,cbeach,clagoon,ivillage,ivolcano').split(',');
 const seasons = opt('seasons', 'winter,summer').split(',');
 const SEASON = { winter: { day: 0, weather: 'snow' }, summer: { day: 18, weather: 'sun' } };
 
@@ -122,7 +130,7 @@ const SEASON = { winter: { day: 0, weather: 'snow' }, summer: { day: 18, weather
     // счётчики: время draw/update города, интервалы между кадрами, число команд канвы внутри draw
     await page.evaluate(() => {
       const B = (window.__bench = { on: false, frames: [], draw: [], cmd: null, cmdFrames: 0 });
-      for (const sc of [window.__dev.scenes.world, window.__dev.scenes.forest, window.__dev.scenes.mountain, window.__dev.scenes.caves, window.__dev.scenes.desert, window.__dev.scenes.jungle, window.__dev.scenes.cove]) {
+      for (const sc of [window.__dev.scenes.world, window.__dev.scenes.forest, window.__dev.scenes.mountain, window.__dev.scenes.caves, window.__dev.scenes.desert, window.__dev.scenes.jungle, window.__dev.scenes.cove, window.__dev.scenes.island]) {
         const d0 = sc.draw;
         sc.draw = function (c) {
           if (B.cmd) B.inDraw = true;
@@ -254,10 +262,11 @@ const SEASON = { winter: { day: 0, weather: 'snow' }, summer: { day: 18, weather
       cave = mean((r) => r.size === size && SPOTS[r.spot][2] === 'caves'),
       sand = mean((r) => r.size === size && SPOTS[r.spot][2] === 'desert'),
       jung = mean((r) => r.size === size && SPOTS[r.spot][2] === 'jungle'),
-      cove = mean((r) => r.size === size && SPOTS[r.spot][2] === 'cove');
-    if (town && (wood || hill || cave || sand || jung || cove))
+      cove = mean((r) => r.size === size && SPOTS[r.spot][2] === 'cove'),
+      isle = mean((r) => r.size === size && SPOTS[r.spot][2] === 'island');
+    if (town && (wood || hill || cave || sand || jung || cove || isle))
       console.log(
-        `${size}: средний кадр — город ${town} мс, лес-сцена ${wood} мс, гора ${hill} мс, пещеры ${cave} мс, пустыня ${sand} мс, джунгли ${jung} мс, секретный пляж ${cove} мс`,
+        `${size}: средний кадр — город ${town} мс, лес-сцена ${wood} мс, гора ${hill} мс, пещеры ${cave} мс, пустыня ${sand} мс, джунгли ${jung} мс, секретный пляж ${cove} мс, удалённый остров ${isle} мс`,
       );
   }
   const lim = +opt('max-forest', 0);

@@ -344,7 +344,7 @@ defineObjects({
   },
   pins: {
     solid: true,
-    art: { pins: [[-36, -40, 60, 30], paintPins] },
+    art: { pins: [[-44, -66, 66, 56], paintPins] },
     draw: (ctx, o) => put('pins', o.x, o.y),
   },
   iflowers: {
