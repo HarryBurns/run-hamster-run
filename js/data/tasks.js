@@ -148,6 +148,13 @@ export const EXTRA_STICKERS = [
   { id: 'x_temple', sticker: '🗿', title: 'Узор древнего храма' },
   { id: 'x_feathers', sticker: '🪶', title: 'Перья в рамке' },
   { id: 'x_bridge', sticker: '🌉', title: 'Подвесной мост' },
+  // секретный пляж (П.9)
+  { id: 'x_grotto', sticker: '🌊', title: 'Подводный грот' },
+  { id: 'x_turtles', sticker: '🐢', title: 'Черепашата у моря' },
+  { id: 'x_castle', sticker: '🏰', title: 'Замок из песка' },
+  { id: 'x_glow', sticker: '✨', title: 'Светящееся море' },
+  { id: 'x_shells', sticker: '🐚', title: 'Ракушки в рамке' },
+  { id: 'x_cove_treasure', sticker: '💰', title: 'Клад секретного пляжа' },
   { id: 'x_visit', sticker: '🧸', title: 'Первые гости' },
   { id: 'x_visit_all', sticker: '🏘️', title: 'В гостях у всех' },
   { id: 'x_tea', sticker: '☕', title: 'Чай с другом' },
@@ -173,4 +180,6 @@ export const EXTRA_STICKERS = [
   { id: 'q_nomad', sticker: '🔔', title: 'Друг каравана' },
   { id: 'q_jungle', sticker: '🧭', title: 'Морской волк' },
   { id: 'q_explorer', sticker: '📓', title: 'Юная исследовательница' },
+  { id: 'q_cove', sticker: '🗺️', title: 'Охотница за сокровищами' },
+  { id: 'q_mermaid', sticker: '🧜‍♀️', title: 'Подружка русалочки' },
 ];

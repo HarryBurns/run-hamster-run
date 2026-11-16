@@ -9,6 +9,7 @@ export {
   label,
   tileOf,
   doorX,
+  TILES,
   defineTiles,
   defineObjects,
   defineBuildings,

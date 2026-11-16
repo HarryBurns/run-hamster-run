@@ -514,6 +514,20 @@ const TRACKS = {
     density: 0.62,
     swing: 0.18,
   },
+  // секретный пляж (П.9): мягко и мечтательно — «укулеле»-щипки и колокольчики, как песенка русалочки
+  cove: {
+    bpm: 88,
+    key: 67,
+    scale: MAJ_PENTA,
+    prog: ['I', 'vi', 'IV', 'V', 'I', 'iii', 'ii', 'V'],
+    lead: ['pluck', 0.068, 0.9],
+    arp: ['bell', 0.024, 1.1],
+    arpPat: [0, 2, 1, 2, 0, 2, -1, 1],
+    bass: 0.07,
+    perc: 1,
+    density: 0.48,
+    swing: 0.14,
+  },
   night: {
     bpm: 66,
     key: 57,

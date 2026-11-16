@@ -118,6 +118,7 @@ C('wreath', 'head', 'wreath', 'Венок из цветов', '#fff', { shop: 'g
 C('sunhat_wide', 'head', 'sunhat', 'Шляпа от солнца', '#f4dca6', { c2: '#e8590c', tags: ['summer', 'beach', 'sport'] });
 C('panama_explorer', 'head', 'panama', 'Панама исследовательницы', '#c9b47c', { c2: '#5c7a2e', shop: 'gift', tags: ['summer', 'sport'] });
 C('scarf_nomad', 'head', 'turban', 'Платок кочевника', '#4dabf7', { c2: '#ffd43b', shop: 'gift', tags: ['summer', 'fancy'] });
+C('clip_shell', 'head', 'shellclip', 'Заколка-ракушка', '#ffb3c6', { c2: '#fff0f6', shop: 'gift', tags: ['summer', 'cute', 'fancy'] });
 // --- аксессуары
 C('glasses_red', 'acc', 'glasses', 'Красные очки', '#e03131', { tags: ['cute'] });
 C('glasses_black', 'acc', 'glasses', 'Умные очки', '#343a40', { tags: ['fancy'] });

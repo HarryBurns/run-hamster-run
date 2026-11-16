@@ -7,7 +7,7 @@
 import { clamp, seeded } from '../core/util.js';
 import { ell, fillRR, line, poly, emoji } from '../core/draw.js';
 import { NPCS, ING_BY_ID, SEED_BY_ID, TASK_BY_ID, LAND_BY_ID, BIZ_BY_ID } from '../data/index.js';
-import { G, cal, ownsHome, landOpen, guestsWaiting } from '../core/state.js';
+import { G, cal, ownsHome, landOpen, guestsWaiting, stepWaits } from '../core/state.js';
 import { T, OUT, SP, put, defineTiles, defineObjects } from '../engine/topdown/kinds.js';
 import { createTopDownScene } from '../engine/topdown/scene.js';
 import './common/index.js';
@@ -236,6 +236,9 @@ const BEDS = { x: 20, n: 4, rows: [10, 12] }; // грядки: два ряда �
 const bedIndex = (tx, ty) => (ty === BEDS.rows[0] ? 0 : BEDS.n) + (tx - BEDS.x);
 const notWinter = () => cal().season !== 'winter',
   winter = () => cal().season === 'winter';
+/** Кусочек карты Зефирки (задание «Карта сокровищ Зефирки», П.9) ещё ждёт на месте: tower | ship | isle. */
+export const mapPieceWaits = (id) => stepWaits('treasure_map', { what: 'piece', id });
+const BOTTLE = [11, 78]; // бутылка с кусочком карты — под пальмой на Звёздном острове (WORLD_SEA в sea.js)
 const PLACES = [
   // почтовый ящик у двери виллы
   {
@@ -285,6 +288,17 @@ const PLACES = [
     act: 'way:desert',
     key: false,
     map: { icon: '🐫', at: [92, 25.5], label: '🐫 Караван в пустыню', lock: () => !landOpen('desert') },
+  },
+  // бутылка с кусочком карты Зефирки на Звёздном острове (П.9, задание «Карта сокровищ Зефирки»): видна, пока её ищут
+  {
+    id: 'bottle',
+    at: BOTTLE,
+    hit: { r: 40 },
+    stand: [BOTTLE[0] + 0.5, BOTTLE[1] + 1.5],
+    mark: [BOTTLE[0] + 0.5, BOTTLE[1] + 0.5],
+    when: () => mapPieceWaits('isle'),
+    act: 'cove:piece:isle',
+    reach: 1.4,
   },
 ];
 const POOLS = [
@@ -1102,11 +1116,20 @@ const town = createTopDownScene({
   spots: {
     beach: { at: [40.5, 53.5], mark: [40, 55.5], label: '🏖️ Пляж' },
     park: { at: [40.5, 34.5], label: '🌳 Парк' },
+    // где нырять к затонувшему кораблю (задание Зефирки — сундучок с кусочком карты на дне, interiors/dive.js)
+    wreck: { at: [35.5, 64.5] },
   },
   actors: ACTORS,
   // кто вышел из виллы — стоит у её двери; forest — куда приходят с лесной тропы (за воротами); bus — у остановки
   // каравана, куда привозит караван-автобус из пустыни; pier — конец пирса, куда кораблик привозит из джунглей
-  entries: { villa: { building: 'villa', from: 'villa' }, forest: { at: [2, 1.5] }, bus: { at: [91.5, 26.4] }, pier: { at: [63.5, 60.6] } },
+  // grotto — у буйка-ракушки в море, куда выплываешь из подводного грота с секретного пляжа
+  entries: {
+    villa: { building: 'villa', from: 'villa' },
+    forest: { at: [2, 1.5] },
+    bus: { at: [91.5, 26.4] },
+    pier: { at: [63.5, 60.6] },
+    grotto: { at: [WORLD_SEA.grotto.x - 0.6, WORLD_SEA.grotto.y + 1.4] },
+  },
   start: 'villa',
   // Выезды в тайные места. Сцена места и вход в неё — в LANDS (data/places.js): пока сцены нет, выход закрыт
   // (off), и у ворот — окно действия way:<место> (features/quests.js). Есть сцена — выход открыт, как только место
@@ -1128,6 +1151,11 @@ const town = createTopDownScene({
     };
     for (const id in G.state.biz) own(id, drawOwnBiz);
     for (const [bid, home] of HOME_DOORS) if (ownsHome(home)) own(bid, drawOwnHome);
+    // бутылка с кусочком карты под пальмой (задание Зефирки)
+    const bx = (BOTTLE[0] + 0.5) * T,
+      by = (BOTTLE[1] + 0.5) * T;
+    if (bx > v.x0 && bx < v.x1 && by > v.y0 && by < v.y1 && mapPieceWaits('isle'))
+      add(by, (ctx, _v, t) => put('mapBottle', bx, by + 4 + (Math.sin(t * 3) > 0.7 ? -2 : 0)));
   },
   built(sc) {
     townScene = sc;

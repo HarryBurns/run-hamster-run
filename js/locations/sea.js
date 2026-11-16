@@ -13,6 +13,8 @@
 // port — причал тайного места за буйками (джунгли, П.9): остров с причалом, кораблик подходит к его концу — действие
 // way:<место> (закрыто — окно «кто знает дорогу», открыто — переезд картинкой). Остров причала — не «необитаемый»:
 // в счёт островов (наклейка «Все острова открыты») не входит.
+// grotto — подводный грот тайного места (секретный пляж, П.9): буёк-ракушка, скалы и круги на воде (значок на
+// мини-карте); нырнула рядом (кнопка 🤿 или нажатие на буёк) — действие way:<место> вместо обычного ныряния.
 import { clamp, rnd, seeded, TAU, dist } from '../core/util.js';
 import { ell, fillRR, line, poly, emoji } from '../core/draw.js';
 import { drawHamster, blinkAt } from '../art/hamster.js';
@@ -24,6 +26,7 @@ import { go, scene } from '../core/loop.js';
 import { toast } from '../ui/toast.js';
 import { sfx } from '../core/audio.js';
 import { T, OUT, PS, SP, put, tileOf, defineObjects } from '../engine/topdown/kinds.js';
+import './cove_art.js'; // буёк-ракушка над подводным гротом (рисунок seaMarker)
 import { SICK_TEXT, LAND_BY_ID } from '../data/index.js';
 import './common/index.js';
 
@@ -37,6 +40,9 @@ export const WORLD_SEA = {
   creatures: { fish: 28, shark: 7, whale: 7 },
   // причал джунглей (П.9): остров на юге за буйками, причал смотрит на север; dock — куда подплыть кораблику
   port: { land: 'jungle', x: 66, y: 113, rx: 5, ry: 3, pier: [65, 66, 107, 110], dock: [66, 106.2], sign: [67, 110] },
+  // подводный грот секретного пляжа (П.9): буёк-ракушка у скал на востоке моря, круги на воде; нырнуть здесь — заплыв
+  // через грот (way:cove: закрыто — окно «кто знает дорогу», открыто — переезд картинкой)
+  grotto: { land: 'cove', x: 89.5, y: 75.5 },
   icebergs: [
     [8, 102],
     [27, 113],
@@ -386,6 +392,8 @@ const isSea = (c) => c === 'w' || c === 'O' || c === 'h'; // где проход
 
 export function createSea(cfg) {
   const PORT = cfg.port || null;
+  const GROT = cfg.grotto || null,
+    GROT_PX = GROT ? { x: GROT.x * T, y: GROT.y * T } : null;
   const ISLES = cfg.isles,
     SEA_Y = cfg.seaY,
     BUOY_Y = cfg.buoyY;
@@ -558,9 +566,58 @@ export function createSea(cfg) {
   const onPortIsle = (px, py) =>
     !!PORT && ((px / T - PORT.x) / (PORT.rx + 1.5)) ** 2 + ((py / T - PORT.y) / (PORT.ry + 1.5)) ** 2 <= 1;
 
+  // ---------- подводный грот тайного места ----------
+  let grotNear = false;
+  /** Рядом ли хомячок (пешком в воде или на кораблике) с буйком над гротом. */
+  const atGrotto = (r = 1.7) => !!GROT_PX && !!sc && dist(sc.p.x, sc.p.y, GROT_PX.x, GROT_PX.y) < T * r;
+  /** Нырнуть в грот: окно места (закрыто — кто знает дорогу; открыто — заплыв через грот картинкой). */
+  function grottoDive() {
+    if (!atGrotto(2.4)) return;
+    run('way:' + GROT.land);
+  }
+  /** Подплыла к буйку — подсказка (один раз, пока не отплывёт подальше). */
+  function updateGrotto() {
+    if (!GROT_PX) return;
+    const d = dist(sc.p.x, sc.p.y, GROT_PX.x, GROT_PX.y);
+    if (d < T * 2 && !grotNear) {
+      grotNear = true;
+      toast(landOpen(GROT.land) ? '🌊 Под буйком-ракушкой — вход в подводный грот! Нажми 🤿 «Нырнуть».' : '🔒 Под водой у скал темнеет проход… Без карты в нём не разобраться. Может, Зефирка что-то знает?');
+    } else if (d > T * 4.5) grotNear = false;
+  }
+  /** Нажали на буёк над гротом: подплыть и нырнуть. */
+  function grottoTap(w) {
+    if (!GROT_PX || dist(w.x, w.y, GROT_PX.x, GROT_PX.y - 14) > 46) return false;
+    if (atGrotto()) grottoDive();
+    else if (sc.walkTo(GROT_PX.x - 20, GROT_PX.y + 30, true)) sc.p.pending = { fn: grottoDive };
+    sfx('tap');
+    return true;
+  }
+  const drawGrotto = (ctx, g, t) => {
+    const x = g.x,
+      y = g.y;
+    // круги на воде
+    for (let i = 0; i < 2; i++) {
+      const ph = (t * 0.45 + i * 0.5) % 1;
+      ell(ctx, x, y + 6, 18 + ph * 46, 7 + ph * 17, null, `rgba(255,255,255,${(0.7 * (1 - ph)).toFixed(2)})`, 2);
+    }
+    // скалы над входом в грот
+    for (const [dx, dy, r] of [
+      [52, -26, 24],
+      [78, 4, 18],
+      [-46, -34, 16],
+    ]) {
+      ell(ctx, x + dx, y + dy + r * 0.35, r * 1.15, r * 0.4, 'rgba(255,255,255,.55)');
+      ell(ctx, x + dx, y + dy, r, r * 0.75, '#a7aeb6', OUT, 2);
+      ell(ctx, x + dx - r * 0.3, y + dy - r * 0.25, r * 0.45, r * 0.25, '#cfd5db');
+    }
+    put('seaMarker', x, Math.round(y + Math.sin(t * 2) * 3));
+    SP.world();
+    if (!landOpen(g.land)) emoji(ctx, '🔒', x + 16, y - 30, 16);
+  };
   /** Нажатие, когда хомячок на кораблике. */
   function boatTap(w, tx, ty) {
     const p = sc.p;
+    if (grottoTap(w)) return;
     if (nearPort(w.x, w.y, T * 2.6)) {
       // к причалу: подплыть к его концу и причалить
       if (sc.walkTo(PORT_PX.x, PORT_PX.y, false)) p.pending = { fn: dock };
@@ -716,6 +773,7 @@ export function createSea(cfg) {
   function dive() {
     if (!canDive()) return;
     if (!canSwim()) return void toast(SICK_TEXT.water); // простуженной нырять нельзя (Ф1)
+    if (atGrotto()) return void grottoDive(); // у буйка-ракушки — в подводный грот
     go('dive', { x: sc.p.x, boat: isBoating(), width: m.w * T });
   }
   /** Где всплыть: ближайшая глубокая клетка к точке (x, y). */
@@ -746,6 +804,13 @@ export function createSea(cfg) {
     boatState,
     /** Вернуть кораблик на стоянку (хомячок из него выходит). */
     boatHome: () => setBoat({ x: BOAT_HOME.x, y: BOAT_HOME.y, on: false }),
+    /** Хомячок уплыла с кораблика через грот: кораблик ждёт там, где стоит. */
+    parkBoat() {
+      setBoat({ on: false });
+      if (sc && sc.p.ride === BOAT) sc.p.ride = null;
+    },
+    /** Буёк над подводным гротом (единицы мира) — для тестов. */
+    grottoAt: () => GROT_PX,
 
     // ---------- крюки движка ----------
     built(s) {
@@ -781,6 +846,7 @@ export function createSea(cfg) {
         sfx('tap');
         return true;
       }
+      if (grottoTap(w)) return true; // буёк над гротом
       const bt = boatState();
       if (dist(w.x, w.y, bt.x, bt.y - 20) < 60) {
         s.goNear(bt.x, bt.y, { fn: boardBoat });
@@ -813,6 +879,7 @@ export function createSea(cfg) {
     update(s, dt) {
       updateSea(dt);
       updatePort();
+      updateGrotto();
     },
     surface(s, c) {
       const p = s.p;
@@ -828,6 +895,8 @@ export function createSea(cfg) {
         const bt = boatState();
         add(bt.y + 12, drawFreeBoat, bt, true);
       }
+      if (GROT_PX && GROT_PX.x > v.x0 - 120 && GROT_PX.x < v.x1 + 120 && GROT_PX.y > v.y0 && GROT_PX.y < v.y1)
+        add(GROT_PX.y, drawGrotto, { ...GROT_PX, land: GROT.land });
     },
     over(ctx, s, t) {
       // крошки для рыбок
@@ -854,6 +923,14 @@ export function createSea(cfg) {
       ctx.setLineDash([]);
       const bt = boatState();
       emoji(ctx, '⛵', (bt.x / T) * k, (bt.y / T) * k - k, Math.max(12, k * 2.6));
+      if (GROT) {
+        // подводный грот: значок места и кружок, пока закрыто — с замочком
+        const land = LAND_BY_ID[GROT.land],
+          sz = Math.max(12, k * 2.6);
+        ell(ctx, GROT.x * k, GROT.y * k, k * 1.4, k * 1.4, null, '#fff', 1.5);
+        emoji(ctx, land.icon, GROT.x * k, GROT.y * k - k * 1.6, sz);
+        if (!landOpen(GROT.land)) emoji(ctx, '🔒', GROT.x * k + sz * 0.55, GROT.y * k - k * 1.6 + sz * 0.3, sz * 0.6);
+      }
       if (PORT) {
         // причал тайного места: значок, пока закрыто — с замочком
         const land = LAND_BY_ID[PORT.land],

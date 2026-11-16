@@ -565,6 +565,65 @@ const D = {
     }
     line(c, -w / 2 + 12, -h / 2 + 12, -w / 2 + 22, -h / 2 + 30, 'rgba(255,255,255,.7)', 3);
   },
+  // с секретного пляжа (П.9): три ракушки на сине-бирюзовом фоне в рамке из ракушек и сундучок с кладом
+  shellframe(c, d, w, h) {
+    fillRR(c, -w / 2, -h / 2, w, h, 8, '#f8e7c8', OUT);
+    fillRR(c, -w / 2 + 8, -h / 2 + 8, w - 16, h - 16, 4, '#66d9e8', OUT, 1.5);
+    fillRR(c, -w / 2 + 8, h / 2 - 26, w - 16, 18, 4, '#ffe8a8');
+    for (let i = 0; i < 10; i++) {
+      const a = (i / 10) * Math.PI * 2;
+      ell(c, Math.cos(a) * (w / 2 - 3), Math.sin(a) * (h / 2 - 3), 3.4, 3.4, i % 2 ? '#ffc9de' : '#fff', OUT, 0.8);
+    }
+    // розовый гребешок
+    c.save();
+    c.translate(-18, -6);
+    c.beginPath();
+    c.moveTo(0, 10);
+    for (let i = 0; i <= 6; i++) {
+      const a = Math.PI + (i / 6) * Math.PI;
+      c.lineTo(Math.cos(a) * 13, 4 + Math.sin(a) * 13);
+    }
+    c.closePath();
+    c.fillStyle = '#ff8fab';
+    c.fill();
+    c.strokeStyle = OUT;
+    c.lineWidth = 1.4;
+    c.stroke();
+    for (let i = 1; i < 6; i++) {
+      const a = Math.PI + (i / 6) * Math.PI;
+      line(c, 0, 9, Math.cos(a) * 11, 4 + Math.sin(a) * 11, '#e64980', 1);
+    }
+    c.restore();
+    // витая ракушка
+    c.beginPath();
+    for (let a = 0; a < 13; a += 0.35) {
+      const r = 1 + a * 0.95;
+      c.lineTo(18 + Math.cos(a) * r, -10 + Math.sin(a) * r * 0.8);
+    }
+    c.strokeStyle = '#b07a2a';
+    c.lineWidth = 3.4;
+    c.stroke();
+    c.strokeStyle = '#f4c27a';
+    c.lineWidth = 1.8;
+    c.stroke();
+    // ракушка-солнышко
+    ell(c, 0, 20, 11, 8, '#ffd43b', OUT, 1.4);
+    for (let i = -2; i <= 2; i++) line(c, 0, 26, i * 5, 13, '#e8a400', 1.1);
+    line(c, -w / 2 + 12, -h / 2 + 12, -w / 2 + 22, -h / 2 + 28, 'rgba(255,255,255,.7)', 3);
+  },
+  treasurechest(c, d, w, h) {
+    // откинутая крышка, внутри монеты и жемчуг
+    poly(c, [-36, -40, 36, -40, 30, -64, -30, -64], '#a0662d', OUT, 2);
+    line(c, -33, -52, 33, -52, '#ffd43b', 3);
+    fillRR(c, -40, -42, 80, 42, 6, '#8d5524', OUT, 2);
+    for (const x of [-26, 26]) fillRR(c, x - 4, -42, 8, 42, 2, '#ffd43b', OUT, 1.2);
+    for (let i = 0; i < 9; i++) ell(c, -26 + i * 6.5, -44 - (i % 3) * 3, 5, 5, i % 4 === 3 ? '#fff5f5' : '#ffd43b', OUT, 1);
+    for (let i = 0; i < 4; i++) ell(c, -12 + i * 8, -50, 3, 3, '#fff5f5', OUT, 0.8);
+    fillRR(c, -7, -30, 14, 12, 3, '#ffd43b', OUT, 1.4);
+    ell(c, 0, -24, 2, 2.4, OUT);
+    star(c, 30, -68, 4, '#fff');
+    star(c, -28, -60, 3, '#fff');
+  },
   fossils(c, d, w, h) {
     // витрина-ящичек под стеклом: на песке — аммонит, отпечаток листа, зуб и косточка
     fillRR(c, -48, -16, 96, 16, 5, '#a0662d', OUT, 2);

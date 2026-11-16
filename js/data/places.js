@@ -33,7 +33,8 @@ export const PLACES = {
 //   opened       «открыт» в нужном роде для окна «Задание выполнено!» («Гора открыта!», «Пещеры открыты!»)
 //   go           своё действие вместо простого перехода (гора: 'cableway:up' — вагончик едет вверх, features/mountain.js;
 //                пустыня: 'caravan:go' — караван-автобус едет в пески, features/desert.js; джунгли: 'voyage:go' —
-//                кораблик плывёт к причалу в джунглях, features/jungle.js)
+//                кораблик плывёт к причалу в джунглях, features/jungle.js; секретный пляж: 'grotto:go' — заплыв через
+//                подводный грот, features/cove.js)
 export const LANDS = [
   {
     id: 'forest', name: 'Лес', icon: '🌲', npc: 'myata', who: 'Мята из парка', quest: 'herbarium',
@@ -68,7 +69,15 @@ export const LANDS = [
     at: 'за буйками, на юге моря: доплыви на кораблике от пирса до причала с пальмами',
     scene: 'jungle', entry: 'pier', go: 'voyage:go', // сцена — locations/jungle.js, вход pier — у причала в джунглях
   },
-  { id: 'cove', name: 'Секретный пляж', icon: '🐢', npc: 'zefirka', who: 'Зефирка с пляжа', quest: null, door: null, from: 'sea', scene: null, entry: null },
+  // секретный пляж: подводный грот в скалах на востоке моря (отметка — буёк-ракушка и круги на воде, WORLD_SEA.grotto
+  // в locations/sea.js); нырнула там — картинка-переезд (go: grotto:go — features/cove.js) через грот на пляж в бухте;
+  // обратно — нырнуть в гроте на пляже, всплываешь у буйка
+  {
+    id: 'cove', name: 'Секретный пляж', icon: '🐢', opened: 'открыт', npc: 'zefirka', who: 'Зефирка с пляжа', quest: 'treasure_map',
+    door: 'Под водой у скал темнеет проход в подводный грот — но без карты в нём легко заплутать.', from: 'sea',
+    at: 'в море, у скал с буйком-ракушкой на востоке: подплыви к кругам на воде и нырни',
+    scene: 'cove', entry: 'grotto', go: 'grotto:go', // сцена — locations/cove.js, вход grotto — у грота на пляже
+  },
   { id: 'island', name: 'Удалённый остров', icon: '🌋', npc: null, who: 'Лифтёр Этажкин из Хомяк-Тауэра', quest: null, door: null, from: 'sea', scene: null, entry: null },
 ];
 export const LAND_BY_ID = Object.fromEntries(LANDS.map((l) => [l.id, l]));

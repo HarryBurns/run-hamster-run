@@ -31,6 +31,7 @@ export * from './mountain.js';
 export * from './caves.js';
 export * from './desert.js';
 export * from './jungle.js';
+export * from './cove.js';
 export * from './backpack.js';
 export * from './album.js';
 export * from './piano.js';

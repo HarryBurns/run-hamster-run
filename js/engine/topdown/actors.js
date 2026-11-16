@@ -6,6 +6,7 @@
 //   home    его дом: id здания (встанет у двери) или клетка [x, y]; без home — всегда гуляет у своего места
 //   act     действие из реестра, когда хомячок подошёл (по умолчанию 'npc:<id>' — разговор)
 //   always  true — не уходит спать ночью (иначе с 22:00 до 6:30 жителя на улице нет)
+//   still   true — не гуляет, всегда на своём месте (русалочка на камне в воде — секретный пляж)
 // Где житель (часы — VISIT в data/visits.js, те же, что у двери его домика):
 //   днём (9:00–19:00) гуляет возле своего места at;
 //   утром и вечером, когда к нему можно зайти в гости, — у себя во дворе, возле двери (а не на другом конце города);
@@ -128,7 +129,7 @@ export function updateResidents(sc, dt) {
     if (!waits) n.inside = n.goingHome = false;
     else if (!n.inside && cellDist(n, n.home) < T * 1.2) n.inside = true;
     n.hidden = (night && !n.def.always) || G.state.guests.includes(n.id) || n.inside;
-    if (n.hidden || G.modal) continue;
+    if (n.hidden || G.modal || n.def.still) continue;
     if (n.path.length) {
       if (moveAlong(m, n, 90, dt) && n.goingHome) n.inside = true; // дошёл до своей двери
       continue;

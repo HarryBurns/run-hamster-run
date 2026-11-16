@@ -112,6 +112,43 @@ function drawLegs(ctx, item) {
       }
     ctx.fillStyle = shade(item.c, -0.2);
     ctx.fillRect(-19, -22, 38, 4);
+  } else if (item.kind === 'mermaid') {
+    // хвост русалочки (Жемчужинка, секретный пляж): чешуйчатая «юбка» от пояса, хвост загибается вбок, плавник
+    ctx.beginPath();
+    ctx.moveTo(-24, -22);
+    ctx.lineTo(24, -22);
+    ctx.quadraticCurveTo(30, -4, 18, 2);
+    ctx.quadraticCurveTo(30, 6, 34, 0);
+    ctx.lineTo(44, -8);
+    ctx.quadraticCurveTo(41, 2, 47, 8);
+    ctx.quadraticCurveTo(34, 9, 28, 6);
+    ctx.quadraticCurveTo(8, 8, -14, 4);
+    ctx.quadraticCurveTo(-30, -6, -24, -22);
+    ctx.closePath();
+    ctx.fillStyle = item.c;
+    ctx.fill();
+    ctx.save();
+    ctx.clip();
+    // чешуйки — дужками в шахматном порядке
+    ctx.strokeStyle = item.c2 || shade(item.c, 0.4);
+    ctx.lineWidth = 1.4;
+    ctx.beginPath();
+    for (let r = 0; r < 4; r++)
+      for (let i = -4; i <= 4; i++) {
+        const x = i * 7 + (r % 2) * 3.5,
+          y = -18 + r * 6;
+        ctx.moveTo(x - 3.5, y);
+        ctx.arc(x, y, 3.5, Math.PI, 0, true);
+      }
+    ctx.stroke();
+    ell(ctx, -10, -16, 6, 3, 'rgba(255,255,255,.35)');
+    ctx.restore();
+    ctx.strokeStyle = OUT;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    // прожилки плавника
+    line(ctx, 34, 2, 44, -4, shade(item.c, -0.25), 1.2);
+    line(ctx, 34, 4, 44, 6, shade(item.c, -0.25), 1.2);
   } else if (item.kind === 'skirt') {
     const skirtPath = () => {
       ctx.beginPath();
@@ -842,6 +879,32 @@ function drawHat(ctx, item, side = 1) {
         poly(ctx, [sx * 12, -82, sx * 16, -93, sx * 21, -80], '#ffb3c1');
       }
       break;
+    case 'shellclip': {
+      // заколка-ракушка над ушком: веер-гребешок с рёбрышками и жемчужинкой
+      ctx.save();
+      ctx.translate(-18, -76);
+      ctx.rotate(-0.35);
+      ctx.beginPath();
+      ctx.moveTo(0, 6);
+      for (let i = 0; i <= 6; i++) {
+        const a = Math.PI + (i / 6) * Math.PI;
+        ctx.lineTo(Math.cos(a) * 11, 2 + Math.sin(a) * 10);
+      }
+      ctx.closePath();
+      ctx.fillStyle = c;
+      ctx.fill();
+      ctx.strokeStyle = OUT;
+      ctx.lineWidth = 1.3;
+      ctx.stroke();
+      for (let i = 1; i < 6; i++) {
+        const a = Math.PI + (i / 6) * Math.PI;
+        line(ctx, 0, 5, Math.cos(a) * 9, 2 + Math.sin(a) * 8, shade(c, -0.25), 1);
+      }
+      fillRR(ctx, -4, 4, 8, 4, 2, shade(c, -0.15), OUT, 1);
+      ell(ctx, 6, -6, 2.4, 2.4, c2 === shade(c, -0.25) ? '#fff' : c2, OUT, 0.8);
+      ctx.restore();
+      break;
+    }
     case 'flower':
       for (let k = 0; k < 6; k++)
         ell(ctx, -19 + Math.cos(k * 1.047) * 7, -73 + Math.sin(k * 1.047) * 7, 5.5, 5.5, c, OUT, 1.2);
@@ -1123,9 +1186,10 @@ export function drawHamster(ctx, x, y, s, look, pose = {}) {
   }
   ctx.lineJoin = 'round';
 
-  // --- лапки-ноги
+  // --- лапки-ноги (у русалочки вместо них хвост — drawLegs)
   const fw = pose.sit ? 14 : 10;
-  drawFeet(ctx, o.feet, b.nails, k, [
+  if (!(o.legs && o.legs.kind === 'mermaid'))
+    drawFeet(ctx, o.feet, b.nails, k, [
     [-fw, liftL],
     [fw, liftR],
   ]);
@@ -1367,7 +1431,7 @@ export function drawHamster(ctx, x, y, s, look, pose = {}) {
 
   // --- причёска, бантик, шапка, аксессуар
   const hat = o.head;
-  if (b.tuft && (!hat || ['earmuffs', 'wreath', 'catears', 'flower'].includes(hat.kind)))
+  if (b.tuft && (!hat || ['earmuffs', 'wreath', 'catears', 'flower', 'shellclip'].includes(hat.kind)))
     drawTuft(ctx, b.tuft, b.hair || look.spots || shade(fur, -0.35));
   if (hat) drawHat(ctx, hat, k || 1);
   if (b.bow) drawBow(ctx, b.bow, hat ? -24 : -15, hat ? -62 : -74);

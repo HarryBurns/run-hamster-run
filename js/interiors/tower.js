@@ -3,7 +3,7 @@ import { clamp, rnd, TAU, el } from '../core/util.js';
 import { ell, fillRR, line, poly, mix, rr, star, text, emoji, makeCanvas } from '../core/draw.js';
 import { drawHamster, blinkAt } from '../art/hamster.js';
 import { vendorLook, VENDORS } from '../data/index.js';
-import { G, playerLook, cal, darkness, ownsHome, walkK, sneezePhase } from '../core/state.js';
+import { G, playerLook, cal, darkness, ownsHome, walkK, sneezePhase, stepWaits } from '../core/state.js';
 import { award, bumpFlag } from '../core/actions.js';
 import { emit } from '../core/events.js';
 import { run } from '../core/registry.js';
@@ -685,6 +685,8 @@ function drawDeck(ctx, t) {
     ell(ctx, -44 * dir, 0, 7, 12, '#343a40', OUT, 2);
     ctx.restore();
     emoji(ctx, x < 1000 ? '🏙️' : '🌊', x, -164 + Math.sin(t * 3 + x) * 4, 26);
+    // задание Зефирки: в подзорную трубу на море видна чайка с кусочком карты — над трубой блестит звёздочка
+    if (x > 1000 && gullWaits()) star(ctx, x + 34, -200 + Math.sin(t * 4) * 5, 9 + Math.sin(t * 6) * 2, '#ffe066', OUT, 2);
   }
   // скамейка
   fillRR(ctx, 900, -44, 180, 12, 5, '#d9a066', OUT, 2);
@@ -930,6 +932,32 @@ function sound() {
 export default { enter, leave, update, draw, pointerDown, pointerMove, pointerUp, interact, savePos, sound };
 
 // ---------- вид в подзорную трубу: море ----------
+/** Чайка с кусочком карты Зефирки сидит на камне в море (задание «Карта сокровищ Зефирки», П.9). */
+const gullWaits = () => stepWaits('treasure_map', { what: 'piece', id: 'tower' });
+const GULL = [262, 232]; // где камень с чайкой (в точках картинки трубы)
+/** Чайка на камне: в клюве — кусочек карты, вокруг блёстки (нажми — уронит). */
+function drawGull(ctx, t) {
+  const [x, y] = GULL;
+  ell(ctx, x, y + 14, 34, 7, 'rgba(255,255,255,.6)');
+  ell(ctx, x, y + 6, 26, 12, '#a7aeb6', OUT, 2);
+  ell(ctx, x - 6, y + 2, 10, 4, '#cfd5db');
+  const bob = Math.sin(t * 3) * 1.5;
+  ell(ctx, x, y - 10 + bob, 13, 9, '#fff', OUT, 1.8);
+  poly(ctx, [x - 4, y - 14 + bob, x - 20, y - 20 + bob + Math.sin(t * 7) * 4, x - 8, y - 6 + bob], '#dee2e6', OUT, 1.4);
+  ell(ctx, x + 10, y - 20 + bob, 7, 6.5, '#fff', OUT, 1.8);
+  ell(ctx, x + 12, y - 22 + bob, 1.4, 1.4, OUT);
+  poly(ctx, [x + 16, y - 20 + bob, x + 24, y - 18 + bob, x + 16, y - 16 + bob], '#ffa94d', OUT, 1);
+  ctx.save();
+  ctx.translate(x + 25, y - 14 + bob);
+  ctx.rotate(0.3);
+  fillRR(ctx, -5, -4, 12, 10, 2, '#f3e2b5', OUT, 1.2);
+  line(ctx, -2, 0, 4, 2, '#e03131', 1.2);
+  ctx.restore();
+  for (let i = 0; i < 3; i++) {
+    const ph = (t * 0.8 + i / 3) % 1;
+    star(ctx, x + 30 + Math.cos(i * 2.1) * 14, y - 30 - ph * 16, 4 * (1 - ph) + 1, '#fff3bf');
+  }
+}
 function openSeaScope() {
   let raf = 0;
   openPanel({
@@ -937,9 +965,19 @@ function openSeaScope() {
     icon: '🔭',
     cls: 'narrow',
     onClose: () => cancelAnimationFrame(raf),
-    render(body) {
+    render(body, _tab, panel) {
       const N = 320,
         { canvas, ctx } = makeCanvas(N, N);
+      const gull = gullWaits();
+      if (gull)
+        canvas.onclick = (e) => {
+          const r = canvas.getBoundingClientRect(),
+            px = ((e.clientX - r.left) / r.width) * N,
+            py = ((e.clientY - r.top) / r.height) * N;
+          if (Math.hypot(px - GULL[0] - 6, py - GULL[1] + 10) > 48) return;
+          panel.close();
+          run('cove:piece:tower');
+        };
       canvas.style.cssText +=
         ';display:block;margin:0 auto;border-radius:50%;border:10px solid #343a40;max-width:100%;height:auto';
       const sky = skyColors();
@@ -1018,6 +1056,7 @@ function openSeaScope() {
         ell(ctx, 0, 0, 10, 6, '#ff922b', OUT, 1.6);
         ell(ctx, 5, -2, 1.4, 1.4, OUT);
         ctx.restore();
+        if (gull) drawGull(ctx, t);
         raf = requestAnimationFrame(loop);
       };
       loop();
@@ -1026,7 +1065,9 @@ function openSeaScope() {
         el(
           'p',
           'center',
-          'В море — необитаемые острова, а между ними плавают киты, акулы и рыбки. Туда можно доплыть от пляжа!',
+          gull
+            ? '👀 Ой! На камне сидит чайка, а в клюве у неё — кусочек бумаги! Это же кусочек карты Зефирки! <b>Нажми на чайку.</b>'
+            : 'В море — необитаемые острова, а между ними плавают киты, акулы и рыбки. Туда можно доплыть от пляжа!',
         ),
       );
     },

@@ -3,7 +3,7 @@
 import { clamp, lerp, rnd, seeded, TAU, dist } from '../core/util.js';
 import { ell, fillRR, line, poly, mix, star } from '../core/draw.js';
 import { drawHamster, blinkAt } from '../art/hamster.js';
-import { G, playerLook, darkness } from '../core/state.js';
+import { G, playerLook, darkness, stepWaits } from '../core/state.js';
 import * as A from '../core/actions.js';
 import { emit } from '../core/events.js';
 import { run } from '../core/registry.js';
@@ -19,7 +19,10 @@ let DW = 72 * 48; // ширина подводного мира — как у к
 const DEPTH = 1500; // глубина
 const bedY = (x) => 1385 + Math.sin(x / 260) * 40 + Math.sin(x / 97 + 1) * 22; // дно с барханами
 const SHIP_X = 1700,
-  OCTO_X = 820;
+  OCTO_X = 820,
+  MAP_X = SHIP_X - 310; // сундучок с кусочком карты Зефирки (задание «Карта сокровищ Зефирки», П.9) — у носа корабля
+/** Сундучок с кусочком карты лежит на дне: задание Зефирки взято, а этот кусочек ещё не найден. */
+const mapChest = () => stepWaits('treasure_map', { what: 'piece', id: 'ship' });
 
 const D = {
   cam: new Camera(),
@@ -48,7 +51,7 @@ function build() {
   const r = seeded(9001);
   // кораллы, водоросли, камни — вдоль всего дна
   for (let x = 40; x < DW - 20; x += 46 + r() * 70) {
-    if (Math.abs(x - SHIP_X) < 240 || Math.abs(x - OCTO_X) < 70) continue;
+    if (Math.abs(x - SHIP_X) < 240 || Math.abs(x - OCTO_X) < 70 || Math.abs(x - MAP_X) < 50) continue;
     const k = r();
     D.decor.push({
       x,
@@ -279,6 +282,11 @@ export function update(dt) {
       addPearls(2, cx, cyy - 30);
       toast(`В сундуке нашлись 2 жемчужины! ⚪ Всего: ${s.pearls}`, 'good');
     }
+  }
+  // сундучок с кусочком карты Зефирки: подплыла — открылся (окно и шаг задания — features/cove.js)
+  if (mapChest() && dist(p.x, p.y, MAP_X, bedY(MAP_X) - 60) < 110) {
+    sfx('magic');
+    run('cove:piece:ship');
   }
   // осьминог машет щупальцем
   if (dist(p.x, p.y, OCTO_X, bedY(OCTO_X) - 110) < 150 && t - D.octoT > 8) {
@@ -609,6 +617,27 @@ function drawShip(ctx, t) {
     for (let i = 0; i < 4; i++)
       ell(ctx, cx - 18 + i * 12, cy - 42 - (i % 2) * 4, 6, 6, i % 2 ? '#fff' : '#ffd43b', OUT, 1.5);
 }
+/** Сундучок Зефирки на дне: маленький, голубой, из-под крышки торчит свёрнутый кусочек карты, вокруг — сияние. */
+function drawMapChest(ctx, t) {
+  const cx = MAP_X,
+    cy = bedY(cx) - 4;
+  ctx.globalAlpha = 0.3 + Math.sin(t * 3) * 0.15;
+  ell(ctx, cx, cy - 20, 46, 34, '#c5f6fa');
+  ctx.globalAlpha = 1;
+  fillRR(ctx, cx - 22, cy - 28, 44, 28, 5, '#4dabf7', OUT, 2.2);
+  fillRR(ctx, cx - 24, cy - 40, 48, 15, 7, '#74c0fc', OUT, 2.2);
+  ctx.fillStyle = '#ffd43b';
+  ctx.fillRect(cx - 22, cy - 18, 44, 4);
+  fillRR(ctx, cx - 5, cy - 30, 10, 11, 2, '#ffd43b', OUT, 1.6);
+  // кусочек карты торчит из-под крышки
+  ctx.save();
+  ctx.translate(cx + 14, cy - 40);
+  ctx.rotate(-0.5);
+  fillRR(ctx, -4, -16, 8, 18, 3, '#f3e2b5', OUT, 1.4);
+  line(ctx, -1, -12, 1, -4, '#e03131', 1.4);
+  ctx.restore();
+  star(ctx, cx + 26, cy - 52 + Math.sin(t * 4) * 3, 6, '#fff3bf');
+}
 function drawOcto(ctx, t) {
   const x = OCTO_X,
     y = bedY(x) + 4,
@@ -725,6 +754,7 @@ export function draw(ctx) {
   for (let x = Math.floor(x0 / 70) * 70; x < x1; x += 70)
     ell(ctx, x + 20, bedY(x + 20) + 26 + ((x * 7) % 30), 14, 4, 'rgba(0,0,0,.08)');
   if (vis(SHIP_X, 1250) || Math.abs(SHIP_X - D.cam.x) < w / z) drawShip(ctx, t);
+  if (mapChest() && Math.abs(MAP_X - D.cam.x) < w / z) drawMapChest(ctx, t);
   if (Math.abs(OCTO_X - D.cam.x) < w / z) drawOcto(ctx, t);
   for (const o of D.decor) if (o.x > x0 && o.x < x1 && y1 > 1200) drawDecor(ctx, o, t);
   // раковины

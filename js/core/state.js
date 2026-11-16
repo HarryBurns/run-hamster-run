@@ -629,6 +629,18 @@ export function questNow(id) {
   if (i < 0) i = steps.length;
   return { q, status, i, steps };
 }
+/**
+ * Шаг «сделать» задания qid, у которого поля if совпадают с fields ({ what: 'piece', id: 'ship' }), ещё ждёт: задание
+ * взято, а шаг не сделан. Так сцены узнают, показывать ли предмет задания (кусочек карты Зефирки на дне и т. п.).
+ */
+export function stepWaits(qid, fields) {
+  const q = QUEST_BY_ID[qid];
+  if (!q || !G.state) return false;
+  const i = q.steps.findIndex((st) => st.if && Object.keys(fields).every((k) => st.if[k] === fields[k]));
+  if (i < 0) return false;
+  const w = questNow(qid);
+  return w.status === 'active' && !w.steps[i].ok;
+}
 let cacheStamp = -1,
   cacheState = null,
   badges = {},

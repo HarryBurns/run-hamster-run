@@ -52,6 +52,11 @@ export const FINDS = [
   { id: 'feather_red', kind: 'feather', e: '🪶', name: 'Красное перо ары', c: '#e03131' },
   { id: 'feather_blue', kind: 'feather', e: '🪶', name: 'Синее перо', c: '#1c7ed6' },
   { id: 'feather_yellow', kind: 'feather', e: '🪶', name: 'Жёлтое перо', c: '#fcc419' },
+  // секретный пляж (П.9): редкие ракушки — море выносит их на песок бухты (1–2 в день, COVE.shells; виды по кругу);
+  // их берёт рынок (COVE.shells.sell), из трёх разных русалочка Жемчужинка сделает «Ракушки в рамке»
+  { id: 'shell_pink', kind: 'shell', e: '🐚', name: 'Розовая ракушка', c: '#ff8fab' },
+  { id: 'shell_spiral', kind: 'shell', e: '🐚', name: 'Витая ракушка', c: '#f4c27a' },
+  { id: 'shell_sun', kind: 'shell', e: '🐚', name: 'Ракушка-солнышко', c: '#ffd43b' },
 ];
 /** Окаменелости по порядку — от частой к редкой («Раскопки» выдают их по кругу, features/desert.js). */
 export const FOSSIL_IDS = FINDS.filter((f) => f.kind === 'fossil').map((f) => f.id);
@@ -59,6 +64,8 @@ export const FOSSIL_IDS = FINDS.filter((f) => f.kind === 'fossil').map((f) => f.
 export const GEM_IDS = FINDS.filter((f) => f.kind === 'gem').map((f) => f.id);
 /** Перья попугаев по порядку попугаев (Кеша — красный, Рико — синий, Лимончик — жёлтый; features/jungle.js). */
 export const FEATHER_IDS = FINDS.filter((f) => f.kind === 'feather').map((f) => f.id);
+/** Редкие ракушки секретного пляжа по порядку — море выносит их по кругу (features/cove.js). */
+export const SHELL_IDS = FINDS.filter((f) => f.kind === 'shell').map((f) => f.id);
 export const FIND_BY_ID = Object.fromEntries(FINDS.map((f) => [f.id, f]));
 
 /**
