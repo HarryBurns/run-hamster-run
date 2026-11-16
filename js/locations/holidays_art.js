@@ -1047,19 +1047,19 @@ export const STREAK_DIRS = 16;
 function paintStreak(ctx, d, i) {
   const c = SPARKS[i] || '#fff';
   ctx.rotate((d / STREAK_DIRS) * TAU);
-  for (let k = 8; k >= 1; k--) {
-    const q = k / 8;
-    ell(ctx, -q * 30, 0, 4.4 * (1 - q * 0.75), 3 * (1 - q * 0.75), c + (k > 4 ? '66' : 'bb'));
+  for (let k = 6; k >= 1; k--) {
+    const q = k / 6;
+    ell(ctx, -q * 22, 0, 3.8 * (1 - q * 0.7), 2.7 * (1 - q * 0.7), c + (k > 3 ? '66' : 'bb'));
   }
-  ell(ctx, 0, 0, 6.4, 5, c + '77');
-  ell(ctx, 0, 0, 4.2, 3.4, c);
-  ell(ctx, 0.8, 0, 2, 1.6, '#fff');
+  ell(ctx, 0, 0, 5.4, 4.2, c + '77');
+  ell(ctx, 0, 0, 3.6, 3, c);
+  ell(ctx, 0.7, 0, 1.7, 1.4, '#fff');
 }
 
 defineArt({
   hSpark: [[-9, -9, 9, 9], (ctx, i) => paintSpark(ctx, i || 0)],
   hSparkT: [[-5, -5, 5, 5], (ctx, i) => paintSparkTail(ctx, i || 0)],
-  hStreak: [[-36, -36, 36, 36], (ctx, d, i) => paintStreak(ctx, d || 0, i || 0)],
+  hStreak: [[-27, -27, 27, 27], (ctx, d, i) => paintStreak(ctx, d || 0, i || 0)],
   hBalloons: [[-32, -122, 32, 10], (ctx, v) => paintBalloons(ctx, v || 0)],
   hBalloonCart: [[-78, -182, 78, 18], (ctx) => paintBalloonCart(ctx)],
   hFlowerPot: [[-40, -74, 40, 14], (ctx, v) => paintFlowerPot(ctx, v || 0)],

@@ -258,7 +258,7 @@ function bursts(sc, t) {
       y = cam.y - vh / 2 + vh * (0.13 + r() * 0.2),
       ci = Math.floor(r() * 6),
       ci2 = (ci + 1 + Math.floor(r() * 5)) % 6;
-    out.push({ i, x, y, k, ci, ci2, c: COLORS[ci], c2: COLORS[ci2], n: 26 + Math.floor(r() * 8), s: (0.12 + r() * 0.06) * Math.min(vw * 1.3, vh), y0: cam.y + vh / 2 });
+    out.push({ i, x, y, k, ci, ci2, c: COLORS[ci], c2: COLORS[ci2], n: 22 + Math.floor(r() * 6), s: (0.12 + r() * 0.06) * Math.min(vw * 1.3, vh), y0: cam.y + vh / 2 });
   }
   return out;
 }

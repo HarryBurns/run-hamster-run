@@ -8,7 +8,7 @@
 // в городе — шарики у двери дома (locations/holidays.js). Состояние — только отметки дня (ход шагов, asked).
 import { addItem, earn, meetFriend, setDayFlag, inviteGuest, MAX_GUESTS } from '../core/actions.js';
 import { sfx } from '../core/audio.js';
-import { ell, fillRR, line, star } from '../core/draw.js';
+import { ell, fillRR, line, star, makeCanvas } from '../core/draw.js';
 import { on } from '../core/events.js';
 import { scene } from '../core/loop.js';
 import { G, playerLook } from '../core/state.js';
@@ -215,13 +215,29 @@ holidayWhere('home', (sc) => {
   const d = sc.map.doorPx(b);
   return { x: d.x, y: d.y - 40 };
 });
-/** Гирлянда и шарики в комнате у входа основного дома (в день рождения). */
-sideArt.push((ctx, sc, t) => {
+/**
+ * Гирлянда и шарики в комнате у входа основного дома (в день рождения). В доме нет кэша спрайтов — рисунок один раз
+ * кладётся в свою картинку (на дом и размер комнаты), в кадре — одна её копия.
+ */
+let roomPic = null;
+sideArt.push((ctx, sc) => {
   if (!isBday() || sc.houseKey !== (S().homeMain || 'villa')) return;
   const door = sc.desc.door || { f: 0, x: 100 },
     room = (sc.desc.rooms || []).find((r) => r.f === door.f && door.x >= r.x0 && door.x <= r.x1) || { x0: 0, x1: sc.geo.W };
-  const y = sc.geo.fy(door.f);
-  paintBdayRoom(ctx, room.x0 + 16, room.x1 - 16, y, y - sc.geo.RH, t);
+  const y = sc.geo.fy(door.f),
+    top = y - sc.geo.RH,
+    x0 = room.x0 + 16,
+    x1 = room.x1 - 16,
+    key = `${sc.name}:${x0}:${x1}:${top}`;
+  if (!roomPic || roomPic.key !== key) {
+    const { canvas, ctx: c } = makeCanvas(x1 - x0, y - top + 12);
+    c.translate(-x0, -top);
+    c.lineJoin = 'round';
+    c.lineCap = 'round';
+    paintBdayRoom(c, x0, x1, y, top, 0);
+    roomPic = { key, canvas };
+  }
+  ctx.drawImage(roomPic.canvas, x0, top, x1 - x0, y - top + 12);
 });
 
 holidayActs({ cake: () => cake() });
