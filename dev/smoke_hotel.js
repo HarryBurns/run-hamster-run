@@ -145,7 +145,10 @@ module.exports = async function hotel({ page, step, ev, wait, closeAll }) {
     expect(h.name === 'hotel' && h.floors === 3 && h.lift && h.f === 0, 'сцена отеля', h);
     expect(h.stickers.includes('x_hotel') && /Добро пожаловать в отель/.test(await toasts()), 'первый вход: наклейка и подсказка', h.stickers);
     expect(h.pos.scene === 'hotel' && h.pos.out && h.pos.out.scene === 'world', 'позиция в отеле и дверь наружу', h.pos);
-    // лифт: на третий этаж и обратно (стрелки)
+    // лифт: стрелка вверх — хомячок заходит в лифт (справа) и едет на второй этаж
+    await ev(() => {
+      window.__dev.scene.p.x = 1960;
+    });
     await page.keyboard.down('ArrowUp');
     await wait(150);
     await page.keyboard.up('ArrowUp');
@@ -394,7 +397,9 @@ module.exports = async function hotel({ page, step, ev, wait, closeAll }) {
     await ev(() => window.__dev.actions.setMainHome('suite'));
     await ev(() => window.__dev.go('world'));
     await wait(300);
-    await ev(() => window.__dev.F.askGoHome());
+    await ev(() => {
+      window.__dev.F.askGoHome();
+    });
     await wait(400);
     await page.click('.overlay .panel-foot .btn.green');
     await wait(500);
