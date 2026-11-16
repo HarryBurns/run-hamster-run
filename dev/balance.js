@@ -392,20 +392,33 @@ const { pathToFileURL } = require('url');
   const holidayDay = (h) =>
     (HOLIDAY.coins[h.id] || 0) +
     (h.id === 'cny' ? HOLIDAY.envelope * HOLIDAY.envelopes : 0) +
-    (h.id === 'maslenitsa' ? HOLIDAY.tug.coins[2] * HOLIDAY.tug.paid : 0);
+    (h.id === 'maslenitsa' ? HOLIDAY.tug.coins[2] * HOLIDAY.tug.paid : 0) +
+    (h.id === 'kupala' ? HOLIDAY.splash.coins[2] * HOLIDAY.splash.paid : 0) +
+    (h.presents ? Object.values(h.presents).filter((p) => p.money).length * HOLIDAY.bday.money : 0); // день рождения: все, кто дарит монеты
   for (const h of HOLIDAYS) {
-    if (holidayOn(holidayDoy(h)) !== h) bad(`праздник ${h.id}: в его день — другой праздник`);
+    if (holidayOn(holidayDoy(h) + ((h.from || 1) - 1) * 36) !== h) bad(`праздник ${h.id}: в его день — другой праздник`);
     if (!(HOLIDAY.coins[h.id] >= 100)) bad(`праздник ${h.id}: нет монет за занятия (HOLIDAY.coins)`);
     if (holidayDay(h) >= 2 * avg2) bad(`праздник ${h.id}: за день ${holidayDay(h)} — не меньше двух смен на 2★ (${fmt(2 * avg2)})`);
     const g = h.gift || {},
-      item = g.clothes ? D.CLOTHES_BY_ID[g.clothes] : g.furn ? D.FURN_BY_ID[g.furn] : g.recipe ? D.DISH_BY_ID[g.recipe] : null;
-    if (!item) bad(`праздник ${h.id}: подарка нет в таблицах`);
-    else if (g.recipe ? D.SECRET_RECIPES.includes(g.recipe) || item.holiday !== h.id : item.shop !== 'holiday' || item.price)
-      bad(`праздник ${h.id}: подарок «${item.name}» должен быть только подарком (без цены, shop: holiday)`);
+      items = g.clothes ? [].concat(g.clothes).map((id) => D.CLOTHES_BY_ID[id]) : g.furn ? [D.FURN_BY_ID[g.furn]] : g.recipe ? [D.DISH_BY_ID[g.recipe]] : [];
+    if (!h.gift) {
+      // день рождения: вещи нет — дарят друзья (presents), всё из таблиц
+      if (!h.giftText || !h.presents) bad(`праздник ${h.id}: ни подарка, ни подарков от друзей`);
+      for (const [id, p] of Object.entries(h.presents || {}))
+        if (!D.NPC_BY_ID[id] || !(p.money || (p.dish && D.DISH_BY_ID[p.dish]) || (p.ing && D.ING_BY_ID[p.ing]) || (p.seed && D.SEED_BY_ID[p.seed])))
+          bad(`день рождения: странный подарок от ${id}`);
+    } else if (!items.length || items.some((q) => !q)) bad(`праздник ${h.id}: подарка нет в таблицах`);
+    else
+      for (const item of items)
+        if (g.recipe ? D.SECRET_RECIPES.includes(g.recipe) || item.holiday !== h.id : item.shop !== 'holiday' || item.price)
+          bad(`праздник ${h.id}: подарок «${item.name}» должен быть только подарком (без цены, shop: holiday)`);
     if (!D.EXTRA_STICKERS.some((q) => q.id === h.sticker)) bad(`праздник ${h.id}: нет наклейки ${h.sticker}`);
     if (!(h.decor[0] <= 0 && h.decor[1] >= 0)) bad(`праздник ${h.id}: город не украшен в сам праздник`);
   }
   if (!(HOLIDAY.tug.coins[2] < avg2)) bad(`«Перетягивание каната» на 3★ — не меньше смены на 2★`);
+  if (!(HOLIDAY.splash.coins[2] < avg2)) bad(`«Водяная битва» на 3★ — не меньше смены на 2★`);
+  if (holidayOn(0)) bad('в первый день новой игры — праздник (день рождения — со второго года)');
+  if (holidayOn(36) !== D.HOLIDAY_BY_ID.birthday) bad('день рождения — 1 января второго года');
   if (!(HOLIDAY.again <= HOLIDAY.coins.newyear)) bad('HOLIDAY.again: мешочек вместо подарка — не больше монет за праздник');
   if (decorsOn(10).length) bad('украшения в обычный день (10-й день года)');
 
@@ -780,9 +793,22 @@ const { pathToFileURL } = require('url');
   console.log('\nПраздники (П.13, раз в год, один день; накануне город украшен)');
   for (const h of D.HOLIDAYS) {
     const g = h.gift,
-      gift = g.clothes ? D.CLOTHES_BY_ID[g.clothes].name : g.furn ? D.FURN_BY_ID[g.furn].name : 'рецепт «' + D.DISH_BY_ID[g.recipe].name + '»';
-    const extra = h.id === 'cny' ? ` + конверты ${D.HOLIDAY.envelopes} × ${D.HOLIDAY.envelope}` : h.id === 'maslenitsa' ? ` + канат ${D.HOLIDAY.tug.coins.join(' / ')} (первые ${D.HOLIDAY.tug.paid})` : '';
-    line(`${h.icon} ${h.name} (${D.MONTHS[h.month].toLowerCase()} ${h.dom})`, `${D.HOLIDAY.coins[h.id]}${extra}; подарок — ${gift} (уже есть — ${D.HOLIDAY.again} монет)`);
+      gift = !g ? h.giftText : g.clothes ? [].concat(g.clothes).map((id) => D.CLOTHES_BY_ID[id].name).join(' и ') : g.furn ? D.FURN_BY_ID[g.furn].name : 'рецепт «' + D.DISH_BY_ID[g.recipe].name + '»';
+    const extra =
+      h.id === 'cny'
+        ? ` + конверты ${D.HOLIDAY.envelopes} × ${D.HOLIDAY.envelope}`
+        : h.id === 'maslenitsa'
+          ? ` + канат ${D.HOLIDAY.tug.coins.join(' / ')} (первые ${D.HOLIDAY.tug.paid})`
+          : h.id === 'kupala'
+            ? ` + водяная битва ${D.HOLIDAY.splash.coins.join(' / ')} (первые ${D.HOLIDAY.splash.paid})`
+            : h.id === 'halloween'
+              ? ' + 3 угощения'
+              : h.presents
+                ? ` + от друзей: ${Object.values(h.presents).filter((p) => p.money).length} × ${D.HOLIDAY.bday.money} монет или вещица`
+                : '';
+    const doy = D.holidayDoy(h),
+      when = `${D.MONTHS[Math.floor(doy / 3)].toLowerCase()} ${(doy % 3) + 1}${h.from ? `, с ${h.from}-го года` : ''}`;
+    line(`${h.icon} ${h.name} (${when})`, `${D.HOLIDAY.coins[h.id]}${extra}; подарок — ${gift}${g ? ` (уже есть — ${D.HOLIDAY.again} монет)` : ''}`);
   }
   console.log('\nГотовка: продукты → порция на рынке (1 / 2 / 3 порции за одну готовку)');
   for (const { d, cost, raw, buyable } of cook.sort((a, b) => b.d.sell - a.d.sell).slice(0, 8))
