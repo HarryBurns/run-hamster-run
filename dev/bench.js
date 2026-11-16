@@ -20,6 +20,8 @@
 //   --seasons=winter,summer зима со снегом и лето без осадков
 //   --sec=4                 сколько секунд идёт один замер
 //   --minutes=1320          время суток в минутах (720 — полдень; 1320 — ночь со светом фонарей и окон)
+//   --day=35                день игры вместо дня сезона (праздники, П.13: 35 — Новый год с ёлкой и фейерверком ночью,
+//                           1 — Рождество, 3 — Китайский Новый год с драконом, 5 — Масленица с каруселью)
 //   --json=файл             сохранить цифры (чтобы потом сравнить)
 //   --quest                 взять задание «Гербарий для Мяты»: над местами для гербария — кружки со значками
 //   --max-forest=40         порог: код возврата 1, если средний кадр в лесу (настольный размер) дольше, мс
@@ -37,7 +39,8 @@ const opt = (name, def) => {
 };
 const CPU = +opt('cpu', 4),
   SEC = +opt('sec', 4),
-  MINUTES = +opt('minutes', 12 * 60);
+  MINUTES = +opt('minutes', 12 * 60),
+  DAY = opt('day', null);
 const SIZES = { desktop: [1280, 720, 1], phone: [390, 844, 3], big: [1920, 1080, 1] };
 // место: [x, y] в городе или [x, y, сцена] — в другой локации
 const SPOTS = {
@@ -197,10 +200,11 @@ const SEASON = { winter: { day: 0, weather: 'snow' }, summer: { day: 18, weather
         const [tx, ty, where = 'world'] = SPOTS[spot];
         await cdp.send('Emulation.setCPUThrottlingRate', { rate: 1 });
         await page.evaluate(
-          ([s, tx, ty, minutes, where]) => {
+          ([s, tx, ty, minutes, where, day]) => {
             const d = window.__dev,
               st = d.G.state;
-            st.day = s.day;
+            st.day = day !== null ? +day : s.day;
+            st.dayFlags = {};
             st.weather = s.weather;
             st.minutes = minutes;
             if (d.locations[where]) {
@@ -208,7 +212,7 @@ const SEASON = { winter: { day: 0, weather: 'snow' }, summer: { day: 18, weather
               d.locations[where].debugTeleport(tx, ty);
             } else d.go(where, { pos: { scene: where, floor: ty, x: tx } }); // сцена движка домов (отель): этаж и x
           },
-          [SEASON[sea], tx, ty, MINUTES, where],
+          [SEASON[sea], tx, ty, MINUTES, where, DAY],
         );
         await walk(1000); // прогрев: кэши, шрифты
         // 1) число команд (без замедления: счётчик сам тормозит)

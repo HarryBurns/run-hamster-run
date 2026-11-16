@@ -385,6 +385,29 @@ const { pathToFileURL } = require('url');
     if (days < 18 || days > 54) bad(`житель у бассейна отеля — ${days} дней из 72 (ждём примерно через день)`);
     if (POOL_GUESTS.some((id) => !D.NPC_BY_ID[id] || D.LAND_NPCS.some((n) => n.id === id))) bad('у бассейна отеля отдыхают только жители города');
   }
+  // праздники (П.13): праздник раз в год и один день. Монеты за все занятия, конверты и «Перетягивание каната» (призовые
+  // игры на 3★) вместе — меньше двух смен на 2★: праздник — радость, а не заработок. Подарки праздников — без цены
+  // (shop: 'holiday'), рецепт пряников друзья не рассказывают. Дни праздников разные, украшения — накануне и в праздник.
+  const { HOLIDAYS, HOLIDAY, holidayOn, holidayDoy, decorsOn } = D;
+  const holidayDay = (h) =>
+    (HOLIDAY.coins[h.id] || 0) +
+    (h.id === 'cny' ? HOLIDAY.envelope * HOLIDAY.envelopes : 0) +
+    (h.id === 'maslenitsa' ? HOLIDAY.tug.coins[2] * HOLIDAY.tug.paid : 0);
+  for (const h of HOLIDAYS) {
+    if (holidayOn(holidayDoy(h)) !== h) bad(`праздник ${h.id}: в его день — другой праздник`);
+    if (!(HOLIDAY.coins[h.id] >= 100)) bad(`праздник ${h.id}: нет монет за занятия (HOLIDAY.coins)`);
+    if (holidayDay(h) >= 2 * avg2) bad(`праздник ${h.id}: за день ${holidayDay(h)} — не меньше двух смен на 2★ (${fmt(2 * avg2)})`);
+    const g = h.gift || {},
+      item = g.clothes ? D.CLOTHES_BY_ID[g.clothes] : g.furn ? D.FURN_BY_ID[g.furn] : g.recipe ? D.DISH_BY_ID[g.recipe] : null;
+    if (!item) bad(`праздник ${h.id}: подарка нет в таблицах`);
+    else if (g.recipe ? D.SECRET_RECIPES.includes(g.recipe) || item.holiday !== h.id : item.shop !== 'holiday' || item.price)
+      bad(`праздник ${h.id}: подарок «${item.name}» должен быть только подарком (без цены, shop: holiday)`);
+    if (!D.EXTRA_STICKERS.some((q) => q.id === h.sticker)) bad(`праздник ${h.id}: нет наклейки ${h.sticker}`);
+    if (!(h.decor[0] <= 0 && h.decor[1] >= 0)) bad(`праздник ${h.id}: город не украшен в сам праздник`);
+  }
+  if (!(HOLIDAY.tug.coins[2] < avg2)) bad(`«Перетягивание каната» на 3★ — не меньше смены на 2★`);
+  if (!(HOLIDAY.again <= HOLIDAY.coins.newyear)) bad('HOLIDAY.again: мешочек вместо подарка — не больше монет за праздник');
+  if (decorsOn(10).length) bad('украшения в обычный день (10-й день года)');
 
   // (ж) ассортимент дня: в любой день двух игровых лет на прилавках хватает всего, чтобы готовить, сажать и угощать.
   // «Точно есть» — круглогодичное не из лакомств и сезонное в сезон; несезонное и лакомства — как повезёт.
@@ -753,6 +776,13 @@ const { pathToFileURL } = require('url');
     let days = 0;
     for (let d = 0; d < 72; d++) if (D.poolGuestOn(d, D.HOTEL.poolGuest.from * 60 + 30)) days++;
     line('житель у бассейна отеля', `${D.HOTEL.poolGuest.from}–${D.HOTEL.poolGuest.to} ч, ${days} дней из 72`);
+  }
+  console.log('\nПраздники (П.13, раз в год, один день; накануне город украшен)');
+  for (const h of D.HOLIDAYS) {
+    const g = h.gift,
+      gift = g.clothes ? D.CLOTHES_BY_ID[g.clothes].name : g.furn ? D.FURN_BY_ID[g.furn].name : 'рецепт «' + D.DISH_BY_ID[g.recipe].name + '»';
+    const extra = h.id === 'cny' ? ` + конверты ${D.HOLIDAY.envelopes} × ${D.HOLIDAY.envelope}` : h.id === 'maslenitsa' ? ` + канат ${D.HOLIDAY.tug.coins.join(' / ')} (первые ${D.HOLIDAY.tug.paid})` : '';
+    line(`${h.icon} ${h.name} (${D.MONTHS[h.month].toLowerCase()} ${h.dom})`, `${D.HOLIDAY.coins[h.id]}${extra}; подарок — ${gift} (уже есть — ${D.HOLIDAY.again} монет)`);
   }
   console.log('\nГотовка: продукты → порция на рынке (1 / 2 / 3 порции за одну готовку)');
   for (const { d, cost, raw, buyable } of cook.sort((a, b) => b.d.sell - a.d.sell).slice(0, 8))

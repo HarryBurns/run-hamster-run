@@ -16,7 +16,8 @@
 //  джунгли, П.9 — dev/smoke_jungle.js:  node dev/smoke.js <url> step:джунгли;
 //  секретный пляж, П.9 — dev/smoke_sbeach.js:  node dev/smoke.js <url> "step:секретный пляж";
 //  удалённый остров, П.9 — dev/smoke_island.js:  node dev/smoke.js <url> "step:удалённый остров";
-//  курортный отель, П.17 — dev/smoke_hotel.js:  node dev/smoke.js <url> step:отель)
+//  курортный отель, П.17 — dev/smoke_hotel.js:  node dev/smoke.js <url> step:отель;
+//  праздники, П.13 — dev/smoke_holidays.js:  node dev/smoke.js <url> step:праздники)
 // Скорость проверяется отдельно:  node dev/bench.js [url] --spots=forest --sizes=desktop --max-forest=45
 const { chromium } = require('playwright');
 const fs = require('fs');
@@ -36,6 +37,7 @@ const jungle = require('./smoke_jungle.js'); // П.9: джунгли — зад�
 const sbeach = require('./smoke_sbeach.js'); // П.9: секретный пляж — задание Зефирки, грот, черепашата, «Замок из песка», Жемчужинка
 const island = require('./smoke_island.js'); // П.9: удалённый остров — задание Этажкина, плавание на юг, Вождь Кокос, боулинг, праздник огней
 const hotel = require('./smoke_hotel.js'); // П.17: курортный отель — номер на ночь, шведский стол, спа, аниматор, «Горка», носильщица, люкс
+const holidays = require('./smoke_holidays.js'); // П.13: праздники — Новый год, Рождество, Китайский Новый год, Масленица
 
 const BASE = process.argv[2] || 'http://localhost:8765';
 const ONLY_ESTATE = process.argv[3] === 'estate';
@@ -1031,8 +1033,8 @@ async function economy({ page, step, ev, wait, closeAll }) {
     const prices = await ev(async () => {
       const d = await import('./js/data/index.js');
       const all = [
-        ...d.CLOTHES.filter((c) => !['start', 'gift'].includes(c.shop)),
-        ...d.FURNITURE.filter((f) => !['gift', 'forest', 'mountain', 'caves', 'desert', 'jungle', 'cove', 'island'].includes(f.shop)), // подарки и украшения тайных мест — без цены
+        ...d.CLOTHES.filter((c) => !['start', 'gift', 'holiday'].includes(c.shop)), // holiday — подарки праздников (П.13), без цены
+        ...d.FURNITURE.filter((f) => !['gift', 'holiday', 'forest', 'mountain', 'caves', 'desert', 'jungle', 'cove', 'island'].includes(f.shop)), // подарки, праздники и украшения тайных мест — без цены
         ...d.INGREDIENTS.filter((i) => i.src === 'shop'),
         ...d.SEEDS,
         ...d.DISHES.filter((q) => q.cafe),
@@ -2479,6 +2481,7 @@ async function economy({ page, step, ev, wait, closeAll }) {
     await sbeach({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
     await island({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
     await hotel({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
+    await holidays({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
     await estate({ page, step: (n, f, o) => step(n, f, { ...o, extra: true, estate: true }), ev, wait, closeAll });
     if (tag === 'desktop')
       await extra({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll, hold });
