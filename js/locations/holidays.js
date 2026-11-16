@@ -178,21 +178,37 @@ function drawBurst(ctx, b) {
   ctx.save();
   if (q < 0.2) ell(ctx, b.x, b.y, b.s * 0.3 * (1 - q * 4), b.s * 0.3 * (1 - q * 4), 'rgba(255,250,220,.8)'); // вспышка
   ctx.globalAlpha = Math.max(0, a);
+  // одним путём на кольцо: искры-чёрточки, потом головки искр (так залп — несколько команд рисования, а не сотня)
   for (const [ring, col, n] of [
     [1, b.c, b.n],
     [0.62, b.c2, Math.round(b.n * 0.7)],
-  ])
+  ]) {
+    const r2 = rad * ring,
+      heads = new Path2D(),
+      trail = new Path2D();
+    ctx.beginPath();
     for (let j = 0; j < n; j++) {
       const ang = (j / n) * Math.PI * 2 + b.i + ring,
-        r2 = rad * ring,
-        x = b.x + Math.cos(ang) * r2,
-        y = b.y + Math.sin(ang) * r2 * 0.85 + fall;
-      line(ctx, b.x + Math.cos(ang) * r2 * 0.72, b.y + Math.sin(ang) * r2 * 0.61 + fall * 0.8, x, y, col, 3.4);
-      ell(ctx, x, y, 4, 4, col);
-      ell(ctx, x, y, 2, 2, '#fff');
-      // хвостик из гаснущих точек
-      ell(ctx, b.x + Math.cos(ang) * r2 * 0.55, b.y + Math.sin(ang) * r2 * 0.47 + fall * 0.6, 2, 2, col);
+        cs = Math.cos(ang),
+        sn = Math.sin(ang),
+        x = b.x + cs * r2,
+        y = b.y + sn * r2 * 0.85 + fall;
+      ctx.moveTo(b.x + cs * r2 * 0.72, b.y + sn * r2 * 0.61 + fall * 0.8);
+      ctx.lineTo(x, y);
+      heads.moveTo(x + 4, y);
+      heads.arc(x, y, 4, 0, 6.2832);
+      const tx = b.x + cs * r2 * 0.55,
+        ty = b.y + sn * r2 * 0.47 + fall * 0.6;
+      trail.moveTo(tx + 2, ty);
+      trail.arc(tx, ty, 2, 0, 6.2832);
     }
+    ctx.strokeStyle = col;
+    ctx.lineWidth = 3.4;
+    ctx.stroke();
+    ctx.fillStyle = col;
+    ctx.fill(heads);
+    ctx.fill(trail);
+  }
   ctx.restore();
 }
 /** Фейерверк сейчас: в новогоднюю ночь, когда стемнело. */
@@ -353,13 +369,18 @@ export function createHolidayDecor() {
         z = sc.cam.zoom;
       c.save();
       c.globalCompositeOperation = 'lighter';
-      const dot = (x, y, r, col, a) => {
-        const p = sc.cam.toScreen(x, y);
-        if (p.x < -20 || p.y < -20 || p.x > G.view.w + 20 || p.y > G.view.h + 20) return;
+      // точки одного залпа — одним путём (несколько команд на залп)
+      const dots = (pts, r, col, a) => {
         c.globalAlpha = a;
         c.fillStyle = col;
         c.beginPath();
-        c.arc(p.x * kx, p.y * ky, Math.max(0.8, r * z * kx), 0, 6.2832);
+        const rr = Math.max(0.8, r * z * kx);
+        for (const [x, y] of pts) {
+          const p = sc.cam.toScreen(x, y);
+          if (p.x < -20 || p.y < -20 || p.x > G.view.w + 20 || p.y > G.view.h + 20) continue;
+          c.moveTo(p.x * kx + rr, p.y * ky);
+          c.arc(p.x * kx, p.y * ky, rr, 0, 6.2832);
+        }
         c.fill();
       };
       if (fw)
@@ -369,13 +390,15 @@ export function createHolidayDecor() {
             rad = b.s * (1 - (1 - q) * (1 - q)),
             fall = q * q * b.s * 0.3,
             a = Math.max(0, 1 - q * q) * 0.8;
-          if (q < 0.2) dot(b.x, b.y, b.s * 0.4, '#fff3bf', 0.5 * (1 - q * 5));
+          if (q < 0.2) dots([[b.x, b.y]], b.s * 0.4, '#fff3bf', 0.5 * (1 - q * 5));
+          const pts = [];
           for (let j = 0; j < b.n; j++) {
             const ang = (j / b.n) * Math.PI * 2 + b.i + 1;
-            dot(b.x + Math.cos(ang) * rad, b.y + Math.sin(ang) * rad * 0.85 + fall, 9, b.c, a);
+            pts.push([b.x + Math.cos(ang) * rad, b.y + Math.sin(ang) * rad * 0.85 + fall]);
           }
+          dots(pts, 9, b.c, a);
         }
-      if (sl) for (const p of floating(sc, t)) dot(p.x, p.y, 16, '#ffa94d', 0.55);
+      if (sl) dots(floating(sc, t).map((p) => [p.x, p.y]), 16, '#ffa94d', 0.55);
       c.restore();
     },
     /** Значки праздника на карте. */
