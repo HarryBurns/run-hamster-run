@@ -330,7 +330,7 @@ function celebrate(q, got) {
   }).join('');
   const st = got.sticker;
   const lines = [
-    got.land ? `<p class="land-open">${got.land.icon} <b>${got.land.name} открыт!</b><br>${got.land.at ? `Вход — ${got.land.at}.` : ''}</p>` : '',
+    got.land ? `<p class="land-open">${got.land.icon} <b>${got.land.name} ${got.land.opened || 'открыт'}!</b><br>${got.land.at ? `Вход — ${got.land.at}.` : ''}</p>` : '',
     st ? `<p>Наклейка «${st.title}» ${st.isNew ? '— новая в альбоме!' : '— такая у тебя уже есть.'}</p>` : '',
     got.clothes ? `<p>🎁 Подарок: <b>${got.clothes.name}</b> — уже в шкафу!</p>` : '',
     got.recipe ? `<p>📜 Секретный рецепт: <b>${got.recipe.e} ${got.recipe.name}</b> — готовь на кухне!</p>` : '',
@@ -481,7 +481,7 @@ export function openWay(id) {
     message({
       title: land.name,
       icon: land.icon,
-      html: `<p class="center big-emoji">${land.icon}</p><p class="center">${land.ready || `${land.name} открыт! Загляни чуть позже.`}</p>`,
+      html: `<p class="center big-emoji">${land.icon}</p><p class="center">${land.ready || `${land.name} ${land.opened || 'открыт'}! Загляни чуть позже.`}</p>`,
       buttons: [{ text: 'Хорошо!' }],
     });
     return;

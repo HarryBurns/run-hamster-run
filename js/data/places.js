@@ -30,6 +30,7 @@ export const PLACES = {
 //                канатной дороги в лесу (действие way:mountain), впиши scene и entry — и она повезёт на гору.
 //                Пещеры — так же: вход — скала у вершины горы (место caves, way:caves), сцена caves.
 //   ready        что сказать у открытого входа, пока сцены нет
+//   opened       «открыт» в нужном роде для окна «Задание выполнено!» («Гора открыта!», «Пещеры открыты!»)
 //   go           своё действие вместо простого перехода (гора: 'cableway:up' — вагончик едет вверх, features/mountain.js)
 export const LANDS = [
   {
@@ -38,22 +39,22 @@ export const LANDS = [
     scene: 'forest', entry: 'gate', // сцена — locations/forest.js, вход gate — у ворот на южной опушке
   },
   {
-    id: 'desert', name: 'Пустыня', icon: '🐫', npc: 'busya', who: 'Буся из ТЦ «Модный»', quest: null,
+    id: 'desert', name: 'Пустыня', icon: '🐫', opened: 'открыта', npc: 'busya', who: 'Буся из ТЦ «Модный»', quest: null,
     door: 'Автобус к барханам пока не ходит.', from: 'world', at: 'на восточной окраине, у остановки каравана', scene: null, entry: null,
   },
   // вход на гору — из леса, станция канатной дороги (здание station в locations/forest.js, действие way:mountain)
   {
     id: 'mountain', name: 'Гора', icon: '⛰️', npc: 'senya', who: 'Сеня из бассейна', quest: 'summit',
     door: 'Канатная дорога на гору пока не работает.', from: 'forest', at: 'в лесу, у станции канатной дороги',
-    scene: 'mountain', entry: 'station', go: 'cableway:up', // сцена — locations/mountain.js, вход — у верхней станции
+    scene: 'mountain', entry: 'station', go: 'cableway:up', opened: 'открыта', // сцена — locations/mountain.js, вход — у верхней станции
   },
   // вход в пещеры — на горе: тёмный проход в скале (особое место caves в locations/mountain.js, действие way:caves)
   {
     id: 'caves', name: 'Пещеры', icon: '💎', npc: 'prof', who: 'Профессор Орешкин из школы', quest: 'cave_light',
-    door: 'Тёмный проход в скале заколочен досками.', from: 'mountain', at: 'на горе, в скале у вершины',
+    door: 'Тёмный проход в скале заколочен досками.', from: 'mountain', at: 'на горе, в скале у вершины', opened: 'открыты',
     scene: 'caves', entry: 'gate', // сцена — locations/caves.js, вход gate — у выхода к свету
   },
-  { id: 'jungle', name: 'Джунгли', icon: '🦜', npc: 'bob', who: 'Капитан Боб с пирса', quest: null, door: null, from: 'sea', scene: null, entry: null },
+  { id: 'jungle', name: 'Джунгли', icon: '🦜', opened: 'открыты', npc: 'bob', who: 'Капитан Боб с пирса', quest: null, door: null, from: 'sea', scene: null, entry: null },
   { id: 'cove', name: 'Секретный пляж', icon: '🐢', npc: 'zefirka', who: 'Зефирка с пляжа', quest: null, door: null, from: 'sea', scene: null, entry: null },
   { id: 'island', name: 'Удалённый остров', icon: '🌋', npc: null, who: 'Лифтёр Этажкин из Хомяк-Тауэра', quest: null, door: null, from: 'sea', scene: null, entry: null },
 ];

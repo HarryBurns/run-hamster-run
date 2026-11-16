@@ -122,11 +122,8 @@ export default {
     const cv = host.canvas();
     const ctx = cv.ctx;
     const level = host.level || 0;
-    // хомячок в каске (если на голове ничего нет — каска шахтёра)
-    const look = {
-      ...host.look,
-      outfit: { ...host.look.outfit, head: host.look.outfit.head || { kind: 'helmet', c: '#ffd43b', c2: '#e8a400' } },
-    };
+    // у жилы хомячок всегда в каске шахтёра (только на время игры — наряд не меняется)
+    const look = { ...host.look, outfit: { ...host.look.outfit, head: { kind: 'helmet', c: '#ffd43b', c2: '#e8a400' } } };
     let t = 0,
       last = performance.now(),
       raf = 0,
@@ -271,9 +268,18 @@ export default {
       // корзинка с добычей
       const bx = W * 0.86,
         by = v.y + 6 * s;
+      ctx.beginPath();
+      ctx.arc(bx, by - 30 * s, 30 * s, Math.PI, 0);
+      ctx.strokeStyle = OUT;
+      ctx.lineWidth = 6 * s;
+      ctx.stroke();
+      ctx.strokeStyle = '#a0662d';
+      ctx.lineWidth = 3 * s;
+      ctx.stroke();
       fillRR(ctx, bx - 36 * s, by - 34 * s, 72 * s, 38 * s, 10 * s, '#c98b5a', OUT, 2);
+      for (let i = 1; i < 3; i++) line(ctx, bx - 34 * s, by - 34 * s + i * 12 * s, bx + 34 * s, by - 34 * s + i * 12 * s, 'rgba(74,55,40,.35)', 1.5);
       for (let i = 0; i < Math.min(got, 12); i++)
-        crystal(ctx, bx - 28 * s + (i % 6) * 11 * s, by - 30 * s + Math.floor(i / 6) * 4 * s, 18 * s, ((i % 3) - 1) * 0.3, GEMS[i % 4], 4 * s);
+        crystal(ctx, bx - 28 * s + (i % 6) * 11 * s, by - 32 * s + Math.floor(i / 6) * 4 * s, 18 * s, ((i % 3) - 1) * 0.3, GEMS[i % 4], 4 * s);
       // хомячок с киркой
       const hx = v.x - 170 * s,
         hy = v.y + 14 * s;

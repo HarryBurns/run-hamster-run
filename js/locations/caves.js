@@ -56,7 +56,7 @@ export const SHROOMS = [
   [10, 7],
   [5, 7],
   [12, 5],
-  [11, 21],
+  [8, 21],
   [29, 6],
 ];
 const S3 = () => G.state.dayFlags.caves || {};
