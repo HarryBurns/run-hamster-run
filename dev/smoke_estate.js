@@ -738,15 +738,16 @@ module.exports = async function estate({ page, step, ev, wait, closeAll }) {
           .sort((a, b) => Math.abs(a.x - p.x) - Math.abs(b.x - p.x))[0];
         return { id: it.id, ...d.scene.debugScreen(it.x, d.scene.geo.fy(it.floor) - 30) };
       }, id);
+      const had = (await state()).storage[lamp.id] || 0; // такой же предмет мог остаться в кладовке от прошлого дома
       await page.mouse.click(lamp.x, lamp.y);
       await wait(250);
       await page.click('text=Убрать в кладовку');
       await wait(300);
       s = await state();
       expect(
-        s.storage[lamp.id] === 1 && s.homes[id].length === ids.length - 1,
+        s.storage[lamp.id] === had + 1 && s.homes[id].length === ids.length - 1,
         'предмет не убрался в кладовку',
-        lamp.id,
+        [id, lamp.id, had, s.storage[lamp.id]],
       );
       await page.click(`.decor-tray .tray-item`);
       await wait(300);
