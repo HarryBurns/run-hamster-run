@@ -4,7 +4,7 @@
 //   holiday:tree       большая ёлка на площади: нарядить (сценка — повесить игрушки и звезду)        — Новый год
 //   (разговор)         подарить другу новогодний подарок (talkHooks через holidayTalk)              — Новый год
 //   holiday:crib       домик-вертеп со звездой: посмотреть                                          — Рождество
-//   (дверь домика)     колядки: спеть у двери (сценка) — хозяин угощает (doorHooks через holidayDoor) — Рождество
+//   (дверь домика)     колядки вечером (HOLIDAY.carols): спеть у двери (сценка) — хозяин угощает (holidayDoor) — Рождество
 //   holiday:lanterns   столик с небесными фонариками: запустить три фонарика (сценка)               — Китайский Новый год
 //   holiday:envelope   красный конверт на улице (находка дня): монетки на удачу                      — Китайский Новый год
 //   holiday:dragon     дракон на площади: потанцевать с ним                                         — Китайский Новый год
@@ -298,6 +298,12 @@ function paintCarol(ctx, w, h, k, look, t) {
 }
 holidayDoor('xmas', async (npc, ctx, where) => {
   if (!stepWanted('xmas', 'carols') || stepDoneFor('xmas', 'carols', npc)) return false;
+  const m = S().minutes;
+  if (m < HOLIDAY.carols[0] * 60 || m >= HOLIDAY.carols[1] * 60) {
+    // колядуют вечером; днём дверь — как обычно, а напомнить — можно
+    setTimeout(() => toast(`🎶 Колядки — вечером, с ${HOLIDAY.carols[0]}:00. Приходи петь к этой двери!`), 1200);
+    return false;
+  }
   const name = NPC_BY_ID[npc].name;
   sfx('bell');
   const i = await message({

@@ -335,6 +335,7 @@ export const HOLIDAY = {
   envelopes: 5,
   tug: { coins: [40, 80, 120], paid: 2 },
   carolTreats: ['cookies', 'coco_candy', 'cocoa'], // чем угощают колядующих (блюдо в рюкзак)
+  carols: [16, 22], // колядуют вечером: с 16:00 до 22:00 (днём дверь домика — как обычно)
   bliniKit: { flour: 1, egg: 1, milk: 1 }, // набор для блинов с ярмарки (раз в день, на Масленицу)
 };
 

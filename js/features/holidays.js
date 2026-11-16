@@ -19,7 +19,7 @@ import { setDayFlag, setFlag, earn, addClothes, addItem, learnRecipe, award } fr
 import { sfx } from '../core/audio.js';
 import { on, emit } from '../core/events.js';
 import { register } from '../core/registry.js';
-import { G, cal, hasClothes, houseItems, ownedHomes, questNow } from '../core/state.js';
+import { G, cal, hasClothes, houseItems, ownedHomes } from '../core/state.js';
 import { el, fmtMoney, pick } from '../core/util.js';
 import {
   HOLIDAYS,
@@ -44,7 +44,7 @@ import { message, openPanel } from '../ui/panel.js';
 import { toast } from '../ui/toast.js';
 import { talkHooks } from './friends.js';
 import { doorHooks } from './visits.js';
-import { setExtraTarget, setJournalTop, trackQuest, trackedQuest } from './quests.js';
+import { setExtraTarget, setJournalTop, trackQuest } from './quests.js';
 import { openMap } from './map.js';
 
 const S = () => G.state;
@@ -218,8 +218,11 @@ const dateText = (h) => `${MONTHS[h.month].toLowerCase()}, день ${h.dom}`;
 function stepsHtml(h) {
   return `<ol class="hol-steps">${h.steps.map((st) => `<li>${st.text}${st.n > 1 ? ` <b>(${st.n})</b>` : ''}</li>`).join('')}</ol>`;
 }
-/** Сказать о празднике один раз за день: утром (после сна) и когда игра только открылась. */
-export function announceHoliday() {
+/**
+ * Сказать о празднике один раз за день: утром (после сна) — окном, а когда игра только открылась — подсказкой (при входе
+ * и так бывают окна: приветствие, письмо банка), подробности — в журнале.
+ */
+export function announceHoliday(quiet = false) {
   const s = S();
   if (!s || HF().told) return;
   const h = holidayToday(),
@@ -227,6 +230,10 @@ export function announceHoliday() {
   const after = decorsOn(s.day).find(({ k }) => k > 0);
   if (!h && !t && !after) return;
   setDayFlag('told', 1, 'holiday');
+  if (h && quiet) {
+    enqueue(() => toast(`${h.icon} Сегодня — ${h.name}! Праздничные занятия — в журнале 📖`, 'good'), { delay: 2600 });
+    return;
+  }
   if (h) {
     enqueue(
       () => {
@@ -249,9 +256,9 @@ export function announceHoliday() {
     if (ny || eve) enqueue(() => toast([ny, eve].filter(Boolean).join(' '), 'good'), { delay: 2600 });
   }
 }
-on('wake', announceHoliday);
+on('wake', () => announceHoliday());
 on('scene', ({ from }) => {
-  if (from === '') setTimeout(announceHoliday, 400); // игра только открылась (новая или продолжение)
+  if (from === '') setTimeout(() => announceHoliday(true), 400); // игра только открылась (новая или продолжение)
 });
 
 // ---------- жители радуются празднику ----------
@@ -411,19 +418,24 @@ setJournalTop((body, panel) => {
   const t = holidayTomorrow();
   if (t) body.appendChild(el('div', 'quest holiday soon', `<div class="q-head"><span class="q-ic">${t.icon}</span><div><div class="ttl">Завтра — ${t.name}!</div><div class="sub">Город уже украшают. Завтра — праздничные занятия и подарок.</div></div></div>`));
 });
-/** Плашка праздника в HUD (вместо плашки журнала): пока праздник сегодня и не всё сделано. */
-export function holidayChip() {
+/**
+ * Плашка праздника в HUD вместо плашки журнала — только когда у журнала нечего показать (ни взятого задания, ни нового
+ * «!»): иначе ход праздника виден на плашке даты (holidayBadge).
+ */
+export function holidayChip(questInfo) {
   const st = holidayState();
-  if (!st || st.done) return null;
-  const tq = trackedQuest();
-  if (tq && questNow(tq).status === 'active') return null; // к заданию из журнала сейчас ведёт звёздочка — плашка его
+  if (!st || st.done || questInfo) return null;
   const n = st.steps.filter((x) => x.ok).length;
   return { text: `${st.h.icon} ${st.h.short || st.h.name} · ${n}/${st.steps.length}`, short: `${st.h.icon} ${n}/${st.steps.length}`, cls: 'holiday' };
 }
-/** Значок праздника на плашке даты: сегодня — ярко, завтра — бледнее. */
+/** Значок праздника на плашке даты: сегодня — ярко и с ходом занятий («🎄 1/2»), завтра — бледнее. */
 export function holidayBadge() {
-  const h = holidayToday();
-  if (h) return ` <span class="hol-badge" title="${h.name}">${h.icon}</span>`;
+  const st = holidayState();
+  if (st) {
+    const n = st.steps.filter((x) => x.ok).length,
+      prog = st.done ? '' : ` ${n}/${st.steps.length}`;
+    return ` <span class="hol-badge" title="${st.h.name}">${st.h.icon}${prog}</span>`;
+  }
   const t = holidayTomorrow();
   return t ? ` <span class="hol-badge eve" title="Завтра — ${t.name}">${t.icon}</span>` : '';
 }

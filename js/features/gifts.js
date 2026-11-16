@@ -14,7 +14,8 @@ const S = () => G.state;
 function giftPool() {
   const s = S(),
     pool = [],
-    // праздничные подарки (новогодний колпак, шляпа волшебницы) дарят только около своего праздника
+    // праздничные подарки-сюрпризы (шляпа волшебницы) дарят только около своего праздника; подарки самих праздников
+    // (shop: 'holiday' — колпак, красный наряд, самовар) сюрпризом не дарят: их дарит праздник (features/holidays.js)
     timely = (def) => wareSeason(def, cal().month) !== 'off';
   for (const c of CLOTHES)
     if (c.shop === 'gift' && c.id !== 'medal' && !hasClothes(c.id) && timely(c)) pool.push({ kind: 'clothes', def: c });

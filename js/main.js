@@ -71,8 +71,14 @@ initHud(hud, {
       F.showLetter();
     },
   },
-  // плашка журнала: сегодня праздник — его ход (П.13), иначе задание из журнала
-  quest: { info: () => F.holidayChip() || F.questChip(), fn: () => F.openAlbum('quests') },
+  // плашка журнала: задание из журнала, а если его нет — ход праздника сегодня (П.13)
+  quest: {
+    info: () => {
+      const q = F.questChip();
+      return q || F.holidayChip(q);
+    },
+    fn: () => F.openAlbum('quests'),
+  },
   // плашка даты: значок праздника сегодня и завтра; по нажатию — праздничный календарь (П.13)
   date: { badge: F.holidayBadge, fn: F.openHolidays },
   map: { icon: '🗺️', label: 'Карта', fn: F.openMap },
