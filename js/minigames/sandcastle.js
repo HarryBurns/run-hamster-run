@@ -199,12 +199,12 @@ const CSS = `
 .sc-col img{width:44px;height:44px;margin:2px}
 .sc-col img.big{width:110px;height:auto}
 .sc-wrap{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;
-  background:linear-gradient(#c5f6fa,#fff4d6);padding:50px 8px 10px;box-sizing:border-box;overflow:hidden}
+  background:linear-gradient(#c5f6fa,#fff4d6);padding:58px 8px 12px;box-sizing:border-box;overflow:hidden}
 .sc-top{display:flex;gap:10px;align-items:center;justify-content:center;flex-wrap:wrap}
 .sc-sample{background:#fff;border:3px solid ${OUT};border-radius:14px;padding:3px 6px 0;text-align:center;font-weight:900;font-size:13px}
 .sc-sample canvas{display:block;width:min(36vw,170px);height:auto;border-radius:8px}
 .sc-say{background:#fffbe6;border:3px solid ${OUT};border-radius:14px;padding:4px 12px;font-weight:900;font-size:17px;max-width:min(90vw,320px);text-align:center}
-.sc-castle{width:min(94vw,560px,calc((100vh - 330px) * 1.6));height:auto;border-radius:16px;border:3px solid ${OUT};touch-action:manipulation;cursor:pointer;background:#fff}
+.sc-castle{width:min(94vw,560px,calc((100vh - 450px) * 1.6));height:auto;border-radius:16px;border:3px solid ${OUT};touch-action:manipulation;cursor:pointer;background:#fff}
 .sc-pal{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;width:min(94vw,560px)}
 .sc-piece{border:3px solid ${OUT};border-radius:14px;background:#fff;padding:2px 0 0;cursor:pointer;touch-action:manipulation;font-weight:900;font-size:12px}
 .sc-piece img{width:100%;max-width:64px;height:auto;display:block;margin:0 auto}

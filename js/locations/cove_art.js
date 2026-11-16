@@ -378,7 +378,7 @@ function paintNest(ctx, hatched) {
 }
 /** Черепашонок: панцирь в клеточку, ласты (frame — взмах; dir — куда смотрит: 1 — вправо, -1 — влево). */
 function paintTurtle(ctx, frame, dir) {
-  if (dir === -1) ctx.scale(-1, 1);
+  ctx.scale(dir === -1 ? -1.3 : 1.3, 1.3);
   ell(ctx, 1, 6, 10, 3, 'rgba(60,40,20,.2)');
   const f = frame ? 2 : -2;
   for (const [x, y, a] of [
@@ -473,7 +473,7 @@ function paintSeaMarker(ctx) {
 }
 defineArt({
   cnest: [[-30, -16, 30, 20], paintNest],
-  cturtle: [[-16, -12, 16, 12], paintTurtle],
+  cturtle: [[-21, -16, 21, 16], paintTurtle],
   cshell: [[-14, -14, 14, 12], paintShell],
   mapBottle: [[-22, -18, 22, 14], paintBottle],
   seaMarker: [[-22, -34, 22, 16], paintSeaMarker],
