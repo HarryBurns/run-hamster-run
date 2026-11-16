@@ -1605,9 +1605,9 @@ js/data/…                    подарки — по своим таблица
                              входит в SECRET_RECIPES); наклейки x_hol_* и x_tug (tasks.js); событие holiday (core/events.js)
 js/features/holidays.js      ОБЩИЙ МЕХАНИЗМ: holidayToday/Tomorrow, holidayState, holidayStep (шаг сделан), шаги по событиям
                              (on/if/distinct в таблице), подарок раз в год (finishHoliday → окно с конфетти), объявление утром
-                             (wake) и при входе в игру, праздничная карточка в журнале (setJournalTop), плашка в HUD
-                             (holidayChip), значок на дате (holidayBadge) и праздничный календарь (openHolidays, действие
-                             holidays), звёздочка (setExtraTarget, trackHoliday, holidayWhere), реплики жителей (talkHooks)
+                             (wake; при входе в игру — подсказкой), праздничная карточка в журнале (setJournalTop), плашка
+                             в HUD (holidayChip — когда у журнала нет заданий), значок и ход на дате (holidayBadge) и
+                             праздничный календарь (openHolidays, действие holidays), звёздочка (setExtraTarget, trackHoliday, holidayWhere), реплики жителей (talkHooks)
 js/features/holidays_winter.js  ЗАНЯТИЯ четырёх зимних праздников: holidayActs({ tree, crib, lanterns, envelope, dragon,
                              carousel, effigy, blini, tug }), holidayTalk('newyear') — подарок другу, holidayDoor('xmas') —
                              колядки; сценки tapScene (нажатия: ёлка, фонарики) и playScene (колядки, карусель)
@@ -1622,8 +1622,8 @@ js/engine/topdown/render.js  крюк lights(sc, light) — свои пятна 
 js/features/friends.js       talkHooks { greet, chat, talk } — праздник вмешивается в разговор, друзья о празднике не знают
 js/features/visits.js        doorHooks { knock } — свой стук в дверь домика (колядки)
 js/features/quests.js        setJournalTop (карточка в начале журнала), setExtraTarget (звёздочка, пока нет задания журнала)
-js/ui/hud.js, js/main.js     config.date { badge, fn } — значок праздника на дате и календарь по нажатию; плашка журнала
-                             показывает праздник (holidayChip), пока он сегодня и не всё сделано
+js/ui/hud.js, js/main.js     config.date { badge, fn } — значок и ход праздника на дате, календарь по нажатию; плашка журнала
+                             показывает праздник (holidayChip), только когда заданий журнала нет
 js/devhooks.js               __dev.holiday: to(id, 'eve' | 'day' | 'after', год, минуты), dayOf(…), state(), decor()
 dev/smoke_holidays.js        автотест (step:праздники);  dev/balance.js — раздел «Праздники»;  dev/bench.js --day=35 и т. п.
 ```
@@ -1638,6 +1638,7 @@ dev/smoke_holidays.js        автотест (step:праздники);  dev/ba
   занятие зовёт `holidayStep(праздник, шаг, кто?)`, или шаг сам считается по событию — поля `on` (имя события), `if`
   (какие поля должны совпасть), `distinct` (по какому полю считать «разных»): так сделаны блины на Масленицу
   (`cook { dish: 'pancakes' }`, `gift { dish: 'pancakes' }` — событие `gift` теперь несёт `dish`) и канат (`minigame`).
+  Колядки — только вечером (`HOLIDAY.carols`, 16:00–22:00): днём дверь домика работает как обычно (с подсказкой).
   Все шаги сделаны — `finishHoliday`: монеты, подарок, наклейка, праздничное окно; событие `holiday { id, what: 'done' }`.
 - **Украшения** рисуются поверх города крюками части, всё неподвижное — в кэше спрайтов (кадры мигания и поворот
   карусели — в ключе спрайта); гирлянды — по одному спрайту на пролёт между фонарями (`STRINGS`). Ночью — крюк `lights`
