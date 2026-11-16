@@ -173,6 +173,12 @@ export const EXTRA_STICKERS = [
   { id: 'x_zaryadka', sticker: '🤸', title: 'Зарядка у бассейна' },
   { id: 'x_disco', sticker: '🪩', title: 'Дискотека в отеле' },
   { id: 'x_buffet', sticker: '🥐', title: 'Шведский стол' },
+  // праздники (П.13): наклейка за все праздничные занятия дня
+  { id: 'x_hol_newyear', sticker: '🎄', title: 'Новый год' },
+  { id: 'x_hol_xmas', sticker: '🎶', title: 'Рождество' },
+  { id: 'x_hol_cny', sticker: '🏮', title: 'Китайский Новый год' },
+  { id: 'x_hol_maslenitsa', sticker: '🥞', title: 'Масленица' },
+  { id: 'x_tug', sticker: '🪢', title: 'Перетягивание каната' },
   { id: 'x_porter', sticker: '🛒', title: 'Золотая тележка' },
   { id: 'x_visit', sticker: '🧸', title: 'Первые гости' },
   { id: 'x_visit_all', sticker: '🏘️', title: 'В гостях у всех' },

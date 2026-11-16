@@ -33,7 +33,7 @@ export const EVENTS = {
   cook: 'приготовлено блюдо { dish, perfect }',
   eat: 'хомячок что-то съела { id } — блюдо (у сырого продукта — ing)',
   treat: 'гостя угостили дома { id }',
-  gift: 'жителя угостили в городе { id }',
+  gift: 'жителя угостили в городе { id, dish }',
   talk: 'поговорили с жителем { id }',
   plant: 'посажены семена',
   harvest: 'собран урожай',
@@ -70,6 +70,8 @@ export const EVENTS = {
     'удалённый остров { what } — spot (нашли остров в подзорную трубу), volcano (посмотрела на вулкан), obsidian (взяла вулканическое стекло), flower (подобрала цветок для леи), dance (потанцевала на празднике огней), lei (Вождь сплёл лею), totem (Вождь вырезал тотем) — features/island.js',
   hotel:
     'курортный отель «Морская звезда» { what } — room (сняла номер), night (проснулась в номере), buffet (поела у шведского стола), spa (массаж или маска), dance (зарядка или дискотека с аниматором; поле kind: morning | evening), slide (скатилась с горки) — features/hotel.js',
+  holiday:
+    'праздник (П.13) { id, what } — what: шаг праздника (tree, gifts, crib, carols, lanterns, envelopes, cook, treat, tug), done (все занятия дня сделаны), dragon, carousel, effigy, blini — features/holidays.js, features/holidays_winter.js',
   warmup: 'хомячок согрелась (горячий источник на горе): мороза за день как не бывало — features/health.js',
   forest: 'занятие в лесу { what } — hive (мёд), squirrel (обмен у белки), fire (жарили зефир), treehouse (домик на дереве), wreath (венок), kit (нашли бельчонка), kitHome (отнесли маме) — features/forest.js',
 };

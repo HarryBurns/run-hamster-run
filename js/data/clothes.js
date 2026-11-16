@@ -1,6 +1,7 @@
 // Одежда: слоты, каталог вещей, стартовый гардероб.
 // slot: head | body | legs | feet | acc
 // shop: start (уже есть) | mall | boutique | beach | market (вещицы с рынка) | gift (только в подарок)
+//   | holiday (подарок праздника раз в год — data/holidays.js; сюрпризом не дарят)
 // Цены — в таблице PRICES.clothes (economy.js); у стартовых вещей и подарков цены нет (0).
 // season — сезонная вещь: коллекция из таблицы сезонов вещей (WARE_MONTHS в data/seasons.js): 'cold' — тёплое
 //   (осень и зима), 'hot' — летнее (весна и лето), 'rain' — от дождя (весна и осень), 'spring', 'autumn',
@@ -41,6 +42,8 @@ C('dress_daisy', 'body', 'dress', 'Платье «Ромашка»', '#fff9db', 
 C('princess_pink', 'body', 'princess', 'Платье принцессы', '#ffa8d9', { shop: 'boutique', stock: 'special', tags: ['fancy'] });
 C('princess_gold', 'body', 'princess', 'Золотое бальное платье', '#ffd43b', { shop: 'boutique', stock: 'special', tags: ['fancy'] });
 C('princess_fairy', 'body', 'princess', 'Платье феи', '#a5d8ff', { shop: 'gift', tags: ['fancy'] });
+// подарок Китайского Нового года (П.13): платье-ципао — воротник-стойка, золотые застёжки и кайма (trim в art/hamster.js)
+C('dress_qipao', 'body', 'dress', 'Красный праздничный наряд', '#e03131', { c2: '#ffd43b', trim: 'qipao', pattern: 'clouds', shop: 'holiday', tags: ['fancy', 'cute'] });
 // --- кофты
 C('sw_orange', 'body', 'sweater', 'Полосатая кофта', '#ff922b', { pattern: 'stripes', c2: '#fff4e6', tags: ['warm', 'autumn', 'home'] });
 C('sw_pink', 'body', 'sweater', 'Розовая кофта', '#faa2c1', { tags: ['warm', 'spring', 'cute', 'home'] });
@@ -168,7 +171,7 @@ C('catears', 'head', 'catears', 'Кошачьи ушки', '#343a40', { c2: '#ff
 C('hair_flower', 'head', 'flower', 'Цветок в причёску', '#ff6b9d', { c2: '#ffd43b', shop: 'beach', tags: ['summer', 'beach', 'cute', 'fancy', 'spring'] });
 C('hat_party', 'head', 'party', 'Праздничный колпачок', '#4dabf7', { c2: '#ffd43b', tags: ['cute', 'home'] });
 C('hat_pirate', 'head', 'pirate', 'Пиратская треуголка', '#212529', { shop: 'gift', tags: ['fancy'] });
-C('hat_santa', 'head', 'santa', 'Новогодний колпак', '#e03131', { shop: 'gift', season: 'newyear', tags: ['warm', 'winter', 'cute'] });
+C('hat_santa', 'head', 'santa', 'Новогодний колпак', '#e03131', { shop: 'holiday', season: 'newyear', tags: ['warm', 'winter', 'cute'] }); // подарок Нового года (П.13)
 C('hat_witch', 'head', 'witch', 'Шляпа волшебницы', '#5f3dc4', { c2: '#ff922b', shop: 'gift', season: 'halloween', tags: ['fancy', 'autumn'] });
 C('tie_red', 'acc', 'tie', 'Красный галстук', '#e03131', { c2: '#fff', tags: ['fancy'] });
 C('tie_blue', 'acc', 'tie', 'Синий галстук', '#1c7ed6', { c2: '#ffd43b', stock: 'delivery', tags: ['fancy'] });

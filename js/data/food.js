@@ -143,6 +143,8 @@ const DISH_LIST = [
   { id: 'blueberry_muffin', name: 'Черничный кекс', e: '🧁', needs: { blueberry: 2, flour: 1, egg: 1 }, start: true },
   // секретный рецепт лесника Шишкина (награда за задание в лесу)
   { id: 'forest_pie', name: 'Лесной пирог с белыми грибами', e: '🥧', needs: { porcini: 1, flour: 1, egg: 1 } },
+  // подарок Рождества (П.13, data/holidays.js): рецепт узнают только на празднике — друзья его не рассказывают
+  { id: 'gingerbread', name: 'Медовые пряники', e: '🍪', needs: { flour: 1, honey: 1, butter: 1 }, holiday: 'xmas' },
   // жарят только на костре в лесу (на кухне не готовят): просто вкусно
   { id: 'toasted_marshmallow', name: 'Жареный зефир', e: '🍢', fire: true },
   // из зимней культуры — салата с грядки под парничком
@@ -167,6 +169,7 @@ export const DISHES = DISH_LIST.map((d) => {
 });
 export const DISH_BY_ID = Object.fromEntries(DISHES.map((d) => [d.id, d]));
 export const START_RECIPES = DISHES.filter((d) => d.start).map((d) => d.id);
-export const SECRET_RECIPES = DISHES.filter((d) => d.needs && !d.start).map((d) => d.id);
+// секретные рецепты рассказывают друзья и дарят сюрпризом; праздничный (holiday) — только подарок своего праздника
+export const SECRET_RECIPES = DISHES.filter((d) => d.needs && !d.start && !d.holiday).map((d) => d.id);
 /** Правило «ассортимента дня» для блюда в кафе: лакомства бывают не каждый день, остальное — всегда. */
 export const dishRule = (d) => (d.treat ? STOCK.treat : null);

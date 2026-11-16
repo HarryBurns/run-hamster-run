@@ -527,6 +527,70 @@ export const D_HOMES = {
     c.restore();
     c.restore();
   },
+  // самовар (подарок Масленицы, П.13): медный, на подносе, с краником, бубликами на трубе и чашкой; потрогали — пар
+  samovar(c, d, w, h, st) {
+    const cu = d.c || '#e8a33d',
+      dk = shade(cu, -0.28),
+      lt = shade(cu, 0.35);
+    ell(c, 0, -4, w / 2 - 2, 6, '#c92a2a', OUT, 1.8); // поднос
+    ell(c, 0, -6, w / 2 - 10, 3.5, '#e03131');
+    // ножки и подставка
+    for (const x of [-16, 16]) fillRR(c, x - 4, -16, 8, 12, 2, dk, OUT, 1.4);
+    fillRR(c, -22, -22, 44, 8, 4, cu, OUT, 1.6);
+    // пузатый корпус
+    c.beginPath();
+    c.moveTo(-18, -22);
+    c.bezierCurveTo(-34, -30, -34, -72, -16, -80);
+    c.lineTo(16, -80);
+    c.bezierCurveTo(34, -72, 34, -30, 18, -22);
+    c.closePath();
+    c.fillStyle = cu;
+    c.fill();
+    c.strokeStyle = OUT;
+    c.lineWidth = 2;
+    c.stroke();
+    ell(c, -12, -58, 5, 13, 'rgba(255,255,255,.4)'); // блик
+    for (const y of [-40, -62]) line(c, -26, y, 26, y, dk, 1.4);
+    // ручки по бокам
+    for (const sg of [-1, 1]) {
+      c.beginPath();
+      c.moveTo(sg * 26, -68);
+      c.quadraticCurveTo(sg * 38, -62, sg * 30, -52);
+      c.strokeStyle = OUT;
+      c.lineWidth = 5;
+      c.stroke();
+      c.strokeStyle = '#212529';
+      c.lineWidth = 3;
+      c.stroke();
+    }
+    // краник с ручкой
+    fillRR(c, 22, -36, 14, 5, 2, dk, OUT, 1.3);
+    fillRR(c, 33, -36, 4, 9, 1.5, dk, OUT, 1.2);
+    ell(c, 29, -39, 3, 2.5, '#212529', OUT, 1);
+    // крышка, конфорка и труба с бубликами
+    fillRR(c, -14, -88, 28, 8, 4, lt, OUT, 1.6);
+    fillRR(c, -5, -112, 10, 26, 3, dk, OUT, 1.6);
+    for (const [y, s2] of [
+      [-104, 1],
+      [-96, 0.9],
+    ]) {
+      ell(c, 0, y, 13 * s2, 6 * s2, '#d9a066', OUT, 1.5);
+      ell(c, 0, y, 5 * s2, 2.4 * s2, shade(cu, -0.2));
+      ell(c, -5 * s2, y - 2, 2, 1, '#fff3bf');
+    }
+    // чашка с блюдцем
+    ell(c, -38, -8, 11, 3, '#fff', OUT, 1.2);
+    fillRR(c, -45, -20, 14, 12, 4, '#fff', OUT, 1.4);
+    heart(c, -38, -14, 3, '#ff6b9d');
+    // пар из трубы
+    const n = st.on ? 3 : 2;
+    for (let i = 0; i < n; i++) {
+      const p = (st.t * (st.on ? 0.8 : 0.4) + i / n) % 1;
+      c.globalAlpha = 0.6 * (1 - p);
+      ell(c, Math.sin(p * 7 + i) * 5, -118 - p * 26, 5 + p * 4, 5 + p * 4, '#fff');
+    }
+    c.globalAlpha = 1;
+  },
   tea_table(c, d, w, h, st) {
     fillRR(c, -5, -46, 10, 42, 3, shade(WOOD, -0.1), OUT);
     ell(c, 0, -4, 26, 6, shade(WOOD, -0.2), OUT);

@@ -64,6 +64,23 @@ function pattern(ctx, item, x, y, w, h) {
         ctx.fillStyle = c2;
       }
     }
+  } else if (item.pattern === 'clouds') {
+    // облачка-завитки (красный праздничный наряд): золотые дуги вразбежку
+    ctx.strokeStyle = c2;
+    ctx.lineWidth = 1.3;
+    ctx.globalAlpha = 0.8;
+    let row = 0;
+    for (let yy = y + 9; yy < y + h; yy += 14, row++) {
+      for (let xx = x + (row % 2 ? 12 : 4); xx < x + w; xx += 17) {
+        ctx.beginPath();
+        ctx.arc(xx - 3, yy, 3, Math.PI, TAU);
+        ctx.arc(xx + 3, yy, 3, Math.PI, TAU);
+        ctx.moveTo(xx + 6, yy);
+        ctx.arc(xx + 4.5, yy + 0.5, 1.5, 0, Math.PI * 1.2);
+        ctx.stroke();
+      }
+    }
+    ctx.globalAlpha = 1;
   } else if (item.pattern === 'check') {
     ctx.globalAlpha = 0.6;
     for (let xx = x + 3; xx < x + w; xx += 10) ctx.fillRect(xx, y, 3, h);
@@ -292,6 +309,32 @@ function drawBody(ctx, item) {
       ctx.stroke();
       if (long) {
         star(ctx, 0, -31, 4, '#ffe066', OUT, 1);
+      }
+      if (item.trim === 'qipao') {
+        // платье-ципао: воротник-стойка, косая застёжка с золотыми пуговками-узелками
+        const g = item.c2 || '#ffd43b';
+        fillRR(ctx, -8, -45, 16, 6, 3, c, OUT, 1.4);
+        ctx.strokeStyle = g;
+        ctx.lineWidth = 1.6;
+        ctx.beginPath();
+        ctx.moveTo(-7, -42);
+        ctx.lineTo(7, -42);
+        ctx.moveTo(0, -39);
+        ctx.quadraticCurveTo(10, -36, 12, -28);
+        ctx.stroke();
+        for (const [bx, by] of [
+          [5, -37],
+          [10, -32],
+          [12, -26],
+        ]) {
+          ctx.beginPath();
+          ctx.arc(bx, by, 1.6, 0, TAU);
+          ctx.fillStyle = g;
+          ctx.fill();
+          ctx.strokeStyle = OUT;
+          ctx.lineWidth = 0.8;
+          ctx.stroke();
+        }
       }
       break;
     }
