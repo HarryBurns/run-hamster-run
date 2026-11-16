@@ -112,9 +112,14 @@ module.exports = async function holidays({ page, step, ev, wait, closeAll }) {
     await toHoliday('newyear', 'day');
     await ev(() => window.__dev.emit('hud'));
     chip = await ev(() => document.querySelector('.chip.date').innerHTML);
-    expect(/hol-badge"/.test(chip) && chip.includes('🎄'), 'значок праздника на дате', chip);
-    const q = norm(await ev(() => document.querySelector('.chip.quest').textContent));
-    expect(q.includes('Новый год') && q.includes('0/2'), 'плашка праздника', q);
+    expect(/hol-badge"/.test(chip) && chip.includes('🎄 0/2'), 'значок и ход праздника на дате', chip);
+    // плашка журнала: есть «!» у Мяты — она про Мяту; заданий нет — про праздник
+    let q = norm(await ev(() => document.querySelector('.chip.quest').textContent));
+    expect(q.includes('Мята'), 'плашка журнала при задании', q);
+    await mutate("s.quests.herbarium = { day: 0, n: {}, got: {}, done: 1 };");
+    await ev(() => window.__dev.emit('hud'));
+    q = norm(await ev(() => document.querySelector('.chip.quest').textContent));
+    expect(q.includes('Новый год') && q.includes('0/2'), 'плашка праздника, когда заданий нет', q);
     await page.click('.chip.date');
     await wait(400);
     const cal = await panelText();
@@ -267,7 +272,12 @@ module.exports = async function holidays({ page, step, ev, wait, closeAll }) {
 
   await step('праздники: Рождество — вертеп, колядки у трёх домиков (угощение), рецепт пряников', async () => {
     await fresh();
-    await toHoliday('xmas', 'day');
+    await toHoliday('xmas', 'day'); // днём (10:00) у двери — обычный визит, колядки — вечером
+    await ev(() => { window.__dev.run('home-of:myata', {}); });
+    await wait(500);
+    expect(!(await panelText()).includes('Колядки'), 'колядки днём');
+    await closeAll();
+    await toHoliday('xmas', 'day', 1, 17 * 60);
     await watch();
     await run('holiday:crib');
     expect((await panelText()).includes('Домик-вертеп'), 'вертеп');
