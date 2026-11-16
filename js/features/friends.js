@@ -50,9 +50,10 @@ const S = () => G.state;
  *   greet(id)  → реплика вместо «Привет!» (праздничное поздравление) или null;
  *   chat(id)   → реплика на «Поболтать» или null — обычная болтовня;
  *   talk(id)   → async, свой разговор до обычного: { end: true } — разговор окончен, { text } — дальше с этой репликой,
- *                null — как обычно (новогодний подарок другу).
+ *                null — как обычно (новогодний подарок другу);
+ *   guest(id)  → async, то же для гостя у себя дома (на дне рождения — «🎂 Задуть свечи!»).
  */
-export const talkHooks = { greet: null, chat: null, talk: null };
+export const talkHooks = { greet: null, chat: null, talk: null, guest: null };
 
 /** В какой из своих домов придут гости: в тот, где героиня сейчас, а если она не дома — в основной. */
 export function hostHome() {
@@ -240,6 +241,8 @@ export async function guestDialog(id) {
           here === 'bungalow' ? 'Слышишь, как шумит море? Красота!' : 'А где ты купила такую мебель?',
         ],
   );
+  const ht = talkHooks.guest ? await talkHooks.guest(id) : null; // праздник (торт на день рождения) — сначала он
+  if (ht && ht.end) return;
   const qt = await questTalk(id); // задание из журнала — сначала оно
   if (qt && qt.end) return;
   if (qt && qt.text) text = qt.text;

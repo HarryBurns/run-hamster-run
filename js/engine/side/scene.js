@@ -49,6 +49,12 @@ import { hitItem, useItem, drawItems, isParty, SEAT_H } from './items.js';
 import { makeResidents, syncGuests, actorHappy, hitActor, updateActors, drawActors, actorHere } from './actors.js';
 import { setDecor, decorDown, decorMove, decorUp } from './decor.js';
 
+/**
+ * Общий рисунок для всех домов (позади всех, после art.back): [fn(ctx, sc, t)]. Пусто — ничего. Так занятия украшают
+ * дом, не трогая описаний (шарики и гирлянда в основном доме на день рождения — features/holidays_bday.js).
+ */
+export const sideArt = [];
+
 export function createSideScene(desc) {
   const geo = geometry(desc);
   const { FH, W, WTOT, EX, floors, fy } = geo;
@@ -544,6 +550,7 @@ export function createSideScene(desc) {
     drawHouse(ctx, desc, geo, view);
     if (geo.lift) drawLift(ctx, geo, sc.liftY);
     if (desc.art && desc.art.back) desc.art.back(ctx, sc, t);
+    for (const fn of sideArt) fn(ctx, sc, t);
     for (const b of drawOrder) if (b.def.back && floorSeen(b.f)) b.def.back(ctx, b.x - (b.def.ref || 0), fy(b.f), t, sc, b);
     drawItems(ctx, sc, t);
     drawActors(ctx, sc, t);

@@ -8,7 +8,7 @@ const BACK_ACC = ['wings', 'backpack', 'cape', 'pickaxe']; // аксессуар
 const FACE_ACC = ['glasses', 'sunglasses']; // аксессуары на мордочке: поворачиваются вместе с ней
 // Аксессуары на груди: рисуются поверх одежды, но ДО головы — висят из-под подбородка (его низ: y = -29),
 // а не лежат на мордочке. Шарф — исключение: он обмотан вокруг шеи и рисуется поверх подбородка.
-const CHEST_ACC = ['necklace', 'bag', 'bowtie', 'tie', 'lei', 'camera', 'medal'];
+const CHEST_ACC = ['necklace', 'bag', 'bowtie', 'tie', 'lei', 'camera', 'medal', 'waterpistol'];
 
 /**
  * Насколько закрыты глаза в момент времени t: 0 — открыты, 1 — закрыты.
@@ -816,6 +816,23 @@ function drawHat(ctx, item, side = 1) {
       ell(ctx, 10, -76, 2, 2, '#69db7c');
       break;
     case 'wreath': {
+      if (item.ribbons) {
+        // майский венок (1 Мая): разноцветные ленты свисают за ушками по бокам
+        const rib = ['#ff6b6b', '#4dabf7', '#ffd43b', '#69db7c'];
+        for (const sx of [-1, 1])
+          for (let i = 0; i < 2; i++) {
+            const x0 = sx * (20 + i * 4);
+            ctx.beginPath();
+            ctx.moveTo(x0, -64);
+            ctx.quadraticCurveTo(x0 + sx * 10, -48, x0 + sx * (6 + i * 3), -30 + i * 4);
+            ctx.strokeStyle = OUT;
+            ctx.lineWidth = 4.6;
+            ctx.stroke();
+            ctx.strokeStyle = rib[(i + (sx > 0 ? 2 : 0)) % rib.length];
+            ctx.lineWidth = 3;
+            ctx.stroke();
+          }
+      }
       const cols = ['#ff8fab', '#ffd43b', '#fff', '#c77dff', '#ff8fab', '#ffd43b', '#fff'];
       for (let i = 0; i < 7; i++) {
         const a = Math.PI + (i / 6) * Math.PI;
@@ -1051,18 +1068,31 @@ function drawAccBack(ctx, item, t) {
     fillRR(ctx, -27, -44, 54, 34, 12, item.c, OUT, 1.8);
   } else if (item.kind === 'cape') {
     const sw = Math.sin(t * 3) * 3;
-    ctx.beginPath();
-    ctx.moveTo(-17, -43);
-    ctx.lineTo(17, -43);
-    ctx.quadraticCurveTo(34, -24, 31 + sw, 0);
-    ctx.quadraticCurveTo(0, 6, -31 + sw, 0);
-    ctx.quadraticCurveTo(-34, -24, -17, -43);
-    ctx.closePath();
+    const cape = new Path2D();
+    cape.moveTo(-17, -43);
+    cape.lineTo(17, -43);
+    cape.quadraticCurveTo(34, -24, 31 + sw, 0);
+    cape.quadraticCurveTo(0, 6, -31 + sw, 0);
+    cape.quadraticCurveTo(-34, -24, -17, -43);
+    cape.closePath();
     ctx.fillStyle = item.c;
-    ctx.fill();
+    ctx.fill(cape);
+    if (item.pattern === 'stars') {
+      // волшебная мантия: золотые звёздочки — по краям, их видно из-за спины
+      ctx.save();
+      ctx.clip(cape);
+      for (const [x, y] of [
+        [-29, -12],
+        [28, -22],
+        [29, -4],
+        [-27, -28],
+      ])
+        star(ctx, x + sw * 0.5, y, 3.2, item.c2 || '#ffd43b');
+      ctx.restore();
+    }
     ctx.strokeStyle = OUT;
     ctx.lineWidth = 2;
-    ctx.stroke();
+    ctx.stroke(cape);
   }
 }
 
@@ -1159,6 +1189,20 @@ function drawAcc(ctx, item) {
       ell(ctx, 7, -11.5, 4, 2, c2, OUT, 1);
       line(ctx, -9.5, -24, -9.5, -15, 'rgba(255,255,255,.35)', 1.6);
       break;
+    case 'waterpistol': {
+      // водяной пистолет (Иван Купала): в правой лапке, дулом в сторону; прозрачный бачок с водой сверху
+      const x = 24,
+        y = -18;
+      fillRR(ctx, x - 4, y - 2, 8, 13, 3, shade(c, -0.15), OUT, 1.4); // рукоятка
+      fillRR(ctx, x - 9, y - 9, 30, 10, 5, c, OUT, 1.6); // корпус
+      fillRR(ctx, x + 18, y - 7, 8, 5, 2, c2, OUT, 1.2); // дуло
+      ell(ctx, x + 3, y - 13, 8, 6, 'rgba(165,216,255,.85)', OUT, 1.3); // бачок
+      ell(ctx, x + 3, y - 11, 6, 3, '#4dabf7');
+      ell(ctx, x + 1, y - 15, 2, 1.4, 'rgba(255,255,255,.9)');
+      ell(ctx, x - 1, y + 3, 3, 3, c2, OUT, 1); // курок
+      ell(ctx, x - 4, y - 5, 3.2, 3, '#fff', null, 0); // блик
+      break;
+    }
     case 'medal': // лента из-под подбородка, медаль на груди
       line(ctx, -10, -37, 0, -19, '#e03131', 3);
       line(ctx, 10, -37, 0, -19, '#1c7ed6', 3);

@@ -16,8 +16,8 @@ import town, { sea, BUILDINGS } from './locations/town.js';
 import * as topdown from './engine/topdown/index.js';
 import { PLANTS, hasFruit, plantInSeason, gather } from './locations/common/plants.js';
 import * as Tower from './interiors/tower.js';
-import { debugDecor } from './locations/holidays.js';
-import { HOLIDAY_BY_ID, holidayDoy, YEAR_DAYS } from './data/index.js';
+import { debugDecor, debugFireworks } from './locations/holidays.js';
+import { HOLIDAY_BY_ID, holidayDoy, YEAR_DAYS, SEASON_OF_MONTH } from './data/index.js';
 
 /**
  * Следить, что состояние меняют только действия из core/actions.js: подменяет G.state «прозрачной обёрткой»,
@@ -132,7 +132,8 @@ export function installDevHooks({ F }) {
     openPiano: () => registry.run('piano'),
     /**
      * Праздники (П.13): перескочить к празднику и посмотреть, что с ним.
-     *   holiday.to('newyear')               — утро самого праздника (год 1; отметки дня чистые, погода — снег)
+     *   holiday.to('newyear')               — утро самого праздника (год 1; отметки дня чистые, погода — снег зимой,
+     *                                         солнце в другие сезоны); день рождения — со второго года: to('birthday', 'day', 2)
      *   holiday.to('xmas', 'eve', 2)        — канун ('eve'), праздник ('day'), следующий день ('after'); год 2
      *   holiday.dayOf('cny', 'day', 1)      — номер дня без перехода
      *   holiday.state()                     — где праздник сейчас (шаги, подарок года, украшения)
@@ -149,13 +150,15 @@ export function installDevHooks({ F }) {
           s.day = Math.max(0, day);
           s.minutes = minutes;
           s.dayFlags = {};
-          s.weather = 'snow';
+          s.weather = SEASON_OF_MONTH[Math.floor((s.day % YEAR_DAYS) / 3)] === 'winter' ? 'snow' : 'sun';
         });
         events.emit('hud');
         return G.state.day;
       },
       state: () => F.debugHoliday(),
       decor: () => debugDecor(topdown.getLocation('world')),
+      /** Залпы новогоднего салюта: где раскрываются (доли экрана). */
+      fireworks: () => debugFireworks(topdown.getLocation('world')),
     },
   };
 }

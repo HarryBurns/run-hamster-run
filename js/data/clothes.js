@@ -172,13 +172,17 @@ C('hair_flower', 'head', 'flower', 'Цветок в причёску', '#ff6b9d'
 C('hat_party', 'head', 'party', 'Праздничный колпачок', '#4dabf7', { c2: '#ffd43b', tags: ['cute', 'home'] });
 C('hat_pirate', 'head', 'pirate', 'Пиратская треуголка', '#212529', { shop: 'gift', tags: ['fancy'] });
 C('hat_santa', 'head', 'santa', 'Новогодний колпак', '#e03131', { shop: 'holiday', season: 'newyear', tags: ['warm', 'winter', 'cute'] }); // подарок Нового года (П.13)
-C('hat_witch', 'head', 'witch', 'Шляпа волшебницы', '#5f3dc4', { c2: '#ff922b', shop: 'gift', season: 'halloween', tags: ['fancy', 'autumn'] });
+// подарки праздников, часть 2 (П.13): шляпа волшебницы и мантия — Хеллоуин (раньше были подарками-сюрпризами),
+// майский венок с лентами — 1 Мая, водяной пистолет — Иван Купала (держит в лапке: waterpistol в art/hamster.js)
+C('hat_witch', 'head', 'witch', 'Шляпа волшебницы', '#5f3dc4', { c2: '#ff922b', shop: 'holiday', season: 'halloween', tags: ['fancy', 'autumn'] });
+C('wreath_may', 'head', 'wreath', 'Майский венок с лентами', '#fff', { ribbons: true, shop: 'holiday', tags: ['fancy', 'spring', 'summer', 'cute'] });
 C('tie_red', 'acc', 'tie', 'Красный галстук', '#e03131', { c2: '#fff', tags: ['fancy'] });
 C('tie_blue', 'acc', 'tie', 'Синий галстук', '#1c7ed6', { c2: '#ffd43b', stock: 'delivery', tags: ['fancy'] });
 C('lei', 'acc', 'lei', 'Гавайские бусы из цветов', '#ff6b9d', { c2: '#b197fc', shop: 'beach', tags: ['summer', 'beach', 'cute', 'fancy'] });
 C('camera', 'acc', 'camera', 'Фотоаппарат', '#495057', { c2: '#fa5252', stock: 'delivery', tags: ['sport', 'summer', 'spring', 'autumn'] });
 C('cape_red', 'acc', 'cape', 'Плащ супергероя', '#e03131', { shop: 'boutique', tags: ['fancy', 'sport'] });
-C('cape_violet', 'acc', 'cape', 'Волшебная мантия', '#7048e8', { shop: 'gift', tags: ['fancy'] });
+C('cape_violet', 'acc', 'cape', 'Волшебная мантия', '#7048e8', { c2: '#ffd43b', pattern: 'stars', shop: 'holiday', tags: ['fancy', 'autumn'] });
+C('water_pistol', 'acc', 'waterpistol', 'Водяной пистолет', '#20c997', { c2: '#ffd43b', shop: 'holiday', tags: ['summer', 'beach', 'sport', 'cute'] });
 
 // --- рынок: вещицы ручной работы (торговец привозит по нескольку штук в день)
 C('sunhat_daisy', 'head', 'sunhat', 'Шляпа с ромашками', '#fff9db', { c2: '#51cf66', shop: 'market', season: 'hot', tags: ['summer', 'spring', 'beach', 'cute', 'fancy'] });
