@@ -7,7 +7,7 @@
 import { clamp, seeded } from '../core/util.js';
 import { ell, fillRR, line, poly, emoji } from '../core/draw.js';
 import { NPCS, ING_BY_ID, SEED_BY_ID, TASK_BY_ID, LAND_BY_ID, BIZ_BY_ID } from '../data/index.js';
-import { G, cal, ownsHome, landOpen, guestsWaiting, stepWaits } from '../core/state.js';
+import { G, cal, ownsHome, landOpen, guestsWaiting, stepWaits, hotelPoolGuest } from '../core/state.js';
 import { T, OUT, SP, put, defineTiles, defineObjects } from '../engine/topdown/kinds.js';
 import { createTopDownScene } from '../engine/topdown/scene.js';
 import './common/index.js';
@@ -107,10 +107,10 @@ export const BUILDINGS = [
 // Агентство — 'realtor'; двери покупного жилья — 'home:<id жилья>' (features/homes.js): куплено — войти, нет —
 // окно риелтора. Пентхаус — из лифта Хомяк-Тауэра. Какое здание — дверь какого жилья, записано и в HOMES
 // (data/estate.js, поле building): туда ведёт кнопка «Домой».
-// 'soon' — временная заглушка «Скоро открытие!» (features/soon.js) для отеля, который ещё строится. Выезды в лес
-// и пустыню — не «скоро», а тайные места: у них действие 'way:<место>' (features/quests.js, см. PLACES).
+// Курортный отель «Морская звезда» (П.17) открыт с начала игры: дверь ведёт в его сцену (interiors/hotel.js).
+// Выезды в лес и пустыню — тайные места: у них действие 'way:<место>' (features/quests.js, см. PLACES). Заглушка
+// «Скоро открытие!» ('soon', features/soon.js) осталась для будущих мест — сейчас ею никто не пользуется.
 const ask = (vendor, text, options) => ({ do: 'ask', vendor, text, options });
-const soon = (key) => ({ do: 'soon', key });
 const BUILDING_ACTS = {
   villa: 'scene:villa',
   salon: 'salon',
@@ -125,7 +125,7 @@ const BUILDING_ACTS = {
   realtor: 'realtor',
   home_apartment: 'home:flat',
   home_bungalow: 'home:bungalow',
-  hotel: soon('hotel'),
+  hotel: 'scene:hotel',
   fashion: ask('fashion', 'Дорогая! Подиум ждёт. Выйдешь на показ мод?', [
     { text: '👠 На подиум!', cls: 'green', do: 'minigame:fashion' },
     { text: 'Не сейчас' },
@@ -215,7 +215,15 @@ const HANG = {
   bob: [63, 58], // пирс
   zefirka: [40, 53], // пляж
 };
-const ACTORS = NPCS.map((n) => ({ npc: n.id, at: HANG[n.id], home: BUILDINGS.find((b) => b.npc === n.id).id }));
+// away — житель сейчас не в городе: днём через день кто-то из друзей отдыхает у бассейна отеля (hotelPoolGuest,
+// core/state.js; там же — кто остаётся в городе: ждёт гостей, позвал к себе, у него дело по журналу)
+const awayAtHotel = (id) => hotelPoolGuest() === id;
+const ACTORS = NPCS.map((n) => ({
+  npc: n.id,
+  at: HANG[n.id],
+  home: BUILDINGS.find((b) => b.npc === n.id).id,
+  away: awayAtHotel,
+}));
 
 // ---------- выезды из города ----------
 // Тропа в лес (северо-запад, за виллой) и дорога в пустыню (восточная окраина) перекрыты воротами и шлагбаумом.
@@ -313,7 +321,11 @@ const PARK = { x0: 32, y0: 29, x1: 49, y1: 46, pond: [40.5, 38.5, 4.1, 2.9], rin
 // GATHER в data/economy.js). Их немного, и стоят они на местах обычной зелени: дерева, пальмы, куста — так что
 // проходы остаются прежними. Ставь так, чтобы растение не закрывали дом или ёлка с юга (грибы низкие!). Ещё две кокосовые пальмы — на островах (WORLD_SEA в sea.js). Грибов и ягод
 // в городе мало нарочно: главное место для них — лес.
-const COCO_BEACH = 38; // кокосовая пальма на набережной — напротив пляжа (остальные пальмы там без плодов)
+const COCO_BEACH = 38;
+const HOTEL_PALMS = [
+  [82, 42, 0],
+  [82, 44, 1],
+]; // пальмы у левого крыла отеля (справа от него — водная горка, она нарисована на здании) // кокосовая пальма на набережной — напротив пляжа (остальные пальмы там без плодов)
 const FRUIT_PLANTS = [
   ['cocoPalm', 9, 10], // двор виллы, у бассейна
   ['bananaPalm', 22, 7], // двор виллы, над грядками
@@ -876,10 +888,11 @@ function build(m) {
   keep(68, 44, 69, 47);
   keep(76, 45, 77, 47);
   keep(88, 34, 89, 36);
-  // отель: пальмы в кадках, фонари, столики
+  // отель: пальмы в кадках, фонари, указатели (ещё один — на Морском проспекте, у Главной улицы)
   for (const x of [84, 86, 91, 93]) put1('planter', x, 47, { v: 2 });
   put1('lamp', 82, 47);
-  put1('signpost', 82, 46, { text: 'Отель →' });
+  put1('signpost', 81, 47, { text: '🏨 Отель →', text2: '🌀 Горки' });
+  put1('signpost', 65, 28, { text: '🏨 Отель ↘', text2: 'на набережной' });
 
   // ---- набережная ----
   for (let x = 4; x < MW; x += 8) if (g[47][x] === 'g' && !solid[47][x] && !taken.has(x + ',47')) put1('lamp', x, 47);
@@ -1013,6 +1026,11 @@ function build(m) {
   for (const [type, x, y, o] of FRUIT_PLANTS) {
     m.clear(x, y);
     add(type, x, y, o);
+  }
+  // ---- пальмы у курортного отеля (П.17): так же, поверх случайной зелени ----
+  for (const [x, y, v] of HOTEL_PALMS) {
+    m.clear(x, y);
+    add('palm', x, y, { v });
   }
 }
 
@@ -1151,6 +1169,7 @@ const town = createTopDownScene({
     };
     for (const id in G.state.biz) own(id, drawOwnBiz);
     for (const [bid, home] of HOME_DOORS) if (ownsHome(home)) own(bid, drawOwnHome);
+    if (ownsHome('suite')) own('hotel', drawOwnHome); // свой номер-люкс в отеле
     // бутылка с кусочком карты под пальмой (задание Зефирки)
     const bx = (BOTTLE[0] + 0.5) * T,
       by = (BOTTLE[1] + 0.5) * T;

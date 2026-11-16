@@ -26,6 +26,8 @@ const LOADERS = {
   glyphs: () => import('./glyphs.js'), // джунгли: «Узор храма» в руинах
   sandcastle: () => import('./sandcastle.js'), // секретный пляж: «Замок из песка» у русалочки Жемчужинки
   bowling: () => import('./bowling.js'), // удалённый остров: «Кокосовый боулинг» у Вождя Кокоса
+  slide: () => import('./slide.js'), // курортный отель: «Горка» — водная горка на крыше
+  porter: () => import('./porter.js'), // курортный отель: «Носильщица» — работа у носильщика Тележкина
 };
 /** Есть ли такая мини-игра. */
 export const hasMinigame = (id) => !!LOADERS[id];
