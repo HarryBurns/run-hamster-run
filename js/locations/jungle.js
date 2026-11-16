@@ -235,6 +235,8 @@ function build(m) {
       else if (r < 0.64) m.add('jflowers', x, y, { v });
       else if (r < 0.66) m.add('mossRock', x, y, { v: v % 2 });
     }
+  // концы пляжа — замшелые камни (по краю карты не пройти)
+  for (const x of [0, 1, W - 2, W - 1]) for (let y = sandY(x) - 1; y < H; y++) if (['s', 'h'].includes(m.at(x, y))) m.add('mossRock', x, y, { v: (x + y) % 2 });
   // пальмы вдоль пляжа
   for (let x = 2; x < W - 2; x += 3) {
     const y = sandY(x) - 1;
@@ -267,9 +269,7 @@ function build(m) {
   ])
     put1('ruinPillar', x, y, { v });
   put1('ruinHead', 13, 6);
-  // лагерь: факелы; кораблик у причала; указатели
-  put1('tikiTorch', 26, 24);
-  put1('tikiTorch', 30, 24);
+  // кораблик у причала; указатели
   put1('mooredBoat', 24, 39);
   m.clear(25, 39);
   put1('signpost', 24, 30, { text: '⛺ Лагерь', text2: '🌴 Роща' });
@@ -278,6 +278,9 @@ function build(m) {
   // перед зданиями — свободно (там двери)
   for (const b of [AT.dock, AT.camp, AT.temple])
     for (let x = b.x - 1; x <= b.x + b.w; x++) for (let y = b.y; y <= b.y + b.h; y++) if (m.at(x, y) !== 'i') m.clear(x, y);
+  // факелы по бокам палатки (ночью светят)
+  put1('tikiTorch', AT.camp.x - 2, AT.camp.y + 1);
+  put1('tikiTorch', AT.camp.x + AT.camp.w + 1, AT.camp.y + 1);
 }
 
 /** Ряды подвесного моста (первый и последний) — их находит build, перила рисует paintGround. */

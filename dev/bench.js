@@ -1,4 +1,4 @@
-// Замер скорости города, леса, горы, пещер и пустыни: время кадра при ходьбе стрелкой и число команд рисования за кадр.
+// Замер скорости города, леса, горы, пещер, пустыни и джунглей: время кадра при ходьбе стрелкой и число команд рисования за кадр.
 // Нужен, чтобы сравнивать «до/после» любых правок рисования (способ — как в docs/REVIEW.md, приложение).
 //
 // Запуск:  python3 -m http.server 8765 &   затем   node dev/bench.js [http://localhost:8765] [ключи]
@@ -9,7 +9,8 @@
 //                           «Гора»: вершина в снегу, ельник с облаками и шале, луга с коровами; hall, grotto, mine —
 //                           «Пещеры»: большой зал с колоннами, грот светящихся грибов, шахта Камушкина у озера света;
 //                           oasis, dunes, digsite — «Пустыня»: оазис с шатром и верблюдом, барханы у остановки
-//                           с автобусом, раскопки у пирамиды)
+//                           с автобусом, раскопки у пирамиды; jcamp, jbridge, jfall — «Джунгли»: лагерь Лианы в густых
+//                           зарослях, подвесной мост над рекой, водопад с попугаем)
 //   --seasons=winter,summer зима со снегом и лето без осадков
 //   --sec=4                 сколько секунд идёт один замер
 //   --minutes=1320          время суток в минутах (720 — полдень; 1320 — ночь со светом фонарей и окон)
@@ -51,6 +52,9 @@ const SPOTS = {
   oasis: [22, 21, 'desert'],
   dunes: [21, 30, 'desert'],
   digsite: [33, 12, 'desert'],
+  jcamp: [24, 26, 'jungle'],
+  jbridge: [21, 18, 'jungle'],
+  jfall: [30, 9, 'jungle'],
 };
 const SPOT_NAMES = {
   palms: 'Дворики (15,39)',
@@ -70,9 +74,12 @@ const SPOT_NAMES = {
   oasis: 'Пустыня: оазис',
   dunes: 'Пустыня: барханы',
   digsite: 'Пустыня: раскопки',
+  jcamp: 'Джунгли: лагерь',
+  jbridge: 'Джунгли: мост',
+  jfall: 'Джунгли: водопад',
 };
 const sizes = opt('sizes', 'desktop,phone').split(','),
-  spots = opt('spots', 'palms,forest,square,sea,woods,peak,slope,hall,mine,oasis,dunes').split(',');
+  spots = opt('spots', 'palms,forest,square,sea,woods,peak,slope,hall,mine,oasis,dunes,jcamp,jbridge').split(',');
 const seasons = opt('seasons', 'winter,summer').split(',');
 const SEASON = { winter: { day: 0, weather: 'snow' }, summer: { day: 18, weather: 'sun' } };
 
@@ -108,7 +115,7 @@ const SEASON = { winter: { day: 0, weather: 'snow' }, summer: { day: 18, weather
     // счётчики: время draw/update города, интервалы между кадрами, число команд канвы внутри draw
     await page.evaluate(() => {
       const B = (window.__bench = { on: false, frames: [], draw: [], cmd: null, cmdFrames: 0 });
-      for (const sc of [window.__dev.scenes.world, window.__dev.scenes.forest, window.__dev.scenes.mountain, window.__dev.scenes.caves, window.__dev.scenes.desert]) {
+      for (const sc of [window.__dev.scenes.world, window.__dev.scenes.forest, window.__dev.scenes.mountain, window.__dev.scenes.caves, window.__dev.scenes.desert, window.__dev.scenes.jungle]) {
         const d0 = sc.draw;
         sc.draw = function (c) {
           if (B.cmd) B.inDraw = true;
@@ -238,9 +245,12 @@ const SEASON = { winter: { day: 0, weather: 'snow' }, summer: { day: 18, weather
       wood = mean((r) => r.size === size && SPOTS[r.spot][2] === 'forest'),
       hill = mean((r) => r.size === size && SPOTS[r.spot][2] === 'mountain'),
       cave = mean((r) => r.size === size && SPOTS[r.spot][2] === 'caves'),
-      sand = mean((r) => r.size === size && SPOTS[r.spot][2] === 'desert');
-    if (town && (wood || hill || cave || sand))
-      console.log(`${size}: средний кадр — город ${town} мс, лес-сцена ${wood} мс, гора ${hill} мс, пещеры ${cave} мс, пустыня ${sand} мс`);
+      sand = mean((r) => r.size === size && SPOTS[r.spot][2] === 'desert'),
+      jung = mean((r) => r.size === size && SPOTS[r.spot][2] === 'jungle');
+    if (town && (wood || hill || cave || sand || jung))
+      console.log(
+        `${size}: средний кадр — город ${town} мс, лес-сцена ${wood} мс, гора ${hill} мс, пещеры ${cave} мс, пустыня ${sand} мс, джунгли ${jung} мс`,
+      );
   }
   const lim = +opt('max-forest', 0);
   if (lim) {

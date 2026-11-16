@@ -128,8 +128,9 @@ export default {
       return { x: a.x + Math.sin(q) * L, y: a.y + Math.cos(q) * L };
     };
     const goal = () => anchor(JUMPS).x + 60;
-    // масштаб: мир игры — 420 единиц в высоту
-    const K = () => cv.h / 420;
+    // масштаб: мир игры — 420 единиц в высоту и не уже 360 (на высоком телефоне мир — посередине экрана)
+    const K = () => Math.min(cv.h / 420, cv.w / 360);
+    const OY = () => Math.max(0, (cv.h - 420 * K()) * 0.42);
 
     function jump() {
       if (over || fly || at >= JUMPS) return;
@@ -198,18 +199,21 @@ export default {
         g.addColorStop(1, '#52b788');
         x.fillStyle = g;
         x.fillRect(0, 0, W, H);
+        // слой повторяется по кругу: всё, что вылезает за край, дорисовано и с другой стороны (без шва)
         for (let i = 0; i < 26; i++) {
           const px = (i / 26) * W,
             r = 40 + ((i * 37) % 30);
-          ell(x, px, H * 0.5 + ((i * 53) % 40), r, r * 1.4, i % 2 ? '#40916c' : '#2d6a4f');
+          for (const dx of [-W, 0, W]) ell(x, px + dx, H * 0.5 + ((i * 53) % 40), r, r * 1.4, i % 2 ? '#40916c' : '#2d6a4f');
         }
       });
       const near = layer((x, W, H) => {
         for (let i = 0; i < 18; i++) {
           const px = (i / 18) * W + 20,
             py = H - 30 - ((i * 29) % 50);
-          ell(x, px, py, 46, 30, i % 2 ? '#1b4332' : '#2d6a4f', OUT, 2);
-          ell(x, px - 14, py - 10, 16, 8, 'rgba(255,255,255,.12)');
+          for (const dx of [-W, 0, W]) {
+            ell(x, px + dx, py, 46, 30, i % 2 ? '#1b4332' : '#2d6a4f', OUT, 2);
+            ell(x, px + dx - 14, py - 10, 16, 8, 'rgba(255,255,255,.12)');
+          }
         }
         x.fillStyle = '#1b4332';
         x.fillRect(0, H - 24, W, 24);
@@ -252,16 +256,23 @@ export default {
       const b = makeBg();
       ctx.save();
       ctx.setTransform(1, 0, 0, 1, 0, 0);
-      const fx = -((camX * k * 0.25 * cv.dpr) % b.w),
-        nx = -((camX * k * 0.6 * cv.dpr) % b.w);
+      const lw = b.far.width, // слой — два экрана в ширину, рисунок на нём повторяется с этим периодом
+        fx = -((camX * k * 0.25 * cv.dpr) % lw),
+        nx = -((camX * k * 0.6 * cv.dpr) % lw);
       ctx.drawImage(b.far, fx, 0);
-      ctx.drawImage(b.far, fx + b.w, 0);
+      ctx.drawImage(b.far, fx + lw, 0);
       ctx.drawImage(b.near, nx, 0);
-      ctx.drawImage(b.near, nx + b.w, 0);
+      ctx.drawImage(b.near, nx + lw, 0);
       ctx.restore();
       ctx.save();
+      ctx.translate(0, OY());
       ctx.scale(k, k);
       ctx.translate(-camX, 0);
+      // над веткой — густые кроны (на высоком телефоне они занимают верх экрана)
+      const up = OY() / k + 10;
+      ctx.fillStyle = '#2d6a4f';
+      ctx.fillRect(camX - 20, -up, W + 40, up + TOP - 4);
+      for (let x = Math.floor(camX / 90) * 90 - 45; x < camX + W + 90; x += 90) ell(ctx, x, TOP - 6, 56, 26, (x / 90) % 2 ? '#1b4332' : '#2b8a3e', OUT, 2);
       // ветка сверху, к которой привязаны лианы
       fillRR(ctx, camX - 20, 0, W + 40, TOP + 6, 10, '#7a5a3a', OUT, 2.5);
       for (let x = Math.floor(camX / 60) * 60; x < camX + W + 60; x += 60) ell(ctx, x + 20, TOP + 4, 22, 10, '#2f9e44', OUT, 1.6);

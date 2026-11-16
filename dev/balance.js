@@ -270,6 +270,39 @@ const { pathToFileURL } = require('url');
   for (const id of FOSSIL_IDS) for (const t of Object.keys(PRICES)) if (PRICES[t][id] !== undefined) bad(`окаменелость ${id} можно купить (${t}) — перепродажа`);
   if (DESERT.collection !== FOSSIL_IDS.length) bad('DESERT.collection: коллекция — по одной окаменелости каждого вида');
   if (D.FURNITURE.some((f) => f.shop === 'desert' && f.price)) bad('украшения из пустыни не продаются — у них не должно быть цены');
+  // джунгли (П.9): бананы, ананасы, манго и кокос — сезонный сбор (1–2 в день с каждого вида); перья попугаев —
+  // по одному от каждого попугая в день (FEATHER_IDS), продаются на рынке, купить их негде; «Лианы» на 3★ и «Узор
+  // храма» — меньше смены на 2★; весь сбор (город, лес, пустыня, джунгли, огород) — меньше трёх смен
+  const { JUNGLE, JUNGLE_GATHER, FEATHER_IDS } = D,
+    jungleIn = (month) =>
+      Object.entries(JUNGLE_GATHER)
+        .filter(([id]) => D.pickIn(id, month))
+        .reduce((a, [id, q]) => a + q.n * q.max * ING[id].sell, 0),
+    feathersDay = FEATHER_IDS.reduce((a, id) => a + (JUNGLE.feathers[id] || 0), 0);
+  for (const [id, q] of Object.entries(JUNGLE_GATHER)) {
+    if (!ING[id]) bad(`джунгли: неизвестный продукт ${id}`);
+    else if (!ING[id].seasons || !D.isSeasonal(ING[id])) bad(`джунгли: ${id} собирается, но не сезонный`);
+    if (!(q.n > 0 && q.n * q.max <= 4)) bad(`джунгли: ${id} — собирать 1–2 с растения, не больше четырёх в день`);
+  }
+  // весь сбор вместе с джунглями — меньше трёх с половиной смен (без джунглей правило прежнее — три смены, выше): за один
+  // день все пять мест не обойти — джунгли только на кораблике за буйками, пустыня — на караване; и в кошелёк торговца
+  for (let month = 0; month < 12; month++) {
+    const all = gatherSum(month) + forestSum(month) + desertIn(month) + jungleIn(month) + 8 * bedBestIn(month);
+    if (all >= 3.5 * avg2 || all > MARKET.purse)
+      bad(`город, лес, пустыня, джунгли и огород: ${MONTHS[month]} — сбор не меньше трёх с половиной смен на 2★ (${fmt(all)} из ${fmt(3.5 * avg2)})`);
+  }
+  if (Math.max(...ALL_MONTHS.map(jungleIn)) >= avg2 / 4) bad('джунгли: сбор за день — не меньше четверти смены на 2★');
+  if (!(JUNGLE.vines.coins.length === 3 && JUNGLE.vines.paid >= 1)) bad('JUNGLE.vines: нужны coins на 1–3★ и paid');
+  if (JUNGLE.vines.coins[2] >= avg2) bad(`«Лианы» на 3★ дают ${JUNGLE.vines.coins[2]} — это не меньше смены на 2★ (${fmt(avg2)})`);
+  if (JUNGLE.glyphs.coins[2] >= avg2) bad(`«Узор храма» на 3★ даёт ${JUNGLE.glyphs.coins[2]} — это не меньше смены на 2★`);
+  if (feathersDay >= avg2) bad(`перья за день (${feathersDay}) — не меньше смены на 2★`);
+  for (const id of FEATHER_IDS) if (!(JUNGLE.feathers[id] > 0)) bad(`перо без цены на рынке: ${id}`);
+  for (const id of Object.keys(JUNGLE.feathers))
+    if (!D.FIND_BY_ID[id] || D.FIND_BY_ID[id].kind !== 'feather') bad(`JUNGLE.feathers: ${id} — не перо из data/finds.js`);
+  for (const id of FEATHER_IDS) for (const t of Object.keys(PRICES)) if (PRICES[t][id] !== undefined) bad(`перо ${id} можно купить (${t}) — перепродажа`);
+  if (JUNGLE.frame !== FEATHER_IDS.length) bad('JUNGLE.frame: рамка — по одному перу каждого цвета');
+  if (D.FURNITURE.some((f) => f.shop === 'jungle' && f.price)) bad('украшения из джунглей не продаются — у них не должно быть цены');
+  if (D.CLOTHES_BY_ID.panama_explorer.price || D.CLOTHES_BY_ID.panama_explorer.shop !== 'gift') bad('панама исследовательницы — только в подарок');
   if (!D.isSunHat(D.CLOTHES_BY_ID.sunhat_wide) || D.CLOTHES_BY_ID.sunhat_wide.season || D.CLOTHES_BY_ID.sunhat_wide.stock || !PRICES.clothes.sunhat_wide)
     bad('«Шляпа от солнца» (задание Буси) должна продаваться всегда и защищать от солнца');
 
@@ -595,6 +628,18 @@ const { pathToFileURL } = require('url');
   line('загадка пирамиды «Пары» (раз в день)', `${DESERT.pairs.coins.join(' / ')} монет`);
   line('коллекция окаменелостей', `по одной каждого вида (${FOSSIL_IDS.length}) → украшение`);
   line('«Шляпа от солнца» (ТЦ «Модный», всегда)', `${PRICES.clothes.sunhat_wide} монет`);
+  console.log('\nДжунгли (П.9)');
+  line(
+    'сбор (бананы весной, ананасы весной и летом, манго летом, кокос зимой)',
+    Object.entries(JUNGLE_GATHER)
+      .map(([id, q]) => `${ING[id].name.toLowerCase()} ${q.n * q.max}`)
+      .join(', ') + ' в день',
+  );
+  line('сбор в джунглях по сезонам (на рынке)', ['winter', 'spring', 'summer', 'autumn'].map((sea, i) => `${['зима', 'весна', 'лето', 'осень'][i]} ${fmt(jungleIn([0, 3, 6, 9][i]))}`).join(', '));
+  line('перья попугаев на рынке', FEATHER_IDS.map((id) => `${D.FIND_BY_ID[id].name.toLowerCase()} ${JUNGLE.feathers[id]}`).join(', ') + `; в день до ${fmt(feathersDay)}`);
+  line('«Лианы» (1★ / 2★ / 3★, первые ' + JUNGLE.vines.paid + ' в день)', `${JUNGLE.vines.coins.join(' / ')} монет`);
+  line('«Узор храма» (раз в день)', `${JUNGLE.glyphs.coins.join(' / ')} монет`);
+  line('перья в рамке', `по одному каждого цвета (${FEATHER_IDS.length}) → украшение`);
   console.log('\nГотовка: продукты → порция на рынке (1 / 2 / 3 порции за одну готовку)');
   for (const { d, cost, raw, buyable } of cook.sort((a, b) => b.d.sell - a.d.sell).slice(0, 8))
     line(

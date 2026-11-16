@@ -12,7 +12,8 @@
 //  лес, П.9 — dev/smoke_forest.js:  node dev/smoke.js <url> step:лес;
 //  гора, П.9 — dev/smoke_mountain.js:  node dev/smoke.js <url> step:гора;
 //  пещеры, П.9 — dev/smoke_caves.js:  node dev/smoke.js <url> step:пещеры;
-//  пустыня, П.9 — dev/smoke_desert.js:  node dev/smoke.js <url> step:пустыня)
+//  пустыня, П.9 — dev/smoke_desert.js:  node dev/smoke.js <url> step:пустыня;
+//  джунгли, П.9 — dev/smoke_jungle.js:  node dev/smoke.js <url> step:джунгли)
 // Скорость проверяется отдельно:  node dev/bench.js [url] --spots=forest --sizes=desktop --max-forest=45
 const { chromium } = require('playwright');
 const fs = require('fs');
@@ -28,6 +29,7 @@ const forest = require('./smoke_forest.js'); // П.9: лес — вход, сб�
 const mountain = require('./smoke_mountain.js'); // П.9: гора — задание Сени, канатная дорога, источник, снеговик, санки, Вершинкин
 const caves = require('./smoke_caves.js'); // П.9: пещеры — задание Орешкина, фонарик, темнота, «Кристаллы», Камушкин
 const desert = require('./smoke_desert.js'); // П.9: пустыня — задание Буси, караван, «Раскопки», «Пары», верблюд, Бархан
+const jungle = require('./smoke_jungle.js'); // П.9: джунгли — задание Боба, причал, «Лианы», «Узор храма», попугаи, Лиана
 
 const BASE = process.argv[2] || 'http://localhost:8765';
 const ONLY_ESTATE = process.argv[3] === 'estate';
@@ -2465,6 +2467,7 @@ async function economy({ page, step, ev, wait, closeAll }) {
     await mountain({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
     await caves({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
     await desert({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
+    await jungle({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
     await estate({ page, step: (n, f, o) => step(n, f, { ...o, extra: true, estate: true }), ev, wait, closeAll });
     if (tag === 'desktop')
       await extra({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll, hold });
