@@ -262,19 +262,20 @@ export default {
       }
       const cy = h * 0.66,
         mid = w / 2,
-        span = Math.min(w * 0.22, 130),
-        s = Math.min(w / 640, h / 420) * 1.15 + 0.25;
+        span = Math.min(w * 0.18, 130),
+        s = Math.max(0.5, Math.min(1.3, Math.min(w / 700, h / 420) * 1.15 + 0.15)); // на телефоне команды помельче
       // черты
       line(ctx, mid - span, cy - 46, mid - span, cy + 46, 'rgba(77,171,247,.85)', 4);
       line(ctx, mid + span, cy - 46, mid + span, cy + 46, 'rgba(255,146,43,.85)', 4);
       line(ctx, mid, cy - 30, mid, cy + 30, 'rgba(224,49,49,.35)', 2);
       const rib = mid + clamp(p, -1.2, 1.2) * span - yank * 6;
-      const shift = rib - mid;
+      const shift = (rib - mid) * 0.4; // команды и канат отъезжают за ленточкой, но не уходят с экрана
       const fallUs = phase === 'fall' && winner > 0,
         fallThem = phase === 'fall' && winner < 0;
       rope(ctx, mid - span * 2.4 + shift, mid + span * 2.4 + shift, cy - 26 * s, rib);
-      team(ours.slice().reverse(), mid - span * 1.35 + shift - (ours.length - 1) * 46 * s, 46 * s, cy + 10 * s, 0.9 * s, 1, fallUs, yank);
-      team(theirs, mid + span * 1.35 + shift, 46 * s, cy + 10 * s, 0.9 * s, -1, fallThem, 0.5);
+      const gap = 42 * s;
+      team(ours.slice().reverse(), mid - span * 1.35 + shift - (ours.length - 1) * gap, gap, cy + 10 * s, 0.9 * s, 1, fallUs, yank);
+      team(theirs, mid + span * 1.35 + shift, gap, cy + 10 * s, 0.9 * s, -1, fallThem, 0.5);
       // кружок ритма
       if (phase === 'go' && !over) {
         const r = Math.min(46, h * 0.08),
