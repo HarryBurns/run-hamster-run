@@ -13,148 +13,28 @@
 //   holiday:blini      прилавок «Блины»: набор для блинов (раз в день)                              — Масленица
 //   holiday:tug        канат: мини-игра «Перетягивание каната» (minigames/tug.js), монеты по звёздам — Масленица
 // Испечь блины и угостить ими друзей — обычная готовка и «🎁 Угостить»: шаги считаются по событиям cook и gift
-// (поля on/if в data/holidays.js). Каждое занятие шлёт событие holiday { id, what }.
-import { addItem, setDayFlag, earn, award, meetFriend, spendMinutes } from '../core/actions.js';
+// (поля on/if в data/holidays.js). Каждое занятие шлёт событие holiday { id, what }. Сценки, обход домиков и призовая
+// мини-игра — общие приёмы из features/holidays_scenes.js.
+import { addItem, setDayFlag, earn } from '../core/actions.js';
 import { sfx } from '../core/audio.js';
-import { makeCanvas, ell, fillRR, line, poly, star } from '../core/draw.js';
+import { ell, fillRR, line, poly, star } from '../core/draw.js';
 import { emit } from '../core/events.js';
 import { G, playerLook } from '../core/state.js';
-import { el, fmtMoney, pick, TAU } from '../core/util.js';
+import { pick, TAU } from '../core/util.js';
 import { drawHamster } from '../art/hamster.js';
-import { NPC_BY_ID, DISH_BY_ID, HOLIDAY, npcLook, holidayOffset, HOLIDAY_BY_ID } from '../data/index.js';
+import { HOLIDAY, holidayOffset, HOLIDAY_BY_ID } from '../data/index.js';
 import { paintFir, FIR_TOYS, toy, skyLantern, lantern } from '../locations/holidays_art.js';
-import { dialog } from '../ui/dialog.js';
-import { openLayer } from '../ui/modals.js';
-import { openPanel, message } from '../ui/panel.js';
+import { message } from '../ui/panel.js';
 import { toast } from '../ui/toast.js';
 import { addPts } from './friends.js';
-import { holidayActs, holidayTalk, holidayDoor, holidayStep, stepDoneFor, stepWanted } from './holidays.js';
-import { playMinigame } from './minigames.js';
+import { holidayActs, holidayTalk, holidayStep, stepDoneFor, stepWanted } from './holidays.js';
+import { tapScene, playScene, nightSky, doorRound, prizeGame, holidaySay as say } from './holidays_scenes.js';
 
 const S = () => G.state;
 const OUT = '#4a3728';
 const HF = () => S().dayFlags.holiday || {};
 /** Сколько дней от праздника id (−1 — канун, 0 — праздник, 1 — наутро). */
 const offset = (id) => holidayOffset(HOLIDAY_BY_ID[id], S().day);
-const say = (id, text, options, happy = false) => dialog({ look: npcLook(id), name: NPC_BY_ID[id].name, text, options, happy });
-const fem = (id) => NPC_BY_ID[id].fem;
-
-/**
- * Окно-сценка с картинкой и кнопкой «действия»: каждое нажатие (на картинку, кнопку, пробел или Enter) — шаг; после
- * steps шагов — «готово». paint(ctx, w, h, k, t) рисует кадр (k — сколько шагов уже сделано, с анимацией).
- * Возвращает Promise<boolean> — дошли ли до конца.
- */
-function tapScene({ title, icon, steps, btn, lastBtn, hint, doneText, paint, onStep }) {
-  return new Promise((resolve) => {
-    const W = Math.min(380, window.innerWidth - 48),
-      H = Math.round(W * 0.86);
-    const { canvas, ctx } = makeCanvas(W, H);
-    canvas.style.cssText += ';display:block;margin:0 auto;border-radius:16px;touch-action:manipulation;cursor:pointer';
-    canvas.className = 'hol-scene';
-    let n = 0,
-      since = 0,
-      raf = 0,
-      done = false;
-    const t0 = performance.now();
-    const note = el('p', 'center', hint);
-    const b = el('button', 'btn big green', btn);
-    const step = () => {
-      if (done || n >= steps) return;
-      n++;
-      since = performance.now();
-      if (onStep) onStep(n);
-      if (n >= steps) {
-        done = true;
-        sfx('magic');
-        note.innerHTML = doneText;
-        b.textContent = 'Ура! 🎉';
-        b.onclick = () => panel.close();
-      } else {
-        sfx('pop');
-        if (n === steps - 1 && lastBtn) b.textContent = lastBtn;
-      }
-    };
-    b.onclick = step;
-    canvas.onpointerdown = (e) => {
-      e.preventDefault();
-      if (!done) step();
-    };
-    const key = (e) => {
-      if ((e.code === 'Space' || e.code === 'Enter') && !done) {
-        e.preventDefault();
-        step();
-      }
-    };
-    window.addEventListener('keydown', key);
-    const panel = openPanel({
-      title,
-      icon,
-      cls: 'narrow hol-scene-panel',
-      render(body) {
-        body.append(canvas, note, b);
-      },
-      onClose() {
-        cancelAnimationFrame(raf);
-        window.removeEventListener('keydown', key);
-        resolve(done);
-      },
-    });
-    const loop = (now) => {
-      const t = (now - t0) / 1000,
-        a = Math.min(1, (now - since) / 450); // анимация последнего шага
-      ctx.clearRect(0, 0, W, H);
-      paint(ctx, W, H, n, a, t);
-      raf = requestAnimationFrame(loop);
-    };
-    raf = requestAnimationFrame(loop);
-  });
-}
-
-/** Короткая сценка без нажатий (колядки, карусель): затемнение с картинкой на ms миллисекунд. */
-function playScene(text, paint, ms = 2600) {
-  return new Promise((resolve) => {
-    const W = Math.min(520, window.innerWidth - 32),
-      H = Math.round(W * 0.58);
-    const f = el('div', 'fade cable-ride hol-fade', `<div class="msg"><div><div class="ride-pic"></div><p>${text}</p></div></div>`);
-    const { canvas, ctx } = makeCanvas(W, H);
-    canvas.style.borderRadius = '18px';
-    f.querySelector('.ride-pic').appendChild(canvas);
-    document.body.appendChild(f);
-    const closeLayer = openLayer();
-    const t0 = performance.now(),
-      look = playerLook();
-    let raf = 0;
-    const loop = (now) => {
-      const t = (now - t0) / 1000;
-      paint(ctx, W, H, Math.min(1, (now - t0) / ms), look, t);
-      raf = requestAnimationFrame(loop);
-    };
-    raf = requestAnimationFrame(loop);
-    requestAnimationFrame(() => f.classList.add('on'));
-    setTimeout(() => {
-      cancelAnimationFrame(raf);
-      f.classList.remove('on');
-      setTimeout(() => {
-        f.remove();
-        closeLayer();
-        resolve();
-      }, 380);
-    }, ms);
-  });
-}
-/** Ночное небо со снежинками (фон сценок). */
-function nightSky(ctx, w, h, t, top = '#1b2a5a', bot = '#4a5a9a') {
-  const g = ctx.createLinearGradient(0, 0, 0, h);
-  g.addColorStop(0, top);
-  g.addColorStop(1, bot);
-  ctx.fillStyle = g;
-  ctx.fillRect(0, 0, w, h);
-  for (let i = 0; i < 26; i++) {
-    const x = ((i * 0.377 + Math.sin(t * 0.5 + i) * 0.01) % 1) * w,
-      y = ((i * 0.613 + t * 0.05 * (1 + (i % 3) * 0.3)) % 1) * h;
-    ell(ctx, x, y, 1.6 + (i % 3) * 0.5, 1.6 + (i % 3) * 0.5, 'rgba(255,255,255,.75)');
-  }
-}
 
 // ==================== НОВЫЙ ГОД ====================
 const TOYS = 8; // столько игрушек повесить, потом — звезда на макушку
@@ -296,37 +176,18 @@ function paintCarol(ctx, w, h, k, look, t) {
   }
   ctx.globalAlpha = 1;
 }
-holidayDoor('xmas', async (npc, ctx, where) => {
-  if (!stepWanted('xmas', 'carols') || stepDoneFor('xmas', 'carols', npc)) return false;
-  const m = S().minutes;
-  if (m < HOLIDAY.carols[0] * 60 || m >= HOLIDAY.carols[1] * 60) {
-    // колядуют вечером; днём дверь — как обычно, а напомнить — можно
-    setTimeout(() => toast(`🎶 Колядки — вечером, с ${HOLIDAY.carols[0]}:00. Приходи петь к этой двери!`), 1200);
-    return false;
-  }
-  const name = NPC_BY_ID[npc].name;
-  sfx('bell');
-  const i = await message({
-    title: 'Колядки',
-    icon: '🎶',
-    html: `<div class="center big-emoji">🌟🎶</div><p class="center">Это домик, где живёт <b>${name}</b>. Споём колядку у двери? Хозяева на Рождество всегда угощают колядующих!</p>`,
-    buttons: [{ text: '🎶 Колядовать!', cls: 'green' }, { text: where === 'home' ? '🚪 Просто зайти в гости' : 'Не сейчас', cls: 'ghost' }],
-  });
-  if (i !== 0) return where !== 'home'; // «просто в гости» — обычный визит (если хозяин дома)
-  sfx('fanfare');
-  await playScene('🎶 «Коляда-коляда, отворяй ворота!»', paintCarol, 2600);
-  const fr = S().friends[npc];
-  if (fr && !fr.met) meetFriend(npc);
-  const treat = HOLIDAY.carolTreats[S().day % HOLIDAY.carolTreats.length],
-    d = DISH_BY_ID[treat];
-  addItem('dishes', treat, 1);
-  holidayStep('xmas', 'carols', npc);
-  if (fr) addPts(npc, 1);
-  spendMinutes(15, 22 * 60);
-  const late = where === 'out' ? ` А я как раз забежал${fem(npc) ? 'а' : ''} домой за угощением!` : '';
-  await say(npc, `Ой, колядки! Какие звонкие!${late} С Рождеством! Держи угощение: ${d.e} ${d.name}!`, [{ text: 'Спасибо! С Рождеством! 🌟', cls: 'green' }], true);
-  toast(`+1 ${d.e} ${d.name} — в рюкзаке`, 'good');
-  return true;
+doorRound({
+  holiday: 'xmas',
+  step: 'carols',
+  title: 'Колядки',
+  icon: '🎶',
+  ask: (name) => `<div class="center big-emoji">🌟🎶</div><p class="center">Это домик, где живёт <b>${name}</b>. Споём колядку у двери? Хозяева на Рождество всегда угощают колядующих!</p>`,
+  go: '🎶 Колядовать!',
+  scene: ['🎶 «Коляда-коляда, отворяй ворота!»', paintCarol],
+  treats: HOLIDAY.carolTreats,
+  thanks: (npc, d, late) => `Ой, колядки! Какие звонкие!${late} С Рождеством! Держи угощение: ${d.e} ${d.name}!`,
+  ok: 'Спасибо! С Рождеством! 🌟',
+  hourHint: `🎶 Колядки — вечером, с ${HOLIDAY.carols[0]}:00. Приходи петь к этой двери!`,
 });
 
 // ==================== КИТАЙСКИЙ НОВЫЙ ГОД ====================
@@ -463,25 +324,9 @@ function blini() {
   toast('🥞 «С Масленицей! Держи набор для блинов!» +🌾 мука, +🥚 яйца, +🥛 молоко — испеки блинчики на кухне!', 'good');
 }
 /** «Перетягивание каната» у ярмарки: за первые HOLIDAY.tug.paid игр — монеты по звёздам. */
-async function tug() {
-  const k = offset('maslenitsa');
-  if (k < 0) return void toast('🪢 Канат уже лежит на площади! Соревнования — завтра, на Масленицу.');
-  const c = HOLIDAY.tug.coins,
-    left = Math.max(0, HOLIDAY.tug.paid - (HF().tugs || 0)),
-    note = (html) => `<div class="pay-note${left ? '' : ' off'}">${html}</div>`;
-  const res = await playMinigame('tug', {
-    introNote: left
-      ? note(`🥞 <b>Приз ярмарки:</b> ⭐ 🪙 ${c[0]} · ⭐⭐ 🪙 ${c[1]} · ⭐⭐⭐ 🪙 ${c[2]}. Сегодня ещё ${left} ${left === 1 ? 'игра' : 'игры'} с призом.`)
-      : note('💛 Призы ярмарки уже получены. Играть можно для удовольствия!'),
-    resultNote: (stars) => (left ? note(`<span class="sum">🪙 +${fmtMoney(c[stars - 1])}</span>`) : note('💛 Эта игра была для удовольствия.')),
-  });
-  if (!res) return res;
-  award('x_tug', { delay: 1200 });
-  if (!left) return res;
-  setDayFlag('tugs', (HF().tugs || 0) + 1, 'holiday');
-  earn(c[res.stars - 1], 'gift');
-  sfx('coin');
-  return res;
+function tug() {
+  if (offset('maslenitsa') < 0) return void toast('🪢 Канат уже лежит на площади! Соревнования — завтра, на Масленицу.');
+  return prizeGame('tug', { flag: 'tugs', cfg: HOLIDAY.tug, label: '🥞 <b>Приз ярмарки</b>', sticker: 'x_tug' });
 }
 
 holidayActs({
