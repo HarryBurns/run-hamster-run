@@ -278,7 +278,8 @@ export function holidayLineFor(id) {
   const s = S(),
     npc = NPC_BY_ID[id];
   if (!s || !npc) return null;
-  for (const { h, k } of decorsOn(s.day)) {
+  // сначала — сегодняшний праздник (1 января второго года: день рождения важнее «наутро после Нового года»)
+  for (const { h, k } of decorsOn(s.day).sort((a, b) => (a.k === 0 ? 0 : 1) - (b.k === 0 ? 0 : 1))) {
     const list = h.lines[k < 0 ? 'eve' : k === 0 ? 'day' : 'after'];
     if (list && list.length) return holidayLine(pick(list), s.name, npc.fem);
   }

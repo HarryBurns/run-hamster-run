@@ -97,7 +97,7 @@ export const DECOR = {
       ['hBalloons', 61.4, 24, 2],
       ['hBalloons', 13.6, 9.9, 1], // у двери виллы
       // таблички у клумб субботника: «Субботник» → «Готово!»
-      ...MAY_BEDS.map(([x, y], i) => ['hMaySign', x - 1.15, y - 0.25, () => (stepDone('plant', i) ? 1 : 0)]),
+      ...MAY_BEDS.map(([x, y], i) => ['hMaySign', x + (i === 1 ? 1.25 : -1.15), y - 0.25, () => (stepDone('plant', i) ? 1 : 0)]), // в парке слева — урна
     ],
     // клумбы субботника: посадили цветы (шаг plant, «кто» — номер клумбы) — на клумбе цветы
     flat: MAY_BEDS.map(([x, y], i) => ['hMayBed', x, y, () => (stepDone('plant', i) ? 1 : 0)]),

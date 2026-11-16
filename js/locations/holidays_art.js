@@ -997,7 +997,7 @@ export function paintBdayRoom(ctx, x0, x1, y, top, t) {
   ctx.moveTo(x0, yy);
   ctx.quadraticCurveTo((x0 + x1) / 2, yy + 40, x1, yy);
   ctx.stroke();
-  ctx.font = '900 12px ui-rounded, "Trebuchet MS", sans-serif';
+  ctx.font = '900 15px ui-rounded, "Trebuchet MS", sans-serif';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   for (let i = 0; i < n; i++) {
@@ -1005,17 +1005,19 @@ export function paintBdayRoom(ctx, x0, x1, y, top, t) {
       x = x0 + (x1 - x0) * q,
       fy = yy + Math.sin(q * Math.PI) * 20 * 1;
     if (word[i] === ' ') continue;
-    poly(ctx, [x - 11, fy, x + 11, fy, x, fy + 24], BULBS[i % BULBS.length], OUT, 1.1);
+    poly(ctx, [x - 14, fy, x + 14, fy, x, fy + 30], BULBS[i % BULBS.length], OUT, 1.2);
     ctx.fillStyle = '#fff';
-    ctx.fillText(word[i], x, fy + 8);
+    ctx.fillText(word[i], x, fy + 10);
   }
   for (const [bx, v] of [
-    [x0 + 30, 0],
-    [x1 - 30, 1],
+    [x0 + 90, 0],
+    [(x0 + x1) / 2 + 40, 2],
+    [x1 - 50, 1],
   ]) {
     const sway = Math.sin(t * 1.4 + bx) * 3;
     ctx.save();
     ctx.translate(bx + sway, y);
+    ctx.scale(1.35, 1.35);
     paintBalloons(ctx, v);
     ctx.restore();
   }
