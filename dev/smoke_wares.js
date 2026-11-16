@@ -442,7 +442,7 @@ module.exports = async function wares({ page, step, ev, wait, closeAll }) {
         let all = 0,
           here = 0;
         for (let i = 0; i < tabs.length; i++) {
-          if (tabs[i].includes('Семена')) continue;
+          if (tabs[i].includes('Семена') || tabs[i].includes('Для походов')) continue; // семена и инструменты — не «вещи» витрины дня
           await page.locator('.overlay .tab').nth(i).click();
           await wait(200);
           const n = await ev(() => ({
