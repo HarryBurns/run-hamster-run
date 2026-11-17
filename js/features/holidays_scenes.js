@@ -32,7 +32,8 @@ export const holidaySay = (id, text, options, happy = false) => dialog({ look: n
  */
 export function tapScene({ title, icon, steps, btn, btns, lastBtn, hint, hints, doneText, paint, onStep }) {
   return new Promise((resolve) => {
-    const W = Math.min(380, window.innerWidth - 48),
+    // на телефоне лёжа (высота ~340 px) картинка меньше, чтобы подсказка и кнопка помещались без прокрутки
+    const W = Math.round(Math.max(150, Math.min(380, window.innerWidth - 48, (window.innerHeight - 215) / 0.86))),
       H = Math.round(W * 0.86);
     const { canvas, ctx } = makeCanvas(W, H);
     canvas.style.cssText += ';display:block;margin:0 auto;border-radius:16px;touch-action:manipulation;cursor:pointer';

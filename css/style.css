@@ -546,4 +546,9 @@ h4 { margin: 4px 0; font-size: 16px; }
 .hol-row.now { background: #ffe8cc; }
 .hol-scene-panel .panel-body { text-align: center; }
 .hol-scene-panel .panel-body .btn { margin: 4px auto 0; }
+/* телефон лёжа: картинка сценки меньше (holidays_scenes.js), подсказка и кнопка компактнее — всё видно без прокрутки */
+@media (max-height: 520px) and (orientation: landscape) {
+  .hol-scene-panel .panel-body p { margin: 4px 0; font-size: 13px; line-height: 1.25; }
+  .hol-scene-panel .panel-body .btn.big { font-size: 17px; padding: 8px 20px; min-height: 44px; }
+}
 .hol-fade { background: #22306a; }
