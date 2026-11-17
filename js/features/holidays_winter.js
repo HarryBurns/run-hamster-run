@@ -11,7 +11,8 @@
 //   holiday:carousel   карусель: прокатиться (сценка)                                               — Масленица
 //   holiday:effigy     соломенное чучело: «Прощай, зима!»                                           — Масленица
 //   holiday:blini      прилавок «Блины»: набор для блинов (раз в день)                              — Масленица
-//   holiday:tug        канат: мини-игра «Перетягивание каната» (minigames/tug.js), монеты по звёздам — Масленица
+//   holiday:tug        канат: мини-игра «Перетягивание каната» (minigames/tug.js), монеты по звёздам — Масленица;
+//                      в команде — трое друзей с самыми большими сердечками дружбы (Пр12): чем их больше, тем легче
 // Испечь блины и угостить ими друзей — обычная готовка и «🎁 Угостить»: шаги считаются по событиям cook и gift
 // (поля on/if в data/holidays.js). Каждое занятие шлёт событие holiday { id, what }. Сценки, обход домиков и призовая
 // мини-игра — общие приёмы из features/holidays_scenes.js.
@@ -19,10 +20,11 @@ import { addItem, setDayFlag, earn, learnRecipe } from '../core/actions.js';
 import { sfx } from '../core/audio.js';
 import { ell, fillRR, line, poly, star } from '../core/draw.js';
 import { emit } from '../core/events.js';
-import { G, playerLook } from '../core/state.js';
+import { G, playerLook, friendHearts } from '../core/state.js';
 import { pick, TAU } from '../core/util.js';
 import { drawHamster } from '../art/hamster.js';
-import { HOLIDAY, holidayOffset, HOLIDAY_BY_ID, BLINI, DISH_BY_ID } from '../data/index.js';
+import { HOLIDAY, holidayOffset, HOLIDAY_BY_ID, BLINI, DISH_BY_ID, NPCS, npcLook } from '../data/index.js';
+import { teamHelp } from '../minigames/tug.js';
 import { paintFir, FIR_TOYS, toy, skyLantern, lantern } from '../locations/holidays_art.js';
 import { message } from '../ui/panel.js';
 import { toast } from '../ui/toast.js';
@@ -349,10 +351,36 @@ function bakeAtFair() {
     note: 'На Масленицу пекут блины! Выбери, какие: простые, с вареньем или с мёдом. Продукты — из рюкзака; чего не хватает — написано под рецептом.',
   });
 }
+/**
+ * Команда у каната (Пр12): трое друзей, с кем больше всего сердечек дружбы (знакомые; не хватает — жители без
+ * сердечек). Каждое сердечко делает рывок команды сильнее (minigames/tug.js — teamHelp).
+ */
+export function tugTeam() {
+  const fr = S().friends,
+    hearts = (id) => (fr[id] && fr[id].met ? friendHearts(id) : 0);
+  const town = (n) => (!n.land || n.land === 'world' ? 0 : 1); // без сердечек — сначала горожане
+  return NPCS.filter((n) => fr[n.id])
+    .map((n, i) => ({ id: n.id, name: n.name, look: npcLook(n.id), hearts: hearts(n.id), k: town(n) * 100 + ((i + S().day) % 7) }))
+    .sort((a, b) => b.hearts - a.hearts || a.k - b.k)
+    .slice(0, 3)
+    .map(({ k, ...f }) => f);
+}
 /** «Перетягивание каната» у ярмарки: за первые HOLIDAY.tug.paid игр — монеты по звёздам. */
 function tug() {
   if (offset('maslenitsa') < 0) return void toast('🪢 Канат уже лежит на площади! Соревнования — завтра, на Масленицу.');
-  return prizeGame('tug', { flag: 'tugs', cfg: HOLIDAY.tug, label: '🥞 <b>Приз ярмарки</b>', sticker: 'x_tug' });
+  const team = tugTeam(),
+    help = teamHelp(team),
+    names = team.map((f) => `<b>${f.name}</b>${f.hearts ? ` ${'❤️'.repeat(f.hearts)}` : ''}`).join(', ');
+  return prizeGame('tug', {
+    flag: 'tugs',
+    cfg: HOLIDAY.tug,
+    label: '🥞 <b>Приз ярмарки</b>',
+    sticker: 'x_tug',
+    info: { team },
+    intro: `<div class="pay-note">💞 В твоей команде: ${names}.<br>${
+      help > 0 ? `Друзья с сердечками помогают — рывок сильнее на <b>${Math.round(help * 100)}%</b>!` : 'Подружись с ними покрепче — с друзьями тянуть легче!'
+    }</div>`,
+  });
 }
 
 holidayActs({

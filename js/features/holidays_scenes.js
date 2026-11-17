@@ -196,16 +196,20 @@ export function doorRound({ holiday, step, title, icon, ask, go, scene, treats, 
 
 /**
  * Мини-игра праздника с призом: за первые cfg.paid игр в день — монеты cfg.coins по звёздам (отметка дня flag), потом —
- * «для удовольствия». label — как назвать приз («🥞 Приз ярмарки»). После игры — наклейка sticker.
+ * «для удовольствия». label — как назвать приз («🥞 Приз ярмарки»). После игры — наклейка sticker. info — что ещё
+ * передать игре (команда друзей у каната), intro — HTML на заставке над строкой про приз.
  */
-export async function prizeGame(id, { flag, cfg, label, sticker }) {
+export async function prizeGame(id, { flag, cfg, label, sticker, info = {}, intro = '' }) {
   const c = cfg.coins,
     left = Math.max(0, cfg.paid - (HF()[flag] || 0)),
     note = (html) => `<div class="pay-note${left ? '' : ' off'}">${html}</div>`;
   const res = await playMinigame(id, {
-    introNote: left
+    ...info,
+    introNote:
+      intro +
+      (left
       ? note(`${label}: ⭐ 🪙 ${c[0]} · ⭐⭐ 🪙 ${c[1]} · ⭐⭐⭐ 🪙 ${c[2]}. Сегодня ещё ${left} ${left === 1 ? 'игра' : 'игры'} с призом.`)
-      : note('💛 Призы уже получены. Играть можно для удовольствия!'),
+      : note('💛 Призы уже получены. Играть можно для удовольствия!')),
     resultNote: (stars) => (left ? note(`<span class="sum">🪙 +${fmtMoney(c[stars - 1])}</span>`) : note('💛 Эта игра была для удовольствия.')),
   });
   if (!res) return res;

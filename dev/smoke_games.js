@@ -189,4 +189,75 @@ module.exports = async function games({ page, step, ev, wait, closeAll }) {
     const s1 = await state();
     expect(s1.plays.sled === 1 && s1.dayFlags.mountain.sleds === 1 && s1.money > s0.money, 'спуск на лыжах не записан', [s1.plays, s1.money - s0.money]);
   });
+
+  const toHoliday = async (id, when = 'day', year = 1, minutes = 600) => {
+    await closeAll();
+    await ev(
+      ([id, when, year, minutes]) => {
+        const d = window.__dev;
+        d.holiday.to(id, when, year, minutes);
+        if (d.sceneName !== 'world') d.go('world');
+      },
+      [id, when, year, minutes],
+    );
+    await wait(400);
+    await closeAll();
+  };
+  /** Канат: дождаться полного кружка, рывок пробелом; вернуть, насколько сдвинулась ленточка. */
+  const tugPull = async () => {
+    for (let i = 0; i < 80; i++) {
+      const g = await hook('__tug');
+      if (g.full && g.phase === 'go') break;
+      await wait(30);
+    }
+    const a = await hook('__tug');
+    await page.keyboard.press('Space');
+    await wait(60);
+    const b = await hook('__tug');
+    return a.p - b.p;
+  };
+
+  await step('игры 14: «Перетягивание каната» — в команде друзья с сердечками, рывок сильнее, без нажатий всё равно не выиграть', async () => {
+    await fresh();
+    await toHoliday('maslenitsa', 'day');
+    // без дружбы: в команде трое без сердечек, рывок обычный
+    await ev(() => {
+      window.__dev.run('holiday:tug');
+    });
+    await wait(800);
+    let t = await mgText();
+    expect(/В твоей команде/.test(t) && /Подружись/.test(t), 'на заставке нет команды', t);
+    await start();
+    await wait(900);
+    let g = await hook('__tug');
+    expect(g.help === 0 && g.team.length === 3 && g.team.every((h) => h === 0), 'без дружбы — помощь', g);
+    const d0 = await tugPull();
+    await page.click('#mg .xbtn');
+    await wait(400);
+    await closeAll();
+    // лучшие друзья: по 5 сердечек у троих — рывок заметно сильнее (+35%), на заставке — сердечки
+    await mutate("for (const id of ['plusha', 'ponchik', 'bob']) { s.friends[id].met = true; s.friends[id].pts = 20; }");
+    await ev(() => {
+      window.__dev.run('holiday:tug');
+    });
+    await wait(800);
+    t = await mgText();
+    expect(/Плюша/.test(t) && /❤️❤️❤️❤️❤️/.test(t) && /35%/.test(t), 'на заставке нет друзей с сердечками', t);
+    await start();
+    await wait(900);
+    g = await hook('__tug');
+    expect(Math.abs(g.help - 0.35) < 1e-6 && g.team.every((h) => h === 5), 'друзья не помогают', g);
+    const d1 = await tugPull();
+    expect(d0 > 0.12 && d1 > d0 * 1.2 && d1 < d0 * 1.5, 'рывок с друзьями не сильнее', [d0, d1]);
+    // без нажатий не выиграть даже с друзьями: первый раунд уходит другой команде
+    for (let i = 0; i < 40; i++) {
+      g = await hook('__tug');
+      if (g.lost || g.wins) break;
+      await wait(500);
+    }
+    expect(g.lost === 1 && g.wins === 0, 'без нажатий раунд выигран', g);
+    await page.click('#mg .xbtn');
+    await wait(400);
+    await closeAll();
+  });
 };

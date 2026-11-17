@@ -7,6 +7,9 @@
 // ленточка). Проигрыша нет: проиграли раунд — все весело падают в снег, игра идёт дальше; звёзды — по выигранным
 // раундам (0–1 — ⭐, 2 — ⭐⭐, 3 — ⭐⭐⭐). Управление: нажатие пальцем или мышью в любом месте, пробел, Enter
 // или стрелка влево. Монеты по звёздам выдаёт занятие (features/holidays_winter.js).
+// Друзья помогают (Пр12): в команду встают трое друзей (info.team — { name, look, hearts }, занятие берёт тех, с кем
+// больше всего сердечек дружбы). Каждое сердечко — +HELP.per к силе рывка (не больше HELP.max): заметно легче, но
+// тянуть в ритм всё равно надо — без нажатий не выиграть даже с лучшими друзьями.
 import { el, clamp } from '../core/util.js';
 import { ell, poly, fillRR, line, star } from '../core/draw.js';
 
@@ -20,6 +23,10 @@ const BEAT = 0.75,
   HOLD = 0.4;
 /** Рывок: сильный (в ритм) и слабый (раньше времени); как сильно тянет другая команда в каждом раунде (за секунду). */
 export const PULL = { strong: 0.16, weak: 0.015, cool: 0.2, them: [0.07, 0.095, 0.11] };
+/** Друзья в команде: сколько силы рывка даёт одно сердечко дружбы и сколько самое большее (доли). */
+export const HELP = { per: 0.025, max: 0.35 };
+/** Насколько команда друзей сильнее (0..HELP.max): team — [{ hearts }]. */
+export const teamHelp = (team) => Math.min(HELP.max, (team || []).reduce((a, f) => a + (f.hearts || 0), 0) * HELP.per);
 
 /** Маленькая картинка для правил (data: URL). */
 function pic(draw, w = 110, h = 70) {
@@ -98,8 +105,9 @@ export default {
     const top = el('div', 'tg-top');
     const tRound = el('div', 'tg-chip'),
       tScore = el('div', 'tg-chip'),
+      tHelp = el('div', 'tg-chip'),
       tSay = el('div', 'tg-chip');
-    top.append(tRound, tScore, tSay);
+    top.append(tRound, tScore, tHelp, tSay);
     root.append(style, top);
     const cv = host.canvas();
     const ctx = cv.ctx;
@@ -124,8 +132,16 @@ export default {
       sayT = 0,
       strong = 0,
       taps = 0;
-    const ours = [host.look, ...(host.friends || []).slice(0, 2).map((f) => f.look)];
-    const theirs = (host.friends || []).slice(2, 5).map((f) => f.look);
+    // наша команда: хомячок и друзья (info.team — с сердечками дружбы), другая — остальные жители
+    const crew = (host.info && host.info.team) || (host.friends || []).slice(0, 2).map((f) => ({ ...f, hearts: 0 })),
+      help = teamHelp(crew),
+      mates = new Set(crew.map((f) => f.id));
+    const ours = [host.look, ...crew.map((f) => f.look)];
+    const theirs = (host.friends || [])
+      .filter((f) => !mates.has(f.id))
+      .slice(0, Math.max(3, ours.length))
+      .map((f) => f.look);
+    const fanIds = new Set([...mates, ...(host.friends || []).filter((f) => !mates.has(f.id)).slice(0, ours.length).map((f) => f.id)]);
     function shout(text, d = 1.2) {
       say = text;
       sayT = d;
@@ -133,6 +149,7 @@ export default {
     function chips() {
       tRound.textContent = `Раунд ${Math.min(round + 1, ROUNDS)}/${ROUNDS}`;
       tScore.textContent = `🏆 ${wins} : ${lost}`;
+      tHelp.textContent = help > 0 ? `💞 Друзья: +${Math.round(help * 100)}%` : '💞 Подружись — станет легче';
       tSay.textContent = say || (phase === 'go' ? (fill >= FULL ? '💪 Тяни!' : '⏳ Жди…') : '⛄');
     }
     function tap() {
@@ -140,13 +157,13 @@ export default {
       cool = PULL.cool;
       taps++;
       if (fill >= FULL) {
-        p -= PULL.strong;
+        p -= PULL.strong * (1 + help);
         strong++;
         yank = 1;
         host.sfx('thud');
         shout(['💪 Раз!', '💪 Два!', '💪 Взяли!', '💪 Ещё!'][strong % 4], 0.6);
       } else {
-        p -= PULL.weak;
+        p -= PULL.weak * (1 + help);
         yank = 0.35;
         host.sfx('tap');
         shout('🙂 Рано! Дождись кружка', 0.8);
@@ -178,8 +195,8 @@ export default {
             !stopped &&
             host.finish({
               stars,
-              text: `Выиграно раундов: <b>${wins}</b> из ${ROUNDS}. ${stars === 3 ? 'Самая сильная команда на ярмарке!' : stars === 2 ? 'Отличная команда!' : 'Было весело — и все в снегу! В следующий раз получится ещё лучше.'}`,
-              extra: { wins, strong, taps },
+              text: `Выиграно раундов: <b>${wins}</b> из ${ROUNDS}.${help > 0 ? ` 💞 Друзья помогали: рывок сильнее на ${Math.round(help * 100)}%.` : ''} ${stars === 3 ? 'Самая сильная команда на ярмарке!' : stars === 2 ? 'Отличная команда!' : 'Было весело — и все в снегу! В следующий раз получится ещё лучше.'}`,
+              extra: { wins, strong, taps, help },
             }),
           500,
         );
@@ -272,7 +289,7 @@ export default {
           ctx.fillText(word, x, by - 24);
         }
         // зрители на горке болеют за команды
-        const fans = (host.friends || []).slice(5, 8).map((f) => f.look);
+        const fans = (host.friends || []).filter((f) => !fanIds.has(f.id)).slice(0, 3).map((f) => f.look);
         fans.forEach((lk, i) => {
           const x = w * (0.36 + i * 0.14),
             y = h * hor + 4 + Math.abs(Math.sin(t * 5 + i)) * -5;
@@ -309,7 +326,19 @@ export default {
         fallThem = phase === 'fall' && winner < 0;
       rope(ctx, mid - span * 2.4 + shift, mid + span * 2.4 + shift, cy - 26 * s, rib);
       const gap = 42 * s;
-      team(ours.slice().reverse(), mid - span * 1.35 + shift - (ours.length - 1) * gap, gap, cy + 10 * s, 0.9 * s, 1, fallUs, yank);
+      const x0 = mid - span * 1.35 + shift - (ours.length - 1) * gap;
+      team(ours.slice().reverse(), x0, gap, cy + 10 * s, 0.9 * s, 1, fallUs, yank);
+      // сердечки дружбы над друзьями в нашей команде (после рывка — подпрыгивают)
+      ctx.font = `900 ${Math.round(12 + 3 * s)}px ui-rounded, "Trebuchet MS", sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      crew.forEach((f, i) => {
+        if (!f.hearts || fallUs) return;
+        const x = x0 + gap * (crew.length - 1 - i),
+          y = cy - 62 * s - yank * 10;
+        ctx.fillStyle = '#e64980';
+        ctx.fillText(`❤${f.hearts}`, x, y);
+      });
       team(theirs, mid + span * 1.35 + shift, gap, cy + 10 * s, 0.9 * s, -1, fallThem, 0.5);
       // кружок ритма
       if (phase === 'go' && !over) {
@@ -350,7 +379,7 @@ export default {
     };
     window.addEventListener('keydown', key);
     // для автотеста: что сейчас в игре
-    cv.canvas.__tug = () => ({ round, phase, p, fill, full: fill >= FULL, wins, lost, over, strong, taps });
+    cv.canvas.__tug = () => ({ round, phase, p, fill, full: fill >= FULL, wins, lost, over, strong, taps, help, team: crew.map((f) => f.hearts || 0) });
     cv.canvas.classList.add('tg-canvas');
     return {
       stop() {
