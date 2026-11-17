@@ -29,6 +29,7 @@ import { el, esc, pick, fmtMoney } from '../core/util.js';
 import { NPC_BY_ID, FIND_BY_ID, LEI_IDS, ISLAND, LAND_BY_ID, npcLook } from '../data/index.js';
 import { getLocation } from '../engine/topdown/index.js';
 import { festNow, placeFlowers, AT } from '../locations/island.js';
+import { paintDolphin } from '../locations/cove_art.js';
 import { paintCoconut } from '../locations/island_art.js';
 import { drawBoat } from '../locations/sea.js';
 import { sea } from '../locations/town.js';
@@ -440,12 +441,8 @@ export function paintFaraway(ctx, w, h, k, toIsland, look, t) {
       dy = h * (0.72 + (i % 2) * 0.08) - Math.sin(q * Math.PI) * h * 0.14;
     ctx.save();
     ctx.translate(dx, dy);
-    ctx.rotate(-Math.cos(q * Math.PI) * 0.8);
-    ell(ctx, 0, 0, 22, 8, '#748ba0', OUT, 1.8);
-    ell(ctx, -2, 3, 14, 4, '#c5d3df');
-    poly(ctx, [-4, -7, 4, -16, 6, -6], '#748ba0', OUT, 1.4);
-    poly(ctx, [-20, 0, -30, -7, -28, 7], '#748ba0', OUT, 1.4);
-    ell(ctx, 14, -2, 1.6, 1.6, OUT);
+    ctx.scale(0.62, 0.62);
+    paintDolphin(ctx, 3 - Math.cos(q * Math.PI) * 2.7, 0); // нос вверх → нос вниз
     ctx.restore();
     if (q > 0.85) ell(ctx, dx + 10, h * (0.72 + (i % 2) * 0.08), 16, 4, 'rgba(255,255,255,.7)');
   }

@@ -508,38 +508,54 @@ export function drawDugHole(ctx, x, y) {
 // ---------- дельфины (С5): прыжок пары дельфинов — в море города рядом с корабликом и вдали за бухтой ----------
 /** Сколько длится прыжок одного дельфина (секунды). */
 export const DOLPHIN_JUMP = 1.25;
-/** Дельфин в профиль, носом вправо; a — наклон (0…6: нос вверх → нос вниз), m — 1: зеркально, носом влево. */
-function paintDolphin(ctx, a, m) {
+/**
+ * Дельфин в профиль, носом вправо; a — наклон (0…6: нос вверх → нос вниз, можно дробное), m — 1: зеркально, носом
+ * влево. Добрый дельфин, не акула (В1): круглый лоб, короткий клюв с улыбкой, плавник выгнут назад и закруглён,
+ * хвост — два круглых лопастя. Рисуется и в долгом плавании к острову, и на заставке.
+ */
+export function paintDolphin(ctx, a, m) {
   ctx.scale(m ? -1 : 1, 1);
   ctx.rotate(((a - 3) / 3) * 0.9);
-  poly(ctx, [-28, 0, -42, -10, -38, 0, -42, 10], '#5b7fb8', OUT, 1.6); // хвост
-  ctx.beginPath();
-  ctx.moveTo(-30, 0);
-  ctx.quadraticCurveTo(-6, -16, 18, -9);
-  ctx.quadraticCurveTo(30, -6, 36, -1);
-  ctx.quadraticCurveTo(30, 4, 18, 6);
-  ctx.quadraticCurveTo(-6, 12, -30, 0);
-  ctx.closePath();
-  ctx.fillStyle = '#6f93cf';
-  ctx.fill();
-  ctx.strokeStyle = OUT;
-  ctx.lineWidth = 2;
-  ctx.stroke();
+  ctx.lineJoin = 'round';
+  const BODY = '#74aee0',
+    DARK = '#5a93cb';
+  const shape = (pts, fill, lw) => {
+    ctx.beginPath();
+    ctx.moveTo(pts[0], pts[1]);
+    for (let i = 2; i < pts.length; i += 4) ctx.quadraticCurveTo(pts[i], pts[i + 1], pts[i + 2], pts[i + 3]);
+    ctx.closePath();
+    ctx.fillStyle = fill;
+    ctx.fill();
+    ctx.strokeStyle = OUT;
+    ctx.lineWidth = lw;
+    ctx.stroke();
+  };
+  // хвост: две круглые лопасти
+  shape([-27, 0, -34, -3, -41, -11, -46, -12, -44, -6, -42, -1, -37, 0, -42, 1, -44, 6, -46, 12, -41, 11, -34, 3, -27, 0], DARK, 1.6);
+  // спинной плавник: выгнут назад, кончик круглый
+  shape([9, -11, 4, -19, -5, -23, -10, -25, -8, -20, -6, -15, -7, -10], DARK, 1.6);
+  // тело: изогнутая спинка, круглый лоб, короткий клюв
+  shape([-30, 1, -14, -15, 8, -14, 21, -14, 25, -6, 28, -3, 35, -2, 39, 0, 35, 3, 25, 7, 15, 9, -8, 14, -30, 1], BODY, 2);
   ctx.beginPath(); // светлое брюшко
-  ctx.moveTo(-20, 3);
-  ctx.quadraticCurveTo(4, 10, 30, 2);
-  ctx.quadraticCurveTo(6, 5, -20, 3);
-  ctx.fillStyle = '#e7f0ff';
+  ctx.moveTo(-20, 4);
+  ctx.quadraticCurveTo(6, 13, 30, 4);
+  ctx.quadraticCurveTo(8, 7, -20, 4);
+  ctx.fillStyle = '#eaf4ff';
   ctx.fill();
-  poly(ctx, [-6, -11, 2, -24, 8, -11], '#5b7fb8', OUT, 1.6); // спинной плавник
-  poly(ctx, [6, 4, 0, 13, 12, 6], '#5b7fb8', OUT, 1.3);
-  ell(ctx, 20, -4, 2.2, 2.4, '#1d1b1b');
-  ell(ctx, 19.4, -4.8, 0.8, 0.8, '#fff');
+  // грудной плавник — круглый
+  ctx.save();
+  ctx.translate(8, 8);
+  ctx.rotate(0.6);
+  ell(ctx, 0, 0, 7, 3.6, DARK, OUT, 1.3);
+  ctx.restore();
+  ell(ctx, 19, -5, 2.6, 2.9, '#1d1b1b'); // глаз
+  ell(ctx, 18.2, -6, 1, 1, '#fff');
+  ell(ctx, 22, 1, 3.2, 1.8, 'rgba(255,140,170,.55)'); // румянец
   ctx.strokeStyle = OUT;
   ctx.lineWidth = 1.3;
   ctx.beginPath(); // улыбка
-  ctx.moveTo(26, 0.5);
-  ctx.quadraticCurveTo(31, 2, 35, -0.5);
+  ctx.moveTo(27, 2);
+  ctx.quadraticCurveTo(32, 4.5, 36, 1.5);
   ctx.stroke();
 }
 defineArt({

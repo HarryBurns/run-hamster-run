@@ -7,6 +7,7 @@ import { TAU, clamp, lerp, rnd, pick, seeded } from '../core/util.js';
 import { mix, shade } from '../core/draw.js';
 import { drawHamster, blinkAt } from '../art/hamster.js';
 import { sfx } from '../core/audio.js';
+import { paintDolphin } from '../locations/cove_art.js';
 
 const ease = (t) => t * t * (3 - 2 * t);
 const bell = (t) => Math.sin(clamp(t, 0, 1) * Math.PI);
@@ -801,26 +802,8 @@ export function createTitleScene(canvas, o) {
       ctx.rect(0, 0, W, hy + 17 * k);
       ctx.clip();
       ctx.translate(x, y);
-      ctx.rotate(lerp(-0.8, 0.8, q));
-      ctx.scale(k * 0.8, k * 0.8);
-      ctx.fillStyle = '#5c7cfa';
-      ctx.beginPath();
-      ctx.moveTo(-20, 0);
-      ctx.quadraticCurveTo(0, -14, 20, -1);
-      ctx.quadraticCurveTo(26, 0, 22, 3);
-      ctx.quadraticCurveTo(0, 9, -20, 0);
-      ctx.fill();
-      ctx.beginPath();
-      ctx.moveTo(-2, -7);
-      ctx.lineTo(-8, -16);
-      ctx.lineTo(5, -7);
-      ctx.fill();
-      ctx.beginPath();
-      ctx.moveTo(-18, 0);
-      ctx.lineTo(-28, -7);
-      ctx.lineTo(-27, 6);
-      ctx.fill();
-      circle(15, -1.5, 1.3, '#1b2a6b');
+      ctx.scale(k * 0.55, k * 0.55);
+      paintDolphin(ctx, 3 + lerp(-0.8, 0.8, q) / 0.3, 0); // добрый дельфин, как в море (В1)
       ctx.restore();
     }
   }
