@@ -6,7 +6,6 @@
 // Дома жителей — общий вид house с дорисовкой по характеру хозяина: HOUSE_ART[житель] (якорь Боба, теплица
 // и вьюнок Мяты, телескоп Профессора…) и HOUSE_STYLE[житель] (цвет ставней, дымок из трубы).
 import { TAU } from '../core/util.js';
-import { drawHamster } from '../art/hamster.js';
 import { ell, fillRR, line, poly, rr, shade, emoji } from '../core/draw.js';
 import { T, OUT, doorX, defineBuildings } from '../engine/topdown/kinds.js';
 import {
@@ -1229,7 +1228,7 @@ function star5(ctx, x, y, r, col) {
 // водная горка-спираль с крыши (она внутри отеля — мини-игра «Горка»). У входа — красный навес на золотых столбиках,
 // ковровая дорожка и швейцар в ливрее. Пальмы у здания — обычные пальмы города (locations/town.js).
 const HOTEL_TINTS = ['#96f2d7', '#ffd8a8', '#d0bfff']; // мята, персик, сирень — балконы и маркизы по столбцам
-const DOORMAN = {
+export const DOORMAN = {
   fur: '#c98b5a',
   belly: '#f6dfb8',
   spots: null,
@@ -1386,9 +1385,8 @@ function paintHotel(ctx, b, snow, lit) {
   // гирлянды фонариков под крышей крыльев
   lanterns(ctx, X + 14, cx - cw / 2 - 6, top + 8, lit);
   lanterns(ctx, cx + cw / 2 + 6, X + W - 14, top + 8, lit);
-  // водная горка справа и швейцар у двери
+  // водная горка справа; швейцар у двери — живой, отдельно от здания (locations/doorman.js, От3)
   hotelSlide(ctx, X + W - 30, top - 20, bot, snow);
-  drawHamster(ctx, cx - 82, bot + 2, 0.56, DOORMAN, { dir: 1, time: 0.4, blink: 0 });
 }
 
 // ================= ДОМА ЖИТЕЛЕЙ: дорисовка по характеру хозяина =================

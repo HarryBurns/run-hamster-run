@@ -435,6 +435,12 @@ const { pathToFileURL } = require('url');
   const { HOTEL, BUFFET, DISH_BY_ID, animatorNow, poolGuestOn, POOL_GUESTS } = D;
   if (!(HOTEL.slide.coins.length === 3 && HOTEL.slide.paid >= 1)) bad('HOTEL.slide: нужны coins на 1–3★ и paid');
   if (HOTEL.slide.coins[2] >= avg2) bad(`«Горка» на 3★ даёт ${HOTEL.slide.coins[2]} — это не меньше смены на 2★ (${fmt(avg2)})`);
+  // бодрость после спа (От7): прибавка к одной смене — приятный бонус, но спа им не окупается (не «вечный двигатель»)
+  {
+    const best = Math.max(...Object.values(JOBS).flatMap((j) => j.pay || []));
+    if (!(HOTEL.spaBoost > 0 && HOTEL.spaBoost <= 0.2)) bad(`HOTEL.spaBoost = ${HOTEL.spaBoost}: бодрость — небольшая прибавка (до 20%)`);
+    if (Math.round(best * HOTEL.spaBoost) >= HOTEL.spa) bad(`бодрость после спа на лучшей смене (${fmt(Math.round(best * HOTEL.spaBoost))}) окупает спа (${fmt(HOTEL.spa)})`);
+  }
   if (!JOBS.porter) bad('нет работы носильщицей (JOBS.porter)');
   else {
     const pp = JOBS.porter.pay;

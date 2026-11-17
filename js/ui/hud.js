@@ -10,7 +10,7 @@
 // После плашки письма — плашка задания из журнала (config.quest; на телефоне — коротко: значок и «3/5»).
 // На плашке даты — значок праздника, когда он сегодня или завтра (config.date.badge(); П.13); по нажатию на дату —
 // config.date.fn (праздничный календарь).
-import { G, cal } from '../core/state.js';
+import { G, cal, spaBoostOn } from '../core/state.js';
 import { on } from '../core/events.js';
 import { scene, sceneName } from '../core/loop.js';
 import { el, fmtMoney } from '../core/util.js';
@@ -19,7 +19,7 @@ import { moneyAnchor } from './coins.js';
 
 let root = null,
   cfg = null;
-let chipDate, chipSick, chipMoney, chipTask, chipQuest, leftBox;
+let chipDate, chipSick, chipBoost, chipMoney, chipTask, chipQuest, leftBox;
 let leftSig = ''; // что сейчас показано в левом столбике (чтобы не пересобирать его зря)
 let dropAnchor = null; // плашка монет — место, где всплывает «+350» (ui/coins.js)
 
@@ -40,6 +40,7 @@ function rbtn(icon, label, fn) {
  *   map: { icon, label, fn }          кнопка «Карта»
  *   home: { icon, label, fn }         главная кнопка по умолчанию — «Домой»
  *   sick: { fn }                      значок 🤒 «простыла» рядом с датой — по нажатию
+ *   boost: { fn }                     значок 💆 «бодрость после спа» (От7) рядом с датой — по нажатию
  *   quest: { info(), fn }             плашка задания из журнала: info() → { text, short, cls } или null (не показывать)
  *   date: { badge(), fn }             плашка даты: badge() → HTML значка праздника ('' — нет), fn — по нажатию
  */
@@ -67,6 +68,13 @@ export function buildHud() {
     sfx('tap');
     if (cfg.sick) cfg.sick.fn();
   };
+  chipBoost = el('div', 'chip boost', '💆');
+  chipBoost.title = 'Бодрость после спа';
+  chipBoost.hidden = true;
+  chipBoost.onclick = () => {
+    sfx('tap');
+    if (cfg.boost) cfg.boost.fn();
+  };
   chipMoney = el('div', 'chip money');
   if (dropAnchor) dropAnchor();
   dropAnchor = moneyAnchor(chipMoney);
@@ -81,7 +89,7 @@ export function buildHud() {
     sfx('tap');
     if (cfg.quest) cfg.quest.fn();
   };
-  top.append(chipDate, chipSick, chipMoney, chipTask, chipQuest);
+  top.append(chipDate, chipSick, chipBoost, chipMoney, chipTask, chipQuest);
   const right = el('div', 'hud-btns');
   right.append(...cfg.right.map((b) => rbtn(b.icon, b.label, b.fn)));
   leftBox = el('div', 'hud-btns left');
@@ -96,6 +104,7 @@ export function updateHud() {
   const dateHtml = `${c.seasonIcon} <b>${c.monthName}</b>, день ${c.dom}${hol} · ${c.phaseIcon} ${c.time}`;
   if (chipDate.innerHTML !== dateHtml) chipDate.innerHTML = dateHtml;
   chipSick.hidden = !G.state.sick;
+  chipBoost.hidden = !spaBoostOn();
   chipMoney.innerHTML = `🪙 <b>${fmtMoney(G.state.money)}</b>`;
   const t = cfg.task.info();
   chipTask.textContent = t.text;

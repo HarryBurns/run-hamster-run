@@ -486,4 +486,96 @@ module.exports = async function nature({ page, step, ev, wait, closeAll }) {
     expect(r.fest && r.garland && r.min > 60, 'хоровод проходит сквозь хомячка', r);
     expect(r.bulbs === 24, 'в гирлянде не три стороны по 8 огоньков', r);
   });
+
+  await step('природа: отель — живой швейцар машет и здоровается, друзья у бассейна в разное время, спа даёт бодрость к следующей смене', async () => {
+    await fresh();
+    await watch();
+    await ev(() => {
+      const d = window.__dev;
+      d.go('world');
+      d.actions.mutate((s) => (s.minutes = 12 * 60));
+    });
+    await wait(200);
+    // швейцар: подошла — машет; нажала — разговор, «Здравствуйте!» — событие
+    const dm = await ev(async () => {
+      const d = window.__dev,
+        { doorman } = await import('/js/locations/town.js'),
+        p = doorman.debugDoorman();
+      d.World.debugTeleport(Math.floor(p.x / 48) + 3, Math.floor(p.y / 48) + 4);
+      await new Promise((q) => setTimeout(q, 200));
+      const far = doorman.debugDoorman().waving;
+      d.World.walkTo(p.x + 60, p.y + 40, true);
+      await new Promise((q) => setTimeout(q, 1500));
+      return { far, near: doorman.debugDoorman().waving || doorman.debugDoorman().greetT > 0 };
+    });
+    expect(!dm.far && dm.near, 'швейцар не здоровается, когда подходишь', dm);
+    let said = false;
+    await ev(() => {
+      window.__dev.events.on('hotel', ({ what }) => what === 'doorman' && (window.__doormanSaid = true));
+      window.__dev.run('hotel:doorman');
+    });
+    await wait(400);
+    expect(/Швейцар/.test(await ev(() => (document.querySelector('.dialog') || { textContent: '' }).textContent)), 'нет разговора со швейцаром');
+    await page.click('.dialog .btn >> text=Здравствуйте');
+    await wait(400);
+    said = await ev(() => !!window.__doormanSaid);
+    await closeAll();
+    expect(said, 'поздоровалась — нет события');
+    // друзья у бассейна: в разное время дня — разные, иногда двое сразу
+    const pool = await ev(async () => {
+      const D = await import('/js/data/index.js'),
+        seen = new Set(),
+        slots = new Set();
+      let two = 0;
+      for (let d = 0; d < 36; d++)
+        for (const m of [11 * 60, 15 * 60, 18 * 60]) {
+          const g = D.poolGuestsOn(d, m);
+          g.forEach((id) => seen.add(id));
+          if (g.length) slots.add(m);
+          if (g.length > 1) two++;
+        }
+      return { seen: seen.size, slots: slots.size, two, night: D.poolGuestsOn(3, 22 * 60).length };
+    });
+    expect(pool.seen >= 6 && pool.slots === 3 && pool.two > 0 && !pool.night, 'у бассейна всё ещё один житель и в одно время', pool);
+    // спа: бодрость — значок у даты и +10 % к следующей смене (только одной)
+    await ev(() => window.__dev.actions.mutate((s) => (s.money += 1000)));
+    await ev(() => {
+      window.__dev.run('hotel:spa'); // не ждать: окно Мастера Пенки ждёт ответа
+    });
+    await wait(400);
+    await page.click('.dialog .btn >> text=Массаж');
+    await wait(4600);
+    await closeAll();
+    const boost = await ev(() => ({ flag: window.__dev.G.state.flags.spaBoost, day: window.__dev.G.state.day, chip: !document.querySelector('.chip.boost').hidden }));
+    expect(boost.flag === boost.day && boost.chip, 'после спа нет бодрости или значка', boost);
+    await ev(async () => {
+      const mod = (await import('/js/minigames/teacher.js')).default;
+      window.__teacherStart2 = mod.start;
+      mod.start = (host) => {
+        const t = setTimeout(() => host.finish({ stars: 2, text: 'проверка' }), 60);
+        return { stop: () => clearTimeout(t) };
+      };
+    });
+    const shift = async () => {
+      const m0 = await ev(() => window.__dev.G.state.money);
+      await ev(() => {
+        window.__dev.run('minigame:teacher');
+      });
+      await wait(500);
+      await page.click('#mg >> text=Начать!');
+      await wait(500);
+      await page.click('#mg >> text=Ура!');
+      await wait(500);
+      return (await ev(() => window.__dev.G.state.money)) - m0;
+    };
+    const pay = await ev(async () => (await import('/js/data/index.js')).JOBS.teacher.pay[1]);
+    const first = await shift(),
+      second = await shift();
+    await ev(async () => {
+      (await import('/js/minigames/teacher.js')).default.start = window.__teacherStart2;
+    });
+    expect(first === pay + Math.round(pay * 0.1) && second === pay, 'бодрость не дала +10 % к одной следующей смене', { first, second, pay });
+    expect(await ev(() => document.querySelector('.chip.boost').hidden), 'значок бодрости остался после смены');
+    await unwatch();
+  });
 };

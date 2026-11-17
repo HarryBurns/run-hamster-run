@@ -7,7 +7,7 @@
 import { clamp, seeded } from '../core/util.js';
 import { ell, fillRR, line, poly, emoji } from '../core/draw.js';
 import { NPCS, ING_BY_ID, SEED_BY_ID, TASK_BY_ID, LAND_BY_ID, BIZ_BY_ID } from '../data/index.js';
-import { G, cal, ownsHome, landOpen, guestsWaiting, stepWaits, hotelPoolGuest, hotelRoomGuest } from '../core/state.js';
+import { G, cal, ownsHome, landOpen, guestsWaiting, stepWaits, hotelPoolGuests, hotelRoomGuest } from '../core/state.js';
 import { T, OUT, SP, put, defineTiles, defineObjects } from '../engine/topdown/kinds.js';
 import { createTopDownScene } from '../engine/topdown/scene.js';
 import { run } from '../core/registry.js';
@@ -20,6 +20,7 @@ import { signBoard, fitText, snowCap, shadow } from './common/paint.js';
 import { createPlants, hasFruit } from './common/plants.js';
 import { createHerbs } from './common/herbs.js';
 import { createHolidayDecor, HOLIDAY_PLACES, blockHolidayCells } from './holidays.js';
+import { createDoorman } from './doorman.js';
 
 const MW = 96,
   MH = 121;
@@ -231,7 +232,7 @@ const HANG = {
 // away — житель сейчас не в городе: днём через день кто-то из друзей отдыхает у бассейна отеля (hotelPoolGuest) или
 // гостит в номере 203 (hotelRoomGuest, От1) — core/state.js; там же — кто остаётся в городе: ждёт гостей, позвал к себе,
 // у него дело по журналу
-const awayAtHotel = (id) => hotelPoolGuest() === id || hotelRoomGuest() === id;
+const awayAtHotel = (id) => hotelPoolGuests().includes(id) || hotelRoomGuest() === id;
 const ACTORS = NPCS.map((n) => ({
   npc: n.id,
   at: HANG[n.id],
@@ -825,6 +826,7 @@ const HERB_SPOTS = [
 ];
 const herbs = createHerbs(HERB_SPOTS);
 const holidayDecor = createHolidayDecor(); // украшения к праздникам (П.13): ёлка, гирлянды, фонарики, ярмарка, фейерверк
+const doorman = createDoorman(); // живой швейцар у входа в отель (От3): дышит, машет, с ним можно поздороваться
 function build(m) {
   const g = m.ground,
     solid = m.solid,
@@ -1524,7 +1526,7 @@ const town = createTopDownScene({
     beach: { y: [50, WORLD_SEA.shallowY - 1], tiles: ['s'] },
     town: { y: [3, 49], tiles: ['r', 'g', 'k', 'y'], avoid: [[0, 0, 28, 25]], reach: { from: [15, 26], tiles: ['g'] } },
   },
-  parts: [sea, plants, herbs, holidayDecor],
+  parts: [sea, plants, herbs, holidayDecor, doorman],
   target,
   /** Таблички «моё» у купленных заведений и жилья — сразу после здания в порядке «дальше → ближе». */
   things(sc, add, v) {
@@ -1590,4 +1592,4 @@ const town = createTopDownScene({
 });
 export default town;
 /** Море города: кораблик, острова, ныряние (для отладки и тестов). */
-export { sea };
+export { sea, doorman };

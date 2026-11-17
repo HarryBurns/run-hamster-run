@@ -5,6 +5,7 @@ import {
   award,
   earn,
   setDayFlag,
+  setFlag,
   spendMinutes,
   recordPlay,
   markBizWorked,
@@ -12,7 +13,7 @@ import {
 import { sfx } from '../core/audio.js';
 import { emit } from '../core/events.js';
 import { register } from '../core/registry.js';
-import { G, cal, hasClothes, playerLook, ownsBiz } from '../core/state.js';
+import { G, cal, hasClothes, playerLook, ownsBiz, spaBoostOn } from '../core/state.js';
 import { fmtMoney, plural, shuffle } from '../core/util.js';
 import {
   NPCS,
@@ -25,6 +26,7 @@ import {
   BUSINESSES,
   BIZ_BY_ID,
   BIZ_RULES,
+  HOTEL,
 } from '../data/index.js';
 import { runMinigame } from '../minigames/host.js';
 import { openLayer } from '../ui/modals.js';
@@ -192,11 +194,17 @@ function payLine(j, stars) {
 function payJob(id, stars, biz) {
   const j = jobToday(id, biz);
   if (!j || !j.left) return 0;
-  const sum = j.pay[stars - 1];
+  let sum = j.pay[stars - 1];
   setDayFlag(id, ((S().dayFlags.shifts || {})[id] || 0) + 1, 'shifts');
+  // бодрость после спа (От7): к оплате этой смены — приятная прибавка, и бодрость потрачена
+  const bonus = spaBoostOn() ? Math.max(1, Math.round(sum * HOTEL.spaBoost)) : 0;
+  if (bonus) {
+    setFlag('spaBoost', null);
+    sum += bonus;
+  }
   earn(sum, 'work');
   sfx('coin');
-  toast(`🪙 ${j.w.word}: +${coins(sum)}`, 'good');
+  toast(`🪙 ${j.w.word}: +${coins(sum)}${bonus ? ` (из них 💆 +${coins(bonus)} — бодрость после спа!)` : ''}`, 'good');
   award('x_wage', { delay: 1500 });
   return sum;
 }

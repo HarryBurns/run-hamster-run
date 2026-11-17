@@ -443,7 +443,7 @@ module.exports = async function hotel({ page, step, ev, wait, closeAll }) {
       const D = await import('/js/data/index.js');
       for (let d = 0; d < 72; d++) {
         const id = D.poolGuestOn(d, 15 * 60);
-        if (id) return { day: d, id };
+        if (id) return { day: d, id, all: D.poolGuestsOn(d, 15 * 60) }; // у бассейна бывают и двое (этап 16, От4)
       }
       return null;
     });
@@ -455,7 +455,7 @@ module.exports = async function hotel({ page, step, ev, wait, closeAll }) {
       const W = window.__dev.World;
       return { hidden: W.npcs.find((n) => n.id === id).hidden, others: W.npcs.filter((n) => n.id !== id && n.hidden).map((n) => n.id) };
     }, pick.id);
-    expect(r.hidden && !r.others.length, 'житель у бассейна отеля гуляет и по городу', [pick, r]);
+    expect(r.hidden && r.others.every((id) => pick.all.includes(id)), 'житель у бассейна отеля гуляет и по городу', [pick, r]);
     await toHotel(2, 1300);
     r = await ev((id) => window.__dev.scene.actors.filter((a) => !a.when || a.when()).map((a) => a.id), pick.id);
     expect(r.includes(pick.id) && !r.includes('hlopushka'), 'у бассейна отеля нет жителя', [pick, r]);

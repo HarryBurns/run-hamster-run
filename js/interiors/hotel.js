@@ -10,10 +10,10 @@
 // дверей, горки и шезлонгов — крюки art (back — позади всех, mid — стойки перед работниками, но позади хомячка);
 // он неподвижен и рисуется один раз в кэш (sc.still, engine/side/cache.js — От12), живое — огоньки свечей и диско-шар.
 // Своя позиция в сохранении (persist): уснула в номере — утро в отеле, и после перезагрузки тоже.
-import { G, ownsHome, hotelPoolGuest } from '../core/state.js';
+import { G, ownsHome, hotelPoolGuests } from '../core/state.js';
 import { ell, fillRR, line, poly, star, shade, emoji } from '../core/draw.js';
 import { TAU } from '../core/util.js';
-import { HOTEL_DOORS, HOTEL_ROOM, HOTEL_ROOMS, POOL_GUESTS, animatorNow } from '../data/index.js';
+import { HOTEL_DOORS, HOTEL_ROOM, HOTEL_ROOMS, POOL_GUESTS, ROOM_GUESTS, animatorNow } from '../data/index.js';
 
 const OUT = '#4a3728';
 const W = 2000;
@@ -389,7 +389,11 @@ export default {
     { npc: 'telezhkin', f: 0, x: HX.cart - 100, roam: [600, 660], act: 'hotel:porter' },
     { npc: 'penka', f: 0, x: 1560, act: 'hotel:spa' },
     { npc: 'hlopushka', f: 2, x: HX.stage, roam: [HX.stage - 70, HX.stage + 70], act: 'hotel:animator', when: () => !!G.state && !!animatorNow(G.state.minutes) },
-    ...POOL_GUESTS.map((id) => ({ npc: id, f: 2, x: HX.loungers[1] - 60, roam: [1380, 1560], act: 'npc:' + id, when: () => hotelPoolGuest() === id })),
+    // друзья у бассейна (От4): утром и днём — одни, вечером — другие, иногда вдвоём; у каждого своё место у воды
+    ...[...POOL_GUESTS, ...ROOM_GUESTS].map((id, i) => {
+      const x = [HX.loungers[1] - 60, HX.loungers[0] - 70, 1460, 1290][i % 4];
+      return { npc: id, f: 2, x, roam: [x - 50, x + 50], act: 'npc:' + id, when: () => hotelPoolGuests().includes(id) };
+    }),
   ],
   // рисуем только то, что видно на экране (sc.view — scene.js): этаж и полоса по x. Неподвижное — из кэша
   // (sc.still, От12; рамки — в единицах дома), живое (огоньки свечей, диско-шар) — линиями поверх.

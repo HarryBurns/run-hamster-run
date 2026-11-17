@@ -74,7 +74,7 @@ export const EVENTS = {
   island:
     'удалённый остров { what } — spot (нашли остров в подзорную трубу), volcano (посмотрела на вулкан), obsidian (взяла вулканическое стекло), flower (подобрала цветок для леи), dance (потанцевала на празднике огней), lei (Вождь сплёл лею), totem (Вождь вырезал тотем), lagoon (зашла в тёплую лагуну), erupt (увидела «доброе извержение») — features/island.js, locations/island.js',
   hotel:
-    'курортный отель «Морская звезда» { what } — room (сняла номер), night (проснулась в номере), buffet (поела у шведского стола), spa (массаж или маска), dance (зарядка или дискотека с аниматором; поле kind: morning | evening), slide (скатилась с горки) — features/hotel.js',
+    'курортный отель «Морская звезда» { what } — room (сняла номер), night (проснулась в номере), buffet (поела у шведского стола), spa (массаж или маска), dance (зарядка или дискотека с аниматором; поле kind: morning | evening), slide (скатилась с горки), doorman (поздоровалась со швейцаром) — features/hotel.js',
   holiday:
     'праздник (П.13) { id, what } — what: шаг праздника (tree, gifts, crib, carols, lanterns, envelopes, cook, treat, tug), done (все занятия дня сделаны), dragon, carousel, effigy, blini — features/holidays.js, features/holidays_winter.js',
   warmup: 'хомячок согрелась (горячий источник на горе): мороза за день как не бывало — features/health.js',

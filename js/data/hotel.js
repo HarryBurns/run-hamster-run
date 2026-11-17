@@ -41,10 +41,21 @@ export const POOL_GUESTS = ['senya', 'zefirka', 'busya', 'bob'];
  * перезагрузка не меняет), только в часы HOTEL.poolGuest. Пока он здесь, в городе его нет (locations/town.js).
  */
 export function poolGuestOn(day, minutes) {
-  const h = minutes / 60;
-  if (h < HOTEL.poolGuest.from || h >= HOTEL.poolGuest.to) return null;
-  if (dayRoll(day, 'hotel:pool') >= 0.5) return null;
-  return pickOn(day, 'hotel:pool', POOL_GUESTS, 1)[0] || null;
+  return poolGuestsOn(day, minutes)[0] || null;
+}
+/**
+ * Все, кто из жителей сейчас у бассейна отеля (От4): смены HOTEL.poolSlots — утро, день, вечер; в смену приходят
+ * один или двое (жребий по номеру дня — перезагрузка не меняет). Дневная смена — та же, что раньше (через день).
+ */
+export function poolGuestsOn(day, minutes) {
+  const h = minutes / 60,
+    i = HOTEL.poolSlots.findIndex((q) => h >= q.from && h < q.to);
+  if (i < 0) return [];
+  const q = HOTEL.poolSlots[i],
+    key = i === 1 ? 'hotel:pool' : 'hotel:pool' + i;
+  if (dayRoll(day, key) >= q.p) return [];
+  const n = dayRoll(day, key + ':two') < q.two ? 2 : 1;
+  return pickOn(day, key, q.who === 'room' ? ROOM_GUESTS : POOL_GUESTS, n);
 }
 
 /**

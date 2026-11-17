@@ -29,6 +29,7 @@ import { el, esc, pick, fmtMoney } from '../core/util.js';
 import { drawHamster } from '../art/hamster.js';
 import { NPC_BY_ID, DISH_BY_ID, HOTEL, HOTEL_ROOM, HOTEL_ROOMS, GUEST_ROOM, BUFFET, HOME_BY_ID, SICK_TEXT, animatorNow, npcLook } from '../data/index.js';
 import { HX, rentedRoom } from '../interiors/hotel.js';
+import { DOORMAN } from '../locations/town_buildings.js';
 import { go } from '../core/loop.js';
 import { dialog } from '../ui/dialog.js';
 import { openLayer } from '../ui/modals.js';
@@ -349,6 +350,7 @@ async function spa() {
   spendMinutes(30);
   emit('spa', { what: o.what });
   emit('hotel', { what: 'spa' });
+  setFlag('spaBoost', S().day); // бодрость (От7): к оплате следующей смены — приятная прибавка, сегодня и завтра
   emit('happy');
   sfx('magic');
   award('x_spa', { delay: 600 });
@@ -360,6 +362,33 @@ async function spa() {
         : '✨ Лапки отдохнули — можно снова бегать весь день!',
     'good',
   );
+  toast(`💆 Бодрость! Следующая смена на работе (сегодня или завтра) — на ${Math.round(HOTEL.spaBoost * 100)}% дороже. Значок 💆 — рядом с датой.`, 'good');
+}
+
+// ---------- швейцар у входа (От3): с ним можно поздороваться ----------
+const DOORMAN_LINES = {
+  day: [
+    'Добрый день! Добро пожаловать в «Морскую звезду» — бассейн на крыше уже ждёт!',
+    'Здравствуйте! Сегодня у нас чудесная погода для горки 🌊',
+    'Рад вас видеть! Чемоданы? Ах, вы налегке — тем лучше!',
+    'Привет-привет! Мастер Пенка в спа сегодня в прекрасном настроении 💆',
+  ],
+  night: ['Доброй ночи! Тсс… гости уже спят. Если нужен номер — Звёздочка на ресепшене не спит 🌙', 'Поздно уже! Звёзды над морем сегодня яркие — загляните на террасу ✨'],
+};
+async function doorman() {
+  sfx('tap');
+  const lines = darkness() > 0.5 ? DOORMAN_LINES.night : DOORMAN_LINES.day;
+  const opts = [{ text: '👋 Здравствуйте!', cls: 'yellow' }, { text: 'Пока!' }];
+  const i = await dialog({ look: DOORMAN, name: 'Швейцар Пуговкин', text: pick(lines), options: opts });
+  if (i !== 0) return;
+  sfx('heart');
+  emit('hotel', { what: 'doorman' });
+  await dialog({ look: DOORMAN, name: 'Швейцар Пуговкин', text: pick(['И вам здравствуйте! *приподнимает фуражку* 🎩', 'Как вежливо! Заходите — двери всегда открыты!', 'Здравствуйте, здравствуйте! Хорошего дня!']), options: [{ text: 'Спасибо!' }], happy: true });
+}
+
+/** Нажали на значок 💆 у даты: что такое бодрость после спа (От7). */
+export function showBoostHelp() {
+  toast(`💆 Бодрость после спа! Следующая смена на работе — на ${Math.round(HOTEL.spaBoost * 100)}% дороже. Действует сегодня и завтра — до первой смены.`, 'good');
 }
 
 // ---------- аниматор Хлопушка ----------
@@ -474,6 +503,7 @@ const ACTS = {
   suite: suiteDoor,
   buffet: openBuffet,
   spa,
+  doorman,
   animator,
   schedule,
   slide: slideGame,
@@ -492,7 +522,7 @@ register(
     }
     return fn();
   },
-  'курортный отель: hotel:reception | bed[:eco|balcony] | knock:<номер> | suite | buffet | spa | animator | schedule | slide | porter',
+  'курортный отель: hotel:reception | bed[:eco|balcony] | knock:<номер> | suite | buffet | spa | doorman | animator | schedule | slide | porter',
 );
 
 // первый вход в отель: наклейка и подсказка, куда идти

@@ -23,6 +23,7 @@ import {
   TASK_BY_ID,
   guestHosts,
   poolGuestOn,
+  poolGuestsOn,
   roomGuestOn,
   HOME_BY_ID,
   BIZ_BY_ID,
@@ -675,11 +676,22 @@ export const npcLookNow = (id) => npcLook(id, npcDress());
  * тот остаётся в городе. Пока житель у бассейна, в городе его не видно (locations/town.js, поле away).
  */
 export function hotelPoolGuest() {
+  return hotelPoolGuests()[0] || null;
+}
+/**
+ * Бодрость после спа (От7): день спа — в flags.spaBoost; действует в этот день и весь следующий, пока не потрачена на
+ * смену работы (+HOTEL.spaBoost к оплате). Без штрафов: бодрость только добавляет.
+ */
+export function spaBoostOn() {
+  const s = G.state,
+    d = s && s.flags.spaBoost;
+  return typeof d === 'number' && s.day >= d && s.day - d <= 1;
+}
+/** Все жители, что сейчас отдыхают у бассейна отеля (От4: несколько, в разное время) — с теми же оговорками. */
+export function hotelPoolGuests() {
   const s = G.state;
-  if (!s) return null;
-  const id = poolGuestOn(s.day, s.minutes);
-  if (!id || s.guests.includes(id) || invitedToday(id) || guestsWaiting().includes(id) || questBadge(id)) return null;
-  return id;
+  if (!s) return [];
+  return poolGuestsOn(s.day, s.minutes).filter((id) => !(s.guests.includes(id) || invitedToday(id) || guestsWaiting().includes(id) || questBadge(id)));
 }
 
 /** Кто из жителей сейчас гостит в номере 203 отеля (От1) — с теми же оговорками, что и у бассейна. */
