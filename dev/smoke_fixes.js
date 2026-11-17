@@ -76,4 +76,46 @@ module.exports = async function fixes({ page, step, ev, wait, closeAll }) {
     expect(/Дальше вода/.test(await toasts()), 'нет подсказки, почему слезла', await toasts());
     expect((await ev(() => window.__dev.state.wheels.own)).includes('scooter'), 'самокат пропал');
   });
+
+  await step('доработки В15: в январе у острова вода тёплая и вне лагуны — не «ледяное море»; в море города — ледяная', async () => {
+    await fresh();
+    // январь (холодный месяц), остров открыт; хомячок здорова и раньше не простывала
+    const swimAt = async (scene, tx, ty, wx, wy) => {
+      await clearToasts();
+      return ev(
+        async ([scene, tx, ty, wx, wy]) => {
+          const d = window.__dev;
+          if (!d.QuestState.landOpen('island')) d.actions.openLand('island');
+          d.actions.mutate((s) => {
+            s.day = 0;
+            s.minutes = 12 * 60;
+            s.weather = 'sun';
+            s.sick = 0;
+            s.immuneUntil = 0;
+            s.dayFlags = {};
+            s.flags.islandHint = 1;
+          });
+          d.go(scene);
+          const sc = d.locations[scene];
+          sc.debugTeleport(tx, ty);
+          await new Promise((q) => setTimeout(q, 300));
+          sc.walkTo((wx + 0.5) * 48, (wy + 0.5) * 48, true);
+          for (let i = 0; i < 40 && !(sc.map.kindAt(Math.floor(sc.p.x / 48), Math.floor(sc.p.y / 48)) || {}).swim; i++)
+            await new Promise((q) => setTimeout(q, 150));
+          await new Promise((q) => setTimeout(q, 300));
+          const k = sc.map.kindAt(Math.floor(sc.p.x / 48), Math.floor(sc.p.y / 48)) || {};
+          return { water: k.swim && k.swim.where, tile: sc.map.at(Math.floor(sc.p.x / 48), Math.floor(sc.p.y / 48)), care: (d.G.state.dayFlags.careless || {}).sea || 0 };
+        },
+        [scene, tx, ty, wx, wy],
+      );
+    };
+    // остров: пляж восточнее причала, в море прямо вниз (лагуна — у западного пляжа)
+    const isl = await swimAt('island', 30, 28, 30, 31);
+    expect(isl.water === 'sea', 'у острова не вошла в море (проверка не годится)', isl);
+    expect(!isl.care, 'у острова в январе вода «ледяная» — неосторожность', isl);
+    expect(!/ледян/i.test(await toasts()), 'у острова подсказка про ледяную воду', await toasts());
+    // город: то же море в январе — ледяное (как было)
+    const town = await swimAt('world', 40, 56, 40, 60);
+    expect(town.water === 'sea' && town.care === 1, 'в море города в январе вода не ледяная', town);
+  });
 };
