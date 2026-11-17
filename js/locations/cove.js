@@ -19,8 +19,9 @@ import { G, darkness } from '../core/state.js';
 import { emit } from '../core/events.js';
 import { sfx } from '../core/audio.js';
 import { clamp, seeded, dist, rnd } from '../core/util.js';
-import { COVE, SHELL_IDS, FIND_BY_ID, SEASON_OF_MONTH, pickOn, monthOfDay } from '../data/index.js';
-import { T, TILES, SP, put, tileOf, createTopDownScene } from '../engine/topdown/index.js';
+import { COVE, SHELL_IDS, FIND_BY_ID, SEASON_OF_MONTH, pickOn, monthOfDay, npcLook } from '../data/index.js';
+import { drawHamster, blinkAt } from '../art/hamster.js';
+import { T, PS, TILES, SP, put, hash, tileOf, createTopDownScene } from '../engine/topdown/index.js';
 import { drawXMark, drawDugHole, drawDolphinJump, DOLPHIN_JUMP } from './cove_art.js';
 import './common/index.js';
 import './jungle_art.js'; // цветы-геликонии у подножия скал — общие с джунглями
@@ -192,6 +193,13 @@ const isWater = (x, y) => {
   return !!(k && k.wet);
 };
 let sceneMap = null;
+/** Можно ли черепашонку сюда: суша без пальм и камней или вода (там он уже уплывает). */
+const blockedAt = (x, y) => {
+  if (!sceneMap) return false;
+  const tx = tileOf(x),
+    ty = tileOf(y);
+  return !isWater(x, y) && !sceneMap.foot(tx, ty);
+};
 function updateTurtles(sc, dt) {
   if (!hatch.on) return;
   const p = sc.p;
@@ -208,9 +216,26 @@ function updateTurtles(sc, dt) {
       gap = leader === p ? 30 : 22;
     if (d > gap) {
       const sp = Math.min(150, 60 + d) * dt;
-      q.x += ((leader.x - q.x) / d) * sp;
-      q.y += ((leader.y - q.y) / d) * sp;
-      if (Math.abs(leader.x - q.x) > 2) q.dir = leader.x > q.x ? 1 : -1;
+      // обходят пальмы, камни и скалы (С6): впереди препятствие — поворачивают, пока путь не свободен
+      const a0 = Math.atan2(leader.y - q.y, leader.x - q.x);
+      let a = a0;
+      for (const da of [0, 0.6, 1.2, 1.8, 2.4]) {
+        const side = q.side || 1,
+          a1 = a0 + da * side,
+          a2 = a0 - da * side;
+        if (!blockedAt(q.x + Math.cos(a1) * 20, q.y + Math.sin(a1) * 20)) {
+          a = a1;
+          break;
+        }
+        if (!blockedAt(q.x + Math.cos(a2) * 20, q.y + Math.sin(a2) * 20)) {
+          a = a2;
+          q.side = -side; // запомнить, в какую сторону обходит, — чтобы не метался
+          break;
+        }
+      }
+      q.x += Math.cos(a) * sp;
+      q.y += Math.sin(a) * sp;
+      if (Math.abs(Math.cos(a)) > 0.2) q.dir = Math.cos(a) > 0 ? 1 : -1;
       q.step += dt * 6;
     }
     if (isWater(q.x, q.y)) {
@@ -227,7 +252,55 @@ function updateTurtles(sc, dt) {
 }
 
 // ---------- светящаяся вода ночью ----------
-let glowCells = null;
+let glowCells = null,
+  glowShore = null; // клетки воды у самого песка: ночью вдоль кромки светится пена (С9)
+/**
+ * Чёткие огоньки на воде и светящаяся пена прибоя (С9) — прямо в кадре, в координатах мира: на большом экране они не
+ * расплываются (мягкое сияние вокруг даёт слой неба, drawGlow). Одним путём на всё видимое.
+ */
+function drawGlowCrisp(ctx, sc, t, k) {
+  const z = sc.cam.zoom,
+    hw = G.view.w / 2 / z + T,
+    hh = G.view.h / 2 / z + T,
+    x0 = sc.cam.x - hw,
+    x1 = sc.cam.x + hw,
+    y0 = sc.cam.y - hh,
+    y1 = sc.cam.y + hh;
+  ctx.fillStyle = `rgba(190,255,250,${(0.9 * k).toFixed(3)})`;
+  ctx.beginPath();
+  for (let i = 0; i < glowCells.length; i += 3) {
+    const h = glowCells[i + 2],
+      tw = Math.sin(t * (1.3 + h) + h * 40);
+    if (tw < -0.3) continue;
+    const x = (glowCells[i] + 0.2 + h * 0.6) * T,
+      y = (glowCells[i + 1] + 0.3 + ((h * 7) % 1) * 0.5) * T;
+    if (x < x0 || x > x1 || y < y0 || y > y1) continue;
+    const r = 1.6 + Math.max(0, tw) * 1.6;
+    ctx.moveTo(x + r, y);
+    ctx.arc(x, y, r, 0, 6.2832);
+  }
+  ctx.fill();
+  // пена у кромки: светящиеся искорки набегают и отступают вместе с волной
+  ctx.fillStyle = `rgba(150,255,240,${(0.85 * k).toFixed(3)})`;
+  ctx.beginPath();
+  for (let i = 0; i < glowShore.length; i += 2) {
+    const tx = glowShore[i],
+      ty = glowShore[i + 1];
+    if ((tx + 1) * T < x0 || tx * T > x1 || ty * T < y0 || ty * T > y1) continue;
+    const wave = Math.sin(t * 1.4 + tx * 0.7) * 5;
+    for (let j = 0; j < 5; j++) {
+      const hh = hash(tx * 5 + j, ty),
+        tw = Math.sin(t * 3 + hh * 20);
+      if (tw < -0.2) continue;
+      const x = tx * T + (j + hh) * 9.6,
+        y = ty * T + 4 + hh * 10 + wave,
+        r = 1.4 + tw * 1.2;
+      ctx.moveTo(x + r, y);
+      ctx.arc(x, y, r, 0, 6.2832);
+    }
+  }
+  ctx.fill();
+}
 /** Огоньки в воде: точки в слое неба (поверх ночной темноты — светятся по-настоящему), кольцо вокруг хомячка. */
 function drawGlow(c, sc, lw, lh, t, k) {
   const vw = G.view.w,
@@ -249,7 +322,7 @@ function drawGlow(c, sc, lw, lh, t, k) {
       if (s.x < -10 || s.y < -10 || s.x > vw + 10 || s.y > vh + 10) continue;
       const x = s.x * kx,
         y = s.y * ky,
-        r = pass ? 1.3 : 2.3 + tw * 0.6;
+        r = pass ? 0.8 : 1.3 + tw * 0.4; // слой мелкий — пятнышки небольшие, чёткую точку рисует ground (С9)
       c.moveTo(x + r, y);
       c.arc(x, y, r, 0, 6.2832);
     }
@@ -283,6 +356,102 @@ function showDolphins(sc, tx, ty, dir) {
   return true;
 }
 
+// ---------- Жемчужинка плавает (С3): иногда, пока хомячок далеко, соскальзывает с камня, плавает по лагуне и ныряет ----------
+const ROCK_PX = { x: (AT.rock[0] + 0.5) * T, y: (AT.rock[1] + 0.46) * T };
+const swim = { on: false, t0: 0, dur: 14, next: 0 };
+/** Плавает ли сейчас русалочка (тогда на камне её нет — житель спрятан, away). */
+export const pearlSwimming = () => swim.on;
+function updatePearl(sc) {
+  const near = Math.hypot(sc.p.x - ROCK_PX.x, sc.p.y - ROCK_PX.y) < T * 3.2;
+  if (swim.on) {
+    // подошла поближе — Жемчужинка возвращается на камень (поговорить можно всегда)
+    if (near || G.time - swim.t0 > swim.dur) {
+      swim.on = false;
+      swim.next = G.time + rnd(25, 45);
+    }
+    return;
+  }
+  if (!swim.next) swim.next = G.time + rnd(6, 14);
+  if (G.time < swim.next || near || darkness() > 0.6 || hatch.on) return;
+  swim.on = true;
+  swim.t0 = G.time;
+  sfx('splash');
+}
+/** Где русалочка сейчас: петля по лагуне у камня; в середине — ныряет (виден только хвост). */
+function pearlAt(t) {
+  const k = clamp((t - swim.t0) / swim.dur, 0, 1),
+    a = k * Math.PI * 3,
+    cx = ROCK_PX.x - T * 1.8,
+    cy = ROCK_PX.y + T * 2.3,
+    lx = cx + Math.sin(a) * T * 3,
+    ly = cy - Math.cos(a) * T * 1.1 + T * 0.4,
+    edge = Math.min(1, k / 0.08, (1 - k) / 0.08); // соскользнула с камня / вернулась
+  return {
+    x: ROCK_PX.x + (lx - ROCK_PX.x) * edge,
+    y: ROCK_PX.y + (ly - ROCK_PX.y) * edge,
+    dir: Math.cos(a) >= 0 ? 1 : -1,
+    dive: k > 0.42 && k < 0.58 ? (k - 0.42) / 0.16 : -1, // 0 → 1: нырнула
+  };
+}
+function drawPearlSwim(ctx, q, t) {
+  if (q.dive >= 0) {
+    // нырнула: над водой мелькает хвост, кругом брызги
+    const up = Math.sin(q.dive * Math.PI);
+    ctx.save();
+    ctx.translate(q.x, q.y - up * 26);
+    ctx.scale(q.dir, 1);
+    ctx.rotate(-0.4);
+    ctx.fillStyle = '#38d9a9';
+    ctx.strokeStyle = '#4a3728';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(0, 14);
+    ctx.lineTo(-4, -4);
+    ctx.quadraticCurveTo(-18, -16, -22, -6);
+    ctx.quadraticCurveTo(-8, -6, 0, 2);
+    ctx.quadraticCurveTo(8, -6, 22, -6);
+    ctx.quadraticCurveTo(18, -16, 4, -4);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    ctx.restore();
+    for (let i = 0; i < 2; i++) {
+      const ph = (q.dive * 1.6 + i * 0.5) % 1;
+      ctx.strokeStyle = `rgba(255,255,255,${(0.8 * (1 - ph)).toFixed(2)})`;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.ellipse(q.x, q.y + 6, 14 + ph * 30, 5 + ph * 9, 0, 0, 6.2832);
+      ctx.stroke();
+    }
+    return;
+  }
+  // плывёт: по пояс в воде, за ней — след
+  ctx.strokeStyle = 'rgba(255,255,255,.7)';
+  ctx.lineWidth = 2.4;
+  ctx.beginPath();
+  ctx.ellipse(q.x - q.dir * 26, q.y - 14, 14, 4, 0, 0, 6.2832);
+  ctx.stroke();
+  ctx.fillStyle = 'rgba(255,255,255,.5)';
+  ctx.beginPath();
+  ctx.ellipse(q.x, q.y - 18, 26, 8, 0, 0, 6.2832);
+  ctx.fill();
+  drawHamster(ctx, q.x, q.y + 6, PS, npcLook('pearl'), { time: t, dir: q.dir, clipBelow: -34, happy: true, blink: blinkAt(t, 3), shadow: false });
+  ctx.strokeStyle = 'rgba(255,255,255,.9)';
+  ctx.lineWidth = 2.5;
+  ctx.beginPath();
+  ctx.ellipse(q.x, q.y - 20, 24 + Math.sin(t * 3) * 3, 7, 0, 0, Math.PI);
+  ctx.stroke();
+}
+
+// ---------- свой замок из песка (С7): после «Замка из песка» стоит на пляже до следующего дня ----------
+const CASTLE_PX = { x: (AT.castle[0] + 1.9) * T, y: (AT.castle[1] + 0.75) * T };
+/** Свой замок, если он ещё стоит: детали через запятую (ключ спрайта) или null. */
+export function ownCastle() {
+  const c = S() && S().flags.coveCastle;
+  if (!c || !Array.isArray(c.cells) || S().day - c.day > 1 || S().day < c.day) return null;
+  return c.cells.map((x) => x || '').join(',');
+}
+
 // ---------- клад ----------
 export const treasureDug = () => !!(S() && S().flags.coveTreasure);
 
@@ -298,7 +467,7 @@ const cove = createTopDownScene({
   dry: true, // ни снега, ни холодного дождя
   clouds: false, // тени облаков на белом песке — серые пятна (как в пустыне)
   build,
-  actors: [{ npc: 'pearl', at: [AT.rock[0], AT.rock[1] - 0.04], always: true, still: true, act: 'mermaid' }],
+  actors: [{ npc: 'pearl', at: [AT.rock[0], AT.rock[1] - 0.04], always: true, still: true, act: 'mermaid', away: () => swim.on }],
   places: [
     {
       id: 'grotto',
@@ -347,9 +516,13 @@ const cove = createTopDownScene({
       out = [];
     for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (['clag', 'cdeep'].includes(sc.map.at(x, y))) out.push(x, y, r());
     glowCells = out;
+    glowShore = [];
+    for (let y = 1; y < H; y++) for (let x = 0; x < W; x++) if (sc.map.at(x, y) === 'clag' && sc.map.at(x, y - 1) === 'csand') glowShore.push(x, y);
   },
   enter(sc) {
     dolph.j = null;
+    swim.on = false;
+    swim.next = 0;
     hatch.on = false; // ушла — черепашата вернулись в гнездо (провожать — заново)
     hatch.list = [];
     placeShells(sc);
@@ -359,8 +532,10 @@ const cove = createTopDownScene({
     const d = darkness();
     if (d > 0.35 && glowCells) drawGlow(c, sc, lw, lh, G.time, clamp((d - 0.35) / 0.3, 0, 1));
   },
-  /** Крестик клада (или ямка после раскопок) — прямо на песке. */
-  ground(ctx) {
+  /** Крестик клада (или ямка после раскопок) — прямо на песке; ночью — чёткие огоньки на воде и светящаяся пена. */
+  ground(ctx, sc) {
+    const d = darkness();
+    if (d > 0.35 && glowCells) drawGlowCrisp(ctx, sc, G.time, clamp((d - 0.35) / 0.3, 0, 1));
     const x = (AT.treasure[0] + 0.5) * T,
       y = (AT.treasure[1] + 0.5) * T;
     if (treasureDug()) drawDugHole(ctx, x, y);
@@ -368,6 +543,15 @@ const cove = createTopDownScene({
   },
   /** Гнездо и черепашата; дельфины вдали. */
   things(sc, add, v) {
+    if (swim.on) {
+      const q = pearlAt(G.time);
+      add(q.y, (ctx, _v, t) => {
+        SP.world();
+        drawPearlSwim(ctx, q, t);
+      });
+    }
+    const own = ownCastle();
+    if (own) add(CASTLE_PX.y, () => put('ownCastle', CASTLE_PX.x, CASTLE_PX.y, own));
     if (dolph.j)
       add(dolph.j.y, (ctx, j, t) => {
         SP.world();
@@ -388,6 +572,7 @@ const cove = createTopDownScene({
   update(sc, dt) {
     updateTurtles(sc, dt);
     updateDolphins(sc, dt);
+    updatePearl(sc);
   },
   /** Вошла в воду ночью — вода светится вокруг (событие: наклейка — features/cove.js). */
   surface(sc, kind, was) {
@@ -411,6 +596,13 @@ export default cove;
 /** Для отладки и тестов: черепашата (где и сколько в воде). */
 export const debugTurtles = () => ({ on: hatch.on, list: hatch.list.map((q) => ({ x: q.x, y: q.y, sea: q.sea })) });
 /** Для тестов: дельфины выпрыгивают за мысами прямо сейчас (возвращает прыжок). */
+export const debugPearl = (go) => {
+  if (go) {
+    swim.on = true;
+    swim.t0 = G.time;
+  }
+  return { on: swim.on, at: swim.on ? pearlAt(G.time) : null };
+};
 export const debugDolphins = (sc) => (showDolphins(sc, 15, 25.5, 1) ? dolph.j : null);
 /** Для тестов: места ракушек (клетки). */
 export const SHELL_SPOTS = SHELL_X.map((x) => [x, sandEnd(x) - 1]);

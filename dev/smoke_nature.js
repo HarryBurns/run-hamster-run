@@ -401,4 +401,67 @@ module.exports = async function nature({ page, step, ev, wait, closeAll }) {
     expect(r.gripTop > r.plainTop + 100, 'лапки не поднялись над головой', r);
     expect(r.diff > 0.3, 'картинка «домой» — та же, что «туда»', r);
   });
+
+  await step('природа: пляж — Жемчужинка плавает и возвращается, черепашата обходят пальмы, свой замок стоит до завтра, свечение воды ночью', async () => {
+    await toLand('cove', 13, 16);
+    await watch();
+    // русалочка плавает: на камне её нет, в воде — есть; подошла к камню — вернулась
+    const pearl = await ev(async () => {
+      const d = window.__dev,
+        sc = d.locations.cove,
+        m = await import('/js/locations/cove.js');
+      m.debugPearl(true);
+      await new Promise((q) => setTimeout(q, 400));
+      const swim = { ...m.debugPearl(), hidden: sc.debugNpc('pearl').hidden };
+      sc.debugTeleport(19, 16);
+      await new Promise((q) => setTimeout(q, 400));
+      return { swim, back: m.debugPearl().on, hidden: sc.debugNpc('pearl').hidden };
+    });
+    expect(pearl.swim.on && pearl.swim.at && pearl.swim.hidden, 'Жемчужинка не плавает', pearl);
+    expect(!pearl.back && !pearl.hidden, 'Жемчужинка не вернулась на камень, когда подошла', pearl);
+    // черепашата: хомячок уходит за пальму — цепочка обходит ствол, а не ползёт сквозь
+    const turtles = await ev(async () => {
+      const d = window.__dev,
+        sc = d.locations.cove,
+        m = await import('/js/locations/cove.js');
+      d.actions.mutate((s) => (s.minutes = 18 * 60 + 30));
+      sc.debugTeleport(9, 12);
+      m.startHatch();
+      sc.walkTo(4.5 * 48, 9.5 * 48, true); // мимо пальмы у (3, 11) и (4, 7)
+      let bad = 0,
+        n = 0;
+      for (let i = 0; i < 40; i++) {
+        await new Promise((q) => setTimeout(q, 100));
+        for (const q of m.debugTurtles().list) {
+          if (q.sea) continue;
+          n++;
+          const tx = Math.floor(q.x / 48),
+            ty = Math.floor(q.y / 48),
+            k = sc.map.at(tx, ty);
+          if (!sc.map.foot(tx, ty) && k !== 'clag' && k !== 'cdeep') bad++;
+        }
+      }
+      return { bad, n };
+    });
+    expect(turtles.n > 20 && turtles.bad === 0, 'черепашата ползут сквозь пальмы и камни', turtles);
+    // свой замок: стоит сегодня и завтра, послезавтра его смыло
+    const castle = await ev(async () => {
+      const d = window.__dev,
+        m = await import('/js/locations/cove.js'),
+        out = [];
+      d.actions.mutate((s) => (s.flags.coveCastle = { day: s.day, cells: ['tower', 'wall', 'gate', 'wall', 'tower', 'star', null, null, null, 'star'] }));
+      const day = d.G.state.day;
+      for (const k of [0, 1, 2]) {
+        d.actions.mutate((s) => (s.day = day + k));
+        out.push(!!m.ownCastle());
+      }
+      d.actions.mutate((s) => (s.day = day));
+      return out;
+    });
+    expect(castle.join() === 'true,true,false', 'свой замок не стоит до завтра', castle);
+    // ночью — светится вода и пена у кромки (кадр рисуется без ошибок)
+    await ev(() => window.__dev.actions.mutate((s) => (s.minutes = 23 * 60)));
+    await wait(500);
+    await unwatch();
+  });
 };

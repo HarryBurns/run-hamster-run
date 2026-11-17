@@ -45,6 +45,8 @@ const SC = () => S().dayFlags.cove || {};
 const PEARL = 'pearl';
 /** Что сказать под настроение: ночью — про светящееся море, вечером — про черепашат, днём — про ракушки по сезону. */
 export function pearlLine() {
+  const own = S().flags.coveCastle;
+  if (own && S().day - own.day <= 1 && Math.random() < 0.5) return 'Твой замок так и стоит на песке — я любуюсь им с камня! Особенно башенками 🏰✨';
   const place = placeLine(PEARL); // вспомнить соседнее место, которое хомячок открыла (data/tales.js)
   if (place) return place;
   const L = NPC_BY_ID[PEARL].lines,
@@ -132,6 +134,9 @@ export async function castleGame() {
   });
   if (!res) return res;
   award('x_castle', { delay: 1200 });
+  // свой замок (третий, «как хочется») остаётся на пляже до завтра — Жемчужинка любуется им с камня (С7)
+  const cells = res.extra && res.extra.cells;
+  if (Array.isArray(cells) && cells.some(Boolean)) setFlag('coveCastle', { day: S().day, cells: cells.map((x) => x || null) });
   if (!left) return res;
   setDayFlag('castles', (SC().castles || 0) + 1, 'cove');
   earn(c[res.stars - 1], 'work');

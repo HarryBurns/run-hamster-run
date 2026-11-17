@@ -153,6 +153,17 @@ function drawCastle(ctx, w, h, round, cells, opts = {}) {
 }
 /** Где низ верхней детали над местом i: на верхушке того, что стоит внизу (пусто — как на стене). */
 const topY = (cells, i) => GROUND - (cells[i] ? PIECE[cells[i]].h + 10 : 56);
+/**
+ * Свой замок (третий, «как хочется») — на пляже бухты (С7): те же детали без фона; (0, 0) — середина низа замка.
+ * cells — 10 мест, как в игре (0–4 внизу, 5–9 наверху). Рисуют в кэш спрайтов (locations/cove_art.js).
+ */
+export function paintOwnCastle(ctx, cells) {
+  ctx.save();
+  ctx.translate(-BASE_X[2], -GROUND);
+  for (let i = 0; i < 5; i++) if (cells[i] && PIECE[cells[i]]) drawPiece(ctx, cells[i], BASE_X[i], GROUND);
+  for (let i = 0; i < 5; i++) if (cells[5 + i] && PIECE[cells[5 + i]]) drawPiece(ctx, cells[5 + i], BASE_X[i], topY(cells, i));
+  ctx.restore();
+}
 function slotBox(ctx, i, row, opts, y) {
   ctx.setLineDash([7, 6]);
   ctx.strokeStyle = 'rgba(74,55,40,.55)';
@@ -411,7 +422,7 @@ export default {
       host.finish({
         stars,
         text: `Три замка готовы${miss ? `, ошибок — ${miss}` : ' — и все как на образце'}!${stars === 3 ? ' Жемчужинка хлопает хвостом по воде — брызги до неба! 🧜‍♀️' : ' Жемчужинке очень понравилось — попробуй ещё, без ошибок!'}`,
-        extra: { miss },
+        extra: { miss, cells: [...cells] }, // cells — свой замок: он останется на пляже (С7)
       });
     }
     return {

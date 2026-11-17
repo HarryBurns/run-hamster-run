@@ -122,6 +122,8 @@ export function enter(from, params = {}) {
   D.cam.snap(p.x, p.y);
   sfx('splash');
   if (!A.award('x_dive') && !D.hint) toast('Нажимай, куда плыть. Чтобы всплыть — плыви вверх или жми ⬆️');
+  else if (mapChest() && Math.abs(p.x - MAP_X) > 700)
+    toast(`🧰 Сундучок Зефирки лежит на дне у затонувшего корабля — плыви ${p.x > MAP_X ? 'налево ⬅️' : 'направо ➡️'}, на золотой блеск у края!`);
   D.hint = true;
   emit('dive');
 }
@@ -618,6 +620,29 @@ function drawShip(ctx, t) {
       ell(ctx, cx - 18 + i * 12, cy - 42 - (i % 2) * 4, 6, 6, i % 2 ? '#fff' : '#ffd43b', OUT, 1.5);
 }
 /** Сундучок Зефирки на дне: маленький, голубой, из-под крышки торчит свёрнутый кусочек карты, вокруг — сияние. */
+/**
+ * Указатель на сундучок Зефирки (С10): пока сундучок за краем экрана, у края — золотой кружок со звёздочкой и стрелкой
+ * в его сторону, а по дну к нему бегут блёстки. Подплыла ближе — указатель пропадает, виден сам сундучок.
+ */
+function drawChestPointer(ctx, w, h, t, z) {
+  const cx = (MAP_X - D.cam.x) * z + w / 2;
+  if (cx > 30 && cx < w - 30) return;
+  const right = cx >= w - 30,
+    x = right ? w - 46 : 46,
+    y = h * 0.55 + Math.sin(t * 3) * 6,
+    pulse = 1 + Math.sin(t * 5) * 0.08;
+  ctx.globalAlpha = 0.35;
+  ell(ctx, x, y, 34 * pulse, 34 * pulse, '#ffe066');
+  ctx.globalAlpha = 1;
+  ell(ctx, x, y, 24, 24, 'rgba(255,250,235,.95)', '#f59f00', 3);
+  ctx.font = '22px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('🧰', x, y + 1);
+  const ax = right ? x + 30 : x - 30;
+  poly(ctx, right ? [ax, y - 9, ax + 12, y, ax, y + 9] : [ax, y - 9, ax - 12, y, ax, y + 9], '#f59f00', OUT, 1.6);
+  star(ctx, x + (right ? -18 : 18), y - 20, 6 + Math.sin(t * 7) * 1.5, '#fff3bf');
+}
 function drawMapChest(ctx, t) {
   const cx = MAP_X,
     cy = bedY(cx) - 4;
@@ -873,6 +898,8 @@ export function draw(ctx) {
   vg.addColorStop(1, `rgba(4,16,50,${0.15 + depth * 0.45 + dk * 0.2})`);
   ctx.fillStyle = vg;
   ctx.fillRect(0, 0, w, h);
+  // сундучок с кусочком карты за краем экрана (С10): у края — блестящий указатель, куда плыть
+  if (mapChest()) drawChestPointer(ctx, w, h, t, z);
   // табличка: глубина и жемчуг
   const label = `🤿 ${Math.round(p.y / 22)} м   ⚪ ${G.state.pearls || 0}`;
   ctx.font = '900 16px ui-rounded, "Trebuchet MS", sans-serif';

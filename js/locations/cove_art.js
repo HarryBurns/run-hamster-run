@@ -16,6 +16,7 @@ import { TAU } from '../core/util.js';
 import { ell, fillRR, line, poly, star } from '../core/draw.js';
 import { T, OUT, SP, put, hash, defineTiles, defineObjects, defineArt } from '../engine/topdown/index.js';
 import { shadow } from './common/paint.js';
+import { paintOwnCastle } from '../minigames/sandcastle.js';
 
 export const SAND = '#fbf3df',
   SAND_D = '#ecdcb8',
@@ -541,7 +542,18 @@ function paintDolphin(ctx, a, m) {
   ctx.quadraticCurveTo(31, 2, 35, -0.5);
   ctx.stroke();
 }
-defineArt({ dolphin: [[-48, -48, 48, 48], paintDolphin] });
+defineArt({
+  dolphin: [[-48, -48, 48, 48], paintDolphin],
+  // свой замок из «Замка из песка» (С7): параметр — детали через запятую (как cells в игре), в масштабе пляжа
+  ownCastle: [
+    [-66, -72, 66, 12],
+    (ctx, key) => {
+      shadow(ctx, 6, 2, 56, 7);
+      ctx.scale(0.36, 0.36);
+      paintOwnCastle(ctx, String(key).split(','));
+    },
+  ],
+});
 /**
  * Прыжок пары дельфинов: j = { x, y, dir, v, t0, scale } — где и когда начался (единицы мира, время G.time), куда
  * и как быстро плывут (v — единиц в секунду, рядом с корабликом), t — сейчас.
