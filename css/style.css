@@ -605,6 +605,9 @@ h4 { margin: 4px 0; font-size: 16px; }
 .land.goal, .land-town.goal { box-shadow: inset 0 0 0 2.5px #ffc94d; background: #fff3bf; }
 .land .st, .land-town .st { font-size: 15px; margin-left: -2px; }
 .lands-goal { margin: 0 0 6px; }
+/* джунгли: чему научить попугая (Дж6) */
+.parrot-words { display: flex; flex-direction: column; gap: 8px; margin: 8px 0 4px; }
+.parrot-words .opt { text-align: left; font-size: 16px; min-height: 44px; }
 /* канатная дорога (гора, П.9): картинка переезда в затемнении */
 .cable-ride { background: #2b3a67; }
 .cable-ride .msg p { margin: 12px 0 0; font-weight: 900; }

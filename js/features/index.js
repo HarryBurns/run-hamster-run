@@ -26,6 +26,7 @@ export * from './business.js';
 export * from './garden.js';
 export * from './mail.js';
 export * from './quests.js';
+export * from './tales.js';
 export * from './forest.js';
 export * from './mountain.js';
 export * from './caves.js';

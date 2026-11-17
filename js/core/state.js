@@ -33,6 +33,8 @@ import {
   DRESS,
   resolveLook,
   defaultLook,
+  PARROT_WORD_BY_ID,
+  PARROT_MEMORY,
 } from '../data/index.js';
 
 // Ключ хранилища («v1» в имени — исторически; версия сохранения лежит в поле v). Здесь всегда лежит ТА ИГРА,
@@ -191,6 +193,7 @@ export function newGame(name) {
     quests: {}, // сюжетные задания (журнал): id → { day: когда взято, n: { шаг: сколько }, got: { шаг: [что] }, done: день | null }
     lands: {}, // открытые новые места (лес, гора…): id → день, когда открылось
     finds: {}, // находки (не еда): id → сколько (data/finds.js)
+    parrots: {}, // чему научили попугаев в джунглях (Дж6): номер попугая → [id слов из PARROT_WORDS], до PARROT_MEMORY
     visited: {}, // где хомячок уже побывала — к таким местам карта переносит быстро (Ф4): локация → { место: 1 }
     // первый день
     weather: 'snow',
@@ -320,6 +323,10 @@ export function repair(s) {
   for (const id of Object.keys(s.lands)) if (!LAND_BY_ID[id] || !Number.isFinite(s.lands[id])) delete s.lands[id];
   // где уже побывала (быстрый переход по карте, Ф4): в старом сохранении поля нет — пока нигде
   obj(s, 'visited');
+  // слова попугаев (этап 11): в старом сохранении поля нет — попугаи пока ничего не выучили
+  obj(s, 'parrots');
+  for (const k of Object.keys(s.parrots))
+    s.parrots[k] = Array.isArray(s.parrots[k]) ? s.parrots[k].filter((id) => PARROT_WORD_BY_ID[id]).slice(-PARROT_MEMORY) : [];
   for (const k of Object.keys(s.visited)) obj(s.visited, k);
   // жильё и заведения: только известные id; основной дом и дом с гостями — вилла или купленное жильё
   arr('homesOwned');

@@ -27,6 +27,7 @@ import { message, openPanel } from '../ui/panel.js';
 import { toast } from '../ui/toast.js';
 import { playMinigame } from './minigames.js';
 import { questTalk } from './quests.js';
+import { placeLine } from './tales.js';
 
 const S = () => G.state;
 const S3 = () => S().dayFlags.caves || {};
@@ -35,6 +36,8 @@ const S3 = () => S().dayFlags.caves || {};
 const KAMUSHKIN = 'kamushkin';
 /** Что сказать под настроение: в пещере сезонов нет, но часы у Камушкина есть. */
 export function kamushkinLine() {
+  const place = placeLine(KAMUSHKIN); // вспомнить соседнее место, которое хомячок открыла (data/tales.js)
+  if (place) return place;
   const L = NPC_BY_ID[KAMUSHKIN].lines,
     m = S().minutes;
   if (darkness() > 0.6 || m >= 22 * 60 || m < 5 * 60) return pick(L.night);

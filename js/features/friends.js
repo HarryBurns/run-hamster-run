@@ -41,6 +41,7 @@ import { toast } from '../ui/toast.js';
 import { pickDish } from './cooking.js';
 import { giveSurprise } from './gifts.js';
 import { questTalk } from './quests.js';
+import { placeLine } from './tales.js';
 
 const S = () => G.state;
 
@@ -116,6 +117,9 @@ export function addPts(id, n) {
 function chatLine(npc) {
   const own = talkHooks.chat && talkHooks.chat(npc.id);
   if (own) return own;
+  // вспомнить место, которое хомячок открыла (лес, пустыня, джунгли…) — data/tales.js
+  const place = placeLine(npc.id);
+  if (place) return place;
   const tags = outfitTags(),
     sea = cal().season,
     r = Math.random();
@@ -277,7 +281,7 @@ export async function guestDialog(id) {
         ? `${DISH_BY_ID[dish].e} ${DISH_BY_ID[dish].name}?! Моё самое любимое! Ты лучшая хозяйка на свете!`
         : `${DISH_BY_ID[dish].e} М-м-м, объедение! Спасибо за угощение!`;
     } else if (i === 1) {
-      text = pick(npc.lines);
+      text = placeLine(id) || pick(npc.lines);
       if (fr.chat !== S().day) {
         markFriendToday(id, 'chat');
         addPts(id, 1);

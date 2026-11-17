@@ -416,6 +416,7 @@ module.exports = async function jungle({ page, step, ev, wait, closeAll }) {
     await wait(600);
     s = await state();
     expect(s.finds.feather_red === 1 && s.finds.feather_blue === 1 && s.finds.feather_yellow === 1, 'перья попугаев', s.finds);
+    await closeAll(); // разговор с попугаем («Научить слову» — этап 11, шаг «мир: попугай запоминает слово»)
     // подвесной мост: ступила — наклейка (раньше по мосту могли пройти другие шаги — наклейку снимаем)
     await clearToasts();
     await ev(() => {

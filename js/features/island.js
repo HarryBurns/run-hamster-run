@@ -39,12 +39,15 @@ import { message } from '../ui/panel.js';
 import { toast } from '../ui/toast.js';
 import { playMinigame } from './minigames.js';
 import { questTalk } from './quests.js';
+import { placeLine } from './tales.js';
 
 const S = () => G.state;
 const OUT = '#4a3728';
 const SI = () => S().dayFlags.island || {};
 /** Реплика по времени суток: ночью, вечером или днём (у жителей острова — lines.day / evening / night). */
 function timeLine(id) {
+  const place = placeLine(id); // вспомнить другое место, которое хомячок открыла (data/tales.js)
+  if (place) return place;
   const L = NPC_BY_ID[id].lines,
     m = S().minutes;
   if (darkness() > 0.6 || m >= 22 * 60 || m < 5 * 60) return pick(L.night);

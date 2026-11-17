@@ -21,6 +21,8 @@ import {
   DISH_BY_ID,
   SECRET_RECIPES,
   HEALTH,
+  PARROT_WORD_BY_ID,
+  PARROT_MEMORY,
 } from '../data/index.js';
 
 let depth = 0;
@@ -535,6 +537,17 @@ export const markVisited = act((loc, id) => {
   if (v[loc] && v[loc][id]) return;
   (v[loc] || (v[loc] = {}))[id] = 1;
   touch();
+});
+/**
+ * Научить попугая i слову id (PARROT_WORDS в data/tales.js): он помнит PARROT_MEMORY последних слов. false — такого
+ * слова нет.
+ */
+export const teachParrot = act((i, id) => {
+  if (!PARROT_WORD_BY_ID[id]) return false;
+  const all = S().parrots || (S().parrots = {});
+  all[i] = [...(all[i] || []).filter((w) => w !== id), id].slice(-PARROT_MEMORY);
+  touch();
+  return true;
 });
 export const patchState = act((key, patch, init) => {
   const s = S();

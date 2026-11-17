@@ -21,7 +21,7 @@ import { keys } from '../core/input.js';
 import { sfx } from '../core/audio.js';
 import { clamp, seeded } from '../core/util.js';
 import { drawHamster, blinkAt } from '../art/hamster.js';
-import { JUNGLE, JUNGLE_GATHER, QUEST_BY_ID, dayRoll } from '../data/index.js';
+import { JUNGLE, JUNGLE_GATHER, QUEST_BY_ID, PARROT_WORD_BY_ID, dayRoll } from '../data/index.js';
 import { T, PS, put, label, createTopDownScene } from '../engine/topdown/index.js';
 import { createPlants } from './common/plants.js';
 import { drawFallWater } from './jungle_art.js';
@@ -325,11 +325,22 @@ const talk = PARROTS.map(() => ({ until: 0, next: 0, text: '' }));
 let said = 0;
 /** Говорит ли попугай i прямо сейчас (машет крылом, над ним облачко). */
 export const talking = (i) => talk[i].until > G.time;
-/** Попугай i говорит фразу (своя — text; без неё — следующая по кругу; {name} — имя хомячка). */
+/** Слова, которым хомячок научила попугая i (state.parrots, Дж6): тексты из PARROT_WORDS. */
+export const parrotWords = (i) =>
+  ((G.state && G.state.parrots && G.state.parrots[i]) || []).map((id) => PARROT_WORD_BY_ID[id]).filter(Boolean).map((w) => w.text);
+/**
+ * Попугай i говорит фразу (своя — text; без неё — следующая по кругу: через раз — выученное слово, если хомячок
+ * его чему-то научила; {name} — имя хомячка).
+ */
 export function parrotSay(i, text) {
   const q = talk[i],
     name = (G.state && G.state.name) || 'хомячок';
-  const line = (text || PHRASES[(said++ + i * 3) % PHRASES.length]).replace(/\{name\}/g, name);
+  if (!text) {
+    const n = said++,
+      own = parrotWords(i);
+    text = own.length && n % 2 === 0 ? own[(n >> 1) % own.length] : PHRASES[(n + i * 3) % PHRASES.length];
+  }
+  const line = text.replace(/\{name\}/g, name);
   q.text = line;
   q.until = G.time + 3.6;
   q.next = G.time + JUNGLE.parrot;

@@ -44,6 +44,7 @@ import { toast } from '../ui/toast.js';
 import { frostToday } from './health.js';
 import { playMinigame } from './minigames.js';
 import { setWaitHook, questTalk } from './quests.js';
+import { placeLine } from './tales.js';
 
 const S = () => G.state;
 
@@ -77,6 +78,8 @@ setWaitHook('summit', hintWarm);
 const VERSHINKIN = 'vershinkin';
 /** Что сказать под настроение: ночью — про звёзды, вечером — про закат, днём — про сезон. */
 export function vershinkinLine() {
+  const place = placeLine(VERSHINKIN); // вспомнить соседнее место, которое хомячок открыла (data/tales.js)
+  if (place) return place;
   const L = NPC_BY_ID[VERSHINKIN].lines,
     m = S().minutes;
   if (darkness() > 0.6 || m >= 22 * 60 || m < 5 * 60) return pick(L.night);

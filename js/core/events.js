@@ -26,6 +26,7 @@ export const EVENTS = {
   // --- сюжетные задания (features/quests.js) ---
   quest: 'задание из журнала взяли, оно продвинулось или выполнено { id, done }',
   land: 'открылось новое место { id } (data/places.js, LANDS)',
+  tale: 'хомячок рассказала жителю о том, что видела { id, npc } (features/tales.js)',
   // --- то, что считают ежедневные задания (features/mail.js) и сюжетные задания (features/quests.js) ---
   minigame: 'сыграна мини-игра { id, stars }',
   buy: 'покупка { cat, id }',
@@ -63,7 +64,7 @@ export const EVENTS = {
   desert:
     'занятие в пустыне { what } — ride (прокатились на верблюде), mirage (подошли к миражу), wish (загадали желание), bell (нашли бубенчик), fossils (коллекция окаменелостей), oasis (оазис) — features/desert.js',
   jungle:
-    'занятие в джунглях { what } — fall (искупались под водопадом), parrot (попугай заговорил), feather (попугай уронил перо), bridge (перешли подвесной мост), notebook (нашли дневник Лианы), frame (перья в рамке) — features/jungle.js',
+    'занятие в джунглях { what } — fall (искупались под водопадом), parrot (попугай заговорил), feather (попугай уронил перо), teach (попугая научили слову { i, id }), bridge (перешли подвесной мост), notebook (нашли дневник Лианы), frame (перья в рамке) — features/jungle.js',
   cove:
     'секретный пляж { what } — piece (нашли кусочек карты Зефирки, поле id: tower | ship | isle), turtles (черепашата доплыли до моря), glow (ночью вошла в светящуюся воду), shell (подобрали ракушку), frame (ракушки в рамке), treasure (выкопали клад) — features/cove.js, locations/cove.js',
   island:

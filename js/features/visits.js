@@ -24,6 +24,7 @@ import { toast } from '../ui/toast.js';
 import { pickDish } from './cooking.js';
 import { addPts } from './friends.js';
 import { questTalk } from './quests.js';
+import { placeLine } from './tales.js';
 
 const S = () => G.state;
 const hhmm = (m) => `${Math.floor(m / 60)}:${String(m % 60).padStart(2, '0')}`;
@@ -208,7 +209,7 @@ export async function hostDialog(id, ctx = {}) {
       ],
     });
     if (i === 0) {
-      text = pick(home.lines);
+      text = placeLine(id) || pick(home.lines);
       if (fr.chat !== S().day) {
         markFriendToday(id, 'chat');
         addPts(id, 1);

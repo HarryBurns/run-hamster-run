@@ -14,7 +14,7 @@
 // продаются на рынке (features/market.js, цены — JUNGLE.feathers). Числа — JUNGLE в data/economy.js. Каждое занятие
 // шлёт событие jungle { what } — по нему считают задания. Состояние меняют только действия (core/actions.js);
 // «раз в день» — отметки дня (dayFlags.jungle).
-import { setFlag, setDayFlag, addItem, award, earn } from '../core/actions.js';
+import { setFlag, setDayFlag, addItem, award, earn, teachParrot } from '../core/actions.js';
 import { sfx } from '../core/audio.js';
 import { makeCanvas, ell, fillRR, line, poly } from '../core/draw.js';
 import { on, emit } from '../core/events.js';
@@ -22,18 +22,19 @@ import { go, sceneName } from '../core/loop.js';
 import { register } from '../core/registry.js';
 import { G, cal, darkness, count, playerLook } from '../core/state.js';
 import { el, esc, pick, fmtMoney } from '../core/util.js';
-import { NPC_BY_ID, FIND_BY_ID, FEATHER_IDS, JUNGLE, LAND_BY_ID, npcLook } from '../data/index.js';
+import { NPC_BY_ID, FIND_BY_ID, FEATHER_IDS, JUNGLE, LAND_BY_ID, PARROT_WORDS, PARROT_MEMORY, npcLook } from '../data/index.js';
 import { getLocation } from '../engine/topdown/index.js';
-import { startFallBath, parrotSay, PARROTS } from '../locations/jungle.js';
+import { startFallBath, parrotSay, parrotWords, PARROTS } from '../locations/jungle.js';
 import { paintParrot } from '../locations/jungle_art.js';
 import { drawBoat } from '../locations/sea.js';
 import { sea } from '../locations/town.js';
 import { dialog } from '../ui/dialog.js';
 import { openLayer } from '../ui/modals.js';
-import { message } from '../ui/panel.js';
+import { message, openPanel } from '../ui/panel.js';
 import { toast } from '../ui/toast.js';
 import { playMinigame } from './minigames.js';
 import { questTalk } from './quests.js';
+import { placeLine } from './tales.js';
 
 const S = () => G.state;
 const OUT = '#4a3728';
@@ -43,6 +44,8 @@ const SJ = () => S().dayFlags.jungle || {};
 const LIANA = 'liana';
 /** Что сказать под настроение: ночью — про ночные звуки, вечером — про лягушек, днём — про фрукты по сезону. */
 export function lianaLine() {
+  const place = placeLine(LIANA); // вспомнить соседнее место, которое хомячок открыла (data/tales.js)
+  if (place) return place;
   const L = NPC_BY_ID[LIANA].lines,
     m = S().minutes;
   if (darkness() > 0.6 || m >= 22 * 60 || m < 5 * 60) return pick(L.night);
@@ -172,25 +175,82 @@ export function fallBath(ctx) {
   else toast('💦 Плюх! Водопад шумит прямо над головой. Нажми куда угодно, чтобы вылезти.', 'good');
   return true;
 }
-/** Поболтать с попугаем i: он отвечает фразой, а раз в день роняет перо. */
+/** Поболтать с попугаем i: он отвечает фразой, а раз в день роняет перо; потом можно научить его слову. */
 export function parrotChat(i) {
   const p = PARROTS[i];
   if (!p) return false;
-  parrotSay(i, pick([`Кр-р-ра! ${p.name} хор-р-роший!`, 'Пр-р-ривет, {name}!', `${p.name} любит тебя!`, 'Ещё! Ещё!']));
+  // через раз попугай хвастается выученным словом
+  const own = parrotWords(i),
+    line = parrotSay(i, own.length && Math.random() < 0.5 ? pick(own) : pick([`Кр-р-ра! ${p.name} хор-р-роший!`, 'Пр-р-ривет, {name}!', `${p.name} любит тебя!`, 'Ещё! Ещё!']));
   emit('jungle', { what: 'parrot', i });
   const id = FEATHER_IDS[i];
-  if (SJ()['f' + i]) {
-    toast(`🦜 ${p.name} радостно машет крыльями. Перо он уже уронил сегодня — приходи завтра!`);
-    return true;
+  let note, kind;
+  if (SJ()['f' + i]) note = `🦜 ${p.name} радостно машет крыльями. Перо он уже уронил сегодня — приходи завтра!`;
+  else {
+    setDayFlag('f' + i, 1, 'jungle');
+    addItem('finds', id, 1);
+    emit('jungle', { what: 'feather', id });
+    note = `🦜 ${p.name} уронил перо! +1 ${FIND_BY_ID[id].e} ${FIND_BY_ID[id].name}`;
+    kind = 'good';
+    setTimeout(() => sfx('pop'), 400);
   }
-  setDayFlag('f' + i, 1, 'jungle');
-  addItem('finds', id, 1);
-  emit('jungle', { what: 'feather', id });
-  setTimeout(() => {
-    sfx('pop');
-    toast(`🦜 ${p.name} уронил перо! +1 ${FIND_BY_ID[id].e} ${FIND_BY_ID[id].name}`, 'good');
-  }, 400);
+  // про перо — в окне разговора; окно уже открыто (нажали ещё раз) — подсказкой
+  if (!parrotTalk(i, line, note)) toast(note, kind);
   return true;
+}
+// ---------- учить попугая словам (Дж6) ----------
+let parrotOpen = false;
+/** Разговор с попугаем i после его фразы line (note — что с пером): «Научить слову» или «Пока!». Одно окно за раз. */
+function parrotTalk(i, line, note) {
+  if (parrotOpen) return false;
+  parrotOpen = true;
+  parrotWindow(i, line, note);
+  return true;
+}
+async function parrotWindow(i, line, note) {
+  const p = PARROTS[i],
+    own = parrotWords(i).map((t) => t.replace(/\{name\}/g, S().name));
+  const knows = own.length ? `<p class="muted center">${p.name} выучил: ${own.map((t) => `«${esc(t)}»`).join(', ')}</p>` : '';
+  const b = await message({
+    title: `Попугай ${p.name}`,
+    icon: '🦜',
+    html: `<p class="center big-emoji">🦜</p><p class="center"><b>${p.name}:</b> «${esc(line)}»</p><p class="center">${esc(note)}</p>${knows}`,
+    buttons: [{ text: '🎓 Научить слову', cls: 'green' }, { text: 'Пока!', cls: 'ghost' }],
+  });
+  parrotOpen = false;
+  if (b === 0) teachWindow(i);
+}
+/** Окно «Чему научить попугая»: выбери фразу — попугай i её запомнит (state.parrots) и будет повторять. */
+export function teachWindow(i) {
+  const p = PARROTS[i];
+  if (!p) return null;
+  return openPanel({
+    title: `Чему научить: ${p.name}`,
+    icon: '🎓',
+    cls: 'narrow',
+    render(body, tab, panel) {
+      const known = (S().parrots && S().parrots[i]) || [];
+      body.appendChild(
+        el('p', 'center', `Выбери фразу — ${p.name} её запомнит и будет повторять. Он помнит ${PARROT_MEMORY} последние фразы.`),
+      );
+      const list = el('div', 'parrot-words');
+      for (const w of PARROT_WORDS) {
+        const text = w.text.replace(/\{name\}/g, S().name),
+          has = known.includes(w.id);
+        const b = el('button', 'opt' + (has ? ' been' : ''), `${w.e} ${esc(text)}${has ? ' ✓' : ''}`);
+        b.onclick = () => {
+          teachParrot(i, w.id);
+          emit('jungle', { what: 'teach', i, id: w.id });
+          panel.close();
+          parrotSay(i, w.text);
+          sfx('win');
+          toast(has ? `🦜 ${p.name} повторил: «${text}»` : `🦜 ${p.name} запомнил: «${text}» Теперь он будет это повторять!`, 'good');
+        };
+        list.appendChild(b);
+      }
+      body.appendChild(list);
+    },
+  });
 }
 /** Нашли дневник Лианы (место notebook видно, пока задание на первом шаге). */
 export async function findNotebook() {

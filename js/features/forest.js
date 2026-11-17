@@ -31,6 +31,7 @@ import {
 import { dialog } from '../ui/dialog.js';
 import { message, openPanel } from '../ui/panel.js';
 import { toast } from '../ui/toast.js';
+import { placeLine } from './tales.js';
 import { questTalk } from './quests.js';
 import { eat } from './cooking.js';
 import { playMinigame } from './minigames.js';
@@ -40,6 +41,8 @@ const SHISHKIN = 'shishkin';
 
 /** Что сказать лесу под настроение: ночью — про ночь, вечером — про костёр, днём — про сезон. */
 export function shishkinLine() {
+  const place = placeLine(SHISHKIN); // вспомнить соседнее место, которое хомячок открыла (data/tales.js)
+  if (place) return place;
   const L = NPC_BY_ID[SHISHKIN].lines,
     m = S().minutes;
   if (darkness() > 0.6 || m >= 22 * 60 || m < 5 * 60) return pick(L.night);

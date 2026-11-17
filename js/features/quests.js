@@ -47,6 +47,7 @@ import { enqueue } from '../ui/modals.js';
 import { message } from '../ui/panel.js';
 import { toast } from '../ui/toast.js';
 import { openMap, setMapGoal, routeText } from './map.js';
+import { taleTalk } from './tales.js';
 
 const S = () => G.state;
 const STICKER = Object.fromEntries(EXTRA_STICKERS.map((q) => [q.id, q]));
@@ -274,7 +275,8 @@ export async function questTalk(npcId) {
     const w = questNow(q.id);
     if (w.status === 'active' && q.npc === npcId) return howGoes(q, w);
   }
-  return null;
+  // дел по журналу нет — может, жителю есть о чём расспросить (Профессор и древние рисунки — features/tales.js)
+  return taleTalk(npcId);
 }
 const say = (npcId, text, options, happy = false) =>
   dialog({ look: npcLook(npcId), name: NPC_BY_ID[npcId].name, text, options, happy });

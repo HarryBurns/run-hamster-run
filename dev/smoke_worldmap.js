@@ -216,5 +216,194 @@ module.exports = async function worldmap({ page, step, ev, wait, closeAll }) {
     await closeAll();
   });
 
-  // ШАГИ_ЖИТЕЛИ
+  await step('мир: жители вспоминают место только после его открытия; Профессор слушает рассказ про древние рисунки', async () => {
+    await fresh();
+    await setup([], 16);
+    await watch(); // день 16 — не праздник: в праздник «Поболтать» — поздравление
+    // задания-открытия не мешают разговору: считаем их сделанными (места при этом закрыты)
+    await ev(() => {
+      const d = window.__dev;
+      d.actions.mutate((s) => {
+        for (const id of ['runway_star', 'cave_light']) s.quests[id] = { day: 1, n: {}, got: {}, done: 1 };
+      });
+      Math.random = () => 0; // «Поболтать» вспоминает открытое место всегда, если есть что вспомнить
+    });
+    const talkTable = await ev(async () => (await import('/js/data/index.js')).PLACE_TALK);
+    // ни одно место не открыто — ни у кого нет реплик про места
+    const before = await ev((ids) => ids.filter((id) => window.__dev.F.placeLines(id).length || window.__dev.F.placeLine(id, true)), Object.keys(talkTable));
+    expect(!before.length, 'реплики про закрытые места', before);
+    const desert = talkTable.busya.find((e) => e.land === 'desert').lines,
+      bell = talkTable.busya.find((e) => e.quest === 'camel_bell').lines;
+    // Буся: знакомство, «Поболтать» — про пустыню ни слова
+    await ev(() => {
+      window.__dev.F.npcDialog('busya');
+    });
+    await wait(500);
+    await pressOpt('Поболтать');
+    let t = await dialogText();
+    expect(t.length > 5 && !desert.includes(t) && !/пустын|бархан|караван/i.test(t), 'Буся говорит про закрытую пустыню', t);
+    // пустыня открылась — вспоминает барханы; про бубенчик — только после задания Бархана
+    await ev(() => window.__dev.actions.openLand('desert'));
+    await pressOpt('Поболтать');
+    t = await dialogText();
+    expect(desert.includes(t), 'Буся не вспоминает открытую пустыню', t);
+    let lines = await ev(() => window.__dev.F.placeLines('busya').map((l) => l.text));
+    expect(lines.length === desert.length && !lines.some((l) => bell.includes(l)), 'реплика про задание до задания', lines);
+    await ev(() => window.__dev.actions.mutate((s) => (s.quests.camel_bell = { day: 1, n: {}, got: {}, done: 1 })));
+    lines = await ev(() => window.__dev.F.placeLines('busya').map((l) => l.text));
+    expect(bell.every((l) => lines.includes(l)), 'нет реплики про сделанное задание', lines);
+    await pressOpt('Пока!');
+    // другие жители тоже вспоминают пустыню, а про закрытые джунгли молчат
+    const others = await ev(() => ({
+      prof: window.__dev.F.placeLines('prof').map((l) => l.text),
+      bob: window.__dev.F.placeLines('bob').map((l) => l.text),
+      barkhan: window.__dev.F.placeLines('barkhan').length,
+    }));
+    expect(others.prof.length && others.prof.every((l) => /пустын|ящер/i.test(l)) && others.bob.length === 1 && !others.barkhan, 'кто что вспоминает после открытия пустыни', others);
+    // Профессор: пока рисунков не видела — не расспрашивает
+    expect(!(await ev(() => window.__dev.F.taleFor('prof'))), 'Профессор расспрашивает про рисунки заранее');
+    await ev(() => {
+      window.__dev.F.npcDialog('prof');
+    });
+    await wait(500);
+    expect(!/рисунк/.test(await dialogText()), 'Профессор расспрашивает про рисунки заранее', await dialogText());
+    await pressOpt('Пока!');
+    // увидела рисунки (наклейка) — Профессор расспрашивает; «потом» — сегодня больше не спрашивает
+    await ev(() => {
+      window.__dev.actions.award('x_cavepaint', { quiet: true });
+    });
+    await closeAll();
+    const pts0 = (await state()).friends.prof.pts;
+    await ev(() => {
+      window.__dev.F.npcDialog('prof');
+    });
+    await wait(500);
+    expect(/древние рисунки/.test(await dialogText()) && (await dialogOpts()).length === 4, 'Профессор не расспрашивает про рисунки', [await dialogText(), await dialogOpts()]);
+    await pressOpt('Расскажу потом');
+    expect(/любопытства/.test(await dialogText()), 'нет ответа на «потом»', await dialogText());
+    await pressOpt('Пока!');
+    await ev(() => {
+      window.__dev.F.npcDialog('prof');
+    });
+    await wait(500);
+    expect(!/что там нарисовано/.test(await dialogText()), 'Профессор переспрашивает в тот же день', await dialogText());
+    await pressOpt('Пока!');
+    // на другой день — рассказываем всё, в любом порядке
+    await ev(() => window.__dev.actions.mutate((s) => (s.day += 1)));
+    await ev(() => {
+      window.__dev.F.npcDialog('prof');
+    });
+    await wait(500);
+    expect(/что там нарисовано/.test(await dialogText()), 'на другой день Профессор не расспрашивает', await dialogText());
+    await pressOpt('колесе');
+    expect(/Колесо\?!/.test(await dialogText()) && (await dialogOpts()).length === 2, 'ответ на «хомячок в колесе»', [await dialogText(), await dialogOpts()]);
+    await pressOpt('костра');
+    await pressOpt('семечкой');
+    t = await dialogText();
+    expect(/школьную книгу/.test(t) && /исследовательница/.test(t), 'нет благодарности Профессора', t);
+    await pressOpt('Рада помочь');
+    const s = await state();
+    expect(s.flags['tale:cave_paint'] && s.friends.prof.pts === pts0 + 3, 'рассказ не записан или дружба не выросла', [s.flags, s.friends.prof.pts, pts0]);
+    // больше не расспрашивает, а в болтовне вспоминает рассказ
+    lines = await ev(() => window.__dev.F.placeLines('prof').map((l) => l.text));
+    expect(lines.some((l) => /древние рисунки/.test(l)), 'Профессор не вспоминает рассказ', lines);
+    await ev(() => {
+      window.__dev.F.npcDialog('prof');
+    });
+    await wait(500);
+    expect(!/что там нарисовано/.test(await dialogText()), 'Профессор расспрашивает второй раз', await dialogText());
+    await pressOpt('Пока!');
+    await unwatch();
+    await closeAll();
+  });
+
+  await step('мир: попугай запоминает слово — выбор фразы в разговоре, у каждого попугая свои слова, память на три, сохранение', async () => {
+    await fresh();
+    await setup(['jungle']);
+    await ev(() => {
+      const d = window.__dev;
+      d.go('jungle');
+      d.locations.jungle.debugTeleport(24, 28);
+    });
+    await wait(400);
+    await closeAll();
+    await watch();
+    const J = () => ev(async () => (await import('/js/locations/jungle.js')).debugParrots());
+    const words = await ev(async () => (await import('/js/data/index.js')).PARROT_WORDS);
+    const name = (await state()).name;
+    const text = (id) => words.find((w) => w.id === id).text.replace(/\{name\}/g, name);
+    /** Поболтать с попугаем i и научить его слову id. */
+    const teach = async (i, id) => {
+      await ev((i) => {
+        window.__dev.run({ do: 'jungle', arg: 'parrot', i });
+      }, i);
+      await wait(500);
+      const ok = await ev(() => {
+        const b = [...document.querySelectorAll('.overlay .panel button')].find((q) => q.textContent.includes('Научить слову'));
+        if (b) b.click();
+        return !!b;
+      });
+      expect(ok, 'в разговоре с попугаем нет кнопки «Научить слову»');
+      await wait(500);
+      const n = await ev(() => document.querySelectorAll('.overlay .parrot-words button').length);
+      expect(n === words.length, 'в окне не все фразы', n);
+      await ev((t) => [...document.querySelectorAll('.overlay .parrot-words button')].find((b) => b.textContent.includes(t)).click(), text(id));
+      await wait(400);
+    };
+    expect(JSON.stringify((await state()).parrots) === '{}', 'попугаи что-то знают в новой игре', (await state()).parrots);
+    await clearToasts();
+    await teach(0, 'seed');
+    let s = await state();
+    expect(JSON.stringify(s.parrots) === '{"0":["seed"]}' && /запомнил/.test(await toasts()), 'попугай не запомнил слово', [s.parrots, await toasts()]);
+    expect((await J())[0].text === text('seed') && (await J())[0].on, 'попугай не повторил слово сразу', await J());
+    // сам повторяет: из двух фраз подряд одна — выученная; чужих слов не говорит
+    const said = await ev(async () => {
+      const m = await import('/js/locations/jungle.js');
+      return [m.parrotSay(0), m.parrotSay(0), m.parrotSay(1), m.parrotSay(1)];
+    });
+    expect(said.slice(0, 2).includes(text('seed')) && !said.slice(2).includes(text('seed')), 'попугай не повторяет выученное (или повторяет чужое)', said);
+    await closeAll();
+    // второй попугай — свои слова (с именем хомячка); память — три последних
+    await teach(1, 'friend');
+    expect((await J())[1].text.includes(name), 'в слове попугая нет имени хомячка', await J());
+    await closeAll();
+    for (const id of ['good', 'tickle', 'song']) {
+      await teach(0, id);
+      await closeAll();
+    }
+    s = await state();
+    expect(JSON.stringify(s.parrots) === '{"0":["good","tickle","song"],"1":["friend"]}', 'память попугаев', s.parrots);
+    await unwatch();
+    // сохранение и загрузка: слова на месте, незнакомые слова из сохранения выбрасываются
+    const raw = await ev(() => {
+      window.dispatchEvent(new Event('pagehide'));
+      return localStorage.getItem('rhr-save-v1');
+    });
+    const sv = JSON.parse(raw);
+    expect(sv.parrots && sv.parrots[0].length === 3, 'слова не попали в сохранение', sv.parrots);
+    sv.parrots[2] = ['nope', 'seed'];
+    await ev((raw) => {
+      window.__dev.G.state = null;
+      localStorage.setItem('rhr-save-v1', raw);
+    }, JSON.stringify(sv));
+    await page.reload();
+    await wait(500);
+    await page.click('text=Продолжить');
+    await wait(800);
+    await closeAll();
+    s = await state();
+    expect(JSON.stringify(s.parrots) === '{"0":["good","tickle","song"],"1":["friend"],"2":["seed"]}', 'слова после загрузки', s.parrots);
+    // старое сохранение без поля — попугаи просто ничего не знают
+    delete sv.parrots;
+    await ev((raw) => {
+      window.__dev.G.state = null;
+      localStorage.setItem('rhr-save-v1', raw);
+    }, JSON.stringify(sv));
+    await page.reload();
+    await wait(500);
+    await page.click('text=Продолжить');
+    await wait(800);
+    await closeAll();
+    expect(JSON.stringify((await state()).parrots) === '{}', 'старое сохранение без слов попугаев', (await state()).parrots);
+  });
 };
