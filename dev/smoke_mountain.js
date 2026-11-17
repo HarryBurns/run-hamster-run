@@ -263,7 +263,7 @@ module.exports = async function mountain({ page, step, ev, wait, closeAll }) {
       }
       // ручей — пешком не зайти, источник — тоже (в него окунаются через особое место)
       for (let y = 0; y < m.h; y++)
-        for (let x = 0; x < m.w; x++) if (['brook', 'hotSpring'].includes(m.at(x, y)) && m.foot(x, y)) out.push(`вода (${x}, ${y})`);
+        for (let x = 0; x < m.w; x++) if (['brook', 'mtBrook', 'hotSpring'].includes(m.at(x, y)) && m.foot(x, y)) out.push(`вода (${x}, ${y})`);
       // на вершине снег в любой сезон; ниже — трава
       if (m.at(20, 6) !== 'snowCap' && m.at(20, 6) !== 'snowPath') out.push('на вершине нет снега: ' + m.at(20, 6));
       if (m.at(8, 36) !== 'g') out.push('на лугах не трава: ' + m.at(8, 36));

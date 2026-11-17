@@ -230,4 +230,92 @@ module.exports = async function nature({ page, step, ev, wait, closeAll }) {
     c = await ev(async () => (await import('/js/locations/jungle.js')).debugCanoe(window.__dev.locations.jungle));
     expect(Math.abs(c.x - r.c0.x) < 1 && Math.abs(c.y - r.c0.y) < 1, 'лодочка не вернулась к мосткам', c);
   });
+
+  await step('природа: гора и пещеры — свой горный ручей, облака в дождь и ночью, снеговик стоит зимой несколько дней, летучие мыши улетают ночью', async () => {
+    await toLand('mountain', 30, 20);
+    const brook = await ev(() => {
+      const m = window.__dev.locations.mountain.map;
+      let mt = 0,
+        old = 0;
+      for (let y = 0; y < m.h; y++) for (let x = 0; x < m.w; x++) (m.at(x, y) === 'mtBrook' ? mt++ : m.at(x, y) === 'brook' ? old++ : 0);
+      return { mt, old };
+    });
+    expect(brook.mt > 20 && !brook.old, 'на горе не свой ручей', brook);
+    // облака ниже вершины: слой неба есть и в дождь, и ночью
+    for (const [weather, minutes] of [
+      ['rain', 12 * 60],
+      ['snow', 12 * 60],
+      ['sun', 23 * 60],
+    ]) {
+      await ev(
+        ([weather, minutes]) =>
+          window.__dev.actions.mutate((s) => {
+            s.weather = weather;
+            s.minutes = minutes;
+          }),
+        [weather, minutes],
+      );
+      await wait(250);
+      const on = await ev(() => {
+        const e = document.querySelector('#sky');
+        return !!e && e.style.display === 'block';
+      });
+      expect(on, 'нет слоя неба с облаками: ' + weather + ' ' + minutes);
+    }
+    // снеговик: зимой, слепленный до конца, стоит MOUNTAIN.snowmanDays дней; весной тает
+    await toLand('mountain', 8, 11, 12 * 60, 33);
+    await watch();
+    await ev(() => {
+      const d = window.__dev;
+      d.actions.mutate((s) => {
+        s.dayFlags = { mountain: { snowman: 4 } };
+        s.ing.carrot = 1;
+      });
+      d.run('mountain:snowman');
+    });
+    await wait(400);
+    await page.click('.overlay .snow-step');
+    await wait(300);
+    await closeAll();
+    const sm = await ev(async () => {
+      const d = window.__dev,
+        m = await import('/js/locations/mountain.js'),
+        out = [];
+      for (const day of [33, 34, 35, 36, 37]) {
+        d.actions.mutate((s) => {
+          s.day = day;
+          s.dayFlags = {};
+        });
+        out.push(m.snowmanNow().stage);
+      }
+      d.actions.mutate((s) => {
+        s.day = 35;
+      });
+      return { out, flag: d.G.state.flags.snowmanDay };
+    });
+    // 33 — декабрь, 36 — снова январь (новый год игры), с дня 37 — уже растаял (4 дня)
+    expect(sm.flag === 33 && sm.out.join() === '5,5,5,5,0', 'снеговик не стоит несколько дней зимой', sm);
+    await unwatch();
+    // летучие мыши: днём висят, ночью их нет (подсказка), утром вернулись
+    await toLand('caves', 24, 6, 12 * 60);
+    const bats = await ev(async () => {
+      const m = await import('/js/locations/caves.js');
+      return [12 * 60, 20.75 * 60, 23 * 60, 3 * 60, 5.25 * 60, 6 * 60].map((t) => m.batsAway(t));
+    });
+    expect(bats[0] === 0 && bats[1] > 0 && bats[1] < 1 && bats[2] === 1 && bats[3] === 1 && bats[4] > 0 && bats[4] < 1 && bats[5] === 0, 'летучие мыши не улетают ночью', bats);
+    await clearToasts();
+    await ev(() =>
+      window.__dev.actions.mutate((s) => {
+        s.minutes = 23 * 60;
+      }),
+    );
+    await ev(() => {
+      const sc = window.__dev.locations.caves,
+        m = sc.map,
+        o = m.objs.find((q) => q.type === 'caveFace' && q.ty <= 4 && q.tx >= 17 && q.tx <= 31);
+      sc.debugTeleport(o.tx, o.ty + 2);
+    });
+    await wait(400);
+    expect(/Летучих мышей нет/.test(await toasts()), 'нет подсказки, куда улетели мыши', await toasts());
+  });
 };

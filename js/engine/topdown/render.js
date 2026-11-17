@@ -618,7 +618,8 @@ export function drawFrame(ctx, sc) {
     }
     const fair = dark < 0.5 && (weather === 'sun' || weather === 'petals' || weather === 'leaves'),
       clouds = fair && desc.clouds !== false; // clouds: false — без теней облаков (пустыня), но слой днём есть
-    const layer = drawSky(sc, tint, lights, lit ? nl : 0, clouds, k, ox, oy, w, h, dpr, undefined, fair);
+    // skyLayer: true — слой неба нужен всегда (облака ниже вершины горы видны и в дождь, снег и ночью — Г8)
+    const layer = drawSky(sc, tint, lights, lit ? nl : 0, clouds, k, ox, oy, w, h, dpr, undefined, fair || !!desc.skyLayer);
     if (layer && warmSeason && fine && dark > 0.55) drawFireflies(layer.c, m, t, x0, y0, x1, y1, k, ox, oy, layer.S);
     if (layer) sc.call('sky', layer.c, sc, layer.c.canvas.width, layer.c.canvas.height); // своё в слое неба (лучи в лесу)
   } else if (gloom) {

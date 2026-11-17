@@ -17,7 +17,7 @@ import { keys } from '../core/input.js';
 import { clamp, seeded } from '../core/util.js';
 import { ell } from '../core/draw.js';
 import { drawHamster, blinkAt } from '../art/hamster.js';
-import { coldDay, QUEST_BY_ID } from '../data/index.js';
+import { coldDay, QUEST_BY_ID, MOUNTAIN, SEASON_OF_MONTH, monthOfDay } from '../data/index.js';
 import { T, PS, put, createTopDownScene } from '../engine/topdown/index.js';
 import { chaletArt, cloudPuff } from './mountain_art.js';
 import './common/index.js';
@@ -129,7 +129,20 @@ const EDELWEISS = [
 const S2 = () => G.state.dayFlags.mountain || {};
 export const edelweissOn = () => cal().season === 'summer' && !S2().edelweiss;
 /** Снеговик сегодня: { stage — сделано шагов (0–5), roll — сколько покатан текущий ком }. */
-export const snowmanNow = () => ({ stage: S2().snowman || 0, roll: S2().roll || 0 });
+export const snowmanNow = () => {
+  const stage = S2().snowman || 0;
+  return stage || !snowmanKept() ? { stage, roll: S2().roll || 0 } : { stage: 5, roll: 0, kept: true };
+};
+/**
+ * Снеговик, слепленный в прошлые дни, ещё стоит (Г7): зимой — MOUNTAIN.snowmanDays дней (день постройки — в сохранении,
+ * flags.snowmanDay), весной тает. В другие сезоны — только до конца дня (отметки дня).
+ */
+export const snowmanKept = (day = G.state.day) => {
+  const d0 = G.state.flags.snowmanDay;
+  if (d0 === undefined || day < d0 || day - d0 >= MOUNTAIN.snowmanDays) return false;
+  for (let d = d0; d <= day; d++) if (SEASON_OF_MONTH[monthOfDay(d)] !== 'winter') return false; // потеплело — растаял
+  return true;
+};
 /** Варежка Вершинкина лежит на вершине: задание «Потерянная варежка» взято, а варежка ещё не найдена. */
 export const MITTEN = [23, 4]; // у смотровой площадки, справа от флага
 export const mittenHidden = () => {
@@ -173,7 +186,7 @@ function build(m) {
   const water = new Set();
   for (let y = FALL[1] + 1; y < H; y++)
     for (const x of [streamX(y), streamX(y) + 1]) {
-      m.set(x, y, 'brook');
+      m.set(x, y, 'mtBrook'); // свой горный ручей: быстрая вода с камнями (Г5)
       water.add(x + ',' + y);
     }
   const free = (x, y) =>
@@ -302,7 +315,7 @@ const CLOUDS = Array.from({ length: 6 }, (_, i) => ({
   rx: 150 + ((i * 53) % 90),
   sp: 6 + ((i * 7) % 5),
 }));
-function drawClouds(c, sc, lw, lh) {
+function drawClouds(c, sc, lw, lh, col, a) {
   const f = (lw - 1) / G.view.w, // точек слоя на CSS-пиксель
     z = sc.cam.zoom,
     span = W * T + 800;
@@ -313,7 +326,7 @@ function drawClouds(c, sc, lw, lh) {
       sx = p.x * f,
       sy = p.y * f;
     if (sx + rx < 0 || sx - rx > lw || sy + rx < 0 || sy - rx > lh) continue;
-    cloudPuff(c, sx, sy, rx, rx * 0.42, 0.55);
+    cloudPuff(c, sx, sy, rx, rx * 0.42, a, col);
   }
 }
 // ---------- ветер со снежинками наверху; зимой снег везде ----------
@@ -532,9 +545,14 @@ const mountain = createTopDownScene({
   built(sc) {
     sealPockets(sc.map);
   },
-  /** Облака ниже вершины — в слое неба (он есть, когда видны тени облаков: днём без дождя и снега). */
+  skyLayer: true, // облака ниже вершины видны в любую погоду и ночью (Г8)
+  /** Облака ниже вершины — в слое неба: днём белые, в дождь серее, ночью — тёмно-синие, подсвеченные луной. */
   sky(c, sc, lw, lh) {
-    if (sc.darkness() < 0.5) drawClouds(c, sc, lw, lh);
+    const dk = sc.darkness(),
+      wx = G.state.weather;
+    if (dk >= 0.5) drawClouds(c, sc, lw, lh, '#7d8bb8', 0.45);
+    else if (wx === 'rain') drawClouds(c, sc, lw, lh, '#dde2ea', 0.6);
+    else drawClouds(c, sc, lw, lh, '#ffffff', 0.55);
   },
   /** Наверху ветер несёт снежинки; зимой (если в погоде нет снегопада) снег идёт везде. */
   overlay(ctx, sc, w, h) {

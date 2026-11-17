@@ -14,6 +14,8 @@
 // фонарь и каска Камушкина, у выхода — дневной свет. Сезонов в пещере нет (season: 'summer' — земля одна и та же).
 // Свои музыка и капли (sound → features/soundscape.js, core/audio.js).
 import { G, questNow } from '../core/state.js';
+import { setDayFlag } from '../core/actions.js';
+import { toast } from '../ui/toast.js';
 import { emit } from '../core/events.js';
 import { clamp, seeded } from '../core/util.js';
 import { CAVES, QUEST_BY_ID, pickOn } from '../data/index.js';
@@ -234,8 +236,30 @@ function placeBats(m) {
   });
 }
 const BAT_FLY = 3.2; // сколько секунд кружат
+// Ночью летучие мыши улетают «гулять» (П6): с 20:30 до 21:00 одна за другой вылетают к выходу из пещер, всю ночь
+// их нет, с 5:00 до 5:30 возвращаются. Возвращает 0 — висят дома, 1 — улетели; между — доля пути (вылет / возврат).
+const BAT_OUT = [20.5 * 60, 21 * 60],
+  BAT_IN = [5 * 60, 5.5 * 60];
+export function batsAway(min = G.state ? G.state.minutes : 720) {
+  if (min >= BAT_OUT[1] || min < BAT_IN[0]) return 1;
+  if (min >= BAT_OUT[0]) return (min - BAT_OUT[0]) / (BAT_OUT[1] - BAT_OUT[0]);
+  if (min < BAT_IN[1]) return 1 - (min - BAT_IN[0]) / (BAT_IN[1] - BAT_IN[0]);
+  return 0;
+}
+/** Доля пути одной мыши (у каждой своя очередь вылета): 0 — дома, 1 — снаружи. */
+const batOut = (b, k) => clamp(k * 1.8 - (b.ph / 5) * 0.8, 0, 1);
 function updateBats(sc, dt) {
-  const p = sc.p;
+  const p = sc.p,
+    away = batsAway();
+  if (away > 0) {
+    // ночью под сводом пусто — подсказка, куда делись мыши (раз в день, когда подошла к галерее)
+    const near = bats.some((b) => Math.hypot(p.x - b.hx, p.y - 40 - b.hy) < T * 3);
+    if (away >= 1 && near && !(G.state.dayFlags.caves || {}).batsOut) {
+      setDayFlag('batsOut', 1, 'caves');
+      toast('🦇 Летучих мышей нет — ночью они улетают гулять наружу, над горой. К утру вернутся домой!');
+    }
+    return;
+  }
   let scared = false;
   for (const b of bats) {
     if (b.fly > 0) b.fly = Math.max(0, b.fly - dt);
@@ -248,8 +272,16 @@ function updateBats(sc, dt) {
   }
   if (scared) emit('caves', { what: 'bats' });
 }
-/** Где мышь сейчас: висит — дома; летит — петля «восьмёркой» и обратно домой. */
+/** Где мышь сейчас: висит — дома; летит — петля «восьмёркой» и обратно домой; вечером — улетает к выходу. */
 function batPos(b, t) {
+  const away = batsAway();
+  if (away > 0) {
+    const k = batOut(b, away);
+    if (k <= 0) return { x: b.hx, y: b.hy, wing: 0 };
+    if (k >= 1) return null;
+    // вниз по галерее к выходу, покачиваясь, с каждым взмахом дальше
+    return { x: b.hx + Math.sin(k * 9 + b.ph) * 60 * k, y: b.hy + k * 520 - Math.sin(k * Math.PI) * 60, wing: Math.floor(t * 10 + b.ph) % 2 ? 1 : 2, a: 1 - k };
+  }
   if (b.fly <= 0) return { x: b.hx, y: b.hy, wing: 0 };
   const k = 1 - b.fly / BAT_FLY,
     env = Math.sin(k * Math.PI),
@@ -398,7 +430,17 @@ const caves = createTopDownScene({
     for (const b of bats) {
       if (b.hx < v.x0 || b.hx > v.x1 || b.hy < v.y0 - 200 || b.hy > v.y1) continue;
       const q = batPos(b, t);
-      add(b.hy + 40, () => put('bat', q.x, q.y + (q.wing ? 0 : Math.sin(t * 1.5 + b.ph) * 1.5), q.wing), null, true);
+      if (!q) continue; // ночью улетела гулять
+      add(
+        b.hy + 40,
+        (ctx) => {
+          if (q.a !== undefined) ctx.globalAlpha = clamp(q.a * 2, 0, 1);
+          put('bat', q.x, q.y + (q.wing ? 0 : Math.sin(t * 1.5 + b.ph) * 1.5), q.wing);
+          ctx.globalAlpha = 1;
+        },
+        null,
+        true,
+      );
     }
   },
   update(sc, dt) {

@@ -13,6 +13,7 @@
 // Здание:  cableway (станция канатной дороги — из forest_art.js; на горе трос уходит вниз), дорисовка шале
 //          инструктора Вершинкина — chaletArt (здание house).
 import { TAU } from '../core/util.js';
+import { G } from '../core/state.js';
 import { ell, fillRR, line, poly } from '../core/draw.js';
 import { T, OUT, SP, put, hash, defineTiles, defineObjects, defineArt } from '../engine/topdown/index.js';
 import { shadow, flower, WOOD, WOOD_D, WOOD_L, STONE, STONE_D, SNOW_D } from './common/paint.js';
@@ -80,6 +81,70 @@ function springLive(ctx, cells, n, env) {
   }
   ctx.fill();
 }
+// ---------- горный ручей (Г5): быстрая холодная вода с камнями и пеной, без кувшинок; зимой — лёд ----------
+const isWinterEnv = (env) => env.season === 'winter';
+/** Камни в ручье и пена вокруг них (неподвижное — в кэше земли). */
+function mtBrookDeco(ctx, x, y, tx, ty, env, r) {
+  const n = r(1) < 0.55 ? 1 : 2;
+  for (let i = 0; i < n; i++) {
+    const cx = x + 10 + r(2 + i) * 28,
+      cy = y + 10 + r(5 + i) * 28,
+      rr = 5 + r(8 + i) * 5;
+    if (!isWinterEnv(env)) ell(ctx, cx, cy + 2, rr + 5, rr * 0.6 + 3, 'rgba(255,255,255,.7)');
+    ell(ctx, cx, cy, rr, rr * 0.7, '#9aa3ad', 'rgba(74,55,40,.55)', 1.2);
+    ell(ctx, cx - rr * 0.3, cy - rr * 0.25, rr * 0.4, rr * 0.22, '#cfd5db');
+  }
+  if (isWinterEnv(env)) {
+    ctx.strokeStyle = 'rgba(255,255,255,.7)';
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.moveTo(x + r(11) * T, y + 4);
+    ctx.lineTo(x + r(12) * T, y + T - 4);
+    ctx.stroke();
+  }
+}
+/** Быстрое течение: белые струйки бегут вниз втрое быстрее, чем в лесном ручье, и пенные барашки. */
+function mtBrookLive(ctx, cells, n, env) {
+  if (isWinterEnv(env)) return;
+  const t = env.t;
+  ctx.strokeStyle = 'rgba(255,255,255,.75)';
+  ctx.lineWidth = 2;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  for (let i = 0; i < n; i += 2) {
+    const x = cells[i] * T,
+      y = cells[i + 1] * T;
+    for (let k = 0; k < 3; k++) {
+      const ph = (t * 1.9 + hash(cells[i] + k, cells[i + 1]) * 3) % 1,
+        cx = x + 6 + hash(cells[i + 1], cells[i] + k * 7) * 36,
+        cy = y + ph * T;
+      ctx.moveTo(cx, cy - 6);
+      ctx.lineTo(cx + Math.sin(t * 4 + k) * 1.5, cy + 6);
+    }
+  }
+  ctx.stroke();
+}
+defineTiles({
+  mtBrook: {
+    like: 'brook',
+    z: 10.05, // своя заливка (у одинакового z она общая с прудом и лесным ручьём)
+    map: (env) => (isWinterEnv(env) ? '#d9f1ff' : '#3f97c9'),
+    fill: (env) => (isWinterEnv(env) ? '#d3edfb' : '#4aa2d0'),
+    edge: {
+      wob: 6,
+      out: [
+        [(env) => (isWinterEnv(env) ? '#c5d9e8' : '#8a929c'), 9], // каменистый берег
+        [(env) => (isWinterEnv(env) ? '#e4eff7' : '#b3bac2'), 4],
+      ],
+      in: [
+        [(env) => (isWinterEnv(env) ? 'rgba(140,190,225,.5)' : 'rgba(10,60,110,.3)'), 12],
+        ['rgba(255,255,255,.55)', 3],
+      ],
+    },
+    deco: mtBrookDeco,
+    live: mtBrookLive,
+  },
+});
 defineTiles({
   snowCap: {
     map: '#f4f9fd',
@@ -302,7 +367,7 @@ function paintFallRock(ctx, snow) {
   }
 }
 /** Вода водопада: светлые струи бегут вниз, у подножия — пена (каждый кадр, в координатах мира). */
-export function drawFall(ctx, x, y, t, frozen) {
+export function drawFall(ctx, x, y, t, frozen, rainbow = 0) {
   if (frozen) {
     // зимой водопад застыл сосульками
     for (let i = 0; i < 5; i++) {
@@ -311,29 +376,56 @@ export function drawFall(ctx, x, y, t, frozen) {
     }
     return;
   }
-  ctx.strokeStyle = 'rgba(255,255,255,.85)';
-  ctx.lineWidth = 2;
+  // своя вода горы (Г5): струя шире жёлоба, белые пряди бегут быстро, внизу пена и водяная пыль, днём — радуга
+  ctx.fillStyle = 'rgba(160,215,245,.85)';
+  ctx.beginPath();
+  ctx.moveTo(x + 10, y - 88);
+  ctx.lineTo(x + 38, y - 88);
+  ctx.lineTo(x + 42, y + 6);
+  ctx.lineTo(x + 6, y + 6);
+  ctx.closePath();
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(255,255,255,.9)';
+  ctx.lineWidth = 2.4;
   ctx.lineCap = 'round';
   ctx.beginPath();
-  for (let i = 0; i < 4; i++) {
-    const sx = x + 15 + i * 6,
-      ph = (t * 1.6 + i * 0.27) % 1,
-      y0 = y - 86 + ph * 90;
-    ctx.moveTo(sx, y0);
-    ctx.lineTo(sx, Math.min(y + 4, y0 + 22));
+  for (let i = 0; i < 6; i++) {
+    const sx = x + 12 + i * 5,
+      ph = (t * 2.2 + i * 0.29) % 1,
+      y0 = y - 88 + ph * 94;
+    ctx.moveTo(sx + (i - 2.5) * ph * 0.8, y0);
+    ctx.lineTo(sx + (i - 2.5) * (ph + 0.2) * 0.8, Math.min(y + 6, y0 + 18 + (i % 3) * 6));
   }
   ctx.stroke();
-  ctx.fillStyle = 'rgba(255,255,255,.8)';
+  ctx.fillStyle = 'rgba(255,255,255,.85)';
   ctx.beginPath();
-  for (let i = 0; i < 6; i++) {
-    const a = t * 3 + i,
-      fx = x + 24 + Math.cos(a) * (10 + (i % 3) * 5),
-      fy = y + 10 + Math.sin(a * 1.3) * 3,
-      r = 3 + Math.sin(t * 5 + i) * 1.2;
+  for (let i = 0; i < 8; i++) {
+    const a = t * 3.4 + i * 0.8,
+      fx = x + 24 + Math.cos(a) * (12 + (i % 3) * 6),
+      fy = y + 10 + Math.sin(a * 1.3) * 4,
+      r = 3.4 + Math.sin(t * 6 + i) * 1.4;
     ctx.moveTo(fx + r, fy);
     ctx.arc(fx, fy, r, 0, TAU);
   }
   ctx.fill();
+  // водяная пыль поднимается от омута
+  for (let i = 0; i < 3; i++) {
+    const ph = (t * 0.5 + i / 3) % 1;
+    ctx.globalAlpha = 0.35 * (1 - ph);
+    ell(ctx, x + 24 + (i - 1) * 16, y + 4 - ph * 40, 12 + ph * 14, 7 + ph * 6, '#ffffff');
+  }
+  ctx.globalAlpha = 1;
+  if (rainbow > 0) {
+    ctx.globalAlpha = 0.32 * rainbow;
+    ctx.lineWidth = 3;
+    ['#ff6b6b', '#ffd43b', '#69db7c', '#4dabf7', '#9775fa'].forEach((c, i) => {
+      ctx.strokeStyle = c;
+      ctx.beginPath();
+      ctx.arc(x + 24, y + 14, 44 - i * 3, Math.PI * 1.08, Math.PI * 1.92);
+      ctx.stroke();
+    });
+    ctx.globalAlpha = 1;
+  }
 }
 
 // ---------- флаг, подзорная труба, флажки трассы ----------
@@ -529,7 +621,8 @@ defineObjects({
     draw(ctx, o, env) {
       put('fallRock', o.x, o.y, o.snow ? 1 : 0);
       SP.world();
-      drawFall(ctx, o.x, o.y, env.t, env.season === 'winter');
+      // днём в ясную погоду над омутом — радуга в брызгах
+      drawFall(ctx, o.x, o.y, env.t, env.season === 'winter', env.dark < 0.2 && G.state && G.state.weather === 'sun' ? 1 : 0);
     },
   },
   flagPole: {
@@ -622,9 +715,9 @@ export function chaletArt(ctx, g, snow) {
 }
 
 /** Облако с объёмом (для слоя неба и панорамы): rx × ry, a — прозрачность. */
-export function cloudPuff(ctx, x, y, rx, ry, a = 1) {
+export function cloudPuff(ctx, x, y, rx, ry, a = 1, col = '#ffffff') {
   ctx.globalAlpha = a;
-  ctx.fillStyle = '#ffffff';
+  ctx.fillStyle = col;
   ctx.beginPath();
   ctx.ellipse(x, y, rx, ry, 0, 0, TAU);
   ctx.moveTo(x - rx * 0.1 + rx * 0.6, y - ry * 0.45);
