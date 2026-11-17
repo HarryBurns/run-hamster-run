@@ -216,9 +216,10 @@ const HANG = {
   bob: [63, 58], // пирс
   zefirka: [40, 53], // пляж
 };
-// away — житель сейчас не в городе: днём через день кто-то из друзей отдыхает у бассейна отеля (hotelPoolGuest,
-// core/state.js; там же — кто остаётся в городе: ждёт гостей, позвал к себе, у него дело по журналу)
-const awayAtHotel = (id) => hotelPoolGuest() === id || hotelRoomGuest() === id; // у бассейна или в гостях в номере 203 (От1)
+// away — житель сейчас не в городе: днём через день кто-то из друзей отдыхает у бассейна отеля (hotelPoolGuest) или
+// гостит в номере 203 (hotelRoomGuest, От1) — core/state.js; там же — кто остаётся в городе: ждёт гостей, позвал к себе,
+// у него дело по журналу
+const awayAtHotel = (id) => hotelPoolGuest() === id || hotelRoomGuest() === id;
 const ACTORS = NPCS.map((n) => ({
   npc: n.id,
   at: HANG[n.id],
