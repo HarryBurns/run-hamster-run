@@ -36,7 +36,9 @@ export function openAlbum(tab) {
         const have = all.filter((a) => s.stickers.includes(a.id)).length;
         body.appendChild(el('p', 'center', `Собрано <b>${have}</b> из ${all.length}`));
         const grid = el('div', 'grid small');
-        for (const a of all) {
+        // собранные — первыми: иначе первая наклейка («Новоселье») пряталась в самом конце, за сотней «???»
+        const got1 = all.filter((a) => s.stickers.includes(a.id));
+        for (const a of [...got1, ...all.filter((a) => !s.stickers.includes(a.id))]) {
           const got = s.stickers.includes(a.id);
           const card = el('div', 'card');
           card.appendChild(el('div', 'sticker' + (got ? ' got' : ''), got ? a.sticker : '❔'));
