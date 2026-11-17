@@ -53,4 +53,27 @@ module.exports = async function fixes({ page, step, ev, wait, closeAll }) {
     await wait(500);
     expect(await ev(() => !document.getElementById('photo') && window.__dev.World.edgeArrow === true), 'после фото-режима стрелка не вернулась');
   });
+
+  await step('доработки В7: на самокате с клавиатуры упёрлась в воду — слезает сама и подсказывает, дальше идёт пешком', async () => {
+    await fresh();
+    await ev(() => {
+      const d = window.__dev;
+      d.actions.addWheels('scooter');
+      d.actions.useWheels('scooter');
+      d.go('world');
+      d.World.debugTeleport(40, 56);
+    });
+    await wait(300);
+    await closeAll();
+    await clearToasts();
+    expect(await ev(() => window.__dev.F.mountWheels()), 'не села на самокат');
+    expect((await ev(() => window.__dev.F.ridingWheels())) === 'scooter', 'не едет на самокате');
+    // вниз, к морю: стрелкой с клавиатуры
+    await page.keyboard.down('ArrowDown');
+    for (let i = 0; i < 40 && (await ev(() => window.__dev.F.ridingWheels())); i++) await wait(100);
+    await page.keyboard.up('ArrowDown');
+    expect(!(await ev(() => window.__dev.F.ridingWheels())), 'упёрлась в воду и так и стоит на самокате');
+    expect(/Дальше вода/.test(await toasts()), 'нет подсказки, почему слезла', await toasts());
+    expect((await ev(() => window.__dev.state.wheels.own)).includes('scooter'), 'самокат пропал');
+  });
 };

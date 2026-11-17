@@ -88,7 +88,8 @@
 // Дошла до здания, места или точки — они «посещены» (state.visited, Ф4): карта потом переносит к ним быстро —
 // sc.skipAlong() переносит героя вперёд по его пути, последние шаги — пешком (всё, что ждёт «дошла», срабатывает).
 // Способ передвижения героя (кораблик): sc.p.ride = { speed, pass(tx, ty), step: { sfx, pause }, moved(sc),
-// draw(ctx, sc, p, t, look), drop(sc) } — пока он задан, герой ходит по его правилам; null — пешком.
+// draw(ctx, sc, p, t, look), drop(sc), bump(sc, tx, ty) } — пока он задан, герой ходит по его правилам; null — пешком.
+// bump — с клавиатуры упёрлись в клетку (tx, ty), куда ему нельзя (самокат у воды — слезает сам).
 import { G, darkness, cal, playerLook, beachLook, walkK, canSwim, landOpen } from '../../core/state.js';
 import { addItem, setFlag, setDayFlag, collectMailItem, markVisited } from '../../core/actions.js';
 import { emit } from '../../core/events.js';
@@ -666,8 +667,11 @@ export function createTopDownScene(desc) {
         const so = m.slowAt(p.x, p.y),
           pass = sc.pass();
         const k = ((so ? OBJECTS[so.type].slow : 1) * sp * dt) / Math.hypot(kx, ky);
+        const ox = p.x,
+          oy = p.y;
         if (canStand(pass, p.x + kx * k, p.y)) p.x += kx * k;
         if (canStand(pass, p.x, p.y + ky * k)) p.y += ky * k;
+        if (p.ride && p.ride.bump && p.x === ox && p.y === oy) p.ride.bump(sc, tileOf(p.x + kx * T * 0.6), tileOf(p.y + ky * T * 0.6));
         if (!p.ride && !canSwim()) {
           // упёрлась в воду — подсказать, почему не идёт
           const wx = tileOf(p.x + kx * T * 0.6),
