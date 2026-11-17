@@ -277,6 +277,9 @@ module.exports = async function holidays({ page, step, ev, wait, closeAll }) {
     await trim();
     let h = await hol();
     expect(h.steps[0] === 'tree:1/1', 'ёлка не наряжена', h);
+    // игрушки, что повесила, остаются на большой ёлке до конца праздника (этап 15): наряд — в отметках дня
+    const toys = (await state()).dayFlags.holiday.treeToys || '';
+    expect(toys.length === 28 && (toys.match(/\d\d/g) || []).length === 6, 'наряд ёлки из мини-игры — на большой ёлке', toys);
     await run('holiday:tree');
     expect(!(await ev(() => !!document.querySelector('#mg'))), 'ёлку нарядили второй раз');
     // подарки трём друзьям — в разговоре
@@ -772,6 +775,7 @@ module.exports = async function holidays({ page, step, ev, wait, closeAll }) {
     const fin = await panelText();
     expect(fin.includes('Все праздничные занятия сделаны') && fin.includes('Водяной пистолет'), 'праздничное окно Купалы', fin.slice(0, 200));
     await closeAll();
+    expect((await decor()).wet, 'после «Водяной битвы» все мокрые — капельки и лужицы (этап 15, Пр18)');
     let s = await state();
     h = await hol();
     expect(h.done && s.clothes.includes('water_pistol') && s.stickers.includes('x_hol_kupala') && s.stickers.includes('x_splash') && s.money - m0 === 120 + 300, 'Купала: пистолет, наклейки, монеты', [s.money - m0, h]);

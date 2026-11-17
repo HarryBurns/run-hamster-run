@@ -1,6 +1,6 @@
 // Отладочные хуки для автотестов (dev/smoke.js, dev/bench.js) и ручной отладки в консоли браузера.
 // Всё собрано в одном объекте window.__dev; игра сама им не пользуется.
-import { G, houseItems, questNow, questBadge, findsWanted, landOpen } from './core/state.js';
+import { G, houseItems, questNow, questBadge, findsWanted, landOpen, npcLookNow } from './core/state.js';
 import * as actions from './core/actions.js';
 import * as events from './core/events.js';
 import * as registry from './core/registry.js';
@@ -19,6 +19,8 @@ import * as topdown from './engine/topdown/index.js';
 import { PLANTS, hasFruit, plantInSeason, gather } from './locations/common/plants.js';
 import * as Tower from './interiors/tower.js';
 import { debugDecor, debugFireworks } from './locations/holidays.js';
+import { debugLandDecor, debugRoomDecor } from './locations/holidays_lands.js';
+import { viewFireworks } from './interiors/tower_view.js';
 import { HOLIDAY_BY_ID, holidayDoy, YEAR_DAYS, SEASON_OF_MONTH } from './data/index.js';
 
 /**
@@ -190,6 +192,13 @@ export function installDevHooks({ F }) {
       decor: () => debugDecor(topdown.getLocation('world')),
       /** Залпы новогоднего салюта: где раскрываются (доли экрана). */
       fireworks: () => debugFireworks(topdown.getLocation('world')),
+      /** Этап 15: во что одет житель сейчас ({ слот: id вещи }) — в праздник праздничный наряд. */
+      dress: (id) => Object.fromEntries(Object.entries(npcLookNow(id).outfit).map(([k, v]) => [k, v ? v.id : null])),
+      /** Этап 15: украшения праздника в другой локации (рисунки) и в домах (праздник, сколько комнат нарисовано). */
+      lands: (name) => debugLandDecor(topdown.getLocation(name)),
+      rooms: () => debugRoomDecor(),
+      /** Этап 15: виден ли салют с башни и в подзорную трубу. */
+      towerFireworks: () => viewFireworks(),
     },
   };
 }

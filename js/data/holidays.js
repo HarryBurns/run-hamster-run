@@ -336,7 +336,7 @@ export const HOLIDAY_DRESS = {
  * Праздничная полка в ТЦ «Уютный дом» (этап 15, Пр13): за FEST_SHELF[0] дней до праздника и по FEST_SHELF[1] — украшения
  * к нему (мебель с shop: 'fest' и полем fest — data/furniture.js). festShelfOn(день, начало игры) — id праздника или null.
  */
-export const FEST_SHELF = [-3, 0];
+export const FEST_SHELF = [-2, 0];
 export function festShelfOn(day, start = 0) {
   const h = HOLIDAYS.find((q) => {
     const k = holidayOffset(q, day);

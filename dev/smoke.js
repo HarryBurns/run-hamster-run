@@ -19,6 +19,7 @@
 //  курортный отель, П.17 — dev/smoke_hotel.js:  node dev/smoke.js <url> step:отель;
 //  войти внутрь, этап 13 — dev/smoke_inside.js:  node dev/smoke.js <url> step:внутри;
 //  праздники, П.13 — dev/smoke_holidays.js:  node dev/smoke.js <url> step:праздники;
+//  праздники шире площади, этап 15 — dev/smoke_holidays_wide.js:  node dev/smoke.js <url> "step:праздники 15";
 //  вещи, рецепты, значки, этап 12 — dev/smoke_items.js:  node dev/smoke.js <url> step:вещи;
 //  природа, море и оживление мест, этап 16 — dev/smoke_nature.js:  node dev/smoke.js <url> step:природа;
 //  начало игры в Ореховой Гавани, этап 10 — dev/smoke_start.js:  node dev/smoke.js <url> "step:начало игры";
@@ -57,6 +58,7 @@ const games = require('./smoke_games.js'); // этап 14: мини-игры в�
 const relax = require('./smoke_relax.js'); // этап 17а: отдых в городе — скамейки, лежаки, качели, житель рядом, «Пляжный волейбол»
 const buddy = require('./smoke_buddy.js'); // этап 17б: питомец из приюта, самокат / велосипед / кабриолет, двор у дома
 const jobs = require('./smoke_jobs.js'); // этап 17в: профессии (парикмахер, спасатель, садовник), фото-режим, нижний ярус пещер
+const holidaysWide = require('./smoke_holidays_wide.js'); // этап 15: праздники шире площади — наряды жителей, празднуют вместе, места, украшения за городом и в домах, полка в ТЦ, клумбы
 const holidays = require('./smoke_holidays.js'); // П.13: праздники — Новый год, Рождество, Китайский Новый год, Масленица
 
 // Размер (этап 8): переменная SMOKE_SIZE=desktop|phone или аргумент size:desktop / size:phone — только этот размер
@@ -2851,6 +2853,7 @@ const runParallel = () => {
     await hotel({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
     await inside({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
     await holidays({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
+    await holidaysWide({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
     await title({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
     await audio({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
     await items({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
