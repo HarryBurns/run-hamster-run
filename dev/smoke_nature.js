@@ -466,4 +466,24 @@ module.exports = async function nature({ page, step, ev, wait, closeAll }) {
     const clipped = await ev(() => window.__dev.locations.cove.debugSprites().clipped);
     expect(!clipped.length, 'спрайты не поместились в рамку', clipped);
   });
+
+  await step('природа: остров — хоровод обходит хомячка и жителей у костра, гирлянда буквой «П» (спереди открыта)', async () => {
+    await toLand('island', 20, 19, 20 * 60);
+    const r = await ev(async () => {
+      const sc = window.__dev.locations.island,
+        m = await import('/js/locations/island.js');
+      // хомячок стоит прямо на пути хоровода — у костра
+      sc.p.x = 20.5 * 48;
+      sc.p.y = 17.75 * 48;
+      let min = 1e9;
+      for (let i = 0; i < 40; i++) {
+        await new Promise((q) => setTimeout(q, 100));
+        for (const p of m.debugFest(sc).dancers) min = Math.min(min, Math.hypot(p.x - sc.p.x, p.y - sc.p.y));
+      }
+      const f = m.debugFest(sc);
+      return { min, fest: f.fest, garland: f.garland, bulbs: f.bulbs };
+    });
+    expect(r.fest && r.garland && r.min > 60, 'хоровод проходит сквозь хомячка', r);
+    expect(r.bulbs === 24, 'в гирлянде не три стороны по 8 огоньков', r);
+  });
 };

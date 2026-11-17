@@ -466,49 +466,84 @@ defineArt({
     (ctx, i, f) => drawHamster(ctx, 0, 0, PS, DANCERS[i], { dir: f % 2 ? 1 : -1, time: 0, happy: true, armsUp: f >= 2, shadow: true }),
   ],
 });
-/** Где танцоры сейчас: по кругу у костра, медленно идут хороводом (единицы мира). */
-function dancerAt(i, t) {
+/**
+ * Где танцоры сейчас: по кругу у костра, медленно идут хороводом (единицы мира). Хоровод обходит тех, кто стоит у
+ * костра (О6): если на пути хомячок или житель острова (obst — точки { x, y }), танцор плавно огибает его.
+ */
+const DANCE_GAP = 74;
+function dancerAt(i, t, obst = []) {
   const a = t * 0.35 + (i / DANCERS.length) * Math.PI * 2;
-  return { x: (AT.fire[0] + 0.5) * T + Math.cos(a) * 118, y: (AT.fire[1] + 0.5) * T + 10 + Math.sin(a) * 62, a };
+  let x = (AT.fire[0] + 0.5) * T + Math.cos(a) * 118,
+    y = (AT.fire[1] + 0.5) * T + 10 + Math.sin(a) * 62;
+  for (let pass = 0; pass < 2; pass++)
+  for (const o of obst) {
+    const dx = x - o.x,
+      dy = y - o.y,
+      d = Math.hypot(dx, dy);
+    if (d >= DANCE_GAP) continue;
+    // в сторону от препятствия; совсем вплотную — наружу от костра
+    const ux = d > 1 ? dx / d : Math.cos(a),
+      uy = d > 1 ? dy / d : Math.sin(a),
+      k = DANCE_GAP - d;
+    x += ux * k;
+    y += uy * k;
+  }
+  return { x, y, a };
 }
-/** Гирлянда: огоньки на верёвке между факелами вокруг площади — точки (единицы мира), считаются один раз. */
+/** Кого обходит хоровод: хомячок и жители острова у площади (кто сейчас не спрятан). */
+const danceObstacles = (sc) => [...sc.npcs.filter((n) => !n.hidden), sc.p] // хомячок — последним: его обходят наверняка.filter((o) => Math.hypot(o.x - (AT.fire[0] + 0.5) * T, o.y - (AT.fire[1] + 0.5) * T) < T * 5);
+/**
+ * Гирлянда (О7): огоньки на верёвке между факелами — буквой «П», по дальней стороне площади и по бокам; передняя
+ * сторона открыта, чтобы гирлянда не закрывала танец и хомячка у костра. У каждого кусочка верёвки — своя глубина
+ * (gy — где под ним земля): кто стоит ближе к нам, тот рисуется поверх гирлянды, кто дальше — под ней.
+ */
 const BULBS = (() => {
   const out = [],
-    tops = AT.torches.map(([x, y]) => [(x + 0.5) * T, (y + 0.5) * T - 72]),
-    order = [0, 1, 3, 2, 0];
-  for (let k = 0; k < 4; k++) {
-    const [ax, ay] = tops[order[k]],
-      [bx, by] = tops[order[k + 1]];
+    strands = [],
+    tops = AT.torches.map(([x, y]) => [(x + 0.5) * T, (y + 0.5) * T - 72, (y + 0.5) * T]),
+    order = [2, 0, 1, 3]; // левый бок (снизу вверх) → дальняя сторона → правый бок (сверху вниз)
+  for (let k = 0; k < 3; k++) {
+    const [ax, ay, ag] = tops[order[k]],
+      [bx, by, bg] = tops[order[k + 1]],
+      pts = [{ x: ax, y: ay, gy: ag }];
     for (let i = 1; i < 9; i++) {
-      const q = i / 9;
-      out.push({ x: ax + (bx - ax) * q, y: ay + (by - ay) * q + Math.sin(q * Math.PI) * 26, c: ['#ff6b6b', '#ffd43b', '#69db7c', '#4dabf7', '#da77f2'][(k * 8 + i) % 5] });
+      const q = i / 9,
+        b = { x: ax + (bx - ax) * q, y: ay + (by - ay) * q + Math.sin(q * Math.PI) * 26, gy: ag + (bg - ag) * q, c: ['#ff6b6b', '#ffd43b', '#69db7c', '#4dabf7', '#da77f2'][(k * 8 + i) % 5], n: out.length };
+      out.push(b);
+      pts.push(b);
     }
+    pts.push({ x: bx, y: by, gy: bg });
+    strands.push(pts);
   }
-  return { tops, order, list: out };
+  return { tops, strands, list: out };
 })();
+/** Гирлянда в общем порядке «дальше → ближе»: каждый кусочек верёвки с огоньком на конце — на своей глубине. */
+function addGarland(add, v, t) {
+  for (const pts of BULBS.strands)
+    for (let j = 1; j < pts.length; j++) {
+      const a = pts[j - 1],
+        b = pts[j];
+      if (Math.max(a.x, b.x) < v.x0 - 20 || Math.min(a.x, b.x) > v.x1 + 20 || b.gy < v.y0 || b.y > v.y1) continue;
+      add((a.gy + b.gy) / 2 + 2, (ctx) => {
+        SP.world();
+        ctx.strokeStyle = 'rgba(74,55,40,.75)';
+        ctx.lineWidth = 1.6;
+        ctx.beginPath();
+        ctx.moveTo(a.x, a.y);
+        ctx.lineTo(b.x, b.y);
+        ctx.stroke();
+        if (b.c) {
+          const on = Math.sin(t * 3 + b.n * 1.7) > -0.6;
+          ell(ctx, b.x, b.y + 3, 3.6, 4.4, on ? b.c : '#868e96', 'rgba(74,55,40,.7)', 1);
+        }
+      });
+    }
+}
 /** Гирлянда видна вечером и ночью (с 18:30 до 5:00) — к празднику уже горит. */
 const garlandOn = () => {
   const m = S() ? S().minutes : 0;
   return m >= 18.5 * 60 || m < 5 * 60;
 };
-function drawGarland(ctx, t) {
-  const { tops, order, list } = BULBS;
-  ctx.strokeStyle = 'rgba(74,55,40,.75)';
-  ctx.lineWidth = 1.6;
-  ctx.beginPath();
-  for (let k = 0; k < 4; k++) {
-    const [ax, ay] = tops[order[k]],
-      [bx, by] = tops[order[k + 1]];
-    ctx.moveTo(ax, ay);
-    ctx.quadraticCurveTo((ax + bx) / 2, (ay + by) / 2 + 52, bx, by);
-  }
-  ctx.stroke();
-  for (let i = 0; i < list.length; i++) {
-    const b = list[i],
-      on = Math.sin(t * 3 + i * 1.7) > -0.6;
-    ell(ctx, b.x, b.y + 3, 3.6, 4.4, on ? b.c : '#868e96', 'rgba(74,55,40,.7)', 1);
-  }
-}
 /** Ночью: свечение лавы в кратере и огоньки гирлянды в слое неба (режим lighter — светятся сквозь темноту). */
 function drawNightGlow(c, sc, lw, lh, t, k) {
   const vw = G.view.w,
@@ -669,9 +704,11 @@ const island = createTopDownScene({
       const q = lagFishAt(i, t);
       if (q.x > v.x0 - 30 && q.x < v.x1 + 30 && q.y > v.y0 - 30 && q.y < v.y1 + 30) add(q.y - 30, (ctx) => drawLagFish(ctx, q, t));
     }
+    if (garlandOn()) addGarland(add, v, t);
     if (!festNow()) return;
+    const obst = danceObstacles(sc);
     for (let i = 0; i < DANCERS.length; i++) {
-      const p = dancerAt(i, t);
+      const p = dancerAt(i, t, obst);
       if (p.x < v.x0 - 60 || p.x > v.x1 + 60 || p.y < v.y0 || p.y > v.y1 + 120) continue;
       add(p.y, () => {
         const f = (Math.floor(t * 3 + i) % 2) + (Math.sin(t * 6 + i) > 0 ? 2 : 0);
@@ -679,9 +716,8 @@ const island = createTopDownScene({
       });
     }
   },
-  /** Гирлянда огоньков между факелами — вечером и ночью; искры доброго извержения над кратером. */
+  /** Искры доброго извержения над кратером (над всем — они в небе). */
   over(ctx, sc, t) {
-    if (garlandOn()) drawGarland(ctx, t);
     if (eruptNow()) {
       SP.world();
       drawEruption(ctx, t);
@@ -710,4 +746,4 @@ const island = createTopDownScene({
 export default island;
 /** Для тестов: где танцоры сейчас и сколько огоньков в гирлянде. */
 export const debugErupt = () => ({ on: eruptNow(), inDays: eruptIn(), crater: CRATER });
-export const debugFest = () => ({ fest: festNow(), garland: garlandOn(), dancers: DANCERS.map((_, i) => dancerAt(i, G.time)), bulbs: BULBS.list.length });
+export const debugFest = (sc) => ({ fest: festNow(), garland: garlandOn(), dancers: DANCERS.map((_, i) => dancerAt(i, G.time, sc ? danceObstacles(sc) : [])), bulbs: BULBS.list.length });
