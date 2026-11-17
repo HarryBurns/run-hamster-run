@@ -280,17 +280,27 @@ h4.sect .muted { font-size: 13px; }
   background: rgba(60, 40, 30, .35); z-index: 5;
 }
 .mg-card .panel { padding: 20px; text-align: center; gap: 8px; align-items: center; }
-/* на низком экране (телефон лёжа) правила длинные: карточка прокручивается, а кнопка «Начать!» / «Ура!» всегда видна */
-.mg-card .panel { overflow-y: auto; overscroll-behavior: contain; }
-.mg-card .panel > .btn { flex: none; position: sticky; bottom: 0; }
+/* на низком экране (телефон лёжа) правила длинные: прокручивается только текст (.mg-text), а кнопка «Начать!» /
+   «Ура!» стоит под ним и всегда видна — текст под кнопку не уходит */
+.mg-text {
+  display: flex; flex-direction: column; align-items: center; gap: 8px; width: 100%;
+  flex: 0 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain;
+  /* тень снизу, пока ниже есть ещё текст (прокрутишь до конца — её закроет фон «local») */
+  background:
+    linear-gradient(rgba(255, 250, 240, 0), var(--paper) 70%) 0 100% / 100% 24px no-repeat local,
+    radial-gradient(farthest-side at 50% 100%, rgba(74, 55, 40, .28), transparent) 0 100% / 100% 12px no-repeat scroll;
+}
+.mg-card .panel > .btn { flex: none; }
 @media (max-height: 520px) {
   .mg-card { padding: 8px; }
-  .mg-card .panel { padding: 10px 16px 12px; gap: 4px; }
+  .mg-card .panel { padding: 10px 16px 12px; gap: 6px; }
+  .mg-text { gap: 4px; }
   .mg-card .big-emoji { font-size: 40px; }
+  .mg-card .mg-icon { display: none; } /* значок и название игры и так в шапке — место правилам */
   .mg-card .stars { font-size: 34px; }
   .mg-card h2 { font-size: 20px; }
   .mg-card p { margin: 4px 0; }
-  .mg-card .panel.narrow { width: min(100%, 640px); } /* лёжа места вширь больше, чем ввысь */
+  .mg-card .panel.narrow { width: min(100%, 780px); } /* лёжа места вширь больше, чем ввысь */
 }
 .stars { font-size: 46px; letter-spacing: 4px; }
 .stars .off { filter: grayscale(1); opacity: .3; }

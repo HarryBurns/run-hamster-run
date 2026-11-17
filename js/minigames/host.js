@@ -93,7 +93,9 @@ export async function runMinigame(id, info) {
 
     const card = (html, btnText, onBtn) => {
       const c = el('div', 'mg-card');
-      const p = el('div', 'panel narrow', html);
+      // текст — в своей прокрутке, кнопка — под ним, а не поверх (на низком экране текст не прячется под «Начать!»)
+      const p = el('div', 'panel narrow');
+      p.appendChild(el('div', 'mg-text', html));
       const b = el('button', 'btn big green', btnText);
       b.onclick = () => {
         sfx('tap');
@@ -154,7 +156,7 @@ export async function runMinigame(id, info) {
     };
 
     card(
-      `<div class="big-emoji">${mod.icon || '🎮'}</div><h2 style="margin:4px 0">${mod.title}</h2><p>${mod.howTo || ''}</p>${info.introNote || ''}`,
+      `<div class="big-emoji mg-icon">${mod.icon || '🎮'}</div><h2 class="mg-icon" style="margin:4px 0">${mod.title}</h2><p>${mod.howTo || ''}</p>${info.introNote || ''}`,
       'Начать!',
       () => {
         try {
