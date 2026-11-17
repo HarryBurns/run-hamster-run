@@ -4,6 +4,7 @@
 import { TAU } from '../core/util.js';
 import { ell, fillRR, line, poly, star, shade, rr, heart } from '../core/draw.js';
 import { D_HOMES } from './furniture_homes.js';
+import { D_FEST } from './furniture_fest.js';
 
 const OUT = '#4a3728';
 const WOOD = '#d9a066';
@@ -911,6 +912,7 @@ const D = {
 };
 
 Object.assign(D, D_HOMES); // вещи из домов жителей — в отдельном файле
+Object.assign(D, D_FEST); // праздничная полка (этап 15) — в отдельном файле
 
 /** Нарисовать предмет. st: { t: время, on: включён, minutes: игровое время } */
 export function drawFurn(ctx, def, x, y, st = {}) {

@@ -8,6 +8,8 @@ import { el, plural } from '../core/util.js';
 import {
   FURNITURE,
   FURN_CATS,
+  HOLIDAY_BY_ID,
+  festShelfOn,
   FIND_BY_ID,
   PRICES,
   INGREDIENTS,
@@ -38,13 +40,41 @@ function ownedFurn(id) {
   return (S().storage[id] || 0) + homes.flat().filter((i) => i.id === id).length;
 }
 
+/** Праздничная полка (этап 15, Пр13): около праздника — украшения к нему (shop: 'fest'). */
+function renderFestShelf(body, panel, hid) {
+  const h = HOLIDAY_BY_ID[hid],
+    grid = el('div', 'grid fest-shelf');
+  body.appendChild(el('p', 'muted', `${h.icon} Скоро ${h.name}! Украшения к празднику — только эти дни. Купленное ляжет в кладовку: дома нажми 🔨 и поставь, оно будет радовать круглый год.`));
+  for (const f of FURNITURE.filter((q) => q.shop === 'fest' && q.fest === hid)) {
+    const card = el('div', 'card fest-' + f.id);
+    card.appendChild(furnIcon(f, 112));
+    card.appendChild(el('div', 'nm', f.name));
+    card.appendChild(el('span', 'badge season r', `${h.icon} К празднику`));
+    card.appendChild(priceTag(f.price));
+    if (ownedFurn(f.id)) card.appendChild(el('span', 'cnt', '×' + ownedFurn(f.id)));
+    card.appendChild(
+      buyBtn('Купить', f.price, () => {
+        if (!buy(f.price)) return;
+        addItem('storage', f.id, 1);
+        emit('buy', { cat: 'furniture', id: f.id });
+        toast(`${f.name} — в кладовке. Дома нажми 🔨, чтобы поставить!`, 'good');
+        panel.refresh();
+      }),
+    );
+    grid.appendChild(card);
+  }
+  body.appendChild(grid);
+}
+
 function openHomeMall() {
+  const fest = festShelfOn(S().day, S().startDay || 0);
   openPanel({
     title: 'ТЦ «Уютный дом»',
     portrait: vendorLook('home'),
     money: true,
     cls: 'wide',
     tabs: [
+      ...(fest ? [{ id: 'fest', name: `${HOLIDAY_BY_ID[fest].icon} К празднику` }] : []),
       ...FURN_CATS.map((c) => ({ id: c.id, name: `${c.icon} ${c.name}` })),
       { id: 'seeds', name: '🌱 Семена' },
       { id: 'tools', name: '🔦 Для походов' },
@@ -55,6 +85,7 @@ function openHomeMall() {
       // этап 17б: транспорт (features/wheels.js) и всё для двора (features/yard.js) — свои вкладки
       if (tab === 'wheels') return renderWheelsShop(body, panel);
       if (tab === 'yard') return renderYardShop(body, panel);
+      if (tab === 'fest') return renderFestShelf(body, panel, fest);
       const grid = el('div', 'grid');
       if (tab === 'tools') {
         // инструменты (сумка finds, вид tool): есть всегда, нужен один — второй не продаём

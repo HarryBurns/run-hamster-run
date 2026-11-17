@@ -96,6 +96,15 @@ F('rocket', 'rocket', 'Игрушечная ракета', 70, 150, { shop: 'gif
 // подарок Масленицы (П.13): медный самовар с бубликами — потрогать: пар и доброе слово
 F('samovar', 'samovar', 'Самовар', 96, 124, { shop: 'holiday', cat: 'decor', act: 'look', c: '#e8a33d',
   say: ['Самовар пыхтит: «Чай готов!» ☕ А бублики — к чаю!', 'Блины, самовар и друзья — вот она, Масленица! 🥞'] });
+// праздничная полка ТЦ «Уютный дом» (этап 15, Пр13): shop: 'fest' — продаётся только около праздника fest (за три
+// дня и в сам праздник: FEST_SHELF, features/shops.js), в остальное время полки нет; купленное ставится дома всегда
+F('fest_fir', 'festfir', 'Новогодняя ёлочка', 104, 150, { shop: 'fest', fest: 'newyear', cat: 'decor', act: 'lamp', c: '#2b8a3e' });
+F('fest_wreath', 'festwreath', 'Рождественский венок со свечками', 96, 110, { shop: 'fest', fest: 'xmas', wall: true, cat: 'wall', act: 'look', say: 'Свечки горят — в доме тепло и светло. С Рождеством! 🌟' });
+F('fest_lanterns', 'festlanterns', 'Красные фонарики', 220, 70, { shop: 'fest', fest: 'cny', wall: true, cat: 'wall', act: 'look', say: 'Красные фонарики — на удачу весь год! 🏮' });
+F('fest_doll', 'festdoll', 'Масленичная куколка', 60, 120, { shop: 'fest', fest: 'maslenitsa', cat: 'decor', act: 'look', c: '#ffe066', say: 'Соломенная куколка машет ленточками: «Прощай, зима!» 🌾' });
+F('fest_flags', 'festflags', 'Праздничные флажки', 220, 50, { shop: 'fest', fest: 'mayday', wall: true, cat: 'wall', act: 'look', say: 'Флажки как на параде! Мир, труд, май! 🎈' });
+F('fest_kupala', 'festkupala', 'Купальский венок с лентами', 96, 116, { shop: 'fest', fest: 'kupala', wall: true, cat: 'wall', act: 'look', say: 'Венок пахнет летним лугом и папоротником 🌿' });
+F('fest_jack', 'festjack', 'Тыква-фонарик', 70, 64, { shop: 'fest', fest: 'halloween', cat: 'decor', act: 'lamp', c: '#ff922b' });
 // рынок: вещицы ручной работы
 F('rug_craft', 'rug', 'Коврик ручной работы', 190, 16, { shop: 'market', c: '#ffd8a8', cat: 'decor', layer: 0 });
 F('lamp_lantern', 'lamp', 'Мятный фонарик', 50, 150, { shop: 'market', act: 'lamp', c: '#63e6be', cat: 'decor' });

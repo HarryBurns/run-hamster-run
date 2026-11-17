@@ -497,6 +497,18 @@ const { pathToFileURL } = require('url');
     if (!D.EXTRA_STICKERS.some((q) => q.id === h.sticker)) bad(`праздник ${h.id}: нет наклейки ${h.sticker}`);
     if (!(h.decor[0] <= 0 && h.decor[1] >= 0)) bad(`праздник ${h.id}: город не украшен в сам праздник`);
   }
+  // праздничная полка ТЦ «Уютный дом» (этап 15, Пр13): у каждого праздника (кроме «Года в городе») — украшение домой,
+  // с ценой как у недорогого декора; праздничные наряды жителей — из каталога одежды
+  for (const f of D.FURNITURE.filter((q) => q.shop === 'fest'))
+    if (!(f.price > 0 && f.price <= 1000) || !D.HOLIDAY_BY_ID[f.fest]) bad(`праздничная полка: «${f.name}» — цена ${f.price}, праздник ${f.fest}`);
+  for (const h of HOLIDAYS)
+    if (h.id !== 'birthday' && !D.FURNITURE.some((q) => q.shop === 'fest' && q.fest === h.id)) bad(`праздничная полка: к празднику ${h.id} нечего купить`);
+  for (const [hid, list] of Object.entries(D.HOLIDAY_DRESS))
+    for (const [npc, patch] of Object.entries(list)) {
+      if (!D.HOLIDAY_BY_ID[hid] || !D.NPC_BY_ID[npc]) bad(`праздничный наряд ${hid}/${npc}: нет такого праздника или жителя`);
+      for (const [slot, id] of Object.entries(patch))
+        if (id !== null && (!D.CLOTHES_BY_ID[id] || D.CLOTHES_BY_ID[id].slot !== slot)) bad(`праздничный наряд ${hid}/${npc}: «${id}» — не вещь для ${slot}`);
+    }
   if (!(HOLIDAY.tug.coins[2] < avg2)) bad(`«Перетягивание каната» на 3★ — не меньше смены на 2★`);
   if (!(HOLIDAY.splash.coins[2] < avg2)) bad(`«Водяная битва» на 3★ — не меньше смены на 2★`);
   // новая игра начинается 1 июня (этап 10): в первые три дня — ни праздника, ни украшений (Пр1); «Год в городе» —
