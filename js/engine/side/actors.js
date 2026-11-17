@@ -36,8 +36,8 @@ export function makeResidents(desc) {
     when: a.when || null,
   }));
 }
-/** Здесь ли сейчас жилец (у кого есть when — только когда when() даёт «да»). */
-export const actorHere = (g) => !g.when || !!g.when();
+/** Здесь ли сейчас жилец (у кого есть when — только когда when() даёт «да»; g.hide — едет в лифте, его не видно). */
+export const actorHere = (g) => !g.hide && (!g.when || !!g.when());
 
 /**
  * Привести гостей в соответствие со списком в сохранении: ушедших убрать, новых впустить.

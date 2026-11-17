@@ -342,4 +342,30 @@ module.exports = async function start({ page, step, ev, wait, closeAll }) {
     expect((await panelText()).includes('Ореховая Гавань'), 'название на карте');
     await closeAll();
   });
+
+  await step('начало игры: хомячок в спальне на втором этаже — сосед едет к ней на лифте и вручает гостинец', async () => {
+    await fresh();
+    let sc = await ev(() => ({ f: window.__dev.scene.p.f, name: window.__dev.sceneName }));
+    expect(sc.name === 'villa' && sc.f === 1, 'новая игра — в спальне на втором этаже', sc);
+    const seen = { hide: 0, up: 0, give: 0 };
+    for (let i = 0; i < 100 && !(await dialogText()); i++) {
+      await wait(250);
+      const g = await ev(() => {
+        const g = window.__dev.scene.actors.find((a) => a.guest && a.id === 'plusha');
+        return g ? { f: g.f, hide: !!g.hide, give: !!(g.carry && g.carry.give) } : null;
+      });
+      if (!g) continue;
+      if (g.hide) seen.hide++;
+      if (g.f === 1 && !g.hide) seen.up++;
+      if (g.give) seen.give++;
+    }
+    await wait(700);
+    const text = await dialogText();
+    expect(text.includes('Я уже всё умею'), 'Плюша не дошла и не заговорила', [seen, text.slice(0, 80)]);
+    expect(seen.hide > 0 && seen.up > 0 && seen.give > 0, 'не ехала в лифте / не вышла на втором этаже / не вручила', seen);
+    expect((await ev(() => window.__dev.scene.p.f)) === 1, 'хомячка увезли с этажа');
+    await page.click('.dialog .btn');
+    await wait(500);
+    await closeAll();
+  });
 };

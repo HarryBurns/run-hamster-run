@@ -4,7 +4,9 @@
 // features/quests.js, сдают их жителю в городе. Здесь — только «сценка в гостях»:
 //   хомячок на вилле, окон нет, день (7:00–21:00), следующее вводное задание можно взять → житель входит в дверь
 //   (как гость: его можно угостить, вечером он уйдёт), несёт в лапках коробочку или рассаду (carry — engine/side/
-//   actors.js), подходит, вручает — и рассказывает. Задание попадает в журнал, звёздочка ведёт к первому шагу.
+//   actors.js), подходит, вручает — и рассказывает. Хомячок на другом этаже (новая игра начинается в спальне на
+//   втором) — сосед идёт к лифту, едет (его не видно, g.hide) и выходит на её этаже. Задание попадает в журнал,
+//   звёздочка ведёт к первому шагу.
 // Следующий сосед приходит, когда прошлое задание сдано. Ничего не блокируется: задания можно не делать, а на первой
 // встрече сказать «Я уже всё умею» — тогда цепочка выключается (flags.intro = 2). У старых игр отметки flags.intro
 // нет — к ним никто не приходит.
@@ -21,8 +23,10 @@ import { startQuest } from './quests.js';
 const S = () => G.state;
 const INTRO = QUESTS.filter((q) => q.intro);
 const WAIT = 1.6, // сколько секунд хомячок должна побыть дома, прежде чем постучат
-  GIVE_AFTER = 6, // гость не дошёл (хомячок на другом этаже) — рассказывает и так, через столько секунд
-  GIVE_TIME = 0.7; // сколько секунд летит коробочка
+  GIVE_AFTER = 30, // гость так и не дошёл (хомячок всё время ездит на лифте) — рассказывает и так, через столько секунд
+  GIVE_TIME = 0.7, // сколько секунд летит коробочка
+  LIFT_SPEED = 280, // как быстро сосед идёт к лифту и от лифта (пикселей в секунду; гуляют гости медленнее — 120)
+  LIFT_RIDE = 1.2; // сколько секунд сосед едет в лифте
 const HOURS = [7 * 60, 21 * 60]; // в гости заходят днём
 
 /** Идёт ли вводная цепочка (новая игра и не сказано «Я уже всё умею»). */
@@ -72,7 +76,14 @@ async function talk(q) {
 function endVisit() {
   const sc = scene(),
     g = visit && sc && sc.actors ? actorOf(sc, visit.q.npc) : null;
-  if (g) g.carry = null;
+  if (g) {
+    g.carry = null;
+    if (g.hide) {
+      g.hide = false;
+      g.ride = 0;
+      g.f = sc.p.f;
+    }
+  }
   visit = null;
   home = 0;
 }
@@ -110,6 +121,8 @@ function tick({ dt = 0 } = {}) {
       sc.burst(sc.p.x, sc.geo.fy(sc.p.f) - 110, 'heart', 4);
       begin();
     }
+  } else if (!same && visit.t <= GIVE_AFTER && sc.geo.lift) {
+    rideLift(sc, g, dt);
   } else if ((same && Math.abs(dx) < 110) || visit.t > GIVE_AFTER) {
     g.dir = Math.sign(dx) || 1;
     g.wait = 2.5;
@@ -120,8 +133,43 @@ function tick({ dt = 0 } = {}) {
   } else if (same) {
     const lo = g.roam ? Math.min(g.roam[0], g.x) : g.x,
       hi = g.roam ? Math.max(g.roam[1], g.x) : g.x;
-    g.tx = Math.max(lo, Math.min(hi, sc.p.x - Math.sign(dx) * 80));
-    g.wait = 0;
+    walkTo(g, Math.max(lo, Math.min(hi, sc.p.x - Math.sign(dx) * 80)), dt);
+  }
+}
+/** Сосед сам идёт к точке x (быстрее, чем гуляют гости; обычная прогулка в это время стоит — g.wait). */
+function walkTo(g, x, dt) {
+  const d = x - g.x,
+    step = LIFT_SPEED * dt;
+  g.tx = x;
+  g.wait = 0.5;
+  if (Math.abs(d) <= step) {
+    g.x = x;
+    g.moving = false;
+    return true;
+  }
+  g.x += Math.sign(d) * step;
+  g.dir = Math.sign(d);
+  g.walkT += dt * 2.5;
+  g.moving = true;
+  return false;
+}
+/** Хомячок на другом этаже: сосед доходит до лифта, едет (его не видно) и выходит на этаже хомячка. */
+function rideLift(sc, g, dt) {
+  const at = sc.geo.W - 50; // у дверей лифта
+  if (g.ride > 0) {
+    g.ride -= dt;
+    if (g.ride <= 0 && !sc.p.lift) {
+      g.f = sc.p.f; // приехал на этаж хомячка
+      g.hide = false;
+      g.ride = 0;
+      sfx('lift');
+    }
+    return;
+  }
+  if (walkTo(g, at, dt) && !sc.p.lift) {
+    g.ride = LIFT_RIDE;
+    g.hide = true;
+    sfx('lift');
   }
 }
 on('step', tick);
