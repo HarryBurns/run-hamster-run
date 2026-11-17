@@ -244,6 +244,7 @@ export function openPhotoMode() {
   if (hud) hud.style.visibility = 'hidden';
   const toasts = document.getElementById('toasts');
   if (toasts) toasts.style.visibility = 'hidden';
+  G.photo = true; // стрелку к цели и звёздочку на канве не рисуем
   const cam = sc.cam || null;
   const cam0 = cam ? { x: cam.x, y: cam.y } : null;
   let frame = 'none',
@@ -399,6 +400,7 @@ export function openPhotoMode() {
     root.remove();
     if (hud) hud.style.visibility = '';
     if (toasts) toasts.style.visibility = '';
+    G.photo = false;
     closeLayer(); // камера сама вернётся к хомячку
   }
   x.onclick = () => {

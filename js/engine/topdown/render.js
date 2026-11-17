@@ -595,8 +595,8 @@ export function drawFrame(ctx, sc) {
   const warmSeason = season === 'spring' || season === 'summer',
     fine = weather === 'sun' || weather === 'petals';
   if (sky && warmSeason && fine && dark < 0.25) drawButterflies(ctx, m, t, x0, y0, x1, y1);
-  // звёздочка-цель
-  const tg = sc.target();
+  // звёздочка-цель (в фото-режиме — нет, как и стрелки к ней у края экрана: В2)
+  const tg = G.photo ? null : sc.target();
   if (tg) {
     const by = tg.y - 78 + Math.sin(t * 4) * 6;
     if (tg.icon === '⭐') {
@@ -633,12 +633,14 @@ export function drawFrame(ctx, sc) {
     drawSky(sc, gloom.tint, lights, nl, false, k, ox, oy, w, h, dpr, gloom.warm);
   } else hideSky();
   sc.call('overlay', ctx, sc, w, h); // свой слой поверх всего, в экранных координатах (темнота пещеры и т. п.)
-  // стрелка к цели, если она за экраном
+  // стрелка к цели, если она за экраном (sc.edgeArrow — нарисована ли сейчас, для автотеста)
+  sc.edgeArrow = false;
   if (tg) {
     const sx = (tg.x - cam.x) * z + w / 2,
       sy = (tg.y - 40 - cam.y) * z + h / 2;
     const pad = 56;
     if (sx < pad || sx > w - pad || sy < pad + 50 || sy > h - pad) {
+      sc.edgeArrow = true;
       const ax = clamp(sx, pad, w - pad),
         ay = clamp(sy, pad + 60, h - pad - 10),
         a = Math.atan2(sy - ay, sx - ax);

@@ -58,6 +58,7 @@ const games = require('./smoke_games.js'); // этап 14: мини-игры в�
 const relax = require('./smoke_relax.js'); // этап 17а: отдых в городе — скамейки, лежаки, качели, житель рядом, «Пляжный волейбол»
 const buddy = require('./smoke_buddy.js'); // этап 17б: питомец из приюта, самокат / велосипед / кабриолет, двор у дома
 const jobs = require('./smoke_jobs.js'); // этап 17в: профессии (парикмахер, спасатель, садовник), фото-режим, нижний ярус пещер
+const fixes = require('./smoke_fixes.js'); // В-пункты BACKLOG: стрелка к цели в фото-режиме, транспорт у воды, тёплая вода у острова
 const holidaysWide = require('./smoke_holidays_wide.js'); // этап 15: праздники шире площади — наряды жителей, празднуют вместе, места, украшения за городом и в домах, полка в ТЦ, клумбы
 const holidays = require('./smoke_holidays.js'); // П.13: праздники — Новый год, Рождество, Китайский Новый год, Масленица
 
@@ -2864,6 +2865,7 @@ const runParallel = () => {
     await relax({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
     await buddy({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
     await jobs({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
+    await fixes({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
     await estate({ page, step: (n, f, o) => step(n, f, { ...o, extra: true, estate: true }), ev, wait, closeAll });
     if (tag === 'desktop')
       await extra({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll, hold });
