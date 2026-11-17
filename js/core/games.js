@@ -12,6 +12,7 @@
 // в живом сохранении, а без него считаем, что это активная игра (так единственное старое сохранение
 // становится первой игрой).
 import { G, KEY, BACKUP_KEY, newGame, load, unload, loadProblem } from './state.js';
+import { dropPhotos } from './photos.js';
 
 export const MAX_GAMES = 6;
 const INDEX_KEY = 'rhr-games';
@@ -242,6 +243,7 @@ export function deleteGame(id) {
   const raw = live ? get(KEY) : get(slot(id));
   if (raw) put(TRASH_KEY, JSON.stringify({ meta: m, at: Date.now(), raw }));
   del(slot(id));
+  dropPhotos(id); // снимки фотоальбома этой игры (core/photos.js)
   if (live) {
     del(KEY);
     unload();

@@ -60,6 +60,14 @@ export const LANDS = [
     door: 'Тёмный проход в скале заколочен досками.', from: 'mountain', at: 'на горе, в скале у вершины', opened: 'открыты',
     scene: 'caves', entry: 'gate', // сцена — locations/caves.js, вход gate — у выхода к свету
   },
+  // нижний ярус пещер (П4, этап 17в): верёвочная лестница в люке шахты Камушкина (место ladder в locations/caves.js,
+  // действие way:deep) ведёт к подземной реке; открывает задание Камушкина «Счастливая кирка»
+  {
+    id: 'deep', name: 'Подземная река', icon: '🛶', npc: 'kamushkin', who: 'Шахтёр Камушкин', quest: 'lucky_pick', opened: 'открыта',
+    door: 'Под люком в полу шахты шумит вода. Верёвочная лестница свёрнута и привязана — без разрешения шахтёра вниз не спуститься.',
+    from: 'caves', at: 'в пещерах, в шахте Камушкина: люк с верёвочной лестницей вниз',
+    scene: 'deep', entry: 'ladder', // сцена — locations/deep.js, вход ladder — под лестницей
+  },
   // джунгли: причал за буйками на юге моря (остров с причалом — WORLD_SEA.port в locations/sea.js); кораблик подходит
   // к причалу — и картинка-переезд (go: voyage:go — features/jungle.js) привозит к причалу в джунглях; обратно —
   // с причала в джунглях к пирсу города
@@ -104,7 +112,8 @@ export const ROUTES = {
   world: { forest: 'forest', desert: 'desert', jungle: 'sea:jungle', cove: 'sea:cove', island: 'sea:island' },
   forest: { world: 'exit:town', mountain: 'station' },
   mountain: { forest: 'station', caves: 'caves' },
-  caves: { mountain: 'exit:mountain' },
+  caves: { mountain: 'exit:mountain', deep: 'ladder' },
+  deep: { caves: 'ladder' },
   desert: { world: 'stop' },
   jungle: { world: 'dock' },
   cove: { world: 'grotto' },
@@ -121,7 +130,8 @@ export const ROUTE_WORDS = {
   },
   forest: { world: 'по тропе в город', mountain: 'по канатной дороге' },
   mountain: { forest: 'по канатной дороге вниз', caves: 'через тёмный проход в скале' },
-  caves: { mountain: 'к выходу на гору' },
+  caves: { mountain: 'к выходу на гору', deep: 'по верёвочной лестнице в люке шахты Камушкина' },
+  deep: { caves: 'по верёвочной лестнице наверх, в шахту' },
   desert: { world: 'на караване-автобусе' },
   jungle: { world: 'на кораблике от причала' },
   cove: { world: 'через подводный грот' },

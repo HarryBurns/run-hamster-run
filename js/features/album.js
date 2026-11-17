@@ -10,10 +10,11 @@ import { openPanel } from '../ui/panel.js';
 import { toast } from '../ui/toast.js';
 import { MG_NAMES } from './minigames.js';
 import { renderJournal } from './quests.js';
+import { renderPhotos } from './photo.js';
 
 const S = () => G.state;
 
-/** Открыть альбом; tab — вкладка: 'quests' (журнал заданий), 'st' (наклейки), 'fr', 'rec'. */
+/** Открыть альбом; tab — вкладка: 'quests' (журнал заданий), 'st' (наклейки), 'ph' (фотоальбом, этап 17в), 'fr', 'rec'. */
 export function openAlbum(tab) {
   openPanel({
     title: 'Альбом',
@@ -22,12 +23,14 @@ export function openAlbum(tab) {
     tabs: [
       { id: 'quests', name: '📜 Журнал' },
       { id: 'st', name: '⭐ Наклейки' },
+      { id: 'ph', name: '📷 Фото' },
       { id: 'fr', name: '💖 Друзья' },
       { id: 'rec', name: '🏆 Рекорды' },
     ],
     render(body, tab, panel) {
       const s = S();
       if (tab === 'quests') renderJournal(body, panel);
+      else if (tab === 'ph') renderPhotos(body, panel);
       else if (tab === 'st') {
         const all = [
           ...TASKS.map((t) => ({ id: t.id, sticker: t.sticker, title: t.title })),

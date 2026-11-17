@@ -10,6 +10,7 @@ import { NPCS, ING_BY_ID, SEED_BY_ID, TASK_BY_ID, LAND_BY_ID, BIZ_BY_ID } from '
 import { G, cal, ownsHome, landOpen, guestsWaiting, stepWaits, hotelPoolGuest, hotelRoomGuest } from '../core/state.js';
 import { T, OUT, SP, put, defineTiles, defineObjects } from '../engine/topdown/kinds.js';
 import { createTopDownScene } from '../engine/topdown/scene.js';
+import { run } from '../core/registry.js';
 import './common/index.js';
 import { createSea, WORLD_SEA } from './sea.js';
 import './jungle_art.js'; // остров причала джунглей за буйками (WORLD_SEA.port): тропические деревья и попугай
@@ -363,10 +364,16 @@ const PLACES = [
     at: JOB_SPOTS.lifeguard,
     hit: { dx: 40, up: 110, down: 24 },
     stand: [JOB_SPOTS.lifeguard[0] + 0.5, JOB_SPOTS.lifeguard[1] + 1.5],
-    act: ask('guard', 'Привет! Я спасатель Волна. Подежуришь со мной на вышке? Смотри на море: кто устал плыть или уронил мячик — тому помоги!', [
-      { text: '🛟 На вышку!', cls: 'green', do: 'minigame:lifeguard' },
-      { text: 'Не сейчас' },
-    ]),
+    // зимой в море не купаются — и спасателю на вышке делать нечего
+    use: () =>
+      run(
+        winter()
+          ? ask('guard', 'Брр! Зимой в море никто не купается — на вышке пусто. Приходи летом, вместе подежурим! ☀️', [{ text: 'Хорошо' }])
+          : ask('guard', 'Привет! Я спасатель Волна. Подежуришь со мной на вышке? Смотри на море: кто устал плыть или уронил мячик — тому помоги!', [
+              { text: '🛟 На вышку!', cls: 'green', do: 'minigame:lifeguard' },
+              { text: 'Не сейчас' },
+            ]),
+      ),
     key: false,
     map: { icon: '🛟', at: [JOB_SPOTS.lifeguard[0] + 0.5, JOB_SPOTS.lifeguard[1]], label: '🛟 Вышка спасателя' },
   },
@@ -496,7 +503,7 @@ defineObjects({
     solid: true,
     art: {
       gardenCart: [
-        [-34, -56, 38, 22],
+        [-46, -46, 42, 24],
         (ctx, season) => {
           shadow(ctx, 2, 14, 30, 6);
           line(ctx, 18, -6, 34, -22, OUT, 3.5); // ручки

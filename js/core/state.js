@@ -338,6 +338,12 @@ export function repair(s) {
     if (!Number.isFinite(q.done)) q.done = null;
   }
   for (const id of Object.keys(s.lands)) if (!LAND_BY_ID[id] || !Number.isFinite(s.lands[id])) delete s.lands[id];
+  // место, которое открывает уже сданное задание, открыто — даже если награду добавили позже (нижний ярус пещер
+  // за «Счастливую кирку», этап 17в)
+  for (const [id, q] of Object.entries(s.quests)) {
+    const open = QUEST_BY_ID[id].reward && QUEST_BY_ID[id].reward.open;
+    if (open && q.done !== null && LAND_BY_ID[open] && !Number.isFinite(s.lands[open])) s.lands[open] = q.done;
+  }
   // где уже побывала (быстрый переход по карте, Ф4): в старом сохранении поля нет — пока нигде
   obj(s, 'visited');
   // слова попугаев (этап 11): в старом сохранении поля нет — попугаи пока ничего не выучили

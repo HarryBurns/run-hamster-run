@@ -13,7 +13,7 @@
 // (фонарик можно выключить кнопкой 🔦 — тогда лучше видно, как светятся грибы); светятся сами грибы, кристаллы,
 // фонарь и каска Камушкина, у выхода — дневной свет. Сезонов в пещере нет (season: 'summer' — земля одна и та же).
 // Свои музыка и капли (sound → features/soundscape.js, core/audio.js).
-import { G, questNow } from '../core/state.js';
+import { G, questNow, landOpen } from '../core/state.js';
 import { setDayFlag } from '../core/actions.js';
 import { toast } from '../ui/toast.js';
 import { emit } from '../core/events.js';
@@ -21,6 +21,7 @@ import { clamp, seeded } from '../core/util.js';
 import { CAVES, QUEST_BY_ID, pickOn } from '../data/index.js';
 import { T, put, createTopDownScene } from '../engine/topdown/index.js';
 import './caves_art.js';
+import './deep_art.js'; // люк с верёвочной лестницей на нижний ярус (этап 17в)
 import './common/index.js';
 
 const W = 36,
@@ -48,6 +49,7 @@ export const AT = {
   paint: [22, 2, 26], // древние рисунки: ряд скалы y = 2, клетки x 22–26 (пол под ними — ряд 3)
   vein: [30, 14], // кристальная жила в северной стене шахты (пол — ряд 15)
   lantern: [32, 17],
+  hole: [32, 20], // люк с верёвочной лестницей вниз, к подземной реке (нижний ярус, этап 17в — locations/deep.js)
   minecart: [26, 21],
   pick: [4, 14], // кирка Камушкина на северном берегу озера (задание «Счастливая кирка»)
   exit: [16, 29, 19, 29],
@@ -151,6 +153,7 @@ function build(m) {
   for (const [x, y] of SHROOMS) keepAround(x, y);
   keepAround(17, 27, 2);
   keepAround(28, 19, 1);
+  keepAround(AT.hole[0], AT.hole[1]);
   const put1 = (type, x, y, o) => {
     m.clear(x, y);
     m.add(type, x, y, o);
@@ -159,6 +162,7 @@ function build(m) {
   put1('crystals', AT.vein[0] - 1, AT.vein[1] + 1, { v: 0 });
   put1('crystals', AT.vein[0] + 1, AT.vein[1] + 1, { v: 1 });
   put1('caveLantern', ...AT.lantern);
+  put1('ropeHole', ...AT.hole, { open: () => landOpen('deep') });
   put1('minecart', ...AT.minecart);
   for (let x = 24; x <= 33; x++) if (m.at(x, 22) === 'caveFloor' && !(x === AT.minecart[0])) put1('rails', x, 22, { v: 0 });
   put1('column', 14, 15, { v: 0 });
@@ -344,6 +348,16 @@ const caves = createTopDownScene({
       key: false,
       map: { icon: '🌊', at: [LAKE[0], LAKE[1]], label: '🌊 Подземное озеро' },
     },
+    // люк с верёвочной лестницей на нижний ярус (этап 17в): открыт — спуск к подземной реке; закрыт — кто знает дорогу
+    {
+      id: 'ladder',
+      at: AT.hole,
+      hit: { dx: 40, up: 40, down: 30 },
+      stand: [AT.hole[0] - 0.5, AT.hole[1] + 0.6],
+      act: 'way:deep',
+      key: false,
+      map: { icon: '🪜', at: [AT.hole[0] + 0.5, AT.hole[1] + 0.5], label: '🪜 Лестница вниз', lock: () => !landOpen('deep') },
+    },
     // кирка Камушкина (задание «Счастливая кирка»): видна, пока её не нашли
     { id: 'pick', at: AT.pick, hit: { r: 40 }, stand: [AT.pick[0] + 0.5, AT.pick[1] + 1.4], when: pickHidden, act: 'caves:pick', key: false },
     ...SHROOMS.map(([x, y], i) => ({
@@ -362,7 +376,7 @@ const caves = createTopDownScene({
     hall: { at: [17.5, 18.5], label: '🏛️ Большой зал' },
   },
   // с горы входят через скалу у вершины (way:caves); выход к свету — внизу, на гору ко входу caves
-  entries: { gate: { at: [17.5, 27.6] } },
+  entries: { gate: { at: [17.5, 27.6] }, ladder: { at: [AT.hole[0] - 0.5, AT.hole[1] + 0.6] } },
   exits: [{ id: 'mountain', area: AT.exit, to: 'mountain', entry: 'caves' }],
   built(sc) {
     sealPockets(sc.map);

@@ -44,6 +44,9 @@ export const FINDS = [
   { id: 'gem_topaz', kind: 'gem', e: ICON.gem_topaz, name: 'Топаз' },
   { id: 'gem_sapphire', kind: 'gem', e: ICON.gem_sapphire, name: 'Сапфир' },
   { id: 'gem_ruby', kind: 'gem', e: ICON.gem_ruby, name: 'Рубин' },
+  // нижний ярус пещер (П4, этап 17в): находки кристального грота за подземной рекой — по одной на всю игру, не продаются
+  { id: 'cave_pearl', kind: 'deep', e: '🔮', name: 'Пещерная жемчужина' },
+  { id: 'glow_pebble', kind: 'deep', e: '💠', name: 'Светящийся камушек' },
   // пустыня (П.9): окаменелости — находка в мини-игре «Раскопки» (по одной за первые DESERT.dig.paid игр в день,
   // виды по кругу); их берёт рынок (DESERT.fossils), из четырёх разных Бархан соберёт «Коллекцию окаменелостей»
   { id: 'fossil_shell', kind: 'fossil', e: ICON.fossil_shell, name: 'Ракушка-аммонит' },

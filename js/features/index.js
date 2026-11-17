@@ -48,6 +48,7 @@ export * from './intro.js';
 export * from './welcome.js';
 export * from './backpack.js';
 export * from './album.js';
+export * from './photo.js';
 export * from './piano.js';
 export * from './settings.js';
 export * from './soundscape.js';

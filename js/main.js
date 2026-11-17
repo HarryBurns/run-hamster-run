@@ -25,6 +25,7 @@ import demoMeadow from './locations/demo_meadow.js';
 import forest from './locations/forest.js';
 import mountain from './locations/mountain.js';
 import caves from './locations/caves.js';
+import deep from './locations/deep.js'; // нижний ярус пещер — подземная река (этап 17в)
 import desert from './locations/desert.js';
 import jungle from './locations/jungle.js';
 import cove from './locations/cove.js';
@@ -45,7 +46,7 @@ const hud = document.getElementById('hud');
 
 // Сцены игры. Локации — описания (locations/*.js) для «движка локаций», дома — описания (interiors/*.js)
 // для «движка домов».
-for (const loc of [town, forest, mountain, caves, desert, jungle, cove, island, demoMeadow]) registerScene(loc.name, loc); // demo_meadow — пробная, входа в игре нет
+for (const loc of [town, forest, mountain, caves, deep, desert, jungle, cove, island, demoMeadow]) registerScene(loc.name, loc); // demo_meadow — пробная, входа в игре нет
 registerScene('tower', TowerScene);
 registerScene('dive', DiveScene);
 // HOUSES — вилла, покупное жильё и дома жителей (interiors/houses.js); demo_house — пробный, входа в игре нет
@@ -60,6 +61,7 @@ initHud(hud, {
   right: [
     { icon: '🎒', label: 'Рюкзак', fn: F.openBackpack },
     { icon: '📖', label: 'Альбом', fn: F.openAlbum },
+    { icon: '📷', label: 'Фото', fn: F.openPhotoMode }, // фото-режим (этап 17в, features/photo.js)
     { icon: '📱', label: 'Гости', fn: F.openPhone },
     { icon: '⚙️', label: 'Меню', fn: F.openSettings },
   ],

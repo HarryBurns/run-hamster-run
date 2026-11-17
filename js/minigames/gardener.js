@@ -83,7 +83,7 @@ export default {
     // ---------- 1. полить ----------
     const PLANTS = 8;
     const plants = Array.from({ length: PLANTS }, (_, i) => ({
-      x: 92 + (i % 4) * 72 + (Math.floor(i / 4) ? 34 : 0),
+      x: 88 + (i % 4) * 72 + (Math.floor(i / 4) ? 26 : 0),
       y: 150 + Math.floor(i / 4) * 72,
       c: COLORS[i % 3].c,
       dry: false,

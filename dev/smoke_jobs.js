@@ -95,7 +95,12 @@ module.exports = async function jobs({ page, step, ev, wait, closeAll }) {
     await fresh();
     const spot = await ev(async () => (await import('/js/locations/town.js')).JOB_SPOTS.lifeguard);
     await tapTown([spot[0] + 1, spot[1] + 2], [spot[0] + 0.5, spot[1] + 0.2]);
-    await page.waitForSelector('.dialog >> text=На вышку', { timeout: 8000 });
+    // нажатием можно попасть в жителя или лежак рядом — тогда просто дойти до вышки
+    if (!(await page.waitForSelector('.dialog >> text=На вышку', { timeout: 4000 }).catch(() => null))) {
+      await closeAll();
+      await ev(() => window.__dev.World.walkToPlace('lifeguard'));
+      await page.waitForSelector('.dialog >> text=На вышку', { timeout: 8000 });
+    }
     const d = await dialogText();
     expect(/Волна/.test(d) && /Зарплата/.test(d) && !/Купить заведение/.test(d), 'диалог у вышки', d);
     await page.click('.dialog >> text=На вышку');
@@ -119,7 +124,12 @@ module.exports = async function jobs({ page, step, ev, wait, closeAll }) {
   await step('17в: садовник — тележка Мяты в парке, полить, подстричь куст по шаблону, клумба по схеме', async () => {
     await fresh();
     const spot = await ev(async () => (await import('/js/locations/town.js')).JOB_SPOTS.garden);
-    await tapTown([spot[0] - 1, spot[1] + 1], [spot[0] + 0.5, spot[1] + 0.2]);
+    // дойти до тележки (нажатием можно попасть в Мяту — она гуляет рядом)
+    await ev(() => window.__dev.go('world'));
+    await wait(500);
+    await ev(([x, y]) => window.__dev.World.debugTeleport(x, y), [spot[0] - 1, spot[1] + 1]);
+    await wait(300);
+    await ev(() => window.__dev.World.walkToPlace('gardencart'));
     await page.waitForSelector('.dialog >> text=Помочь в парке', { timeout: 8000 });
     const d = await dialogText();
     expect(/Мята/.test(d) && /Зарплата/.test(d), 'диалог у тележки', d);
@@ -146,7 +156,9 @@ module.exports = async function jobs({ page, step, ev, wait, closeAll }) {
     // наработалась: все смены дня уже оплачены на других работах
     await mutate(`s.dayFlags.shifts = { swim: 2, teacher: 2, doctor: 2, chef: 2, fashion: 2, barista: 2, porter: ${lim - 12} };`);
     const m0 = (await state()).money;
-    await ev(() => window.__dev.run('minigame:gardener'));
+    await ev(() => {
+      window.__dev.run('minigame:gardener'); // не ждём: обещание игры исполнится, только когда её закроют
+    });
     await page.waitForSelector('#mg', { timeout: 6000 });
     const intro = await mgText();
     expect(new RegExp(`уже отработала ${lim} смен`).test(intro), 'нет слов про общий предел', intro);
@@ -154,5 +166,129 @@ module.exports = async function jobs({ page, step, ev, wait, closeAll }) {
     await wait(400);
     await closeAll();
     expect((await state()).money === m0, 'монеты изменились без игры');
+  });
+
+  await step('17в: фото-режим — кнопка 📷, интерфейс спрятан, кадр двигается, рамка, наклейки, подпись, снимок в фотоальбом', async () => {
+    await fresh();
+    await ev(() => window.__dev.go('world'));
+    await wait(500);
+    await ev(() => window.__dev.World.debugTeleport(40, 52));
+    await wait(500);
+    await closeAll();
+    await page.click('#hud button:has-text("Фото")');
+    await page.waitForSelector('#photo', { timeout: 4000 });
+    const hidden = await ev(() => getComputedStyle(document.getElementById('hud')).visibility);
+    expect(hidden === 'hidden', 'интерфейс не спрятан', hidden);
+    // двигать кадр: камера сдвигается, хомячок стоит
+    const c0 = await ev(() => ({ x: window.__dev.World.cam.x, y: window.__dev.World.cam.y, px: window.__dev.World.p.x }));
+    const vw = await ev(() => [innerWidth, innerHeight]);
+    await page.mouse.move(vw[0] / 2, vw[1] / 3);
+    await page.mouse.down();
+    await page.mouse.move(vw[0] / 2 - 120, vw[1] / 3 - 40, { steps: 4 });
+    await page.mouse.up();
+    const c1 = await ev(() => ({ x: window.__dev.World.cam.x, y: window.__dev.World.cam.y, px: window.__dev.World.p.x }));
+    expect(c1.x > c0.x + 20 && c1.px === c0.px, 'кадр не сдвинулся', { c0, c1 });
+    await ev(() => {
+      const m = window.__dev.F.photoMode();
+      m.setFrame('polaroid');
+      m.addDecor('🌈', 0.3, 0.3);
+      m.setCaption('Мой день у моря');
+    });
+    await page.click('#photo >> text=Снять');
+    await page.waitForSelector('.overlay >> text=В фотоальбом', { timeout: 4000 });
+    await page.click('.overlay >> text=В фотоальбом');
+    await wait(500);
+    const info = await ev(async () => {
+      const m = await import('/js/core/photos.js');
+      const list = m.loadPhotos();
+      return { n: list.length, size: m.photosSize(), cap: list[0] && list[0].caption, save: localStorage.getItem('rhr-save-v1').length };
+    });
+    expect(info.n === 1 && info.cap === 'Мой день у моря', 'снимок не в альбоме', info);
+    expect(info.size < 60000, 'снимок слишком большой', info);
+    expect(!/data:image/.test(await ev(() => localStorage.getItem('rhr-save-v1'))), 'снимок попал в сохранение');
+    expect((await state()).stickers.includes('x_photo'), 'нет наклейки «Первый снимок»');
+    await page.click('#photo .ph-x >> nth=-1');
+    await wait(400);
+    expect(await ev(() => !document.getElementById('photo') && getComputedStyle(document.getElementById('hud')).visibility !== 'hidden'), 'фото-режим не закрылся');
+    // фотоальбом: вкладка альбома, удалить снимок
+    await ev(() => window.__dev.F.openAlbum('ph'));
+    await page.waitForSelector('.ph-card', { timeout: 4000 });
+    await page.click('.ph-card');
+    await page.click('.overlay button:has-text("🗑️ Удалить")');
+    await wait(300);
+    await page.click('.overlay button:text-is("Удалить")');
+    await wait(500);
+    expect((await ev(async () => (await import('/js/core/photos.js')).loadPhotos().length)) === 0, 'снимок не удалился');
+    await closeAll();
+  });
+
+  await step('17в: нижний ярус пещер — люк закрыт до «Счастливой кирки», лестница вниз, лодочка по реке, находки, наклейка, наверх', async () => {
+    await fresh();
+    await ev(() => {
+      const d = window.__dev;
+      for (const id of ['forest', 'mountain', 'caves']) d.actions.openLand(id);
+      d.actions.mutate((s) => {
+        s.flags.cavesHint = 1;
+        s.finds.flashlight = 1;
+      });
+      d.go('caves');
+    });
+    await wait(700);
+    // старое сохранение: «Счастливая кирка» сдана раньше — нижний ярус открывается сам (repair)
+    const mig = await ev(async () => {
+      const st = await import('/js/core/state.js');
+      const s = JSON.parse(JSON.stringify(window.__dev.G.state));
+      s.quests.lucky_pick = { day: 3, done: 5, n: {}, got: {} };
+      delete s.lands.deep;
+      st.repair(s);
+      return s.lands.deep;
+    });
+    expect(mig === 5, 'сданная «Счастливая кирка» не открыла нижний ярус', mig);
+    const hole = await ev(async () => (await import('/js/locations/caves.js')).AT.hole);
+    await ev(([x, y]) => window.__dev.locations.caves.debugTeleport(x - 2, y), hole);
+    await wait(500);
+    let k = await ev(([x, y]) => window.__dev.locations.caves.debugScreen((x + 0.5) * 48, (y + 0.5) * 48), hole);
+    await page.mouse.click(k.x, k.y);
+    await page.waitForSelector('.overlay >> text=Подземная река', { timeout: 6000 });
+    expect(await ev(() => window.__dev.sceneName === 'caves'), 'закрытый люк пустил вниз');
+    await closeAll();
+    await ev(() => window.__dev.actions.openLand('deep'));
+    await page.mouse.click(k.x, k.y);
+    await page.waitForFunction(() => window.__dev.sceneName === 'deep', null, { timeout: 8000 });
+    await wait(800);
+    // карта мира: из подземной реки в город — через пещеры
+    const r = await ev(() => window.__dev.locations.deep.wayTo('world'));
+    expect(r && r.next === 'caves', 'звёздочка из подземной реки не ведёт к лестнице', r);
+    // лодочка
+    await ev(() => window.__dev.locations.deep.debugTeleport(6, 10));
+    await wait(500);
+    k = await ev(() => window.__dev.locations.deep.debugScreen(5.2 * 48, 13 * 48));
+    await page.mouse.click(k.x, k.y);
+    const deepMod = () => ev(async () => (await import('/js/locations/deep.js')).boatWhere());
+    for (let i = 0; i < 20 && (await deepMod()) !== 'ride'; i++) await wait(400); // дошла до мостков и села
+    for (let i = 0; i < 60 && (await deepMod()) === 'ride'; i++) await wait(500);
+    const dbg = () => ev(() => ({ scene: window.__dev.sceneName, modal: window.__dev.G.modal, x: window.__dev.locations.deep.p.x / 48, y: window.__dev.locations.deep.p.y / 48 }));
+    expect((await deepMod()) === 'east', 'лодочка не доплыла', [await deepMod(), await dbg()]);
+    expect((await state()).stickers.includes('x_river'), 'нет наклейки «Подземная река»');
+    for (const [x, y] of [
+      [27.5, 21.5],
+      [33.5, 22.5],
+    ]) {
+      await ev(([x, y]) => window.__dev.locations.deep.walkTo(x * 48, y * 48, true), [x, y]);
+      await wait(2500);
+    }
+    const f = (await state()).finds;
+    expect(f.cave_pearl === 1 && f.glow_pebble === 1, 'находки грота', f);
+    expect(!(await ev(() => window.__dev.locations.deep.debugSprites().clipped.length)), 'спрайты не помещаются');
+    // обратно на лодочке и наверх по лестнице
+    await ev(() => window.__dev.locations.deep.debugTeleport(32, 15));
+    await wait(500);
+    k = await ev(() => window.__dev.locations.deep.debugScreen(33 * 48, 13 * 48));
+    await page.mouse.click(k.x, k.y);
+    for (let i = 0; i < 20 && (await deepMod()) !== 'ride'; i++) await wait(400); // дошла до мостков и села
+    for (let i = 0; i < 60 && (await deepMod()) === 'ride'; i++) await wait(500);
+    expect((await deepMod()) === 'west', 'лодочка не вернулась', await deepMod());
+    await ev(() => window.__dev.locations.deep.walkToPlace('ladder'));
+    await page.waitForFunction(() => window.__dev.sceneName === 'caves', null, { timeout: 12000 });
   });
 };

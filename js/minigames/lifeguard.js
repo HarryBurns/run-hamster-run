@@ -289,12 +289,14 @@ export default {
     function drawSea() {
       // небо и горизонт
       const g = ctx.createLinearGradient(0, 0, 0, SHORE);
+      ctx.fillStyle = '#d0ebff';
+      ctx.fillRect(-2000, -2000, W + 4000, 2000);
       g.addColorStop(0, '#d0ebff');
       g.addColorStop(0.12, '#a5d8ff');
       g.addColorStop(0.13, '#4dabf7');
       g.addColorStop(1, '#74c0fc');
       ctx.fillStyle = g;
-      ctx.fillRect(-200, -200, W + 400, SHORE + 200);
+      ctx.fillRect(-2000, -2000, W + 4000, SHORE + 2000);
       // солнышко и облачко
       ell(ctx, 360, 14, 14, 14, '#ffe066', null);
       ell(ctx, 90, 16, 22, 7, '#fff', null);
@@ -325,8 +327,8 @@ export default {
       ctx.beginPath();
       ctx.moveTo(-200, SHORE);
       for (let x = -200; x <= W + 200; x += 20) ctx.lineTo(x, SHORE + Math.sin(x * 0.05 + t * 1.2) * 2.5);
-      ctx.lineTo(W + 200, H + 200);
-      ctx.lineTo(-200, H + 200);
+      ctx.lineTo(W + 200, H + 2000);
+      ctx.lineTo(-200, H + 2000);
       ctx.fill();
       ctx.strokeStyle = 'rgba(255,255,255,.9)';
       ctx.lineWidth = 3;
