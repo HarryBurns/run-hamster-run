@@ -244,8 +244,7 @@ const { pathToFileURL } = require('url');
   if (D.FURNITURE.some((f) => f.shop === 'caves' && f.price)) bad('украшения из пещер не продаются — у них не должно быть цены');
   // пустыня (П.9): плоды кактуса — сезонный сбор (1–2 в день); окаменелости — только из «Раскопок» за первые
   // DESERT.dig.paid игр в день (по одной), продаются на рынке, купить их негде; лучшая раскопка (монеты + самая
-  // дорогая окаменелость) и загадка пирамиды на 3★ — меньше смены на 2★; весь сбор (город, лес, пустыня, огород)
-  // — меньше трёх смен
+  // дорогая окаменелость) и загадка пирамиды на 3★ — меньше смены на 2★; весь сбор вместе — правило «день сбора» ниже
   const { DESERT, DESERT_GATHER, FOSSIL_IDS } = D,
     fossilMax = Math.max(...Object.values(DESERT.fossils)),
     digBestD = DESERT.dig.coins[2] + fossilMax,
@@ -258,9 +257,6 @@ const { pathToFileURL } = require('url');
     else if (!ING[id].seasons || !D.isSeasonal(ING[id])) bad(`пустыня: ${id} собирается, но не сезонный`);
     if (!(q.n > 0 && q.n * q.max <= 2)) bad(`пустыня: ${id} — собирать 1–2 в день`);
   }
-  for (let month = 0; month < 12; month++)
-    if (gatherSum(month) + forestSum(month) + desertIn(month) + 8 * bedBestIn(month) >= 3 * avg2)
-      bad(`город, лес, пустыня и огород: ${MONTHS[month]} — сбор не меньше трёх смен на 2★ (${fmt(gatherSum(month) + forestSum(month) + desertIn(month) + 8 * bedBestIn(month))} из ${fmt(3 * avg2)})`);
   if (!(DESERT.dig.coins.length === 3 && DESERT.dig.paid >= 1)) bad('DESERT.dig: нужны coins на 1–3★ и paid');
   if (digBestD >= avg2) bad(`«Раскопки» на 3★ дают до ${digBestD} (монеты и окаменелость) — это не меньше смены на 2★ (${fmt(avg2)})`);
   if (DESERT.pairs.coins[2] >= avg2) bad(`загадка пирамиды на 3★ даёт ${DESERT.pairs.coins[2]} — это не меньше смены на 2★`);
@@ -272,7 +268,7 @@ const { pathToFileURL } = require('url');
   if (D.FURNITURE.some((f) => f.shop === 'desert' && f.price)) bad('украшения из пустыни не продаются — у них не должно быть цены');
   // джунгли (П.9): бананы, ананасы, манго и кокос — сезонный сбор (1–2 в день с каждого вида); перья попугаев —
   // по одному от каждого попугая в день (FEATHER_IDS), продаются на рынке, купить их негде; «Лианы» на 3★ и «Узор
-  // храма» — меньше смены на 2★; весь сбор (город, лес, пустыня, джунгли, огород) — меньше трёх смен
+  // храма» — меньше смены на 2★; весь сбор вместе — правило «день сбора» ниже
   const { JUNGLE, JUNGLE_GATHER, FEATHER_IDS } = D,
     jungleIn = (month) =>
       Object.entries(JUNGLE_GATHER)
@@ -283,13 +279,6 @@ const { pathToFileURL } = require('url');
     if (!ING[id]) bad(`джунгли: неизвестный продукт ${id}`);
     else if (!ING[id].seasons || !D.isSeasonal(ING[id])) bad(`джунгли: ${id} собирается, но не сезонный`);
     if (!(q.n > 0 && q.n * q.max <= 4)) bad(`джунгли: ${id} — собирать 1–2 с растения, не больше четырёх в день`);
-  }
-  // весь сбор вместе с джунглями — меньше трёх с половиной смен (без джунглей правило прежнее — три смены, выше): за один
-  // день все пять мест не обойти — джунгли только на кораблике за буйками, пустыня — на караване; и в кошелёк торговца
-  for (let month = 0; month < 12; month++) {
-    const all = gatherSum(month) + forestSum(month) + desertIn(month) + jungleIn(month) + 8 * bedBestIn(month);
-    if (all >= 3.5 * avg2 || all > MARKET.purse)
-      bad(`город, лес, пустыня, джунгли и огород: ${MONTHS[month]} — сбор не меньше трёх с половиной смен на 2★ (${fmt(all)} из ${fmt(3.5 * avg2)})`);
   }
   if (Math.max(...ALL_MONTHS.map(jungleIn)) >= avg2 / 4) bad('джунгли: сбор за день — не меньше четверти смены на 2★');
   if (!(JUNGLE.vines.coins.length === 3 && JUNGLE.vines.paid >= 1)) bad('JUNGLE.vines: нужны coins на 1–3★ и paid');
@@ -305,8 +294,7 @@ const { pathToFileURL } = require('url');
   if (D.CLOTHES_BY_ID.panama_explorer.price || D.CLOTHES_BY_ID.panama_explorer.shop !== 'gift') bad('панама исследовательницы — только в подарок');
   // секретный пляж (П.9): фруктов нет — сбор пляжа только ракушки (находки: летом COVE.shells.summer в день, иначе
   // COVE.shells.other; купить негде, рынок берёт по COVE.shells.sell); «Замок из песка» на 3★ — меньше смены на 2★;
-  // клад — один раз за игру. Правило про весь сбор не ослабляем: ракушки пляжа вместе со сбором города, леса, пустыни,
-  // джунглей и огорода — по-прежнему меньше трёх с половиной смен и кошелька торговца (не выйдет — ограничить ракушки)
+  // клад — один раз за игру. Ракушки вместе со всем остальным сбором — правило «день сбора» ниже
   const { COVE, SHELL_IDS } = D,
     shellMax = Math.max(...Object.values(COVE.shells.sell)),
     shellsDay = Math.max(COVE.shells.summer, COVE.shells.other) * shellMax;
@@ -316,12 +304,6 @@ const { pathToFileURL } = require('url');
   for (const id of SHELL_IDS) for (const t of Object.keys(PRICES)) if (PRICES[t][id] !== undefined) bad(`ракушка ${id} можно купить (${t}) — перепродажа`);
   if (!(COVE.shells.summer <= 2 && COVE.shells.other >= 1 && COVE.shells.other <= COVE.shells.summer)) bad('COVE.shells: ракушек — 1–2 в день');
   if (shellsDay >= avg2 / 4) bad(`ракушки за день (${shellsDay}) — не меньше четверти смены на 2★`);
-  for (let month = 0; month < 12; month++) {
-    const shellsM = (D.SEASON_OF_MONTH[month] === 'summer' ? COVE.shells.summer : COVE.shells.other) * shellMax,
-      all = gatherSum(month) + forestSum(month) + desertIn(month) + jungleIn(month) + 8 * bedBestIn(month) + shellsM;
-    if (all >= 3.5 * avg2 || all > MARKET.purse)
-      bad(`весь сбор с ракушками пляжа: ${MONTHS[month]} — ${fmt(all)} в день, не меньше трёх с половиной смен на 2★ или кошелька торговца`);
-  }
   if (!(COVE.castle.coins.length === 3 && COVE.castle.paid >= 1)) bad('COVE.castle: нужны coins на 1–3★ и paid');
   if (COVE.castle.coins[2] >= avg2) bad(`«Замок из песка» на 3★ даёт ${COVE.castle.coins[2]} — это не меньше смены на 2★ (${fmt(avg2)})`);
   if (COVE.frame !== SHELL_IDS.length) bad('COVE.frame: рамка — по одной ракушке каждого вида');
@@ -330,9 +312,8 @@ const { pathToFileURL } = require('url');
   if (D.CLOTHES_BY_ID.clip_shell.price || D.CLOTHES_BY_ID.clip_shell.shop !== 'gift') bad('заколка-ракушка — только в подарок');
   // удалённый остров (П.9): фруктов нет — сбор острова только находки (вулканическое стекло — одно в день, цветок для
   // леи — один в день); купить их негде, рынок берёт по ISLAND.obsidian и ISLAND.flowers; «Кокосовый боулинг» на 3★ —
-  // меньше смены на 2★. Правило про весь сбор не ослабляем: находки острова вместе со сбором города, леса, пустыни,
-  // джунглей, огорода и ракушками пляжа — меньше трёх с половиной смен и кошелька торговца (не выйдет — ограничить
-  // находки острова). Компас — инструмент только в подарок (без цены, рынок не берёт)
+  // меньше смены на 2★. Находки острова вместе со всем остальным сбором — правило «день сбора» ниже.
+  // Компас — инструмент только в подарок (без цены, рынок не берёт)
   const { ISLAND, LEI_IDS } = D,
     islandDay = ISLAND.obsidian + Math.max(...Object.values(ISLAND.flowers));
   for (const id of LEI_IDS) if (!(ISLAND.flowers[id] > 0)) bad(`цветок без цены на рынке: ${id}`);
@@ -343,11 +324,88 @@ const { pathToFileURL } = require('url');
   if (!D.FIND_BY_ID.compass || D.FIND_BY_ID.compass.kind !== 'tool') bad('компас — инструмент (находка вида tool)');
   if (MARKET.sell.compass !== undefined || ISLAND.flowers.compass !== undefined) bad('компас покупает рынок');
   if (islandDay >= avg2 / 4) bad(`находки острова за день (${islandDay}) — не меньше четверти смены на 2★`);
+  // ---------- «День сбора» (этап 12; Дж3, О3) ----------
+  // Раньше складывали сбор ВСЕХ мест сразу и сравнивали с «тремя с половиной сменами» — будто хомячок за день
+  // успевает везде и дорога ничего не стоит. Теперь считаем то, что правда можно обойти: у каждого места есть дорога
+  // туда и обратно, обход и по GATHER_DAY.pick минут на каждое растение или находку (таблица GATHER_DAY
+  // в data/economy.js, игровые минуты). «День сбора» — самый выгодный набор мест, который умещается в день
+  // (с подъёма в 7:30 до «пора спать» в 22:00). Сравниваем с работой ЗА ТО ЖЕ ВРЕМЯ: смена на 2★ — это
+  // GATHER_DAY.shift минут (40 списывает сама смена и около 20 — дорога до работы).
+  //   (1) поход в одно любое место даёт в минуту меньше трёх четвертей того, что даёт работа;
+  //   (2) весь «день сбора» даёт в минуту меньше половины того, что даёт работа, — сбор приятный, но не выгодный;
+  //   (3) «день сбора» вместе с огородом (8 грядок под лучшей культурой — урожай снимают у дома) — меньше пяти смен
+  //       на 2★ (день увлечённой игры на работе) и помещается в кошелёк торговца. (Придержанное до «не сезона»
+  //       проверено выше для города, леса и огорода; продать за день больше кошелька всё равно нельзя.)
+  // Новое место со сбором добавляется так: строка в GATHER_DAY.places и свой сбор в placeIn ниже — дальние места
+  // «платят» дорогой, поэтому запас не съедается так, как раньше.
+  const GD = D.GATHER_DAY;
+  const picksOf = (G, month) =>
+    Object.entries(G)
+      .filter(([id]) => D.pickIn(id, month))
+      .reduce((a, [, q]) => a + q.max, 0);
+  const shellsN = (month) => (D.SEASON_OF_MONTH[month] === 'summer' ? COVE.shells.summer : COVE.shells.other);
+  // что даёт место за день в этом месяце: sum — если всё продать, picks — сколько раз нагнуться
+  const placeIn = {
+    town: (m) => ({ sum: gatherSum(m), picks: picksOf(GATHER, m) }),
+    forest: (m) => {
+      const honey = D.wildIn('bees', m) ? FOREST.honey : 0; // мёд из улья — тоже сбор
+      return { sum: forestSum(m) + honey * ING.honey.sell, picks: picksOf(FOREST_GATHER, m) + honey };
+    },
+    desert: (m) => ({ sum: desertIn(m), picks: picksOf(DESERT_GATHER, m) }),
+    // джунгли: фрукты и перья попугаев (по одному от каждого попугая в день)
+    jungle: (m) => ({ sum: jungleIn(m) + feathersDay, picks: picksOf(JUNGLE_GATHER, m) + FEATHER_IDS.length }),
+    cove: (m) => ({ sum: shellsN(m) * shellMax, picks: shellsN(m) }),
+    island: () => ({ sum: islandDay, picks: 2 }),
+  };
+  for (const id of Object.keys(placeIn)) if (!GD.places[id]) bad(`день сбора: у места ${id} нет дороги в GATHER_DAY.places`);
+  for (const [id, pl] of Object.entries(GD.places)) {
+    if (pl.via && !GD.places[pl.via]) bad(`день сбора: ${id} — неизвестная пересадка ${pl.via}`);
+    if (!(pl.go >= 0 && pl.walk >= 0)) bad(`день сбора: ${id} — нужны go и walk (игровые минуты)`);
+    if (!placeIn[id] && pl.walk) bad(`день сбора: у места ${id} есть обход, но не описан сбор (placeIn)`);
+  }
+  const gatherPlaces = Object.keys(placeIn).filter((id) => GD.places[id]);
+  /** Сколько игровых минут уйдёт на поход по этим местам: дороги (каждая — туда и обратно, один раз), обходы, сбор. */
+  const tripTime = (ids, month) => {
+    const roads = new Set();
+    let t = 0;
+    for (const id of ids) {
+      for (let at = id; at; at = GD.places[at].via) roads.add(at);
+      t += GD.places[id].walk + GD.pick * placeIn[id](month).picks;
+    }
+    for (const at of roads) t += 2 * GD.places[at].go;
+    return t;
+  };
+  /** Лучший день сбора в этом месяце: набор мест с самой большой выручкой, который умещается в день. */
+  const gatherDay = (month) => {
+    let best = { ids: [], sum: 0, time: 1 };
+    for (let mask = 1; mask < 1 << gatherPlaces.length; mask++) {
+      const ids = gatherPlaces.filter((id, i) => (mask >> i) & 1 && placeIn[id](month).sum > 0);
+      const time = tripTime(ids, month);
+      if (!ids.length || time > GD.day) continue;
+      const sum = ids.reduce((a, id) => a + placeIn[id](month).sum, 0);
+      if (sum > best.sum || (sum === best.sum && time < best.time))
+        best = { ids, sum, time };
+    }
+    return best;
+  };
+  const workPerMin = avg2 / GD.shift;
+  if (!(GD.day > 0 && GD.day <= 16.5 * 60)) bad('GATHER_DAY.day: день — не длиннее, чем с 7:30 до полуночи');
+  if (!(GD.shift >= 40)) bad('GATHER_DAY.shift: смена занимает не меньше 40 игровых минут (столько списывает сама смена)');
   for (let month = 0; month < 12; month++) {
-    const shellsM = (D.SEASON_OF_MONTH[month] === 'summer' ? COVE.shells.summer : COVE.shells.other) * shellMax,
-      all = gatherSum(month) + forestSum(month) + desertIn(month) + jungleIn(month) + 8 * bedBestIn(month) + shellsM + islandDay;
-    if (all >= 3.5 * avg2 || all > MARKET.purse)
-      bad(`весь сбор с находками острова: ${MONTHS[month]} — ${fmt(all)} в день, не меньше трёх с половиной смен на 2★ или кошелька торговца`);
+    for (const id of gatherPlaces) {
+      const q = placeIn[id](month);
+      if (!q.sum) continue;
+      const rate = q.sum / tripTime([id], month);
+      if (rate >= 0.75 * workPerMin)
+        bad(`день сбора: ${MONTHS[month]}, ${GD.places[id].name} — ${rate.toFixed(1)} монеты в минуту, это не меньше трёх четвертей работы (${workPerMin.toFixed(1)})`);
+    }
+    const day = gatherDay(month);
+    if (day.sum / day.time >= 0.5 * workPerMin)
+      bad(`день сбора: ${MONTHS[month]} — ${(day.sum / day.time).toFixed(1)} монеты в минуту, это не меньше половины работы (${workPerMin.toFixed(1)})`);
+    const withBeds = day.sum + 8 * bedBestIn(month);
+    if (withBeds >= 5 * avg2)
+      bad(`день сбора с огородом: ${MONTHS[month]} — ${fmt(withBeds)} монет, это не меньше пяти смен на 2★ (${fmt(5 * avg2)})`);
+    if (withBeds > MARKET.purse) bad(`день сбора с огородом: ${MONTHS[month]} — ${fmt(withBeds)} монет: больше кошелька торговца`);
   }
   if (!(ISLAND.bowling.coins.length === 3 && ISLAND.bowling.paid >= 1)) bad('ISLAND.bowling: нужны coins на 1–3★ и paid');
   if (ISLAND.bowling.coins[2] >= avg2) bad(`«Кокосовый боулинг» на 3★ даёт ${ISLAND.bowling.coins[2]} — это не меньше смены на 2★ (${fmt(avg2)})`);
@@ -770,14 +828,34 @@ const { pathToFileURL } = require('url');
   line('«Кокосовый боулинг» (1★ / 2★ / 3★, первые ' + D.ISLAND.bowling.paid + ' в день)', `${D.ISLAND.bowling.coins.join(' / ')} монет`);
   line('лея из цветов / маленький тотем', `${D.ISLAND.lei} разных цветка → вещь (один раз) / ${D.ISLAND.totem} кусочка стекла → украшение`);
   line('праздник огней (каждый вечер)', `с ${D.ISLAND.fest.from}:00 до ${D.ISLAND.fest.to}:00 — танец и наклейка, без монет`);
-  line('весь сбор с ракушками пляжа и находками острова — самый щедрый месяц', (() => {
-    let best = 0;
+  console.log('\n«День сбора» (этап 12): что реально обойти за день — с дорогой, обходом и временем на сбор');
+  line('день / смена / на одно растение', `${GD.day} / ${GD.shift} / ${GD.pick} игровых минут; работа — ${workPerMin.toFixed(1)} монеты в минуту (смена на 2★ — ${fmt(avg2)})`);
+  console.log('  места (дорога в один конец + обход, минут): ' + Object.values(GD.places).map((pl) => `${pl.name} ${pl.go}+${pl.walk}`).join(', '));
+  for (const s of Object.keys(SEASONS)) {
+    const month = SEASON_OF_MONTH.lastIndexOf(s),
+      day = gatherDay(month);
+    console.log(`  ${SEASONS[s].name.toLowerCase()} (${MONTHS[month]}): ${day.ids.map((id) => `${GD.places[id].name} ${fmt(placeIn[id](month).sum)}`).join(', ')}`);
+    line('', `${fmt(day.sum)} монет за ${fmt(day.time)} мин — ${Math.round((100 * day.sum) / day.time / workPerMin)} % работы; с огородом ${fmt(day.sum + 8 * bedBestIn(month))}`);
+  }
+  {
+    let top = 0,
+      topM = 0,
+      old = 0,
+      rate = 0,
+      rateWho = '';
     for (let mo = 0; mo < 12; mo++) {
-      const sh = (D.SEASON_OF_MONTH[mo] === 'summer' ? D.COVE.shells.summer : D.COVE.shells.other) * Math.max(...Object.values(D.COVE.shells.sell));
-      best = Math.max(best, gatherSum(mo) + forestSum(mo) + desertIn(mo) + jungleIn(mo) + 8 * bedBestIn(mo) + sh + D.ISLAND.obsidian + Math.max(...Object.values(D.ISLAND.flowers)));
+      const v = gatherDay(mo).sum + 8 * bedBestIn(mo);
+      if (v > top) (top = v), (topM = mo);
+      old = Math.max(old, gatherPlaces.reduce((a, id) => a + placeIn[id](mo).sum, 0) + 8 * bedBestIn(mo));
+      for (const id of gatherPlaces) {
+        const q = placeIn[id](mo);
+        if (q.sum && q.sum / tripTime([id], mo) > rate) (rate = q.sum / tripTime([id], mo)), (rateWho = `${GD.places[id].name}, ${MONTHS[mo]}`);
+      }
     }
-    return `${fmt(best)} в день (три с половиной смены на 2★ — ${fmt(3.5 * avg2)}, кошелёк торговца — ${fmt(MARKET.purse)})`;
-  })());
+    line('самый щедрый день сбора с огородом', `${fmt(top)} монет (${MONTHS[topM]}) — предел: пять смен на 2★ — ${fmt(5 * avg2)}, кошелёк торговца — ${fmt(MARKET.purse)}`);
+    line('самый выгодный поход в одно место', `${rateWho}: ${rate.toFixed(1)} монеты в минуту — ${Math.round((100 * rate) / workPerMin)} % работы (предел — 75 %)`);
+    line('для сравнения: все места сразу, без дороги (старое правило)', `${fmt(old)} монет — с перьями и мёдом, которых старое правило не считало`);
+  }
   console.log('\nКурортный отель «Морская звезда» (П.17, открыт сразу)');
   line('носильщица (1★ / 2★ / 3★, две смены в день)', `${D.JOBS.porter.pay.join(' / ')} монет`);
   line('«Горка» (1★ / 2★ / 3★, первые ' + D.HOTEL.slide.paid + ' в день)', `${D.HOTEL.slide.coins.join(' / ')} монет`);
