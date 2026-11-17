@@ -39,16 +39,28 @@ const island = require('./smoke_island.js'); // П.9: удалённый ост�
 const hotel = require('./smoke_hotel.js'); // П.17: курортный отель — номер на ночь, шведский стол, спа, аниматор, «Горка», носильщица, люкс
 const holidays = require('./smoke_holidays.js'); // П.13: праздники — Новый год, Рождество, Китайский Новый год, Масленица
 
-const BASE = process.argv[2] || 'http://localhost:8765';
-const ONLY_ESTATE = process.argv[3] === 'estate';
-const ONLY_EXTRA = process.argv[3] === 'extra' || ONLY_ESTATE;
-const ONLY_STEP = (process.argv[3] || '').startsWith('step:') ? process.argv[3].slice(5) : '';
-const SIZES = ONLY_EXTRA
+// Размер (этап 8): переменная SMOKE_SIZE=desktop|phone или аргумент size:desktop / size:phone — только этот размер
+// (полный прогон частями: SMOKE_SIZE=desktop node dev/smoke.js <url>, затем SMOKE_SIZE=phone node dev/smoke.js <url>).
+// SMOKE_SIZE=parallel (или size:parallel) — оба размера сразу, двумя процессами в двух браузерах; строки помечены
+// [desktop]/[phone], итог общий. Без размера — как раньше: сначала компьютер, потом телефон в одном браузере.
+const ARGS = process.argv.slice(2).filter((a) => !a.startsWith('size:'));
+const SIZE_ARG = process.argv.slice(2).find((a) => a.startsWith('size:'));
+const ONLY_SIZE = (SIZE_ARG ? SIZE_ARG.slice(5) : process.env.SMOKE_SIZE || '').trim();
+const BASE = ARGS[0] || 'http://localhost:8765';
+const ONLY_ESTATE = ARGS[1] === 'estate';
+const ONLY_EXTRA = ARGS[1] === 'extra' || ONLY_ESTATE;
+const ONLY_STEP = (ARGS[1] || '').startsWith('step:') ? ARGS[1].slice(5) : '';
+const ALL_SIZES = ONLY_EXTRA
   ? [[1280, 720, 'desktop']]
   : [
       [1280, 720, 'desktop'],
       [390, 844, 'phone'],
     ];
+if (ONLY_SIZE && !['desktop', 'phone', 'parallel'].includes(ONLY_SIZE)) {
+  console.log('SMOKE_SIZE: ожидалось desktop, phone или parallel, а не «' + ONLY_SIZE + '»');
+  process.exit(2);
+}
+const SIZES = ONLY_SIZE && ONLY_SIZE !== 'parallel' ? ALL_SIZES.filter((s) => s[2] === ONLY_SIZE) : ALL_SIZES;
 
 // Хомячок в городе стоит на свободной клетке, от неё можно дойти до двери виллы, кораблик — на воде
 // (после перепланировки города позиции из старых сохранений попадают «куда придётся» — движок их чинит).
@@ -1497,7 +1509,49 @@ async function economy({ page, step, ev, wait, closeAll }) {
   });
 }
 
+// Оба размера сразу: два дочерних процесса (у каждого свой браузер), вывод — построчно, итог — общий.
+const runParallel = () => {
+  const { spawn } = require('child_process');
+  const t0 = Date.now();
+  const kids = SIZES.map(
+    ([, , tag]) =>
+      new Promise((resolve) => {
+        const ch = spawn(process.execPath, [__filename, ...ARGS], { env: { ...process.env, SMOKE_SIZE: tag } });
+        let out = '',
+          buf = '';
+        const onData = (d) => {
+          buf += d;
+          const lines = buf.split('\n');
+          buf = lines.pop();
+          for (const l of lines) {
+            out += l + '\n';
+            if (l.startsWith('ok  ') || l.startsWith('FAIL') || l.startsWith('     ')) console.log(l);
+          }
+        };
+        ch.stdout.on('data', onData);
+        ch.stderr.on('data', onData);
+        ch.on('close', (code) => resolve({ tag, code, out: out + buf }));
+      }),
+  );
+  Promise.all(kids).then((res) => {
+    const bad = res.filter((r) => r.code !== 0);
+    const min = Math.round((Date.now() - t0) / 6000) / 10;
+    for (const r of bad) {
+      const i = r.out.indexOf('ОШИБКИ:');
+      console.log('\n[' + r.tag + '] код ' + r.code + (i >= 0 ? '\n' + r.out.slice(i) : '\n' + r.out.slice(-2000)));
+    }
+    if (bad.length) process.exit(1);
+    console.log('\nВСЁ ХОРОШО (оба размера, ' + min + ' мин)');
+  });
+};
+
 (async () => {
+  if (ONLY_SIZE === 'parallel') return runParallel();
+  if (!SIZES.length) {
+    console.log('для «' + (ARGS[1] || '') + '» нет размера ' + ONLY_SIZE + ' — шаги только на компьютере');
+    return;
+  }
+  const t0 = Date.now();
   const browser = await chromium.launch();
   const errors = [];
   for (const [w, h, tag] of SIZES) {
@@ -2492,5 +2546,6 @@ async function economy({ page, step, ev, wait, closeAll }) {
     console.log('\nОШИБКИ:\n' + errors.join('\n'));
     process.exit(1);
   }
-  console.log('\nВСЁ ХОРОШО');
+  const min = Math.round((Date.now() - t0) / 6000) / 10;
+  console.log('\nВСЁ ХОРОШО' + (ONLY_SIZE ? ' (' + ONLY_SIZE + ', ' + min + ' мин)' : ' (' + min + ' мин)'));
 })();
