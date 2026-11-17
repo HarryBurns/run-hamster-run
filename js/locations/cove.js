@@ -21,7 +21,7 @@ import { sfx } from '../core/audio.js';
 import { clamp, seeded, dist, rnd } from '../core/util.js';
 import { COVE, SHELL_IDS, FIND_BY_ID, SEASON_OF_MONTH, pickOn, monthOfDay, npcLook } from '../data/index.js';
 import { drawHamster, blinkAt } from '../art/hamster.js';
-import { T, PS, TILES, SP, put, hash, tileOf, createTopDownScene } from '../engine/topdown/index.js';
+import { T, PS, TILES, SP, put, hash, tileOf, defineArt, createTopDownScene } from '../engine/topdown/index.js';
 import { drawXMark, drawDugHole, drawDolphinJump, DOLPHIN_JUMP } from './cove_art.js';
 import './common/index.js';
 import './jungle_art.js'; // цветы-геликонии у подножия скал — общие с джунглями
@@ -393,6 +393,10 @@ function pearlAt(t) {
     dive: k > 0.42 && k < 0.58 ? (k - 0.42) / 0.16 : -1, // 0 → 1: нырнула
   };
 }
+defineArt({
+  // Жемчужинка в воде по пояс: кадр — куда смотрит (dir) и моргает ли (b)
+  pearlSwim: [[-56, -112, 56, 8], (ctx, dir, b) => drawHamster(ctx, 0, 0, PS, npcLook('pearl'), { dir, clipBelow: -34, happy: true, blink: b ? 1 : 0, shadow: false })],
+});
 function drawPearlSwim(ctx, q, t) {
   if (q.dive >= 0) {
     // нырнула: над водой мелькает хвост, кругом брызги
@@ -435,7 +439,8 @@ function drawPearlSwim(ctx, q, t) {
   ctx.beginPath();
   ctx.ellipse(q.x, q.y - 18, 26, 8, 0, 0, 6.2832);
   ctx.fill();
-  drawHamster(ctx, q.x, q.y + 6, PS, npcLook('pearl'), { time: t, dir: q.dir, clipBelow: -34, happy: true, blink: blinkAt(t, 3), shadow: false });
+  put('pearlSwim', q.x, q.y + 6, q.dir, blinkAt(t, 3) > 0.4 ? 1 : 0); // готовый кадр из кэша: по пояс в воде
+  SP.world();
   ctx.strokeStyle = 'rgba(255,255,255,.9)';
   ctx.lineWidth = 2.5;
   ctx.beginPath();

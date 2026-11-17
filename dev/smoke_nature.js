@@ -463,5 +463,7 @@ module.exports = async function nature({ page, step, ev, wait, closeAll }) {
     await ev(() => window.__dev.actions.mutate((s) => (s.minutes = 23 * 60)));
     await wait(500);
     await unwatch();
+    const clipped = await ev(() => window.__dev.locations.cove.debugSprites().clipped);
+    expect(!clipped.length, 'спрайты не поместились в рамку', clipped);
   });
 };
