@@ -179,6 +179,9 @@ export function createSideScene(desc) {
     leave() {
       setDecor(sc, false);
       sub.off();
+      // кэш неподвижного — только у текущего дома: домов много (с этапа 13 — ещё дома тайных мест и номера отеля),
+      // и если каждый держит свои канвы, память браузера кончается (на планшете и в автотесте вкладка падала)
+      cache.clear();
     },
     savePos() {
       const here = { scene: sc.name, floor: sc.p.f, x: sc.p.x };
