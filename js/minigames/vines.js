@@ -297,11 +297,11 @@ export default {
         if (a.x < camX - L - 20 || a.x > camX + W + L + 20) continue;
         vine(ctx, a.x, a.y, L, ang(i));
       }
-      // хомячок: висит на лапках (руки вверх), в полёте — кувырок
+      // хомячок: висит на лапках, ладошки сжимают кончик лианы (поза grip, Дж8), в полёте — кувырок
       ctx.save();
       ctx.translate(hp.x, hp.y);
       ctx.rotate(fly ? Math.sin(fly.t * Math.PI) * 0.5 : hp.a * 0.8);
-      host.drawHamster(ctx, 0, 62, 0.72, host.look, { time: t, dir: 1, armsUp: true, happy: !!fly || at >= JUMPS, blink: t % 3.1 < 0.12, shadow: false });
+      host.drawHamster(ctx, 0, 70, 0.72, host.look, { time: t, dir: 1, grip: true, happy: !!fly || at >= JUMPS, blink: t % 3.1 < 0.12, shadow: false });
       ctx.restore();
       // надписи
       ctx.textAlign = 'center';

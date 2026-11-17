@@ -369,4 +369,36 @@ module.exports = async function nature({ page, step, ev, wait, closeAll }) {
     await wait(300);
     expect(await ev(() => window.__dev.locations.desert.darkness() > 0.5), 'ночью не темно');
   });
+
+  await step('природа: джунгли — хомячок висит на лапках (поза grip), картинка переезда туда и обратно разная', async () => {
+    const r = await ev(async () => {
+      const { drawHamster } = await import('/js/art/hamster.js'),
+        { playerLook } = await import('/js/core/state.js'),
+        j = await import('/js/features/jungle.js'),
+        look = playerLook();
+      const pic = (fn) => {
+        const c = document.createElement('canvas');
+        c.width = 280;
+        c.height = 160;
+        fn(c.getContext('2d'));
+        return c.getContext('2d').getImageData(0, 0, 280, 160).data;
+      };
+      // поза «висит на лапках»: ладошки над макушкой — сверху нарисовано больше, чем у обычной позы
+      const top = (d) => {
+        let n = 0;
+        for (let i = 3; i < 280 * 66 * 4; i += 4) if (d[i] > 0) n++;
+        return n;
+      };
+      const grip = pic((c) => drawHamster(c, 140, 150, 1, look, { grip: true })),
+        plain = pic((c) => drawHamster(c, 140, 150, 1, look, {}));
+      // переезд: туда и обратно — разные картинки (слева — город или остров)
+      const there = pic((c) => j.paintVoyage(c, 280, 160, 0.5, true, look, 2)),
+        back = pic((c) => j.paintVoyage(c, 280, 160, 0.5, false, look, 2));
+      let diff = 0;
+      for (let i = 0; i < there.length; i += 16) if (Math.abs(there[i] - back[i]) > 30) diff++;
+      return { gripTop: top(grip), plainTop: top(plain), diff: diff / (there.length / 16) };
+    });
+    expect(r.gripTop > r.plainTop + 100, 'лапки не поднялись над головой', r);
+    expect(r.diff > 0.3, 'картинка «домой» — та же, что «туда»', r);
+  });
 };

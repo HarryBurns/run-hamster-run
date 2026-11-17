@@ -1638,10 +1638,8 @@ export function drawHamster(ctx, x, y, s, look, pose = {}) {
   for (const sx of [-1, 1]) {
     ctx.save();
     if (pose.grip) {
-      // висит на лапках: обе лапки прямо вверх, ладошки сходятся над головой — там, где лиана
-      ctx.translate(sx * 17, -46);
-      ctx.rotate(sx * 2.92);
-      ctx.scale(1, 1.25);
+      ctx.restore(); // висит на лапках: лапки рисуются поверх головы — в самом конце (gripArms)
+      continue;
     } else if (pose.armsUp) {
       ctx.translate(sx * 25, -42);
       ctx.rotate(sx * 2.4);
@@ -1894,8 +1892,41 @@ export function drawHamster(ctx, x, y, s, look, pose = {}) {
     ctx.fillText('апчхи!', gx * 30, -88 - p * 8);
     ctx.globalAlpha = 1;
   }
+  if (pose.grip) gripArms(ctx, fur, o.body);
 
   ctx.restore();
+}
+/**
+ * Висит на лапках (Дж8): обе лапки тянутся от плеч вверх вдоль щёк, ладошки сжимают лиану над макушкой (точка
+ * (0, −96) в единицах хомячка — к ней и крепят лиану). Рисуется поверх головы, рукава — цветом одежды.
+ */
+function gripArms(ctx, fur, body) {
+  const sl = sleevesOf(body),
+    col = sl ? (body.kind === 'overall' ? body.c2 || '#fff' : body.c) : null;
+  for (const sx of [-1, 1]) {
+    const pts = [sx * 24, -32, sx * 25, -62, sx * 7, -92];
+    ctx.lineCap = 'round';
+    for (const [w, c] of [
+      [12.5, OUT],
+      [9.5, fur],
+    ]) {
+      ctx.strokeStyle = c;
+      ctx.lineWidth = w;
+      ctx.beginPath();
+      ctx.moveTo(pts[0], pts[1]);
+      ctx.quadraticCurveTo(pts[2], pts[3], pts[4], pts[5]);
+      ctx.stroke();
+    }
+    if (col) {
+      ctx.strokeStyle = col;
+      ctx.lineWidth = 9.5;
+      ctx.beginPath();
+      ctx.moveTo(pts[0], pts[1]);
+      ctx.lineTo(sx * 24.6, sl === 'long' ? -56 : -42);
+      ctx.stroke();
+    }
+    ell(ctx, sx * 6, -94, 6, 5.5, fur, OUT, 1.6); // ладошка
+  }
 }
 
 /** Портрет (голова крупно) в квадрате size×size с центром в (cx, cy). */
