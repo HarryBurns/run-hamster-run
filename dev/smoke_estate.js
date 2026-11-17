@@ -1466,10 +1466,12 @@ module.exports = async function estate({ page, step, ev, wait, closeAll }) {
       expect(JSON.stringify(s[k]) === JSON.stringify(old[k]), `после переноса изменилось «${k}»`);
     // вещи: всё, что было, и шлёпанцы в подарок (У2)
     expect(JSON.stringify(s.clothes) === JSON.stringify([...old.clothes, 'flip_pink']), 'после переноса изменилось «clothes»');
-    // рецепты: всё, что было, на месте; в конец дописаны только новые рецепты «с начала игры» (repair)
+    // рецепты: всё, что было, на месте; в конец дописаны только новые рецепты «с начала игры» (repair; список —
+    // START_RECIPES из data/food.js: рецепты с отметкой start, их добавляют новые этапы)
+    const startRecipes = await ev(async () => (await import('./js/data/food.js')).START_RECIPES);
     expect(
       JSON.stringify(s.recipes.slice(0, old.recipes.length)) === JSON.stringify(old.recipes) &&
-        s.recipes.slice(old.recipes.length).every((r) => ['mushroom_soup', 'blueberry_muffin', 'lettuce_wrap', 'honey_tea'].includes(r)),
+        s.recipes.slice(old.recipes.length).every((r) => startRecipes.includes(r)),
       'после переноса изменилось «recipes»',
     );
     expect(s.villa.length === old.villa.length, 'мебель виллы');

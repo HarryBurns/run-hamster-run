@@ -1467,10 +1467,12 @@ async function economy({ page, step, ev, wait, closeAll }) {
       expect(same(k), `после переноса изменилось «${k}»`, [s[k], old[k]]);
     // вещи: всё, что было, и шлёпанцы в подарок (У2)
     expect(JSON.stringify(s.clothes) === JSON.stringify([...old.clothes, 'flip_pink']), 'вещи после переноса', s.clothes);
-    // рецепты: всё, что было, на месте; в конец дописаны только новые рецепты «с начала игры» (repair)
+    // рецепты: всё, что было, на месте; в конец дописаны только новые рецепты «с начала игры» (repair; список —
+    // START_RECIPES из data/food.js: рецепты с отметкой start, их добавляют новые этапы)
+    const startRecipes = await ev(async () => (await import('./js/data/food.js')).START_RECIPES);
     expect(
       JSON.stringify(s.recipes.slice(0, old.recipes.length)) === JSON.stringify(old.recipes) &&
-        s.recipes.slice(old.recipes.length).every((r) => ['mushroom_soup', 'blueberry_muffin', 'lettuce_wrap', 'honey_tea'].includes(r)),
+        s.recipes.slice(old.recipes.length).every((r) => startRecipes.includes(r)),
       'после переноса изменилось «recipes»',
       [s.recipes, old.recipes],
     );
@@ -2381,6 +2383,8 @@ const runParallel = () => {
           };
         });
       await closeAll();
+      // подсказки прошлых шагов (например, «не хватает монет» в салоне) ещё висят — убрать, чтобы шаг считал только свои
+      await ev(() => document.querySelectorAll('#toasts .toast').forEach((t) => t.remove()));
       await ev(() => window.__dev.ui.toast('Подсказка без окна'));
       await wait(300);
       const free = await box();
