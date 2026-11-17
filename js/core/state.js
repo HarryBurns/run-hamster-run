@@ -8,6 +8,7 @@ import {
   SEASON_OF_MONTH,
   SEASONS,
   DAYS_PER_MONTH,
+  START_DAY,
   START_CLOTHES,
   START_OUTFIT,
   START_RECIPES,
@@ -143,7 +144,8 @@ export function newGame(name) {
     spent: 0, // потрачено за всё время
     earned: 0, // заработано за всё время
     ledger: newLedger(), // доход по источникам и траты за сегодня и за вчера (для Хомяк-Банка)
-    day: 0,
+    day: START_DAY, // новая игра начинается 1 июня (data/calendar.js); день считается от 1 января
+    startDay: START_DAY, // с какого дня началась игра: от него — «Год в городе», первые письма, вводные задания
     minutes: 7 * 60 + 30,
     look,
     clothes: [...START_CLOTHES],
@@ -170,7 +172,7 @@ export function newGame(name) {
       fish: 1,
     },
     dishes: { cookies: 2, cocoa: 1 },
-    seeds: { seed_lettuce: 2 }, // игра начинается в январе: зимой под парничком сажают салат
+    seeds: { seed_carrot: 2 }, // игра начинается в июне: морковка вырастает за ночь
     recipes: [...START_RECIPES],
     garden: Array.from({ length: 8 }, () => ({ seed: null, age: 0 })),
     friends: Object.fromEntries(NPCS.map((n) => [n.id, { pts: 0, chat: -1, gift: -1, met: false }])),
@@ -190,14 +192,14 @@ export function newGame(name) {
     biz: {}, // свои заведения: id → { day: когда куплено, till: в кассе, total: получено всего, last, special… }
     visits: {}, // в гостях у жителей: житель → сколько раз была
     sick: null, // простыла (Ф1): { since: день, когда заболела, cause: 'cold' | 'sea' | 'rain' | 'none' } или null
-    immuneUntil: HEALTH.grace, // с какого дня снова можно заболеть (в новой игре — не в первые дни)
+    immuneUntil: START_DAY + HEALTH.grace, // с какого дня снова можно заболеть (в новой игре — не в первые дни)
     quests: {}, // сюжетные задания (журнал): id → { day: когда взято, n: { шаг: сколько }, got: { шаг: [что] }, done: день | null }
     lands: {}, // открытые новые места (лес, гора…): id → день, когда открылось
     finds: {}, // находки (не еда): id → сколько (data/finds.js)
     parrots: {}, // чему научили попугаев в джунглях (Дж6): номер попугая → [id слов из PARROT_WORDS], до PARROT_MEMORY
     visited: {}, // где хомячок уже побывала — к таким местам карта переносит быстро (Ф4): локация → { место: 1 }
     // первый день
-    weather: 'snow',
+    weather: 'sun',
     visitor: null,
     dayFlags: {},
   };
@@ -368,6 +370,8 @@ export function repair(s) {
     }
   }
   num('day', 0);
+  // с какого дня началась игра: у игр до этапа 10 такого поля нет — они начинались 1 января (день 0)
+  if (!Number.isFinite(s.startDay) || s.startDay < 0 || s.startDay > s.day) s.startDay = 0;
   num('minutes', 7 * 60 + 30);
   num('tasksDone', 0);
   num('pearls', 0);

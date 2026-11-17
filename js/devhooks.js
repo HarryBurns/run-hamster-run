@@ -142,7 +142,8 @@ export function installDevHooks({ F }) {
     /**
      * Праздники (П.13): перескочить к празднику и посмотреть, что с ним.
      *   holiday.to('newyear')               — утро самого праздника (год 1; отметки дня чистые, погода — снег зимой,
-     *                                         солнце в другие сезоны); день рождения — со второго года: to('birthday', 'day', 2)
+     *                                         солнце в другие сезоны); «Год в городе» (id birthday) — через год после начала игры:
+     *                                         to('birthday', 'day', 2)
      *   holiday.to('xmas', 'eve', 2)        — канун ('eve'), праздник ('day'), следующий день ('after'); год 2
      *   holiday.dayOf('cny', 'day', 1)      — номер дня без перехода
      *   holiday.state()                     — где праздник сейчас (шаги, подарок года, украшения)
@@ -157,6 +158,7 @@ export function installDevHooks({ F }) {
         const day = this.dayOf(id, when, year);
         actions.mutate((s) => {
           s.day = Math.max(0, day);
+          s.startDay = Math.min(s.startDay || 0, s.day); // игра началась не позже этого дня (новая — 1 июня)
           s.minutes = minutes;
           s.dayFlags = {};
           s.weather = SEASON_OF_MONTH[Math.floor((s.day % YEAR_DAYS) / 3)] === 'winter' ? 'snow' : 'sun';

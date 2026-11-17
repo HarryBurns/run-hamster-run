@@ -186,6 +186,26 @@ C('cape_red', 'acc', 'cape', 'Плащ супергероя', '#e03131', { shop:
 C('cape_violet', 'acc', 'cape', 'Волшебная мантия', '#7048e8', { c2: '#ffd43b', pattern: 'stars', shop: 'holiday', tags: ['fancy', 'autumn'] });
 C('water_pistol', 'acc', 'waterpistol', 'Водяной пистолет', '#20c997', { c2: '#ffd43b', shop: 'holiday', tags: ['summer', 'beach', 'sport', 'cute'] });
 
+// подарки праздников на второй год и дальше (этап 10, Пр6): каждый праздник дарит новые вещи по порядку
+// (more в data/holidays.js). Только в подарок праздника: без цены, сюрпризом не дарят. Рисунки — art/hamster.js.
+C('sw_snow', 'body', 'sweater', 'Свитер со снежинкой', '#339af0', { c2: '#fff', print: 'snowflake', shop: 'holiday', tags: ['warm', 'winter', 'cute', 'home'] }); // Новый год
+C('earmuffs_snow', 'head', 'earmuffs', 'Пушистые наушники-снежки', '#fff', { c2: '#74c0fc', shop: 'holiday', tags: ['warm', 'winter', 'cute'] });
+C('wings_angel', 'acc', 'wings', 'Крылья ангела', '#fff', { shop: 'holiday', tags: ['fancy', 'cute', 'winter'] }); // Рождество
+C('starband_gold', 'head', 'starband', 'Ободок с рождественской звездой', '#ffd43b', { c2: '#fff3bf', shop: 'holiday', tags: ['fancy', 'cute', 'winter'] });
+C('fan_red', 'acc', 'fan', 'Красный веер', '#e03131', { c2: '#ffd43b', shop: 'holiday', tags: ['fancy', 'cute'] }); // Китайский Новый год
+C('hat_dragon', 'head', 'dragon', 'Шапочка дракона', '#40c057', { c2: '#ffd43b', shop: 'holiday', tags: ['cute', 'fancy'] });
+C('kokoshnik_red', 'head', 'kokoshnik', 'Кокошник', '#e03131', { c2: '#ffd43b', shop: 'holiday', tags: ['fancy', 'cute', 'winter'] }); // Масленица
+C('shawl_rose', 'acc', 'shawl', 'Расписной платок', '#c2255c', { c2: '#ffd43b', shop: 'holiday', tags: ['warm', 'fancy', 'cute', 'winter', 'autumn'] });
+C('dress_may', 'body', 'dress', 'Платье в цветочек', '#d3f9d8', { pattern: 'flowers', c2: '#ff6b9d', shop: 'holiday', tags: ['spring', 'summer', 'cute', 'fancy'] }); // 1 Мая
+C('balloon_red', 'acc', 'balloon', 'Воздушный шарик', '#ff6b6b', { c2: '#fff', shop: 'holiday', tags: ['cute', 'spring', 'summer'] });
+C('wreath_fern', 'head', 'wreath', 'Купальский венок с папоротником', '#fff', { fern: true, shop: 'holiday', tags: ['fancy', 'summer', 'cute'] }); // Иван Купала
+C('dress_linen', 'body', 'dress', 'Вышитый сарафан', '#fff9ec', { c2: '#e03131', trim: 'stitch', shop: 'holiday', tags: ['summer', 'cute', 'fancy'] });
+C('hat_pumpkin', 'head', 'pumpkin', 'Шапка-тыковка', '#fd7e14', { c2: '#2f9e44', shop: 'holiday', tags: ['cute', 'autumn', 'warm'] }); // Хеллоуин
+C('wings_bat', 'acc', 'wings', 'Крылья летучей мышки', '#5f3dc4', { bat: true, shop: 'holiday', tags: ['fancy', 'autumn'] });
+C('badge_nut', 'acc', 'nutbadge', 'Значок «Ореховая Гавань»', '#b9773f', { c2: '#69db7c', shop: 'holiday', tags: ['cute', 'fancy'] }); // «Год в городе»
+C('hat_acorn', 'head', 'acorn', 'Ореховая шапочка', '#9c6b3f', { c2: '#6f4a2a', shop: 'holiday', tags: ['cute', 'autumn', 'warm'] });
+C('scarf_harbor', 'acc', 'scarf', 'Шарф «Ореховая Гавань»', '#c98a4b', { c2: '#fff3d6', shop: 'holiday', tags: ['warm', 'autumn', 'winter', 'cute'] });
+
 // --- рынок: вещицы ручной работы (торговец привозит по нескольку штук в день)
 C('sunhat_daisy', 'head', 'sunhat', 'Шляпа с ромашками', '#fff9db', { c2: '#51cf66', shop: 'market', season: 'hot', tags: ['summer', 'spring', 'beach', 'cute', 'fancy'] });
 C('scarf_knit', 'acc', 'scarf', 'Вязаный шарф ручной работы', '#20c997', { c2: '#fff3bf', shop: 'market', season: 'cold', tags: ['warm', 'winter', 'autumn', 'cute'] });
@@ -201,4 +221,5 @@ export const FLIPFLOPS_GIFT = 'flip_pink';
 export const SUN_HAT_KINDS = ['sunhat', 'panama', 'pith', 'cowboy', 'turban'];
 /** Защищает ли вещь от солнца (шляпа, панамка, шлем исследователя, платок кочевника). */
 export const isSunHat = (c) => !!c && c.slot === 'head' && SUN_HAT_KINDS.includes(c.kind);
-export const START_OUTFIT = { head: 'beanie_red', body: 'jw_blue', legs: 'pants_jeans', feet: 'boots_brown', acc: 'scarf_yellow' };
+// новая игра начинается летом (1 июня): майка, шорты и кеды; тёплые вещи ждут в шкафу
+export const START_OUTFIT = { head: null, body: 'tee_heart', legs: 'shorts_jeans', feet: 'sn_red', acc: null };

@@ -8,7 +8,7 @@ const BACK_ACC = ['wings', 'backpack', 'cape', 'pickaxe']; // аксессуар
 const FACE_ACC = ['glasses', 'sunglasses']; // аксессуары на мордочке: поворачиваются вместе с ней
 // Аксессуары на груди: рисуются поверх одежды, но ДО головы — висят из-под подбородка (его низ: y = -29),
 // а не лежат на мордочке. Шарф — исключение: он обмотан вокруг шеи и рисуется поверх подбородка.
-const CHEST_ACC = ['necklace', 'bag', 'bowtie', 'tie', 'lei', 'camera', 'medal', 'waterpistol'];
+const CHEST_ACC = ['necklace', 'bag', 'bowtie', 'tie', 'lei', 'camera', 'medal', 'waterpistol', 'nutbadge', 'fan', 'balloon'];
 
 /**
  * Насколько закрыты глаза в момент времени t: 0 — открыты, 1 — закрыты.
@@ -310,6 +310,30 @@ function drawBody(ctx, item) {
       if (long) {
         star(ctx, 0, -31, 4, '#ffe066', OUT, 1);
       }
+      if (item.trim === 'stitch') {
+        // вышитый сарафан: красные крестики по вороту и подолу
+        const g = item.c2 || '#e03131';
+        ctx.strokeStyle = g;
+        ctx.lineWidth = 1.4;
+        ctx.beginPath();
+        for (let i = -3; i <= 3; i++) {
+          const x = i * 7.5,
+            y = -8 + Math.abs(i) * 0.5;
+          ctx.moveTo(x - 2.2, y - 2.2);
+          ctx.lineTo(x + 2.2, y + 2.2);
+          ctx.moveTo(x + 2.2, y - 2.2);
+          ctx.lineTo(x - 2.2, y + 2.2);
+        }
+        for (let i = -1; i <= 1; i++) {
+          const x = i * 6,
+            y = -34;
+          ctx.moveTo(x - 1.8, y - 1.8);
+          ctx.lineTo(x + 1.8, y + 1.8);
+          ctx.moveTo(x + 1.8, y - 1.8);
+          ctx.lineTo(x - 1.8, y + 1.8);
+        }
+        ctx.stroke();
+      }
       if (item.trim === 'qipao') {
         // платье-ципао: воротник-стойка, косая застёжка с золотыми пуговками-узелками
         const g = item.c2 || '#ffd43b';
@@ -348,6 +372,7 @@ function drawBody(ctx, item) {
       if (item.kind === 'sweater') {
         ctx.fillStyle = dark;
         ctx.fillRect(-30, -12, 60, 4);
+        if (item.print) printOn(ctx, item.print, 0, -27);
       } else {
         ctx.fillStyle = '#fff';
         for (let i = 0; i < 3; i++) {
@@ -511,6 +536,15 @@ function printOn(ctx, kind, x, y) {
     ctx.bezierCurveTo(x - 10, y - 1, x - 4, y - 8, x, y - 3);
     ctx.bezierCurveTo(x + 4, y - 8, x + 10, y - 1, x, y + 6);
     ctx.fill();
+  } else if (kind === 'snowflake') {
+    // снежинка: шесть лучей с веточками
+    for (let i = 0; i < 6; i++) {
+      const a = (i * Math.PI) / 3,
+        cx = Math.cos(a),
+        sy = Math.sin(a);
+      line(ctx, x, y, x + cx * 8, y + sy * 8, '#fff', 1.8);
+      for (const d of [-0.7, 0.7]) line(ctx, x + cx * 5, y + sy * 5, x + cx * 5 + Math.cos(a + d) * 3, y + sy * 5 + Math.sin(a + d) * 3, '#fff', 1.3);
+    }
   } else if (kind === 'star') star(ctx, x, y, 6, '#ffe066');
   else if (kind === 'sun') {
     ell(ctx, x, y, 5, 5, '#ffd43b');
@@ -833,10 +867,21 @@ function drawHat(ctx, item, side = 1) {
             ctx.stroke();
           }
       }
+      if (item.fern) {
+        // купальский венок: листья папоротника торчат вверх и в стороны, цветы — белые, синие и огненный
+        for (let i = 0; i < 6; i++) {
+          const a = Math.PI * (1.08 + (i / 5) * 0.84),
+            px = Math.cos(a) * 24,
+            py = -67 + Math.sin(a) * 10;
+          ell(ctx, px + Math.cos(a) * 8, py + Math.sin(a) * 9, 3.6, 10, '#37b24d', OUT, 1.1, a + Math.PI / 2);
+        }
+      }
       // венок из цветов острова (island): плюмерия, гибискус и орхидея — крупнее и с листиками
-      const cols = item.island
-        ? ['#fff8e1', '#f03e3e', '#da77f2', '#fff8e1', '#f03e3e', '#da77f2', '#fff8e1']
-        : ['#ff8fab', '#ffd43b', '#fff', '#c77dff', '#ff8fab', '#ffd43b', '#fff'];
+      const cols = item.fern
+        ? ['#fff', '#74c0fc', '#fff', '#ff922b', '#fff', '#74c0fc', '#fff']
+        : item.island
+          ? ['#fff8e1', '#f03e3e', '#da77f2', '#fff8e1', '#f03e3e', '#da77f2', '#fff8e1']
+          : ['#ff8fab', '#ffd43b', '#fff', '#c77dff', '#ff8fab', '#ffd43b', '#fff'];
       for (let i = 0; i < 7; i++) {
         const a = Math.PI + (i / 6) * Math.PI;
         const px = Math.cos(a) * 23,
@@ -1025,6 +1070,132 @@ function drawHat(ctx, item, side = 1) {
         ell(ctx, -19 + Math.cos(k * 1.047) * 7, -73 + Math.sin(k * 1.047) * 7, 5.5, 5.5, c, OUT, 1.2);
       ell(ctx, -19, -73, 4, 4, c2 === shade(c, -0.25) ? '#ffd43b' : c2, OUT, 1);
       break;
+    case 'starband': {
+      // ободок с рождественской звездой: тонкая дуга между ушками, большая звезда с лучиками
+      ctx.beginPath();
+      ctx.ellipse(0, -62, 25, 16, 0, Math.PI * 1.12, -0.12 * Math.PI);
+      ctx.strokeStyle = OUT;
+      ctx.lineWidth = 5;
+      ctx.stroke();
+      ctx.strokeStyle = c;
+      ctx.lineWidth = 3;
+      ctx.stroke();
+      for (let i = 0; i < 4; i++) {
+        const a = -Math.PI / 2 + (i - 1.5) * 0.5;
+        line(ctx, Math.cos(a) * 13, -86 + Math.sin(a) * 13, Math.cos(a) * 18, -86 + Math.sin(a) * 18, c2, 1.8);
+      }
+      star(ctx, 0, -86, 11, c, OUT, 1.6);
+      ell(ctx, -2.5, -89, 2.2, 1.6, 'rgba(255,255,255,.85)');
+      break;
+    }
+    case 'dragon': {
+      // шапочка дракона: зелёная, с золотыми рожками, гребешком, большими глазами и ноздрями
+      for (const sx of [-1, 1]) poly(ctx, [sx * 11, -84, sx * 19, -103, sx * 20, -82], c2, OUT, 1.6);
+      ctx.beginPath();
+      ctx.moveTo(-27, -66);
+      ctx.quadraticCurveTo(-28, -94, 0, -94);
+      ctx.quadraticCurveTo(28, -94, 27, -66);
+      ctx.quadraticCurveTo(0, -74, -27, -66);
+      ctx.closePath();
+      ctx.fillStyle = c;
+      ctx.fill();
+      ctx.strokeStyle = OUT;
+      ctx.lineWidth = 1.8;
+      ctx.stroke();
+      for (let i = -1; i <= 1; i++) poly(ctx, [i * 9 - 4, -93, i * 9, -101 - (i === 0 ? 3 : 0), i * 9 + 4, -93], '#ff6b6b', OUT, 1.3);
+      for (const sx of [-1, 1]) {
+        ell(ctx, sx * 11, -82, 6, 6.5, '#fff', OUT, 1.4);
+        ell(ctx, sx * 11 + side * 1.5, -81, 2.6, 3.2, OUT);
+        ell(ctx, sx * 4, -72.5, 1.5, 1.2, shade(c, -0.35));
+      }
+      break;
+    }
+    case 'kokoshnik': {
+      // кокошник: высокий полукруг с золотой каймой и жемчужинами
+      ctx.beginPath();
+      ctx.moveTo(-26, -68);
+      ctx.quadraticCurveTo(-30, -104, 0, -108);
+      ctx.quadraticCurveTo(30, -104, 26, -68);
+      ctx.quadraticCurveTo(0, -76, -26, -68);
+      ctx.closePath();
+      ctx.fillStyle = c;
+      ctx.fill();
+      ctx.strokeStyle = OUT;
+      ctx.lineWidth = 1.8;
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(-21, -74);
+      ctx.quadraticCurveTo(-23, -98, 0, -101);
+      ctx.quadraticCurveTo(23, -98, 21, -74);
+      ctx.strokeStyle = c2;
+      ctx.lineWidth = 2.4;
+      ctx.stroke();
+      for (let i = 0; i < 7; i++) {
+        const a = Math.PI * (1.12 + (i / 6) * 0.76);
+        ell(ctx, Math.cos(a) * 15, -76 + Math.sin(a) * 15, 2, 2, '#fff', OUT, 0.8);
+      }
+      star(ctx, 0, -80, 5, c2, OUT, 1);
+      for (let i = -2; i <= 2; i++) ell(ctx, i * 9, -70.5 - (2 - Math.abs(i)) * 1.6, 2, 2, '#fff', OUT, 0.8);
+      break;
+    }
+    case 'pumpkin': {
+      // шапка-тыковка: рыжие дольки, зелёный хвостик и листик
+      ctx.beginPath();
+      ctx.moveTo(-27, -67);
+      ctx.quadraticCurveTo(-32, -96, 0, -97);
+      ctx.quadraticCurveTo(32, -96, 27, -67);
+      ctx.quadraticCurveTo(0, -75, -27, -67);
+      ctx.closePath();
+      ctx.fillStyle = c;
+      ctx.fill();
+      ctx.strokeStyle = OUT;
+      ctx.lineWidth = 1.8;
+      ctx.stroke();
+      ctx.strokeStyle = shade(c, -0.25);
+      ctx.lineWidth = 1.6;
+      for (const sx of [-1, 1]) {
+        ctx.beginPath();
+        ctx.moveTo(sx * 5, -96);
+        ctx.quadraticCurveTo(sx * 11, -84, sx * 8, -72);
+        ctx.moveTo(sx * 15, -93);
+        ctx.quadraticCurveTo(sx * 23, -82, sx * 19, -70);
+        ctx.stroke();
+      }
+      fillRR(ctx, -3, -105, 6, 10, 2, c2, OUT, 1.4);
+      ell(ctx, 9, -100, 7, 3.6, '#51cf66', OUT, 1.2, -0.4);
+      break;
+    }
+    case 'acorn': {
+      // ореховая шапочка — шляпка жёлудя: чешуйки в клеточку, черешок и листик
+      const cap = new Path2D();
+      cap.moveTo(-28, -67);
+      cap.quadraticCurveTo(-30, -93, 0, -94);
+      cap.quadraticCurveTo(30, -93, 28, -67);
+      cap.quadraticCurveTo(0, -75, -28, -67);
+      cap.closePath();
+      ctx.fillStyle = c;
+      ctx.fill(cap);
+      ctx.save();
+      ctx.clip(cap);
+      ctx.strokeStyle = c2;
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      for (let i = -6; i <= 6; i++) {
+        ctx.moveTo(i * 9 - 16, -62);
+        ctx.lineTo(i * 9 + 16, -98);
+        ctx.moveTo(i * 9 + 16, -62);
+        ctx.lineTo(i * 9 - 16, -98);
+      }
+      ctx.stroke();
+      ctx.restore();
+      ctx.strokeStyle = OUT;
+      ctx.lineWidth = 1.8;
+      ctx.stroke(cap);
+      line(ctx, 0, -94, 3, -103, OUT, 4.6);
+      line(ctx, 0, -94, 3, -103, c2, 2.8);
+      ell(ctx, 11, -100, 7, 3.4, '#69db7c', OUT, 1.2, -0.35);
+      break;
+    }
     case 'tophat':
       ell(ctx, 0, -71, 26, 5, c, OUT, 1.8);
       fillRR(ctx, -16, -98, 32, 28, 3, c, OUT, 1.8);
@@ -1063,6 +1234,14 @@ function drawAccBack(ctx, item, t) {
     for (const sx of [-1, 1]) {
       ctx.save();
       ctx.scale(sx * f, 1);
+      if (item.bat) {
+        // перепончатое крыло с зубчиками по нижнему краю
+        poly(ctx, [18, -44, 50, -60, 47, -40, 40, -44, 38, -30, 31, -36, 26, -24, 18, -30], item.c, OUT, 1.5);
+        line(ctx, 20, -42, 47, -57, shade(item.c, -0.3), 1.2);
+        line(ctx, 20, -40, 38, -34, shade(item.c, -0.3), 1.2);
+        ctx.restore();
+        continue;
+      }
       ell(ctx, 30, -42, 18, 12, item.c, OUT, 1.5, -0.5);
       ell(ctx, 27, -24, 12, 8, shade(item.c, 0.3), OUT, 1.5, 0.4);
       ctx.restore();
@@ -1205,6 +1384,90 @@ function drawAcc(ctx, item) {
       ell(ctx, x + 1, y - 15, 2, 1.4, 'rgba(255,255,255,.9)');
       ell(ctx, x - 1, y + 3, 3, 3, c2, OUT, 1); // курок
       ell(ctx, x - 4, y - 5, 3.2, 3, '#fff', null, 0); // блик
+      break;
+    }
+    case 'shawl': {
+      // расписной платок на плечах: два крыла сходятся узлом на груди, бахрома и цветы
+      for (const sx of [-1, 1]) {
+        ctx.beginPath();
+        ctx.moveTo(sx * 2, -33);
+        ctx.quadraticCurveTo(sx * 20, -40, sx * 28, -30);
+        ctx.quadraticCurveTo(sx * 30, -16, sx * 22, -8);
+        ctx.quadraticCurveTo(sx * 10, -14, 0, -20);
+        ctx.closePath();
+        ctx.fillStyle = c;
+        ctx.fill();
+        ctx.strokeStyle = OUT;
+        ctx.lineWidth = 1.8;
+        ctx.stroke();
+        for (let i = 0; i < 4; i++) line(ctx, sx * (20 - i * 5), -9.5 - i * 2.6, sx * (21 - i * 5), -5.5 - i * 2.6, c2, 1.4);
+        for (const [fx, fy] of [
+          [14, -27],
+          [22, -19],
+        ]) {
+          for (let k = 0; k < 5; k++) ell(ctx, sx * fx + Math.cos(k * 1.257) * 2.6, fy + Math.sin(k * 1.257) * 2.6, 1.7, 1.7, k % 2 ? '#fff' : '#ff8fab');
+          ell(ctx, sx * fx, fy, 1.4, 1.4, c2);
+        }
+      }
+      ell(ctx, 0, -24, 4.5, 4, c2, OUT, 1.3);
+      break;
+    }
+    case 'fan': {
+      // веер в правой лапке: раскрытые пластинки с золотой каймой
+      const x = 25,
+        y = -14;
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+      ctx.arc(x, y, 21, -Math.PI * 0.92, -Math.PI * 0.18);
+      ctx.closePath();
+      ctx.fillStyle = c;
+      ctx.fill();
+      ctx.strokeStyle = OUT;
+      ctx.lineWidth = 1.6;
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(x, y, 17, -Math.PI * 0.92, -Math.PI * 0.18);
+      ctx.strokeStyle = c2;
+      ctx.lineWidth = 2.2;
+      ctx.stroke();
+      for (let i = 1; i < 5; i++) {
+        const a = -Math.PI * (0.92 - (i / 5) * 0.74);
+        line(ctx, x, y, x + Math.cos(a) * 21, y + Math.sin(a) * 21, shade(c, -0.3), 1);
+      }
+      ell(ctx, x, y, 2.4, 2.4, c2, OUT, 1);
+      break;
+    }
+    case 'balloon': {
+      // воздушный шарик на ниточке в правой лапке
+      const x = 25,
+        y = -16;
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+      ctx.quadraticCurveTo(x + 7, y - 26, x + 11, y - 50);
+      ctx.strokeStyle = OUT;
+      ctx.lineWidth = 1.2;
+      ctx.stroke();
+      ell(ctx, x + 12, y - 66, 13, 16, c, OUT, 1.8);
+      poly(ctx, [x + 9, y - 50, x + 15, y - 50, x + 12, y - 46], c, OUT, 1.2);
+      ell(ctx, x + 7, y - 72, 3.4, 5, 'rgba(255,255,255,.7)', null, 0, -0.5);
+      break;
+    }
+    case 'nutbadge': {
+      // значок «Ореховая Гавань»: зелёная ленточка и лесной орешек на груди
+      poly(ctx, [-5, -22, 5, -22, 6, -9, 0, -13, -6, -9], c2, OUT, 1.3);
+      ell(ctx, 0, -20, 8, 8.5, c, OUT, 1.6);
+      ctx.beginPath();
+      ctx.moveTo(-7.5, -22.5);
+      ctx.quadraticCurveTo(0, -18.5, 7.5, -22.5);
+      ctx.quadraticCurveTo(6, -29.5, 0, -29.5);
+      ctx.quadraticCurveTo(-6, -29.5, -7.5, -22.5);
+      ctx.closePath();
+      ctx.fillStyle = shade(c, -0.3);
+      ctx.fill();
+      ctx.strokeStyle = OUT;
+      ctx.lineWidth = 1.2;
+      ctx.stroke();
+      ell(ctx, -3, -17, 1.8, 2.4, 'rgba(255,255,255,.55)', null, 0, 0.4);
       break;
     }
     case 'medal': // лента из-под подбородка, медаль на груди

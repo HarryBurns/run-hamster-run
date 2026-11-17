@@ -138,6 +138,7 @@ const SEASON = { winter: { day: 0, weather: 'snow' }, summer: { day: 20, weather
     await page.reload();
     await wait(400);
     await page.click('text=Играть!');
+    await page.click('text=Пропустить'); // вступительная сценка новой игры (этап 10)
     await wait(400);
     await page.click('text=Поехали!');
     await wait(400);

@@ -32,7 +32,8 @@ export async function askSleep() {
   applyNight(night);
   newDayMail();
   const c = cal();
-  if (s.day > 0 && s.day % 36 === 0) award('x_year', { delay: 2500 });
+  const played = s.day - (s.startDay || 0); // год игры — от дня, когда она началась (новая — 1 июня)
+  if (played > 0 && played % 36 === 0) award('x_year', { delay: 2500 });
   emit('wake'); // сцена-дом ставит хомячка у кровати
   emit('hud');
   release();

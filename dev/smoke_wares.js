@@ -25,6 +25,7 @@ module.exports = async function wares({ page, step, ev, wait, closeAll }) {
     await page.reload();
     await wait(400);
     await page.click('text=Играть!');
+    await page.click('text=Пропустить'); // вступительная сценка новой игры (этап 10)
     await wait(400);
     await page.click('text=Поехали!');
     await wait(500);

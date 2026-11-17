@@ -134,6 +134,7 @@ const HOOKS = `window.__T = () => window.__dev;`;
       await page.reload();
       await run(500);
       await click('text=Играть!');
+      await click('text=Пропустить'); // вступительная сценка новой игры (этап 10)
       await run(400);
     };
     const start = async () => {
@@ -188,6 +189,7 @@ const HOOKS = `window.__T = () => window.__dev;`;
       await run(700);
       await shot('title');
       await click('text=Играть!');
+      await click('text=Пропустить'); // вступительная сценка новой игры (этап 10)
       await run(400);
       await shot('welcome');
       await click('text=Как играть');

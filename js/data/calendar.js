@@ -8,5 +8,10 @@ export const SEASONS = {
   autumn: { name: 'Осень', icon: '🍂', when: 'осенью' },
 };
 export const DAYS_PER_MONTH = 3;
+/**
+ * День, с которого начинается новая игра: 1 июня (этап 10) — лето, море тёплое, всё цветёт. День игры считается
+ * от 1 января (день 0), поэтому в сохранении лежит startDay — с какого дня началась эта игра (у старых игр — 0).
+ */
+export const START_DAY = 5 * DAYS_PER_MONTH;
 /** Месяц (0–11) по номеру игрового дня. */
 export const monthOfDay = (day) => Math.floor(day / DAYS_PER_MONTH) % 12;

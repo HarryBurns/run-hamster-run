@@ -40,7 +40,8 @@ export function newDayMail() {
   const s = S(),
     sea = cal().season;
   let id;
-  if (s.day < FIRST_TASKS.length) id = FIRST_TASKS[s.day];
+  const played = s.day - (s.startDay || 0); // сколько дней идёт игра (новая начинается 1 июня)
+  if (played >= 0 && played < FIRST_TASKS.length) id = FIRST_TASKS[played];
   else {
     const ripe = s.garden.some((b) => b.seed && b.age >= SEED_BY_ID[b.seed].days);
     const hasWheel = s.villa.some((i) => i.id === 'wheel'),

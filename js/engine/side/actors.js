@@ -8,6 +8,9 @@
 //                                                                 when() — когда он здесь (нет — его не видно и не
 //                                                                 нажать: аниматор по расписанию, житель у бассейна)
 // У гостя действие всегда 'guest:<житель>'.
+// Гость может нести что-то в лапках: g.carry = { c, c2, give } — коробочка с лентой (подарок на «Год в городе»,
+// рассада во вводном задании). give = { x, y, a } — коробочку вручают: она летит дугой к точке (x, y), a — 0…1
+// (двигает тот, кто вручает: features/holidays_bday.js, features/welcome.js).
 import { G, questBadge } from '../../core/state.js';
 import { rnd } from '../../core/util.js';
 import { fillRR, ell } from '../../core/draw.js';
@@ -108,6 +111,29 @@ export function updateActors(sc, dt) {
   }
 }
 
+/** Коробочка с лентой и бантиком: центр (x, y), k — размер; b.c — коробка, b.c2 — лента; b.kind 'pot' — рассада в горшочке. */
+export function paintGiftBox(ctx, x, y, k, b) {
+  if (b.kind === 'pot') {
+    // горшочек с рассадой: три листика
+    for (const [dx, r] of [
+      [-6, -0.5],
+      [0, 0],
+      [6, 0.5],
+    ])
+      ell(ctx, x + dx * k, y - 13 * k, 4 * k, 8 * k, '#51cf66', OUT, 1.4, r);
+    fillRR(ctx, x - 11 * k, y - 8 * k, 22 * k, 5 * k, 2, b.c2 || '#e8590c', OUT, 1.5);
+    fillRR(ctx, x - 9 * k, y - 4 * k, 18 * k, 13 * k, 3, b.c || '#d9773c', OUT, 1.5);
+    return;
+  }
+  fillRR(ctx, x - 12 * k, y - 9 * k, 24 * k, 19 * k, 3, b.c || '#ff8fab', OUT, 1.6);
+  ctx.fillStyle = b.c2 || '#fff';
+  ctx.fillRect(x - 2.5 * k, y - 8 * k, 5 * k, 17 * k);
+  ctx.fillRect(x - 11 * k, y - 1.5 * k, 22 * k, 4 * k);
+  ell(ctx, x - 5 * k, y - 12 * k, 5 * k, 3.5 * k, b.c2 || '#fff', OUT, 1.3, -0.5);
+  ell(ctx, x + 5 * k, y - 12 * k, 5 * k, 3.5 * k, b.c2 || '#fff', OUT, 1.3, 0.5);
+  ell(ctx, x, y - 10 * k, 2.6 * k, 2.6 * k, b.c2 || '#fff', OUT, 1.2);
+}
+
 // Житель — из кэша кадров (От12, как жители локаций — engine/topdown/actors.js): 8 кадров шага или 4 кадра
 // «дыхания», глаза открыты или закрыты, смотрит влево или вправо. Радуется (руки вверх) — рисуется линиями.
 const WALK_FRAMES = 8,
@@ -149,6 +175,23 @@ export function drawActors(ctx, sc, t) {
         g.x,
         y,
       );
+    }
+    if (g.carry) {
+      // коробочка в лапках (перед грудью, чуть впереди по ходу) или в полёте к тому, кому её дарят
+      const k = s * 0.8,
+        hx = g.x + (g.dir === -1 ? -1 : 1) * 15 * s,
+        hy = y - 27 * s + (g.moving ? Math.sin(g.walkT * Math.PI * 4) * 1.5 : 0),
+        gv = g.carry.give;
+      if (gv) {
+        const a = Math.min(1, Math.max(0, gv.a));
+        paintGiftBox(ctx, hx + (gv.x - hx) * a, hy + (gv.y - hy) * a - Math.sin(a * Math.PI) * 70, k * (1 + Math.sin(a * Math.PI) * 0.25), g.carry);
+      } else {
+        paintGiftBox(ctx, hx, hy, k, g.carry);
+        // лапки держат коробочку с боков
+        const fur = npcLook(g.id).fur || '#f0c27b';
+        ell(ctx, hx - 14 * k, hy + 2 * k, 5 * k, 4.5 * k, fur, OUT, 1.5);
+        ell(ctx, hx + 14 * k, hy + 2 * k, 5 * k, 4.5 * k, fur, OUT, 1.5);
+      }
     }
     // табличка с именем
     ctx.font = '800 15px ui-rounded, "Trebuchet MS", sans-serif';

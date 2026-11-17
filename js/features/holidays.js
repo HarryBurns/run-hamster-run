@@ -34,8 +34,9 @@ import {
   holidayOn,
   holidayOffset,
   holidayYear,
-  holidayDoy,
   nextHoliday,
+  daysToHoliday,
+  holidayGifts,
   holidayLine,
   decorsOn,
   HOME_SCENE,
@@ -52,12 +53,14 @@ import { openMap, routeText } from './map.js';
 const S = () => G.state;
 const HF = () => (S() && S().dayFlags.holiday) || {};
 const STICKER = Object.fromEntries(EXTRA_STICKERS.map((q) => [q.id, q]));
+/** С какого дня началась игра (новая — 1 июня; у игр до этапа 10 — 1 января): от него считается «Год в городе». */
+const START = () => (S() && S().startDay) || 0;
 
 // ---------- что сегодня ----------
 /** Праздник сегодня (или null). */
-export const holidayToday = () => (S() ? holidayOn(S().day) : null);
+export const holidayToday = () => (S() ? holidayOn(S().day, START()) : null);
 /** Праздник завтра (сегодня — канун; или null). */
-export const holidayTomorrow = () => (S() ? holidayOn(S().day + 1) : null);
+export const holidayTomorrow = () => (S() ? holidayOn(S().day + 1, START()) : null);
 /** Год праздника сегодня (подарок — раз в этот год). */
 const yearNow = () => holidayYear(S().day);
 /** Подарок и монеты этого праздника уже получены в этом году. */
@@ -164,8 +167,19 @@ export function giftName(g) {
   if (g.furn) return `${FURN_BY_ID[g.furn].name}`;
   return '';
 }
-/** Подарок праздника для окон: вещь или своя подпись (день рождения — «подарки от друзей»). */
-export const giftLabel = (h) => h.giftText || giftName(h.gift);
+/**
+ * Подарок этого года (этап 10, Пр6): первая вещь из списка праздника [gift, ...more], которой ещё нет. Первый раз —
+ * главный подарок (колпак, пряники, самовар…), на второй год и дальше — новые вещи по порядку. null — всё собрано
+ * (тогда дарят мешочек монет).
+ */
+export const giftNow = (h) => holidayGifts(h).find((g) => !giftOwned(g)) || null;
+/** Подарок праздника для окон: вещь этого года (или «всё собрано»), у «Года в городе» — ещё и подарки от друзей. */
+export function giftLabel(h) {
+  const all = holidayGifts(h),
+    g = giftNow(h);
+  const thing = g ? giftName(g) : all.length ? 'мешочек монет (все вещи праздника уже у тебя)' : '';
+  return [thing, h.giftText].filter(Boolean).join(' и ');
+}
 /** Все праздничные занятия дня сделаны: монеты, подарок (раз в год), наклейка, праздничное окно. */
 function finishHoliday(h) {
   if (holidayRewarded(h)) {
@@ -175,9 +189,9 @@ function finishHoliday(h) {
     return;
   }
   setFlag('hol:' + h.id, yearNow());
-  const g = h.gift || null,
-    got = { coins: HOLIDAY.coins[h.id] || 0, gift: null, again: false };
-  if (g && giftOwned(g)) {
+  const g = giftNow(h),
+    got = { coins: HOLIDAY.coins[h.id] || 0, gift: null, g, again: false, left: 0 };
+  if (!g && holidayGifts(h).length) {
     got.again = true;
     got.coins += HOLIDAY.again;
   } else if (g) {
@@ -186,6 +200,7 @@ function finishHoliday(h) {
     if (g.recipe) learnRecipe(g.recipe);
     if (g.furn) addItem('storage', g.furn, 1);
     got.gift = g.clothes ? add.map((id) => CLOTHES_BY_ID[id].name).join(' и ') : giftName(g);
+    got.left = holidayGifts(h).filter((q) => !giftOwned(q)).length; // сколько вещей праздника ещё впереди
   }
   if (got.coins) earn(got.coins, 'gift');
   const isNew = h.sticker ? award(h.sticker, { quiet: true }) : false;
@@ -200,15 +215,15 @@ function celebrate(h, got, isNew) {
     return `<i style="left:${(i * 37) % 100}%;background:${col};animation-delay:${((i * 0.13) % 1.4).toFixed(2)}s;animation-duration:${(2.2 + ((i * 0.31) % 1.2)).toFixed(2)}s"></i>`;
   }).join('');
   const st = STICKER[h.sticker];
-  const g = h.gift || {};
+  const g = got.g || {};
   const where = g.clothes ? 'уже в шкафу!' : g.recipe ? 'готовь на кухне!' : g.furn ? 'лежит в кладовке — поставь дома через 🔨!' : '';
   const lines = [
     got.gift ? `<p>🎁 Праздничный подарок: <b>${got.gift}</b> — ${where}</p>` : '',
-    got.again ? `<p>🎁 ${giftName(g)} у тебя уже есть — держи праздничный мешочек монет!</p>` : '',
-    h.giftText && !got.gift ? `<p>🎁 А ещё — ${h.giftText}: они уже в рюкзаке!</p>` : '',
+    got.again ? '<p>🎁 Все вещи этого праздника у тебя уже есть — держи праздничный мешочек монет!</p>' : '',
+    h.giftText ? `<p>🎁 А ещё — ${h.giftText}: они уже в рюкзаке!</p>` : '',
     st ? `<p>Наклейка «${st.title}» ${isNew ? '— новая в альбоме!' : '— такая у тебя уже есть.'}</p>` : '',
     got.coins ? `<p class="reward">🪙 +${fmtMoney(got.coins)} монет</p>` : '',
-    '<p class="muted">Этот праздник будет снова через год — с новым подарком!</p>',
+    `<p class="muted">Этот праздник будет снова через год${got.left ? ' — с новым подарком!' : '!'}</p>`,
   ].join('');
   enqueue(
     () => {
@@ -225,7 +240,7 @@ function celebrate(h, got, isNew) {
 }
 
 // ---------- объявление утром ----------
-const dateText = (h) => (h.dayOfYear ? `${MONTHS[Math.floor(holidayDoy(h) / 3)].toLowerCase()}, день ${(holidayDoy(h) % 3) + 1}` : `${MONTHS[h.month].toLowerCase()}, день ${h.dom}`);
+const dateText = (h) => `${MONTHS[h.month].toLowerCase()}, день ${h.dom}`;
 function stepsHtml(h) {
   return `<ol class="hol-steps">${h.steps.map((st) => `<li>${st.text}${st.n > 1 ? ` <b>(${st.n})</b>` : ''}</li>`).join('')}</ol>`;
 }
@@ -238,7 +253,7 @@ export function announceHoliday(quiet = false) {
   if (!s || HF().told) return;
   const h = holidayToday(),
     t = holidayTomorrow();
-  const after = decorsOn(s.day).find(({ k }) => k > 0);
+  const after = decorsOn(s.day, START()).find(({ k }) => k > 0);
   if (!h && !t && !after) return;
   setDayFlag('told', 1, 'holiday');
   if (h && quiet) {
@@ -248,7 +263,7 @@ export function announceHoliday(quiet = false) {
   // наутро после Нового года — поздравление (и про завтрашний праздник, если он есть)
   const ny = after && after.h.id === 'newyear' ? `🎆 С Новым годом! Наступил год ${cal().year}. Ёлка на площади ещё постоит!` : '';
   if (h) {
-    // 1 января второго года — день рождения: в окне праздника и поздравление с Новым годом, и «завтра — Рождество»
+    // в окне праздника — и про завтрашний праздник, если он есть
     const more = [ny, t ? `${t.icon} Завтра — ${t.name}!` : ''].filter(Boolean).map((x) => `<p class="center muted">${x}</p>`).join('');
     enqueue(
       () => {
@@ -280,8 +295,8 @@ export function holidayLineFor(id) {
   const s = S(),
     npc = NPC_BY_ID[id];
   if (!s || !npc) return null;
-  // сначала — сегодняшний праздник (1 января второго года: день рождения важнее «наутро после Нового года»)
-  for (const { h, k } of decorsOn(s.day).sort((a, b) => (a.k === 0 ? 0 : 1) - (b.k === 0 ? 0 : 1))) {
+  // сначала — сегодняшний праздник, потом канун и «наутро после»
+  for (const { h, k } of decorsOn(s.day, START()).sort((a, b) => (a.k === 0 ? 0 : 1) - (b.k === 0 ? 0 : 1))) {
     const list = h.lines[k < 0 ? 'eve' : k === 0 ? 'day' : 'after'];
     if (list && list.length) return holidayLine(pick(list), s.name, npc.fem);
   }
@@ -472,14 +487,16 @@ export function openHolidays() {
         h = holidayToday();
       body.appendChild(el('p', 'center', `Сегодня: <b>${c.monthName}, день ${c.dom}</b> · год ${c.year}`));
       if (h) body.appendChild(holidayCard(h, panel));
-      const nx = nextHoliday(s.day + (h ? 1 : 0));
+      const nx = nextHoliday(s.day + (h ? 1 : 0), START());
       if (!h && nx) body.appendChild(el('p', 'center muted', nx.days === 1 ? `Завтра — ${nx.h.icon} ${nx.h.name}!` : `До праздника «${nx.h.name}» — дней: ${nx.days}`));
       for (const q of HOLIDAYS) {
-        const k = q.from && holidayYear(s.day) < q.from ? 99 : holidayOffset(q, s.day); // день рождения в первый год — только дата
+        // «Год в городе» в первый год ещё не празднуют — только дата и «впервые — через год после приезда»
+        const early = daysToHoliday(q, s.day, START()) >= 36 && !(holidayToday() === q);
+        const k = early ? 99 : holidayOffset(q, s.day);
         const when = k === 0 ? 'сегодня!' : k === -1 ? 'завтра' : dateText(q);
         const li = el('div', 'list-item hol-row' + (k === 0 ? ' now' : ''));
         li.appendChild(el('div', 'e', `<span style="font-size:32px">${q.icon}</span>`));
-        const first = q.from && holidayYear(s.day) < q.from ? ` (впервые — в год ${q.from})` : '';
+        const first = early && q.since ? ' (впервые — через год после твоего приезда)' : '';
         li.appendChild(el('div', 'grow', `<div class="ttl">${q.name}</div><div class="sub">${when}${first} · 🎁 ${giftLabel(q)}${holidayRewarded(q) ? ' ✅' : ''}</div>`));
         body.appendChild(li);
       }
@@ -497,7 +514,7 @@ export function debugHoliday() {
   return {
     today: st ? st.h.id : null,
     tomorrow: holidayTomorrow() ? holidayTomorrow().id : null,
-    decor: s ? decorsOn(s.day).map(({ h, k }) => `${h.id}:${k}`) : [],
+    decor: s ? decorsOn(s.day, START()).map(({ h, k }) => `${h.id}:${k}`) : [],
     steps: st ? st.steps.map((x) => `${x.step.id}:${x.have}/${x.need}`) : [],
     done: st ? st.done : false,
     rewarded: st ? st.rewarded : false,

@@ -28,7 +28,7 @@ import { FIR_BULBS, FIR_SCALE, MAY_BEDS, STREAK_DIRS, paintString } from './holi
 
 const S = () => G.state;
 /** Украшен ли город к празднику id сегодня. */
-export const decorNow = (id) => !!S() && decorOn(HOLIDAY_BY_ID[id], S().day);
+export const decorNow = (id) => !!S() && decorOn(HOLIDAY_BY_ID[id], S().day, S().startDay || 0);
 /** Сегодня сам праздник id (а не канун). */
 export const holidayNowIs = (id) => !!S() && holidayOffset(HOLIDAY_BY_ID[id], S().day) === 0;
 /** Сделан ли сегодня шаг праздника (отметки дня dayFlags.holiday — features/holidays.js); who — у шагов «разные». */

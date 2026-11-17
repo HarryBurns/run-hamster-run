@@ -184,7 +184,7 @@ export const EXTRA_STICKERS = [
   { id: 'x_hol_mayday', sticker: '🎈', title: '1 Мая' },
   { id: 'x_hol_kupala', sticker: '🌿', title: 'Иван Купала' },
   { id: 'x_hol_halloween', sticker: '🎃', title: 'Хеллоуин' },
-  { id: 'x_hol_birthday', sticker: '🎂', title: 'День рождения' },
+  { id: 'x_hol_birthday', sticker: '🎂', title: 'Год в городе' },
   { id: 'x_splash', sticker: '💦', title: 'Водяная битва' },
   { id: 'x_porter', sticker: '🛒', title: 'Золотая тележка' },
   { id: 'x_visit', sticker: '🧸', title: 'Первые гости' },

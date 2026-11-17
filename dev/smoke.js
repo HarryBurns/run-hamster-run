@@ -267,6 +267,7 @@ async function extra({ page, step, ev, wait, closeAll, hold }) {
     if (st.backup !== raw) throw new Error('нет резервной копии');
     if (await page.locator('text=Продолжить').count()) throw new Error('битое сохранение предложено продолжить');
     await page.click('text=Играть!');
+    await page.click('text=Пропустить'); // вступительная сценка новой игры (этап 10)
     await wait(400);
     await page.click('text=Поехали!');
     await wait(400);
@@ -1042,6 +1043,7 @@ async function economy({ page, step, ev, wait, closeAll }) {
     await page.reload();
     await wait(400);
     await page.click('text=Играть!');
+    await page.click('text=Пропустить'); // вступительная сценка новой игры (этап 10)
     await wait(400);
     const hello = await text('.overlay .panel-body');
     expect(!/миллиард/i.test(hello) && hello.includes('3 000') && /заработ/i.test(hello), 'приветствие', hello);
@@ -1627,6 +1629,7 @@ const runParallel = () => {
       await page.reload();
       await wait(400);
       await page.click('text=Играть!');
+      await page.click('text=Пропустить'); // вступительная сценка новой игры (этап 10)
       await wait(400);
       await page.click('text=Поехали!');
       await wait(500);

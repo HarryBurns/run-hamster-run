@@ -98,6 +98,7 @@ module.exports = async function title({ page, step, ev, wait, closeAll }) {
     await wait(300);
     await page.fill('#title input', 'Булочка');
     await page.click('text=Играть!');
+    await page.click('text=Пропустить'); // вступительная сценка новой игры (этап 10)
     await wait(400);
     await page.click('text=Поехали!');
     await wait(400);

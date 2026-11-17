@@ -150,7 +150,7 @@ function startGame(fresh) {
       icon: '🏡',
       sticky: true,
       html: `<p class="center big-emoji">🐹</p><p>Привет, <b>${esc(s.name)}</b>! Это твоя вилла: три этажа, сауна, джакузи и бассейн. А в Хомяк-Банке у тебя <b>🪙 ${fmtMoney(START_MONEY)} монет</b> на первое время.</p>
-        <p>На дворе <b>январь</b> и зима ❄️. Рядом — город у моря, там магазины, друзья и приключения.</p>
+        <p>На дворе <b>июнь</b> и лето ☀️. Рядом — городок <b>Ореховая Гавань</b>: море, магазины, друзья и приключения.</p>
         <p>🪙 Монеты можно <b>заработать</b>: поработай в школе, больнице или ресторане, выполняй задания из писем, продавай на рынке урожай и рыбу.</p>
         <p>✉️ У входной двери висит <b>почтовый ящик</b> — в нём уже лежит первое письмо. Выходи через дверь на первом этаже!</p>`,
       buttons: [{ text: 'Поехали!' }, { text: '❓ Как играть', cls: 'yellow' }],
@@ -163,5 +163,6 @@ every(0.25, F.updateSound, { needScene: false });
 every(1, updateHud);
 every(20, persist);
 installDevHooks({ F });
-openTitle({ start: startGame });
+// новая игра: сначала вступительная сценка — переезд в Ореховую Гавань (features/intro.js), потом сама игра
+openTitle({ start: (fresh) => (fresh ? F.playIntro({ name: G.state.name }).then(() => startGame(true)) : startGame(false)) });
 startLoop(canvas, { onBroken: showBroken, onGesture: unlockAudio });

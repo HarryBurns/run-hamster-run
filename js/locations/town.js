@@ -14,7 +14,7 @@ import './common/index.js';
 import { createSea, WORLD_SEA } from './sea.js';
 import './jungle_art.js'; // остров причала джунглей за буйками (WORLD_SEA.port): тропические деревья и попугай
 import { HOUSE_ART, HOUSE_STYLE } from './town_buildings.js';
-import { signBoard, fitText } from './common/paint.js';
+import { signBoard, fitText, snowCap, shadow } from './common/paint.js';
 import { createPlants, hasFruit } from './common/plants.js';
 import { createHerbs } from './common/herbs.js';
 import { createHolidayDecor, HOLIDAY_PLACES, blockHolidayCells } from './holidays.js';
@@ -269,6 +269,38 @@ const PLACES = [
   }),
   // пруды (во дворе и в парке), пока не замёрзли: рыбалка с берега
   { id: 'pond', tile: 'd', when: notWinter, act: 'fish:pond' },
+  // доска «Ореховая Гавань» на набережной и ореховые скалы на краях пляжа (этап 10): почему городок так зовут
+  {
+    id: 'townsign',
+    at: [60.5, 46.6],
+    hit: { dx: 56, up: 56, down: 22 },
+    stand: [61, 48.5],
+    act: {
+      do: 'say',
+      text: [
+        '🌰 «Ореховая Гавань». Городок назвали по цвету скал у моря — тёплому, как лесной орех.',
+        '🌰 «Ореховая Гавань». Первые хомячки приплыли сюда на лодочке и увидели скалы цвета ореха — так и назвали!',
+      ],
+    },
+    key: false,
+    map: { icon: '🌰', at: [61, 47], label: '🌰 Ореховая Гавань' },
+  },
+  {
+    id: 'nutcliffs',
+    at: [1.5, 54.5],
+    hit: { dx: 80, up: 100, down: 70 },
+    stand: [4.5, 54.5],
+    act: { do: 'say', text: ['🪨 Ореховые скалы. На закате они светятся, как скорлупка лесного ореха!', '🪨 Тёплый рыжий камень. Вот почему наш городок — Ореховая Гавань.'] },
+    key: false,
+  },
+  {
+    id: 'nutcliffs2',
+    at: [94.5, 55.5],
+    hit: { dx: 80, up: 100, down: 70 },
+    stand: [91.5, 54.5],
+    act: { do: 'say', text: ['🪨 Ореховые скалы. Говорят, в шторм они укрывают гавань от волн.', '🪨 Скалы цвета лесного ореха. Чайки любят сидеть на самой макушке!'] },
+    key: false,
+  },
   // конец пирса: рыбалка
   {
     id: 'pier',
@@ -460,6 +492,206 @@ defineObjects({
       if (env.season === 'winter') put('icehole', o.x, o.y);
     },
   },
+  // ---- Ореховая Гавань (этап 10): городок назван по цвету прибрежных скал — тёплому, как лесной орех ----
+  // nutcliff — большая скала на краю пляжа (3 × 2 клетки, v: 1 — зеркально); nutrock — камень в воде у берега
+  // (v: 0, 1 — низкие, 2 — высокий «палец»); townsign — резная доска «Ореховая Гавань» на набережной (2 клетки)
+  nutcliff: {
+    solid: [
+      [0, 0],
+      [1, 0],
+      [2, 0],
+      [0, 1],
+      [1, 1],
+      [2, 1],
+    ],
+    map: () => NUT.base,
+    art: {
+      nutcliff: [
+        [-36, -86, 132, 84],
+        (ctx, v, snow) => {
+          if (v) {
+            ctx.translate(96, 0);
+            ctx.scale(-1, 1);
+          }
+          shadow(ctx, 48, 66, 78, 10);
+          // тело скалы
+          poly(ctx, [-27, 68, -29, 22, -19, -18, -3, -50, 17, -63, 39, -49, 55, -70, 80, -62, 98, -38, 116, -10, 123, 30, 119, 68], NUT.base, OUT, 2.4);
+          // светлые «полки» сверху
+          poly(ctx, [-19, -18, -3, -50, 17, -63, 39, -49, 30, -30, 6, -24], NUT.light);
+          poly(ctx, [39, -49, 55, -70, 80, -62, 98, -38, 74, -32, 52, -40], NUT.light);
+          poly(ctx, [-29, 22, -19, -18, 6, -24, 2, 8, -12, 22], NUT.mid);
+          // тёмные грани справа и снизу
+          poly(ctx, [98, -38, 116, -10, 123, 30, 119, 68, 92, 68, 96, 24, 88, -8, 74, -32], NUT.dark);
+          poly(ctx, [30, -30, 52, -40, 74, -32, 88, -8, 60, -2, 36, -6], NUT.mid);
+          // слои камня — как прожилки в орехе
+          ctx.strokeStyle = NUT.vein;
+          ctx.lineWidth = 1.6;
+          ctx.lineCap = 'round';
+          ctx.beginPath();
+          ctx.moveTo(-22, 34);
+          ctx.quadraticCurveTo(10, 24, 40, 32);
+          ctx.quadraticCurveTo(70, 40, 94, 30);
+          ctx.moveTo(-18, 52);
+          ctx.quadraticCurveTo(20, 44, 52, 52);
+          ctx.quadraticCurveTo(80, 58, 110, 50);
+          ctx.moveTo(4, 8);
+          ctx.quadraticCurveTo(28, 2, 50, 10);
+          ctx.moveTo(62, 14);
+          ctx.quadraticCurveTo(78, 10, 92, 16);
+          ctx.stroke();
+          // контур поверх граней
+          ctx.beginPath();
+          ctx.moveTo(-19, -18);
+          ctx.lineTo(6, -24);
+          ctx.lineTo(30, -30);
+          ctx.lineTo(39, -49);
+          ctx.moveTo(30, -30);
+          ctx.lineTo(52, -40);
+          ctx.lineTo(74, -32);
+          ctx.lineTo(98, -38);
+          ctx.strokeStyle = 'rgba(74,55,40,.45)';
+          ctx.lineWidth = 1.4;
+          ctx.stroke();
+          if (snow) {
+            snowCap(ctx, 8, -52, 44, 8);
+            snowCap(ctx, 66, -62, 48, 8);
+          } else {
+            // трава и кустик на макушке
+            ell(ctx, 6, -52, 16, 6, '#74b85a', OUT, 1.6);
+            ell(ctx, 66, -64, 18, 6.5, '#74b85a', OUT, 1.6);
+            ell(ctx, 74, -72, 9, 7, '#51a34a', OUT, 1.6);
+            ell(ctx, -2, -55, 2.4, 2.4, '#ffd43b');
+            ell(ctx, 58, -66, 2.4, 2.4, '#fff');
+          }
+          // блики
+          ell(ctx, -8, -8, 3, 6, 'rgba(255,255,255,.28)', null, 0, 0.5);
+          ell(ctx, 50, -52, 3, 5, 'rgba(255,255,255,.28)', null, 0, 0.4);
+        },
+      ],
+    },
+    draw(ctx, o, env) {
+      put('nutcliff', o.x, o.y, o.v || 0, env.season === 'winter' ? 1 : 0);
+    },
+  },
+  nutrock: {
+    solid: true,
+    map: () => NUT.base,
+    art: {
+      nutrock: [
+        [-28, -62, 28, 22],
+        (ctx, v, snow) => {
+          if (v === 2) {
+            poly(ctx, [-13, 12, -15, -18, -7, -44, 4, -54, 13, -40, 16, -10, 15, 12], NUT.base, OUT, 2.2);
+            poly(ctx, [-7, -44, 4, -54, 13, -40, 4, -34], NUT.light);
+            poly(ctx, [4, -34, 13, -40, 16, -10, 15, 12, 6, 12], NUT.dark);
+            line(ctx, -12, -8, 4, -12, NUT.vein, 1.5);
+            line(ctx, -12, 2, 5, -2, NUT.vein, 1.5);
+            if (snow) snowCap(ctx, 3, -48, 20, 5);
+            else ell(ctx, 3, -50, 7, 3, '#74b85a', OUT, 1.3);
+          } else if (v === 1) {
+            poly(ctx, [-20, 12, -17, -8, -5, -20, 10, -16, 20, -2, 19, 12], NUT.base, OUT, 2.2);
+            poly(ctx, [-5, -20, 10, -16, 4, -6, -8, -5], NUT.light);
+            poly(ctx, [4, -6, 10, -16, 20, -2, 19, 12, 7, 12], NUT.dark);
+            line(ctx, -16, 3, 3, 0, NUT.vein, 1.5);
+            if (snow) snowCap(ctx, 2, -16, 22, 5);
+          } else {
+            poly(ctx, [-22, 12, -19, -4, -9, -14, 3, -9, 8, 12], NUT.base, OUT, 2.2);
+            poly(ctx, [3, 12, 5, -4, 13, -11, 22, 0, 21, 12], NUT.dark, OUT, 2.2);
+            poly(ctx, [-9, -14, 3, -9, -2, -1, -12, -2], NUT.light);
+            line(ctx, -18, 4, -2, 2, NUT.vein, 1.5);
+            if (snow) snowCap(ctx, -4, -11, 20, 5);
+          }
+        },
+      ],
+    },
+    draw(ctx, o, env) {
+      // пена у камня дышит вместе с волной (камни стоят в воде у берега)
+      if (o.wet && env.season !== 'winter') {
+        const a = 0.5 + 0.5 * Math.sin(env.t * 1.6 + o.x * 0.05);
+        ell(ctx, o.x, o.y + 11, 23 + a * 3, 7 + a, `rgba(255,255,255,${0.35 + a * 0.3})`);
+      }
+      put('nutrock', o.x, o.y, o.v || 0, env.season === 'winter' ? 1 : 0);
+    },
+  },
+  townsign: {
+    solid: [
+      [0, 0],
+      [1, 0],
+    ],
+    art: {
+      townsign: [
+        [-34, -92, 82, 20],
+        (ctx, snow) => {
+          shadow(ctx, 24, 14, 50, 5);
+          for (const x of [-18, 66]) {
+            fillRR(ctx, x - 4, -62, 8, 76, 2, '#a8703f', OUT, 2);
+            ell(ctx, x, -64, 6, 5, '#c98b5a', OUT, 1.8);
+          }
+          // доска в форме волны с орешком наверху
+          ctx.beginPath();
+          ctx.moveTo(-28, -22);
+          ctx.lineTo(-28, -56);
+          ctx.quadraticCurveTo(-4, -68, 24, -66);
+          ctx.quadraticCurveTo(52, -68, 76, -56);
+          ctx.lineTo(76, -22);
+          ctx.quadraticCurveTo(24, -14, -28, -22);
+          ctx.closePath();
+          ctx.fillStyle = '#ffe8c2';
+          ctx.fill();
+          ctx.strokeStyle = OUT;
+          ctx.lineWidth = 2.4;
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.moveTo(-23, -26);
+          ctx.lineTo(-23, -53);
+          ctx.quadraticCurveTo(-2, -63, 24, -61);
+          ctx.quadraticCurveTo(50, -63, 71, -53);
+          ctx.lineTo(71, -26);
+          ctx.quadraticCurveTo(24, -19, -23, -26);
+          ctx.closePath();
+          ctx.strokeStyle = NUT.base;
+          ctx.lineWidth = 1.6;
+          ctx.stroke();
+          ctx.fillStyle = '#7a4a1f';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.font = '900 13px ui-rounded, "Trebuchet MS", sans-serif';
+          ctx.fillText('ОРЕХОВАЯ', 24, -48);
+          ctx.fillText('ГАВАНЬ', 24, -33);
+          // орешек с листиком над доской
+          ell(ctx, 24, -76, 9, 10, NUT.base, OUT, 2);
+          ctx.beginPath();
+          ctx.moveTo(15, -79);
+          ctx.quadraticCurveTo(24, -74, 33, -79);
+          ctx.quadraticCurveTo(31, -88, 24, -88);
+          ctx.quadraticCurveTo(17, -88, 15, -79);
+          ctx.closePath();
+          ctx.fillStyle = NUT.dark;
+          ctx.fill();
+          ctx.strokeStyle = OUT;
+          ctx.lineWidth = 1.5;
+          ctx.stroke();
+          ell(ctx, 34, -86, 7, 3.4, '#69db7c', OUT, 1.4, -0.5);
+          ell(ctx, 21, -72, 2, 3, 'rgba(255,255,255,.5)', null, 0, 0.4);
+          // волны внизу доски
+          ctx.strokeStyle = '#4dabf7';
+          ctx.lineWidth = 1.8;
+          ctx.beginPath();
+          for (let i = 0; i < 4; i++) {
+            ctx.moveTo(-14 + i * 20, -23);
+            ctx.quadraticCurveTo(-9 + i * 20, -27, -4 + i * 20, -23);
+          }
+          ctx.stroke();
+          if (snow) snowCap(ctx, 24, -64, 96, 6);
+        },
+      ],
+    },
+    draw(ctx, o, env) {
+      put('townsign', o.x, o.y, env.season === 'winter' ? 1 : 0);
+    },
+  },
+  // точка цвета скалы на карте города (сама ничего не рисует): большая скала занимает шесть клеток
+  nutdot: { flat: true, map: () => NUT.base, draw() {} },
   fishsign: {
     art: {
       fishsign: [
@@ -478,6 +710,8 @@ defineObjects({
 });
 
 // ---------- построение карты ----------
+// Ореховые скалы: по ним городок назван Ореховой Гаванью (этап 10). Цвет — тёплый, как скорлупа лесного ореха.
+const NUT = { base: '#c98a4b', light: '#e9b97f', mid: '#b97a40', dark: '#99602f', vein: '#8a5428' };
 const sea = createSea(WORLD_SEA);
 const plants = createPlants(); // подпись «Сорвать…», кнопка и клавиша E у плодовых растений
 // Места, где можно сорвать находку для гербария Мяты (common/herbs.js): вид места и клетка клумбы, дерева или ёлки.
@@ -901,10 +1135,38 @@ function build(m) {
   put1('signpost', 65, 28, { text: '🏨 Отель ↘', text2: 'на набережной' });
 
   // ---- набережная ----
+  put1('townsign', 60, 47); // «Ореховая Гавань» — у спуска к пирсу, куда причаливает кораблик
+  keep(61, 47);
   for (let x = 4; x < MW; x += 8) if (g[47][x] === 'g' && !solid[47][x] && !taken.has(x + ',47')) put1('lamp', x, 47);
   for (const x of [25, 34, 45, 62, 81])
     if (g[47][x] === 'g' && !solid[47][x] && !taken.has(x + ',47')) put1('bench', x, 47);
   put1('signpost', 65, 47, { text: 'Пирс ↓', text2: '← Пляж', solid: true });
+  // ---- ореховые скалы по краям пляжа и камни в воде у берега (этап 10: по их цвету назван городок) ----
+  put1('nutcliff', 0, 53, { v: 0 });
+  put1('nutcliff', 0, 55, { v: 1 });
+  put1('nutcliff', 93, 54, { v: 1 });
+  put1('nutcliff', 93, 56, { v: 0 });
+  for (const [x0, y0] of [
+    [0, 53],
+    [93, 54],
+  ])
+    for (let y = y0; y < y0 + 4; y++) for (let x = x0; x < x0 + 3; x++) if (x !== x0 || y !== y0) add('nutdot', x, y);
+  for (const [x, y, v] of [
+    [3, 55, 1],
+    [1, 57, 2],
+    [3, 58, 0],
+    [0, 59, 1],
+    [92, 55, 0],
+    [94, 58, 2],
+    [91, 58, 1],
+    [95, 60, 0],
+    [9, 60, 2],
+    [24, 58, 0],
+    [38, 59, 1],
+    [79, 58, 0],
+    [88, 60, 2],
+  ])
+    put1('nutrock', x, y, { v, wet: y >= 57 });
   // ---- пляж ----
   put1('fishsign', 64, 62);
   sea.buildObjects(m);
@@ -1133,7 +1395,7 @@ function landExit(id, area, to, entry) {
 
 const town = createTopDownScene({
   id: 'world', // имя сцены лежит в сохранениях: { scene: 'world', x, y } — не менять
-  title: 'Карта города',
+  title: 'Ореховая Гавань — карта города',
   home: true,
   w: MW,
   h: MH,

@@ -41,6 +41,7 @@ export * from './holidays_scenes.js';
 export * from './holidays_winter.js';
 export * from './holidays_summer.js';
 export * from './holidays_bday.js';
+export * from './intro.js';
 export * from './backpack.js';
 export * from './album.js';
 export * from './piano.js';
