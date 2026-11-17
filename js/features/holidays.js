@@ -49,6 +49,7 @@ import { talkHooks } from './friends.js';
 import { doorHooks } from './visits.js';
 import { setExtraTarget, setJournalTop, trackQuest } from './quests.js';
 import { openMap, routeText } from './map.js';
+import '../locations/holidays_lands.js'; // этап 15 (Пр2): украшения в других местах и в домах
 
 const S = () => G.state;
 const HF = () => (S() && S().dayFlags.holiday) || {};

@@ -14,6 +14,8 @@
 // Перепланировали город — поправь таблицу, и панорама перерисуется сама.
 import { clamp, TAU } from '../core/util.js';
 import { ell, fillRR, line, poly, mix, shade } from '../core/draw.js';
+import { G, darkness } from '../core/state.js';
+import { holidayOn } from '../data/index.js';
 
 export const VIEW_H = 600;
 const HZ = 152, // линия горизонта
@@ -844,9 +846,68 @@ export function renderViewLayer(l, L, env, k, zoomX = 1) {
   return { c, top, L };
 }
 
-/** Что в слое шевелится (рисуется каждый кадр поверх картинки слоя): облака в небе, кораблики и кит в море. */
+/** Новогодняя ночь — над городом салют (как в самом городе: locations/holidays.js, Пр7). */
+export function viewFireworks() {
+  const s = G.state,
+    h = s && holidayOn(s.day, s.startDay || 0);
+  return !!h && h.id === 'newyear' && darkness() > 0.3;
+}
+const FW = ['#ff6b6b', '#ffd43b', '#69db7c', '#4dabf7', '#da77f2', '#ff922b'];
+/**
+ * Салют с площадки башни и в подзорную трубу (Пр7, Пр22): залпы над городом у горизонта — шары искр раскрываются,
+ * падают и гаснут; ракета-точка взлетает снизу. Залпы считаются от времени (без состояния), режим lighter.
+ */
+function paintFireworks(ctx, L, t) {
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+  for (let i = 0; i < 4; i++) {
+    const u = t * 0.42 + i / 4,
+      n = Math.floor(u),
+      q = u % 1,
+      seed = (n * 7 + i * 13) % 17,
+      x = ((seed / 17) * 0.8 + 0.1) * L,
+      y = 40 + ((seed * 5) % 9) * 8,
+      col = FW[(n + i * 2) % FW.length];
+    if (q < 0.2) {
+      // ракета взлетает от крыш
+      ell(ctx, x, HZ + 40 - (HZ + 40 - y) * (q / 0.2), 1.6, 3, '#fff3bf');
+      continue;
+    }
+    const k = (q - 0.2) / 0.8,
+      rad = 8 + k * 54,
+      fall = k * k * 16;
+    ctx.globalAlpha = Math.max(0, 1 - k * k);
+    if (k < 0.18) ell(ctx, x, y, 22, 22, 'rgba(255,243,191,.8)');
+    ell(ctx, x, y + fall * 0.5, rad * 1.15, rad * 1.15, col + '33');
+    ctx.fillStyle = col;
+    ctx.beginPath();
+    for (let j = 0; j < 24; j++) {
+      const a = (j / 24) * TAU + n,
+        r = rad * (0.7 + (j % 3) * 0.15),
+        px = x + Math.cos(a) * r,
+        py = y + Math.sin(a) * r + fall,
+        d = 2.8 - (j % 3) * 0.5;
+      ctx.moveTo(px + d, py);
+      ctx.arc(px, py, d, 0, TAU);
+    }
+    ctx.fill();
+    ctx.fillStyle = '#fff';
+    ctx.beginPath();
+    for (let j = 0; j < 24; j += 3) {
+      const a = (j / 24) * TAU + n,
+        px = x + Math.cos(a) * rad * 0.7,
+        py = y + Math.sin(a) * rad * 0.7 + fall;
+      ctx.moveTo(px + 1.2, py);
+      ctx.arc(px, py, 1.2, 0, TAU);
+    }
+    ctx.fill();
+  }
+  ctx.restore();
+}
+/** Что в слое шевелится (рисуется каждый кадр поверх картинки слоя): облака в небе, кораблики и кит в море; салют. */
 export function paintViewLive(ctx, l, L, env, t, zoomX = 1) {
   if (l.id === 'sky') {
+    if (viewFireworks()) paintFireworks(ctx, L, t);
     for (let i = 0; i < 6; i++)
       cloud(
         ctx,
