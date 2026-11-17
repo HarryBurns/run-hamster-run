@@ -1,0 +1,138 @@
+// ВВОДНАЯ ЦЕПОЧКА ЗАДАНИЙ НОВОЙ ИГРЫ (этап 10): четыре соседа по очереди заходят в гости на виллу, что-то приносят
+// и рассказывают — так хомячок знакомится с рюкзаком, магазином, огородом, кухней, работой, рынком, телефоном, морем
+// и с жителями Ореховой Гавани. Сами задания — обычные задания журнала (data/quests.js, поле intro): ход считает
+// features/quests.js, сдают их жителю в городе. Здесь — только «сценка в гостях»:
+//   хомячок на вилле, окон нет, день (7:00–21:00), следующее вводное задание можно взять → житель входит в дверь
+//   (как гость: его можно угостить, вечером он уйдёт), несёт в лапках коробочку или рассаду (carry — engine/side/
+//   actors.js), подходит, вручает — и рассказывает. Задание попадает в журнал, звёздочка ведёт к первому шагу.
+// Следующий сосед приходит, когда прошлое задание сдано. Ничего не блокируется: задания можно не делать, а на первой
+// встрече сказать «Я уже всё умею» — тогда цепочка выключается (flags.intro = 2). У старых игр отметки flags.intro
+// нет — к ним никто не приходит.
+import { addItem, inviteGuest, meetFriend, setFlag } from '../core/actions.js';
+import { sfx } from '../core/audio.js';
+import { on } from '../core/events.js';
+import { scene } from '../core/loop.js';
+import { G, questNow } from '../core/state.js';
+import { QUESTS, NPC_BY_ID, npcLook } from '../data/index.js';
+import { dialog } from '../ui/dialog.js';
+import { toast } from '../ui/toast.js';
+import { startQuest } from './quests.js';
+
+const S = () => G.state;
+const INTRO = QUESTS.filter((q) => q.intro);
+const WAIT = 1.6, // сколько секунд хомячок должна побыть дома, прежде чем постучат
+  GIVE_AFTER = 6, // гость не дошёл (хомячок на другом этаже) — рассказывает и так, через столько секунд
+  GIVE_TIME = 0.7; // сколько секунд летит коробочка
+const HOURS = [7 * 60, 21 * 60]; // в гости заходят днём
+
+/** Идёт ли вводная цепочка (новая игра и не сказано «Я уже всё умею»). */
+export const introOn = () => !!S() && S().flags.intro === 1;
+/** Вводное задание, с которым сейчас может прийти сосед (или null). */
+const nextIntro = () => (introOn() ? INTRO.find((q) => questNow(q.id).status === 'ready') || null : null);
+
+let home = 0, // сколько секунд подряд хомячок дома и ничего не происходит
+  visit = null; // идёт сценка: { q, t, talking }
+
+/** Хомячок на вилле, и дом может принять гостя. */
+const atVilla = (sc) => !!sc && sc.houseKey === 'villa' && !!sc.canHostGuests && sc.canHostGuests();
+const actorOf = (sc, id) => sc.actors.find((g) => g.guest && g.id === id);
+
+/** Сосед входит в дверь с гостинцем в лапках. */
+function knock(sc, q) {
+  const npc = NPC_BY_ID[q.npc];
+  inviteGuest(q.npc, 'villa'); // уже в гостях или дом полон — расскажет и так
+  const g = actorOf(sc, q.npc),
+    c = q.visit && q.visit.carry;
+  if (g && c) g.carry = { ...c, give: null };
+  visit = { q, t: 0, talking: false };
+  sfx('bell');
+  toast(`Тук-тук! ${npc.name} заглянул${npc.fem ? 'а' : ''} в гости 🚪`, 'good');
+}
+/** Сосед рассказывает: гостинец — в рюкзак, задание — в журнал. */
+async function talk(q) {
+  const npc = NPC_BY_ID[q.npc],
+    fr = S().friends[q.npc],
+    first = q === INTRO[0];
+  if (fr && !fr.met) meetFriend(q.npc);
+  for (const [bag, id, n = 1] of (q.visit && q.visit.give) || []) addItem(bag, id, n);
+  const say = (text, options, happy) => dialog({ look: npcLook(q.npc), name: npc.name, text, options, happy });
+  const i = await say(q.lines.offer, first ? [{ text: `${q.icon} Спасибо!`, cls: 'green' }, { text: 'Я уже всё умею' }] : [{ text: `${q.icon} Спасибо!`, cls: 'green' }], true);
+  if (first && i === 1) {
+    // опытный игрок: подсказки не нужны — цепочка выключается, сосед остаётся в гостях
+    setFlag('intro', 2);
+    await say('Ой, так ты уже всё знаешь! Тогда просто живи и радуйся. А если что — журнал 📖 всегда в альбоме.', [{ text: 'Хорошо!', cls: 'green' }], true);
+    return;
+  }
+  if (!startQuest(q.id)) return;
+  sfx('bell');
+  await say(q.lines.accept, [{ text: 'Хорошо!', cls: 'green' }], true);
+  toast(`📖 Новое задание в журнале: ${q.icon} ${q.title}`, 'good');
+}
+/** Сценка кончилась (или хомячок ушла из дома): коробочку убрать. */
+function endVisit() {
+  const sc = scene(),
+    g = visit && sc && sc.actors ? actorOf(sc, visit.q.npc) : null;
+  if (g) g.carry = null;
+  visit = null;
+  home = 0;
+}
+
+function tick({ dt = 0 } = {}) {
+  const s = S(),
+    sc = scene();
+  if (!s || !atVilla(sc)) {
+    if (visit && !visit.talking) endVisit();
+    home = 0;
+    return;
+  }
+  if (!visit) {
+    const q = s.minutes >= HOURS[0] && s.minutes < HOURS[1] ? nextIntro() : null;
+    home = q ? home + dt : 0;
+    if (q && home >= WAIT) knock(sc, q);
+    return;
+  }
+  if (visit.talking) return;
+  visit.t += dt;
+  const g = actorOf(sc, visit.q.npc),
+    same = !!g && sc.p.f === g.f,
+    dx = g ? sc.p.x - g.x : 0;
+  const begin = () => {
+    visit.talking = true;
+    const q = visit.q;
+    talk(q).finally(endVisit);
+  };
+  if (!g) return void (visit.t > 0.6 && begin());
+  if (g.carry && g.carry.give) {
+    g.carry.give.a += dt / GIVE_TIME;
+    g.carry.give.x = sc.p.x;
+    if (g.carry.give.a >= 1) {
+      g.carry = null;
+      sc.burst(sc.p.x, sc.geo.fy(sc.p.f) - 110, 'heart', 4);
+      begin();
+    }
+  } else if ((same && Math.abs(dx) < 110) || visit.t > GIVE_AFTER) {
+    g.dir = Math.sign(dx) || 1;
+    g.wait = 2.5;
+    g.moving = false;
+    g.tx = g.x;
+    if (g.carry) g.carry.give = { x: sc.p.x, y: sc.geo.fy(sc.p.f) - 60, a: 0 };
+    else begin();
+  } else if (same) {
+    const lo = g.roam ? Math.min(g.roam[0], g.x) : g.x,
+      hi = g.roam ? Math.max(g.roam[1], g.x) : g.x;
+    g.tx = Math.max(lo, Math.min(hi, sc.p.x - Math.sign(dx) * 80));
+    g.wait = 0;
+  }
+}
+on('step', tick);
+
+/** Для тестов и отладки: что с вводной цепочкой сейчас. */
+export function debugWelcome() {
+  return {
+    on: introOn(),
+    flag: S() ? S().flags.intro || 0 : 0,
+    next: nextIntro() ? nextIntro().id : null,
+    visit: visit ? { id: visit.q.id, talking: visit.talking } : null,
+    quests: S() ? INTRO.map((q) => `${q.id}:${questNow(q.id).status}:${questNow(q.id).i}`) : [],
+  };
+}

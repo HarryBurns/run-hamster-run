@@ -43,7 +43,8 @@ export const TASK_COINS = {
 /** Мешочек монет вместо сюрприза, когда все подарки уже подарены. */
 export const SURPRISE_COINS = 1000;
 // Сюжетные задания (журнал, data/quests.js): награда разовая — задание делают один раз за игру.
-export const QUEST_COINS = { herbarium: 500, squirrel_kit: 600, summit: 700, lost_mitten: 600, cave_light: 700, lucky_pick: 600, runway_star: 700, camel_bell: 600, cabin_boy: 700, lost_notebook: 600, treasure_map: 700, pearl_castle: 600, far_island: 800, chief_fest: 600 };
+// вводная цепочка (этап 10) — понемногу: вместе меньше одной смены на 3★
+export const QUEST_COINS = { intro_home: 100, intro_garden: 100, intro_work: 150, intro_sea: 150, herbarium: 500, squirrel_kit: 600, summit: 700, lost_mitten: 600, cave_light: 700, lucky_pick: 600, runway_star: 700, camel_bell: 600, cabin_boy: 700, lost_notebook: 600, treasure_map: 700, pearl_castle: 600, far_island: 800, chief_fest: 600 };
 /** Подарок за задание уже лежит в шкафу — вместо него мешочек монет. */
 export const QUEST_GIFT_COINS = 600;
 

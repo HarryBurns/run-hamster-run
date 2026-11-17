@@ -40,6 +40,8 @@ import {
   QUEST_GIFT_COINS,
   DISH_BY_ID,
   HOME_SCENE,
+  SEED_BY_ID,
+  ING_BY_ID,
 } from '../data/index.js';
 import { homeLocation, currentLocation, getLocation, setTargetHook } from '../engine/topdown/index.js';
 import { dialog } from '../ui/dialog.js';
@@ -192,7 +194,8 @@ function countEvent(ev, d) {
     if (!st || st.done !== null) continue;
     q.steps.forEach((step, i) => {
       if (step.on !== ev || (st.n[i] || 0) >= (step.n || 1)) return;
-      if (step.if && Object.entries(step.if).some(([k, v]) => d[k] !== v)) return;
+      // значение в if может быть списком: «любая из работ»
+      if (step.if && Object.entries(step.if).some(([k, v]) => (Array.isArray(v) ? !v.includes(d[k]) : d[k] !== v))) return;
       if (step.min && Object.entries(step.min).some(([k, v]) => !(d[k] >= v))) return;
       questCount(q.id, i, step.distinct ? d[step.distinct] : undefined);
     });
@@ -242,7 +245,7 @@ function hintNew() {
   if (!s) return;
   refresh(true);
   for (const q of QUESTS) {
-    if (s.flags['questHint:' + q.id] || questNow(q.id).status !== 'ready') continue;
+    if (q.intro || s.flags['questHint:' + q.id] || questNow(q.id).status !== 'ready') continue; // вводное приносят домой
     setFlag('questHint:' + q.id);
     const npc = NPC_BY_ID[q.npc];
     enqueue(() => toast(`❗ ${npc.name} хочет о чём-то тебя попросить — у ${hisOf(q.npc)} над головой «!»`, 'good'), {
@@ -266,7 +269,7 @@ export async function questTalk(npcId) {
   if (!S()) return null;
   for (const q of QUESTS) {
     const w = questNow(q.id);
-    if (w.status === 'ready' && q.npc === npcId) return offer(q);
+    if (w.status === 'ready' && q.npc === npcId && !q.intro) return offer(q);
     if (w.status !== 'active') continue;
     const cur = q.steps[w.i];
     if (cur && cur.talk === npcId) return talkStep(q, w);
@@ -361,6 +364,21 @@ async function talkStep(q, w) {
   return { end: true };
 }
 
+/** Название вещи из рюкзака для окон: семена, продукт, блюдо. */
+function itemName(bag, id) {
+  const d = bag === 'seeds' ? SEED_BY_ID[id] : bag === 'ing' ? ING_BY_ID[id] : bag === 'dishes' ? DISH_BY_ID[id] : FIND_BY_ID[id];
+  return d ? `${d.e ? d.e + ' ' : ''}${d.name}` : id;
+}
+/**
+ * Взять задание без разговора «Поможешь?» (вводная цепочка: житель сам пришёл в гости — features/welcome.js):
+ * задание в журнале, звёздочка ведёт к первому шагу.
+ */
+export function startQuest(id) {
+  if (!takeQuest(id)) return false;
+  trackQuest(id);
+  emit('hud');
+  return true;
+}
 /** Отдать принесённое (шаги bring): находки вида kind — все, предметы с id — сколько просили. */
 function giveAway(b, n) {
   const bag = S()[b.bag];
@@ -377,7 +395,11 @@ function complete(q) {
     got = { coins: r.coins || 0, clothes: null, sticker: null, land: null };
   if (r.clothes) {
     if (addClothes(r.clothes)) got.clothes = CLOTHES_BY_ID[r.clothes];
-    else got.coins += QUEST_GIFT_COINS;
+    else if (!q.intro) got.coins += QUEST_GIFT_COINS; // вводные задания — понемногу: без мешочка взамен
+  }
+  if (r.items) {
+    for (const [bag, id, n = 1] of r.items) addItem(bag, id, n);
+    got.items = r.items.map(([bag, id, n = 1]) => `${itemName(bag, id)} ×${n}`).join(', ');
   }
   if (got.coins) earn(got.coins, 'task');
   if (r.sticker) got.sticker = { ...STICKER[r.sticker], isNew: award(r.sticker, { quiet: true }) };
@@ -406,6 +428,7 @@ function celebrate(q, got) {
     got.land ? `<p class="land-open">${got.land.icon} <b>${got.land.name} ${got.land.opened || 'открыт'}!</b><br>${got.land.at ? `Вход — ${got.land.at}.` : ''}</p>` : '',
     st ? `<p>Наклейка «${st.title}» ${st.isNew ? '— новая в альбоме!' : '— такая у тебя уже есть.'}</p>` : '',
     got.clothes ? `<p>🎁 Подарок: <b>${got.clothes.name}</b> — уже в шкафу!</p>` : '',
+    got.items ? `<p>🎁 В рюкзаке: <b>${got.items}</b></p>` : '',
     got.recipe ? `<p>📜 Секретный рецепт: <b>${got.recipe.e} ${got.recipe.name}</b> — готовь на кухне!</p>` : '',
     got.coins ? `<p class="reward">🪙 +${fmtMoney(got.coins)} монет</p>` : '',
     got.hint ? `<p class="muted">${got.hint}</p>` : '',
@@ -430,7 +453,7 @@ export function renderJournal(body, panel) {
   if (journalTop) journalTop(body, panel);
   const all = QUESTS.map((q) => questNow(q.id));
   const active = all.filter((w) => w.status === 'active'),
-    ready = all.filter((w) => w.status === 'ready'),
+    ready = all.filter((w) => w.status === 'ready' && !w.q.intro),
     done = all.filter((w) => w.status === 'done');
   const mapBtn = (w) => {
     const b = el('button', 'btn small yellow', '🗺️ Показать на карте');
@@ -523,7 +546,7 @@ export function questChip() {
   const w =
     all.find((x) => x.q.id === tracked && x.status === 'active') ||
     all.find((x) => x.status === 'active') ||
-    all.find((x) => x.status === 'ready');
+    all.find((x) => x.status === 'ready' && !x.q.intro);
   if (!w) return null;
   const q = w.q;
   if (w.status === 'ready') {

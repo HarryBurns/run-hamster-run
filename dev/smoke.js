@@ -21,6 +21,7 @@
 //  праздники, П.13 — dev/smoke_holidays.js:  node dev/smoke.js <url> step:праздники;
 //  вещи, рецепты, значки, этап 12 — dev/smoke_items.js:  node dev/smoke.js <url> step:вещи;
 //  природа, море и оживление мест, этап 16 — dev/smoke_nature.js:  node dev/smoke.js <url> step:природа;
+//  начало игры в Ореховой Гавани, этап 10 — dev/smoke_start.js:  node dev/smoke.js <url> "step:начало игры";
 //  музыка и звуки, этап 9б — dev/smoke_audio.js:  node dev/smoke.js <url> step:звук:;
 //  мини-игры вместо сценок, этап 14 — dev/smoke_games.js:  node dev/smoke.js <url> "step:игры 14:")
 // Скорость проверяется отдельно:  node dev/bench.js [url] --spots=forest --sizes=desktop --max-forest=45
@@ -44,6 +45,7 @@ const island = require('./smoke_island.js'); // П.9: удалённый ост�
 const hotel = require('./smoke_hotel.js'); // П.17: курортный отель — номер на ночь, шведский стол, спа, аниматор, «Горка», носильщица, люкс
 const title = require('./smoke_title.js'); // этап 9а: заставка, несколько игр, удаление нарочно, живая сцена
 const audio = require('./smoke_audio.js'); // этап 9б: файлы музыки и звуков, музыка по месту, выключение, «Авторы»
+const start = require('./smoke_start.js'); // этап 10: новая игра 1 июня, вступительная сценка, вводная цепочка заданий, Ореховая Гавань
 const items = require('./smoke_items.js'); // этап 12: рисованные значки вещей, маракуйя, рецепты из леса, венок и гирлянда, карта сокровищ в рюкзаке
 const nature = require('./smoke_nature.js'); // этап 16: природа и море — скалы и плотик, дельфины, лагуна, извержение, пирога, гора, пустыня, пляж, отель
 const inside = require('./smoke_inside.js'); // этап 13: войти внутрь — дома тайных мест, хозяева, предметы, выход, ночь
@@ -270,6 +272,7 @@ async function extra({ page, step, ev, wait, closeAll, hold }) {
     if (await page.locator('text=Продолжить').count()) throw new Error('битое сохранение предложено продолжить');
     await page.click('text=Играть!');
     await page.click('text=Пропустить'); // вступительная сценка новой игры (этап 10)
+    await page.evaluate(() => window.__dev.actions.setFlag('intro', 0)); // вводная цепочка заданий — в своих шагах (dev/smoke_start.js)
     await wait(400);
     await page.click('text=Поехали!');
     await wait(400);
@@ -1046,6 +1049,7 @@ async function economy({ page, step, ev, wait, closeAll }) {
     await wait(400);
     await page.click('text=Играть!');
     await page.click('text=Пропустить'); // вступительная сценка новой игры (этап 10)
+    await page.evaluate(() => window.__dev.actions.setFlag('intro', 0)); // вводная цепочка заданий — в своих шагах (dev/smoke_start.js)
     await wait(400);
     const hello = await text('.overlay .panel-body');
     expect(!/миллиард/i.test(hello) && hello.includes('3 000') && /заработ/i.test(hello), 'приветствие', hello);
@@ -1632,6 +1636,7 @@ const runParallel = () => {
       await wait(400);
       await page.click('text=Играть!');
       await page.click('text=Пропустить'); // вступительная сценка новой игры (этап 10)
+      await page.evaluate(() => window.__dev.actions.setFlag('intro', 0)); // вводная цепочка заданий — в своих шагах (dev/smoke_start.js)
       await wait(400);
       await page.click('text=Поехали!');
       await wait(500);
@@ -2815,6 +2820,7 @@ const runParallel = () => {
     await audio({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
     await items({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
     await nature({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
+    await start({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
     await worldmap({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
     await games({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
     await estate({ page, step: (n, f, o) => step(n, f, { ...o, extra: true, estate: true }), ev, wait, closeAll });

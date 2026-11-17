@@ -41,6 +41,7 @@ module.exports = async function health({ page, step, ev, wait, closeAll }) {
     await wait(400);
     await page.click('text=Играть!');
     await page.click('text=Пропустить'); // вступительная сценка новой игры (этап 10)
+    await page.evaluate(() => window.__dev.actions.setFlag('intro', 0)); // вводная цепочка заданий — в своих шагах (dev/smoke_start.js)
     await wait(400);
     await page.click('text=Поехали!');
     await wait(500);

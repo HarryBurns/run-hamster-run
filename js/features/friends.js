@@ -344,6 +344,7 @@ export function openPhone() {
           b.disabled = here || night || S().guests.length >= MAX_GUESTS;
           b.onclick = () => {
             if (invite(n.id, where)) {
+              emit('invite', { id: n.id });
               sfx('bell');
               toast(`${n.name} уже бежит к тебе ${homeTo(where)}! ${HOME_BY_ID[where].icon}`, 'good');
               panel.refresh();

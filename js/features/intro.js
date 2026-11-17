@@ -626,10 +626,11 @@ let current = null; // открытая сценка — для автотест
 export const introDebug = () => (current ? { i: current.i(), id: FRAMES[current.i()].id, n: FRAMES.length } : null);
 
 /**
- * Показать вступительную сценку. name — имя хомячка, look — её вид (по умолчанию — из сохранения).
+ * Показать вступительную сценку. name — имя хомячка, look — её вид (по умолчанию — из сохранения), frameTime —
+ * сколько секунд кадр стоит сам (для тестов).
  * Возвращает Promise: досмотрели или пропустили — дальше начинается игра.
  */
-export function playIntro({ name = 'Хомка', look = playerLook() } = {}) {
+export function playIntro({ name = 'Хомка', look = playerLook(), frameTime = FRAME_TIME } = {}) {
   return new Promise((resolve) => {
     const box = el('div');
     box.id = 'intro';
@@ -688,7 +689,7 @@ export function playIntro({ name = 'Хомка', look = playerLook() } = {}) {
     const frame = (now) => {
       if (done) return;
       const t = (now - t0) / 1000;
-      if (fadeFrom < 0 && t > FRAME_TIME) return void go(); // сам листается дальше (после последнего — в игру)
+      if (fadeFrom < 0 && t > frameTime) return void go(); // сам листается дальше (после последнего — в игру)
       paint(ctx, i, t);
       if (fadeFrom >= 0) {
         const a = t / FADE;

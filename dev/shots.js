@@ -135,6 +135,7 @@ const HOOKS = `window.__T = () => window.__dev;`;
       await run(500);
       await click('text=Играть!');
       await click('text=Пропустить'); // вступительная сценка новой игры (этап 10)
+      await page.evaluate(() => window.__dev.actions.setFlag('intro', 0)); // вводная цепочка заданий — не в снимках
       await run(400);
     };
     const start = async () => {
@@ -190,6 +191,7 @@ const HOOKS = `window.__T = () => window.__dev;`;
       await shot('title');
       await click('text=Играть!');
       await click('text=Пропустить'); // вступительная сценка новой игры (этап 10)
+      await page.evaluate(() => window.__dev.actions.setFlag('intro', 0)); // вводная цепочка заданий — не в снимках
       await run(400);
       await shot('welcome');
       await click('text=Как играть');

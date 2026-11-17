@@ -184,7 +184,7 @@ export function newGame(name) {
     best: {},
     plays: {},
     pos: { scene: 'villa', floor: 1, x: 270 },
-    flags: {},
+    flags: { intro: 1 }, // intro: 1 — идёт вводная цепочка заданий новой игры (features/welcome.js)
     homes: {}, // мебель в других домах (купленное жильё): ключ дома → список предметов, как в villa
     homesOwned: [], // купленное жильё: id из HOMES (вилла своя всегда и сюда не входит)
     homeMain: 'villa', // основной дом: туда ведёт кнопка «Домой»
@@ -699,7 +699,7 @@ function questCache() {
   wanted = {};
   for (const q of QUESTS) {
     const w = questNow(q.id);
-    if (w.status === 'ready' && !badges[q.npc]) badges[q.npc] = '!';
+    if (w.status === 'ready' && !q.intro && !badges[q.npc]) badges[q.npc] = '!'; // вводное задание житель приносит сам
     if (w.status !== 'active') continue;
     const cur = q.steps[w.i];
     if (cur && cur.talk) badges[cur.talk] = '?';
