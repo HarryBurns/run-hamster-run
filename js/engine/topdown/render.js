@@ -598,6 +598,11 @@ export function drawFrame(ctx, sc) {
     const by = tg.y - 78 + Math.sin(t * 4) * 6;
     if (tg.icon === '⭐') {
       star(ctx, tg.x, by, 15, '#ffd43b', OUT, 2.5);
+      // «карта мира»: звёздочка у выхода — рядом значок места, куда ведёт дорога
+      if (tg.to) {
+        ell(ctx, tg.x + 21, by - 13, 13, 13, '#fff', OUT, 2);
+        emoji(ctx, tg.to, tg.x + 21, by - 13, 16);
+      }
     }
   }
   SP.end(dpr);

@@ -39,13 +39,14 @@ import {
   EXTRA_STICKERS,
   QUEST_GIFT_COINS,
   DISH_BY_ID,
+  HOME_SCENE,
 } from '../data/index.js';
 import { homeLocation, currentLocation, getLocation, setTargetHook } from '../engine/topdown/index.js';
 import { dialog } from '../ui/dialog.js';
 import { enqueue } from '../ui/modals.js';
 import { message } from '../ui/panel.js';
 import { toast } from '../ui/toast.js';
-import { openMap } from './map.js';
+import { openMap, setMapGoal, routeText } from './map.js';
 
 const S = () => G.state;
 const STICKER = Object.fromEntries(EXTRA_STICKERS.map((q) => [q.id, q]));
@@ -56,15 +57,20 @@ const toHim = (npc) => (NPC_BY_ID[npc].fem ? 'ней' : 'нему'); // «к н�
 // ---------- звёздочка-указатель ----------
 // К какому заданию показывает звёздочка (та же, что у письма; важнее письма). Берут задание — звёздочка ведёт
 // к первому шагу; «Показать на карте» в журнале — к текущему шагу; нажали на плашку письма — снова к письму.
+// «Карта мира» (этап 11): цель может быть в другом месте, чем хомячок. Тогда звёздочка встаёт у выхода или
+// транспорта, который ведёт в нужную сторону (sc.wayTo — граф ROUTES в data/places.js), а в месте цели — у самой цели.
 let tracked = null,
   extraTarget = null,
+  extraScene = null,
   journalTop = null;
 /**
- * Звёздочка не задания из журнала, а чего-то ещё (праздник — features/holidays.js): fn(sc) → { x, y, icon } | null.
- * Спрашивается, только пока ни одно задание из журнала не показывается звёздочкой.
+ * Звёздочка не задания из журнала, а чего-то ещё (праздник — features/holidays.js): fn(sc) → { x, y, icon } | null —
+ * зовётся в месте цели; sceneFn() → имя сцены, где эта цель сейчас (null — показывать нечего): в других местах
+ * звёздочка ведёт к дороге туда. Спрашивается, только пока ни одно задание из журнала не показывается звёздочкой.
  */
-export function setExtraTarget(fn) {
+export function setExtraTarget(fn, sceneFn) {
   extraTarget = fn;
+  extraScene = sceneFn || null;
 }
 /** Своя карточка в начале журнала (праздник сегодня — features/holidays.js): fn(body, panel). */
 export function setJournalTop(fn) {
@@ -82,23 +88,53 @@ function questWhere(w) {
   const step = w.q.steps[w.i];
   return step ? step.where || (step.talk ? 'npc:' + step.talk : null) : null;
 }
-setTargetHook((sc) => {
-  if (!S()) return null;
-  if (!tracked) return extraTarget ? extraTarget(sc) : null;
+/** В каком месте (имя сцены) задание идёт сейчас: поле loc шага или задания, без них — город. */
+function questScene(w) {
+  const step = w.status === 'active' ? w.q.steps[w.i] : null;
+  return (step && step.loc) || w.q.loc || HOME_SCENE;
+}
+/** Задание, которое показывает звёздочка, — { w, where } или null (сделано — звёздочка снова свободна). */
+function trackedNow() {
+  if (!tracked) return null;
   const w = questNow(tracked);
   if (w.status === 'done') {
     tracked = null;
     return null;
   }
-  const where = questWhere(w),
-    p = where && sc.whereIs(where);
+  return { w, where: questWhere(w) };
+}
+setTargetHook((sc) => {
+  if (!S()) return null;
+  const tr = trackedNow();
+  if (!tr) {
+    if (!extraTarget) return null;
+    const at = extraScene ? extraScene() : sc.name;
+    return at && at !== sc.name ? sc.wayTo(at) : extraTarget(sc);
+  }
+  if (!tr.where) return null;
+  const at = questScene(tr.w);
+  if (at !== sc.name) return sc.wayTo(at); // цель в другом месте — к выходу или транспорту в ту сторону
+  const p = sc.whereIs(tr.where);
   if (!p) return null;
   // над жителем — повыше, над значком «!» / «?»
-  return { x: p.x, y: where.startsWith('npc:') ? p.y - 62 : p.y, icon: '⭐' };
+  return { x: p.x, y: tr.where.startsWith('npc:') ? p.y - 62 : p.y, icon: '⭐' };
 });
+/** В каком месте (имя сцены) сейчас цель звёздочки — задание журнала, праздник или предметы письма; null — цели нет. */
+export function starScene() {
+  if (!S()) return null;
+  const tr = trackedNow();
+  if (tr) return tr.where ? questScene(tr.w) : null;
+  const ex = extraScene && extraScene();
+  if (ex) return ex;
+  const m = S().mail,
+    it = m && m.items && !m.done && m.items.find((q) => !q.got);
+  return it ? it.loc || HOME_SCENE : null;
+}
+setMapGoal(starScene);
 /** Где искать того, кто дал задание: «в городе» или «в лесу» (поле loc задания — локация, где оно идёт). */
 const placeOf = (q) => (q.loc ? LOC_WORDS[q.loc] || 'в другом месте' : 'в городе');
 const LOC_WORDS = {
+  world: 'в городе',
   forest: 'в лесу',
   mountain: 'в горах',
   caves: 'в пещерах',
@@ -112,15 +148,22 @@ export function showQuestOnMap(id) {
   const w = questNow(id),
     where = questWhere(w),
     q = QUEST_BY_ID[id];
-  // задание в другой локации (лес): звёздочка видна только там — подсказать, куда идти
-  if (q.loc && currentLocation().name !== q.loc) {
+  // задание в другом месте, чем хомячок («карта мира»): звёздочка ведёт к дороге туда — подсказать, как идти
+  const at = questScene(w),
+    here = currentLocation().name;
+  if (where && at !== here && getLocation(at)) {
+    const way = routeText(here, at);
     trackQuest(id);
     sfx('ok');
-    toast(`${q.icon} Это задание — ${placeOf(q)}. Звёздочка покажет дорогу, когда ты будешь там.`);
+    toast(
+      way
+        ? `${q.icon} Это задание — ${LOC_WORDS[at] || 'в другом месте'}. Звёздочка ⭐ покажет дорогу — ${way}.`
+        : `${q.icon} Это задание — ${LOC_WORDS[at] || 'в другом месте'}. Туда пока нет дороги.`,
+    );
     openMap();
     return true;
   }
-  const p = where && (q.loc ? getLocation(q.loc) : homeLocation()).whereIs(where);
+  const p = where && (getLocation(at) || homeLocation()).whereIs(where);
   if (!p) {
     toast(
       where === 'herb'

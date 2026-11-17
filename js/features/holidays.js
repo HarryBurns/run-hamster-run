@@ -38,6 +38,7 @@ import {
   nextHoliday,
   holidayLine,
   decorsOn,
+  HOME_SCENE,
 } from '../data/index.js';
 import { currentLocation } from '../engine/topdown/index.js';
 import { enqueue } from '../ui/modals.js';
@@ -46,7 +47,7 @@ import { toast } from '../ui/toast.js';
 import { talkHooks } from './friends.js';
 import { doorHooks } from './visits.js';
 import { setExtraTarget, setJournalTop, trackQuest } from './quests.js';
-import { openMap } from './map.js';
+import { openMap, routeText } from './map.js';
 
 const S = () => G.state;
 const HF = () => (S() && S().dayFlags.holiday) || {};
@@ -381,11 +382,18 @@ function holidayTarget(sc) {
   if (w.startsWith('place:')) return sc.whereIs(w.slice(6));
   return WHERE[w] ? WHERE[w](sc, st.h, x) : null;
 }
-setExtraTarget((sc) => {
-  if (!tracking) return null;
-  const p = holidayTarget(sc);
-  return p ? { x: p.x, y: p.y, icon: '⭐' } : null;
-});
+setExtraTarget(
+  (sc) => {
+    if (!tracking) return null;
+    const p = holidayTarget(sc);
+    return p ? { x: p.x, y: p.y, icon: '⭐' } : null;
+  },
+  // «карта мира»: праздник идёт в городе — в других местах звёздочка ведёт к дороге в город
+  () => {
+    const st = tracking ? holidayState() : null;
+    return st && !st.done && st.steps[st.i].step.where ? HOME_SCENE : null;
+  },
+);
 /** «Показать на карте»: звёздочка — к текущему шагу праздника, окно карты города. */
 export function showHolidayOnMap() {
   const st = holidayState();
@@ -394,8 +402,8 @@ export function showHolidayOnMap() {
   tracking = true;
   sfx('ok');
   if (!currentLocation().desc.home) {
-    toast(`${st.h.icon} Праздник — в городе. Звёздочка покажет дорогу, когда ты будешь там.`);
-    return true;
+    const way = routeText(currentLocation().name, HOME_SCENE);
+    toast(`${st.h.icon} Праздник — в городе. ${st.steps[st.i].step.where && way ? `Звёздочка ⭐ покажет дорогу — ${way}.` : 'Возвращайся в город!'}`);
   }
   openMap();
   return true;

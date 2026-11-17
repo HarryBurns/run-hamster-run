@@ -84,7 +84,7 @@
 // sc.skipAlong() переносит героя вперёд по его пути, последние шаги — пешком (всё, что ждёт «дошла», срабатывает).
 // Способ передвижения героя (кораблик): sc.p.ride = { speed, pass(tx, ty), step: { sfx, pause }, moved(sc),
 // draw(ctx, sc, p, t, look), drop(sc) } — пока он задан, герой ходит по его правилам; null — пешком.
-import { G, darkness, cal, playerLook, beachLook, walkK, canSwim } from '../../core/state.js';
+import { G, darkness, cal, playerLook, beachLook, walkK, canSwim, landOpen } from '../../core/state.js';
 import { addItem, setFlag, setDayFlag, collectMailItem, markVisited } from '../../core/actions.js';
 import { emit } from '../../core/events.js';
 import { run } from '../../core/registry.js';
@@ -94,7 +94,7 @@ import { Camera } from '../../core/camera.js';
 import { clamp, dist, seeded } from '../../core/util.js';
 import { sfx } from '../../core/audio.js';
 import { toast } from '../../ui/toast.js';
-import { TASK_BY_ID, SICK_TEXT } from '../../data/index.js';
+import { TASK_BY_ID, SICK_TEXT, routeTo, landOf } from '../../data/index.js';
 import { T, SP, TILES, OBJECTS, BUILDING_KINDS, tileOf } from './kinds.js';
 import { createMap, mapSize } from './map.js';
 import { moveAlong, faceTo, canStand, makeResidents, settleResidents, updateResidents, hitResident } from './actors.js';
@@ -197,14 +197,29 @@ export function createTopDownScene(desc) {
       if (hk) return hk;
       const tg = sc.first('target', sc);
       if (tg) return tg;
-      for (const it of sc.taskItems())
-        if (!it.got && sc.itemHere(it))
+      let away = null;
+      for (const it of sc.taskItems()) {
+        if (it.got) continue;
+        if (sc.itemHere(it))
           return {
             x: (it.x + 0.5) * T,
             y: (it.y + 0.5) * T,
             icon: (TASK_BY_ID[G.state.mail.task] || {}).sticker || '⭐',
           };
-      return null;
+        away = away || it.loc || homeLocation().name;
+      }
+      // предметы письма лежат в другом месте — звёздочка ведёт к дороге туда («карта мира»)
+      return away ? sc.wayTo(away) : null;
+    },
+    /**
+     * «Карта мира»: звёздочка к выходу или транспорту, который ведёт отсюда в место to (имя сцены) — по графу
+     * ROUTES (data/places.js). { x, y, icon: '⭐', to: значок места, куда ведёт дорога, next, via } или null —
+     * мы уже там, место закрыто или дороги нет.
+     */
+    wayTo(to) {
+      const r = routeTo(sc.name, to, landOpen),
+        p = r && sc.whereIs(r.via);
+      return p ? { x: p.x, y: p.y, icon: '⭐', to: landOf(r.next).icon, next: r.next, via: r.via } : null;
     },
 
     /**
@@ -287,7 +302,11 @@ export function createTopDownScene(desc) {
         return true;
       }
       const b = map.bById[id];
-      if (!b) return false;
+      if (!b) {
+        // выход из локации ('exit:<id>') или точка, которую знает крюк where: просто дойти туда
+        const w = id.includes(':') ? sc.whereIs(id) : null;
+        return !!w && sc.walkTo(w.x, w.y, true);
+      }
       const d = map.doorPx(b);
       if (!sc.walkTo(d.x, d.y, true)) return false;
       p.pending = { b };
@@ -337,7 +356,8 @@ export function createTopDownScene(desc) {
     exit: (id) => exits.find((e) => e.id === id),
     /**
      * Точка по имени (единицы мира) — куда показывать звёздочку: 'npc:<житель>' — житель (если его сейчас нет на
-     * улице — у его дома), имя, которое знает крюк where (места для гербария), место, точка или здание. null — нет.
+     * улице — у его дома), 'exit:<выход>' — середина выхода из локации, имя, которое знает крюк where (места для
+     * гербария, морской путь 'sea:<место>'), место, точка или здание (его дверь). null — нет.
      */
     whereIs(name) {
       ensure();
@@ -346,6 +366,10 @@ export function createTopDownScene(desc) {
         if (!n) return null;
         if (!n.hidden) return { x: n.x, y: n.y };
         return n.home ? { x: (n.home[0] + 0.5) * T, y: (n.home[1] + 0.5) * T } : null;
+      }
+      if (name.startsWith('exit:')) {
+        const e = sc.exit(name.slice(5));
+        return e ? { x: ((e.area[0] + e.area[2] + 1) / 2) * T, y: ((e.area[1] + e.area[3] + 1) / 2) * T } : null;
       }
       return sc.first('where', sc, name) || sc.spot(name);
     },

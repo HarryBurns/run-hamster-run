@@ -89,3 +89,66 @@ export const LANDS = [
   },
 ];
 export const LAND_BY_ID = Object.fromEntries(LANDS.map((l) => [l.id, l]));
+
+// ---------- карта мира (этап 11): как места соединены между собой ----------
+// ROUTES — граф переходов: место (имя сцены) → { соседнее место: «через что» }. «Через что» — имя точки для
+// sc.whereIs / sc.walkToPlace в ЭТОМ месте: особое место или здание (звёздочка встаёт у его двери — где дверь,
+// знает само здание), 'exit:<выход>' — выход из локации (поле exits), 'sea:<место>' — морской путь (его знает
+// море, locations/sea.js: пока хомячок на берегу — к кораблику, на кораблике — к причалу, буйку или отметке).
+// По графу строится дорога из любого места в любое (routeTo): звёздочка задания, праздника и письма в месте,
+// где цели нет, показывает на выход в нужную сторону (sc.wayTo, engine/topdown/scene.js), окно «Карта» — в каком
+// месте цель. Новое место — строка в LANDS и две строчки здесь (туда и обратно).
+export const HOME_SCENE = 'world'; // город: отсюда начинаются все дороги
+export const HOME_LAND = { id: HOME_SCENE, name: 'Город', icon: '🏡' };
+export const ROUTES = {
+  world: { forest: 'forest', desert: 'desert', jungle: 'sea:jungle', cove: 'sea:cove', island: 'sea:island' },
+  forest: { world: 'exit:town', mountain: 'station' },
+  mountain: { forest: 'station', caves: 'caves' },
+  caves: { mountain: 'exit:mountain' },
+  desert: { world: 'stop' },
+  jungle: { world: 'dock' },
+  cove: { world: 'grotto' },
+  island: { world: 'dock' },
+};
+// как называется дорога — для подсказок («Дорога — по канатной дороге»): место → соседнее → слова
+export const ROUTE_WORDS = {
+  world: {
+    forest: 'по тропе в лес',
+    desert: 'на караване-автобусе',
+    jungle: 'на кораблике от пирса — к причалу с пальмами за буйками',
+    cove: 'на кораблике от пирса — к буйку-ракушке на востоке моря',
+    island: 'на кораблике от пирса — далеко на юг, к отметке 🧭',
+  },
+  forest: { world: 'по тропе в город', mountain: 'по канатной дороге' },
+  mountain: { forest: 'по канатной дороге вниз', caves: 'через тёмный проход в скале' },
+  caves: { mountain: 'к выходу на гору' },
+  desert: { world: 'на караване-автобусе' },
+  jungle: { world: 'на кораблике от причала' },
+  cove: { world: 'через подводный грот' },
+  island: { world: 'на кораблике от причала' },
+};
+/** Место по имени сцены: запись из LANDS или город. */
+export const landOf = (scene) => (scene === HOME_SCENE ? HOME_LAND : LAND_BY_ID[scene] || null);
+/**
+ * Дорога из места from в место to (имена сцен) по графу ROUTES. open(id) — открыто ли тайное место (в закрытое
+ * дорога не ведёт). Вернёт { next, via, path } — следующее место, через что туда идти отсюда и весь путь
+ * [from, …, to]; null — уже на месте или дороги нет.
+ */
+export function routeTo(from, to, open = () => true) {
+  if (from === to || !ROUTES[from] || !ROUTES[to]) return null;
+  const prev = { [from]: null },
+    queue = [from];
+  while (queue.length) {
+    const cur = queue.shift();
+    if (cur === to) break;
+    for (const nx of Object.keys(ROUTES[cur])) {
+      if (nx in prev || (nx !== HOME_SCENE && !open(nx))) continue;
+      prev[nx] = cur;
+      queue.push(nx);
+    }
+  }
+  if (!(to in prev)) return null;
+  const path = [to];
+  while (prev[path[0]]) path.unshift(prev[path[0]]);
+  return { next: path[1], via: ROUTES[from][path[1]], path };
+}

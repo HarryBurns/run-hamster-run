@@ -894,6 +894,21 @@ export function createSea(cfg) {
       setBoat({ on: false });
       if (sc && sc.p.ride === BOAT) sc.p.ride = null;
     },
+    /**
+     * «Карта мира» (ROUTES в data/places.js): морской путь 'sea:<место>' — куда показывать звёздочку. Хомячок
+     * на кораблике — к причалу, буйку над гротом или отметке дальнего пути; на берегу — сначала к кораблику.
+     */
+    where(s, name) {
+      if (!name.startsWith('sea:')) return null;
+      const land = name.slice(4),
+        goal = PORT && PORT.land === land ? PORT_PX : GROT && GROT.land === land ? GROT_PX : FAR && FAR.land === land ? FAR_PX : null;
+      if (!goal) return null;
+      if (isBoating()) return { x: goal.x, y: goal.y + 30 };
+      // вплавь у самого буйка над гротом (приплыла сама или вынырнула из грота) — нырять можно и без кораблика
+      if (goal === GROT_PX && atGrotto(6)) return { x: goal.x, y: goal.y + 30 };
+      const bt = boatState();
+      return { x: bt.x, y: bt.y + 20 };
+    },
     /** Буёк над подводным гротом (единицы мира) — для тестов. */
     grottoAt: () => GROT_PX,
     /** Отметка «Далеко на юг» (единицы мира) — для тестов. */

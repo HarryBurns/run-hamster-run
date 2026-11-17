@@ -11,11 +11,25 @@ import { go, sceneName } from '../core/loop.js';
 import { run } from '../core/registry.js';
 import { landOpen, wasAt } from '../core/state.js';
 import { el } from '../core/util.js';
-import { NPC_BY_ID, LANDS } from '../data/index.js';
+import { NPC_BY_ID, LANDS, HOME_LAND, ROUTE_WORDS, routeTo, landOf } from '../data/index.js';
 import { T, currentLocation, homeLocation } from '../engine/topdown/index.js';
 import { fadeTo } from '../ui/fade.js';
 import { openPanel } from '../ui/panel.js';
 import { toast } from '../ui/toast.js';
+
+// «Карта мира» (этап 11): в каком месте сейчас цель звёздочки — говорит журнал (features/quests.js, starScene)
+let mapGoal = () => null;
+/** Кто знает, в каком месте (имя сцены) цель звёздочки: fn() → имя сцены | null. */
+export function setMapGoal(fn) {
+  mapGoal = fn;
+}
+/** Как пройти из места from в место to — словами: «🌲 Лес → ⛰️ Гора: сначала по тропе в лес». '' — дороги нет. */
+export function routeText(from, to) {
+  const r = routeTo(from, to, landOpen);
+  if (!r) return '';
+  const names = r.path.slice(1).map((id) => `${landOf(id).icon} ${landOf(id).name}`).join(' → ');
+  return `${names}: ${r.path.length > 2 ? 'сначала ' : ''}${ROUTE_WORDS[from][r.next]}`;
+}
 
 const FAST_FROM = 8; // быстрый переход — если идти дальше стольких клеток
 const FAST_MS = 650; // сколько длится затемнение быстрого перехода (мс)
@@ -24,7 +38,7 @@ const FAST_MS = 650; // сколько длится затемнение быс�
 export function openMap() {
   let raf = 0;
   const loc = currentLocation(); // сцена-локация (engine/topdown/scene.js)
-  const walkTo = (id, name, panel) => {
+  const walkTo = (id, name, panel, been = wasAt(loc.name, id)) => {
     if (sceneName() !== loc.name) go(loc.name);
     if (!loc.walkToPlace(id)) {
       toast('Туда сейчас не пройти');
@@ -32,7 +46,7 @@ export function openMap() {
     }
     sfx('ok');
     panel.close();
-    if (wasAt(loc.name, id) && loc.pathLength() > FAST_FROM * T) {
+    if (been && loc.pathLength() > FAST_FROM * T) {
       // уже была здесь — быстро: затемнение, и хомячок почти у цели (последние шаги — пешком)
       fadeTo(`🐾 ${name}`, FAST_MS).then((uncover) => {
         loc.skipAlong();
@@ -109,42 +123,74 @@ export function openMap() {
         row.appendChild(bt);
       }
       body.appendChild(row);
-      if (loc === homeLocation()) body.appendChild(landsRow(panel, (id, name) => walkTo(id, name, panel)));
+      body.appendChild(landsRow(panel, loc, (id, name, been) => walkTo(id, name, panel, been)));
     },
   });
 }
 
 /**
- * «Тайные места»: силуэт с замочком, пока место закрыто; нажми — подсказка. Открытое место со сценой и входом
- * в городе (лес — ворота на тропе) — хомячок сама идёт к входу (walk), как по кнопке «дойти».
+ * «Карта мира» под картой места: город и тайные места (LANDS). Закрытое место — силуэт с замочком; нажми — подсказка,
+ * кто знает дорогу. Открытое — хомячок сама идёт к выходу или транспорту, который ведёт в ту сторону (граф ROUTES
+ * в data/places.js; где уже была — быстрый переход), морской путь — подсказка словами. ⭐ — в этом месте цель
+ * звёздочки (задание журнала, праздник, письмо), 📍 — здесь хомячок сейчас.
  */
-function landsRow(panel, walk) {
-  const box = el('div', 'lands');
-  box.appendChild(el('div', 'lands-h', '🗝️ Тайные места'));
+function landsRow(panel, loc, walk) {
+  const box = el('div', 'lands'),
+    home = loc === homeLocation(),
+    goal = mapGoal();
+  box.appendChild(el('div', 'lands-h', home ? '🗝️ Тайные места' : '🗺️ Карта мира'));
+  if (goal && goal !== loc.name && landOf(goal)) {
+    const way = routeText(loc.name, goal);
+    if (way) box.appendChild(el('p', 'muted center lands-goal', `⭐ Звёздочка ведёт в другое место: ${way}.`));
+  }
   const row = el('div', 'lands-row');
-  for (const land of LANDS) {
-    const open = landOpen(land.id);
-    const b = el(
-      'button',
-      'land' + (open ? ' open' : ''),
-      `<span class="ic">${land.icon}</span>${open ? '' : '<span class="lk">🔒</span>'}<span class="nm">${land.name}</span>`,
-    );
-    b.title = open ? `${land.name} — открыто!` : `${land.name} — закрыто. Кто знает дорогу: ${land.who}`;
+  /** Идти в открытое место land (не то, где хомячок сейчас). */
+  const travel = (land) => {
+    const r = routeTo(loc.name, land.id, landOpen);
+    if (!r) return void toast(`${land.icon} ${land.name}: отсюда туда пока нет дороги.`);
+    const far = r.path.length > 2 ? ` Дорога: ${routeText(loc.name, land.id)}.` : '';
+    if (r.via.startsWith('sea:')) {
+      // морской путь: к кораблику и по морю — словами (и звёздочкой, если туда ведёт задание)
+      toast(`${land.icon} ${land.name} ${land.opened || 'открыт'}! Вход — ${land.at || ROUTE_WORDS[loc.name][r.next]}.`);
+      return;
+    }
+    // к выходу, через который сюда пришли, — быстро: хомячок там уже была
+    walk(r.via, `${land.icon} ${land.name}`, r.via.startsWith('exit:') || wasAt(loc.name, r.via));
+    if (far) toast(far.trim());
+  };
+  const add = (land, cls, inner, title, fn) => {
+    const b = el('button', cls, inner);
+    b.title = title;
     b.onclick = () => {
       sfx('tap');
-      if (open && land.scene && land.from === 'world' && homeLocation().spot(land.id)) {
-        walk(land.id, `${land.icon} ${land.name}`);
-        return;
-      }
-      // открытое место, вход в которое не из города (гора — из леса): подсказать, где вход
-      if (open && land.scene && land.from !== 'world') {
-        toast(`${land.icon} ${land.name} ${land.opened || 'открыт'}! Вход — ${land.at}.`);
-        return;
-      }
-      panel.close();
-      run('way:' + land.id);
+      fn();
     };
     row.appendChild(b);
+  };
+  const star = (id) => (goal === id && id !== loc.name ? '<span class="st">⭐</span>' : '');
+  if (!home)
+    add(
+      HOME_LAND,
+      'land-town open' + (goal === HOME_LAND.id ? ' goal' : ''),
+      `<span class="ic">${HOME_LAND.icon}</span><span class="nm">${HOME_LAND.name}</span>${star(HOME_LAND.id)}`,
+      'Город — дорога домой',
+      () => travel(HOME_LAND),
+    );
+  for (const land of LANDS) {
+    const open = landOpen(land.id),
+      here = land.id === loc.name;
+    add(
+      land,
+      'land' + (open ? ' open' : '') + (here ? ' here' : '') + (goal === land.id && !here ? ' goal' : ''),
+      `<span class="ic">${land.icon}</span>${open ? '' : '<span class="lk">🔒</span>'}<span class="nm">${land.name}</span>${here ? '<span class="st">📍</span>' : star(land.id)}`,
+      here ? `${land.name} — ты здесь` : open ? `${land.name} — открыто!` : `${land.name} — закрыто. Кто знает дорогу: ${land.who}`,
+      () => {
+        if (here) return void toast(`${land.icon} ${land.name} — ты уже здесь!`);
+        if (open && land.scene) return void travel(land);
+        panel.close();
+        run('way:' + land.id);
+      },
+    );
   }
   box.appendChild(row);
   return box;
