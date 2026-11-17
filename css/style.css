@@ -264,6 +264,18 @@ h4.sect .muted { font-size: 13px; }
   background: rgba(60, 40, 30, .35); z-index: 5;
 }
 .mg-card .panel { padding: 20px; text-align: center; gap: 8px; align-items: center; }
+/* на низком экране (телефон лёжа) правила длинные: карточка прокручивается, а кнопка «Начать!» / «Ура!» всегда видна */
+.mg-card .panel { overflow-y: auto; overscroll-behavior: contain; }
+.mg-card .panel > .btn { flex: none; position: sticky; bottom: 0; }
+@media (max-height: 520px) {
+  .mg-card { padding: 8px; }
+  .mg-card .panel { padding: 10px 16px 12px; gap: 4px; }
+  .mg-card .big-emoji { font-size: 40px; }
+  .mg-card .stars { font-size: 34px; }
+  .mg-card h2 { font-size: 20px; }
+  .mg-card p { margin: 4px 0; }
+  .mg-card .panel.narrow { width: min(100%, 640px); } /* лёжа места вширь больше, чем ввысь */
+}
 .stars { font-size: 46px; letter-spacing: 4px; }
 .stars .off { filter: grayscale(1); opacity: .3; }
 
