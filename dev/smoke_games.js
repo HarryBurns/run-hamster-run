@@ -136,7 +136,7 @@ module.exports = async function games({ page, step, ev, wait, closeAll }) {
     st = await hook('__porter');
     expect(st.at === 1 && st.mistakes === 0 && !st.busy, 'дверь из холла сработала', st);
     let wrongFloor = false;
-    for (let k = 0; k < 120; k++) {
+    for (let k = 0; k < 400; k++) {
       st = await hook('__porter');
       if (!st || !st.tag) break;
       if (!st.busy) {

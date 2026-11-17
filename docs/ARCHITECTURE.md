@@ -104,7 +104,7 @@ js/
                      дней, тёплое ли надето), quests (сюжетные задания), holidays (праздники — раздел 22), finds (находки — не еда), places (названия
                      мест и LANDS — тайные места), credits (авторы музыки и звуков); index.js — всё одним импортом
 assets/audio/        music/*.mp3 (треки), sfx/*.mp3 (звуки) — авторы и лицензии в CREDITS.md и data/credits.js
-dev/                 smoke.js (автотест; шаги про гостей, жильё и бизнес — smoke_estate.js, про сезонность продуктов — smoke_seasons.js, про сезонные вещи и привоз — smoke_wares.js, про болезнь — smoke_health.js, про журнал заданий — smoke_quests.js, про лес — smoke_forest.js, про гору — smoke_mountain.js, про пещеры — smoke_caves.js, про пустыню — smoke_desert.js, про джунгли — smoke_jungle.js, про секретный пляж — smoke_sbeach.js, про удалённый остров — smoke_island.js, про курортный отель — smoke_hotel.js, про праздники — smoke_holidays.js, про вещи, значки и рецепты этапа 12 — smoke_items.js, про музыку и звуки — smoke_audio.js), balance.js (расчёт экономики), bench.js (скорость), deps.js (зависимости), shots.js + compare.js
+dev/                 smoke.js (автотест; шаги про гостей, жильё и бизнес — smoke_estate.js, про сезонность продуктов — smoke_seasons.js, про сезонные вещи и привоз — smoke_wares.js, про болезнь — smoke_health.js, про журнал заданий — smoke_quests.js, про лес — smoke_forest.js, про гору — smoke_mountain.js, про пещеры — smoke_caves.js, про пустыню — smoke_desert.js, про джунгли — smoke_jungle.js, про секретный пляж — smoke_sbeach.js, про удалённый остров — smoke_island.js, про курортный отель — smoke_hotel.js, про праздники — smoke_holidays.js, про вещи, значки и рецепты этапа 12 — smoke_items.js, про музыку и звуки — smoke_audio.js, про мини-игры этапа 14 — smoke_games.js), balance.js (расчёт экономики), bench.js (скорость), deps.js (зависимости), shots.js + compare.js
                      (снимки «до/после»), страницы для разработки, сохранения-образцы
 ```
 
@@ -1913,3 +1913,29 @@ dev/smoke_inside.js             автотест (step:внутри): вход �
 - **Новый дом тайного места:** файл в `interiors/` (рисунок предметов — функции `draw`), строка в `LAND_HOUSES`,
   у здания в локации `act: 'inside:<id>'`, строка в таблице `HOUSES` автотеста `dev/smoke_inside.js`.
 
+## 25. Мини-игры вместо сценок (этап 14)
+
+Сценки «нажми — и само получится» заменены мини-играми в общей рамке (`minigames/host.js`: заставка → игра → звёзды).
+Каждая — для 8–10 лет, без проигрыша «в ноль», мышь, касание и клавиатура; у каждой — dev-хук на канве для автотеста.
+
+```
+js/minigames/tree.js    «Нарядим ёлку!» (Пр8): коробка игрушек (DOM .tr-tray), места на ветках, звезда после MIN;
+                        ⭐ «за красоту» — разных игрушек и сколько повешено (STARS). canvas.tr-canvas.__tree()
+js/minigames/drum.js    «Танец у костра» (О8): Бум стучит на счёт, кокосы летят к кругу (SONG — такты восьмыми),
+                        «Отлично!»/«Хорошо!», лишние нажатия не ошибка. .dr-canvas.__drum(), __drumSkip()
+js/minigames/mimic.js   «Повтори движение» (От9): как «Саймон», 6 движений-кнопок (DOM .mm-pad), ROUNDS раундов, после
+                        ошибки — показ ещё раз; info.kind — morning | evening. .mm-canvas.__mimic(), __mimicSkip()
+js/minigames/slide.js   «Горка»: TRACKS — 4 трассы (c(u) — центр трубы, half, speed, цвета), выбор после «Начать!»
+                        (info.track — задать заранее). __slide().track, __slideSkip(сек)
+js/minigames/porter.js  «Носильщица»: с уровня LIFT_LEVEL — панель лифта с кнопками этажей (info.lift — нарочно)
+js/minigames/sled.js    «Спуск»: выбор санки | лыжи (info.ride); лыжи — ворота-флажки (GATE очков, SKI_STARS)
+js/minigames/tug.js     канат: info.team — [{ id, name, look, hearts }], teamHelp(team) — +HELP.per за сердечко
+```
+
+- Запуск: ёлка — `holiday:tree` (`features/holidays_winter.js`, шаг праздника за любую ёлку, ⭐⭐⭐ — наклейка `x_tree`);
+  танец — `island:fire` на празднике огней (`features/island.js`, `dance()`: событие `island { what: 'dance' }`,
+  `x_fest`, ⭐⭐⭐ — `x_drum`); аниматор — `hotel:animator` (`features/hotel.js`: `x_zaryadka`/`x_disco`, ⭐⭐⭐ — `x_mimic`).
+  Команду у каната собирает `tugTeam()` (`features/holidays_winter.js`): трое знакомых с самыми большими сердечками.
+- Денег новые игры не платят (только наклейки); «Горка», «Спуск», канат и носильщица платят как раньше.
+- `prizeGame(id, { …, info, intro })` (`features/holidays_scenes.js`) передаёт игре данные и строку на заставку.
+- Автотест: `node dev/smoke.js <url> "step:игры 14:"` (`dev/smoke_games.js`).
