@@ -201,7 +201,12 @@ module.exports = async function health({ page, step, ev, wait, closeAll }) {
     expect(d >= 3, 'не нашлось дня', d);
     // тот же день без неосторожности — здорова
     await setDay(d, null);
-    const before = await ev(() => localStorage.getItem('rhr-save-v1'));
+    // сохранить сейчас: игра пишет сохранение не на каждое действие, а в localStorage мог остаться ещё июнь
+    // новой игры (без перевода на январь, иммунитет до 18-го дня) — тогда ночью «не простыла»
+    const before = await ev(() => {
+      window.dispatchEvent(new Event('pagehide'));
+      return localStorage.getItem('rhr-save-v1');
+    });
     await sleep();
     await closeAll();
     expect(!(await state()).sick, 'заболела без причины');
