@@ -77,7 +77,28 @@ module.exports = async function holidays({ page, step, ev, wait, closeAll }) {
     await page.click('.panel-foot .btn.green');
     await wait(3700);
   };
-  /** Пройти сценку с кнопкой (ёлка, фонарики): нажать кнопку n раз, потом «Ура!». */
+  /** Нарядить ёлку (мини-игра «Нарядим ёлку!», этап 14): шесть игрушек на ветки, звезда, «Ура!». */
+  const trim = async () => {
+    await page.waitForSelector('#mg >> text=Начать!', { timeout: 5000 });
+    await page.click('#mg >> text=Начать!');
+    await wait(300);
+    const st = await ev(() => document.querySelector('#mg .tr-canvas').__tree());
+    const r = await ev(() => {
+      const b = document.querySelector('#mg .tr-canvas').getBoundingClientRect();
+      return { x: b.left, y: b.top, w: b.width, h: b.height };
+    });
+    for (let i = 0; i < 6; i++) {
+      await page.click(`#mg .tr-tray button[data-kind="${['ball', 'star', 'bell', 'bow', 'ball', 'candy'][i]}"]`);
+      const p = st.spots[i * 2];
+      await page.mouse.click(r.x + p.x * (r.w / st.w), r.y + (p.y + 8) * (r.h / st.h));
+      await wait(80);
+    }
+    await page.click('#mg .tr-tray button[data-kind="top"]');
+    await page.waitForSelector('#mg >> text=Ура!', { timeout: 6000 });
+    await page.click('#mg >> text=Ура!');
+    await wait(500);
+  };
+  /** Пройти сценку с кнопкой (фонарики, венок…): нажать кнопку n раз, потом «Ура!». */
   const tapScene = async (n) => {
     for (let i = 0; i < n; i++) {
       await page.click('.hol-scene-panel .panel-body .btn');
@@ -245,18 +266,18 @@ module.exports = async function holidays({ page, step, ev, wait, closeAll }) {
     expect(!bad.length, 'до места праздника не дойти', bad);
   });
 
-  await step('праздники: Новый год — нарядить ёлку (сценка до конца), подарки трём друзьям, колпак, наклейка, монеты', async () => {
+  await step('праздники: Новый год — нарядить ёлку (мини-игра до конца), подарки трём друзьям, колпак, наклейка, монеты', async () => {
     await fresh();
     await toHoliday('newyear', 'day');
     await watch();
     const s0 = await state();
-    await run('holiday:tree');
-    expect((await panelText()).includes('Нарядим ёлку'), 'сценка «Нарядим ёлку» не открылась');
-    await tapScene(9);
+    await run('holiday:tree', 800);
+    expect(await ev(() => /Нарядим ёлку/.test((document.querySelector('#mg') || {}).textContent || '')), 'игра «Нарядим ёлку» не открылась');
+    await trim();
     let h = await hol();
     expect(h.steps[0] === 'tree:1/1', 'ёлка не наряжена', h);
     await run('holiday:tree');
-    expect(!(await panelText()).includes('Нарядим ёлку'), 'ёлку нарядили второй раз');
+    expect(!(await ev(() => !!document.querySelector('#mg'))), 'ёлку нарядили второй раз');
     // подарки трём друзьям — в разговоре
     for (const npc of ['plusha', 'ponchik', 'bob']) {
       await ev((npc) => { window.__dev.F.npcDialog(npc); }, npc);
@@ -529,8 +550,8 @@ module.exports = async function holidays({ page, step, ev, wait, closeAll }) {
   await step('праздники: сохранение и загрузка посреди праздника; жители радуются празднику', async () => {
     await fresh();
     await toHoliday('newyear', 'day');
-    await run('holiday:tree');
-    await tapScene(9);
+    await run('holiday:tree', 800);
+    await trim();
     await ev(() => { window.__dev.F.npcDialog('plusha'); });
     await wait(500);
     await page.click('.dialog .btn:has-text("Подарить")');

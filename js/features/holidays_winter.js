@@ -1,7 +1,7 @@
 // ПРАЗДНИКИ (П.13), часть 1: ЗИМНИЕ ПРАЗДНИКИ — что делают на Новый год, Рождество, Китайский Новый год и Масленицу.
 // Общий механизм (какой праздник, шаги, подарок раз в год, журнал, звёздочка) — features/holidays.js; таблица —
 // data/holidays.js; украшения и места в городе — locations/holidays.js. Здесь — сами занятия:
-//   holiday:tree       большая ёлка на площади: нарядить (сценка — повесить игрушки и звезду)        — Новый год
+//   holiday:tree       большая ёлка на площади: нарядить — мини-игра «Нарядим ёлку!» (minigames/tree.js) — Новый год
 //   (разговор)         подарить другу новогодний подарок (talkHooks через holidayTalk)              — Новый год
 //   holiday:crib       домик-вертеп со звездой: посмотреть                                          — Рождество
 //   (дверь домика)     колядки вечером (HOLIDAY.carols): спеть у двери (сценка) — хозяин угощает (holidayDoor) — Рождество
@@ -16,7 +16,7 @@
 // Испечь блины и угостить ими друзей — обычная готовка и «🎁 Угостить»: шаги считаются по событиям cook и gift
 // (поля on/if в data/holidays.js). Каждое занятие шлёт событие holiday { id, what }. Сценки, обход домиков и призовая
 // мини-игра — общие приёмы из features/holidays_scenes.js.
-import { addItem, setDayFlag, earn, learnRecipe } from '../core/actions.js';
+import { addItem, setDayFlag, earn, learnRecipe, award } from '../core/actions.js';
 import { sfx } from '../core/audio.js';
 import { ell, fillRR, line, poly, star } from '../core/draw.js';
 import { emit } from '../core/events.js';
@@ -25,11 +25,12 @@ import { pick, TAU } from '../core/util.js';
 import { drawHamster } from '../art/hamster.js';
 import { HOLIDAY, holidayOffset, HOLIDAY_BY_ID, BLINI, DISH_BY_ID, NPCS, npcLook } from '../data/index.js';
 import { teamHelp } from '../minigames/tug.js';
-import { paintFir, FIR_TOYS, toy, skyLantern, lantern } from '../locations/holidays_art.js';
+import { skyLantern, lantern } from '../locations/holidays_art.js';
 import { message } from '../ui/panel.js';
 import { toast } from '../ui/toast.js';
 import { addPts } from './friends.js';
 import { openCooking } from './cooking.js';
+import { playMinigame } from './minigames.js';
 import { holidayActs, holidayTalk, holidayStep, stepDoneFor, stepWanted } from './holidays.js';
 import { tapScene, playScene, nightSky, doorRound, prizeGame, holidaySay as say } from './holidays_scenes.js';
 
@@ -40,45 +41,10 @@ const HF = () => S().dayFlags.holiday || {};
 const offset = (id) => holidayOffset(HOLIDAY_BY_ID[id], S().day);
 
 // ==================== НОВЫЙ ГОД ====================
-const TOYS = 8; // столько игрушек повесить, потом — звезда на макушку
-function paintTrim(ctx, w, h, n, a, t) {
-  nightSky(ctx, w, h, t, '#22306a', '#5b6bb0');
-  ctx.fillStyle = '#eef6ff';
-  ctx.fillRect(0, h * 0.8, w, h * 0.2);
-  const s = Math.min(w / 190, h / 225);
-  ctx.save();
-  ctx.translate(w * 0.46, h * 0.86);
-  ctx.scale(s, s);
-  ctx.lineJoin = 'round';
-  ctx.lineCap = 'round';
-  paintFir(ctx, false, Math.floor(t * 2) % 3);
-  // игрушки: повешенные — на своих местах, последняя — летит из коробки
-  const box = [74, -10];
-  for (let i = 0; i < Math.min(n, TOYS); i++) {
-    const [tx, ty] = FIR_TOYS[i];
-    const fly = i === n - 1 && a < 1;
-    const q = fly ? a : 1,
-      x = box[0] + (tx - box[0]) * q,
-      y = box[1] + (ty - box[1]) * q - Math.sin(q * Math.PI) * 40;
-    toy(ctx, x, y, i, 1.6);
-  }
-  if (n > TOYS) {
-    const q = a,
-      y = -40 - (FIR_SIZE - 40) * q;
-    star(ctx, 0, y, 15 + (q < 1 ? 0 : Math.sin(t * 6) * 1.5), '#ffd43b', OUT, 2.2);
-    if (q >= 1)
-      for (let i = 0; i < 8; i++) {
-        const ang = (i / 8) * TAU + t;
-        line(ctx, Math.cos(ang) * 20, y + Math.sin(ang) * 20, Math.cos(ang) * 28, y + Math.sin(ang) * 28, 'rgba(255,212,59,.8)', 2);
-      }
-  }
-  // коробка с игрушками
-  fillRR(ctx, 58, -18, 34, 18, 4, '#e03131', OUT, 1.6);
-  for (let i = Math.min(n, TOYS); i < TOYS; i++) toy(ctx, 64 + (i % 4) * 7, -18 - Math.floor(i / 4) * 5, i, 0.7);
-  ctx.restore();
-  drawHamster(ctx, w * 0.88, h * 0.97, 0.7 * s, playerLook(), { time: t, dir: -1, happy: n > TOYS, armsUp: a < 0.6 && n > 0 });
-}
-const FIR_SIZE = 168;
+/**
+ * Нарядить ёлку (Пр8): мини-игра «Нарядим ёлку!» (minigames/tree.js) — игрушки и места выбираешь сама, в конце —
+ * звезда на макушку. Шаг праздника засчитывается за любую наряженную ёлку, ⭐⭐⭐ «за красоту» — наклейка x_tree.
+ */
 async function trimTree() {
   const k = offset('newyear');
   if (k < 0) return void toast('🎄 Ёлку на площади уже поставили! Нарядим её завтра, в Новый год.');
@@ -86,20 +52,13 @@ async function trimTree() {
     sfx('magic');
     return void toast(pick(['🎄 Какая красивая ёлка! Вечером над площадью — фейерверк 🎆', '🎄 Ёлка сверкает огоньками. С Новым годом!']), 'good');
   }
-  const ok = await tapScene({
-    title: 'Нарядим ёлку!',
-    icon: '🎄',
-    steps: TOYS + 1,
-    btn: '🎀 Повесить игрушку',
-    lastBtn: '⭐ Звезда на макушку!',
-    hint: 'Нажимай на ёлку (или на кнопку) — игрушки сами полетят на ветки. А в конце — звезда!',
-    doneText: '🎄 Ёлка наряжена! Теперь она самая красивая в городе.',
-    paint: paintTrim,
+  const res = await playMinigame('tree', {
+    introNote: '<div class="pay-note">🎄 Ёлку на площади увидит весь город! Самой нарядной — ⭐⭐⭐ и наклейка.</div>',
   });
-  if (ok) {
-    holidayStep('newyear', 'tree');
-    emit('hud');
-  }
+  if (!res) return;
+  holidayStep('newyear', 'tree');
+  if (res.stars === 3) award('x_tree', { delay: 1400 });
+  emit('hud');
 }
 holidayTalk('newyear', async (npc, text) => {
   if (!stepWanted('newyear', 'gifts') || stepDoneFor('newyear', 'gifts', npc) || !S().friends[npc]) return null;

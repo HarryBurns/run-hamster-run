@@ -181,6 +181,8 @@ export const EXTRA_STICKERS = [
   { id: 'x_hol_cny', sticker: '🏮', title: 'Китайский Новый год' },
   { id: 'x_hol_maslenitsa', sticker: '🥞', title: 'Масленица' },
   { id: 'x_tug', sticker: '🪢', title: 'Перетягивание каната' },
+  // мини-игры вместо сценок (этап 14): ⭐⭐⭐ в новых играх
+  { id: 'x_tree', sticker: '🎄', title: 'Самая нарядная ёлка' },
   { id: 'x_hol_mayday', sticker: '🎈', title: '1 Мая' },
   { id: 'x_hol_kupala', sticker: '🌿', title: 'Иван Купала' },
   { id: 'x_hol_halloween', sticker: '🎃', title: 'Хеллоуин' },

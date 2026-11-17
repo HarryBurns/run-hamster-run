@@ -27,6 +27,7 @@ module.exports = async function games({ page, step, ev, wait, closeAll }) {
     await page.reload();
     await wait(400);
     await page.click('text=Играть!');
+    await page.click('text=Пропустить'); // вступительная сценка новой игры (этап 10)
     await wait(400);
     await page.click('text=Поехали!');
     await wait(500);
@@ -259,5 +260,66 @@ module.exports = async function games({ page, step, ev, wait, closeAll }) {
     await page.click('#mg .xbtn');
     await wait(400);
     await closeAll();
+  });
+
+  await step('игры 14: «Нарядим ёлку» — сама выбираешь игрушку и место, звезда после шести, ⭐⭐⭐ за разнообразие, наклейка', async () => {
+    await fresh();
+    await toHoliday('newyear', 'day');
+    await ev(() => {
+      window.__dev.run('holiday:tree');
+    });
+    await wait(800);
+    expect(/Нарядим ёлку/.test(await mgText()) && (await ev(() => document.querySelectorAll('#mg .tr-rules img').length)) === 7, 'заставка ёлки', await mgText());
+    await start();
+    let st = await hook('__tree');
+    expect(st && st.spots.length >= 12 && st.placed === 0 && !st.ready, 'ёлка не пустая', st);
+    const r = await box();
+    const at = (p) => page.mouse.click(r.x + p.x * (r.w / st.w), r.y + (p.y + 8) * (r.h / st.h));
+    // звезда раньше времени — нельзя, только подсказка
+    await page.click('#mg .tr-tray button[data-kind="top"]', { force: true });
+    await wait(200);
+    expect(!(await hook('__tree')).starOn, 'звезду надели на пустую ёлку');
+    // выбрала шар — повесила на место 3; потом сосульку туда же — игрушка поменялась
+    await page.click('#mg .tr-tray button[data-kind="ball"]');
+    await at(st.spots[3]);
+    await wait(150);
+    expect((await hook('__tree')).spots[3].kind === 'ball', 'шар не повис');
+    await page.click('#mg .tr-tray button[data-kind="icicle"]');
+    await at(st.spots[3]);
+    await wait(150);
+    st = await hook('__tree');
+    expect(st.spots[3].kind === 'icicle' && st.placed === 1, 'игрушка не поменялась', st.spots[3]);
+    // перетащить игрушку пальцем (мышью) из коробки на ветку
+    const bb = await ev(() => {
+      const b = document.querySelector('#mg .tr-tray button[data-kind="bell"]').getBoundingClientRect();
+      return { x: b.left + b.width / 2, y: b.top + b.height / 2 };
+    });
+    await page.mouse.move(bb.x, bb.y);
+    await page.mouse.down();
+    const p5 = st.spots[5];
+    await page.mouse.move(r.x + p5.x * (r.w / st.w), r.y + (p5.y + 8) * (r.h / st.h), { steps: 6 });
+    await page.mouse.up();
+    await wait(150);
+    st = await hook('__tree');
+    expect(st.spots[5].kind === 'bell', 'перетаскивание не повесило колокольчик', st.spots[5]);
+    // все семь видов, 11 мест — ⭐⭐⭐
+    const kinds = ['ball', 'star', 'bow', 'candy', 'garland', 'ball', 'star', 'bow', 'ball'];
+    const free = st.spots.map((q, i) => (q.kind ? -1 : i)).filter((i) => i >= 0);
+    for (let k = 0; k < kinds.length; k++) {
+      await page.click(`#mg .tr-tray button[data-kind="${kinds[k]}"]`);
+      await at(st.spots[free[k]]);
+      await wait(60);
+    }
+    st = await hook('__tree');
+    expect(st.placed === 11 && st.kinds === 7 && st.ready, 'не повесились игрушки', st);
+    await at({ x: st.top.x, y: st.top.y - 8 }); // нажать на макушку — тоже звезда
+    await wait(200);
+    expect((await hook('__tree')).starOn, 'звезда не надета');
+    const end = await ura();
+    expect(/звезда сияет/.test(end) && /разных — 7/.test(end) && /⭐⭐⭐/.test(end.replace(/\s/g, '')), 'итог ёлки', end);
+    const s = await state();
+    expect(s.plays.tree === 1 && s.stickers.includes('x_tree'), 'нет наклейки «Самая нарядная ёлка»', [s.plays, s.stickers.slice(-3)]);
+    const h = await ev(() => window.__dev.F.holidayToday && window.__dev.G.state.dayFlags.holiday);
+    expect(h, 'шаг праздника');
   });
 };
