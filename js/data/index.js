@@ -25,3 +25,4 @@ export * from './tales.js';
 export * from './hotel.js';
 export * from './holidays.js';
 export * from './credits.js';
+export * from './relax.js';

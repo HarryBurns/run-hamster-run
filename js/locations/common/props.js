@@ -5,6 +5,7 @@
 //   signpost       указатель: text, text2 — надписи на досках   postbox        почтовый ящик дома (v — цвет)
 //   clothesline    бельё на верёвке (2 клетки)                  hammock        гамак (2 клетки)
 //   swing, slide, sandbox, toys, ball   детская площадка        cafeTable      столик с зонтиком (v)
+//   на гамаке, качелях, горке и полотенце можно отдохнуть — поле seat (common/seats.js, этап 17а)
 //   crate, barrel  ящик с товаром (v — что в нём), бочка        picnicTable, bbq   стол для пикника, мангал
 //   ambulance      машина скорой (2 клетки)                     busstop        остановка с навесом (2 клетки)
 //   gate, barrier  ворота поперёк тропы (2 клетки вширь) и шлагбаум поперёк дороги (2 клетки вниз):
@@ -17,6 +18,7 @@
 import { TAU } from '../../core/util.js';
 import { ell, fillRR, line, poly, shade, emoji } from '../../core/draw.js';
 import { OUT, put, defineObjects } from '../../engine/topdown/kinds.js';
+import { seat } from './seats.js';
 import {
   shadow,
   box,
@@ -333,6 +335,7 @@ defineObjects({
       [0, 0],
       [1, 0],
     ],
+    ...seat('hammock', [[24, -16, 24, 31]], { ox: 24, dx: 42, up: 52, down: 20 }, { summer: true }),
     art: {
       hammock: [
         [-24, -52, 76, 22],
@@ -366,36 +369,51 @@ defineObjects({
       if (!isWinter(env)) put('hammock', o.x, o.y, o.v || 0);
     },
   },
-  swing: simple('swing', {
+  swing: {
     solid: true,
+    ...seat(
+      'swing',
+      [
+        [-13, -2, -13, 31],
+        [13, -2, 13, 31],
+      ],
+      { dx: 36, up: 90, down: 20 },
+    ),
     art: {
+      // busy — на каком сиденье сейчас качаются (1 — левое, 2 — правое, 3 — оба): его рисует features/relax.js
+      // (качели повыше хомячка: на сиденье он помещается под перекладину)
       swing: [
-        [-36, -76, 36, 22],
-        (ctx, snow) => {
-          shadow(ctx, 0, 14, 30, 5);
+        [-40, -92, 40, 22],
+        (ctx, snow, busy) => {
+          shadow(ctx, 0, 14, 32, 5);
           // рама
           for (const sx of [-1, 1]) {
-            line(ctx, sx * 30, 14, sx * 22, -62, OUT, 6);
-            line(ctx, sx * 30, 14, sx * 22, -62, '#fa5252', 3.4);
+            line(ctx, sx * 33, 14, sx * 26, -80, OUT, 6);
+            line(ctx, sx * 33, 14, sx * 26, -80, '#fa5252', 3.4);
           }
-          line(ctx, -24, -62, 24, -62, OUT, 7);
-          line(ctx, -24, -62, 24, -62, '#ffd43b', 4);
+          line(ctx, -28, -80, 28, -80, OUT, 7);
+          line(ctx, -28, -80, 28, -80, '#ffd43b', 4);
           // два сиденья на цепочках
-          for (const [dx, col] of [
-            [-10, '#4dabf7'],
-            [10, '#51cf66'],
+          for (const [dx, col, i] of [
+            [-13, '#4dabf7', 1],
+            [13, '#51cf66', 2],
           ]) {
-            line(ctx, dx - 5, -60, dx - 5, -6, '#8a8f98', 1.3);
-            line(ctx, dx + 5, -60, dx + 5, -6, '#8a8f98', 1.3);
+            if (busy === i || busy === 3) continue; // 3 — заняты оба
+            line(ctx, dx - 5, -78, dx - 5, -6, '#8a8f98', 1.3);
+            line(ctx, dx + 5, -78, dx + 5, -6, '#8a8f98', 1.3);
             fillRR(ctx, dx - 8, -8, 16, 5, 2, col, OUT, 1.5);
           }
-          if (snow) snowCap(ctx, 0, -65, 46, 5);
+          if (snow) snowCap(ctx, 0, -83, 54, 5);
         },
       ],
     },
-  }),
+    draw(ctx, o, env) {
+      put('swing', o.x, o.y, W(env.season), o.busy || 0);
+    },
+  },
   slide: simple('slide', {
     solid: true,
+    ...seat('slide', [[-13, -46, 42, 31]], { ox: 4, dx: 38, up: 62, down: 20 }),
     art: {
       slide: [
         [-32, -66, 40, 22],
@@ -1134,6 +1152,7 @@ defineObjects({
   },
   towel: {
     flat: true,
+    ...seat('lie', [[0, 19, 0, 8]], { dx: 15, up: 22, down: 24 }, { summer: true }),
     art: {
       towel: [
         [-16, -24, 16, 24],

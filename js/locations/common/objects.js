@@ -4,6 +4,7 @@
 //   bush               куст: пройти можно, но медленно;   flowers — цветы (просто украшение)
 //   fenceH, fenceV     забор вдоль и поперёк;             bench — скамейка;   fountain — фонтан (две клетки)
 //   lounger, umbrella  лежак и зонтик (поле beach: true — пляжный, с ковриком; зимой убран)
+//   На скамейку, лежак и бортик фонтана можно присесть или прилечь — поле seat (common/seats.js, этап 17а)
 //   starfish, crab, chest, flag   пляжные мелочи: морская звезда, крабик, сундук, флажок
 //
 // Поле v у предмета — вариант рисунка (цвет листвы, цветов). Свой предмет локация добавляет у себя:
@@ -12,6 +13,7 @@ import { TAU } from '../../core/util.js';
 import { ell, fillRR, line, poly, shade, star } from '../../core/draw.js';
 import { shadow, leafTones, flower } from './paint.js';
 import { T, OUT, SP, put, defineArt, defineObjects } from '../../engine/topdown/kinds.js';
+import { seat } from './seats.js';
 
 /** Цвет листвы по сезону; v — вариант. */
 export function leafCol(sea, v) {
@@ -699,12 +701,21 @@ defineObjects({
   },
   bench: {
     solid: true,
+    ...seat(
+      'sit',
+      [
+        [-11, 4, -11, 31],
+        [11, 4, 11, 31],
+      ],
+      { dx: 30, up: 44, down: 20 },
+    ),
     draw(ctx, o, env) {
       put('bench', o.x, o.y, env.season === 'winter' ? 1 : 0);
     },
   },
   lounger: {
     flat: true,
+    ...seat('lie', [[0, 24, 0, 12]], { dx: 17, up: 26, down: 30 }),
     draw(ctx, o) {
       put('lounger', o.x, o.y);
     },
@@ -720,6 +731,15 @@ defineObjects({
       [0, 0],
       [1, 0],
     ],
+    // посидеть на бортике (спиной к брызгам) — два места спереди
+    ...seat(
+      'sit',
+      [
+        [6, 40, 6, 48],
+        [42, 40, 42, 48],
+      ],
+      { ox: 24, dx: 54, up: 20, down: 44 },
+    ),
     draw(ctx, o, env) {
       const x = o.x,
         y = o.y,

@@ -473,3 +473,9 @@ export const PRICES = {
     seedling_shelf: 900, watering_can: 250, hanging_plant: 300,
   },
 };
+
+// ---------- отдых в городе (этап 17а) ----------
+// «Пляжный волейбол» у сетки на городском пляже (minigames/volley.js, features/relax.js): за первые volley.paid
+// игр в день — маленький приз по звёздам (как боулинг на острове: меньше смены на 2★ — проверяет dev/balance.js).
+// Отдых на скамейках, лежаках и качелях ничего не стоит и монет не даёт.
+export const RELAX_PRIZE = { volley: { coins: [30, 60, 90], paid: 2 } };

@@ -16,6 +16,7 @@ import { T, OUT, SP, ART, put, hash, defineTiles, defineObjects, defineBuildings
 import { shadow, leafTones, flower, signBoard, WOOD, WOOD_D, WOOD_L, STONE, STONE_D, LIT } from './common/paint.js';
 import { crown, trunk, treeDot } from './common/objects.js';
 import { geom, baseShadow, gable, steps, glow } from './common/buildings.js';
+import { seat } from './common/seats.js';
 
 const winter = (env) => env.season === 'winter';
 
@@ -539,11 +540,20 @@ defineObjects({
   },
   stump: {
     solid: true,
+    ...seat('sit', [[0, -2, 0, 31]], { dx: 22, up: 24, down: 18 }),
     art: { stump: [[-22, -22, 24, 20], paintStump] },
     draw: (ctx, o, env) => put('stump', o.x, o.y, winter(env) ? 1 : 0),
   },
   log: {
     solid: true,
+    ...seat(
+      'sit',
+      [
+        [-12, 2, -12, 31],
+        [12, 2, 12, 31],
+      ],
+      { dx: 36, up: 24, down: 20 },
+    ),
     art: { forestLog: [[-36, -18, 38, 20], paintLog] },
     draw: (ctx, o, env) => put('forestLog', o.x, o.y, winter(env) ? 1 : 0),
   },

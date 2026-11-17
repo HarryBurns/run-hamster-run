@@ -104,6 +104,7 @@ export function makeResidents(m) {
       moving: false,
       hidden: false,
       inside: false, // позвал в гости и уже зашёл к себе домой
+      hold: null, // занят своим: { draw(n, t) } — не гуляет, рисуется сам (присел на скамейку рядом с хомячком, этап 17а)
       goingHome: false, // позвал в гости и идёт к своей двери
     };
   });
@@ -144,7 +145,8 @@ export function updateResidents(sc, dt) {
     else if (!n.inside && cellDist(n, n.home) < T * 1.2) n.inside = true;
     // away(id) в описании жителя — он сейчас не здесь (житель отдыхает у бассейна отеля — locations/town.js)
     n.hidden = (night && !n.def.always) || G.state.guests.includes(n.id) || n.inside || (!!n.def.away && n.def.away(n.id));
-    if (n.hidden || G.modal || n.def.still) continue;
+    // hold — житель занят своим (присел рядом с хомячком на скамейку — features/rest.js): стоит на месте, рисует его hold.draw
+    if (n.hidden || G.modal || n.def.still || n.hold) continue;
     if (n.path.length) {
       if (moveAlong(m, n, 90, dt) && n.goingHome) n.inside = true; // дошёл до своей двери
       continue;
@@ -177,6 +179,10 @@ export const hitResident = (n, w) => !n.hidden && Math.abs(w.x - n.x) < 30 && w.
 const WALK_FRAMES = 8,
   IDLE_FRAMES = 4;
 export function drawResident(n, t) {
+  if (n.hold && n.hold.draw) {
+    n.hold.draw(n, t);
+    return;
+  }
   const nd = NPC_BY_ID[n.id],
     sc = PS * (nd.small ? 0.8 : 1),
     shut = blinkAt(t, n.ph) > 0.5 ? 1 : 0;

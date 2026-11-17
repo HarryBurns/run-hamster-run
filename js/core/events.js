@@ -29,6 +29,7 @@ export const EVENTS = {
   tale: 'хомячок рассказала жителю о том, что видела { id, npc } (features/tales.js)',
   // --- то, что считают ежедневные задания (features/mail.js) и сюжетные задания (features/quests.js) ---
   minigame: 'сыграна мини-игра { id, stars }',
+  relax: 'хомячок присела отдохнуть на скамейку, лежак, качели… { how: sit | lie | swing | hammock | slide, type } (features/relax.js)',
   buy: 'покупка { cat, id }',
   sell: 'продано на рынке { id, n, sum }',
   cook: 'приготовлено блюдо { dish, perfect }',

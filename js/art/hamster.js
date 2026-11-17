@@ -1551,6 +1551,7 @@ const TURN = 8.5,
  *               sick: true — простыла (Ф1): красный носик, румянец, бровки домиком и градусник во рту}
  * @param pose  {dir:1|-1|нет, walk:фаза 0..1|null, time:сек, blink, sleep, happy, armsUp, sit,
  *               clipBelow:y (не рисовать ниже, для воды), shadow:false, lean:false (не наклоняться на ходу),
+ *               kick: фаза 0..1 — сидит и болтает ногами (лапки по очереди приподнимаются; без walk),
  *               sneeze: 0..1 — чихает (0–0,45 «а-а-а…», 0,45–0,85 «апчхи!»), null — нет}
  *
  * Направление (dir) показывает ПОЗА, рисунок не зеркалится: мордочка (глаза, нос, рот, усы, щёчки, очки)
@@ -1569,8 +1570,10 @@ export function drawHamster(ctx, x, y, s, look, pose = {}) {
   const t = pose.walk;
   const walking = t != null;
   const bob = walking ? Math.abs(Math.sin(t * TAU)) * 2.5 : Math.sin(time * 2.2) * 0.7;
-  const liftL = walking ? Math.max(0, Math.sin(t * TAU)) * 5 : 0;
-  const liftR = walking ? Math.max(0, -Math.sin(t * TAU)) * 5 : 0;
+  // kick — сидит и болтает ногами (скамейка, этап 17а): лапки по очереди приподнимаются, тело не качается
+  const kick = !walking && typeof pose.kick === 'number' ? pose.kick : null;
+  const liftL = walking ? Math.max(0, Math.sin(t * TAU)) * 5 : kick !== null ? Math.max(0, Math.sin(kick * TAU)) * 5 : 0;
+  const liftR = walking ? Math.max(0, -Math.sin(t * TAU)) * 5 : kick !== null ? Math.max(0, -Math.sin(kick * TAU)) * 5 : 0;
   const fur = look.fur;
   // простуда (Ф1): чих — набираем воздух («а-а-а…»), потом «апчхи!» с зажмуренными глазами
   const sn = look.sick && typeof pose.sneeze === 'number' ? pose.sneeze : null;
