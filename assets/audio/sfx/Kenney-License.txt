@@ -1,0 +1,24 @@
+Звуки в этой папке взяты из наборов Kenney (www.kenney.nl) и немного обработаны
+(обрезка, мягкие фильтры, выравнивание громкости, mp3):
+
+  Interface Sounds (1.0) — https://kenney.nl/assets/interface-sounds
+  Impact Sounds (1.0)    — https://kenney.nl/assets/impact-sounds
+  RPG Audio (1.0)        — https://kenney.nl/assets/rpg-audio
+  Foley Sounds (1.0)     — https://kenney.nl/assets/foley-sounds
+  Music Jingles (1.1)    — https://kenney.nl/assets/music-jingles
+  UI Audio (1.0)         — https://kenney.nl/assets/ui-audio
+
+Текст лицензии из наборов (одинаковый во всех):
+
+	Created/distributed by Kenney (www.kenney.nl)
+
+			------------------------------
+
+	License: (Creative Commons Zero, CC0)
+	http://creativecommons.org/publicdomain/zero/1.0/
+
+	This content is free to use in personal, educational and commercial projects.
+
+	Support us by crediting Kenney or www.kenney.nl (this is not mandatory)
+
+			------------------------------

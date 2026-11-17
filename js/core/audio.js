@@ -1,10 +1,14 @@
-// Звук игры: всё синтезируется через WebAudio, без единого файла.
-//  • sfx(name)        — короткие звуки (шаги, монетки, двери…)
-//  • setMusic(track)  — фоновая музыка; мелодии сочиняются на ходу по простым правилам
-//  • setAmbience({})  — окружение: шум моря, дождь, птицы, сверчки
+// Звук игры (этап 9б — живые звуки и музыка из файлов, CC0 / CC BY; авторы — data/credits.js и CREDITS.md).
+//  • sfx(name)        — короткие звуки (шаги, монетки, двери…): запись из assets/audio/sfx (SFX_FILES), а пока
+//                       файл не загрузился или его нет — мягкий синтез (SOUNDS)
+//  • setMusic(track)  — фоновая музыка: файлы из assets/audio/music (MUSIC_FILES) с плавным переходом; если файла
+//                       нет — мелодия сочиняется на ходу по простым правилам (TRACKS), как раньше
+//  • setAmbience({})  — окружение: шум моря, дождь, птицы, сверчки, капли
+// Всё грузится лениво — после первого нажатия (раньше браузер звук не разрешает): звуки — фоном, музыка — по треку.
 let ac = null;
 let master = null,
   sfxBus = null,
+  softBus = null,
   musicBus = null,
   ambBus = null,
   delayIn = null;
@@ -31,7 +35,8 @@ const store = {
 };
 let muted = store.get('rhr-muted', '0') === '1';
 let musicOn = store.get('rhr-music', '1') === '1';
-let musicVol = Math.min(1, Math.max(0, parseFloat(store.get('rhr-music-vol', '0.6')) || 0));
+// по умолчанию музыка тише звуков (этап 9б: 0.6 → 0.45); кто уже двигал ползунок — у того его громкость
+let musicVol = Math.min(1, Math.max(0, parseFloat(store.get('rhr-music-vol', '0.45')) || 0));
 
 function ctx() {
   if (!ac) {
@@ -55,9 +60,23 @@ function ctx() {
     sfxBus = ac.createGain();
     sfxBus.gain.value = muted ? 0 : 1;
     sfxBus.connect(master);
+    // синтезированные звуки — тише и без резких верхов (этап 9б): через мягкий фильтр
+    softBus = ac.createGain();
+    softBus.gain.value = 0.7;
+    const soft = ac.createBiquadFilter();
+    soft.type = 'lowpass';
+    soft.frequency.value = 5200;
+    soft.Q.value = 0.5;
+    softBus.connect(soft);
+    soft.connect(sfxBus);
     ambBus = ac.createGain();
     ambBus.gain.value = muted ? 0 : 1;
-    ambBus.connect(master);
+    const ambSoft = ac.createBiquadFilter();
+    ambSoft.type = 'lowpass';
+    ambSoft.frequency.value = 6000;
+    ambSoft.Q.value = 0.5;
+    ambBus.connect(ambSoft);
+    ambSoft.connect(master);
     musicBus = ac.createGain();
     musicBus.gain.value = musicOn ? musicVol : 0;
     musicBus.connect(master);
@@ -79,19 +98,49 @@ function ctx() {
     noiseBuf = ac.createBuffer(1, len, ac.sampleRate);
     const d = noiseBuf.getChannelData(0);
     for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+    // два «проигрывателя» музыки: один играет, второй плавно вступает при смене трека
+    try {
+      decks = [makeDeck(), makeDeck()];
+    } catch (e) {
+      decks = []; // нет MediaElementSource — останется синтез
+    }
   }
   return ac;
 }
+let unlocked = false;
+/** Разрешить звук: вызывать из нажатия (браузеры дают звук только после первого жеста игрока). */
 export function unlockAudio() {
   const a = ctx();
   if (!a) return;
   if (a.state === 'suspended' && !document.hidden) a.resume();
   if (!timer) timer = setInterval(tick, 50);
+  // iPad/iPhone: проигрыватель музыки можно запускать без нажатия, только если он хоть раз заиграл от нажатия
+  for (const d of decks) {
+    if (d.blessed) continue;
+    d.blessed = true;
+    if (d.busy) continue;
+    d.el.src = BASE + 'sfx/tick.mp3'; // тихо: громкость проигрывателя пока 0
+    const pr = d.el.play();
+    if (pr && pr.then) pr.then(() => d.busy || d.el.pause()).catch(() => {});
+  }
+  if (curDeck && curDeck.el.paused && !document.hidden) playEl(curDeck);
+  if (!unlocked) {
+    unlocked = true;
+    setTimeout(loadSfx, 250); // звуки — фоном, не мешая первому кадру
+  }
 }
+// первое нажатие где угодно (заставка, окна) тоже разрешает звук — не только по холсту
+for (const ev of ['pointerdown', 'touchend', 'keydown'])
+  document.addEventListener(ev, unlockAudio, { capture: true, passive: true });
 document.addEventListener('visibilitychange', () => {
   if (!ac) return;
-  if (document.hidden) ac.suspend();
-  else ac.resume();
+  if (document.hidden) {
+    ac.suspend();
+    if (curDeck) curDeck.el.pause();
+  } else {
+    ac.resume();
+    if (curDeck) playEl(curDeck);
+  }
 });
 
 /** Для тестов: текущая громкость на выходе { peak, rms } и состояние. */
@@ -105,7 +154,26 @@ export function debugLevel() {
     peak = Math.max(peak, Math.abs(v));
     sum += v * v;
   }
-  return { peak, rms: Math.sqrt(sum / buf.length), state: ac.state, track: cur ? cur.id : null };
+  return {
+    peak,
+    rms: Math.sqrt(sum / buf.length),
+    state: ac.state,
+    track: curId,
+    file: curDeck ? curDeck.file : null, // какой файл музыки играет (null — синтез или тишина)
+    synth: !!cur, // играет ли сочинённая мелодия (файла нет или он не загрузился)
+  };
+}
+/** Для тестов: что загружено. */
+export function debugAudio() {
+  return {
+    unlocked,
+    sfxLoaded: Object.keys(sbuf).filter((k) => sbuf[k].length).length,
+    sfxNames: Object.keys(SFX_FILES).length,
+    sfxFailed: [...badSfx],
+    musicFailed: [...badMusic],
+    decks: decks.map((d) => ({ busy: d.busy, file: d.file, paused: d.el.paused, t: d.el.currentTime })),
+    files: { music: MUSIC_FILES, sfx: sfxUrls() },
+  };
 }
 
 // ---------- настройки ----------
@@ -138,7 +206,7 @@ export function setMusicVolume(v) {
 }
 
 // ---------- кирпичики ----------
-function tone(freq, t0, dur, type = 'sine', vol = 0.12, slideTo = null, dest = sfxBus) {
+function tone(freq, t0, dur, type = 'sine', vol = 0.12, slideTo = null, dest = softBus) {
   const a = ac;
   if (!a) return;
   const t = a.currentTime + t0;
@@ -155,7 +223,7 @@ function tone(freq, t0, dur, type = 'sine', vol = 0.12, slideTo = null, dest = s
   o.start(t);
   o.stop(t + dur + 0.03);
 }
-function noise(t0, dur, vol = 0.08, freq = 1200, type = 'bandpass', dest = sfxBus, q = 1) {
+function noise(t0, dur, vol = 0.08, freq = 1200, type = 'bandpass', dest = softBus, q = 1) {
   const a = ac;
   if (!a) return;
   const t = a.currentTime + t0;
@@ -182,15 +250,15 @@ const SOUNDS = {
     tone(640, 0.06, 0.1, 'sine', 0.06, 880);
   },
   coin: () => {
-    tone(988, 0, 0.08, 'square', 0.05);
-    tone(1319, 0.07, 0.16, 'square', 0.05);
+    tone(988, 0, 0.08, 'triangle', 0.06);
+    tone(1319, 0.07, 0.16, 'triangle', 0.06);
   },
   ok: () => {
     tone(660, 0, 0.1, 'triangle');
     tone(880, 0.09, 0.16, 'triangle');
   },
   bad: () => {
-    tone(300, 0, 0.14, 'sawtooth', 0.06, 200);
+    tone(300, 0, 0.16, 'triangle', 0.07, 220);
   },
   win: () => [523, 659, 784, 1047].forEach((f, i) => tone(f, i * 0.11, 0.22, 'triangle', 0.12)),
   fanfare: () => {
@@ -205,8 +273,8 @@ const SOUNDS = {
   },
   paddle: () => noise(0, 0.16, 0.05, 700 + Math.random() * 300),
   door: () => {
-    tone(220, 0, 0.08, 'square', 0.04);
-    tone(165, 0.08, 0.12, 'square', 0.04);
+    tone(220, 0, 0.08, 'triangle', 0.06);
+    tone(165, 0.08, 0.12, 'triangle', 0.06);
   },
   bell: () => {
     tone(1319, 0, 0.5, 'sine', 0.12);
@@ -218,7 +286,7 @@ const SOUNDS = {
     tone(1568, 0, 0.45, 'sine', 0.1);
     tone(3136, 0, 0.2, 'sine', 0.025);
   },
-  lift: () => tone(110, 0, 0.5, 'sawtooth', 0.025, 150),
+  lift: () => tone(110, 0, 0.5, 'triangle', 0.04, 150),
   mail: () => {
     tone(784, 0, 0.1, 'triangle');
     tone(1047, 0.1, 0.1, 'triangle');
@@ -243,8 +311,8 @@ const SOUNDS = {
     noise(0.14, 0.07, 0.09, 600);
     noise(0.28, 0.07, 0.08, 550);
   },
-  tick: () => tone(1200, 0, 0.03, 'square', 0.03),
-  whistle: () => tone(1800, 0, 0.3, 'sine', 0.09, 2400),
+  tick: () => tone(1200, 0, 0.03, 'sine', 0.04),
+  whistle: () => tone(1400, 0, 0.3, 'sine', 0.08, 1900),
   bubble: () => tone(300 + Math.random() * 400, 0, 0.12, 'sine', 0.06, 900),
   note: (f = 440) => {
     tone(f, 0, 0.5, 'triangle', 0.12);
@@ -258,7 +326,7 @@ const SOUNDS = {
     noise(0, 0.9, 0.09, 2600, 'highpass');
     noise(0.05, 0.4, 0.08, 800);
   },
-  hiss: () => noise(0, 1.2, 0.07, 5000, 'highpass'),
+  hiss: () => noise(0, 1.2, 0.05, 3500, 'highpass'),
   sleep: () => [659, 523, 440, 349].forEach((f, i) => tone(f, i * 0.22, 0.4, 'sine', 0.09)),
   morning: () =>
     [392, 523, 659, 784, 659, 784, 1047].forEach((f, i) => tone(f, i * 0.13, i === 6 ? 0.5 : 0.14, 'triangle', 0.09)),
@@ -270,7 +338,7 @@ const SOUNDS = {
     tone(200, 0, 0.12, 'sine', 0.05, 1200);
     noise(0.02, 0.12, 0.03, 4000, 'highpass');
   },
-  click: () => tone(1500, 0, 0.025, 'square', 0.04),
+  click: () => tone(1500, 0, 0.025, 'sine', 0.05),
   squeak: (p = 1) => {
     const f = 900 * p;
     tone(f, 0, 0.07, 'sine', 0.06, f * 1.5);
@@ -325,19 +393,20 @@ export function playNote(midi, inst = 'piano') {
   const a = ctx();
   if (!a) return;
   if (a.state !== 'running') a.resume();
-  const f = 440 * 2 ** ((midi - 69) / 12);
+  const f = 440 * 2 ** ((midi - 69) / 12),
+    B = sfxBus; // пианино — свой инструмент, звучит как прежде (мимо мягкого фильтра синтеза)
   if (inst === 'bells') {
-    tone(f * 2, 0, 1.5, 'sine', 0.15);
-    tone(f * 6.02, 0, 0.5, 'sine', 0.03);
-    tone(f * 4, 0, 0.9, 'sine', 0.025);
+    tone(f * 2, 0, 1.5, 'sine', 0.15, null, B);
+    tone(f * 6.02, 0, 0.5, 'sine', 0.03, null, B);
+    tone(f * 4, 0, 0.9, 'sine', 0.025, null, B);
   } else if (inst === 'squeak') {
-    tone(f * 2, 0, 0.16, 'sine', 0.15, f * 2.7);
-    tone(f * 2.3, 0.11, 0.13, 'sine', 0.1, f * 3);
+    tone(f * 2, 0, 0.16, 'sine', 0.15, f * 2.7, B);
+    tone(f * 2.3, 0.11, 0.13, 'sine', 0.1, f * 3, B);
   } else {
-    tone(f, 0, 1.4, 'triangle', 0.2);
-    tone(f * 2, 0, 0.8, 'sine', 0.06);
-    tone(f * 3, 0, 0.4, 'sine', 0.025);
-    noise(0, 0.03, 0.02, 2500, 'highpass');
+    tone(f, 0, 1.4, 'triangle', 0.2, null, B);
+    tone(f * 2, 0, 0.8, 'sine', 0.06, null, B);
+    tone(f * 3, 0, 0.4, 'sine', 0.025, null, B);
+    noise(0, 0.03, 0.02, 2500, 'highpass', B);
   }
 }
 
@@ -347,6 +416,11 @@ export function sfx(name, arg) {
     if (ac) ac.resume();
     else return;
   }
+  try {
+    if (playSample(name)) return;
+  } catch (e) {
+    /* запись не сыграла — ниже синтез */
+  }
   const f = SOUNDS[name];
   if (f) {
     try {
@@ -355,6 +429,111 @@ export function sfx(name, arg) {
       /* звук не критичен */
     }
   }
+}
+
+// =====================================================================
+//                      ЗАПИСАННЫЕ ЗВУКИ (этап 9б)
+// =====================================================================
+// Наборы Kenney (CC0) — см. data/credits.js. Файлы: assets/audio/sfx/<имя><номер>.mp3 (n вариантов, берётся
+// случайный, не тот же, что в прошлый раз). g — громкость, r — скорость (и высота) от–до: хомячок маленький, шаги
+// чуть выше и легче. Чего здесь нет (писк, колокольчик, плеск, фейерверк, волшебство…) — синтез из SOUNDS.
+const BASE = 'assets/audio/';
+const SFX_FILES = {
+  // сначала — самые частые: они загрузятся первыми
+  tap: { n: 3, g: 0.32, r: [1.2, 1.45] },
+  pop: { n: 2, g: 0.36, r: [0.95, 1.15] },
+  ok: { n: 2, g: 0.42, r: [1, 1] },
+  win: { n: 3, g: 0.45, r: [1, 1] },
+  coin: { n: 2, g: 0.4, r: [0.95, 1.08] },
+  step: { n: 5, g: 0.13, r: [1.15, 1.4] },
+  stepWood: { n: 5, g: 0.12, r: [1.15, 1.4] },
+  stepSand: { n: 3, g: 0.13, r: [1.1, 1.35] },
+  stepSnow: { n: 5, g: 0.12, r: [1.1, 1.3] },
+  stepStone: { n: 5, g: 0.11, r: [1.2, 1.45] },
+  fanfare: { n: 2, g: 0.45, r: [1, 1] },
+  door: { n: 2, g: 0.36, r: [0.95, 1.05] },
+  bad: { n: 1, g: 0.32, r: [1, 1] },
+  thud: { n: 3, g: 0.4, r: [0.9, 1.1] },
+  bubble: { n: 2, g: 0.28, r: [0.9, 1.4] },
+  ding: { n: 2, g: 0.3, r: [0.95, 1.1] },
+  paper: { n: 2, g: 0.36, r: [0.95, 1.1] },
+  mail: { n: 1, g: 0.4, r: [1, 1] },
+  sticker: { n: 1, g: 0.42, r: [1, 1] },
+  morning: { n: 1, g: 0.4, r: [1, 1] },
+  click: { n: 1, g: 0.32, r: [0.95, 1.05] },
+  tick: { n: 1, g: 0.28, r: [0.95, 1.05] },
+  dig: { n: 2, g: 0.36, r: [0.85, 1] },
+  clink: { n: 3, g: 0.3, r: [0.95, 1.15] },
+  flap: { n: 2, g: 0.32, r: [1.05, 1.3] },
+  flush: { n: 1, g: 0.32, r: [1, 1] },
+  spout: { n: 1, g: 0.3, r: [0.9, 1.05] },
+  drip: { n: 3, g: 0.2, r: [0.85, 1.2] }, // капли в пещерах (окружение)
+  tvOn: { n: 1, g: 0.3, r: [1, 1], as: 'click' },
+};
+const sbuf = {}; // имя → [AudioBuffer]
+const lastIdx = {};
+const badSfx = new Set();
+const sfxFile = (name, i) => {
+  const d = SFX_FILES[name],
+    base = d.as || name;
+  return BASE + 'sfx/' + base + (SFX_FILES[base].n > 1 ? i + 1 : '') + '.mp3';
+};
+function sfxUrls() {
+  const out = [];
+  for (const name in SFX_FILES) if (!SFX_FILES[name].as) for (let i = 0; i < SFX_FILES[name].n; i++) out.push(sfxFile(name, i));
+  return out;
+}
+let sfxLoading = false;
+/** Загрузить все записанные звуки фоном (по 4 сразу); не загрузился — останется синтез. */
+function loadSfx() {
+  if (sfxLoading || !ac || !window.fetch) return;
+  sfxLoading = true;
+  const jobs = [];
+  for (const name in SFX_FILES) {
+    const d = SFX_FILES[name];
+    if (d.as) continue;
+    sbuf[name] = [];
+    for (let i = 0; i < d.n; i++) jobs.push([name, sfxFile(name, i)]);
+  }
+  const decode = (ab) =>
+    new Promise((ok, bad) => {
+      const p = ac.decodeAudioData(ab, ok, bad); // старый Safari — только с колбэками
+      if (p && p.then) p.then(ok, bad);
+    });
+  const next = () => {
+    const job = jobs.shift();
+    if (!job) return;
+    const [name, url] = job;
+    fetch(url)
+      .then((r) => {
+        if (!r.ok) throw new Error(r.status);
+        return r.arrayBuffer();
+      })
+      .then(decode)
+      .then((b) => sbuf[name].push(b))
+      .catch(() => badSfx.add(url))
+      .then(next);
+  };
+  for (let k = 0; k < 4; k++) next();
+}
+/** Сыграть запись звука name; false — записи нет (ещё не загрузилась), тогда играет синтез. */
+function playSample(name, vol = 1, bus = sfxBus) {
+  const d = SFX_FILES[name];
+  if (!d || !ac) return false;
+  const list = sbuf[d.as || name];
+  if (!list || !list.length) return false;
+  let i = Math.floor(Math.random() * list.length);
+  if (list.length > 1 && i === lastIdx[name]) i = (i + 1) % list.length;
+  lastIdx[name] = i;
+  const src = ac.createBufferSource();
+  src.buffer = list[i];
+  src.playbackRate.value = d.r[0] + Math.random() * (d.r[1] - d.r[0]);
+  const g = ac.createGain();
+  g.gain.value = d.g * vol;
+  src.connect(g);
+  g.connect(bus);
+  src.start();
+  return true;
 }
 
 // =====================================================================
@@ -598,10 +777,11 @@ const TRACKS = {
   },
 };
 const hz = (m) => 440 * 2 ** ((m - 69) / 12);
-const MUSIC_GAIN = 2.8; // общий уровень музыки относительно звуков
+const MUSIC_GAIN = 2; // общий уровень сочинённой музыки относительно звуков (этап 9б: тише, 2.8 → 2)
 
-let cur = null; // { id, def, bus, step, next, motif:[], deg }
+let cur = null; // сочинённая мелодия { id, def, bus, step, next, motif:[], deg }
 let wanted = null;
+let curId = null; // какой трек сейчас (файл или сочинённый)
 
 function voice(kind, freq, t, dur, vol, bus) {
   const a = ac,
@@ -624,8 +804,8 @@ function voice(kind, freq, t, dur, vol, bus) {
     o.type = 'sine';
     att = 0.06;
   } else if (kind === 'square') {
-    o.type = 'square';
-    vol *= 0.6;
+    o.type = 'triangle'; // этап 9б: «квадрат» резал слух — мягкий треугольник
+    vol *= 0.8;
   } else o.type = 'triangle';
   o.frequency.setValueAtTime(freq, t);
   g.gain.setValueAtTime(0.0001, t);
@@ -811,6 +991,123 @@ export function setMusic(id) {
 }
 
 // =====================================================================
+//                       МУЗЫКА ИЗ ФАЙЛОВ (этап 9б)
+// =====================================================================
+// Трек → файлы assets/audio/music/<имя>.mp3 по кругу (авторы — data/credits.js). Играют через <audio> (не держим
+// трёхминутные записи в памяти), громкость — через WebAudio (на iPad у <audio> громкость не меняется).
+// Переход — плавный: старый трек затихает, новый вступает (MUSIC_FADE). Вернулась в то же место — трек
+// продолжается с того же места. Файл не загрузился — играет сочинённая мелодия этого трека (TRACKS).
+const MUSIC_FILES = {
+  title: ['tiki_bar_mixer'],
+  villa: ['easy_lemon', 'somewhere_sunny'],
+  town_spring: ['carefree'],
+  town_summer: ['wholesome'],
+  town_autumn: ['skye_cuillin'],
+  town_winter: ['frost_waltz'],
+  forest: ['folk_round'],
+  mountain: ['achaidh_cheide'],
+  caves: ['teller_of_the_tales'],
+  desert: ['desert_city'],
+  jungle: ['monkeys_spinning_monkeys'],
+  cove: ['kalimba_relaxation'],
+  island: ['island_meet_and_greet'],
+  night: ['gymnopedie_no_1', 'dreamer'],
+  minigame: ['fluffing_a_duck'],
+  underwater: ['kalimba_relaxation'],
+  party: ['club_seamus'],
+};
+const MUSIC_FADE = 2.2; // с — вступление нового трека
+const MUSIC_OUT = 1.6; // с — затихание старого
+const FILE_GAIN = 0.8; // запись относительно громкости музыки из настроек
+let decks = []; // { el, g, busy, file, id, files, blessed, token }
+let curDeck = null;
+const badMusic = new Set(); // файлы, которые не загрузились
+const plPos = {}; // трек → какой файл по кругу сейчас
+const resumeAt = {}; // файл → где остановились (вернёшься — продолжится)
+
+function makeDeck() {
+  const el = new Audio();
+  el.preload = 'auto';
+  const src = ac.createMediaElementSource(el);
+  const g = ac.createGain();
+  g.gain.value = 0;
+  src.connect(g);
+  g.connect(musicBus);
+  const d = { el, g, busy: false, file: null, id: null, files: null, blessed: false, token: 0 };
+  el.addEventListener('ended', () => {
+    if (d !== curDeck) return;
+    resumeAt[d.file] = 0;
+    plPos[d.id] = (plPos[d.id] || 0) + 1;
+    curDeck = null;
+    d.busy = false;
+    curId = null; // tick() сам включит следующий файл трека
+  });
+  el.addEventListener('error', () => {
+    if (!d.file || !el.src.includes('/music/')) return; // ошибка «пробного» файла при разрешении звука — не важна
+    badMusic.add(d.file);
+    if (d === curDeck) {
+      curDeck = null;
+      d.busy = false;
+      curId = null; // tick() возьмёт другой файл или сочинённую мелодию
+    }
+  });
+  return d;
+}
+function playEl(d) {
+  const pr = d.el.play();
+  if (pr && pr.catch) pr.catch(() => {}); // не разрешено без нажатия — заиграет на следующем нажатии (unlockAudio)
+}
+/** Вступить треку id (файл по кругу); null — файлов нет или все не загрузились. */
+function startFileTrack(id, prev) {
+  const files = (MUSIC_FILES[id] || []).filter((f) => !badMusic.has(f));
+  if (!files.length || !decks.length) return null;
+  const file = files[(plPos[id] || 0) % files.length];
+  const d = decks.find((x) => !x.busy) || decks.find((x) => x !== prev) || decks[0];
+  d.token++;
+  d.busy = true;
+  d.id = id;
+  d.file = file;
+  const url = BASE + 'music/' + file + '.mp3';
+  if (!d.el.src.endsWith(url)) d.el.src = url;
+  try {
+    d.el.currentTime = resumeAt[file] || 0;
+  } catch (e) {
+    /* ещё не загрузился — начнётся сначала */
+  }
+  const t = ac.currentTime;
+  d.g.gain.cancelScheduledValues(t);
+  d.g.gain.setValueAtTime(0, t);
+  d.g.gain.linearRampToValueAtTime(FILE_GAIN, t + MUSIC_FADE);
+  playEl(d);
+  return d;
+}
+function stopFileTrack(d) {
+  const t = ac.currentTime,
+    tok = ++d.token;
+  resumeAt[d.file] = d.el.currentTime > 5 && d.el.currentTime < (d.el.duration || 1e9) - 8 ? d.el.currentTime : 0;
+  d.g.gain.cancelScheduledValues(t);
+  d.g.gain.setValueAtTime(d.g.gain.value, t);
+  d.g.gain.linearRampToValueAtTime(0, t + MUSIC_OUT);
+  setTimeout(() => {
+    if (d.token !== tok) return; // проигрыватель уже взял другой трек
+    d.el.pause();
+    d.busy = false;
+  }, MUSIC_OUT * 1000 + 100);
+}
+/** Сменить музыку: старое затихает, новое вступает (файл, а если его нет — сочинённая мелодия). */
+function switchMusic(id) {
+  curId = id;
+  if (cur) stopTrack(cur);
+  cur = null;
+  const prev = curDeck;
+  if (prev) stopFileTrack(prev);
+  curDeck = null;
+  if (!id) return;
+  curDeck = startFileTrack(id, prev);
+  if (!curDeck) cur = startTrack(id);
+}
+
+// =====================================================================
 //                              ОКРУЖЕНИЕ
 // =====================================================================
 const amb = { sea: 0, rain: 0, birds: false, night: false, wind: 0, bells: 0, drips: 0 };
@@ -837,10 +1134,10 @@ function loopNoise(type, freq, q = 0.7) {
   return { g, f };
 }
 function chirp(t0) {
-  const base = 2600 + Math.random() * 1400,
+  const base = 2300 + Math.random() * 1100,
     n = 2 + Math.floor(Math.random() * 3);
   for (let i = 0; i < n; i++)
-    tone(base * (1 + (i % 2) * 0.12), t0 + i * 0.09, 0.07, 'sine', 0.018, base * 1.25, ambBus);
+    tone(base * (1 + (i % 2) * 0.12), t0 + i * 0.09, 0.08, 'sine', 0.012, base * 1.2, ambBus);
 }
 /** Колокольчик коровы на лугу (гора): два-три «звяк» с призвуком. */
 function cowbell(t0, vol) {
@@ -865,10 +1162,7 @@ function tick() {
   const now = ac.currentTime;
   // --- музыка
   const want = musicOn ? wanted : null;
-  if ((cur ? cur.id : null) !== want) {
-    if (cur) stopTrack(cur);
-    cur = want ? startTrack(want) : null;
-  }
+  if (curId !== want) switchMusic(want);
   if (cur) {
     if (cur.next < now - 0.3) cur.next = now + 0.05; // вкладка спала — не догоняем пропущенное
     const s16 = 60 / cur.def.bpm / 4;
@@ -898,7 +1192,7 @@ function tick() {
       windNode.f.frequency.setTargetAtTime(300 + gust * 380, now, 0.6);
     }
     if (amb.bells > 0.05 && Math.random() < 0.006) cowbell(0, amb.bells);
-    if (amb.drips > 0.05 && Math.random() < 0.02) drip(amb.drips);
+    if (amb.drips > 0.05 && Math.random() < 0.02 && !playSample('drip', amb.drips, ambBus)) drip(amb.drips);
     if (amb.birds && Math.random() < 0.012) chirp(0);
     if (amb.night && Math.random() < 0.03) cricket();
   }

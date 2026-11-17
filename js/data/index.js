@@ -23,3 +23,4 @@ export * from './finds.js';
 export * from './quests.js';
 export * from './hotel.js';
 export * from './holidays.js';
+export * from './credits.js';

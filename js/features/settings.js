@@ -1,9 +1,10 @@
-// Меню: музыка и звуки, «Как играть», «Выйти на заставку».
+// Меню: музыка и звуки, «Как играть», «Авторы» (кто сочинил музыку и звуки), «Выйти на заставку».
 import { G, cal } from '../core/state.js';
 import { persist } from '../core/loop.js';
 import { el, esc } from '../core/util.js';
 import { sfx, isMuted, setMuted, isMusicOn, setMusicOn, getMusicVolume, setMusicVolume } from '../core/audio.js';
 import { run } from '../core/registry.js';
+import { MUSIC_CREDITS, SFX_CREDITS, SYNTH_NOTE } from '../data/credits.js';
 import { openPanel, message } from '../ui/panel.js';
 
 export function openSettings() {
@@ -65,6 +66,11 @@ export function openSettings() {
       own.append(homes, biz);
       const help = el('button', 'btn yellow', '❓ Как играть');
       help.onclick = () => showHelp();
+      const authors = el('button', 'btn ghost', '🎼 Авторы музыки и звуков');
+      authors.onclick = () => {
+        sfx('tap');
+        showCredits();
+      };
       // Новую игру начинают на заставке («Новая игра» — рядом со старыми); стереть игру отсюда нельзя.
       const exit = el('button', 'btn ghost', '🚪 Выйти на заставку');
       exit.onclick = () => {
@@ -73,9 +79,37 @@ export function openSettings() {
       };
       const col = el('div');
       col.style.cssText = 'display:flex;flex-direction:column;gap:12px;align-items:stretch';
-      col.append(own, mus, vol, snd, help, exit);
+      col.append(own, mus, vol, snd, help, authors, exit);
       body.appendChild(col);
     },
+  });
+}
+/** «Авторы»: вся музыка и все звуки игры — название, автор, лицензия, ссылка (текстом). */
+export function showCredits() {
+  const lic = (l) => `<a href="${esc(l.url)}" target="_blank" rel="noopener">${esc(l.name)}</a>`;
+  const short = (u) => u.replace(/^https?:\/\//, '');
+  // ссылка текстом; если она уже есть в имени автора («… (incompetech.com)») — не повторять
+  const link = (c) => (c.by.includes(short(c.url)) ? '' : ` · <span class="credit-url">${esc(short(c.url))}</span>`);
+  const music = MUSIC_CREDITS.map(
+    (c) =>
+      `<li><b>«${esc(c.title)}»</b> — ${esc(c.by)}<br><span class="muted">${esc(c.where)} · ${lic(c.lic)}${link(c)}</span></li>`,
+  ).join('');
+  const sfxs = SFX_CREDITS.map(
+    (c) =>
+      `<li><b>${esc(c.title)}</b> — ${esc(c.by)}<br><span class="muted">${esc(c.what)} · ${lic(c.lic)}${link(c)}</span></li>`,
+  ).join('');
+  return message({
+    title: 'Авторы',
+    icon: '🎼',
+    cls: 'credits',
+    html: `<p class="center">Спасибо всем, кто делится музыкой и звуками бесплатно!</p>
+      <h3>🎵 Музыка</h3><ul class="help credits-list">${music}</ul>
+      <p class="muted">Музыка Kevin MacLeod (incompetech.com) — по лицензии Creative Commons: By Attribution 4.0
+      (creativecommons.org/licenses/by/4.0). Записи пережаты потише и полегче, сама музыка не менялась.</p>
+      <h3>🔔 Звуки</h3><ul class="help credits-list">${sfxs}</ul>
+      <p class="muted">${esc(SYNTH_NOTE)}</p>
+      <p class="muted">Игру придумали и нарисовали кодом — без картинок. Полный список — в файле CREDITS.md.</p>`,
+    buttons: [{ text: 'Понятно!' }],
   });
 }
 export function showHelp() {

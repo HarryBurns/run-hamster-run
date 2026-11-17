@@ -410,6 +410,12 @@ h4 { margin: 4px 0; font-size: 16px; }
 #mg ~ #toasts { z-index: 90; }
 #hud.decor .hud-btns, #hud.decor .chip.task { display: none; }
 .help li { margin: 6px 0; line-height: 1.3; }
+/* «Авторы» (этап 9б): длинные ссылки переносятся, не растягивают окно */
+.credits h3 { margin: 14px 0 4px; font-size: 17px; }
+.credits-list { padding-left: 18px; }
+.credits-list li { margin: 7px 0; overflow-wrap: anywhere; }
+.credits .credit-url { overflow-wrap: anywhere; }
+.credits a { color: inherit; }
 @media (max-width: 520px) {
   .panel-head { font-size: 17px; padding-left: 12px; gap: 7px; }
   .panel-head .title { white-space: normal; line-height: 1.1; }
