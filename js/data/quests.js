@@ -46,7 +46,7 @@ import { CLOTHES_BY_ID, isSunHat } from './clothes.js';
 const introOn = (s) => s.flags.intro === 1;
 const doneQ = (s, id) => !!s.quests[id] && s.quests[id].done !== null;
 /** Работы города — мини-игры за зарплату (JOBS в economy.js). */
-const JOB_GAMES = ['teacher', 'doctor', 'chef', 'barista', 'porter', 'fashion', 'swim'];
+const JOB_GAMES = ['teacher', 'doctor', 'chef', 'barista', 'porter', 'fashion', 'swim', 'hairdresser', 'lifeguard', 'gardener'];
 
 export const QUESTS = [
   // ---- вводная цепочка новой игры (этап 10): четыре соседа по очереди заходят на виллу и знакомят с городком ----

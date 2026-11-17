@@ -8,7 +8,7 @@ const { pathToFileURL } = require('url');
 
 (async () => {
   const D = await import(pathToFileURL(path.join(__dirname, '..', 'js', 'data', 'index.js')).href);
-  const { JOBS, PAID_SHIFTS, MARKET, PRICES, TASK_COINS, TASK_COINS_DEFAULT, START_MONEY } = D;
+  const { JOBS, PAID_SHIFTS, PAID_DAY, MARKET, PRICES, TASK_COINS, TASK_COINS_DEFAULT, START_MONEY } = D;
   const { HOMES, BUSINESSES, BIZ_RULES, HOME_PRICES, BIZ } = D;
   const { GATHER, HARVEST_MONTHS, SEASONS, SEASON_OF_MONTH, MONTHS, SEASONAL, STOCK, TREATS, DAYS_PER_MONTH } = D;
   const problems = [];
@@ -148,6 +148,14 @@ const { pathToFileURL } = require('url');
   const fish = ING.fish.sell;
 
   const avg3 = payAt(3) / jobs.length;
+  // потолок работы за день: оплачиваются не больше PAID_SHIFTS смен на месте и PAID_DAY на всех вместе (этап 17в) —
+  // берём самые дорогие смены на 3★
+  const paidMax = Math.min(PAID_DAY, PAID_SHIFTS * jobs.length);
+  const ceilWork = jobs
+    .flatMap(([, j]) => Array(PAID_SHIFTS).fill(j.pay[2]))
+    .sort((a, b) => b - a)
+    .slice(0, paidMax)
+    .reduce((a, b) => a + b, 0);
   // (е) сбор в городе: с растения — раз в день и только в сезон. Сколько это даёт за день в каждом месяце,
   // если собрать всё и всё продать: должно быть что собрать в любом сезоне, но меньше одной смены на 2★
   const gatherIn = (month) =>
@@ -661,9 +669,9 @@ const { pathToFileURL } = require('url');
     },
     {
       id: 'max',
-      name: `потолок (все ${PAID_SHIFTS * jobs.length} смен на 3★, весь кошелёк торговца)`,
-      start: { work: PAID_SHIFTS * payAt(3), task: taskMax, market: MARKET.purse, how: 'всё, что можно' },
-      week: { work: PAID_SHIFTS * payAt(3), task: taskMax, market: MARKET.purse, how: 'всё, что можно' },
+      name: `потолок (все ${paidMax} оплачиваемых смен на 3★, весь кошелёк торговца)`,
+      start: { work: ceilWork, task: taskMax, market: MARKET.purse, how: 'всё, что можно' },
+      week: { work: ceilWork, task: taskMax, market: MARKET.purse, how: 'всё, что можно' },
     },
   ];
   const GOAL = 25000; // первое жильё — квартира в городе (docs/DESIGN.md, раздел 3)
@@ -719,8 +727,8 @@ const { pathToFileURL } = require('url');
   console.log('Старт и заработок');
   line('стартовый капитал', fmt(START_MONEY));
   for (const [id, j] of jobs) line(`работа: ${id} (1★/2★/3★)`, j.pay.join(' / '));
-  line(`оплачиваемых смен в день на каждом месте`, String(PAID_SHIFTS));
-  line('все смены за день на 2★ / на 3★', `${fmt(PAID_SHIFTS * payAt(2))} / ${fmt(PAID_SHIFTS * payAt(3))}`);
+  line(`оплачиваемых смен в день на каждом месте / на всех вместе`, `${PAID_SHIFTS} / ${PAID_DAY}`);
+  line(`все ${paidMax} оплачиваемых смен за день на 3★ (самые дорогие)`, fmt(ceilWork));
   line('задание из конверта', `${range(taskAll)} (в среднем ${fmt(taskAvg)})`);
   line('кошелёк торговца на рынке (предел продаж в день)', fmt(MARKET.purse));
   console.log('\nРынок: что почём');

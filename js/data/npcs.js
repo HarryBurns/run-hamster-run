@@ -362,6 +362,8 @@ export const VENDORS = {
   cafe: { name: 'Бариста Зёрнышко', look: lk('#a8703f', { belly: '#f6dfb8', outfit: { body: 'tee_orange', acc: 'bowtie' } }) },
   rest: { name: 'Шеф Трюфель', look: lk('#f6dfb8', { belly: '#fff', outfit: { body: 'robe' }, beauty: { blush: '#ffa94d' } }) },
   beach: { name: 'Спасатель Волна', look: lk('#e88b3a', { belly: '#ffe8cc', outfit: { body: 'swim_blue', acc: 'sung_yellow', head: 'panama_white' } }) },
+  // она же на вышке спасателя (работа «Спасатель», этап 17в): свой ключ — чтобы у вышки не предлагали купить пляжное кафе
+  guard: { name: 'Спасатель Волна', look: lk('#e88b3a', { belly: '#ffe8cc', outfit: { body: 'swim_blue', acc: 'sung_yellow', head: 'panama_white' } }) },
   pool: { name: 'Тренер Брызг', look: lk('#b9bcc6', { belly: '#f1f3f5', outfit: { body: 'tee_sun', legs: 'shorts_red', head: 'cap_red' } }) },
   school: { name: 'Директор Буковка', look: lk('#f6dfb8', { belly: '#fff', outfit: { body: 'sw_pink', acc: 'glasses_red' }, beauty: { blush: '#ffb0bd', tuft: 3, hair: '#868e96', lashes: true } }) },
   hospital: { name: 'Медсестра Ромашка', look: lk('#fff', { outfit: { body: 'robe', head: 'panama_white' }, beauty: { blush: '#ffb0bd', lashes: true } }) },

@@ -248,6 +248,8 @@ const notWinter = () => cal().season !== 'winter',
   winter = () => cal().season === 'winter';
 /** Кусочек карты Зефирки (задание «Карта сокровищ Зефирки», П.9) ещё ждёт на месте: tower | ship | isle. */
 export const mapPieceWaits = (id) => stepWaits('treasure_map', { what: 'piece', id });
+/** Где работы этапа 17в: вышка спасателя на пляже и садовая тележка в парке (клетки). */
+export const JOB_SPOTS = { lifeguard: [56, 51], garden: [35, 44] };
 const BOTTLE = [11, 78]; // бутылка с кусочком карты — под пальмой на Звёздном острове (WORLD_SEA в sea.js)
 const PLACES = [
   // почтовый ящик у двери виллы
@@ -353,6 +355,34 @@ const PLACES = [
     when: () => mapPieceWaits('isle'),
     act: 'cove:piece:isle',
     reach: 1.4,
+  },
+  // работы этапа 17в: вышка спасателя на пляже (спасатель Волна зовёт подежурить — «Спасатель») и садовая тележка
+  // Мяты в парке («Садовник»). Парикмахер — кнопка в окне салона красоты (features/salon.js)
+  {
+    id: 'lifeguard',
+    at: JOB_SPOTS.lifeguard,
+    hit: { dx: 40, up: 110, down: 24 },
+    stand: [JOB_SPOTS.lifeguard[0] + 0.5, JOB_SPOTS.lifeguard[1] + 1.5],
+    act: ask('guard', 'Привет! Я спасатель Волна. Подежуришь со мной на вышке? Смотри на море: кто устал плыть или уронил мячик — тому помоги!', [
+      { text: '🛟 На вышку!', cls: 'green', do: 'minigame:lifeguard' },
+      { text: 'Не сейчас' },
+    ]),
+    key: false,
+    map: { icon: '🛟', at: [JOB_SPOTS.lifeguard[0] + 0.5, JOB_SPOTS.lifeguard[1]], label: '🛟 Вышка спасателя' },
+  },
+  {
+    id: 'gardencart',
+    at: JOB_SPOTS.garden,
+    hit: { dx: 44, up: 60, down: 24 },
+    stand: [JOB_SPOTS.garden[0] + 0.5, JOB_SPOTS.garden[1] + 1.5],
+    act: {
+      do: 'ask',
+      npc: 'myata',
+      text: 'Ой, привет! Парку нужны садовники: цветы поникли, кусты заросли, а клумба ждёт рассаду. Поможешь?',
+      options: [{ text: '🌷 Помочь в парке', cls: 'green', do: 'minigame:gardener' }, { text: 'Не сейчас' }],
+    },
+    key: false,
+    map: { icon: '🌷', at: [JOB_SPOTS.garden[0] + 0.5, JOB_SPOTS.garden[1]], label: '🌷 Садовая тележка' },
   },
   // праздники (П.13): ёлка, вертеп, фонарики, карусель, блины, канат — работают, пока город украшен (locations/holidays.js)
   ...HOLIDAY_PLACES,
@@ -461,6 +491,37 @@ function bedLive(ctx, cells, n) {
   }
 }
 defineObjects({
+  // садовая тележка Мяты в парке (этап 17в): лейка, грабельки, горшки с цветами — здесь работа «Садовник»
+  gardenCart: {
+    solid: true,
+    art: {
+      gardenCart: [
+        [-34, -56, 38, 22],
+        (ctx, season) => {
+          shadow(ctx, 2, 14, 30, 6);
+          line(ctx, 18, -6, 34, -22, OUT, 3.5); // ручки
+          line(ctx, 18, -6, 34, -22, '#c98b5a', 1.8);
+          ell(ctx, -16, 8, 8, 8, '#495057', OUT, 2); // колесо
+          ell(ctx, -16, 8, 3, 3, '#adb5bd', null);
+          poly(ctx, [-28, -18, 22, -18, 16, 4, -24, 4], '#2f9e44', OUT, 2.2); // кузов
+          line(ctx, -26, -10, 19, -10, 'rgba(255,255,255,.35)', 2);
+          // горшки с цветами (зимой — еловые ветки)
+          const cs = season === 'winter' ? ['#2f9e44', '#2b8a3e', '#2f9e44'] : ['#ff6b9d', '#ffd43b', '#9775fa'];
+          [-18, -4, 10].forEach((x, i) => {
+            fillRR(ctx, x - 5, -26, 10, 9, 2, '#e8590c', OUT, 1.4);
+            for (let k = 0; k < 4; k++) ell(ctx, x + Math.cos(k * 1.6) * 3.5, -32 + Math.sin(k * 1.6) * 3, 3, 3, cs[i], OUT, 0.8);
+          });
+          // лейка
+          fillRR(ctx, -32, -6, 12, 12, 3, '#4dabf7', OUT, 1.6);
+          line(ctx, -32, -2, -40, -10, OUT, 2.4);
+          line(ctx, -32, -2, -40, -10, '#4dabf7', 1);
+        },
+      ],
+    },
+    draw(ctx, o, env) {
+      put('gardenCart', o.x, o.y, env.season);
+    },
+  },
   mailbox: {
     solid: true,
     art: {
@@ -1206,7 +1267,8 @@ function build(m) {
     [80, 54, 3],
   ])
     put1('towel', x, y, { v });
-  put1('lifeguard', 56, 51);
+  put1('lifeguard', ...JOB_SPOTS.lifeguard);
+  put1('gardenCart', ...JOB_SPOTS.garden);
   put1('net', 29, 54);
   put1('ball', 31, 55, { v: 3, summer: true });
   put1('sandcastle', 41, 54);

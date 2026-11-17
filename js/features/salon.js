@@ -3,7 +3,7 @@
 import { setBeauty } from '../core/actions.js';
 import { sfx } from '../core/audio.js';
 import { emit } from '../core/events.js';
-import { register } from '../core/registry.js';
+import { register, run } from '../core/registry.js';
 import { G, playerLook } from '../core/state.js';
 import { el, fmtMoney } from '../core/util.js';
 import { blinkAt } from '../art/hamster.js';
@@ -53,7 +53,18 @@ function openSalon() {
     money: true,
     cls: 'wide',
     onClose: () => cancelAnimationFrame(raf),
-    foot: () => bizFoot(bizByVendor('salon')), // салон можно купить: «Купить заведение» или «Моё заведение»
+    // работа «Парикмахер» (этап 17в) — для всех; салон можно купить: «Купить заведение» или «Моё заведение»
+    foot: () => [
+      {
+        text: '✂️ Поработать парикмахером',
+        cls: 'green',
+        fn: (panel) => {
+          panel.close();
+          run('minigame:hairdresser');
+        },
+      },
+      ...bizFoot(bizByVendor('salon')),
+    ],
     render(body, tab, panel) {
       const sign = bizSign(bizByVendor('salon'));
       if (sign) body.appendChild(sign);

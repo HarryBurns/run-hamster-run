@@ -1,7 +1,7 @@
 // Входы в здания: переход в сцену и вопрос продавца с вариантами.
 import { go } from '../core/loop.js';
 import { register, run } from '../core/registry.js';
-import { vendorLook, VENDORS } from '../data/index.js';
+import { vendorLook, VENDORS, npcLook, NPC_BY_ID } from '../data/index.js';
 import { dialog } from '../ui/dialog.js';
 import { jobNote } from './minigames.js';
 import { bizByVendor, bizAskOption, bizAskText } from './business.js';
@@ -30,14 +30,15 @@ register(
     // заведение, которое можно купить (или уже своё): перед «Пока!» — «Купить заведение» / «Моё заведение»
     const biz = bizByVendor(p.vendor);
     const options = biz ? [...asked.slice(0, -1), bizAskOption(biz), ...asked.slice(-1)] : asked;
+    // спрашивает продавец (vendor) или житель (npc — Мята у садовой тележки, этап 17в)
     const i = await dialog({
-      look: vendorLook(p.vendor),
-      name: VENDORS[p.vendor].name,
+      look: p.npc ? npcLook(p.npc) : vendorLook(p.vendor),
+      name: p.npc ? NPC_BY_ID[p.npc].name : VENDORS[p.vendor].name,
       text: (sick ? sick.text : bizAskText(biz, p.text)) + notes,
       options,
     });
     const o = options[i];
     return o && o.do ? run(o.do, ctx) : undefined;
   },
-  'вопрос продавца с вариантами: { vendor, text, options: [{ text, cls, do }] }',
+  'вопрос продавца (или жителя) с вариантами: { vendor | npc, text, options: [{ text, cls, do }] }',
 );

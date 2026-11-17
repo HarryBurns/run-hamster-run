@@ -20,6 +20,7 @@ import {
   FASHION_THEMES,
   JOBS,
   PAID_SHIFTS,
+  PAID_DAY,
   ING_BY_ID,
   BUSINESSES,
   BIZ_BY_ID,
@@ -63,6 +64,9 @@ export const MG_NAMES = {
   slide: '🌀 Горка',
   porter: '🧳 Носильщица',
   volley: '🏐 Пляжный волейбол',
+  hairdresser: '✂️ Парикмахер',
+  lifeguard: '🛟 Спасатель',
+  gardener: '🌷 Садовник',
   tree: '🎄 Нарядим ёлку',
   drum: '🥁 Танец у костра',
   mimic: '🤸 Повтори движение',
@@ -118,15 +122,24 @@ const ownerAt = (id, biz) => {
 export function jobToday(id, biz) {
   const job = JOBS[id];
   if (!job) return null;
-  const done = (S().dayFlags.shifts || {})[id] || 0,
+  const shifts = S().dayFlags.shifts || {},
+    done = shifts[id] || 0,
     owner = ownerAt(id, biz);
+  // общий предел на все работы за день (PAID_DAY, этап 17в): наработалась — сегодня больше не платят нигде
+  const all = Object.keys(JOBS).reduce((n, k) => n + (shifts[k] || 0), 0),
+    here = Math.max(0, PAID_SHIFTS - done),
+    left = Math.min(here, Math.max(0, PAID_DAY - all));
   return {
     pay: owner ? job.pay.map((n) => Math.round(n * BIZ_RULES.ownerPay)) : job.pay,
-    left: Math.max(0, PAID_SHIFTS - done),
+    left,
+    tired: here > 0 && !left,
     w: job.prize ? WORDS.prize : WORDS.job,
     owner,
   };
 }
+/** Наработалась за день на всех работах вместе (PAID_DAY смен): добрые слова вместо «здесь уже заплатили». */
+const tiredLine = () =>
+  `<div class="pay-note off">💛 Сегодня ты уже отработала ${PAID_DAY} смен — это очень много! Сыграть можно просто для удовольствия, без монет. Завтра заплатят снова!</div>`;
 
 /** Строчка про своё заведение: поработаешь сама — выручка дня больше. */
 function ownerNote(id, biz) {
@@ -144,6 +157,7 @@ export function jobNote(id, biz) {
 }
 function jobLine(j) {
   const w = j.w;
+  if (j.tired) return tiredLine();
   if (!j.left)
     return `<div class="pay-note off">💛 ${w.done} ${PAID_SHIFTS} ${w.unit(PAID_SHIFTS)}. Сыграть ещё можно — просто для удовольствия, без монет. ${w.again}</div>`;
   return `<div class="pay-note">🪙 <b>${w.word}:</b> ⭐ ${fmtMoney(j.pay[0])} · ⭐⭐ ${fmtMoney(j.pay[1])} · ⭐⭐⭐ ${fmtMoney(j.pay[2])}<br>${w.more} <b>${j.left}</b> ${w.unit(j.left)}.</div>`;
@@ -165,6 +179,7 @@ function payNote(id, stars, biz) {
 }
 function payLine(j, stars) {
   const w = j.w;
+  if (j.tired) return tiredLine();
   if (!j.left)
     return `<div class="pay-note off">💛 Эта игра была для удовольствия. ${w.done} ${PAID_SHIFTS} ${w.unit(PAID_SHIFTS)}. ${w.again}</div>`;
   const rest = j.left - 1;
@@ -178,7 +193,7 @@ function payJob(id, stars, biz) {
   const j = jobToday(id, biz);
   if (!j || !j.left) return 0;
   const sum = j.pay[stars - 1];
-  setDayFlag(id, PAID_SHIFTS - j.left + 1, 'shifts');
+  setDayFlag(id, ((S().dayFlags.shifts || {})[id] || 0) + 1, 'shifts');
   earn(sum, 'work');
   sfx('coin');
   toast(`🪙 ${j.w.word}: +${coins(sum)}`, 'good');
