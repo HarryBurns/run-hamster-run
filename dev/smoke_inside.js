@@ -36,7 +36,18 @@ module.exports = async function inside({ page, step, ev, wait, closeAll }) {
     );
   /** Нажать на точку дома (единицы дома) — настоящим нажатием по экрану. */
   const tapHouse = async (wx, wy) => {
-    const k = await ev(([wx, wy]) => window.__dev.scene.debugScreen(wx, wy), [wx, wy]);
+    let k = await ev(([wx, wy]) => window.__dev.scene.debugScreen(wx, wy), [wx, wy]);
+    const vw = page.viewportSize();
+    if (k.x < 70 || k.x > vw.width - 70 || k.y < 60 || k.y > vw.height - 60) {
+      // на телефоне дом крупно и камера идёт за хомячком: точка за краем — сначала подойти поближе
+      await ev((wx) => {
+        const sc = window.__dev.scene;
+        sc.p.x = Math.max(60, wx - 120);
+        sc.p.path = [];
+      }, wx);
+      await wait(1200);
+      k = await ev(([wx, wy]) => window.__dev.scene.debugScreen(wx, wy), [wx, wy]);
+    }
     await page.mouse.click(k.x, k.y);
   };
   /** Центр зоны встроенного предмета id (по описанию дома). */
