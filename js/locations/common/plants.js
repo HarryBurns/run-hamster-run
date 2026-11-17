@@ -11,6 +11,7 @@
 //   appleTree    яблоня (город и лес): в конце лета и осенью — красные яблоки; в начале лета — зелёные завязи
 //   pricklyPear  кактус-опунция (пустыня): весной и летом на лепёшках-«ушках» — малиновые плоды
 //   pineapple    ананас (джунгли): розетка колючих листьев; весной и летом в серединке — золотой ананас с хохолком
+//   passionVine  лиана маракуйи на шпалере (джунгли): осенью — тёмно-лиловые плоды; весной и летом цветёт
 //
 // Правила одни для всех:
 //  - плод есть только в сезон продукта — месяцы берутся из общей таблицы data/seasons.js (у продукта, который
@@ -142,6 +143,15 @@ export const PLANTS = {
     empty: 'Этот ананас уже сорван. Завтра поспеет новый! 🍍',
     drop: [0, -34],
     top: 70,
+  },
+  passionVine: {
+    gives: 'passionfruit',
+    verb: 'Сорвать маракуйю',
+    btn: 'Сорвать',
+    wait: 'Маракуйя поспеет',
+    empty: 'С этой лианы маракуйя уже сорвана. Завтра поспеет новая! 🌿',
+    drop: [8, -30],
+    top: 86,
   },
 };
 const monthNow = () => Math.floor(G.state.day / DAYS_PER_MONTH) % 12;
@@ -628,6 +638,64 @@ function paintPricklyPear(ctx, fruit) {
 }
 
 // Ананас: розетка длинных колючих листьев (дальние — темнее), в сезон в серединке — ананас с хохолком
+// Лиана маракуйи: шпалера из двух колышков с перекладинами, по ней вьётся лиана с трёхпалыми листьями;
+// fruit: 0 — только листья, 1 — висят тёмно-лиловые плоды, 2 — цветёт (бело-фиолетовые цветы со звёздочкой)
+const VINE_LEAVES = [
+  [-22, -18, 0.4], [-14, -40, -0.3], [-2, -58, 0.2], [12, -52, 0.9], [22, -34, -0.5], [20, -12, 0.3],
+  [-8, -22, -0.8], [6, -30, 0.1], [-20, -54, 0.6], [24, -60, -0.2],
+];
+const VINE_FRUIT = [
+  [-12, -30],
+  [5, -42],
+  [17, -22],
+];
+function paintPassionVine(ctx, fruit) {
+  shadow(ctx, 0, 12, 26, 6);
+  // шпалера
+  for (const x of [-22, 22]) {
+    line(ctx, x, 12, x, -64, OUT, 6);
+    line(ctx, x, 12, x, -64, '#b08968', 3.2);
+  }
+  for (const y of [-56, -34, -12]) {
+    line(ctx, -24, y, 24, y, OUT, 5);
+    line(ctx, -24, y, 24, y, '#c9a27a', 2.4);
+  }
+  // стебель
+  ctx.beginPath();
+  ctx.moveTo(-4, 12);
+  ctx.bezierCurveTo(-26, -8, 20, -22, -6, -40);
+  ctx.bezierCurveTo(-24, -52, 10, -58, 22, -62);
+  ctx.strokeStyle = '#2b6b2f';
+  ctx.lineWidth = 3;
+  ctx.lineCap = 'round';
+  ctx.stroke();
+  // листья: три «пальца»
+  VINE_LEAVES.forEach(([x, y, a], i) => {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(a);
+    const col = i % 3 === 0 ? '#3f9142' : i % 3 === 1 ? '#56ad4f' : '#4a9e46';
+    for (const da of [-0.75, 0.75, 0]) ell(ctx, Math.sin(da) * 6, -Math.cos(da) * 6, 4.4, 8, col, OUT, 1.3, da);
+    line(ctx, 0, 1, 0, -9, 'rgba(255,255,255,.3)', 1);
+    ctx.restore();
+  });
+  if (fruit === 2)
+    for (const [x, y] of VINE_FRUIT) {
+      for (let k = 0; k < 8; k++) {
+        const a = (k / 8) * TAU;
+        ell(ctx, x + Math.cos(a) * 5.5, y + Math.sin(a) * 5.5, 3.6, 2.2, '#f8f0fc', OUT, 0.9, a);
+      }
+      ell(ctx, x, y, 4.2, 4.2, '#9c36b5', OUT, 1);
+      ell(ctx, x, y, 1.8, 1.8, '#ffe066');
+    }
+  if (fruit !== 1) return;
+  for (const [x, y] of VINE_FRUIT) {
+    line(ctx, x, y - 12, x, y - 6, '#2b6b2f', 2);
+    ell(ctx, x, y, 7.6, 8.2, '#6b2d73', OUT, 1.6);
+    ell(ctx, x - 2.4, y - 3, 2.6, 1.8, 'rgba(255,255,255,.4)', null, 1, -0.6);
+    ell(ctx, x + 2.5, y + 3, 1, 1, '#9b59a8');
+  }
+}
 function paintPineapple(ctx, fruit) {
   shadow(ctx, 0, 12, 22, 6);
   const leaf = (a, len, col) => {
@@ -916,6 +984,17 @@ defineObjects({
     art: { pricklyPear: [[-32, -78, 34, 20], paintPricklyPear] },
     draw(ctx, o) {
       put('pricklyPear', o.x, o.y, hasFruit(o) ? 1 : 0);
+    },
+  },
+  passionVine: {
+    solid: true,
+    tap: { dx: 30, up: 72, down: 18 },
+    use: gather,
+    art: { passionVine: [[-34, -74, 34, 22], paintPassionVine] },
+    draw(ctx, o, env) {
+      // осенью — плоды (пока не сорваны), весной и летом лиана цветёт, зимой — одни листья
+      const look = hasFruit(o) ? 1 : env.season === 'spring' || env.season === 'summer' ? 2 : 0;
+      put('passionVine', o.x + wobble(o, env.t) * 0.5, o.y, look);
     },
   },
   pineapple: {

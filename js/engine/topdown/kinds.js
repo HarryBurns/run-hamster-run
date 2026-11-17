@@ -45,7 +45,7 @@
 //
 // env (одно на кадр): { t — время, season — сезон, dark — темнота 0..1, map — карта, hero — герой, sc — сцена }.
 import { SpriteSet } from '../../core/sprites.js';
-import { fillRR } from '../../core/draw.js';
+import { fillRR, iconText, iconTextWidth } from '../../core/draw.js';
 
 /** Размер клетки в единицах мира. Под него нарисованы все спрайты и хомячок — у всех локаций он один. */
 export const T = 48;
@@ -120,7 +120,7 @@ export function hash(x, y) {
 /** Табличка с подписью (вывеска, имя жителя). */
 export function label(ctx, text, cx, cy, maxW, size, bg, fg = OUT) {
   ctx.font = `900 ${size}px ui-rounded, "Trebuchet MS", "Segoe UI", sans-serif`;
-  let tw = ctx.measureText(text).width;
+  let tw = iconTextWidth(ctx, text, size);
   if (tw > maxW - 14) {
     size *= (maxW - 14) / tw;
     ctx.font = `900 ${size}px ui-rounded, "Trebuchet MS", "Segoe UI", sans-serif`;
@@ -128,7 +128,5 @@ export function label(ctx, text, cx, cy, maxW, size, bg, fg = OUT) {
   }
   fillRR(ctx, cx - tw / 2 - 8, cy - size * 0.75, tw + 16, size * 1.5, size * 0.5, bg, OUT, 2);
   ctx.fillStyle = fg;
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText(text, cx, cy + 1);
+  iconText(ctx, text, cx, cy + 1, size); // в подписи может быть рисованный значок вещи (data/icons.js)
 }

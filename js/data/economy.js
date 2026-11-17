@@ -276,6 +276,7 @@ export const JUNGLE_GATHER = {
   pineapple: { n: 1, max: 2 }, // весной и летом: ананасы на грядке у палатки Лианы
   mango: { n: 1, max: 2 }, // летом: два манговых дерева у реки
   coconut: { n: 1, max: 1 }, // зимой: кокосовая пальма у причала
+  passionfruit: { n: 1, max: 2 }, // осенью: две лианы маракуйи на шпалерах у палатки Лианы (этап 12)
 };
 // Перья попугаев — находки (сумка finds): каждый из трёх попугаев роняет своё перо, когда с ним «поболтаешь», —
 // раз в день (dayFlags.jungle.feathers). Значит, перьев в день не больше трёх. Продают их на рынке (кошелёк торговца
@@ -326,6 +327,8 @@ export const ISLAND = {
   flowers: { flower_plumeria: 10, flower_hibiscus: 12, flower_orchid: 15 },
   totem: 3,
   lei: 3,
+  wreath: 3, // «Венок из цветов острова» — по одному цветку каждого вида, когда лея уже есть (вещь, один раз)
+  garland: 3, // «Гирлянда из цветов» — по одному цветку каждого вида (украшение для дома, сколько угодно)
   bowling: { coins: [40, 80, 120], paid: 2 },
   fest: { from: 19, to: 22 },
 };
@@ -386,7 +389,7 @@ export const PRICES = {
     // растёт в пустыне (П.9): плоды опунции
     cactus_fruit: 30,
     // южные фрукты
-    pineapple: 60, kiwi: 30, orange: 20, lemon: 20, peach: 30, grapes: 40, melon: 50, avocado: 45,
+    passionfruit: 50, pineapple: 60, kiwi: 30, orange: 20, lemon: 20, peach: 30, grapes: 40, melon: 50, avocado: 45,
     // огород: в магазине дороже, чем вырастить самой
     lettuce: 50, carrot: 60, tomato: 80, strawberry: 100, seeds: 100, pumpkin: 200,
   },

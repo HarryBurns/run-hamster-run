@@ -31,6 +31,8 @@ export const HARVEST_MONTHS = {
   // растёт в пустыне (П.9; сколько — DESERT_GATHER в economy.js): опунция цветёт после весенних дождей и плодоносит
   // весной и летом
   cactus_fruit: months('spring', 'summer'),
+  // маракуйя (этап 12): лиана у палатки Лианы в джунглях плодоносит осенью — теперь и осенью в джунглях есть что сорвать
+  passionfruit: months('autumn'),
   // южные фрукты: их только покупают
   pineapple: months('spring', 'summer'),
   kiwi: months('autumn', 'winter'),

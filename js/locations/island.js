@@ -458,7 +458,7 @@ const island = createTopDownScene({
       hit: { r: 42 },
       stand: [AT.obsidian[0] + 0.5, AT.obsidian[1] + 1.6],
       act: 'island:obsidian',
-      map: { icon: '🪨', at: [AT.obsidian[0] + 0.5, AT.obsidian[1] + 0.5], label: '🪨 Вулканическое стекло' },
+      map: { icon: FIND_BY_ID.obsidian.e, at: [AT.obsidian[0] + 0.5, AT.obsidian[1] + 0.5], label: `${FIND_BY_ID.obsidian.e} Вулканическое стекло` },
     },
     {
       id: 'fire',

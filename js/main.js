@@ -19,6 +19,7 @@ import { unlockAudio } from './core/audio.js';
 import { message } from './ui/panel.js';
 import { toast } from './ui/toast.js';
 import { initHud, buildHud, updateHud } from './ui/hud.js';
+import { installItemIcons } from './ui/itemicons.js';
 import town from './locations/town.js';
 import demoMeadow from './locations/demo_meadow.js';
 import forest from './locations/forest.js';
@@ -54,6 +55,7 @@ const HOME = villa.id; // сцена-дом: там начинается нов�
 // ---------- HUD ----------
 // Кнопка «Домой» ведёт в основной дом (его выбирают в окне «Мои дома») — см. features/homes.js.
 const goHome = () => F.askGoHome();
+installItemIcons(); // рисованные значки вещей в окнах и подсказках (ui/itemicons.js)
 initHud(hud, {
   right: [
     { icon: '🎒', label: 'Рюкзак', fn: F.openBackpack },

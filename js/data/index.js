@@ -2,6 +2,7 @@
 // Правило: файлы в data/ — только таблицы (и крошечные чистые функции над ними в looks.js);
 // они не импортируют ничего, кроме друг друга. Имена (id) не переименовывать: на них ссылаются сохранения.
 export * from './calendar.js';
+export * from './icons.js';
 export * from './seasons.js';
 export * from './economy.js';
 export * from './stock.js';

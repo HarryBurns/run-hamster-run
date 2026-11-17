@@ -177,11 +177,11 @@ export function visitSpring(sc) {
 /** Сорвать эдельвейс: летом один в день на всю гору — в рюкзак (находка). */
 export function pickEdelweiss() {
   if (cal().season !== 'summer') {
-    toast('🤍 Эдельвейсы цветут только летом. Приходи в июне, июле или августе!');
+    toast(FIND_BY_ID.edelweiss.e + ' Эдельвейсы цветут только летом. Приходи в июне, июле или августе!');
     return false;
   }
   if (S2().edelweiss) {
-    toast('🤍 Эдельвейс — редкий цветок: один в день. Завтра распустится ещё!');
+    toast(FIND_BY_ID.edelweiss.e + ' Эдельвейс — редкий цветок: один в день. Завтра распустится ещё!');
     return false;
   }
   setDayFlag('edelweiss', MOUNTAIN.edelweiss, 'mountain');
@@ -189,7 +189,7 @@ export function pickEdelweiss() {
   sfx('coin');
   const n = count('finds', 'edelweiss');
   toast(
-    `🤍 Эдельвейс — редкий горный цветок! В рюкзаке: ${n}.${n < MOUNTAIN.frame ? ` Собери ${MOUNTAIN.frame} — Вершинкин сделает из них картину в рамке.` : ' Можно идти к Вершинкину за рамкой!'}`,
+    `${FIND_BY_ID.edelweiss.e} Эдельвейс — редкий горный цветок! В рюкзаке: ${n}.${n < MOUNTAIN.frame ? ` Собери ${MOUNTAIN.frame} — Вершинкин сделает из них картину в рамке.` : ' Можно идти к Вершинкину за рамкой!'}`,
     'good',
   );
   emit('mountain', { what: 'edelweiss' });

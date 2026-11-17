@@ -804,7 +804,7 @@ const { pathToFileURL } = require('url');
   line('«Шляпа от солнца» (ТЦ «Модный», всегда)', `${PRICES.clothes.sunhat_wide} монет`);
   console.log('\nДжунгли (П.9)');
   line(
-    'сбор (бананы весной, ананасы весной и летом, манго летом, кокос зимой)',
+    'сбор (бананы весной, ананасы весной и летом, манго летом, кокос зимой, маракуйя осенью)',
     Object.entries(JUNGLE_GATHER)
       .map(([id, q]) => `${ING[id].name.toLowerCase()} ${q.n * q.max}`)
       .join(', ') + ' в день',

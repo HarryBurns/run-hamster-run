@@ -1,5 +1,6 @@
 // Примитивы рисования на канве и работа с цветом.
 import { TAU, lerp } from './util.js';
+import { ICON_RE, plainIcons } from '../data/icons.js';
 
 export function rr(ctx, x, y, w, h, r) {
   r = Math.min(r, Math.abs(w) / 2, Math.abs(h) / 2);
@@ -95,13 +96,55 @@ export function text(ctx, str, x, y, size, fill = '#333', align = 'center', weig
   ctx.fillStyle = fill;
   ctx.fillText(str, x, y);
 }
+// Рисованные значки вещей (data/icons.js): у вещи вместо эмодзи — особая буква, а рисунок по ней даёт art/items.js
+// (подключается сам: setIconArt). Пока рисунки не подключены (отладочная страница), рисуется запасной эмодзи.
+let iconArt = null;
+/** Подключить рисунки значков: fn(ctx, буква, x, y, size) → true, если нарисовала. */
+export function setIconArt(fn) {
+  iconArt = fn;
+}
 export function emoji(ctx, ch, x, y, size) {
+  if (ICON_RE.test(ch)) {
+    if (iconArt && iconArt(ctx, ch, x, y, size)) return;
+    ch = plainIcons(ch);
+  }
   ctx.font = `${size}px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillStyle = '#000';
   ctx.fillText(ch, x, y + size * 0.05);
 }
+/**
+ * Строка на канве, в которой могут быть значки вещей: текст — как есть (шрифт уже выставлен в ctx.font), буквы-значки —
+ * рисунками высотой size. (x, y) — середина строки по вертикали; align — 'center' или 'left'. Возвращает ширину строки.
+ */
+export function iconText(ctx, str, x, y, size, align = 'center') {
+  const parts = String(str).split(/([\uE000-\uE0FF])/).filter(Boolean),
+    widths = parts.map((p) => (ICON_RE.test(p) ? size * 1.2 : ctx.measureText(p).width)),
+    total = widths.reduce((a, b) => a + b, 0);
+  let at = align === 'center' ? x - total / 2 : x;
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+  parts.forEach((p, i) => {
+    if (ICON_RE.test(p)) {
+      const font = ctx.font,
+        fill = ctx.fillStyle;
+      emoji(ctx, p, at + widths[i] / 2, y, size);
+      ctx.font = font;
+      ctx.fillStyle = fill;
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+    } else ctx.fillText(p, at, y);
+    at += widths[i];
+  });
+  return total;
+}
+/** Ширина строки со значками (шрифт — из ctx.font). */
+export const iconTextWidth = (ctx, str, size) =>
+  String(str)
+    .split(/([\uE000-\uE0FF])/)
+    .filter(Boolean)
+    .reduce((a, p) => a + (ICON_RE.test(p) ? size * 1.2 : ctx.measureText(p).width), 0);
 
 // Осветлить (amt > 0) или затемнить (amt < 0) цвет #rrggbb. amt в диапазоне -1..1
 export function shade(hex, amt) {

@@ -13,6 +13,7 @@
 // foodRule(ing, месяц) → правило «ассортимента дня» (data/stock.js).
 import { PRICES, MARKET, SEASONAL, STOCK, TREATS } from './economy.js';
 import { harvestMonths, seasonsOf, ripeIn } from './seasons.js';
+import { ICON } from './icons.js';
 
 const floor5 = (n) => Math.max(5, Math.floor(n / 5) * 5);
 const round5 = (n) => Math.max(5, Math.round(n / 5) * 5);
@@ -41,6 +42,8 @@ const ING_LIST = [
   { id: 'grapes', name: 'Виноград', e: '🍇', src: 'shop', raw: true },
   { id: 'melon', name: 'Дыня', e: '🍈', src: 'shop', raw: true },
   { id: 'avocado', name: 'Авокадо', e: '🥑', src: 'shop' },
+  // маракуйя (этап 12): осенний фрукт джунглей — растёт на лиане у палатки Лианы; в ТЦ продаётся, как остальные фрукты
+  { id: 'passionfruit', name: 'Маракуйя', e: ICON.passionfruit, src: 'shop', raw: true },
   // огород
   { id: 'lettuce', name: 'Зелёный салат', e: '🥬', src: 'garden', raw: true },
   { id: 'carrot', name: 'Морковка', e: '🥕', src: 'garden', raw: true },
@@ -53,9 +56,9 @@ const ING_LIST = [
   { id: 'blueberry', name: 'Черника', e: '🫐', src: 'wild', raw: true },
   { id: 'mushroom', name: 'Гриб', e: '🍄', src: 'wild' },
   // растёт в лесу (П.9)
-  { id: 'porcini', name: 'Белый гриб', e: '🍄‍🟫', src: 'wild' },
+  { id: 'porcini', name: 'Белый гриб', e: ICON.porcini, src: 'wild' },
   // растёт в пустыне (П.9): плоды опунции — сладкие, их едят просто так
-  { id: 'cactus_fruit', name: 'Плод кактуса', e: '🌵', src: 'wild', raw: true },
+  { id: 'cactus_fruit', name: 'Плод кактуса', e: ICON.cactus_fruit, src: 'wild', raw: true },
   // зефир — жарить на костре в лесу
   { id: 'marshmallow', name: 'Зефир', e: '🍡', src: 'shop', raw: true },
 ];
@@ -129,6 +132,9 @@ const DISH_LIST = [
   { id: 'peach_pie', name: 'Персиковый пирог', e: '🥧', needs: { peach: 2, flour: 1, egg: 1, sugar: 1 } },
   { id: 'grape_jelly', name: 'Виноградное желе', e: '🍮', needs: { grapes: 2, sugar: 1 } },
   { id: 'avocado_toast', name: 'Тост с авокадо', e: '🥪', needs: { avocado: 1, flour: 1, egg: 1 }, start: true },
+  // из маракуйи (этап 12): морс — сразу, мусс — секретный рецепт
+  { id: 'passion_drink', name: 'Морс из маракуйи', e: ICON.passion_drink, needs: { passionfruit: 2, sugar: 1 }, start: true },
+  { id: 'passion_mousse', name: 'Мусс из маракуйи', e: '🍮', needs: { passionfruit: 2, milk: 1, sugar: 1 } },
   { id: 'pineapple_pizza', name: 'Гавайская пицца', e: '🍕', needs: { pineapple: 1, flour: 1, cheese: 1 } },
   { id: 'melon_sorbet', name: 'Дынный сорбет', e: '🍧', needs: { melon: 1, lemon: 1, sugar: 1 } },
   { id: 'icecream', name: 'Клубничное мороженое', e: '🍨', needs: { strawberry: 2, milk: 1, sugar: 1 }, cafe: 'beach' },
@@ -141,10 +147,19 @@ const DISH_LIST = [
   // из собранного в городе и в лесу
   { id: 'mushroom_soup', name: 'Грибной суп', e: '🥣', needs: { mushroom: 2, carrot: 1 }, start: true },
   { id: 'blueberry_muffin', name: 'Черничный кекс', e: '🧁', needs: { blueberry: 2, flour: 1, egg: 1 }, start: true },
+  // из леса (этап 12, Л4): ягоды, мёд из улья, орешки с лещины и белые грибы
+  { id: 'berry_jam', name: 'Лесное варенье', e: ICON.jam, needs: { blueberry: 2, strawberry: 1, sugar: 1 }, start: true },
+  { id: 'honey_nuts', name: 'Орешки в меду', e: ICON.honey_nuts, needs: { nuts: 2, honey: 1 }, start: true },
+  { id: 'strawberry_cream', name: 'Земляника с молоком и мёдом', e: ICON.berry_bowl, needs: { strawberry: 2, milk: 1, honey: 1 }, start: true },
+  { id: 'porcini_roast', name: 'Жаркое с белыми грибами', e: '🥘', needs: { porcini: 2, carrot: 1, butter: 1 } },
   // секретный рецепт лесника Шишкина (награда за задание в лесу)
   { id: 'forest_pie', name: 'Лесной пирог с белыми грибами', e: '🥧', needs: { porcini: 1, flour: 1, egg: 1 } },
   // подарок Рождества (П.13, data/holidays.js): рецепт узнают только на празднике — друзья его не рассказывают
   { id: 'gingerbread', name: 'Медовые пряники', e: '🍪', needs: { flour: 1, honey: 1, butter: 1 }, holiday: 'xmas' },
+  // масленичные блины (этап 12, Пр9): рецепты рассказывают у прилавка «Блины» на ярмарке Масленицы (там же их можно
+  // испечь); друзья их не рассказывают. Шаги праздника «испеки блины» и «угости блинами» засчитывают любые блины (BLINI)
+  { id: 'blini_jam', name: 'Блины с вареньем', e: ICON.blini_jam, needs: { flour: 1, egg: 1, milk: 1, strawberry: 1, sugar: 1 }, holiday: 'maslenitsa' },
+  { id: 'blini_honey', name: 'Блины с мёдом и маслом', e: ICON.blini_honey, needs: { flour: 1, egg: 1, milk: 1, honey: 1, butter: 1 }, holiday: 'maslenitsa' },
   // жарят только на костре в лесу (на кухне не готовят): просто вкусно
   { id: 'toasted_marshmallow', name: 'Жареный зефир', e: '🍢', fire: true },
   // из зимней культуры — салата с грядки под парничком
@@ -168,6 +183,8 @@ export const DISHES = DISH_LIST.map((d) => {
   return { ...d, price, sell, ...(TREATS.dish.includes(d.id) ? { treat: true } : null) };
 });
 export const DISH_BY_ID = Object.fromEntries(DISHES.map((d) => [d.id, d]));
+/** Все блины: обычные блинчики и масленичные — их засчитывает Масленица (data/holidays.js). */
+export const BLINI = ['pancakes', 'blini_jam', 'blini_honey'];
 export const START_RECIPES = DISHES.filter((d) => d.start).map((d) => d.id);
 // секретные рецепты рассказывают друзья и дарят сюрпризом; праздничный (holiday) — только подарок своего праздника
 export const SECRET_RECIPES = DISHES.filter((d) => d.needs && !d.start && !d.holiday).map((d) => d.id);

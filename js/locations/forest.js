@@ -15,7 +15,7 @@
 // светлячки летом (их рисует движок над травой), у ручья журчит вода.
 import { G, cal, questNow, darkness, ownsHome, landOpen } from '../core/state.js';
 import { clamp, seeded } from '../core/util.js';
-import { FOREST_GATHER, FOREST, QUEST_BY_ID, wildIn, DAYS_PER_MONTH } from '../data/index.js';
+import { FOREST_GATHER, FOREST, QUEST_BY_ID, FIND_BY_ID, wildIn, DAYS_PER_MONTH } from '../data/index.js';
 import { T, put, createTopDownScene } from '../engine/topdown/index.js';
 import { createPlants } from './common/plants.js';
 import { hutArt, cabinArt, drawCabinPlate, drawSunbeams } from './forest_art.js';
@@ -324,9 +324,9 @@ function dailyPickups(sc) {
   const list = CONES.map(([x, y], i) => ({
     id: 'cone' + i,
     at: [x, y],
-    icon: '🌰',
+    icon: FIND_BY_ID.cone.e,
     give: ['finds', 'cone', 1],
-    text: '+1 🌰 Шишка',
+    text: `+1 ${FIND_BY_ID.cone.e} Шишка`,
   }));
   if (wildIn('firTwig', monthNow()))
     TWIGS.forEach(([x, y], i) =>

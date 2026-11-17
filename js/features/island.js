@@ -137,6 +137,36 @@ const MORE_TALK = [
         return 'Плюмерия, гибискус и орхидея — вот и лея! Носи её на шее — и ты настоящая островитянка 🌺 Она уже в шкафу.';
       },
     },
+  // венок и гирлянда (этап 12, О11): когда лея уже есть, цветы годятся не только для рынка
+  () =>
+    LEI_IDS.some((id) => count('finds', id) > 0) &&
+    hasClothes('lei_island') &&
+    !hasClothes('wreath_lei') && {
+      text: `🌸 Сплети венок (${leiKinds()} из ${LEI_IDS.length})`,
+      cls: 'green',
+      fn: async () => {
+        if (leiKinds() < ISLAND.wreath) return `Для венка тоже нужны три разных цветка: ${leiLine()}. Каждое утро на острове распускается новый!`;
+        for (const id of LEI_IDS) addItem('finds', id, -1);
+        addClothes('wreath_lei');
+        sfx('win');
+        emit('island', { what: 'wreath' });
+        return 'Раз цветок, два цветок… Готово! Венок из цветов острова — к твоей лее в самый раз 🌸 Он уже в шкафу.';
+      },
+    },
+  () =>
+    LEI_IDS.some((id) => count('finds', id) > 0) &&
+    hasClothes('lei_island') && {
+      text: `🌼 Сплети гирлянду для дома (${leiKinds()} из ${LEI_IDS.length})`,
+      cls: 'green',
+      fn: async () => {
+        if (leiKinds() < ISLAND.garland) return `Для гирлянды нужны три разных цветка: ${leiLine()}. Приходи, когда соберёшь все!`;
+        for (const id of LEI_IDS) addItem('finds', id, -1);
+        addItem('storage', 'flower_garland', 1);
+        sfx('win');
+        emit('island', { what: 'garland' });
+        return 'Вот и гирлянда из цветов! Повесь её дома на стену — и будет пахнуть нашим островом 🌺 Она уже в кладовке: дома нажми «Обустроить».';
+      },
+    },
   // маленький тотем из трёх кусочков вулканического стекла (можно много — это украшение для дома)
   () =>
     count('finds', 'obsidian') > 0 && {
@@ -211,7 +241,7 @@ function volcanoLook() {
 /** Взять кусочек вулканического стекла (раз в день). */
 function takeObsidian() {
   if (SI().obsidian) {
-    toast('🪨 Сегодня кусочек стекла ты уже взяла. Завтра вулкан приготовит новый!');
+    toast(FIND_BY_ID.obsidian.e + ' Сегодня кусочек стекла ты уже взяла. Завтра вулкан приготовит новый!');
     return true;
   }
   setDayFlag('obsidian', 1, 'island');

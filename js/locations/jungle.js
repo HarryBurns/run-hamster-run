@@ -107,6 +107,11 @@ export const AT = {
     [33, 23],
   ],
   coco: [17, 35],
+  // лианы маракуйи на шпалерах (этап 12): осенью — плоды; у палатки Лианы, за ананасами
+  passions: [
+    [33, 25],
+    [35, 25],
+  ],
 };
 // попугаи на жёрдочках: где, какой (вид рисунка parrot) и как зовут
 export const PARROTS = [
@@ -263,6 +268,7 @@ function build(m) {
   for (const [x, y] of AT.bananas) put1('bananaPalm', x, y);
   for (const [x, y] of AT.mangos) put1('mangoTree', x, y);
   for (const [x, y] of AT.pineapples) put1('pineapple', x, y);
+  for (const [x, y] of AT.passions) put1('passionVine', x, y);
   put1('cocoPalm', ...AT.coco);
   PARROTS.forEach((p, i) => put1('perch', ...p.at, { v: p.v, talk: () => talking(i) }));
   // храм: колонны и каменная голова

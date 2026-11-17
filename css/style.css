@@ -144,6 +144,11 @@ body.win-open .toast:nth-last-child(n + 3) { display: none; }
 .center { text-align: center; }
 .muted { opacity: .65; font-weight: 600; }
 .big-emoji { font-size: 64px; line-height: 1.1; }
+/* карточка, на которую можно нажать (карта сокровищ в рюкзаке) */
+.card.tap { cursor: pointer; }
+.card.tap:hover { border-color: #ffc94d; }
+/* рисованный значок вещи вместо эмодзи (ui/itemicons.js): высотой с букву, размер — от шрифта вокруг */
+img.ico { height: 1.2em; width: 1.2em; vertical-align: -0.24em; display: inline-block; user-select: none; -webkit-user-drag: none; pointer-events: none; }
 p { margin: 8px 0; line-height: 1.35; }
 
 .tabs { display: flex; gap: 6px; padding: 8px 12px 0; overflow-x: auto; flex: none; touch-action: pan-x; scrollbar-width: none; }
