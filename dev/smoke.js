@@ -19,7 +19,8 @@
 //  курортный отель, П.17 — dev/smoke_hotel.js:  node dev/smoke.js <url> step:отель;
 //  войти внутрь, этап 13 — dev/smoke_inside.js:  node dev/smoke.js <url> step:внутри;
 //  праздники, П.13 — dev/smoke_holidays.js:  node dev/smoke.js <url> step:праздники;
-//  вещи, рецепты, значки, этап 12 — dev/smoke_items.js:  node dev/smoke.js <url> step:вещи)
+//  вещи, рецепты, значки, этап 12 — dev/smoke_items.js:  node dev/smoke.js <url> step:вещи;
+//  музыка и звуки, этап 9б — dev/smoke_audio.js:  node dev/smoke.js <url> step:звук:)
 // Скорость проверяется отдельно:  node dev/bench.js [url] --spots=forest --sizes=desktop --max-forest=45
 const { chromium } = require('playwright');
 const fs = require('fs');
@@ -40,6 +41,7 @@ const sbeach = require('./smoke_sbeach.js'); // П.9: секретный пля�
 const island = require('./smoke_island.js'); // П.9: удалённый остров — задание Этажкина, плавание на юг, Вождь Кокос, боулинг, праздник огней
 const hotel = require('./smoke_hotel.js'); // П.17: курортный отель — номер на ночь, шведский стол, спа, аниматор, «Горка», носильщица, люкс
 const title = require('./smoke_title.js'); // этап 9а: заставка, несколько игр, удаление нарочно, живая сцена
+const audio = require('./smoke_audio.js'); // этап 9б: файлы музыки и звуков, музыка по месту, выключение, «Авторы»
 const items = require('./smoke_items.js'); // этап 12: рисованные значки вещей, маракуйя, рецепты из леса, венок и гирлянда, карта сокровищ в рюкзаке
 const inside = require('./smoke_inside.js'); // этап 13: войти внутрь — дома тайных мест, хозяева, предметы, выход, ночь
 const worldmap = require('./smoke_worldmap.js'); // этап 11: «карта мира» — звёздочка к выходу в нужное место, жители вспоминают открытые места, попугай учит слова
@@ -2803,6 +2805,7 @@ const runParallel = () => {
     await inside({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
     await holidays({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
     await title({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
+    await audio({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
     await items({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
     await worldmap({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
     await estate({ page, step: (n, f, o) => step(n, f, { ...o, extra: true, estate: true }), ev, wait, closeAll });
