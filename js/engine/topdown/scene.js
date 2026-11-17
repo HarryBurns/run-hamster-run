@@ -72,7 +72,8 @@
 //                                sc.whereIs; { x, y } или null
 //   buttons(sc)                  кнопки HUD: [{ id, icon, label, on, fn }]
 // ОБЩИЕ ЧАСТИ — addWorldPart(часть): те же крюки сразу во всех локациях (питомец, транспорт, двор — этап 17б).
-// РЕЖИМ — sc.mode = { down, move, up, end }: пока задан, указатель идёт ему, хомячок стоит (обустройство двора).
+// РЕЖИМ — sc.mode = { down, move, up, end, focus: { x, y }, cls }: пока задан, указатель идёт ему, хомячок стоит,
+// камера идёт за точкой focus, cls — класс HUD ('decor' прячет кнопки): обустройство двора (features/yard.js).
 //
 // СЦЕНА (то, что вернул createTopDownScene) умеет: ходьбу по нажатию и стрелками, «дойти и сделать», вход в
 // здания, особые места, жителей, предметы заданий и находки, переходы, камеру, погоду и ночь, сохранение позиции.
@@ -722,7 +723,9 @@ export function createTopDownScene(desc) {
       updateResidents(sc, dt);
       // камера
       layout();
-      sc.cam.follow(p.x, p.y - 20, dt, 6);
+      // в «режиме» камера идёт за его точкой focus (двор листают пальцем), иначе — за хомячком
+      const fc = (sc.mode && sc.mode.focus) || p;
+      sc.cam.follow(fc.x, fc.y - 20, dt, 6);
       if (desc.sky !== false && !desc.dry) updateWeather(sc, dt);
       sc.call('update', sc, dt);
       for (const q of sc.drops) q.t += dt;
@@ -741,7 +744,7 @@ export function createTopDownScene(desc) {
     hud() {
       const buttons = [];
       for (const part of parts) if (part.buttons) buttons.push(...part.buttons(sc));
-      return { buttons };
+      return { buttons, cls: (sc.mode && sc.mode.cls) || '' };
     },
     /** Холодно ли здесь без тёплой вещи: true / false, или null — «как в городе» (решает features/health.js). */
     cold: () => (desc.cold ? !!desc.cold(sc) : null),

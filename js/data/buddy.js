@@ -51,7 +51,7 @@ export const ROAD_TILES = ['r', 'k', 'y', 'p', 'i'];
 // ---------- двор ----------
 // Предметы двора — обычные предметы карты «вид сверху» (kind — вид из реестра engine/topdown/kinds.js, o — его
 // поля): клумба цветёт по сезону, фонарик ночью горит, на скамейку и качели можно сесть (этап 17а).
-//   art — чем нарисовать значок в магазине: [имя рисунка из ART, параметр a, параметр b]; k — масштаб значка
+//   art — чем нарисовать значок в магазине: [имя рисунка из ART, параметр a, параметр b]
 export const YARD_ITEMS = [
   { id: 'y_bed_pink', name: 'Клумба розовая', kind: 'flowerbed', o: { v: 0 }, art: ['flowerbed', 'summer', 0] },
   { id: 'y_bed_lilac', name: 'Клумба сиреневая', kind: 'flowerbed', o: { v: 1 }, art: ['flowerbed', 'summer', 1] },
@@ -60,7 +60,7 @@ export const YARD_ITEMS = [
   { id: 'y_lantern', name: 'Садовый фонарик', kind: 'yardLantern', art: ['yardLantern', 1, 0] },
   { id: 'y_garland', name: 'Гирлянда на колышках', kind: 'yardGarland', art: ['yardGarland', 1, 0] },
   { id: 'y_bench', name: 'Скамейка', kind: 'bench', art: ['bench', 0] },
-  { id: 'y_swing', name: 'Качели', kind: 'swing', art: ['swing', 0, 0], k: 0.62 },
+  { id: 'y_swing', name: 'Качели', kind: 'swing', art: ['swing', 0, 0] },
   { id: 'y_pool', name: 'Бассейн-лягушатник', kind: 'yardPool', art: ['yardPool', 0] },
   { id: 'y_gnome', name: 'Садовый гномик', kind: 'yardGnome', art: ['yardGnome', 0] },
   { id: 'y_flamingo', name: 'Фламинго', kind: 'yardFlamingo', art: ['yardFlamingo', 0] },

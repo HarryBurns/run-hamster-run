@@ -5,3 +5,4 @@ export { leafCol } from './objects.js';
 import './plants.js';
 import './props.js';
 import './buildings.js';
+import './yard.js';

@@ -28,6 +28,7 @@ import { bizByVendor, bizFoot, bizSign } from './business.js';
 import { foodToday, buyFood, mallAwayText } from './pantry.js';
 import { stockToday, takeStock, comeBack, leftText, awayCard } from './stock.js';
 import { renderWheelsShop } from './wheels.js';
+import { renderYardShop } from './yard.js';
 import { wareToday, wareAwayCard, wareBadge, warePriceTag, wareOrder, wareNote } from './wares.js';
 
 const S = () => G.state;
@@ -47,11 +48,13 @@ function openHomeMall() {
       ...FURN_CATS.map((c) => ({ id: c.id, name: `${c.icon} ${c.name}` })),
       { id: 'seeds', name: '🌱 Семена' },
       { id: 'tools', name: '🔦 Для походов' },
+      { id: 'yard', name: '🌷 Для двора' },
       { id: 'wheels', name: '🛴 Колёса' },
     ],
     render(body, tab, panel) {
-      // этап 17б: транспорт (features/wheels.js) — своя вкладка
+      // этап 17б: транспорт (features/wheels.js) и всё для двора (features/yard.js) — свои вкладки
       if (tab === 'wheels') return renderWheelsShop(body, panel);
+      if (tab === 'yard') return renderYardShop(body, panel);
       const grid = el('div', 'grid');
       if (tab === 'tools') {
         // инструменты (сумка finds, вид tool): есть всегда, нужен один — второй не продаём

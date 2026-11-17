@@ -681,7 +681,7 @@ export const moveYard = act((yard, it, x, y) => {
 export const stashYard = act((yard, it) => {
   const yd = S().yard,
     list = yd.at[yard] || [],
-    i = list.indexOf(it);
+    i = list.findIndex((q) => q === it || (q.id === it.id && q.x === it.x && q.y === it.y));
   if (i < 0) return false;
   list.splice(i, 1);
   yd.store[it.id] = (yd.store[it.id] || 0) + 1;
