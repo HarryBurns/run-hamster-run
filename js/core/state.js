@@ -214,6 +214,9 @@ export function newGame(name) {
     pet: null,
     wheels: { own: [], use: '' },
     yard: { store: {}, at: {} },
+    // этап 15 (Пр17): клумбы субботника, на которых хомячок посадила цветы на 1 Мая — они цветут до конца лета этого
+    // года: y — год (holidayYear), b — номера клумб (MAY_BEDS в locations/holidays_art.js)
+    mayBeds: { y: 0, b: [] },
     // первый день
     weather: 'sun',
     visitor: null,
@@ -369,6 +372,9 @@ export function repair(s) {
     if (!s.wheels || typeof s.wheels !== 'object' || Array.isArray(s.wheels)) s.wheels = { own: [], use: '' };
     s.wheels.own = [...new Set(Array.isArray(s.wheels.own) ? s.wheels.own : [])].filter((id) => RIDE_BY_ID[id]);
     if (!s.wheels.own.includes(s.wheels.use)) s.wheels.use = s.wheels.own[s.wheels.own.length - 1] || '';
+    if (!s.mayBeds || typeof s.mayBeds !== 'object' || Array.isArray(s.mayBeds)) s.mayBeds = { y: 0, b: [] };
+    if (!Number.isInteger(s.mayBeds.y)) s.mayBeds.y = 0;
+    s.mayBeds.b = [...new Set(Array.isArray(s.mayBeds.b) ? s.mayBeds.b : [])].filter((i) => Number.isInteger(i) && i >= 0 && i < 8);
     if (!s.yard || typeof s.yard !== 'object' || Array.isArray(s.yard)) s.yard = { store: {}, at: {} };
     obj(s.yard, 'store');
     obj(s.yard, 'at');

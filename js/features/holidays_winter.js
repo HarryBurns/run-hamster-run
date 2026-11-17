@@ -56,6 +56,8 @@ async function trimTree() {
     introNote: '<div class="pay-note">🎄 Ёлку на площади увидит весь город! Самой нарядной — ⭐⭐⭐ и наклейка.</div>',
   });
   if (!res) return;
+  // игрушки остаются на большой ёлке до конца праздника (этап 15): наряд — строкой в отметках дня
+  if (res.extra && res.extra.layout) setDayFlag('treeToys', res.extra.layout, 'holiday');
   holidayStep('newyear', 'tree');
   if (res.stars === 3) award('x_tree', { delay: 1400 });
   emit('hud');
@@ -80,6 +82,59 @@ holidayTalk('newyear', async (npc, text) => {
   );
   return { end: true };
 });
+
+/** Каток на замёрзшем пруду в парке (этап 15): хомячок и друзья в колпаках катаются по кругу. */
+function paintRink(ctx, w, h, k, look, t) {
+  const g = ctx.createLinearGradient(0, 0, 0, h);
+  g.addColorStop(0, '#a5d8ff');
+  g.addColorStop(0.45, '#e7f5ff');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, w, h);
+  // деревья в снегу и гирлянда
+  for (let i = 0; i < 7; i++) {
+    const x = (i / 6) * w,
+      y = h * 0.4;
+    poly(ctx, [x - 22, y, x, y - 56, x + 22, y], '#2b8a3e', OUT, 1.6);
+    poly(ctx, [x - 12, y - 30, x, y - 56, x + 12, y - 30], '#fff', OUT, 1.2);
+  }
+  ctx.strokeStyle = 'rgba(74,55,40,.6)';
+  ctx.lineWidth = 1.2;
+  ctx.beginPath();
+  ctx.moveTo(0, h * 0.1);
+  ctx.quadraticCurveTo(w / 2, h * 0.24, w, h * 0.1);
+  ctx.stroke();
+  for (let i = 1; i < 12; i++) {
+    const q = i / 12,
+      on = Math.floor(t * 3 + i) % 2 === 0;
+    ell(ctx, q * w, h * 0.1 + Math.sin(q * Math.PI) * h * 0.08 + 5, 4, 5, on ? ['#ff6b6b', '#ffd43b', '#69db7c', '#4dabf7'][i % 4] : '#ced4da', OUT, 1);
+  }
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, h * 0.4, w, h * 0.6);
+  // лёд и следы коньков
+  ell(ctx, w / 2, h * 0.72, w * 0.46, h * 0.24, '#d0ebff', '#74c0fc', 2.4);
+  ctx.strokeStyle = 'rgba(255,255,255,.9)';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.ellipse(w / 2, h * 0.72, w * 0.3, h * 0.13, 0, 0, TAU);
+  ctx.stroke();
+  // катаются по кругу: хомячок впереди, друзья за ней
+  const s = Math.min(w / 520, h / 300),
+    team = [look, ...NPCS.slice(0, 3).map((q) => npcLook(q.id, 'newyear'))],
+    list = team.map((lk, i) => {
+      const a = t * 1.3 - i * 0.7;
+      return { lk, i, x: w / 2 + Math.cos(a) * w * 0.3, y: h * 0.74 + Math.sin(a) * h * 0.12, dir: -Math.sin(a) >= 0 ? 1 : -1 };
+    });
+  list.sort((p, q) => p.y - q.y);
+  for (const p of list) drawHamster(ctx, p.x, p.y, 0.62 * s, p.lk, { time: t + p.i, dir: p.dir, happy: true, armsUp: p.i === 0 && Math.sin(t * 2) > 0.6 });
+  for (let i = 0; i < 18; i++) ell(ctx, ((i * 0.377 + Math.sin(t * 0.5 + i) * 0.01) % 1) * w, ((i * 0.613 + t * 0.05) % 1) * h, 1.8, 1.8, 'rgba(255,255,255,.9)');
+}
+async function rink() {
+  if (offset('newyear') < 0) return void toast('⛸️ Пруд в парке уже замёрз — каток к Новому году готов! Кататься будем завтра.');
+  sfx('magic');
+  await playScene('⛸️ Ж-ж-жух! Катаемся по кругу на коньках!', paintRink, 3200);
+  emit('holiday', { id: 'newyear', what: 'rink' });
+  toast(pick(['⛸️ Как здорово кататься с друзьями! Щёчки румяные!', '⛸️ Ух! Ни разу не упала! С Новым годом!']), 'good');
+}
 
 // ==================== РОЖДЕСТВО ====================
 function crib() {
@@ -147,8 +202,9 @@ doorRound({
   go: '🎶 Колядовать!',
   scene: ['🎶 «Коляда-коляда, отворяй ворота!»', paintCarol],
   treats: HOLIDAY.carolTreats,
-  thanks: (npc, d, late) => `Ой, колядки! Какие звонкие!${late} С Рождеством! Держи угощение: ${d.e} ${d.name}!`,
+  thanks: (npc, d) => `Ой, колядки! Какие звонкие! А я как раз жду колядующих у двери! С Рождеством! Держи угощение: ${d.e} ${d.name}!`,
   ok: 'Спасибо! С Рождеством! 🌟',
+  talkBtn: '🎶 Колядовать!',
   hourHint: `🎶 Колядки — вечером, с ${HOLIDAY.carols[0]}:00. Приходи петь к этой двери!`,
 });
 
@@ -344,6 +400,7 @@ function tug() {
 
 holidayActs({
   tree: () => trimTree(),
+  rink: () => rink(),
   crib: () => crib(),
   lanterns: () => skyLanterns(),
   envelope: (p, ctx) => envelope(p, ctx),

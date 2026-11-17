@@ -21,10 +21,11 @@ import { G, darkness } from '../core/state.js';
 import { ell, emoji } from '../core/draw.js';
 import { sfx } from '../core/audio.js';
 import { seeded } from '../core/util.js';
-import { HOLIDAY_BY_ID, HOLIDAY, HOME_BY_ID, decorOn, holidayOffset } from '../data/index.js';
+import { HOLIDAY_BY_ID, HOLIDAY, HOME_BY_ID, decorOn, holidayOffset, holidayOn, holidayYear } from '../data/index.js';
 import { T, SP, put, defineTiles, TILES } from '../engine/topdown/kinds.js';
 import { houseGeom } from './common/buildings.js';
 import { FIR_BULBS, FIR_SCALE, MAY_BEDS, STREAK_DIRS, paintString } from './holidays_art.js';
+import { createCrowd } from './holidays_crowd.js';
 
 const S = () => G.state;
 /** Украшен ли город к празднику id сегодня. */
@@ -37,6 +38,28 @@ const stepDone = (id, who) => {
   return who === undefined ? !!v : Array.isArray(v) && v.includes(who);
 };
 
+/** Праздник сегодня (id) или null. */
+const todayId = () => {
+  const h = S() && holidayOn(S().day, S().startDay || 0);
+  return h ? h.id : null;
+};
+/**
+ * Клумба субботника i цветёт и после 1 Мая (Пр17): посажена в этом году (поле сохранения mayBeds), и лето ещё не
+ * кончилось — со 2 мая до конца августа (дни года 13–23).
+ */
+const KEEP_BEDS = [13, 23];
+export const bedKept = (i) => {
+  const s = S();
+  if (!s || !s.mayBeds || s.mayBeds.y !== holidayYear(s.day) || !s.mayBeds.b.includes(i)) return false;
+  const doy = ((s.day % 36) + 36) % 36;
+  return doy >= KEEP_BEDS[0] && doy <= KEEP_BEDS[1];
+};
+/** Мокрые после «Водяной битвы» (Пр18): сколько ещё минут сохнуть (0 — сухие). */
+const wetLeft = () => {
+  const w = S() && (S().dayFlags.holiday || {}).wet;
+  return w === undefined ? 0 : Math.max(0, HOLIDAY.wet - (S().minutes - w));
+};
+
 // ---------- где что стоит ----------
 // Опоры гирлянд — фонари (клетки): вдоль Северной улицы и на рыночной площади. Верёвка крепится под колпаком фонаря.
 const LAMP_TOP = -64;
@@ -45,6 +68,8 @@ const STRINGS = (() => {
     out = [];
   for (let i = 0; i + 1 < north.length; i++) out.push([north[i], 12, north[i + 1], 12]);
   out.push([42, 16, 52, 16], [52, 16, 61, 16], [48, 21, 55, 21]);
+  // этап 15: и в парке — между фонарями вокруг пруда
+  out.push([35, 33, 39, 30], [33, 37, 35, 33], [41, 45, 46, 44], [46, 44, 47, 39]);
   return out.map(([ax, ay, bx, by], i) => {
     const x0 = (ax + 0.5) * T,
       y0 = (ay + 0.5) * T + LAMP_TOP,
@@ -60,10 +85,13 @@ const blink = (n, speed = 2) => Math.floor(G.time * speed) % n;
 export const DECOR = {
   newyear: {
     things: [
-      ['hFir', 44.5, 23, () => (stepDone('tree') || holidayOffset(HOLIDAY_BY_ID.newyear, S().day) > 0 ? 1 : 0), () => blink(3)],
+      // наряжала сама — на ёлке её игрушки до конца праздника (этап 15: наряд — dayFlags.holiday.treeToys)
+      ['hFir', 44.5, 23, () => (S().dayFlags.holiday || {}).treeToys || (stepDone('tree') || holidayOffset(HOLIDAY_BY_ID.newyear, S().day) > 0 ? 1 : 0), () => blink(3)],
       ['hSnowman', 47.5, 25, 0],
       ['hSnowman', 34.5, 33, 1],
       ['hSnowman', 11.5, 13, 2],
+      // каток на замёрзшем пруду в парке (этап 15): табличка и снеговик у дорожки
+      ['hPostSign', 47.5, 35.2, '⛸️ Каток'],
     ],
     strings: 'ny',
     fireworks: true,
@@ -73,7 +101,7 @@ export const DECOR = {
     houses: true,
   },
   cny: {
-    things: [['hLanternTable', 54.5, 23]],
+    things: [['hLanternTable', 47.5, 52.4]], // этап 15: фонарики запускают с пляжа — над морем
     strings: 'cny',
     dragon: true,
     skyLanterns: true,
@@ -89,7 +117,8 @@ export const DECOR = {
   },
   mayday: {
     things: [
-      ['hBalloonCart', 54.5, 23],
+      ['hBalloonCart', 38.5, 32.4], // этап 15: парад — через парк, вокруг пруда
+      ['hBalloons', 36.6, 32.6, 2],
       ['hFlowerPot', 47.5, 25, 0],
       ['hFlowerPot', 49.5, 26, 1],
       ['hBalloons', 43.5, 25, 0],
@@ -111,11 +140,14 @@ export const DECOR = {
     ],
     strings: 'kup',
     houses: 'kup',
+    wreaths: true, // венки со свечками плывут по морю у пляжа (Пр19)
   },
   halloween: {
     things: [
-      ['hPumpkinTable', 45.5, 23],
-      ['hJack', 47.5, 25, () => blink(2, 3), 1],
+      ['hPumpkinTable', 38.5, 32.4], // этап 15: тыквы — в парке (там же привидения) и у домов
+      ['hJack', 36.8, 32.9, () => blink(2, 3), 1],
+      ['hJack', 41.4, 32.1, () => blink(2, 2.7), 0],
+      ['hJack', 47.5, 25, () => blink(2, 3), 0],
       ['hJack', 53.6, 24.9, () => blink(2, 2.6), 0],
       ['hJack', 60.6, 23.9, () => blink(2, 3.4), 0],
       ['hJack', 14.4, 9.95, () => blink(2, 2.8), 0], // у двери виллы
@@ -151,7 +183,7 @@ const BLOCK = [
   [11, 12, 'newyear'],
   [53, 22, 'xmas'],
   [54, 22, 'xmas'],
-  [54, 22, 'cny'],
+  [47, 52, 'cny'], // столик с фонариками на пляже
   [44, 21, 'maslenitsa'],
   [45, 21, 'maslenitsa'],
   [44, 22, 'maslenitsa'],
@@ -159,30 +191,30 @@ const BLOCK = [
   [53, 22, 'maslenitsa'],
   [59, 24, 'maslenitsa'],
   [60, 24, 'maslenitsa'],
-  [54, 22, 'mayday'], // тележка с шариками
+  [38, 32, 'mayday'], // тележка с шариками (в парке)
   [47, 24, 'mayday'], // кадки с цветами
   [49, 25, 'mayday'],
-  ...MAY_BEDS.flatMap(([x, y]) => [
-    [Math.floor(x) - 1, Math.floor(y) - (y % 1 < 0.5 ? 1 : 0), 'mayday'],
-    [Math.floor(x), Math.floor(y) - (y % 1 < 0.5 ? 1 : 0), 'mayday'],
-  ]), // клумбы субботника
+  ...MAY_BEDS.flatMap(([x, y], i) => [
+    [Math.floor(x) - 1, Math.floor(y) - (y % 1 < 0.5 ? 1 : 0), 'mayday', i],
+    [Math.floor(x), Math.floor(y) - (y % 1 < 0.5 ? 1 : 0), 'mayday', i],
+  ]), // клумбы субботника (номер клумбы: засаженная закрыта и после праздника — bedKept)
   [49, 52, 'kupala'], // костёр
   [53, 54, 'kupala'], // вёдра
   [46, 55, 'kupala'], // корзинка с венками
-  [45, 22, 'halloween'], // столик с тыквами
-  [47, 24, 'halloween'], // горка тыкв
+  [38, 32, 'halloween'], // столик с тыквами (в парке)
+  [36, 32, 'halloween'], // горка тыкв
 ];
 /** Особые места праздников (город добавляет их к своим PLACES). */
 export const HOLIDAY_PLACES = [
   { id: 'nytree', at: [44, 22], hit: { dx: 80, up: 250, down: 24 }, stand: [44.5, 24.4], mark: [44.5, 20.6], reach: 1.8, when: () => decorNow('newyear'), act: 'holiday:tree' },
   { id: 'crib', at: [53.5, 22], hit: { dx: 66, up: 150, down: 24 }, stand: [54, 24.4], mark: [54, 21.6], reach: 1.8, when: () => decorNow('xmas'), act: 'holiday:crib' },
-  { id: 'skylanterns', at: [54, 22], hit: { dx: 44, up: 90, down: 24 }, stand: [54.5, 24.2], mark: [54.5, 22.2], reach: 1.6, when: () => decorNow('cny'), act: 'holiday:lanterns' },
+  { id: 'skylanterns', at: [47, 52], hit: { dx: 44, up: 90, down: 24 }, stand: [47.5, 53.6], mark: [47.5, 51.6], reach: 1.6, when: () => decorNow('cny'), act: 'holiday:lanterns' },
   { id: 'dragon', at: [45.5, 22.5], hit: { dx: 140, up: 70, down: 30 }, stand: [46, 24.6], mark: [46, 22.6], reach: 1.6, key: false, when: () => decorNow('cny'), act: 'holiday:dragon' },
   { id: 'carousel', at: [44.5, 22], hit: { dx: 74, up: 150, down: 24 }, stand: [45, 24.4], mark: [45, 21.4], reach: 1.8, when: () => decorNow('maslenitsa'), act: 'holiday:carousel' },
   { id: 'effigy', at: [53, 22], hit: { dx: 40, up: 120, down: 20 }, stand: [53.5, 24.2], reach: 1.4, key: false, when: () => decorNow('maslenitsa'), act: 'holiday:effigy' },
   { id: 'blini', at: [59.5, 24], hit: { dx: 60, up: 140, down: 20 }, stand: [59.5, 25.5], mark: [60, 23.4], reach: 1.6, when: () => decorNow('maslenitsa'), act: 'holiday:blini' },
   { id: 'tug', at: [51, 24], hit: { dx: 150, up: 34, down: 24 }, stand: [51.5, 25.4], mark: [51.5, 24.6], reach: 1.8, when: () => decorNow('maslenitsa'), act: 'holiday:tug' },
-  { id: 'balloons', at: [54, 22], hit: { dx: 66, up: 180, down: 24 }, stand: [54.5, 24.2], mark: [54.5, 21.2], reach: 1.6, when: () => decorNow('mayday'), act: 'holiday:parade' },
+  { id: 'balloons', at: [38, 32], hit: { dx: 66, up: 180, down: 24 }, stand: [40.5, 32.6], mark: [38.5, 30.6], reach: 2, when: () => decorNow('mayday'), act: 'holiday:parade' },
   ...MAY_BEDS.map(([x, y], i) => ({
     id: 'maybed' + i,
     at: [x - 0.5, y - 1],
@@ -196,7 +228,9 @@ export const HOLIDAY_PLACES = [
   { id: 'bonfire', at: [49, 52], hit: { dx: 50, up: 110, down: 20 }, stand: [49.5, 54.2], mark: [49.5, 51.2], reach: 1.5, when: () => decorNow('kupala'), act: 'holiday:bonfire' },
   { id: 'splash', at: [53, 54], hit: { dx: 56, up: 80, down: 20 }, stand: [53.5, 55.8], mark: [53.5, 53.6], reach: 1.6, when: () => decorNow('kupala'), act: 'holiday:splash' },
   { id: 'wreathfloat', at: [46, 55], hit: { dx: 44, up: 70, down: 20 }, stand: [47.6, 56.5], mark: [46.5, 54.8], reach: 1.6, when: () => decorNow('kupala'), act: 'holiday:wreath' },
-  { id: 'pumpkins', at: [45, 22], hit: { dx: 50, up: 100, down: 24 }, stand: [45.5, 24.2], mark: [45.5, 21.6], reach: 1.6, when: () => decorNow('halloween'), act: 'holiday:pumpkins' },
+  { id: 'pumpkins', at: [38, 32], hit: { dx: 50, up: 100, down: 24 }, stand: [40.5, 32.6], mark: [38.5, 31], reach: 2, when: () => decorNow('halloween'), act: 'holiday:pumpkins' },
+  // каток на замёрзшем пруду в парке (Новый год, этап 15): прокатиться на коньках
+  { id: 'rink', at: [40, 38], hit: { dx: 170, up: 70, down: 70 }, stand: [40.5, 33.6], mark: [40.5, 36.4], reach: 1.6, key: false, when: () => decorNow('newyear'), act: 'holiday:rink' },
   { id: 'ghost', at: [43, 31.5], hit: { r: 44 }, stand: [43.5, 33.4], reach: 1.4, key: false, when: () => decorNow('halloween'), act: 'holiday:ghost' },
 ];
 
@@ -206,15 +240,16 @@ export const HOLIDAY_PLACES = [
  */
 export function blockHolidayCells(m) {
   const cells = new Map();
-  for (const [x, y, id] of BLOCK) {
+  for (const [x, y, id, bed] of BLOCK) {
     const k = x + ',' + y;
-    if (!cells.has(k)) cells.set(k, { x, y, ids: [] });
+    if (!cells.has(k)) cells.set(k, { x, y, ids: [], bed: -1 });
     cells.get(k).ids.push(id);
+    if (bed !== undefined) cells.get(k).bed = bed;
   }
-  for (const { x, y, ids } of cells.values()) {
+  for (const { x, y, ids, bed } of cells.values()) {
     const base = m.at(x, y),
-      name = `${base}~hol:${ids.join('+')}`;
-    if (!TILES[name]) defineTiles({ [name]: { like: base, holiday: ids, walk: () => !ids.some(decorNow) } });
+      name = `${base}~hol:${ids.join('+')}${bed >= 0 ? ':' + bed : ''}`;
+    if (!TILES[name]) defineTiles({ [name]: { like: base, holiday: ids, walk: () => !ids.some(decorNow) && !(bed >= 0 && bedKept(bed)) } });
     m.set(x, y, name);
   }
 }
@@ -321,6 +356,25 @@ function dragonAt(t, s) {
 }
 const DRAGON_N = 6;
 
+// ---------- купальские венки на воде (Пр19) ----------
+/** Венки плывут вдоль пляжа по мелководью, покачиваясь; свой венок хомячок пустила — их на один больше. */
+function floatingWreaths(t) {
+  const n = stepDone('wreath') ? 6 : 5,
+    out = [];
+  for (let i = 0; i < n; i++) {
+    const q = (t * 0.008 + i * 0.193) % 1;
+    out.push({ i, x: (29 + q * 36) * T, y: (57.7 + (i % 3) * 0.55) * T + Math.round(Math.sin(t * 1.3 + i * 2) * 3) });
+  }
+  return out;
+}
+/** Где лужицы после «Водяной битвы» — у вёдер на пляже. */
+const PUDDLES = [
+  [52.2, 55.4, 0],
+  [54.9, 55.6, 1],
+  [53.5, 56.4, 2],
+  [50.6, 54.6, 1],
+];
+
 // ---------- день рождения: дверь основного дома ----------
 /** Дверь основного дома в этой локации ({ x, y } — середина двери у фасада, мир) или null (дом — в другой локации). */
 function bdayDoor(sc) {
@@ -331,9 +385,11 @@ function bdayDoor(sc) {
 }
 
 // ---------- часть локации ----------
+let lastCrowd = null;
 export function createHolidayDecor() {
   let houses = [],
     envDay = -1;
+  const crowd = (lastCrowd = createCrowd()); // жители празднуют вместе (этап 15) — locations/holidays_crowd.js
   const inView = (x, y, v, pad = 160) => x > v.x0 - pad && x < v.x1 + pad && y > v.y0 - 40 && y < v.y1 + 240;
   const active = () => Object.keys(DECOR).filter(decorNow);
   /** Конверты — находки дня: раскладываем, когда сменился день (сон, загрузка, отладка). */
@@ -349,12 +405,21 @@ export function createHolidayDecor() {
     enter(sc) {
       envDay = -1;
       placeEnvelopes(sc);
+      crowd.enter(sc);
     },
-    update(sc) {
+    update(sc, dt) {
       placeEnvelopes(sc);
       fireworksSound();
+      crowd.update(sc, dt, todayId());
     },
     things(sc, add, v) {
+      // мокрые после «Водяной битвы» (Пр18): с хомячка и с жителей, что были на пляже, капает
+      if (wetLeft() > 0) {
+        const f = blink(3, 4),
+          who = (S().dayFlags.holiday || {}).wetWho || [];
+        if (!sc.p.ride || sc.p.ride.wheels) add(sc.p.y + 2, () => put('hDrops', sc.p.x, sc.p.y - 58, f));
+        for (const n of sc.npcs) if (!n.hidden && who.includes(n.id) && inView(n.x, n.y, v)) add(n.y + 2, () => put('hDrops', n.x, n.y - 54, (f + 1) % 3));
+      }
       for (const id of active()) {
         const d = DECOR[id];
         for (const [art, x, y, a, b] of d.things || []) {
@@ -366,9 +431,12 @@ export function createHolidayDecor() {
         if (d.strings) {
           const frame = blink(2, 1.6);
           for (const s of STRINGS) {
-            if (s.x0 + s.dx < v.x0 - 60 || s.x0 > v.x1 + 60 || s.y0 > v.y1 || s.y0 + 80 < v.y0) continue;
+            // гирлянда идёт слева направо; в парке — и вверх, и вниз (dy < 0)
+            const top = Math.min(0, s.dy),
+              bot = Math.max(0, s.dy);
+            if (s.x0 + s.dx < v.x0 - 60 || s.x0 > v.x1 + 60 || s.y0 + top > v.y1 || s.y0 + bot + 80 < v.y0) continue;
             const key = `hstr:${d.strings}:${s.i}:${d.strings === 'ny' ? frame : 0}`;
-            add(s.depth, () => SP.put(key, [-12, -20, s.dx + 12, s.dy + 70], (c) => paintString(c, d.strings, s.dx, s.dy, frame), s.x0, s.y0), null, true);
+            add(s.depth, () => SP.put(key, [-12, top - 20, s.dx + 12, bot + 70], (c) => paintString(c, d.strings, s.dx, s.dy, frame), s.x0, s.y0), null, true);
           }
         }
         if (d.houses)
@@ -396,6 +464,8 @@ export function createHolidayDecor() {
               bob = Math.round(Math.sin(t * 1.6 + i * 2) * 6);
             add(py, () => put('hGhost', px + Math.round(Math.sin(t * 0.7 + i) * 8), py - 10 + bob, blink(2, 1.4 + i * 0.3)));
           });
+        if (d.wreaths && holidayNowIs(id))
+          for (const w of floatingWreaths(G.time)) if (inView(w.x, w.y, v)) add(w.y, () => put('hFloatWreath', w.x, w.y, blink(2, 3 + w.i * 0.2)));
         if (d.bday) {
           // шарики у двери основного дома (туда ведёт «Домой»), если его дверь — в этой локации
           const b = bdayDoor(sc);
@@ -420,6 +490,13 @@ export function createHolidayDecor() {
     },
     /** Лежит на земле (канат, клумбы субботника) — под всем, что стоит. */
     ground(ctx, sc) {
+      // клумбы субботника цветут и после праздника — до конца лета (Пр17)
+      if (!decorNow('mayday'))
+        MAY_BEDS.forEach(([x, y], i) => {
+          if (bedKept(i)) put('hMayBed', x * T, y * T, 1);
+        });
+      if (wetLeft() > 0) for (const [x, y, k] of PUDDLES) put('hPuddle', x * T, y * T, k);
+      SP.world();
       for (const id of active())
         for (const [art, x, y, a] of DECOR[id].flat || []) {
           put(art, x * T, y * T, typeof a === 'function' ? a() : a);
@@ -474,6 +551,7 @@ export function createHolidayDecor() {
           const p = dragonAt(t, 2);
           if (!far(p.x, p.y)) light(p.x, p.y - 30, 150, 60, 0.6);
         }
+        if (d.wreaths && holidayNowIs(id)) for (const w of floatingWreaths(t)) if (!far(w.x, w.y)) light(w.x, w.y - 10, 34, 26, 0.75);
       }
       if (fireworksNow())
         for (const b of bursts(sc, t)) {
@@ -522,13 +600,14 @@ export function createHolidayDecor() {
     /** Значки праздника на карте. */
     miniMap(ctx, sc, k) {
       const icons = [];
-      if (decorNow('newyear')) icons.push(['🎄', 44.5, 21.8]);
+      if (decorNow('newyear')) icons.push(['🎄', 44.5, 21.8], ['⛸️', 40.5, 38.5]);
       if (decorNow('xmas')) icons.push(['🌟', 54, 21.8]);
-      if (decorNow('cny')) icons.push(['🐉', 46, 22.8], ['🏮', 54.5, 22]);
+      if (decorNow('cny')) icons.push(['🐉', 46, 22.8], ['🏮', 47.5, 51.6]);
       if (decorNow('maslenitsa')) icons.push(['🎠', 45, 22], ['🥞', 60, 24]);
-      if (decorNow('mayday')) icons.push(['🎈', 54.5, 22], ...MAY_BEDS.map(([x, y], i) => [stepDone('plant', i) ? '🌷' : '🪏', x, y - 0.6]));
+      if (decorNow('mayday')) icons.push(['🎈', 38.5, 31.6], ...MAY_BEDS.map(([x, y], i) => [stepDone('plant', i) ? '🌷' : '🪏', x, y - 0.6]));
+      else MAY_BEDS.forEach(([x, y], i) => bedKept(i) && icons.push(['🌷', x, y - 0.6]));
       if (decorNow('kupala')) icons.push(['🔥', 49.5, 52.4], ['💦', 53.5, 54.4], ['🌼', 46.5, 55.4]);
-      if (decorNow('halloween')) icons.push(['🎃', 45.5, 22], ['👻', 43.5, 31.8]);
+      if (decorNow('halloween')) icons.push(['🎃', 38.5, 31.6], ['👻', 43.5, 31.8]);
       if (decorNow('birthday')) {
         const b = bdayDoor(sc);
         if (b) icons.push(['🎂', b.x / T, b.y / T - 1]);
@@ -538,10 +617,48 @@ export function createHolidayDecor() {
         ell(ctx, x * k, y * k, size * 0.72, size * 0.72, '#fff', '#4a3728', 1.1);
         emoji(ctx, ic, x * k, y * k, size);
       }
+      // салют виден и на карте (Пр22): залпы над площадью
+      if (fireworksNow()) miniFireworks(ctx, k, G.time);
     },
   };
 }
 
+/**
+ * Салют на мини-карте (Пр22): три залпа по очереди над площадью и набережной — кольца точек, которые расходятся и гаснут.
+ * Рисуется линиями, но точек мало (три кольца по 12) — карта не дорожает.
+ */
+const MINI_AT = [
+  [47, 13],
+  [56, 11],
+  [40, 15],
+  [62, 14],
+  [51, 9],
+];
+function miniFireworks(ctx, k, t) {
+  ctx.save();
+  for (let i = 0; i < 3; i++) {
+    const u = t * 0.55 + i / 3,
+      q = u % 1,
+      n = Math.floor(u),
+      [cx, cy] = MINI_AT[(n * 3 + i) % MINI_AT.length],
+      col = COLORS[(n + i * 2) % COLORS.length],
+      rad = (0.6 + q * 4.2) * k;
+    ctx.globalAlpha = Math.max(0, 1 - q * q);
+    ctx.fillStyle = col;
+    ctx.beginPath();
+    for (let j = 0; j < 12; j++) {
+      const a = (j / 12) * Math.PI * 2 + n;
+      const x = cx * k + Math.cos(a) * rad,
+        y = cy * k + Math.sin(a) * rad + q * q * 1.5 * k;
+      ctx.moveTo(x + k * 0.35, y);
+      ctx.arc(x, y, Math.max(1.2, k * 0.35), 0, Math.PI * 2);
+    }
+    ctx.fill();
+  }
+  ctx.restore();
+}
+/** Для башни (вид сверху, interiors/tower_view.js) и мини-карты: идёт ли сейчас салют. */
+export const fireworksTonight = () => fireworksNow();
 /** Каждый залп фейерверка — с хлопком (шаг логики, пока хомячок в городе). */
 let lastBurst = -1;
 function fireworksSound() {
@@ -554,13 +671,17 @@ function fireworksSound() {
 }
 /** Для тестов: что сейчас стоит в городе. */
 export const debugDecor = (sc) => ({
+  crowd: lastCrowd ? lastCrowd.debug(sc) : null,
   active: Object.keys(DECOR).filter(decorNow),
   fireworks: fireworksNow(),
   skyLanterns: skyLanternsNow(),
   bursts: sc ? bursts(sc, G.time).length : 0,
   // закрыта клетка украшения, которое сейчас стоит; stuck — закрытые клетки без украшения (их быть не должно)
   blocked: BLOCK.filter(([x, y, id]) => sc && decorNow(id) && !sc.map.foot(x, y)).map(([x, y, id]) => `${x},${y}:${id}`),
-  stuck: BLOCK.filter(([x, y]) => sc && !BLOCK.some((q) => q[0] === x && q[1] === y && decorNow(q[2])) && !sc.map.foot(x, y)).map(([x, y]) => `${x},${y}`),
+  stuck: BLOCK.filter(([x, y]) => sc && !BLOCK.some((q) => q[0] === x && q[1] === y && (decorNow(q[2]) || (q[3] !== undefined && bedKept(q[3])))) && !sc.map.foot(x, y)).map(([x, y]) => `${x},${y}`),
+  // этап 15: клумбы субботника, что цветут после праздника; мокрые после «Водяной битвы»; жители празднуют
+  beds: MAY_BEDS.map((_, i) => i).filter(bedKept),
+  wet: wetLeft() > 0,
   envelopes: sc ? sc.pickups.filter((p) => p.id.startsWith('env') && sc.pickupThere(p)).length : 0,
   // день рождения: шарики у двери основного дома в этой локации
   bday: !!sc && decorNow('birthday') && !!bdayDoor(sc),

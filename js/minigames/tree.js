@@ -27,10 +27,10 @@ export const KINDS = [
   { id: 'candy', name: 'Леденец', key: '6' },
   { id: 'garland', name: 'Гирлянда', key: '7' },
 ];
-const BALLS = ['#e03131', '#1c7ed6', '#f59f00', '#e64980', '#2f9e44', '#7048e8'];
+export const BALLS = ['#e03131', '#1c7ed6', '#f59f00', '#e64980', '#2f9e44', '#7048e8'];
 const BULBS = ['#ff6b6b', '#ffd43b', '#69db7c', '#4dabf7', '#da77f2'];
 // места на ветках: v — высота (0 — макушка, 1 — низ кроны), u — от −1 (левый край ветки) до 1 (правый)
-const SPOTS = [
+export const SPOTS = [
   [0.3, -0.45],
   [0.3, 0.45],
   [0.46, -0.66],
@@ -47,7 +47,17 @@ const SPOTS = [
   [0.8, 0.8],
 ];
 /** Полуширина кроны на высоте v (доля высоты ёлки). */
-const halfW = (v) => 0.07 + 0.4 * v;
+export const halfW = (v) => 0.07 + 0.4 * v;
+/**
+ * Наряд ёлки строкой (этап 15: игрушки остаются на большой ёлке на площади до конца праздника — locations/holidays.js):
+ * по два знака на место — номер игрушки в KINDS и номер цвета шара в BALLS, «--» — место пустое.
+ */
+export const treeLayout = (placed) => placed.map((q) => (q ? `${KINDS.findIndex((k) => k.id === q.kind)}${Math.max(0, BALLS.indexOf(q.col))}` : '--')).join('');
+/** Обратно: [{ i — место, kind, col }] из строки treeLayout. */
+export const readLayout = (str) =>
+  SPOTS.map((_, i) => str.slice(i * 2, i * 2 + 2))
+    .map((q, i) => (q && q[0] !== '-' && KINDS[+q[0]] ? { i, kind: KINDS[+q[0]].id, col: BALLS[+q[1]] || BALLS[0] } : null))
+    .filter(Boolean);
 
 /** Игрушка kind в точке (x, y) — точка подвеса; s — масштаб; col — цвет шара; t — время (гирлянда мигает). */
 export function toyArt(ctx, kind, x, y, s, col = BALLS[0], t = 0) {
@@ -564,7 +574,7 @@ export default {
               ? 'Очень красиво! В следующий раз попробуй ещё больше разных игрушек.'
               : 'Ёлка рада! А если повесить побольше разных игрушек, будет ещё наряднее.'
         }`,
-        extra: { n, kinds },
+        extra: { n, kinds, layout: treeLayout(placed) },
       });
     }
     return {

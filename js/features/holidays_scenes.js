@@ -17,7 +17,7 @@ import { openLayer } from '../ui/modals.js';
 import { openPanel, message } from '../ui/panel.js';
 import { toast } from '../ui/toast.js';
 import { addPts } from './friends.js';
-import { holidayDoor, holidayStep, stepDoneFor, stepWanted } from './holidays.js';
+import { holidayDoor, holidayTalk, holidayStep, stepDoneFor, stepWanted } from './holidays.js';
 import { playMinigame } from './minigames.js';
 
 const S = () => G.state;
@@ -158,13 +158,14 @@ export function nightSky(ctx, w, h, t, top = '#1b2a5a', bot = '#4a5a9a', snow = 
  * домика жителя (holidayDoor): в праздник holiday, пока нужен шаг step и у этого домика ещё не были, в часы
  * HOLIDAY.carols — окно-приглашение, сценка (scene: [текст, paint]), хозяин угощает блюдом из treats (в рюкзак),
  * дружба +1, шаг засчитан. Днём дверь работает как обычно (с подсказкой hourHint).
- *   ask(name) — HTML окна у двери;  go — кнопка;  thanks(npc, блюдо, late) — что говорит хозяин;  ok — ответ хомячка
+ *   ask(name) — HTML окна у двери;  go — кнопка;  thanks(npc, блюдо) — что говорит хозяин;  ok — ответ хомячка;
+ *   talkBtn — кнопка в разговоре с хозяином на улице (этап 15, Пр5: вечером хозяева ждут у своих дверей)
  */
-export function doorRound({ holiday, step, title, icon, ask, go, scene, treats, thanks, ok, hourHint }) {
+export function doorRound({ holiday, step, title, icon, ask, go, scene, treats, thanks, ok, hourHint, talkBtn }) {
+  const hours = () => S().minutes >= HOLIDAY.carols[0] * 60 && S().minutes < HOLIDAY.carols[1] * 60;
   holidayDoor(holiday, async (npc, ctx, where) => {
     if (!stepWanted(holiday, step) || stepDoneFor(holiday, step, npc)) return false;
-    const m = S().minutes;
-    if (m < HOLIDAY.carols[0] * 60 || m >= HOLIDAY.carols[1] * 60) {
+    if (!hours()) {
       // ходят вечером; днём дверь — как обычно, а напомнить — можно
       setTimeout(() => toast(hourHint), 1200);
       return false;
@@ -177,6 +178,21 @@ export function doorRound({ holiday, step, title, icon, ask, go, scene, treats, 
       buttons: [{ text: go, cls: 'green' }, { text: where === 'home' ? '🚪 Просто зайти в гости' : 'Не сейчас', cls: 'ghost' }],
     });
     if (i !== 0) return where !== 'home'; // «просто в гости» — обычный визит (если хозяин дома)
+    await treat(npc);
+    return true;
+  });
+  // этап 15 (Пр5): вечером хозяева ждут у своих дверей (locations/holidays_crowd.js) — можно позвать прямо с улицы:
+  // в разговоре с жителем — кнопка «колядовать» / «сладость или гадость»
+  holidayTalk(holiday, async (npc, text) => {
+    if (!hours() || !stepWanted(holiday, step) || stepDoneFor(holiday, step, npc)) return null;
+    const i = await holidaySay(npc, text, [{ text: talkBtn, cls: 'green' }, { text: '💬 Поболтать', cls: 'blue' }, { text: 'Пока!' }]);
+    if (i === 2) return { end: true };
+    if (i === 1) return { text: pickLine(holiday) };
+    await treat(npc);
+    return { end: true };
+  });
+  /** Спели (или «сладость или гадость») — сценка, хозяин угощает, шаг засчитан. */
+  async function treat(npc) {
     sfx('fanfare');
     await playScene(scene[0], scene[1], 2600);
     const fr = S().friends[npc];
@@ -187,12 +203,11 @@ export function doorRound({ holiday, step, title, icon, ask, go, scene, treats, 
     holidayStep(holiday, step, npc);
     if (fr) addPts(npc, 1);
     spendMinutes(15, 22 * 60);
-    const late = where === 'out' ? ` А я как раз забежал${NPC_BY_ID[npc].fem ? 'а' : ''} домой за угощением!` : '';
-    await holidaySay(npc, thanks(npc, d, late), [{ text: ok, cls: 'green' }], true);
+    await holidaySay(npc, thanks(npc, d), [{ text: ok, cls: 'green' }], true);
     toast(`+1 ${d.e} ${d.name} — в рюкзаке`, 'good');
-    return true;
-  });
+  }
 }
+const pickLine = (holiday) => (holiday === 'xmas' ? 'С Рождеством! Как тебе свечи в окнах?' : 'С Хеллоуином! Нравится мой костюм?');
 
 /**
  * Мини-игра праздника с призом: за первые cfg.paid игр в день — монеты cfg.coins по звёздам (отметка дня flag), потом —

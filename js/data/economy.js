@@ -397,6 +397,7 @@ export const HOLIDAY = {
   envelopes: 5,
   tug: { coins: [40, 80, 120], paid: 2 },
   carolTreats: ['cookies', 'coco_candy', 'cocoa'], // чем угощают колядующих (блюдо в рюкзак)
+  wet: 90, // после «Водяной битвы» мокрые столько минут игрового времени: капельки и лужицы (этап 15, Пр18)
   carols: [16, 22], // колядуют вечером: с 16:00 до 22:00 (днём дверь домика — как обычно)
   bliniKit: { flour: 1, egg: 1, milk: 1 }, // набор для блинов с ярмарки (раз в день, на Масленицу)
   splash: { coins: [40, 80, 120], paid: 2 },
@@ -481,6 +482,8 @@ export const PRICES = {
     lamp: 300, lamp_pink: 300, plant_ficus: 200, plant_palm: 350, plant_cactus: 150, plant_flowers: 180,
     rug_pink: 300, rug_blue: 300, rug_rainbow: 700, balloons: 100,
     pic_sun: 400, pic_sea: 400, pic_hamster: 900, pic_flowers: 400, clock: 300, mirror: 600, garland: 250,
+    // праздничная полка (этап 15, Пр13): украшения к празднику — как недорогой декор
+    fest_fir: 450, fest_wreath: 260, fest_lanterns: 280, fest_doll: 220, fest_flags: 180, fest_kupala: 240, fest_jack: 200,
     shelf: 500, discoball: 2000,
     // рынок: вещицы ручной работы
     rug_craft: 1200, lamp_lantern: 900, beanbag_melon: 1500,

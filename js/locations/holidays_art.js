@@ -12,6 +12,7 @@ import { ell, fillRR, line, poly, star, shade, heart } from '../core/draw.js';
 import { OUT, defineArt } from '../engine/topdown/kinds.js';
 import { shadow, snowCap, signBoard, flower, WOOD, WOOD_D, GOLD } from './common/paint.js';
 import { trunk } from './common/objects.js';
+import { readLayout, toyArt, SPOTS, halfW } from '../minigames/tree.js';
 
 const BULBS = ['#ff6b6b', '#ffd43b', '#69db7c', '#4dabf7', '#da77f2', '#ff922b'];
 const OFF = '#ced4da';
@@ -126,7 +127,9 @@ export function paintFir(ctx, dressed, frame) {
     if (on) ell(ctx, x - 1, y - 1.5, 1.2, 1.2, 'rgba(255,255,255,.8)');
   });
   if (dressed) {
-    FIR_TOYS.forEach(([x, y], i) => toy(ctx, x, y, i));
+    // наряжала сама (мини-игра «Нарядим ёлку!») — её игрушки на её местах; иначе — игрушки «как у всех»
+    if (typeof dressed === 'string') firToys(ctx, dressed);
+    else FIR_TOYS.forEach(([x, y], i) => toy(ctx, x, y, i));
     star(ctx, 0, FIR_TOP + 8, 15, GOLD, OUT, 2.2);
     star(ctx, -3, FIR_TOP + 5, 5, '#fff3bf');
     // подарки под ёлкой
@@ -144,6 +147,18 @@ export function paintFir(ctx, dressed, frame) {
   } else {
     // ненаряженная: пустая макушка
     line(ctx, 0, FIR_TOP + 4, 0, FIR_TOP + 16, '#2b8a3e', 3);
+  }
+}
+/**
+ * Игрушки из мини-игры «Нарядим ёлку!» на большой ёлке (этап 15): layout — строка treeLayout (minigames/tree.js),
+ * места — те же, что в игре (v — высота кроны, u — от левого края ветки до правого), только на крону этого рисунка.
+ */
+function firToys(ctx, layout) {
+  const top = FIR_TOP + 12,
+    H = 148;
+  for (const q of readLayout(layout)) {
+    const [v, u] = SPOTS[q.i];
+    toyArt(ctx, q.kind, u * halfW(v) * H * 0.92, top + v * H - 8, 0.5, q.col, 0);
   }
 }
 /** Ёлочная игрушка: шар, сосулька или звёздочка. */
@@ -1056,7 +1071,87 @@ function paintStreak(ctx, d, i) {
   ell(ctx, 0.7, 0, 1.7, 1.4, '#fff');
 }
 
+// ---------- этап 15: каток, мокрые после «Водяной битвы», венки на воде ----------
+/** Табличка на столбике (каток в парке, ярмарка): text — надпись. */
+function paintPostSign(ctx, text) {
+  shadow(ctx, 0, 3, 12, 4);
+  line(ctx, 0, 0, 0, -48, OUT, 6);
+  line(ctx, 0, 0, 0, -48, WOOD, 3.4);
+  signBoard(ctx, text, 0, -58, Math.max(70, text.length * 9 + 18), 24, 'wood');
+}
+/** Капельки с мокрого (над головой и вокруг): f — кадр (капли падают). */
+function paintDrops(ctx, f) {
+  for (let i = 0; i < 5; i++) {
+    const x = -22 + i * 11,
+      y = -((i * 13 + f * 9) % 30) - 4;
+    ctx.beginPath();
+    ctx.moveTo(x, y - 6);
+    ctx.quadraticCurveTo(x + 4, y + 1, x, y + 2.5);
+    ctx.quadraticCurveTo(x - 4, y + 1, x, y - 6);
+    ctx.fillStyle = '#74c0fc';
+    ctx.fill();
+    ctx.strokeStyle = '#1c7ed6';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    ell(ctx, x - 1, y - 1, 1, 1.4, 'rgba(255,255,255,.85)');
+  }
+}
+/** Лужица на песке (v — форма). */
+function paintPuddle(ctx, v) {
+  const w = [30, 22, 26][v % 3],
+    h = [10, 8, 9][v % 3];
+  ell(ctx, 0, 0, w + 3, h + 2, 'rgba(110,80,40,.18)');
+  ell(ctx, 0, 0, w, h, 'rgba(116,192,252,.75)', 'rgba(28,126,214,.6)', 1.4);
+  ell(ctx, -w * 0.35, -h * 0.25, w * 0.3, h * 0.25, 'rgba(255,255,255,.6)');
+}
+/** Купальский венок со свечкой на воде (Пр19): f — кадр огонька. */
+function paintFloatWreath(ctx, f) {
+  ell(ctx, 0, 4, 30, 9, 'rgba(255,255,255,.35)'); // круги на воде
+  wreathRing(ctx, 0, 0, 22, 8, 1, true);
+  if (f) ell(ctx, 0, -11, 2.4, 4, '#fff3bf');
+}
+
+// ---------- этап 15 (Пр2): праздник в других местах и в домах — маленькие украшения ----------
+/** Маленькая наряженная ёлочка (в лесу, на горе, в домах): кадр мигания огоньков. */
+function paintFirMini(ctx, frame) {
+  ctx.save();
+  ctx.scale(0.55, 0.55);
+  paintFir(ctx, 1, frame);
+  ctx.restore();
+}
+/** Рождественский столбик: венок с бантом и фонарь-звезда со свечкой. */
+function paintXmasPost(ctx, frame) {
+  shadow(ctx, 0, 3, 16, 5);
+  line(ctx, 0, 0, 0, -78, OUT, 7);
+  line(ctx, 0, 0, 0, -78, WOOD, 4);
+  ctx.save();
+  ctx.translate(0, -44);
+  paintWreath(ctx);
+  ctx.restore();
+  fillRR(ctx, -11, -104, 22, 26, 4, '#fff3bf', OUT, 1.8);
+  ell(ctx, 0, -91, frame ? 3 : 2.4, 5, '#ffd43b', OUT, 0.8);
+  poly(ctx, [-14, -104, 0, -114, 14, -104], '#c92a2a', OUT, 1.6);
+  star(ctx, 0, -120, 7, GOLD, OUT, 1.4);
+}
+/** Столбик с двумя красными фонариками (Китайский Новый год). */
+function paintLanternPost(ctx) {
+  shadow(ctx, 0, 3, 18, 5);
+  line(ctx, 0, 0, 0, -86, OUT, 7);
+  line(ctx, 0, 0, 0, -86, '#c92a2a', 4);
+  line(ctx, -26, -84, 26, -84, OUT, 5);
+  line(ctx, -26, -84, 26, -84, '#c92a2a', 3);
+  lantern(ctx, -20, -80, 1.1, 0);
+  lantern(ctx, 20, -80, 1.1, 3);
+}
+
 defineArt({
+  hFirMini: [[-60, -160, 60, 20], (ctx, f) => paintFirMini(ctx, f || 0)],
+  hXmasPost: [[-30, -132, 30, 8], (ctx, f) => paintXmasPost(ctx, f || 0)],
+  hLanternPost: [[-40, -100, 40, 8], (ctx) => paintLanternPost(ctx)],
+  hPostSign: [[-70, -78, 70, 8], (ctx, text) => paintPostSign(ctx, text || '')],
+  hDrops: [[-30, -42, 30, 8], (ctx, f) => paintDrops(ctx, f || 0)],
+  hPuddle: [[-36, -14, 36, 14], (ctx, v) => paintPuddle(ctx, v || 0)],
+  hFloatWreath: [[-34, -24, 34, 16], (ctx, f) => paintFloatWreath(ctx, f || 0)],
   hSpark: [[-9, -9, 9, 9], (ctx, i) => paintSpark(ctx, i || 0)],
   hSparkT: [[-5, -5, 5, 5], (ctx, i) => paintSparkTail(ctx, i || 0)],
   hStreak: [[-27, -27, 27, 27], (ctx, d, i) => paintStreak(ctx, d || 0, i || 0)],
@@ -1072,7 +1167,7 @@ defineArt({
   hJack: [[-34, -66, 34, 10], (ctx, f, v) => paintJack(ctx, f || 0, v || 0)],
   hPumpkinTable: [[-58, -100, 58, 16], (ctx) => paintPumpkinTable(ctx)],
   hGhost: [[-32, -84, 32, 8], (ctx, f) => paintGhost(ctx, f || 0)],
-  hFir: [[-104, -272, 104, 36], (ctx, dressed, frame) => (ctx.scale(FIR_SCALE, FIR_SCALE), paintFir(ctx, !!dressed, frame || 0))],
+  hFir: [[-104, -272, 104, 36], (ctx, dressed, frame) => (ctx.scale(FIR_SCALE, FIR_SCALE), paintFir(ctx, dressed || 0, frame || 0))],
   hSnowman: [[-40, -104, 40, 18], (ctx, v) => paintSnowman(ctx, v || 0)],
   hCandle: [[-16, -22, 16, 10], (ctx, f) => paintCandle(ctx, f || 0)],
   hWreath: [[-18, -16, 18, 18], (ctx) => paintWreath(ctx)],

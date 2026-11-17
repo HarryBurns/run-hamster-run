@@ -502,6 +502,16 @@ export const setFlag = act((name, value = 1) => {
   S().flags[name] = value;
   touch();
 });
+/**
+ * Клумба субботника засажена (этап 15, Пр17): номер клумбы bed в году year — цветы на ней остаются до конца лета
+ * (locations/holidays.js). Новый год субботника — список клумб заново.
+ */
+export const plantMayBed = act((year, bed) => {
+  const s = S();
+  if (s.mayBeds.y !== year) s.mayBeds = { y: year, b: [] };
+  if (!s.mayBeds.b.includes(bed)) s.mayBeds.b.push(bed);
+  touch();
+});
 /** Счётчик в flags +1; возвращает новое значение. */
 export const bumpFlag = act((name) => {
   const f = S().flags;

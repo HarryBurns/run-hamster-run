@@ -10,14 +10,16 @@
 //   (дверь домика)     вечером «Сладость или гадость?» (doorRound, как колядки): хозяин угощает       — Хеллоуин
 //   holiday:ghost      привидение из простыни в парке: «Бу!» — и подмигивает                          — Хеллоуин
 // Каждое занятие шлёт событие holiday { id, what }.
+import { plantMayBed, setDayFlag } from '../core/actions.js';
 import { sfx } from '../core/audio.js';
 import { ell, fillRR, line, poly, star } from '../core/draw.js';
 import { emit } from '../core/events.js';
 import { G, darkness, playerLook } from '../core/state.js';
 import { pick, TAU } from '../core/util.js';
 import { drawHamster } from '../art/hamster.js';
-import { HOLIDAY, NPCS, npcLook, holidayOffset, HOLIDAY_BY_ID } from '../data/index.js';
+import { HOLIDAY, NPCS, npcLook, holidayOffset, holidayYear, HOLIDAY_BY_ID } from '../data/index.js';
 import { MAY_BEDS, paintMayBed, balloon, jackFace, wreathRing } from '../locations/holidays_art.js';
+import { T, getLocation } from '../engine/topdown/index.js';
 import { toast } from '../ui/toast.js';
 import { holidayActs, holidayStep, holidayWhere, stepDoneFor } from './holidays.js';
 import { tapScene, playScene, nightSky, doorRound, prizeGame } from './holidays_scenes.js';
@@ -96,6 +98,7 @@ async function plant(p) {
     paint: paintPlant,
   });
   if (ok) {
+    plantMayBed(holidayYear(S().day), bed); // цветы остаются до конца лета (Пр17)
     holidayStep('mayday', 'plant', bed);
     emit('holiday', { id: 'mayday', what: 'plant', bed });
   }
@@ -232,9 +235,22 @@ function bonfire() {
   );
 }
 /** «Водяная битва» на пляже: за первые HOLIDAY.splash.paid игр — монеты по звёздам. */
-function splash() {
+async function splash() {
   if (offset('kupala') < 0) return void toast('💦 Вёдра и водяные пистолеты уже на пляже! Водяная битва — завтра, на Ивана Купалу.');
-  return prizeGame('splash', { flag: 'splashes', cfg: HOLIDAY.splash, label: '🌿 <b>Приз Купалы</b>', sticker: 'x_splash' });
+  const res = await prizeGame('splash', { flag: 'splashes', cfg: HOLIDAY.splash, label: '🌿 <b>Приз Купалы</b>', sticker: 'x_splash' });
+  if (res) soak();
+  return res;
+}
+/**
+ * После «Водяной битвы» (Пр18) хомячок и жители, что были на пляже, мокрые — с них капает, у вёдер лужицы. Сохнут
+ * за HOLIDAY.wet минут игрового времени (locations/holidays.js рисует капельки и лужицы). Отметка дня — когда облились.
+ */
+function soak() {
+  const town = getLocation('world'),
+    who = town ? town.npcs.filter((n) => !n.hidden && n.y > 48 * T).map((n) => n.id) : [];
+  setDayFlag('wet', S().minutes, 'holiday');
+  setDayFlag('wetWho', who, 'holiday');
+  toast('💦 Все мокрые-премокрые! На солнышке быстро высохнем 😄', 'good');
 }
 
 // ==================== ХЕЛЛОУИН ====================
@@ -335,8 +351,9 @@ doorRound({
   go: '🎃 Сладость или гадость!',
   scene: ['🎃 «Сладость или гадость?» — «Конечно, сладость!»', paintTrick],
   treats: HOLIDAY.treats,
-  thanks: (npc, d, late) => `Ой, какой нарядный гость! Совсем не страшный, а очень милый!${late} С Хеллоуином! Держи сладость: ${d.e} ${d.name}!`,
+  thanks: (npc, d) => `Ой, какой нарядный гость! Совсем не страшный, а очень милый! Я как раз жду у двери с конфетами! С Хеллоуином! Держи сладость: ${d.e} ${d.name}!`,
   ok: 'Спасибо! С Хеллоуином! 🎃',
+  talkBtn: '🎃 Сладость или гадость!',
   hourHint: `🎃 «Сладость или гадость» — вечером, с ${HOLIDAY.carols[0]}:00. Приходи к этой двери!`,
 });
 function ghost() {
