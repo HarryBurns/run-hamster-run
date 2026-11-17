@@ -470,7 +470,7 @@ h4 { margin: 4px 0; font-size: 16px; }
 .biz-signedit input { flex: 1 1 160px; min-width: 0; font: inherit; font-weight: 800; border: 3px solid var(--line); border-radius: 12px; padding: 6px 10px; min-height: 40px;
   user-select: text; -webkit-user-select: text; }
 .biz-signedit .opt-row { margin: 0; }
-.biz-signedit .opt { padding: 5px; min-height: 0; }
+.biz-signedit .opt { padding: 8px; min-height: 0; } /* кружок цвета 22 px + поля — 44 px под палец */
 .biz-row .e { font-size: 34px; flex: none; }
 .biz-row.mine { border-color: var(--yellow-d); background: #fffdf2; }
 .pay-note.boss { background: #ffe8cc; }
