@@ -183,6 +183,7 @@ export const EXTRA_STICKERS = [
   { id: 'x_tug', sticker: '🪢', title: 'Перетягивание каната' },
   // мини-игры вместо сценок (этап 14): ⭐⭐⭐ в новых играх
   { id: 'x_tree', sticker: '🎄', title: 'Самая нарядная ёлка' },
+  { id: 'x_drum', sticker: '🥁', title: 'В ритме барабана' },
   { id: 'x_hol_mayday', sticker: '🎈', title: '1 Мая' },
   { id: 'x_hol_kupala', sticker: '🌿', title: 'Иван Купала' },
   { id: 'x_hol_halloween', sticker: '🎃', title: 'Хеллоуин' },

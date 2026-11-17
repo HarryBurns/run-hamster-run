@@ -323,4 +323,37 @@ module.exports = async function games({ page, step, ev, wait, closeAll }) {
     const h = await ev(() => window.__dev.F.holidayToday && window.__dev.G.state.dayFlags.holiday);
     expect(h, 'шаг праздника');
   });
+
+  await step('игры 14: «Танец у костра» на острове — ритм под барабан Бума: в такт — «Отлично!», ⭐⭐⭐ и наклейка', async () => {
+    await fresh();
+    await mutate("s.minutes = 20 * 60; s.flags['land:island'] = 1;");
+    // занятие острова: танец у костра (на празднике огней)
+    await ev(async () => (await import('/js/features/island.js')).dance());
+    await wait(800);
+    expect(/Танец у костра/.test(await mgText()) && /кокос/.test(await mgText()), 'заставка танца', await mgText());
+    await start();
+    let st = await hook('__drum');
+    expect(st && st.total >= 40 && st.t < 0.5, 'песня не началась', st);
+    // лишнее нажатие до первого кокоса — не ошибка
+    await page.keyboard.press('Space');
+    await wait(100);
+    expect((await hook('__drum')).pts === 0, 'лишнее нажатие засчиталось', await hook('__drum'));
+    // играем в такт: нажимаем, когда кокос в кругу (ждём в браузере — точнее, чем отсюда)
+    await ev(() => {
+      const c = document.querySelector('#mg .dr-canvas');
+      window.__drumBot = setInterval(() => {
+        const q = c.__drum && c.__drum();
+        if (q && q.next !== null && Math.abs(q.next) < 0.035) c.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+      }, 8);
+    });
+    for (let i = 0; i < 60; i++) {
+      if (/Ура!/.test(await mgText())) break;
+      await wait(1000);
+    }
+    await ev(() => clearInterval(window.__drumBot));
+    const end = await ura();
+    expect(/Танец окончен/.test(end) && /Бум в восторге/.test(end), 'итог танца в такт', end);
+    const s = await state();
+    expect(s.plays.drum === 1 && s.stickers.includes('x_fest') && s.stickers.includes('x_drum'), 'наклейки танца', s.stickers.slice(-4));
+  });
 };

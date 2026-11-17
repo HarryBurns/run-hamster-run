@@ -7,7 +7,7 @@
 //   island:volcano     посмотреть на вулкан (в первый раз — наклейка)
 //   island:obsidian    взять кусочек вулканического стекла у подножия (раз в день)
 //   island:flower      подобрали цветок для леи (находка pickups; в первый раз — подсказка)
-//   island:fire        костёр: вечером на празднике огней — потанцевать (сценка, наклейка); днём — когда праздник
+//   island:fire        костёр: вечером на празднике огней — «Танец у костра» (minigames/drum.js, О8); днём — когда праздник
 //   island:bowling     мини-игра «Кокосовый боулинг» (minigames/bowling.js): за первые ISLAND.bowling.paid игр в день —
 //                      монеты по звёздам
 //   island:sleep       хижина для гостей: переночевать на острове (сон — features/sleep.js; утро — тоже на острове)
@@ -20,13 +20,12 @@
 // «раз в день» — отметки дня (dayFlags.island).
 import { setFlag, setDayFlag, addItem, addClothes, award, earn } from '../core/actions.js';
 import { sfx } from '../core/audio.js';
-import { makeCanvas, ell, fillRR, line, poly, star } from '../core/draw.js';
+import { makeCanvas, ell, poly } from '../core/draw.js';
 import { on, emit } from '../core/events.js';
 import { go, sceneName } from '../core/loop.js';
 import { register, run } from '../core/registry.js';
 import { G, darkness, count, playerLook, hasClothes } from '../core/state.js';
 import { el, esc, pick, fmtMoney } from '../core/util.js';
-import { drawHamster } from '../art/hamster.js';
 import { NPC_BY_ID, FIND_BY_ID, LEI_IDS, ISLAND, LAND_BY_ID, npcLook } from '../data/index.js';
 import { getLocation } from '../engine/topdown/index.js';
 import { festNow, placeFlowers, AT } from '../locations/island.js';
@@ -273,126 +272,30 @@ function fireTap() {
   toast(m >= ISLAND.fest.to * 60 || m < 5 * 60 ? '🔥 Праздник огней уже закончился — все пошли спать. Приходи завтра вечером!' : `🔥 Праздник огней — каждый вечер у костра, с ${ISLAND.fest.from}:00 до ${ISLAND.fest.to}:00. Приходи танцевать!`);
 }
 
-// ---------- праздник огней: танец у костра (короткая сценка) ----------
-const DANCE_LOOKS = ['kokos', 'bum', 'laguna'];
-/** Картинка сценки: ночное небо, костёр, огоньки, хомячок и островитяне танцуют (k — 0..1 сценки). */
-export function paintDance(ctx, w, h, k, look, t) {
-  const sky = ctx.createLinearGradient(0, 0, 0, h);
-  sky.addColorStop(0, '#1b1f4a');
-  sky.addColorStop(0.7, '#5b3a6e');
-  sky.addColorStop(1, '#a8543a');
-  ctx.fillStyle = sky;
-  ctx.fillRect(0, 0, w, h);
-  for (let i = 0; i < 30; i++) star(ctx, ((i * 0.37) % 1) * w, ((i * 0.61) % 0.5) * h, 1.2 + (i % 3) * 0.6, `rgba(255,255,255,${0.4 + 0.4 * Math.sin(t * 2 + i)})`);
-  // вулкан вдали со светящимся кратером
-  poly(ctx, [w * 0.55, h * 0.62, w * 0.7, h * 0.3, w * 0.76, h * 0.3, w * 0.92, h * 0.62], '#3a2b3a', OUT, 2);
-  ell(ctx, w * 0.73, h * 0.3, w * 0.03, h * 0.015, '#ff6b35');
-  for (let i = 0; i < 3; i++) {
-    const ph = (t * 0.2 + i / 3) % 1;
-    ell(ctx, w * 0.74 + ph * 20, h * 0.27 - ph * 50, 6 + ph * 14, 5 + ph * 8, `rgba(200,170,190,${(0.5 * (1 - ph)).toFixed(2)})`);
-  }
-  // земля и гирлянда
-  ctx.fillStyle = '#6b4a2e';
-  ctx.fillRect(0, h * 0.62, w, h * 0.38);
-  ctx.strokeStyle = 'rgba(255,255,255,.35)';
-  ctx.lineWidth = 1.5;
-  ctx.beginPath();
-  ctx.moveTo(0, h * 0.12);
-  ctx.quadraticCurveTo(w / 2, h * 0.3, w, h * 0.12);
-  ctx.stroke();
-  for (let i = 1; i < 14; i++) {
-    const q = i / 14,
-      x = q * w,
-      y = h * 0.12 + Math.sin(q * Math.PI) * h * 0.09;
-    ell(ctx, x, y + 4, 4, 5, ['#ff6b6b', '#ffd43b', '#69db7c', '#4dabf7', '#da77f2'][i % 5], OUT, 1);
-  }
-  // костёр
-  const cx = w / 2,
-    cy = h * 0.8;
-  const g = ctx.createRadialGradient(cx, cy - 20, 0, cx, cy - 20, h * 0.5);
-  g.addColorStop(0, 'rgba(255,190,90,.55)');
-  g.addColorStop(1, 'rgba(255,120,40,0)');
-  ctx.fillStyle = g;
-  ctx.fillRect(0, 0, w, h);
-  for (const a of [-0.5, 0.5]) {
-    ctx.save();
-    ctx.translate(cx, cy);
-    ctx.rotate(a);
-    fillRR(ctx, -26, -5, 52, 10, 5, '#8d5524', OUT, 1.6);
-    ctx.restore();
-  }
-  for (let i = 0; i < 3; i++) {
-    const f = Math.sin(t * 9 + i * 2) * 4;
-    poly(ctx, [cx - 18 + i * 10, cy - 4, cx - 10 + i * 10 + f, cy - 40 - (i % 2) * 14, cx - 2 + i * 10, cy - 4], ['#ff922b', '#ffd43b', '#ff6b35'][i], OUT, 1.2);
-  }
-  for (let i = 0; i < 6; i++) {
-    const ph = (t * 0.8 + i / 6) % 1;
-    ell(ctx, cx + Math.sin(i * 2.4 + t) * 22, cy - 40 - ph * h * 0.35, 1.8, 1.8, `rgba(255,220,120,${(1 - ph).toFixed(2)})`);
-  }
-  // танцоры по кругу: хомячок впереди, островитяне вокруг
-  const s = Math.min(w / 560, h / 320);
-  const dancers = DANCE_LOOKS.map((id) => npcLook(id));
-  const ring = [
-    [cx - w * 0.3, h * 0.78, dancers[0]],
-    [cx + w * 0.3, h * 0.78, dancers[1]],
-    [cx - w * 0.17, h * 0.68, dancers[2]],
-  ];
-  for (const [x, y, lk] of ring) {
-    const b = Math.abs(Math.sin(t * 6 + x)) * 8 * s;
-    drawHamster(ctx, x, y - b, 0.9 * s, lk, { time: t, dir: Math.sin(t * 3 + x) > 0 ? 1 : -1, happy: true, armsUp: Math.sin(t * 6 + x) > 0 });
-  }
-  const hb = Math.abs(Math.sin(t * 6)) * 10 * s;
-  drawHamster(ctx, cx + w * 0.16, h * 0.95 - hb, 1.1 * s, look, { time: t, dir: Math.sin(t * 3) > 0 ? 1 : -1, happy: true, armsUp: Math.sin(t * 6) > 0 });
-  // ноты
-  ctx.font = `${Math.round(22 * s)}px sans-serif`;
-  ctx.textAlign = 'center';
-  for (let i = 0; i < 3; i++) {
-    const ph = (t * 0.5 + i / 3) % 1;
-    ctx.globalAlpha = 1 - ph;
-    ctx.fillText(['🎵', '🥁', '🎶'][i], w * (0.2 + i * 0.3), h * 0.55 - ph * h * 0.3);
-  }
-  ctx.globalAlpha = Math.min(1, k * 4);
-}
+// ---------- праздник огней: «Танец у костра» — ритм-игра под барабан Бума (О8) ----------
 let dancing = false;
-/** Потанцевать на празднике огней: короткая сценка, потом наклейка и событие (шаг задания Вождя). */
+/**
+ * Потанцевать на празднике огней: мини-игра «Танец у костра» (minigames/drum.js) — Бум стучит, кокосы-«шаги» летят
+ * к кругу. Сыграла до конца — событие (шаг задания Вождя) и наклейка праздника, ⭐⭐⭐ — ещё наклейка «В ритме барабана».
+ */
 export function dance() {
   if (dancing) return false;
   dancing = true;
   sfx('fanfare');
-  const W = Math.min(560, window.innerWidth - 32),
-    H = Math.round(W * 0.58);
-  const f = el('div', 'fade cable-ride dance-fest', `<div class="msg"><div><div class="ride-pic"></div><p>🔥 Танцуем у костра!</p></div></div>`);
-  const { canvas, ctx } = makeCanvas(W, H);
-  canvas.style.borderRadius = '18px';
-  f.querySelector('.ride-pic').appendChild(canvas);
-  document.body.appendChild(f);
-  const closeLayer = openLayer();
-  let raf = 0;
-  const t0 = performance.now(),
-    look = playerLook(),
-    DUR = 4200;
-  const loop = (now) => {
-    const t = (now - t0) / 1000,
-      p = Math.min(1, (now - t0) / DUR);
-    paintDance(ctx, W, H, p, look, t);
-    ctx.globalAlpha = 1;
-    if (p < 1) raf = requestAnimationFrame(loop);
-  };
-  raf = requestAnimationFrame(loop);
-  requestAnimationFrame(() => f.classList.add('on'));
-  for (let k = 0; k < 6; k++) setTimeout(() => sfx('thud'), 300 + k * 520);
-  setTimeout(() => {
-    cancelAnimationFrame(raf);
-    f.classList.remove('on');
-    setTimeout(() => {
-      f.remove();
-      closeLayer();
+  playMinigame('drum', {
+    drummer: npcLook('bum'),
+    dancers: ['laguna', 'kokos'].map((id) => npcLook(id)),
+    introNote: '<div class="pay-note">🔥 Праздник огней! Бум уже стучит — островитяне ждут тебя в круг.</div>',
+  })
+    .then((res) => {
       dancing = false;
+      if (!res) return;
       emit('island', { what: 'dance' });
+      if (res.stars === 3) award('x_drum', { delay: 2600 });
       if (award('x_fest', { delay: 400 })) toast('🔥 Вот это праздник! Островитяне хлопают: «Ты танцуешь, как настоящая островитянка!»', 'good');
       else toast('🔥 Танцы у костра — самое весёлое на острове! Приходи завтра вечером снова.', 'good');
-    }, 380);
-  }, DUR);
+    })
+    .catch(() => (dancing = false));
   return true;
 }
 

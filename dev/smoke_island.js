@@ -455,11 +455,17 @@ module.exports = async function island({ page, step, ev, wait, closeAll }) {
     await ev(() => {
       window.__dev.run('island:fire');
     });
+    await wait(900);
+    // танец — ритм-игра «Танец у костра» под барабан Бума (этап 14, О8): до конца через dev-хук
+    expect(await ev(() => /Танец у костра/.test((document.querySelector('#mg') || {}).textContent || '')), 'нет игры «Танец у костра»');
+    await page.click('#mg >> text=Начать!');
+    await wait(400);
+    await ev(() => document.querySelector('#mg .dr-canvas').__drumSkip());
+    await page.waitForSelector('#mg >> text=Ура!', { timeout: 6000 });
+    await page.click('#mg >> text=Ура!');
     await wait(700);
-    expect(await ev(() => !!document.querySelector('.dance-fest canvas')), 'нет сценки танца');
-    await wait(4400);
     let s = await state();
-    expect(s.stickers.includes('x_fest') && /праздник/i.test(await toasts()) && !(await ev(() => !!document.querySelector('.dance-fest'))), 'после танца — наклейка', [s.stickers, await toasts()]);
+    expect(s.stickers.includes('x_fest') && /праздник/i.test(await toasts()) && !(await ev(() => !!document.querySelector('#mg'))), 'после танца — наклейка', [s.stickers, await toasts()]);
     await unwatch();
     await ev(() => window.__dev.actions.mutate((s) => (s.minutes = 22 * 60 + 30)));
     await clearToasts();
