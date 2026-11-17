@@ -345,7 +345,7 @@ export default {
   // свет вечером и ночью (engine/side/light.js): люстра холла, бра в коридоре, гирлянда и фонари на крыше
   lamps: [
     { f: 0, x: 260, h: 214, r: 300 },
-    ...HX.doors.map((x) => ({ f: 1, x: x + 105, h: 180, r: 170 })),
+    ...HX.doors.map((x) => ({ f: 1, x: x + 105, h: 180, r: 120 })),
     ...[200, 560, 920, 1280, 1640].map((x) => ({ f: 2, x, h: 220, r: 240, c: '255,214,140' })),
   ],
   shell: { wall: '#fff4e6', roof: '#1098ad', flat: true, chimneyX: null, bushes: true, trees: 'palm', ground: 'sand' },

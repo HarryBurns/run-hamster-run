@@ -243,11 +243,15 @@ module.exports = async function inside({ page, step, ev, wait, closeAll }) {
       await ev(() => window.__dev.actions.mutate((s) => (s.dayFlags = {})));
       // закрытая дверь, пока номер не снят: просто стук
       await clearToasts();
-      await ev((no) => window.__dev.run('hotel:knock:' + no), no);
+      await ev((no) => {
+        window.__dev.run('hotel:knock:' + no);
+      }, no);
       await wait(300);
       expect((await sceneName()) === 'hotel' && /Тук-тук/.test(await toasts()), `${no}: дверь до аренды`, [await sceneName(), await toasts()]);
       const m0 = await ev(() => window.__dev.G.state.money);
-      await ev(() => window.__dev.run('hotel:reception'));
+      await ev(() => {
+      window.__dev.run('hotel:reception');
+    });
       await wait(500);
       await answer('Снять номер');
       expect(/Эконом/.test(await dlgText()) && /балкон/.test(await dlgText()), 'выбор номера', await dlgText());
@@ -258,11 +262,15 @@ module.exports = async function inside({ page, step, ev, wait, closeAll }) {
       await closeAll();
       // кровать стандарта 207 — не наша
       await clearToasts();
-      await ev(() => window.__dev.run('hotel:bed'));
+      await ev(() => {
+      window.__dev.run('hotel:bed');
+    });
       await wait(300);
       expect(new RegExp('Твой номер сегодня — ' + no).test(await toasts()), 'кровать 207 при другом номере', await toasts());
       // дверь номера — внутрь
-      await ev((no) => window.__dev.run('hotel:knock:' + no), no);
+      await ev((no) => {
+        window.__dev.run('hotel:knock:' + no);
+      }, no);
       await wait(700);
       expect((await sceneName()) === 'hotel_' + no, `дверь ${no} не ведёт в номер`, await sceneName());
       // кровать номера — сон, утро здесь же
@@ -285,21 +293,29 @@ module.exports = async function inside({ page, step, ev, wait, closeAll }) {
   });
 
   await step('внутри: отель — в номере 203 гостит житель: дверь открыта, житель внутри, в городе его нет; без гостя — стук', async () => {
-    // день, когда в 203 кто-то гостит (жребий по дню), и час из HOTEL.roomGuest
+    // день, когда в 203 кто-то гостит (жребий по дню; не тот, у кого «!» задания), и час из HOTEL.roomGuest
+    await toHotel(1, 600);
     const g = await ev(async () => {
-      const D = await import('/js/data/index.js');
+      const D = await import('/js/data/index.js'),
+        St = await import('/js/core/state.js'),
+        d = window.__dev,
+        min = D.HOTEL.roomGuest.from * 60 + 30;
+      d.actions.mutate((s) => (s.guests = []));
       for (let day = 0; day < 72; day++) {
-        const id = D.roomGuestOn(day, D.HOTEL.roomGuest.from * 60 + 30);
-        if (id) return { day, id, min: D.HOTEL.roomGuest.from * 60 + 30 };
+        d.actions.mutate((s) => {
+          s.day = day;
+          s.minutes = min;
+        });
+        if (St.hotelRoomGuest()) return { day, id: St.hotelRoomGuest() };
       }
       return null;
     });
     expect(!!g, 'в 203 никто не гостит за два года');
-    await toHotel(1, 600, g.min, g.day);
-    await ev(() => window.__dev.actions.mutate((s) => (s.guests = [])));
-    const who = await ev(() => window.__dev.QuestState.hotelRoomGuest && window.__dev.QuestState.hotelRoomGuest());
+    const who = g.id;
     await clearToasts();
-    await ev(() => window.__dev.run('hotel:knock:203'));
+    await ev(() => {
+      window.__dev.run('hotel:knock:203');
+    });
     await wait(700);
     const here = await ev(() => {
       const sc = window.__dev.scene;
@@ -320,7 +336,9 @@ module.exports = async function inside({ page, step, ev, wait, closeAll }) {
     // вечером гость уехал — опять стук
     await ev(() => window.__dev.actions.mutate((s) => (s.minutes = 20 * 60)));
     await clearToasts();
-    await ev(() => window.__dev.run('hotel:knock:203'));
+    await ev(() => {
+      window.__dev.run('hotel:knock:203');
+    });
     await wait(400);
     expect((await sceneName()) === 'hotel' && /Тук-тук/.test(await toasts()), '203 без гостя — стук', [await sceneName(), await toasts()]);
   });
