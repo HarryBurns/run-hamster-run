@@ -53,6 +53,7 @@ export const VIEW_TOWN = [
   ['cafe', 56, 17, 4, 4, '#ffdeeb', '#d6336c', 2, 'hip'],
   ['hospital', 67, 18, 7, 6, '#ffffff', '#fa5252', 3.6, 'flat'],
   ['school', 77, 18, 7, 6, '#ffd8a8', '#e8590c', 3.2, 'hip'],
+  ['shelter', 88, 17, 4, 4, '#fff3d6', '#ff922b', 2, 'hip'], // приют «Тёплые лапки» (этап 17б)
   ['home_apartment', 53, 31, 6, 5, '#ffe3e3', '#c92a2a', 6, 'flat'],
   ['rest', 51, 41, 7, 5, '#ffec99', '#c92a2a', 2.4, 'hip'],
   ['pool', 67, 30, 5, 5, '#99e9f2', '#0c8599', 2.4, 'flat'],
