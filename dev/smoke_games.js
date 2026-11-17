@@ -101,4 +101,59 @@ module.exports = async function games({ page, step, ev, wait, closeAll }) {
     const s1 = await state();
     expect(s1.plays.slide === 1 && s1.money > s0.money, 'спуск не записан', [s1.plays, s1.money - s0.money]);
   });
+
+  await step('игры 14: «Носильщица» — на опытной смене кнопки этажей в лифте: не тот этаж — подсказка, итог', async () => {
+    await fresh();
+    // новичку лифт возит сам
+    await mutate('s.plays.porter = 0;');
+    await ev(() => {
+      window.__dev.F.playMinigame('porter');
+    });
+    await wait(700);
+    await start();
+    let st = await hook('__porter');
+    expect(st && !st.lift && !st.buttons.length, 'у новичка кнопки лифта', st);
+    await page.click('#mg .xbtn');
+    await wait(400);
+    await closeAll();
+    // опытная смена (сыграно 4 → уровень 2): этаж — кнопкой
+    const s0 = await state();
+    await mutate('s.plays.porter = 4;');
+    await ev(() => {
+      window.__dev.F.playMinigame('porter');
+    });
+    await wait(700);
+    expect(/Лифт/.test(await mgText()), 'на заставке нет правила про лифт', await mgText());
+    await start();
+    st = await hook('__porter');
+    expect(st.lift && st.buttons.length === 3 && st.at === 1, 'нет кнопок лифта на опытной смене', st);
+    // дверь из холла — подсказка «сначала в лифт», не ошибка
+    const d0 = st.doors.find((q) => q.n === st.tag);
+    await tapAt(d0.x, d0.y, st.w, st.h);
+    await wait(300);
+    st = await hook('__porter');
+    expect(st.at === 1 && st.mistakes === 0 && !st.busy, 'дверь из холла сработала', st);
+    let wrongFloor = false;
+    for (let k = 0; k < 120; k++) {
+      st = await hook('__porter');
+      if (!st || !st.tag) break;
+      if (!st.busy) {
+        const want = Math.floor(st.tag / 100);
+        if (st.at !== want) {
+          const b = !wrongFloor ? st.buttons.find((q) => q.f !== want && q.f !== 1 && q.f !== st.at) : st.buttons.find((q) => q.f === want);
+          wrongFloor = true;
+          await tapAt(b.x, b.y, st.w, st.h);
+        } else {
+          const d = st.doors.find((q) => q.n === st.tag);
+          await tapAt(d.x, d.y, st.w, st.h);
+        }
+      }
+      if (/Ура!/.test(await mgText())) break;
+      await wait(200);
+    }
+    const end = await ura();
+    expect(/чемоданов на месте/.test(end) && /этажом в лифте — 1/.test(end) && /ошибок дверью — 0/.test(end), 'итог смены с лифтом', end);
+    const s1 = await state();
+    expect(s1.plays.porter === 5 && s1.money > s0.money, 'смена не записана', [s1.plays.porter, s1.money - s0.money]);
+  });
 };
