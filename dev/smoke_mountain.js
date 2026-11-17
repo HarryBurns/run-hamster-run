@@ -447,7 +447,7 @@ module.exports = async function mountain({ page, step, ev, wait, closeAll }) {
     await toMountain(18, 720, 27, 22);
     const s0 = await state();
     await talkV();
-    await page.click('.dialog .btn >> text=Спуск на санках');
+    await page.click('.dialog .btn >> text=Спуск с горы');
     await wait(1200);
     const intro = norm(await ev(() => document.querySelector('#mg').textContent));
     expect(

@@ -51,7 +51,7 @@ export const MG_NAMES = {
   stylist: '💇 Стилист',
   window: '🎀 Витрина',
   mushrooms: '🍄 Грибная охота',
-  sled: '🛷 Спуск на санках',
+  sled: '🛷 Спуск с горы',
   crystals: '💎 Кристаллы',
   dig: '🦴 Раскопки',
   pairs: '🔺 Загадка пирамиды',

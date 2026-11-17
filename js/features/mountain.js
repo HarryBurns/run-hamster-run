@@ -107,7 +107,7 @@ export async function talkVershinkin() {
       const x = o(S());
       if (x) opts.push(x);
     }
-    opts.unshift({ text: '🛷 Спуск на санках', cls: 'yellow', fn: async () => (await sledRide(), null) });
+    opts.unshift({ text: '🛷 Спуск с горы', cls: 'yellow', fn: async () => (await sledRide(), null) });
     opts.push({ text: '💬 Поболтать', cls: 'blue', go: 'chat' }, { text: 'Пока!', go: 'bye' });
     const i = await sayV(text, opts);
     const o = opts[i] || {};

@@ -514,7 +514,7 @@ const mountain = createTopDownScene({
     },
     // варежка Вершинкина (задание «Потерянная варежка»): видна, пока её не нашли
     { id: 'mitten', at: MITTEN, hit: { r: 40 }, stand: [MITTEN[0] + 0.5, MITTEN[1] + 1.4], when: mittenHidden, act: 'mountain:mitten', key: false },
-    // старт трассы для санок: «Спуск на санках» (та же мини-игра, что у Вершинкина)
+    // старт трассы для санок: «Спуск с горы» (та же мини-игра, что у Вершинкина)
     {
       id: 'sled',
       cell: [AT.run[0], AT.run[2]],
