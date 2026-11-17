@@ -356,4 +356,69 @@ module.exports = async function games({ page, step, ev, wait, closeAll }) {
     const s = await state();
     expect(s.plays.drum === 1 && s.stickers.includes('x_fest') && s.stickers.includes('x_drum'), 'наклейки танца', s.stickers.slice(-4));
   });
+
+  await step('игры 14: «Повтори движение» у аниматора — показ, повтор кнопками, танец растёт, ошибка — показ ещё раз', async () => {
+    await fresh();
+    const toHotelPool = async (min) => {
+      await mutate(`s.minutes = ${min};`);
+      await ev(() => {
+        const d = window.__dev;
+        if (d.sceneName !== 'world') d.go('world');
+        d.enterBuilding('hotel');
+      });
+      await wait(300);
+    };
+    await toHotelPool(19.5 * 60);
+    await ev(() => {
+      window.__dev.run('hotel:animator');
+    });
+    await wait(450);
+    await page.click('.dialog .btn:has-text("Танцевать")');
+    await wait(800);
+    expect(/Повтори движение/.test(await mgText()), 'нет заставки', await mgText());
+    await start();
+    expect((await ev(() => document.querySelectorAll('#mg .mm-pad button').length)) === 6, 'нет шести кнопок движений');
+    const g = () => hook('__mimic');
+    const until = async (cond, ms = 12000) => {
+      const t0 = Date.now();
+      let q = await g();
+      while (!cond(q) && Date.now() - t0 < ms) {
+        await wait(80);
+        q = await g();
+      }
+      return q;
+    };
+    const tapMove = (id) => page.click(`#mg .mm-pad button[data-move="${id}"]`);
+    // во время показа кнопки не нажимаются
+    let q = await until((x) => x.phase === 'show');
+    expect(q.seq.length === 2 && (await ev(() => document.querySelector('#mg .mm-pad button').disabled)), 'во время показа кнопки работают', q);
+    // раунд 1: ошибка — Хлопушка показывает ещё раз, потом повторили верно
+    q = await until((x) => x.phase === 'input');
+    await tapMove(q.seq[0] === 'clap' ? 'jump' : 'clap');
+    q = await until((x) => x.phase === 'show');
+    expect(q.mistakes === 1 && q.round === 0, 'после ошибки нет повторного показа', q);
+    q = await until((x) => x.phase === 'input');
+    for (const id of q.seq) await tapMove(id);
+    q = await until((x) => x.phase === 'show' && x.round === 1);
+    expect(q.wins === 1 && q.seq.length === 3, 'танец не вырос на одно движение', q);
+    // раунд 2: две ошибки — раунд пропущен без наказания, длина та же
+    for (let k = 0; k < 2; k++) {
+      q = await until((x) => x.phase === 'input');
+      await tapMove(q.seq[0] === 'clap' ? 'jump' : 'clap');
+      await until((x) => x.phase !== 'input');
+    }
+    q = await until((x) => x.round === 2 && x.phase === 'show');
+    expect(q.wins === 1 && q.seq.length === 3 && q.mistakes === 3, 'после двух ошибок — не следующий раунд', q);
+    // дальше — всё верно до конца (раунды 3–6)
+    for (let k = 0; k < 4; k++) {
+      q = await until((x) => x.phase === 'input' || x.over, 20000);
+      if (q.over) break;
+      for (const id of q.seq) await tapMove(id);
+      await until((x) => x.phase !== 'input');
+    }
+    const end = await ura();
+    expect(/Дискотека удалась/.test(end) && /Повторено танцев: 5 из 6/.test(end) && /6 движений/.test(end), 'итог', end);
+    const s = await state();
+    expect(s.plays.mimic === 1 && s.stickers.includes('x_disco') && s.stickers.includes('x_mimic'), 'наклейки аниматора', s.stickers.slice(-4));
+  });
 };

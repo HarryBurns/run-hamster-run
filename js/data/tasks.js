@@ -184,6 +184,7 @@ export const EXTRA_STICKERS = [
   // мини-игры вместо сценок (этап 14): ⭐⭐⭐ в новых играх
   { id: 'x_tree', sticker: '🎄', title: 'Самая нарядная ёлка' },
   { id: 'x_drum', sticker: '🥁', title: 'В ритме барабана' },
+  { id: 'x_mimic', sticker: '💃', title: 'Повтори за мной' },
   { id: 'x_hol_mayday', sticker: '🎈', title: '1 Мая' },
   { id: 'x_hol_kupala', sticker: '🌿', title: 'Иван Купала' },
   { id: 'x_hol_halloween', sticker: '🎃', title: 'Хеллоуин' },

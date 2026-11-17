@@ -259,9 +259,23 @@ module.exports = async function hotel({ page, step, ev, wait, closeAll }) {
       await wait(100);
       expect((await here()) === 1, 'аниматора нет по расписанию ' + min);
       await run('hotel:animator');
-      await answer(btn, 300);
-      expect(await ev(() => !!document.querySelector('.fade.dance-hotel')), 'нет сценки танца');
-      await wait(4800);
+      await answer(btn, 800);
+      // «Повтори движение» (этап 14, От9): Хлопушка показывает, хомячок повторяет — до конца, ошибаясь (без проигрыша)
+      expect(await ev(() => /Повтори движение/.test((document.querySelector('#mg') || {}).textContent || '')), 'нет игры «Повтори движение»');
+      await page.click('#mg >> text=Начать!');
+      await ev(() => document.querySelector('#mg .mm-canvas').__mimicSkip()); // сразу последний раунд
+      for (let k = 0; k < 200; k++) {
+        const g = await ev(() => {
+          const c = document.querySelector('#mg .mm-canvas');
+          return c ? c.__mimic() : null;
+        });
+        if (!g || g.over) break;
+        if (g.phase === 'input') await page.click('#mg .mm-pad button[data-move="' + g.seq[g.pos] + '"]');
+        await wait(120);
+      }
+      await page.waitForSelector('#mg >> text=Ура!', { timeout: 8000 });
+      await page.click('#mg >> text=Ура!');
+      await wait(600);
       expect((await state()).stickers.includes(st), 'наклейка ' + st);
     }
     // двери номеров: тук-тук

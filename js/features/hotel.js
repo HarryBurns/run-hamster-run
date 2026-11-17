@@ -9,7 +9,8 @@
 //   hotel:suite        золотая дверь «Люкс»: свой номер-люкс — войти (home:suite), не куплен — окно риелтора
 //   hotel:buffet       шведский стол: съесть блюдо; раз в день — за полцены (HOTEL.buffet), после ночи в отеле — даром
 //   hotel:spa          Мастер Пенка: массаж лапок или маска из огурчиков (HOTEL.spa) — короткая сценка, наклейка
-//   hotel:animator     Аниматор Хлопушка: утром зарядка, вечером дискотека (часы — HOTEL.animator) — сценка, наклейка
+//   hotel:animator     Аниматор Хлопушка: утром зарядка, вечером дискотека (часы — HOTEL.animator) — мини-игра
+//                      «Повтори движение» (minigames/mimic.js, От9), наклейка; ⭐⭐⭐ — наклейка «Повтори за мной»
 //   hotel:schedule     доска с расписанием аниматора у бассейна
 //   hotel:slide        мини-игра «Горка» (minigames/slide.js): за первые HOTEL.slide.paid игр в день — монеты по звёздам
 //   hotel:porter       Носильщик Тележкин: работа носильщицей — мини-игра «Носильщица» (minigames/porter.js),
@@ -24,7 +25,7 @@ import { on, emit } from '../core/events.js';
 import { sceneName } from '../core/loop.js';
 import { register, run } from '../core/registry.js';
 import { G, darkness, playerLook, ownsHome, canSwim, isSick, hotelRoomGuest } from '../core/state.js';
-import { el, esc, pick, fmtMoney, TAU } from '../core/util.js';
+import { el, esc, pick, fmtMoney } from '../core/util.js';
 import { drawHamster } from '../art/hamster.js';
 import { NPC_BY_ID, DISH_BY_ID, HOTEL, HOTEL_ROOM, HOTEL_ROOMS, GUEST_ROOM, BUFFET, HOME_BY_ID, SICK_TEXT, animatorNow, npcLook } from '../data/index.js';
 import { HX, rentedRoom } from '../interiors/hotel.js';
@@ -325,49 +326,6 @@ function paintSpa(what) {
     ctx.globalAlpha = Math.min(1, k * 5);
   };
 }
-/** Зарядка (утро, солнце, лапки вверх-вниз) или дискотека (вечер, диско-шар, цветные лучи). */
-function paintHotelDance(morning) {
-  return (ctx, w, h, k, look, t) => {
-    const g = ctx.createLinearGradient(0, 0, 0, h);
-    g.addColorStop(0, morning ? '#74c0fc' : '#2b2440');
-    g.addColorStop(1, morning ? '#d0ebff' : '#5f3dc4');
-    ctx.fillStyle = g;
-    ctx.fillRect(0, 0, w, h);
-    const s = Math.min(w / 560, h / 320);
-    if (morning) {
-      ell(ctx, w * 0.82, h * 0.2, 26 * s, 26 * s, '#ffe066');
-      for (let i = 0; i < 8; i++) {
-        const a = (i * TAU) / 8 + t * 0.5;
-        line(ctx, w * 0.82 + Math.cos(a) * 34 * s, h * 0.2 + Math.sin(a) * 34 * s, w * 0.82 + Math.cos(a) * 44 * s, h * 0.2 + Math.sin(a) * 44 * s, '#ffd43b', 3 * s);
-      }
-    } else {
-      line(ctx, w / 2, 0, w / 2, h * 0.12, '#dee2e6', 2);
-      ell(ctx, w / 2, h * 0.17, 20 * s, 20 * s, '#dee2e6', OUT, 2);
-      for (let i = 0; i < 6; i++) {
-        const a = t * 1.8 + (i * TAU) / 6;
-        ctx.globalAlpha = 0.25;
-        poly(ctx, [w / 2, h * 0.17, w / 2 + Math.cos(a) * w * 0.6 - 30, h, w / 2 + Math.cos(a) * w * 0.6 + 30, h], ['#ff6b9d', '#ffd43b', '#63e6be', '#74c0fc', '#b197fc', '#ff922b'][i]);
-        ctx.globalAlpha = 1;
-      }
-    }
-    // бассейн у края
-    fillRR(ctx, -10, h * 0.86, w + 20, h * 0.2, 0, morning ? '#4dabf7' : '#3b5bdb');
-    // аниматор и хомячок рядом, повторяют движения
-    const beat = Math.sin(t * (morning ? 4 : 7));
-    const hop = Math.abs(beat) * (morning ? 4 : 10) * s;
-    drawHamster(ctx, w * 0.35, h * 0.84 - hop, 1.05 * s, npcLook('hlopushka'), { time: t, dir: 1, happy: true, armsUp: beat > 0 });
-    drawHamster(ctx, w * 0.62, h * 0.86 - hop, 1.15 * s, look, { time: t, dir: -1, happy: true, armsUp: beat > 0 });
-    ctx.font = `${Math.round(22 * s)}px sans-serif`;
-    ctx.textAlign = 'center';
-    for (let i = 0; i < 3; i++) {
-      const ph = (t * 0.5 + i / 3) % 1;
-      ctx.globalAlpha = 1 - ph;
-      ctx.fillText(morning ? ['💪', '🤸', '☀️'][i] : ['🎵', '🪩', '🎶'][i], w * (0.2 + i * 0.3), h * 0.55 - ph * h * 0.3);
-    }
-    ctx.globalAlpha = Math.min(1, k * 5);
-  };
-}
-
 // ---------- спа: Мастер Пенка ----------
 let busy = false;
 async function spa() {
@@ -419,12 +377,17 @@ async function animator() {
     : 'Дискотека у бассейна! Музыка, огоньки — танцуют все! Покажешь свой лучший танец?';
   const i = await sayAs('hlopushka', text, [{ text: morning ? '🤸 Делать зарядку!' : '🪩 Танцевать!', cls: 'green' }, { text: 'Потом' }], true);
   if (i !== 0 || busy) return;
+  // «Повтори движение» (От9): Хлопушка показывает танец, хомячок повторяет кнопками
   busy = true;
-  sfx('fanfare');
-  for (let k = 0; k < 6; k++) setTimeout(() => sfx(morning ? 'whistle' : 'thud'), 300 + k * 560);
-  await playScene('dance-hotel', morning ? '🤸 Зарядка у бассейна!' : '🪩 Дискотека!', paintHotelDance(morning), 4000);
+  sfx(morning ? 'whistle' : 'fanfare');
+  const res = await playMinigame('mimic', {
+    kind: now,
+    animator: npcLook('hlopushka'),
+    introNote: `<div class="pay-note">${morning ? '🤸 Зарядка у бассейна: повторяй за Хлопушкой — и бодрость на весь день!' : '🪩 Дискотека у бассейна: повтори танец Хлопушки!'}</div>`,
+  });
   busy = false;
-  spendMinutes(20);
+  if (!res) return;
+  if (res.stars === 3) award('x_mimic', { delay: 2600 });
   emit('hotel', { what: 'dance', kind: now });
   emit('happy');
   const got = award(morning ? 'x_zaryadka' : 'x_disco', { delay: 400 });
