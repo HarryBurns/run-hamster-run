@@ -1325,10 +1325,12 @@ module.exports = async function estate({ page, step, ev, wait, closeAll }) {
   await step('«Стилист» и «Витрина»: работа хозяйки в своём салоне и бутике, игра до конца', async () => {
     await newGame();
     await ev(() => window.__dev.go('world'));
-    // в чужом салоне и бутике работы нет — только «Купить заведение»
+    // в чужом салоне и бутике работы хозяйки нет — только «Купить заведение» (и в салоне — «Поработать
+    // парикмахером», работа для всех, этап 17в)
     for (const b of ['salon', 'boutique']) {
       await enter(b);
-      expect((await page.locator('.overlay .panel-foot .btn').count()) === 1, 'в чужом заведении есть работа', b);
+      const foot = await page.locator('.overlay .panel-foot .btn').allInnerTexts();
+      expect(foot.filter((t) => !t.includes('Поработать парикмахером')).length === 1, 'в чужом заведении есть работа', [b, foot]);
       await closeAll();
     }
     await ev(() => {

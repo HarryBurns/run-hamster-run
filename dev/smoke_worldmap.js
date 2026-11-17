@@ -164,7 +164,8 @@ module.exports = async function worldmap({ page, step, ev, wait, closeAll }) {
     await wait(500);
     expect(/Праздник — в городе.*по тропе в город/.test(await toasts()), 'нет подсказки с дорогой в город', await toasts());
     let row = await ev(() => [...document.querySelectorAll('.overlay .lands-row button')].map((b) => [b.textContent, b.className]));
-    expect(row.length === 8 && /Город.*⭐/.test(row[0][0]) && row[0][1].includes('goal'), 'у города на карте мира нет ⭐', row);
+    // мест восемь и больше (этап 17в добавил «Подземную реку»)
+    expect(row.length >= 8 && /Город.*⭐/.test(row[0][0]) && row[0][1].includes('goal'), 'у города на карте мира нет ⭐', row);
     expect(row.some((b) => /Лес.*📍/.test(b[0]) && b[1].includes('here')), 'лес не отмечен «ты здесь»', row);
     await closeAll();
     // задание на горе — на карте леса ⭐ у горы; кнопка ведёт к станции канатной дороги
@@ -201,7 +202,7 @@ module.exports = async function worldmap({ page, step, ev, wait, closeAll }) {
     await ev(() => window.__dev.F.openMap());
     await wait(500);
     row = await ev(() => [...document.querySelectorAll('.overlay .land')].map((b) => [b.textContent, b.className]));
-    expect(row.length === 7 && /Гора.*⭐/.test(row[2][0]), 'в городе у горы нет ⭐', row);
+    expect(row.length >= 7 && /Гора.*⭐/.test(row[2][0]) && !row.some((b, i) => i !== 2 && /⭐/.test(b[0])), 'в городе у горы нет ⭐', row);
     await ev(() => [...document.querySelectorAll('.overlay .land')].find((b) => b.textContent.includes('Гора')).click());
     await wait(300);
     const g2 = await ev(() => {
