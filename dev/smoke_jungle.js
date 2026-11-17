@@ -403,7 +403,9 @@ module.exports = async function jungle({ page, step, ev, wait, closeAll }) {
     const p = await ev(async () => (await import('/js/locations/jungle.js')).debugParrots());
     expect(p[0].on && p[0].text.length > 2, 'попугай молчит', p);
     s = await state();
-    expect(s.stickers.includes('x_parrot') && /Попугай/.test(await toasts()), 'наклейка попугая', [s.stickers, await toasts()]);
+    // подсказка «Попугай повторяет слова!» или «Новая наклейка: Говорящий попугай» (подсказок на экране не больше
+    // трёх — 1 января первую могут вытеснить новогодние)
+    expect(s.stickers.includes('x_parrot') && /попугай/i.test(await toasts()), 'наклейка попугая', [s.stickers, await toasts()]);
     // попугай повторяет имя
     const named = await ev(async () => (await import('/js/locations/jungle.js')).parrotSay(1, 'Пр-р-ривет, {name}!'));
     expect(named.includes(s.name), 'попугай не сказал имя', named);
