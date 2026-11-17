@@ -237,6 +237,15 @@ module.exports = async function jungle({ page, step, ev, wait, closeAll }) {
         const p = sc.spot(id);
         if (!reachNear(Math.floor(p.x / 48), Math.floor(p.y / 48))) out.push('точка ' + id);
       }
+      // Дж10: кроны не закрывают тропу и мост — у них (сбоку, на том же ряду и до трёх рядов южнее) нет высоких деревьев
+      const trail = (x, y) => ['jtrail', 'jbridge'].includes(m.at(x, y));
+      for (const o of m.objs)
+        if (o.type === 'jtree' || o.type === 'bamboo') {
+          const tx = Math.floor(o.x / 48),
+            ty = Math.floor(o.y / 48);
+          if ([0, 1, 2, 3].some((k) => [-2, -1, 0, 1, 2].some((dx) => trail(tx + dx, ty - k))))
+            out.push(`${o.type} ${tx},${ty} закрывает тропу`);
+        }
       for (const b of m.buildings) {
         const p = m.doorPx(b);
         if (!reach(Math.floor(p.x / 48), Math.floor(p.y / 48))) out.push('дверь ' + b.id);

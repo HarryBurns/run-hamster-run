@@ -198,7 +198,12 @@ function build(m) {
       } else if (!['s', 'jstone', 'jbridge'].includes(c)) m.set(x, y, 'jtrail');
       path.add(x + ',' + y);
     });
-  for (const x of AT.bridge) for (let y = 12; y <= 17; y++) if (m.at(x, y) === 'jriver') m.set(x, y, 'jbridge');
+  for (const x of AT.bridge)
+    for (let y = 12; y <= 17; y++)
+      if (m.at(x, y) === 'jriver') {
+        m.set(x, y, 'jbridge');
+        path.add(x + ',' + y); // мост — тоже тропа: у его концов высокое не растёт (Дж10)
+      }
   for (let y = 10; y <= 19; y++) if (m.at(AT.bridge[0], y) === 'jbridge') (BRIDGE_ROWS[0] = Math.min(BRIDGE_ROWS[0], y)), (BRIDGE_ROWS[1] = Math.max(BRIDGE_ROWS[1], y));
   // причал: доски от пляжа в море
   for (let y = 36; y <= 40; y++) for (const x of [22, 23]) m.set(x, y, 'i');
@@ -220,8 +225,9 @@ function build(m) {
         else if (r < 0.1) m.add('fern', x, y, { v: v % 2 });
         continue;
       }
-      // к югу от тропы высокое не растёт: кроны (до трёх клеток в высоту) закрыли бы тропу и хомячка
-      const belowPath = [1, 2, 3].some((k) => [-1, 0, 1].some((dx) => path.has(x + dx + ',' + (y - k))));
+      // у тропы высокое не растёт: крона дерева — до трёх клеток в высоту и по полторы в стороны, так что дерево
+      // южнее тропы, сбоку от неё (на том же ряду) или наискосок закрыло бы тропу, мост и хомячка (Дж10)
+      const belowPath = [0, 1, 2, 3].some((k) => [-2, -1, 0, 1, 2].some((dx) => path.has(x + dx + ',' + (y - k))));
       if (belowPath) {
         if (r < 0.2) m.add('monstera', x, y, { v: v % 2 });
         else if (r < 0.32) m.add('fern', x, y, { v: v % 2 });
