@@ -1035,7 +1035,7 @@ function makeDeck() {
   g.connect(musicBus);
   const d = { el, g, busy: false, file: null, id: null, files: null, blessed: false, token: 0 };
   el.addEventListener('ended', () => {
-    if (d !== curDeck) return;
+    if (d !== curDeck || !el.src.includes('/music/')) return; // «пробный» файл разрешения звука — не трек
     resumeAt[d.file] = 0;
     plPos[d.id] = (plPos[d.id] || 0) + 1;
     curDeck = null;
