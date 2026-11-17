@@ -2312,7 +2312,8 @@ const runParallel = () => {
       await page.mouse.click(pier.x, pier.y);
       await wait(600);
       if (await ev(() => window.__dev.World.isBoating())) throw new Error('нажатие на пирс у борта не сняло с кораблика');
-      await page.mouse.click(s.x, s.y);
+      const s2 = await ev(() => window.__dev.World.debugScreen(65.5 * 48, 61.2 * 48)); // камера ушла за хомячком
+      await page.mouse.click(s2.x, s2.y);
       await wait(2200);
       await closeAll();
       if (!(await ev(() => window.__dev.World.isBoating()))) throw new Error('не сели на кораблик второй раз');
