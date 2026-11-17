@@ -143,8 +143,8 @@ Settings → Pages → *Deploy from a branch* → ветка `main`, папка 
 | `node dev/balance.js` | расчёт экономики: заработок, цены, нет «вечного двигателя», сезоны, болезнь | секунды |
 | `node dev/bench.js http://localhost:8765` | скорость кадра в городе и во всех местах (модель слабого устройства) | ~10 минут |
 | `node dev/smoke.js http://localhost:8765` | полный автотест: сначала размер компьютера, потом телефона | около часа |
-| `SMOKE_SIZE=desktop node dev/smoke.js http://localhost:8765` | **часть 1** полного автотеста — только компьютер (1280×720) | ~30–35 минут |
-| `SMOKE_SIZE=phone node dev/smoke.js http://localhost:8765` | **часть 2** — только телефон (390×844) | ~30–35 минут |
+| `SMOKE_SIZE=desktop node dev/smoke.js http://localhost:8765` | **часть 1** полного автотеста — только компьютер (1280×720), ~190 шагов | ~34 минуты |
+| `SMOKE_SIZE=phone node dev/smoke.js http://localhost:8765` | **часть 2** — только телефон (390×844), ~170 шагов | ~32 минуты |
 | `SMOKE_SIZE=parallel node dev/smoke.js http://localhost:8765` | обе части сразу, двумя браузерами, итог общий | ~35 минут |
 | `node dev/smoke.js http://localhost:8765 step:лес` | только шаги одной темы (`step:гора`, `step:отель`, `step:праздники`…) | 1–3 минуты |
 
