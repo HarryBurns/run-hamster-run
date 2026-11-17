@@ -1235,9 +1235,11 @@ async function economy({ page, step, ev, wait, closeAll }) {
     expect(!bad.length, 'награды вне 300–600', bad);
   });
   await step('экономика: рынок — продать одну и все, кошелёк торговца, редкости, входы', async () => {
+    await closeAll(); // окна прошлых шагов (письмо, итог дня) — иначе в заголовках не один «Рынок»
     await ev(() => {
       const a = window.__dev.actions,
         s = window.__dev.G.state;
+      a.mutate((st) => (st.minutes = 12 * 60));
       for (const id of Object.keys(s.ing)) a.addItem('ing', id, -s.ing[id]);
       for (const id of Object.keys(s.dishes)) a.addItem('dishes', id, -s.dishes[id]);
       a.addItem('ing', 'carrot', 5);
@@ -2241,6 +2243,13 @@ const runParallel = () => {
     );
     await step('город: новые места — рынок, агентство, двери жилья, «Морская звезда» и тайные места', async () => {
       const title = () => ev(() => (document.querySelector('.overlay .panel-head .title') || {}).textContent || '');
+      // шаг сам себе готовит место и время (можно запускать в одиночку): город, полдень
+      await closeAll();
+      await ev(() => {
+        window.__dev.actions.mutate((s) => (s.minutes = 12 * 60));
+        window.__dev.go('world');
+      });
+      await wait(400);
       await ev(() => window.__dev.enterBuilding('market'));
       await wait(450);
       if (!(await title()).includes('Рынок')) throw new Error('у прилавков рынок не открылся: ' + (await title()));

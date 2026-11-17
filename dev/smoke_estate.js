@@ -384,6 +384,8 @@ module.exports = async function estate({ page, step, ev, wait, closeAll }) {
           for (const q of D.QUESTS)
             if (D.NPCS.some((n) => n.id === q.npc) && !(s.quests[q.id] && s.quests[q.id].done !== null))
               s.quests[q.id] = { day: s.day, n: {}, got: {}, done: s.day };
+          // со всеми уже знакомы (в полном прогоне — по прошлым шагам): незнакомый сначала здоровается на пороге
+          for (const n of D.NPCS) s.friends[n.id].met = true;
         });
       });
       const task = async (id) => {
