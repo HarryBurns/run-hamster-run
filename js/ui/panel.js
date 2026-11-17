@@ -6,6 +6,16 @@ import { sfx } from '../core/audio.js';
 import { G } from '../core/state.js';
 import { openLayer, TAP_GUARD } from './modals.js';
 import { moneyAnchor } from './coins.js';
+import { placeToasts } from './toast.js';
+
+// Пока открыто хоть одно окно, у body есть класс win-open: подсказки (ui/toast.js) тогда встают под шапку окна,
+// компактнее, чтобы не ложиться на заголовок и ✕ окна (Ф2).
+let openPanels = 0;
+const markOpen = (d) => {
+  openPanels += d;
+  document.body.classList.toggle('win-open', openPanels > 0);
+  placeToasts();
+};
 
 /**
  * openPanel({ title, icon, cls, money, tabs:[{id,name}], tab, render(body, tabId, panel), foot:[{text, cls, fn}], onClose })
@@ -56,6 +66,7 @@ export function openPanel(o) {
       if (api.closed) return;
       api.closed = true;
       ov.remove();
+      markOpen(-1);
       if (dropAnchor) dropAnchor();
       closeLayer();
       if (o.onClose) o.onClose();
@@ -90,6 +101,7 @@ export function openPanel(o) {
           foot.appendChild(b);
         }
       }
+      if (openPanels) placeToasts(); // окно могло стать выше или ниже — подсказки за его шапкой
     },
     setTab(id) {
       api.tab = id;
@@ -106,6 +118,7 @@ export function openPanel(o) {
     if (e.target === ov && !o.sticky && performance.now() - born > TAP_GUARD) api.close();
   });
   api.refresh();
+  markOpen(1);
   return api;
 }
 

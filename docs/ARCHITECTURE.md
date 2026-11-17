@@ -353,7 +353,9 @@ run(building.act, { building, back });         // ctx — кто вызвал
 - `ui/panel.js` — `openPanel({ title, tabs, render, foot, onClose })`, `message({...})` → Promise с номером
   кнопки, `confirmBox(...)` → Promise<boolean>.
 - `ui/dialog.js` — `dialog({ look, name, text, options })` → Promise с номером ответа.
-- `ui/toast.js` — `toast(текст, 'good')`.
+- `ui/toast.js` — `toast(текст, 'good')`. Подсказки сверху экрана; пока открыто окно (`openPanel` ставит у `body`
+  класс `win-open`), они встают сразу под шапку и вкладки верхнего окна (`placeToasts()`), мельче и не больше двух —
+  заголовок и ✕ окна и кнопки внизу видны (Ф2).
 - `ui/modals.js` — **слои и очередь**:
   - всё, что закрывает сцену, берёт слой: `const close = openLayer({ dim, cover })` … `close()`. Пока открыт
     хоть один слой — мир на паузе. Счётчики `G.modal / G.dim / G.cover` руками не трогать;

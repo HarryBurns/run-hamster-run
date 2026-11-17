@@ -2210,6 +2210,49 @@ const runParallel = () => {
       await closeAll();
       await ev(() => window.__dev.actions.earn(3000));
     });
+    await step('подсказки при открытом окне — под его шапкой, заголовок и ✕ видны (Ф2)', async () => {
+      const box = () =>
+        ev(() => {
+          const r = (q) => {
+            const e = document.querySelector(q);
+            return e && e.getBoundingClientRect().toJSON();
+          };
+          const ts = [...document.querySelectorAll('#toasts .toast')].filter((t) => getComputedStyle(t).display !== 'none');
+          return {
+            head: r('.overlay .panel-head'),
+            x: r('.overlay .xbtn'),
+            shown: ts.length,
+            top: ts.length ? Math.min(...ts.map((t) => t.getBoundingClientRect().top)) : null,
+          };
+        });
+      await closeAll();
+      await ev(() => window.__dev.ui.toast('Подсказка без окна'));
+      await wait(300);
+      const free = await box();
+      if (free.shown !== 1 || free.top > 120) throw new Error('без окна подсказка не сверху: ' + JSON.stringify(free));
+      await ev(() => {
+        window.__dev.F.openMailbox();
+        window.__dev.ui.toast('Доброе утро! В ящике новое письмо — это длинная подсказка в две строки на телефоне.');
+        window.__dev.ui.toast('Вторая подсказка');
+        window.__dev.ui.toast('Третья подсказка', 'good');
+      });
+      await wait(400);
+      const b = await box();
+      if (!b.head || b.top < b.head.bottom - 1)
+        throw new Error('подсказка легла на шапку окна: ' + JSON.stringify(b));
+      if (b.shown > 2) throw new Error('при открытом окне больше двух подсказок: ' + b.shown);
+      // окно открылось, когда подсказка уже висела — подсказка переезжает под шапку
+      await closeAll();
+      await ev(() => window.__dev.ui.toast('Подсказка перед окном'));
+      await ev(() => window.__dev.F.openBackpack());
+      await wait(300);
+      const c = await box();
+      if (!c.head || c.top < c.head.bottom - 1) throw new Error('подсказка не переехала под шапку: ' + JSON.stringify(c));
+      await closeAll();
+      await wait(100);
+      const d = await box();
+      if (d.shown && d.top > 120) throw new Error('окно закрыто, а подсказки не вернулись наверх: ' + JSON.stringify(d));
+    });
     for (const g of ['swim', 'fishing', 'teacher', 'doctor', 'chef', 'fashion']) {
       await step('мини-игра ' + g, async () => {
         await ev((g) => {
