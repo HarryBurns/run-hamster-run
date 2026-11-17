@@ -335,7 +335,7 @@ export default {
       crew.forEach((f, i) => {
         if (!f.hearts || fallUs) return;
         const x = x0 + gap * (crew.length - 1 - i),
-          y = cy - 62 * s - yank * 10;
+          y = cy - 86 * s - yank * 10;
         ctx.fillStyle = '#e64980';
         ctx.fillText(`❤${f.hearts}`, x, y);
       });
