@@ -47,10 +47,10 @@ function portrait(look, size) {
   }
   return canvas;
 }
-/** «2 июня, 1-й год» */
+/** «Июнь, 2-й день · 1-й год» */
 function dateOf(g) {
   const c = cal({ day: g.day || 0, minutes: g.minutes || 0 });
-  return `${c.dom}-й день, ${c.monthName.toLowerCase()}, ${c.year}-й год`;
+  return `${c.monthName}, ${c.dom}-й день · ${c.year}-й год`;
 }
 
 let current = null; // открытая заставка: { scene } — для автотеста (window.__dev.title)
@@ -114,7 +114,11 @@ export function openTitle({ start }) {
       menu.dataset.mode = 'form';
       if (res.problem === 'broken' && !games.length)
         menu.appendChild(
-          el('div', 'sub', '<small>Старую игру не получилось открыть 😿<br>Мы её не выбросили, а отложили про запас.</small>'),
+          el(
+            'div',
+            'sub',
+            '<small>Старую игру не получилось открыть 😿<br>Мы её не выбросили, а отложили про запас.</small>',
+          ),
         );
       menu.appendChild(el('div', 'sub', 'Как зовут твою хомячку?'));
       const inp = el('input');

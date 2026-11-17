@@ -14,7 +14,18 @@ export function updateSound() {
   const playing = G.state && sc && !document.getElementById('title');
   if (!playing) {
     setMusic('title');
-    setAmbience({ sea: 0, rain: 0, birds: false, night: false, wind: 0, bells: 0, drips: 0 });
+    // на заставке — берег моря (этап 9а): тихий прибой, а дождь и ночь — как в последней игре
+    const t = !!document.getElementById('title'),
+      s = G.state;
+    setAmbience({
+      sea: t ? 0.3 : 0,
+      rain: t && s && s.weather === 'rain' ? 0.2 : 0,
+      birds: false,
+      night: !!(t && s && darkness() > 0.75),
+      wind: 0,
+      bells: 0,
+      drips: 0,
+    });
     return;
   }
   if (document.getElementById('piano')) {

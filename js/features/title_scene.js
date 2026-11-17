@@ -150,7 +150,10 @@ export function createTitleScene(canvas, o) {
       d.x = -20;
       d.y = rnd(H * 0.95);
     }
-    d.c = weather === 'petals' ? pick(['#ffc9de', '#ffe3ec', '#ffb3c8']) : pick(['#f08c00', '#e8590c', '#fcc419', '#c2410c']);
+    d.c =
+      weather === 'petals'
+        ? pick(['#ffc9de', '#ffe3ec', '#ffb3c8'])
+        : pick(['#f08c00', '#e8590c', '#fcc419', '#c2410c']);
     return d;
   }
 
@@ -170,7 +173,7 @@ export function createTitleScene(canvas, o) {
     c.fillStyle = g;
     c.fillRect(0, 0, W, hy + 1);
     // солнце (ночью луну рисуем поверх затемнения — см. frame)
-    if (!night && !rain && !snow) {
+    if (dk < 0.45 && !rain && !snow) {
       const sx = F.x + F.w * 0.66,
         syy = lerp(F.y + 34 * k, hy - 26 * k, dusk);
       const gl = c.createRadialGradient(sx, syy, 4, sx, syy, 110 * k);
@@ -249,8 +252,7 @@ export function createTitleScene(canvas, o) {
     ham.alt++;
     const special = ham.alt % 2 === 1; // через раз: особенное по погоде и времени, иначе — прыжок и «привет»
     if (rain && special) {
-      hamDo('sneeze');
-      say('Апчхи!', 1.3);
+      hamDo('sneeze'); // «апчхи!» рисует сам хомячок (art/hamster.js)
       sfx('sneeze');
       note('sneeze');
     } else if (night && special) {
@@ -384,7 +386,7 @@ export function createTitleScene(canvas, o) {
     }
     if (y < sh + 26 * k) {
       // кромка: набегает волна, хомячок отпрыгивает
-      bigWave(ham.y - sy + 6 * k);
+      bigWave((ham.y - sy) * 0.8);
       note('wave');
       return;
     }
@@ -492,8 +494,9 @@ export function createTitleScene(canvas, o) {
     if (sg > 0) {
       for (const st of strokes)
         for (let i = st.length - 1; i >= 0; i--) if (st[i].y < shoreY(st[i].x, sg) + 6 * k) st.splice(i, 1);
-      for (let i = strokes.length - 1; i >= 0; i--) if (!strokes[i].length && strokes[i] !== drawing) strokes.splice(i, 1);
-      if (ham.st !== 'hop' && sy + sg > ham.y - 26 * k && T - wave.t < 1) {
+      for (let i = strokes.length - 1; i >= 0; i--)
+        if (!strokes[i].length && strokes[i] !== drawing) strokes.splice(i, 1);
+      if (ham.st !== 'hop' && sg > (ham.y - sy) * 0.66 && T - wave.t < 1) {
         hamDo('hop');
         say('Ой, мокро!', 1.3);
       }
@@ -871,7 +874,11 @@ export function createTitleScene(canvas, o) {
     ctx.lineCap = 'round';
     const mx = lerp(p.x, cx, 0.35) - b * p.h * 0.1,
       my = p.y - p.h * 0.55;
-    for (const [col, lw] of [['#8a5a2b', 20], ['#b07a3f', 13]]) { // prettier-ignore
+    for (const [col, lw] of [
+      ['#8a5a2b', 20],
+      ['#b07a3f', 13],
+    ]) {
+      // prettier-ignore
       ctx.strokeStyle = col;
       ctx.lineWidth = lw * k * p.size;
       ctx.beginPath();
@@ -1105,7 +1112,12 @@ export function createTitleScene(canvas, o) {
     ctx.fill();
     ctx.scale(k, k);
     ctx.rotate(wob);
-    for (const [y, r] of [[-18, 20], [-47, 15], [-70, 11]]) { // prettier-ignore
+    for (const [y, r] of [
+      [-18, 20],
+      [-47, 15],
+      [-70, 11],
+    ]) {
+      // prettier-ignore
       circle(0, y, r, '#fff');
       ctx.strokeStyle = '#cfe0ee';
       ctx.lineWidth = 1.5;
@@ -1151,7 +1163,13 @@ export function createTitleScene(canvas, o) {
     ctx.rotate(-0.5 + Math.sin(T * 1.7) * 0.15 + clamp((T - kite.loop) / 1.2, 0, 1) * TAU);
     ctx.scale(k, k);
     const cols = ['#ff6b9d', '#ffd43b', '#4dabf7', '#51cf66'];
-    [[0, -26, 16, 0], [16, 0, 0, 30], [0, 30, -16, 0], [-16, 0, 0, -26]].forEach(([x1, y1, x2, y2], i) => { // prettier-ignore
+    [
+      [0, -26, 16, 0],
+      [16, 0, 0, 30],
+      [0, 30, -16, 0],
+      [-16, 0, 0, -26],
+    ].forEach(([x1, y1, x2, y2], i) => {
+      // prettier-ignore
       ctx.fillStyle = cols[i];
       ctx.beginPath();
       ctx.moveTo(0, 0);
@@ -1170,7 +1188,11 @@ export function createTitleScene(canvas, o) {
   function drawStrokes() {
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
-    for (const [col, lw, dy] of [['rgba(255,255,255,.55)', 7, 2], ['rgba(150,100,45,.6)', 6, 0]]) { // prettier-ignore
+    for (const [col, lw, dy] of [
+      ['rgba(255,255,255,.55)', 7, 2],
+      ['rgba(150,100,45,.6)', 6, 0],
+    ]) {
+      // prettier-ignore
       ctx.strokeStyle = col;
       ctx.lineWidth = lw * Math.max(k, 0.7);
       for (const st of strokes) {
@@ -1242,7 +1264,8 @@ export function createTitleScene(canvas, o) {
       ctx.beginPath();
       ctx.moveTo(ux - R, top + 12 * s);
       ctx.quadraticCurveTo(ux, top - R * 0.9, ux + R, top + 12 * s);
-      for (let i = 3; i >= 0; i--) ctx.quadraticCurveTo(ux - R + (i + 0.5) * (R / 2), top + 2 * s, ux - R + i * (R / 2), top + 12 * s);
+      for (let i = 3; i >= 0; i--)
+        ctx.quadraticCurveTo(ux - R + (i + 0.5) * (R / 2), top + 2 * s, ux - R + i * (R / 2), top + 12 * s);
       ctx.fill();
       ctx.fillStyle = '#ffd43b';
       ctx.beginPath();
@@ -1327,7 +1350,7 @@ export function createTitleScene(canvas, o) {
       ctx.globalAlpha = dk * (0.55 + 0.45 * Math.sin(T * 1.6 + s.ph));
       circle(s.x, s.y, s.r, '#fff');
     }
-    ctx.globalAlpha = dk;
+    ctx.globalAlpha = clamp((dk - 0.3) / 0.4, 0, 1); // луна выходит, когда солнце село
     if (!rain && !snow) {
       const mx = F.x + F.w * 0.66,
         my = F.y + 38 * k;
@@ -1416,11 +1439,11 @@ export function createTitleScene(canvas, o) {
     drawFly(false);
     drawWeather();
     if (rain) {
-      ctx.fillStyle = 'rgba(60,72,95,.16)';
+      ctx.fillStyle = `rgba(60,72,95,${0.16 * (1 - dk * 0.7)})`;
       ctx.fillRect(0, 0, W, H);
     }
     if (dk > 0) {
-      ctx.fillStyle = `rgba(10,16,58,${0.58 * dk})`;
+      ctx.fillStyle = `rgba(10,16,58,${(rain ? 0.5 : 0.58) * dk})`;
       ctx.fillRect(0, 0, W, H);
       drawNightSky();
     }
@@ -1495,8 +1518,10 @@ export function createTitleScene(canvas, o) {
         shell: { ...P(shell.x, shell.y - 6 * k), st: shell.st },
         cloud: (() => {
           // облако, которое не прячется за кроной пальмы
-          const far = (c) => Math.min(...palms.map((p) => Math.hypot(c.x - crown(p)[0], c.y - crown(p)[1]) - p.h * 0.34));
-          const c = clouds.filter((c) => c.x > 60 && c.x < F.x + F.w - 60).sort((a, b) => far(b) - far(a))[0] || clouds[0];
+          const far = (c) =>
+            Math.min(...palms.map((p) => Math.hypot(c.x - crown(p)[0], c.y - crown(p)[1]) - p.h * 0.34));
+          const c =
+            clouds.filter((c) => c.x > 60 && c.x < F.x + F.w - 60).sort((a, b) => far(b) - far(a))[0] || clouds[0];
           return { ...P(c.x, c.y), shape: CLOUD_ORDER[c.shape] };
         })(),
         ship: P(ship.x, hy - 10 * k),
