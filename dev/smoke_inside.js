@@ -202,6 +202,147 @@ module.exports = async function inside({ page, step, ev, wait, closeAll }) {
     expect(r.scene === 'world' && Math.hypot(r.x - (r.g.x - 0.6 * T), r.y - (r.g.y + 1.4 * T)) < 40, 'грот вывел не к буйку', r);
   });
 
+  // ---------- отель: номера разных классов, в гости в номер 203, ночь внутри ----------
+  const toHotel = async (f, x, minutes = 12 * 60, day = 18) => {
+    await closeAll();
+    await ev(
+      ([f, x, minutes, day]) => {
+        const d = window.__dev;
+        d.actions.mutate((s) => {
+          s.day = day;
+          s.minutes = minutes;
+          s.weather = 'sun';
+          s.flags.hotelHint = 1;
+          s.flags.metZvezdochka = 1;
+        });
+        if (d.sceneName !== 'world') d.go('world');
+        d.enterBuilding('hotel');
+        const sc = d.scene;
+        sc.p.f = f;
+        sc.p.x = x;
+        sc.p.path = [];
+        sc.standUp();
+      },
+      [f, x, minutes, day],
+    );
+    await wait(500);
+  };
+  const dlgText = async () => norm(await ev(() => (document.querySelector('.dialog') || { textContent: '' }).textContent));
+  const answer = async (text, ms = 450) => {
+    await page.click(`.dialog .btn:has-text("${text}")`);
+    await wait(ms);
+  };
+
+  await step('внутри: отель — номера трёх классов (эконом, стандарт, с балконом): цена, дверь открывается, кровать, утро в номере', async () => {
+    for (const [cls, no, btn, flag] of [
+      ['eco', 201, 'Эконом', 'eco'],
+      ['balcony', 202, 'С балконом', 'balcony'],
+    ]) {
+      await toHotel(0, 400);
+      const price = await ev(async (cls) => (await import('/js/data/index.js')).HOTEL_ROOMS.find((r) => r.id === cls).price, cls);
+      await ev(() => window.__dev.actions.mutate((s) => (s.dayFlags = {})));
+      // закрытая дверь, пока номер не снят: просто стук
+      await clearToasts();
+      await ev((no) => window.__dev.run('hotel:knock:' + no), no);
+      await wait(300);
+      expect((await sceneName()) === 'hotel' && /Тук-тук/.test(await toasts()), `${no}: дверь до аренды`, [await sceneName(), await toasts()]);
+      const m0 = await ev(() => window.__dev.G.state.money);
+      await ev(() => window.__dev.run('hotel:reception'));
+      await wait(500);
+      await answer('Снять номер');
+      expect(/Эконом/.test(await dlgText()) && /балкон/.test(await dlgText()), 'выбор номера', await dlgText());
+      await answer(btn);
+      const s = await ev(() => ({ money: window.__dev.G.state.money, room: (window.__dev.G.state.dayFlags.hotel || {}).room }));
+      expect(s.room === flag && s.money === m0 - price, `${btn}: цена и отметка`, [s, m0, price]);
+      expect((await dlgText()).includes('Мой номер ' + no), 'ресепшен помнит номер', await dlgText());
+      await closeAll();
+      // кровать стандарта 207 — не наша
+      await clearToasts();
+      await ev(() => window.__dev.run('hotel:bed'));
+      await wait(300);
+      expect(new RegExp('Твой номер сегодня — ' + no).test(await toasts()), 'кровать 207 при другом номере', await toasts());
+      // дверь номера — внутрь
+      await ev((no) => window.__dev.run('hotel:knock:' + no), no);
+      await wait(700);
+      expect((await sceneName()) === 'hotel_' + no, `дверь ${no} не ведёт в номер`, await sceneName());
+      // кровать номера — сон, утро здесь же
+      const day0 = await ev(() => window.__dev.G.state.day);
+      await tapZone('bed');
+      await wait(2600);
+      const pt = norm(await ev(() => [...document.querySelectorAll('.overlay .panel')].map((p) => p.textContent).join(' | ')));
+      expect(/Пора спать/.test(pt), `${no}: кровать не предлагает поспать`, pt);
+      await page.click('.panel-foot .btn.green');
+      await wait(3900);
+      await closeAll();
+      const r = await ev(() => ({ scene: window.__dev.sceneName, day: window.__dev.G.state.day, slept: (window.__dev.G.state.dayFlags.hotel || {}).slept }));
+      expect(r.scene === 'hotel_' + no && r.day === day0 + 1 && r.slept === 1, `${no}: утро не в номере`, r);
+      // дверь номера — в коридор, к своей двери
+      await tapZone('door');
+      for (let i = 0; i < 20 && (await sceneName()) !== 'hotel'; i++) await wait(250);
+      const p = await ev(() => ({ scene: window.__dev.sceneName, f: window.__dev.scene.p.f, x: window.__dev.scene.p.x }));
+      expect(p.scene === 'hotel' && p.f === 1 && Math.abs(p.x - (150 + (no - 201) * 210)) < 2, `${no}: дверь номера не вывела в коридор`, p);
+    }
+  });
+
+  await step('внутри: отель — в номере 203 гостит житель: дверь открыта, житель внутри, в городе его нет; без гостя — стук', async () => {
+    // день, когда в 203 кто-то гостит (жребий по дню), и час из HOTEL.roomGuest
+    const g = await ev(async () => {
+      const D = await import('/js/data/index.js');
+      for (let day = 0; day < 72; day++) {
+        const id = D.roomGuestOn(day, D.HOTEL.roomGuest.from * 60 + 30);
+        if (id) return { day, id, min: D.HOTEL.roomGuest.from * 60 + 30 };
+      }
+      return null;
+    });
+    expect(!!g, 'в 203 никто не гостит за два года');
+    await toHotel(1, 600, g.min, g.day);
+    await ev(() => window.__dev.actions.mutate((s) => (s.guests = [])));
+    const who = await ev(() => window.__dev.QuestState.hotelRoomGuest && window.__dev.QuestState.hotelRoomGuest());
+    await clearToasts();
+    await ev(() => window.__dev.run('hotel:knock:203'));
+    await wait(700);
+    const here = await ev(() => {
+      const sc = window.__dev.scene;
+      return { scene: window.__dev.sceneName, guests: sc.actors.filter((a) => !a.when || a.when()).map((a) => a.id) };
+    });
+    expect(here.scene === 'hotel_203' && here.guests.length === 1, 'номер 203: житель внутри', [here, who]);
+    expect(/Заходи/.test(await toasts()), 'приглашение войти', await toasts());
+    // в городе его нет (away), пока он в отеле
+    const away = await ev(async (id) => (await import('/js/core/state.js')).hotelRoomGuest() === id, here.guests[0]);
+    expect(away, 'житель не считается гостем отеля');
+    await clearToasts();
+    await tapZone('suitcase');
+    await wait(2200);
+    expect(/чемодан|Чемодан|шляпа/.test(await toasts()), 'чемодан молчит', await toasts());
+    await tapZone('door');
+    for (let i = 0; i < 20 && (await sceneName()) !== 'hotel'; i++) await wait(250);
+    expect((await sceneName()) === 'hotel', 'из 203 не вышли в коридор', await sceneName());
+    // вечером гость уехал — опять стук
+    await ev(() => window.__dev.actions.mutate((s) => (s.minutes = 20 * 60)));
+    await clearToasts();
+    await ev(() => window.__dev.run('hotel:knock:203'));
+    await wait(400);
+    expect((await sceneName()) === 'hotel' && /Тук-тук/.test(await toasts()), '203 без гостя — стук', [await sceneName(), await toasts()]);
+  });
+
+  await step('внутри: отель ночью — внутри темнее, горят люстра, бра и гирлянда; днём — как раньше', async () => {
+    await toHotel(0, 300, 12 * 60);
+    const lum = () =>
+      ev(() => {
+        const c = document.querySelector('canvas'),
+          d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data;
+        let s = 0;
+        for (let i = 0; i < d.length; i += 40) s += d[i] + d[i + 1] + d[i + 2];
+        return s / (d.length / 40) / 3;
+      });
+    const day = await lum();
+    await ev(() => window.__dev.actions.mutate((s) => (s.minutes = 23 * 60)));
+    await wait(500);
+    const night = await lum();
+    expect(night < day - 25, 'ночью в отеле не темнее', [day, night]);
+    await ev(() => window.__dev.actions.mutate((s) => (s.minutes = 12 * 60)));
+  });
+
   await step('внутри: наклейка «В гостях у тайных мест» за все дома; ночью внутри темнеет, лампы светят', async () => {
     await closeAll();
     // наклейка: отметок всех домов, кроме одного, — и войти в последний

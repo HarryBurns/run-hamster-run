@@ -19,6 +19,7 @@ import myata from './home_myata.js';
 import bob from './home_bob.js';
 import zefirka from './home_zefirka.js';
 import hotel from './hotel.js';
+import { roomEco, roomBalcony, roomGuest } from './hotel_rooms.js';
 import hutShishkin from './hut_shishkin.js';
 import chalet from './chalet.js';
 import { pyramid, tent } from './desert_inside.js';
@@ -30,8 +31,8 @@ import grotto from './grotto.js';
 export const OWN_HOMES = [villa, flat, bungalow, penthouse, cabin, suite];
 /** Дома жителей. */
 export const NPC_HOMES = [plusha, ponchik, senya, busya, prof, myata, bob, zefirka];
-/** Другие дома: отель. */
-export const OTHER_HOUSES = [hotel];
+/** Другие дома: отель и его номера за дверями коридора (эконом 201, с балконом 202, номер 203 — в гости к жителю). */
+export const OTHER_HOUSES = [hotel, roomEco, roomBalcony, roomGuest];
 /**
  * Дома «тайных мест» (этап 13): чужая мебель, хозяин внутри (его действие — как у него на улице), без persist и exit —
  * дверь ведёт назад к двери снаружи; вход — действие 'inside:<id>' (features/inside.js).

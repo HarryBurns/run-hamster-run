@@ -7,7 +7,7 @@
 import { clamp, seeded } from '../core/util.js';
 import { ell, fillRR, line, poly, emoji } from '../core/draw.js';
 import { NPCS, ING_BY_ID, SEED_BY_ID, TASK_BY_ID, LAND_BY_ID, BIZ_BY_ID } from '../data/index.js';
-import { G, cal, ownsHome, landOpen, guestsWaiting, stepWaits, hotelPoolGuest } from '../core/state.js';
+import { G, cal, ownsHome, landOpen, guestsWaiting, stepWaits, hotelPoolGuest, hotelRoomGuest } from '../core/state.js';
 import { T, OUT, SP, put, defineTiles, defineObjects } from '../engine/topdown/kinds.js';
 import { createTopDownScene } from '../engine/topdown/scene.js';
 import './common/index.js';
@@ -218,7 +218,7 @@ const HANG = {
 };
 // away — житель сейчас не в городе: днём через день кто-то из друзей отдыхает у бассейна отеля (hotelPoolGuest,
 // core/state.js; там же — кто остаётся в городе: ждёт гостей, позвал к себе, у него дело по журналу)
-const awayAtHotel = (id) => hotelPoolGuest() === id;
+const awayAtHotel = (id) => hotelPoolGuest() === id || hotelRoomGuest() === id; // у бассейна или в гостях в номере 203 (От1)
 const ACTORS = NPCS.map((n) => ({
   npc: n.id,
   at: HANG[n.id],

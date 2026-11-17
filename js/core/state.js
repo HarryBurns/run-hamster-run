@@ -22,6 +22,7 @@ import {
   TASK_BY_ID,
   guestHosts,
   poolGuestOn,
+  roomGuestOn,
   HOME_BY_ID,
   BIZ_BY_ID,
   VISIT,
@@ -608,6 +609,15 @@ export function hotelPoolGuest() {
   const s = G.state;
   if (!s) return null;
   const id = poolGuestOn(s.day, s.minutes);
+  if (!id || s.guests.includes(id) || invitedToday(id) || guestsWaiting().includes(id) || questBadge(id)) return null;
+  return id;
+}
+
+/** Кто из жителей сейчас гостит в номере 203 отеля (От1) — с теми же оговорками, что и у бассейна. */
+export function hotelRoomGuest() {
+  const s = G.state;
+  if (!s) return null;
+  const id = roomGuestOn(s.day, s.minutes);
   if (!id || s.guests.includes(id) || invitedToday(id) || guestsWaiting().includes(id) || questBadge(id)) return null;
   return id;
 }

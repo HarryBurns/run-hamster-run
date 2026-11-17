@@ -176,6 +176,7 @@ module.exports = async function hotel({ page, step, ev, wait, closeAll }) {
     expect(/администратор Звёздочка/.test(await dialogText()) && /шведский стол/.test(await dialogText()), 'знакомство на ресепшене', await dialogText());
     const s0 = await state();
     await answer('Снять номер');
+    await answer('Стандарт'); // номера разных классов (От2): стандарт — 207, как раньше
     let s = await state();
     expect(s.money === s0.money - 350 && s.dayFlags.hotel.room === 1, 'номер снят', [s0.money, s.money, s.dayFlags.hotel]);
     expect(/ключ/.test(await dialogText()) && (await ev(() => document.querySelector('.dialog').textContent)).includes('Мой номер'), 'ответ про ключ', await dialogText());

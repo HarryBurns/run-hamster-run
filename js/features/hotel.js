@@ -1,8 +1,11 @@
 // КУРОРТНЫЙ ОТЕЛЬ «Морская звезда» (П.17): что делают в отеле. Сам отель (этажи, стойки, двери, горка, кто где
 // стоит) — interiors/hotel.js; он называет действия реестра hotel:*, а выполняются они здесь:
-//   hotel:reception    Администратор Звёздочка: снять номер 207 на ночь (HOTEL.room), про люкс, что есть в отеле
-//   hotel:bed          кровать в номере 207: снят — лечь спать (сон — features/sleep.js; утро — в номере), нет — подсказка
-//   hotel:knock:<n>    двери номеров 201–205: «Тук-тук!» — там отдыхают гости
+//   hotel:reception    Администратор Звёздочка: снять номер на ночь — эконом 201, стандарт 207 или с балконом 202
+//                      (HOTEL_ROOMS, цены — HOTEL.room и HOTEL.rooms; От2), про люкс, что есть в отеле
+//   hotel:bed[:класс]  кровать номера (207 — стандарт; :eco, :balcony — в номерах 201, 202): снят этот номер — лечь
+//                      спать (сон — features/sleep.js; утро — в номере), нет — подсказка
+//   hotel:knock:<n>    двери номеров 201–205: снятый номер (201, 202) — войти (interiors/hotel_rooms.js); в номере 203
+//                      гостит житель (roomGuestOn, От1) — «Заходи!», в гости; остальные — «Тук-тук!», там отдыхают гости
 //   hotel:suite        золотая дверь «Люкс»: свой номер-люкс — войти (home:suite), не куплен — окно риелтора
 //   hotel:buffet       шведский стол: съесть блюдо; раз в день — за полцены (HOTEL.buffet), после ночи в отеле — даром
 //   hotel:spa          Мастер Пенка: массаж лапок или маска из огурчиков (HOTEL.spa) — короткая сценка, наклейка
@@ -20,11 +23,12 @@ import { makeCanvas, ell, fillRR, line, poly, star } from '../core/draw.js';
 import { on, emit } from '../core/events.js';
 import { sceneName } from '../core/loop.js';
 import { register, run } from '../core/registry.js';
-import { G, darkness, playerLook, ownsHome, canSwim, isSick } from '../core/state.js';
+import { G, darkness, playerLook, ownsHome, canSwim, isSick, hotelRoomGuest } from '../core/state.js';
 import { el, esc, pick, fmtMoney, TAU } from '../core/util.js';
 import { drawHamster } from '../art/hamster.js';
-import { NPC_BY_ID, DISH_BY_ID, HOTEL, HOTEL_ROOM, BUFFET, HOME_BY_ID, SICK_TEXT, animatorNow, npcLook } from '../data/index.js';
-import { HX } from '../interiors/hotel.js';
+import { NPC_BY_ID, DISH_BY_ID, HOTEL, HOTEL_ROOM, HOTEL_ROOMS, GUEST_ROOM, BUFFET, HOME_BY_ID, SICK_TEXT, animatorNow, npcLook } from '../data/index.js';
+import { HX, rentedRoom } from '../interiors/hotel.js';
+import { go } from '../core/loop.js';
 import { dialog } from '../ui/dialog.js';
 import { openLayer } from '../ui/modals.js';
 import { openPanel } from '../ui/panel.js';
@@ -35,8 +39,12 @@ import { playMinigame } from './minigames.js';
 const S = () => G.state;
 const OUT = '#4a3728';
 const HF = () => S().dayFlags.hotel || {};
-/** Снят ли сегодня номер 207. */
-export const hotelRoomRented = () => !!HF().room;
+/** Снят ли сегодня номер (любой класс). */
+export const hotelRoomRented = () => !!rentedRoom();
+const ROOM_BY = Object.fromEntries(HOTEL_ROOMS.map((r) => [r.id, r]));
+/** Где номер: подсказка гостье. */
+const whereRoom = (r) =>
+  r.id === 'std' ? 'второй этаж, комната в самом конце коридора' : `второй этаж, дверь ${r.no} в коридоре`;
 /** Реплика работника отеля по времени суток (lines.day / evening / night). */
 function timeLine(id) {
   const L = NPC_BY_ID[id].lines,
@@ -61,12 +69,12 @@ async function reception() {
   emit('talk', { id: 'zvezdochka' });
   sfx('bell');
   for (;;) {
-    const rented = hotelRoomRented(),
+    const rented = rentedRoom() && ROOM_BY[rentedRoom()],
       suite = HOME_BY_ID.suite;
     const opts = [
       rented
-        ? { text: `🔑 Мой номер ${HOTEL_ROOM}`, cls: 'green', go: 'room' }
-        : { text: `🛏️ Снять номер на ночь — ${coinsText(HOTEL.room)}`, cls: 'green', go: 'rent' },
+        ? { text: `🔑 Мой номер ${rented.no}`, cls: 'green', go: 'room' }
+        : { text: `🛏️ Снять номер на ночь — от ${coinsText(Math.min(...HOTEL_ROOMS.map((r) => r.price)))}`, cls: 'green', go: 'rent' },
       { text: ownsHome('suite') ? '🏨 Мой люкс' : `🏨 Номер-люкс — ${coinsText(suite.price)}`, cls: 'yellow', go: 'suite' },
       { text: '💬 Что есть в отеле?', cls: 'blue', go: 'about' },
       { text: 'Пока!', go: 'bye' },
@@ -74,13 +82,24 @@ async function reception() {
     const i = await sayAs('zvezdochka', text, opts);
     const o = opts[i] || {};
     if (o.go === 'rent') {
-      if (!buy(HOTEL.room)) return;
-      setDayFlag('room', 1, 'hotel');
-      emit('hotel', { what: 'room' });
+      // номера разных классов (От2): дешевле — окно во двор, дороже — свой балкон над морем
+      const ro = [
+        ...HOTEL_ROOMS.map((r) => ({ text: `${r.icon} ${r.name} · ${r.no} — ${r.view} — ${coinsText(r.price)}`, cls: r.id === 'std' ? 'green' : 'blue', room: r })),
+        { text: 'Подумаю' },
+      ];
+      const j = await sayAs('zvezdochka', 'Какой номер хочешь? Эконом — уютный, окошко во двор. Стандарт — с окном на море. А с балконом — свой балкон над морем и большая кровать!', ro);
+      const r = (ro[j] || {}).room;
+      if (!r) {
+        text = 'Конечно, подумай! Номера ждут до самой ночи.';
+        continue;
+      }
+      if (!buy(r.price)) return;
+      setDayFlag('room', r.id === 'std' ? 1 : r.id, 'hotel'); // стандарт — 1, как в старых сохранениях
+      emit('hotel', { what: 'room', room: r.id });
       sfx('ok');
-      text = `Вот твой ключ — номер ${HOTEL_ROOM}! Лифт справа, второй этаж, комната в самом конце коридора. Ложись, когда захочешь: утром проснёшься под шум моря. А завтрак у нас — даром!`;
+      text = `Вот твой ключ — номер ${r.no}, «${r.name}»! Лифт справа, ${whereRoom(r)}. Ложись, когда захочешь: утром проснёшься ${r.id === 'eco' ? 'под чириканье воробьёв во дворе' : 'под шум моря'}. А завтрак у нас — даром!`;
     } else if (o.go === 'room')
-      text = `Номер ${HOTEL_ROOM} ждёт тебя до утра: второй этаж, в конце коридора. На подушке — шоколадка! 🍫`;
+      text = `Номер ${rented.no} ждёт тебя до утра: ${whereRoom(rented)}. На подушке — шоколадка! 🍫`;
     else if (o.go === 'suite')
       text = ownsHome('suite')
         ? 'Твой люкс — на втором этаже, золотая дверь с надписью «Люкс». Там гостиная с видом на море и спальня с джакузи!'
@@ -92,10 +111,16 @@ async function reception() {
 
 // ---------- номер на ночь ----------
 let nightInHotel = false;
-function bed() {
-  if (!hotelRoomRented()) {
+function bed(cls = 'std') {
+  const mine = rentedRoom();
+  if (mine !== cls) {
+    const r = ROOM_BY[cls] || ROOM_BY.std;
     sfx('tap');
-    toast(`🛏️ Номер ${HOTEL_ROOM} свободен. Ключ — на ресепшене у Звёздочки (${coinsText(HOTEL.room)}): тогда здесь можно переночевать.`);
+    toast(
+      mine
+        ? `🛏️ Твой номер сегодня — ${ROOM_BY[mine].no}, «${ROOM_BY[mine].name}». А этот свободен.`
+        : `🛏️ Номер ${r.no} свободен. Ключ — на ресепшене у Звёздочки (${coinsText(r.price)}): тогда здесь можно переночевать.`,
+    );
     return false;
   }
   nightInHotel = true;
@@ -105,12 +130,13 @@ function bed() {
 }
 // утро после ночи в номере: хомячок уже у кровати (движок домов ставит её у кровати в «своей спальне» — номере 207)
 on('wake', () => {
-  if (!S() || sceneName() !== 'hotel' || !nightInHotel) return;
+  if (!S() || !/^hotel/.test(sceneName()) || !nightInHotel) return;
   nightInHotel = false;
+  const eco = sceneName() === 'hotel_201';
   setDayFlag('slept', 1, 'hotel'); // отметка нового дня: завтрак за счёт отеля
   emit('hotel', { what: 'night' });
   award('x_hotel_night', { delay: 2600 });
-  setTimeout(() => toast('🌅 Доброе утро в отеле! За окном шумит море. Завтрак на первом этаже — для гостей отеля даром!', 'good'), 1400);
+  setTimeout(() => toast(`🌅 Доброе утро в отеле! ${eco ? 'Во дворе чирикают воробьи' : 'За окном шумит море'}. Завтрак на первом этаже — для гостей отеля даром!`, 'good'), 1400);
 });
 
 // ---------- двери номеров и люкс ----------
@@ -120,7 +146,27 @@ const KNOCK = [
   'Тук-тук! Тишина… Гости, наверное, на шведском столе 🥐',
   'Тук-тук! «Ой, мы примеряем панамки! Заходи попозже» 👒',
 ];
+/** Дверь номера n в коридоре: свой снятый номер — войти, в 203 гостит житель — в гости, иначе — «тук-тук». */
 function knock(n) {
+  const no = +n,
+    i = HX.doors.findIndex((_, k) => 201 + k === no),
+    back = { scene: 'hotel', floor: 1, x: HX.doors[Math.max(0, i)] },
+    mine = rentedRoom() && ROOM_BY[rentedRoom()];
+  if (mine && mine.no === no && mine.id !== 'std') {
+    sfx('door');
+    go('hotel_' + no, { back });
+    toast(`🔑 Номер ${no}, «${mine.name}». ${mine.id === 'balcony' ? 'Балкон — справа!' : 'Уютно!'} Кровать уже застелена.`);
+    return true;
+  }
+  const who = no === GUEST_ROOM && hotelRoomGuest();
+  if (who) {
+    sfx('tap');
+    setTimeout(() => sfx('door'), 260);
+    go('hotel_' + no, { back });
+    emit('visit', { place: 'hotel_room', npc: who });
+    toast(`🚪 ${no}: Тук-тук! «Это ты? Заходи! Я тут гощу до обеда — ${NPC_BY_ID[who].name} 🧳»`);
+    return true;
+  }
   sfx('tap');
   setTimeout(() => sfx('tap'), 160);
   toast(`🚪 ${n}: ${pick(KNOCK)}`);
@@ -475,6 +521,7 @@ register(
   (p) => {
     const [what, arg] = String(p.arg || '').split(':');
     if (what === 'knock') return knock(arg);
+    if (what === 'bed') return bed(arg || 'std');
     const fn = ACTS[what];
     if (!fn) {
       console.error('hotel: неизвестное занятие ' + p.arg);
@@ -482,7 +529,7 @@ register(
     }
     return fn();
   },
-  'курортный отель: hotel:reception | bed | knock:<номер> | suite | buffet | spa | animator | schedule | slide | porter',
+  'курортный отель: hotel:reception | bed[:eco|balcony] | knock:<номер> | suite | buffet | spa | animator | schedule | slide | porter',
 );
 
 // первый вход в отель: наклейка и подсказка, куда идти

@@ -13,7 +13,7 @@
 import { G, ownsHome, hotelPoolGuest } from '../core/state.js';
 import { ell, fillRR, line, poly, star, shade, emoji } from '../core/draw.js';
 import { TAU } from '../core/util.js';
-import { HOTEL_DOORS, HOTEL_ROOM, POOL_GUESTS, animatorNow } from '../data/index.js';
+import { HOTEL_DOORS, HOTEL_ROOM, HOTEL_ROOMS, POOL_GUESTS, animatorNow } from '../data/index.js';
 
 const OUT = '#4a3728';
 const W = 2000;
@@ -36,7 +36,12 @@ export const HX = {
 };
 const HF = () => (G.state && G.state.dayFlags.hotel) || {};
 /** Снят ли номер 207 на эту ночь. */
-export const roomRented = () => !!HF().room;
+export const roomRented = () => rentedRoom() === 'std';
+/** Какой номер снят на эту ночь: 'eco' | 'std' | 'balcony' или null (в отметке дня 1 — стандарт, как раньше). */
+export const rentedRoom = () => {
+  const r = HF().room;
+  return r === 1 || r === 'std' ? 'std' : r === 'eco' || r === 'balcony' ? r : null;
+};
 const evening = () => G.state && animatorNow(G.state.minutes) === 'evening';
 
 /** Видна ли на экране полоса x0..x1 этажа f (v — sc.view; нет — видно всё). */
@@ -189,6 +194,12 @@ function drawCorridor(ctx) {
     fillRR(ctx, x - 38, y - 180, 76, 180, 4, ['#ffd8a8', '#c5f6fa', '#d0bfff', '#b2f2bb', '#ffc9c9'][i], OUT, 1.5);
     fillRR(ctx, x - 22, y - 168, 44, 22, 6, '#fff', OUT, 1.5);
     label(ctx, String(HOTEL_DOORS[i]), x, y - 156, 15);
+    // номера, которые сдают на ночь (От2): под номером — класс
+    const cls = HOTEL_ROOMS.find((r) => r.no === HOTEL_DOORS[i]);
+    if (cls) {
+      fillRR(ctx, x - 34, y - 140, 68, 18, 6, '#fff', OUT, 1.2);
+      label(ctx, cls.name, x, y - 131, 10, '#1971c2');
+    }
     ell(ctx, x + 26, y - 88, 4, 4, '#ffd43b', OUT, 1.2);
     // бра между дверями
     const lx = x + 105;
@@ -331,6 +342,12 @@ export default {
   exit: 'home-exit',
   music: 'town',
   door: { f: 0, x: 170 },
+  // свет вечером и ночью (engine/side/light.js): люстра холла, бра в коридоре, гирлянда и фонари на крыше
+  lamps: [
+    { f: 0, x: 260, h: 214, r: 300 },
+    ...HX.doors.map((x) => ({ f: 1, x: x + 105, h: 180, r: 170 })),
+    ...[200, 560, 920, 1280, 1640].map((x) => ({ f: 2, x, h: 220, r: 240, c: '255,214,140' })),
+  ],
   shell: { wall: '#fff4e6', roof: '#1098ad', flat: true, chimneyX: null, bushes: true, trees: 'palm', ground: 'sand' },
   rooms: [
     { id: 'lobby', f: 0, x0: 0, x1: 780, name: 'Холл', wall: '#fff3bf', paper: 'diamonds', floor: 'check', win: null },

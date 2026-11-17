@@ -8,6 +8,20 @@ import { dayRoll, pickOn } from './stock.js';
 export const HOTEL_DOORS = [201, 202, 203, 204, 205];
 /** Номер, который сдают на ночь (комната справа от коридора). */
 export const HOTEL_ROOM = 207;
+/**
+ * Номера на ночь разных классов (От2): стандарт — 207 (комната отеля справа от коридора, окно на море), эконом — 201
+ * (окно во двор), с балконом — 202 (балкон на море). Эконом и балкон — свои маленькие сцены (interiors/hotel_rooms.js),
+ * дверь в коридоре открывается, когда номер снят. id лежит в отметке дня dayFlags.hotel.room (1 — стандарт, как раньше).
+ */
+export const HOTEL_ROOMS = [
+  { id: 'eco', no: 201, name: 'Эконом', icon: '🛏️', view: 'окно во двор', price: HOTEL.rooms.eco },
+  { id: 'std', no: HOTEL_ROOM, name: 'Стандарт', icon: '🌊', view: 'окно на море', price: HOTEL.room },
+  { id: 'balcony', no: 202, name: 'С балконом', icon: '🌅', view: 'свой балкон над морем', price: HOTEL.rooms.balcony },
+];
+/** Номер, где гостит житель (От1): к нему можно зайти в гости — дверь открыта. */
+export const GUEST_ROOM = 203;
+/** Кто из жителей гостит в номере GUEST_ROOM (не те, что отдыхают у бассейна, — POOL_GUESTS). */
+export const ROOM_GUESTS = ['plusha', 'myata', 'prof', 'ponchik'];
 /** Шведский стол: блюда из кафе, пляжного кафе и ресторана (цены — PRICES.cafe). Только «съесть тут». */
 export const BUFFET = ['croissant', 'cocoa', 'cookies', 'watermelon', 'lemonade', 'pasta', 'pizza'];
 
@@ -31,4 +45,15 @@ export function poolGuestOn(day, minutes) {
   if (h < HOTEL.poolGuest.from || h >= HOTEL.poolGuest.to) return null;
   if (dayRoll(day, 'hotel:pool') >= 0.5) return null;
   return pickOn(day, 'hotel:pool', POOL_GUESTS, 1)[0] || null;
+}
+
+/**
+ * Кто из жителей сегодня в это время гостит в номере GUEST_ROOM — id или null. Через день (свой жребий — не в те же
+ * дни, что бассейн, не обязательно), только в часы HOTEL.roomGuest. Пока он здесь, в городе его нет.
+ */
+export function roomGuestOn(day, minutes) {
+  const h = minutes / 60;
+  if (h < HOTEL.roomGuest.from || h >= HOTEL.roomGuest.to) return null;
+  if (dayRoll(day, 'hotel:room') >= 0.5) return null;
+  return pickOn(day, 'hotel:room', ROOM_GUESTS, 1)[0] || null;
 }
