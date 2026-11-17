@@ -1,4 +1,4 @@
-/* Run, Hamster, Run! — оформление интерфейса */
+/* «Пушистая жизнь» — оформление интерфейса */
 :root {
   --ink: #4a3728;
   --paper: #fffaf0;
@@ -291,9 +291,11 @@ h4.sect .muted { font-size: 13px; }
 .stars .off { filter: grayscale(1); opacity: .3; }
 
 /* ---------- заставка ---------- */
-#title {
-  position: fixed; inset: 0; z-index: 70; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px;
-  background: linear-gradient(#8fd3ff, #d8f5ff 55%, #ffe8a1 56%, #ffd98a); padding: 16px; text-align: center;
+#title { position: fixed; inset: 0; z-index: 70; overflow: hidden; background: #8fd3ff; text-align: center; }
+#title .t-scene { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; cursor: pointer; }
+#title .t-head {
+  position: absolute; left: 0; right: 0; top: 0; pointer-events: none;
+  padding: calc(14px + env(safe-area-inset-top)) 12px 6px; display: flex; flex-direction: column; align-items: center; gap: 8px;
 }
 #title h1 {
   margin: 0; font-size: clamp(34px, 9vw, 72px); line-height: .95; color: #fff; font-weight: 900; letter-spacing: 1px;
@@ -301,9 +303,60 @@ h4.sect .muted { font-size: 13px; }
   -webkit-text-stroke: 2px var(--pink-d);
 }
 #title .sub { font-size: clamp(15px, 3.6vw, 22px); font-weight: 800; }
+#title .t-head .sub, #title .t-menu .sub { background: rgba(255, 255, 255, .86); border-radius: 999px; padding: 4px 16px; }
+#title .t-menu .sub { border-radius: 18px; }
+/* кнопки: экран стоит — внизу по центру; лежит — справа; сцена занимает всё остальное (features/title.js: free) */
+#title .t-menu {
+  position: absolute; left: 50%; transform: translateX(-50%); bottom: calc(14px + env(safe-area-inset-bottom));
+  display: flex; flex-direction: column; gap: 10px; align-items: center; width: min(92vw, 380px);
+  padding: 12px; border-radius: 24px; background: rgba(255, 255, 255, .5); backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px);
+}
+#title .t-menu .btn.big { width: 100%; }
+#title .t-row { display: flex; gap: 10px; width: 100%; }
+#title .t-row .btn { flex: 1; white-space: nowrap; padding-left: 8px; padding-right: 8px; }
+@media (orientation: landscape) {
+  #title .t-menu {
+    left: auto; right: calc(18px + env(safe-area-inset-right)); bottom: auto; top: 56%; transform: translateY(-50%); width: min(34vw, 340px);
+  }
+}
+@media (orientation: landscape) and (max-height: 520px) {
+  #title h1 { font-size: clamp(26px, 6vh + 10px, 44px); }
+  #title .t-head { padding-top: calc(6px + env(safe-area-inset-top)); gap: 4px; }
+  #title .t-head .sub { font-size: 13px; padding: 2px 12px; }
+  #title .t-menu { gap: 6px; padding: 8px; top: 58%; width: min(38vw, 300px); }
+  #title .t-menu .btn.big { font-size: 18px; padding: 9px 16px; }
+  #title .t-menu .btn { min-height: 40px; padding-top: 6px; padding-bottom: 6px; }
+  #title .t-menu .sub { font-size: 14px; }
+  #title input { font-size: 18px; padding: 6px 10px; }
+}
 #title input {
   font: inherit; font-size: 22px; font-weight: 800; text-align: center; padding: 10px 14px; border-radius: 16px; border: 4px solid var(--pink);
-  width: min(80vw, 300px); color: var(--ink); background: #fff; outline: none; user-select: text; -webkit-user-select: text;
+  width: min(100%, 300px); color: var(--ink); background: #fff; outline: none; user-select: text; -webkit-user-select: text;
+}
+#title ~ .overlay { z-index: 75; } /* окна заставки («Мои игры», вопросы) — поверх неё */
+/* «Мои игры» */
+.g-list { display: flex; flex-direction: column; gap: 10px; }
+.g-card {
+  display: grid; grid-template-columns: 64px 1fr auto auto; gap: 6px 10px; align-items: center;
+  background: #fff; border: 3px solid var(--line); border-radius: 18px; padding: 8px 10px;
+}
+.g-face { border-radius: 50%; background: #e7f5ff; flex: none; }
+.g-info { display: flex; flex-direction: column; gap: 2px; text-align: left; min-width: 0; font-size: 14px; }
+.g-info b { font-size: 18px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.g-last { font-size: 11px; font-weight: 800; background: var(--yellow); border-radius: 999px; padding: 1px 8px; vertical-align: middle; }
+.g-more { min-width: 40px; padding-left: 8px; padding-right: 8px; }
+.g-extra { grid-column: 1 / -1; display: flex; justify-content: flex-end; border-top: 2px dashed var(--line); padding-top: 8px; }
+.g-ask { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.g-ask p { margin: 0; }
+.g-hold { position: relative; overflow: hidden; touch-action: none; color: #c92a2a; }
+.g-hold i { position: absolute; left: 0; top: 0; bottom: 0; width: 0; background: #ffc9c9; }
+.g-hold.on i { width: 100%; transition: width var(--hold, 1300ms) linear; }
+.g-hold span { position: relative; }
+@media (max-width: 420px) {
+  .g-card { grid-template-columns: 52px 1fr auto auto; gap: 4px 6px; padding: 6px; }
+  .g-card .g-face { width: 52px !important; height: 52px !important; }
+  .g-info { font-size: 12px; }
+  .g-info b { font-size: 16px; }
 }
 .fade { position: fixed; inset: 0; background: #1b1b3a; z-index: 80; opacity: 0; pointer-events: none; transition: opacity .35s; }
 .fade.on { opacity: 1; pointer-events: auto; }
@@ -351,19 +404,11 @@ h4 { margin: 4px 0; font-size: 16px; }
 #mg ~ .overlay { z-index: 55; }
 #mg ~ #toasts { z-index: 90; }
 #hud.decor .hud-btns, #hud.decor .chip.task { display: none; }
-#title canvas { display: block; }
 .help li { margin: 6px 0; line-height: 1.3; }
 @media (max-width: 520px) {
   .panel-head { font-size: 17px; padding-left: 12px; gap: 7px; }
   .panel-head .title { white-space: normal; line-height: 1.1; }
   .panel-head .money { font-size: 13px; padding: 3px 7px; }
-}
-#title .hero { display: flex; flex-direction: column; align-items: center; gap: 10px; }
-@media (max-height: 520px) and (orientation: landscape) {
-  #title { flex-direction: row; gap: 28px; }
-  #title h1 { font-size: clamp(26px, 6vh + 10px, 44px); }
-  #title .hero { gap: 4px; }
-  #title .hero canvas { width: 150px !important; height: 142px !important; }
 }
 .vol { display: flex; align-items: center; gap: 10px; font-size: 20px; padding: 0 6px; }
 .vol input { flex: 1; height: 28px; accent-color: var(--pink); touch-action: pan-x; }

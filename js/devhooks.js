@@ -7,6 +7,8 @@ import * as registry from './core/registry.js';
 import * as loop from './core/loop.js';
 import * as audio from './core/audio.js';
 import * as modals from './ui/modals.js';
+import * as games from './core/games.js';
+import { titleDebug } from './features/title.js';
 import { message, openPanel } from './ui/panel.js';
 import { dialog } from './ui/dialog.js';
 import { toast } from './ui/toast.js';
@@ -78,6 +80,13 @@ export function installDevHooks({ F }) {
   window.__dev = {
     /** Состояние времени выполнения: G.state — сохранение, G.time, G.view, G.modal. */
     G,
+    /** Несколько игр (core/games.js): список, активная, создать, открыть, удалить. */
+    games,
+    /** Сцена заставки, пока она открыта (features/title_scene.js): title.debug() — где что стоит и что потрогали. */
+    get title() {
+      const t = titleDebug();
+      return t ? t.scene : null;
+    },
     get state() {
       return G.state;
     },

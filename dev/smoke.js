@@ -37,6 +37,7 @@ const jungle = require('./smoke_jungle.js'); // П.9: джунгли — зад�
 const sbeach = require('./smoke_sbeach.js'); // П.9: секретный пляж — задание Зефирки, грот, черепашата, «Замок из песка», Жемчужинка
 const island = require('./smoke_island.js'); // П.9: удалённый остров — задание Этажкина, плавание на юг, Вождь Кокос, боулинг, праздник огней
 const hotel = require('./smoke_hotel.js'); // П.17: курортный отель — номер на ночь, шведский стол, спа, аниматор, «Горка», носильщица, люкс
+const title = require('./smoke_title.js'); // этап 9а: заставка, несколько игр, удаление нарочно, живая сцена
 const holidays = require('./smoke_holidays.js'); // П.13: праздники — Новый год, Рождество, Китайский Новый год, Масленица
 
 // Размер (этап 8): переменная SMOKE_SIZE=desktop|phone или аргумент size:desktop / size:phone — только этот размер
@@ -2795,6 +2796,7 @@ const runParallel = () => {
     await island({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
     await hotel({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
     await holidays({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
+    await title({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
     await estate({ page, step: (n, f, o) => step(n, f, { ...o, extra: true, estate: true }), ev, wait, closeAll });
     if (tag === 'desktop')
       await extra({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll, hold });

@@ -1,9 +1,10 @@
-// Меню: музыка и звуки, «Как играть», «Начать заново».
-import { G, cal, wipe } from '../core/state.js';
+// Меню: музыка и звуки, «Как играть», «Выйти на заставку».
+import { G, cal } from '../core/state.js';
+import { persist } from '../core/loop.js';
 import { el, esc } from '../core/util.js';
 import { sfx, isMuted, setMuted, isMusicOn, setMusicOn, getMusicVolume, setMusicVolume } from '../core/audio.js';
 import { run } from '../core/registry.js';
-import { openPanel, message, confirmBox } from '../ui/panel.js';
+import { openPanel, message } from '../ui/panel.js';
 
 export function openSettings() {
   openPanel({
@@ -64,23 +65,15 @@ export function openSettings() {
       own.append(homes, biz);
       const help = el('button', 'btn yellow', '❓ Как играть');
       help.onclick = () => showHelp();
-      const reset = el('button', 'btn ghost', '🗑️ Начать заново');
-      reset.onclick = async () => {
-        if (
-          await confirmBox(
-            'Начать заново?',
-            '<p class="center">Вся игра сотрётся: наряды, мебель, друзья и наклейки. Точно?</p>',
-            'Да, стереть',
-            'Нет-нет!',
-          )
-        ) {
-          wipe();
-          location.reload();
-        }
+      // Новую игру начинают на заставке («Новая игра» — рядом со старыми); стереть игру отсюда нельзя.
+      const exit = el('button', 'btn ghost', '🚪 Выйти на заставку');
+      exit.onclick = () => {
+        persist();
+        location.reload();
       };
       const col = el('div');
       col.style.cssText = 'display:flex;flex-direction:column;gap:12px;align-items:stretch';
-      col.append(own, mus, vol, snd, help, reset);
+      col.append(own, mus, vol, snd, help, exit);
       body.appendChild(col);
     },
   });

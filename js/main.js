@@ -1,5 +1,5 @@
 // Запуск игры: собирает вместе сцены, HUD и заставку. Имён сцен здесь нет нигде, кроме их регистрации.
-import { G, newGame, load, loadProblem, backupSave, repair, hasSave, wipe, unload } from './core/state.js';
+import { G, repair } from './core/state.js';
 import { mutate, award, addItem, addClothes, setFlag } from './core/actions.js';
 import {
   startLoop,
@@ -13,12 +13,10 @@ import {
   resetFailures,
   safely,
 } from './core/loop.js';
-import { el, esc, fmtMoney } from './core/util.js';
-import { makeCanvas } from './core/draw.js';
-import { drawHamster, blinkAt } from './art/hamster.js';
-import { resolveLook, START_OUTFIT, defaultLook, START_MONEY, FLIPFLOPS_GIFT } from './data/index.js';
-import { sfx, unlockAudio } from './core/audio.js';
-import { message, confirmBox } from './ui/panel.js';
+import { esc, fmtMoney } from './core/util.js';
+import { START_MONEY, FLIPFLOPS_GIFT } from './data/index.js';
+import { unlockAudio } from './core/audio.js';
+import { message } from './ui/panel.js';
 import { toast } from './ui/toast.js';
 import { initHud, buildHud, updateHud } from './ui/hud.js';
 import town from './locations/town.js';
@@ -38,6 +36,7 @@ import TowerScene from './interiors/tower.js';
 import DiveScene from './interiors/dive.js';
 import * as F from './features/index.js';
 import { preloadMinigames } from './minigames/host.js';
+import { openTitle } from './features/title.js';
 import { installDevHooks } from './devhooks.js';
 
 const canvas = document.getElementById('game');
@@ -113,7 +112,7 @@ function showBroken() {
   });
 }
 
-// ---------- заставка ----------
+// ---------- начало игры (заставка — features/title.js) ----------
 function startGame(fresh) {
   buildHud();
   F.initEvents();
@@ -158,116 +157,9 @@ function startGame(fresh) {
     });
   }
 }
-function titleScreen() {
-  const t = el('div');
-  t.id = 'title';
-  const { canvas: cv, ctx: c2 } = makeCanvas(200, 190);
-  const look = resolveLook({
-    ...defaultLook(),
-    outfit: { ...START_OUTFIT },
-    beauty: { ...defaultLook().beauty, bow: '#ff5c8a' },
-  });
-  let raf = 0;
-  const t0 = performance.now();
-  const loop = () => {
-    const tt = (performance.now() - t0) / 1000;
-    c2.clearRect(0, 0, 200, 190);
-    drawHamster(c2, 100, 172, 1.9, look, {
-      time: tt,
-      happy: tt % 4 > 3,
-      armsUp: tt % 4 > 3 && Math.sin(tt * 10) > 0,
-      blink: blinkAt(tt),
-    });
-    raf = requestAnimationFrame(loop);
-  };
-  loop();
-  const hero = el('div', 'hero');
-  hero.appendChild(el('h1', '', 'Run, Hamster, Run!'));
-  hero.appendChild(el('div', 'sub', 'Большая жизнь маленького хомячка'));
-  hero.appendChild(cv);
-  t.appendChild(hero);
-  const go = (fresh) => {
-    cancelAnimationFrame(raf);
-    t.remove();
-    unlockAudio();
-    sfx('win');
-    startGame(fresh);
-  };
-  const newForm = () => {
-    form.innerHTML = '';
-    form.appendChild(el('div', 'sub', 'Как зовут твою хомячку?'));
-    const inp = el('input');
-    inp.maxLength = 14;
-    inp.value = 'Хомка';
-    inp.setAttribute('aria-label', 'Имя');
-    const b = el('button', 'btn big green', 'Играть! ▶');
-    b.onclick = () => {
-      newGame((inp.value || '').trim() || 'Хомка');
-      go(true);
-    };
-    inp.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') b.click();
-    });
-    form.append(inp, b);
-  };
-  const form = el('div');
-  form.style.cssText = 'display:flex;flex-direction:column;gap:12px;align-items:center';
-  if (hasSave() && load()) {
-    const b1 = el('button', 'btn big green', `Продолжить ▶`);
-    b1.onclick = () => go(false);
-    const b2 = el('button', 'btn ghost', 'Новая игра');
-    b2.onclick = async () => {
-      if (
-        await confirmBox(
-          'Новая игра?',
-          `<p class="center">Сохранённая игра (${esc(G.state.name)}) сотрётся. Начать заново?</p>`,
-          'Да',
-          'Нет',
-        )
-      ) {
-        wipe();
-        unload();
-        newForm();
-      }
-    };
-    form.append(el('div', 'sub', `С возвращением, ${esc(G.state.name)}!`), b1, b2);
-  } else if (loadProblem === 'newer') {
-    // сохранение от более новой версии игры: не затираем, предлагаем обновить страницу
-    const b1 = el('button', 'btn big green', 'Обновить 🔄');
-    b1.onclick = () => location.reload();
-    const b2 = el('button', 'btn ghost', 'Новая игра');
-    b2.onclick = async () => {
-      if (
-        await confirmBox('Новая игра?', '<p class="center">Сохранённая игра сотрётся. Начать заново?</p>', 'Да', 'Нет')
-      ) {
-        backupSave();
-        wipe();
-        newForm();
-      }
-    };
-    form.append(
-      el('div', 'sub', 'Игра обновилась, а страница — ещё нет.<br>Нажми «Обновить», чтобы продолжить свою игру.'),
-      b1,
-      b2,
-    );
-  } else {
-    newForm();
-    if (loadProblem === 'broken')
-      form.prepend(
-        el(
-          'div',
-          'sub',
-          '<small>Старую игру не получилось открыть 😿<br>Мы её не выбросили, а отложили про запас.</small>',
-        ),
-      );
-  }
-  t.appendChild(form);
-  document.body.appendChild(t);
-}
-
 every(0.25, F.updateSound, { needScene: false });
 every(1, updateHud);
 every(20, persist);
 installDevHooks({ F });
-titleScreen();
+openTitle({ start: startGame });
 startLoop(canvas, { onBroken: showBroken, onGesture: unlockAudio });

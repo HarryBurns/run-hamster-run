@@ -35,8 +35,10 @@ import {
   defaultLook,
 } from '../data/index.js';
 
-const KEY = 'rhr-save-v1'; // ключ хранилища («v1» в имени — исторически; версия сохранения лежит в поле v)
-const BACKUP_KEY = 'rhr-save-backup'; // копия сохранения: перед миграцией и когда его не удалось прочитать
+// Ключ хранилища («v1» в имени — исторически; версия сохранения лежит в поле v). Здесь всегда лежит ТА ИГРА,
+// В КОТОРУЮ ИГРАЮТ СЕЙЧАС; остальные игры (профили) и их список хранит core/games.js.
+export const KEY = 'rhr-save-v1';
+export const BACKUP_KEY ='rhr-save-backup'; // копия сохранения: перед миграцией и когда его не удалось прочитать
 
 /**
  * Миграции сохранения. MIGRATIONS[n](s) переводит сохранение версии n в версию n + 1 (меняет s на месте).
@@ -435,6 +437,8 @@ export function repair(s) {
   const okPos =
     p && typeof p === 'object' && typeof p.scene === 'string' && fin(p.x) && (p.scene !== 'world' || fin(p.y));
   if (!okPos) s.pos = { scene: 'villa', floor: 0, x: 290 };
+  // gid — чья это игра в списке игр (core/games.js); старое сохранение без него — «активная игра»
+  if (s.gid !== undefined && (typeof s.gid !== 'string' || !/^[\w-]{1,24}$/.test(s.gid))) delete s.gid;
   return s;
 }
 /** Забыть загруженную игру (перед «Новой игрой» на заставке). */
