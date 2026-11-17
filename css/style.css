@@ -100,11 +100,11 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .toast.good { background: #2f9e44; }
 .toast.out { opacity: 0; transition: opacity .4s; }
 @keyframes toast-in { from { transform: translateY(-12px) scale(.9); opacity: 0; } to { transform: none; opacity: 1; } }
-/* открыто окно (класс ставит ui/panel.js): подсказки сразу под шапкой окна (top ставит ui/toast.js), компактнее
+/* открыто окно (класс ставит ui/panel.js): подсказки на нижнем краю шапки окна (top ставит ui/toast.js), компактнее
    и не больше двух — заголовок и ✕ окна остаются на виду (Ф2); лёжа на телефоне — шире и мельче, чтобы длинная
    подсказка занимала одну-две строки */
 body.win-open #toasts { gap: 4px; }
-body.win-open .toast { font-size: 14px; padding: 6px 14px; opacity: .96; }
+body.win-open .toast { font-size: 14px; padding: 5px 14px; line-height: 1.25; opacity: .94; }
 body.win-open .toast.out { opacity: 0; }
 body.win-open .toast:nth-last-child(n + 3) { display: none; }
 @media (max-height: 520px) and (orientation: landscape) {

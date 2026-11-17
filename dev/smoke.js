@@ -2375,11 +2375,22 @@ const runParallel = () => {
             return e && e.getBoundingClientRect().toJSON();
           };
           const ts = [...document.querySelectorAll('#toasts .toast')].filter((t) => getComputedStyle(t).display !== 'none');
+          // текст заголовка окна (сам .title растянут до монеток — берём рамку букв)
+          const title = document.querySelector('.overlay .panel-head .title'),
+            rg = title && document.createRange();
+          if (rg) rg.selectNodeContents(title);
+          const hit = (a) =>
+            !!a && ts.some((t) => {
+              const b = t.getBoundingClientRect();
+              return b.left < a.right && b.right > a.left && b.top < a.bottom && b.bottom > a.top;
+            });
           return {
             head: r('.overlay .panel-head'),
             x: r('.overlay .xbtn'),
             shown: ts.length,
             top: ts.length ? Math.min(...ts.map((t) => t.getBoundingClientRect().top)) : null,
+            onTitle: hit(rg && rg.getBoundingClientRect()),
+            onX: hit(document.querySelector('.overlay .xbtn') && document.querySelector('.overlay .xbtn').getBoundingClientRect()),
           };
         });
       await closeAll();
@@ -2397,7 +2408,8 @@ const runParallel = () => {
       });
       await wait(400);
       const b = await box();
-      if (!b.head || b.top < b.head.bottom - 1)
+      // подсказка сидит на нижнем краю шапки: заходит на неё не больше чем на 16 пикселей, заголовок и ✕ не закрывает
+      if (!b.head || b.top < b.head.bottom - 17 || b.onTitle || b.onX)
         throw new Error('подсказка легла на шапку окна: ' + JSON.stringify(b));
       if (b.shown > 2) throw new Error('при открытом окне больше двух подсказок: ' + b.shown);
       // окно открылось, когда подсказка уже висела — подсказка переезжает под шапку
@@ -2406,7 +2418,7 @@ const runParallel = () => {
       await ev(() => window.__dev.F.openBackpack());
       await wait(300);
       const c = await box();
-      if (!c.head || c.top < c.head.bottom - 1) throw new Error('подсказка не переехала под шапку: ' + JSON.stringify(c));
+      if (!c.head || c.top < c.head.bottom - 17 || c.onTitle || c.onX) throw new Error('подсказка не переехала под шапку: ' + JSON.stringify(c));
       await closeAll();
       await wait(100);
       const d = await box();
