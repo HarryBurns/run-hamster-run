@@ -833,13 +833,17 @@ function drawHat(ctx, item, side = 1) {
             ctx.stroke();
           }
       }
-      const cols = ['#ff8fab', '#ffd43b', '#fff', '#c77dff', '#ff8fab', '#ffd43b', '#fff'];
+      // венок из цветов острова (island): плюмерия, гибискус и орхидея — крупнее и с листиками
+      const cols = item.island
+        ? ['#fff8e1', '#f03e3e', '#da77f2', '#fff8e1', '#f03e3e', '#da77f2', '#fff8e1']
+        : ['#ff8fab', '#ffd43b', '#fff', '#c77dff', '#ff8fab', '#ffd43b', '#fff'];
       for (let i = 0; i < 7; i++) {
         const a = Math.PI + (i / 6) * Math.PI;
         const px = Math.cos(a) * 23,
           py = -66 + Math.sin(a) * 9;
-        ell(ctx, px, py, 5.5, 5.5, cols[i], OUT, 1.2);
-        ell(ctx, px, py, 2, 2, '#ffa94d');
+        if (item.island) ell(ctx, px + (i % 2 ? 5 : -5), py + 3, 4.5, 2.4, '#51cf66', OUT, 1, i % 2 ? 0.6 : -0.6);
+        ell(ctx, px, py, item.island ? 6.2 : 5.5, item.island ? 6.2 : 5.5, cols[i], OUT, 1.2);
+        ell(ctx, px, py, 2, 2, item.island && cols[i] !== '#fff8e1' ? '#ffd43b' : '#ffa94d');
       }
       break;
     }

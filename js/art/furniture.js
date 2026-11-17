@@ -733,6 +733,35 @@ const D = {
     poly(c, [0, r, 16, r - 8, 16, r + 10], '#e03131', OUT, 1.6);
     ell(c, 0, r, 5, 5, '#c92a2a', OUT, 1.4);
   },
+  // гирлянда из цветов острова: зелёная лиана дугой и на ней по очереди плюмерия, гибискус и орхидея
+  flowergarland(c, d, w, h) {
+    const at = (t) => [-w / 2 + t * w, -h / 2 + 4 + 4 * t * (1 - t) * (h - 22)];
+    c.beginPath();
+    c.moveTo(...at(0));
+    for (let i = 1; i <= 20; i++) c.lineTo(...at(i / 20));
+    c.strokeStyle = OUT;
+    c.lineWidth = 4.5;
+    c.stroke();
+    c.strokeStyle = '#51cf66';
+    c.lineWidth = 2.4;
+    c.stroke();
+    const kinds = [
+      ['#fff8e1', '#ffd43b'],
+      ['#f03e3e', '#ffd43b'],
+      ['#da77f2', '#fff3bf'],
+    ];
+    for (let i = 0; i < 9; i++) {
+      const [x, y] = at((i + 0.5) / 9),
+        [col, mid] = kinds[i % 3];
+      ell(c, x - 9, y + 2, 6, 3, '#40c057', OUT, 1, -0.5);
+      ell(c, x + 9, y + 2, 6, 3, '#40c057', OUT, 1, 0.5);
+      for (let k = 0; k < 5; k++) {
+        const a = (k / 5) * Math.PI * 2 - Math.PI / 2 + i;
+        ell(c, x + Math.cos(a) * 5, y + 4 + Math.sin(a) * 5, 5, 3.6, col, OUT, 1.1, a);
+      }
+      ell(c, x, y + 4, 2.6, 2.6, mid, OUT, 0.8);
+    }
+  },
   garland(c, d, w, h, st) {
     c.beginPath();
     c.moveTo(-w / 2, -h / 2);

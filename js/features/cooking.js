@@ -34,20 +34,24 @@ function lackHtml(d) {
     .join('');
 }
 
-export function openCooking() {
+/**
+ * Окно плиты. opts — для печки не на кухне (ярмарка Масленицы): { title, icon, note, only: [id блюд] } — показать
+ * только эти рецепты (из тех, что хомячок знает).
+ */
+export function openCooking(opts = {}) {
   openPanel({
-    title: 'Плита',
-    icon: '🍳',
+    title: opts.title || 'Плита',
+    icon: opts.icon || '🍳',
     cls: '',
     render(body, tab, panel) {
       body.appendChild(
         el(
           'p',
           'muted',
-          'Выбери рецепт. Продукты — в ТЦ «Вкусный», на грядках и на рыбалке; ягоды и грибы — в городе. Под рецептом написано, чего не хватает и где это взять.',
+          opts.note || 'Выбери рецепт. Продукты — в ТЦ «Вкусный», на грядках и на рыбалке; ягоды и грибы — в городе. Под рецептом написано, чего не хватает и где это взять.',
         ),
       );
-      const known = DISHES.filter((d) => d.needs && S().recipes.includes(d.id));
+      const known = DISHES.filter((d) => d.needs && S().recipes.includes(d.id) && (!opts.only || opts.only.includes(d.id)));
       known.sort((a, b) => canCook(b) - canCook(a));
       for (const d of known) {
         const ok = canCook(d);
@@ -69,7 +73,7 @@ export function openCooking() {
         li.appendChild(b);
         body.appendChild(li);
       }
-      const secret = SECRET_RECIPES.filter((id) => !S().recipes.includes(id)).length;
+      const secret = opts.only ? 0 : SECRET_RECIPES.filter((id) => !S().recipes.includes(id)).length;
       if (secret)
         body.appendChild(
           el(

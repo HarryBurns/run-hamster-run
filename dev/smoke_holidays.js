@@ -365,8 +365,30 @@ module.exports = async function holidays({ page, step, ev, wait, closeAll }) {
     await run('holiday:blini');
     let s = await state();
     expect(s.ing.flour === 1 && s.ing.egg === 1 && s.ing.milk === 1, 'набор для блинов', s.ing);
+    // этап 12 (Пр9): у прилавка рассказывают масленичные рецепты и можно печь прямо на ярмарке
+    expect(s.recipes.includes('blini_jam') && s.recipes.includes('blini_honey'), 'масленичные рецепты у прилавка', s.recipes);
+    let pt = await panelText();
+    expect(/блины с вареньем/.test(pt) && /блины с мёдом и маслом/.test(pt), 'окно прилавка называет рецепты', pt);
+    expect((await ev(() => document.querySelectorAll('.overlay .panel img.ico').length)) >= 2, 'в окне прилавка — рисованные значки блинов');
+    await closeAll();
     await run('holiday:blini');
     expect((await state()).ing.flour === 1, 'набор второй раз за день');
+    pt = await panelText();
+    expect(/Ярмарочная печка/.test(pt) && /Блинчики/.test(pt) && /Блины с вареньем/.test(pt) && !/Пицца/.test(pt), 'ярмарочная печка: только блины', pt);
+    // печём блины с мёдом и маслом прямо на ярмарке — шаг праздника засчитывается
+    await mutate('s.ing.honey = 1; s.ing.butter = 1;');
+    await closeAll();
+    await run('holiday:blini');
+    await page.click('.overlay .list-item:has-text("Блины с мёдом и маслом") .btn');
+    await wait(300);
+    await page.click('.panel-foot .btn:has-text("Снять с плиты")');
+    await wait(400);
+    await closeAll();
+    s = await state();
+    expect(s.dishes.blini_honey >= 1 && !s.ing.honey, 'блины с мёдом испечены на ярмарке', { dishes: s.dishes, ing: s.ing });
+    expect((await hol()).steps[0] === 'cook:1/1', 'масленичные блины засчитаны празднику', await hol());
+    // обычные блинчики на кухне — как раньше (набор выдаём ещё раз вручную)
+    await mutate('s.ing.flour = 1; s.ing.egg = 1; s.ing.milk = 1;');
     await run('holiday:carousel', 3600);
     await run('holiday:effigy');
     // испечь блинчики: плита, «Снять с плиты» в зелёной зоне
@@ -384,13 +406,14 @@ module.exports = async function holidays({ page, step, ev, wait, closeAll }) {
     await closeAll();
     let h = await hol();
     expect(h.steps[0] === 'cook:1/1', 'блины испечены', h);
-    await mutate('s.dishes.pancakes = 3;');
+    await mutate('s.dishes = { pancakes: 2, blini_jam: 1 };');
     for (const npc of ['plusha', 'ponchik', 'prof']) {
       await ev((npc) => { window.__dev.F.npcDialog(npc); }, npc);
       await wait(500);
       await page.click('.dialog .btn:has-text("Угостить")');
       await wait(400);
-      await page.click('.overlay .card:has-text("Блинчики") .btn');
+      // одного друга угощаем масленичными блинами с вареньем — тоже считается
+      await page.click(`.overlay .card:has-text("${npc === 'prof' ? 'Блины с вареньем' : 'Блинчики'}") .btn`);
       await wait(400);
       await closeAll();
     }

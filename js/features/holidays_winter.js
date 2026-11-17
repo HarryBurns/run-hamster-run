@@ -15,18 +15,19 @@
 // Испечь блины и угостить ими друзей — обычная готовка и «🎁 Угостить»: шаги считаются по событиям cook и gift
 // (поля on/if в data/holidays.js). Каждое занятие шлёт событие holiday { id, what }. Сценки, обход домиков и призовая
 // мини-игра — общие приёмы из features/holidays_scenes.js.
-import { addItem, setDayFlag, earn } from '../core/actions.js';
+import { addItem, setDayFlag, earn, learnRecipe } from '../core/actions.js';
 import { sfx } from '../core/audio.js';
 import { ell, fillRR, line, poly, star } from '../core/draw.js';
 import { emit } from '../core/events.js';
 import { G, playerLook } from '../core/state.js';
 import { pick, TAU } from '../core/util.js';
 import { drawHamster } from '../art/hamster.js';
-import { HOLIDAY, holidayOffset, HOLIDAY_BY_ID } from '../data/index.js';
+import { HOLIDAY, holidayOffset, HOLIDAY_BY_ID, BLINI, DISH_BY_ID } from '../data/index.js';
 import { paintFir, FIR_TOYS, toy, skyLantern, lantern } from '../locations/holidays_art.js';
 import { message } from '../ui/panel.js';
 import { toast } from '../ui/toast.js';
 import { addPts } from './friends.js';
+import { openCooking } from './cooking.js';
 import { holidayActs, holidayTalk, holidayStep, stepDoneFor, stepWanted } from './holidays.js';
 import { tapScene, playScene, nightSky, doorRound, prizeGame, holidaySay as say } from './holidays_scenes.js';
 
@@ -316,12 +317,37 @@ function blini() {
   const k = offset('maslenitsa');
   sfx('tap');
   if (k < 0) return void toast('🥞 Прилавок «Блины» откроется завтра, на Масленицу!');
-  if (HF().kit) return void toast('🥞 Набор для блинов ты уже взяла. Испеки блинчики дома на кухне — и угости друзей!');
+  // второй раз за день — ярмарочная печка: блины можно испечь прямо тут (Пр9)
+  if (HF().kit) return void bakeAtFair();
   for (const [id, n] of Object.entries(HOLIDAY.bliniKit)) addItem('ing', id, n);
   setDayFlag('kit', 1, 'holiday');
   emit('holiday', { id: 'maslenitsa', what: 'blini' });
   sfx('coin');
-  toast('🥞 «С Масленицей! Держи набор для блинов!» +🌾 мука, +🥚 яйца, +🥛 молоко — испеки блинчики на кухне!', 'good');
+  // масленичные рецепты рассказывают здесь же — один раз и навсегда
+  const fresh = BLINI.filter((id) => DISH_BY_ID[id].holiday === 'maslenitsa' && !S().recipes.includes(id));
+  fresh.forEach((id) => learnRecipe(id));
+  toast('🥞 «С Масленицей! Держи набор для блинов!» +🌾 мука, +🥚 яйца, +🥛 молоко', 'good');
+  return message({
+    title: 'Прилавок «Блины»',
+    icon: '🥞',
+    cls: 'narrow',
+    html: `<p class="center big-emoji">${DISH_BY_ID.blini_jam.e}${DISH_BY_ID.blini_honey.e}</p><p class="center">«С Масленицей! Вот тебе набор для блинов.${
+      fresh.length ? ' А ещё запомни наши масленичные рецепты: <b>блины с вареньем</b> и <b>блины с мёдом и маслом</b> — теперь ты умеешь их печь!' : ''
+    }»</p><p class="center muted">Печь можно дома на кухне — или прямо тут, на ярмарочной печке.</p>`,
+    buttons: [
+      { text: '🔥 Печь тут', cls: 'green' },
+      { text: 'Потом', cls: 'ghost' },
+    ],
+  }).then((i) => (i === 0 ? bakeAtFair() : null));
+}
+/** Ярмарочная печка у прилавка «Блины»: та же готовка, но только блины. */
+function bakeAtFair() {
+  openCooking({
+    title: 'Ярмарочная печка',
+    icon: '🥞',
+    only: BLINI,
+    note: 'На Масленицу пекут блины! Выбери, какие: простые, с вареньем или с мёдом. Продукты — из рюкзака; чего не хватает — написано под рецептом.',
+  });
 }
 /** «Перетягивание каната» у ярмарки: за первые HOLIDAY.tug.paid игр — монеты по звёздам. */
 function tug() {

@@ -137,7 +137,8 @@ for (const ev of STEP_EVENTS)
     if (!h) return;
     for (const step of h.steps) {
       if (step.on !== ev) continue;
-      if (step.if && Object.entries(step.if).some(([k, val]) => d[k] !== val)) continue;
+      // значение в if может быть списком: «любые блины» (BLINI в data/food.js)
+      if (step.if && Object.entries(step.if).some(([k, val]) => (Array.isArray(val) ? !val.includes(d[k]) : d[k] !== val))) continue;
       holidayStep(h.id, step.id, step.distinct ? d[step.distinct] : undefined);
     }
   });

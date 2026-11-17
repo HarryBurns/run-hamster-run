@@ -2,13 +2,32 @@
 // Продают лишнее на рынке — у прилавков на площади.
 import { G } from '../core/state.js';
 import { el } from '../core/util.js';
-import { FURN_BY_ID, ING_BY_ID, SEED_BY_ID, FIND_BY_ID } from '../data/index.js';
+import { FURN_BY_ID, ING_BY_ID, SEED_BY_ID, FIND_BY_ID, ICON } from '../data/index.js';
 import { furnIcon } from '../ui/icons.js';
-import { openPanel } from '../ui/panel.js';
+import { openPanel, message } from '../ui/panel.js';
+import { sfx } from '../core/audio.js';
+import { PIECES, piecesFound, treasureMapImage } from './cove.js';
 import { eat, dishGrid, ingGrid } from './cooking.js';
 import { canPlantNow, sowHint } from './garden.js';
 
 const S = () => G.state;
+
+/** Карта сокровищ Зефирки (С2): посмотреть, что уже сложилось из найденных кусочков. */
+export function showTreasureMap() {
+  const have = piecesFound(),
+    all = have.length === PIECES.length;
+  return message({
+    title: 'Карта сокровищ',
+    icon: '🗺️',
+    cls: 'narrow',
+    html: `<p class="center"><img class="treasure-map" src="${treasureMapImage(have)}" alt="Карта сокровищ" style="width:100%;max-width:340px;height:auto;border-radius:12px"></p><p class="center">${
+      all
+        ? 'Все три кусочка на месте: скалы на востоке моря, буёк-ракушка, подводный грот — и крестик на секретном пляже!'
+        : `Кусочков: <b>${have.length} из ${PIECES.length}</b>. Где искать остальные — в журнале 📖`
+    }</p>`,
+    buttons: [{ text: 'Понятно' }],
+  });
+}
 
 export function openBackpack() {
   openPanel({
@@ -49,12 +68,26 @@ export function openBackpack() {
         body.appendChild(grid);
         body.appendChild(el('p', 'muted center', 'Сажай на грядках во дворе виллы — каждую культуру в свой сезон.'));
       } else if (tab === 'finds') {
-        const ids = Object.keys(S().finds).filter((id) => FIND_BY_ID[id]);
-        if (!ids.length) {
+        const ids = Object.keys(S().finds).filter((id) => FIND_BY_ID[id] && S().finds[id] > 0);
+        const pieces = piecesFound(); // кусочки карты сокровищ — не находки из сумки, а шаги задания Зефирки
+        if (!ids.length && !pieces.length) {
           body.appendChild(el('p', 'muted center', 'Находок пока нет. Их собирают для заданий из журнала 📜'));
           return;
         }
         const grid = el('div', 'grid small');
+        if (pieces.length) {
+          // карта сокровищ: одна карточка на все кусочки; нажать — посмотреть карту
+          const card = el('div', 'card tap map-card');
+          card.appendChild(el('div', 'e', ICON.map_piece));
+          card.appendChild(el('div', '', 'Карта сокровищ'));
+          card.appendChild(el('span', 'cnt', pieces.length === PIECES.length ? 'вся' : `${pieces.length} из ${PIECES.length}`));
+          card.appendChild(el('div', 'note up', 'посмотреть'));
+          card.onclick = () => {
+            sfx('paper');
+            showTreasureMap();
+          };
+          grid.appendChild(card);
+        }
         for (const id of ids) {
           const f = FIND_BY_ID[id];
           const card = el('div', 'card');
@@ -64,7 +97,7 @@ export function openBackpack() {
           grid.appendChild(card);
         }
         body.appendChild(grid);
-        body.appendChild(el('p', 'muted center', 'Это не еда — это находки для гербария Мяты. Отнеси их ей!'));
+        body.appendChild(el('p', 'muted center', 'Находки — не еда. Одни нужны для заданий из журнала 📖, из других жители делают украшения, а лишнее берёт рынок.'));
       } else {
         const ids = Object.keys(S().storage);
         if (!ids.length) {

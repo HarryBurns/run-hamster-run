@@ -26,6 +26,8 @@
 //   sticker            наклейка за праздник (EXTRA_STICKERS в data/tasks.js)
 //   story              пара строк для журнала и утреннего окна
 //   lines              что говорят жители: eve (накануне), day (в праздник), after (на следующий день)
+import { BLINI } from './food.js';
+
 export const HOLIDAYS = [
   {
     id: 'newyear',
@@ -100,8 +102,8 @@ export const HOLIDAYS = [
     decor: [-1, 0],
     story: 'На площади — ярмарка, карусель и соломенное чучело. Испеки блины, угости друзей и поиграй в «Перетягивание каната»!',
     steps: [
-      { id: 'cook', text: 'Испеки блинчики на кухне', hint: 'Мука, яйца и молоко — в ТЦ «Вкусный»; на ярмарке у прилавка «Блины» дают набор для блинов', where: 'villa', on: 'cook', if: { dish: 'pancakes' } },
-      { id: 'treat', text: 'Угости блинами трёх друзей', n: 3, hint: 'Поговори с другом и нажми «🎁 Угостить» — выбери блинчики', where: 'friend', on: 'gift', if: { dish: 'pancakes' }, distinct: 'id' },
+      { id: 'cook', text: 'Испеки блины — дома или на ярмарке', hint: 'У прилавка «Блины» на площади дают набор для блинов, рассказывают масленичные рецепты — и там же можно печь', where: 'place:blini', on: 'cook', if: { dish: BLINI } },
+      { id: 'treat', text: 'Угости блинами трёх друзей', n: 3, hint: 'Поговори с другом и нажми «🎁 Угостить» — выбери блины (любые: простые, с вареньем, с мёдом)', where: 'friend', on: 'gift', if: { dish: BLINI }, distinct: 'id' },
       { id: 'tug', text: 'Сыграй в «Перетягивание каната» на ярмарке', hint: 'Канат лежит на площади, под фонтаном', where: 'place:tug', on: 'minigame', if: { id: 'tug' } },
     ],
     gift: { furn: 'samovar' },

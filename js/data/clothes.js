@@ -125,6 +125,8 @@ C('clip_shell', 'head', 'shellclip', 'Заколка-ракушка', '#ffb3c6',
 // удалённый остров (П.9): юбочка из травы — подарок Вождя Кокоса за задание «Праздник огней» (вид grass — art/hamster.js);
 // лея из цветов — Вождь плетёт её из трёх разных цветов острова (features/island.js). Обе — только в подарок
 C('grass_skirt', 'legs', 'grass', 'Юбочка из травы', '#a9c95a', { c2: '#74a03a', shop: 'gift', tags: ['summer', 'beach', 'cute', 'fancy'] });
+// венок из цветов острова (этап 12, О11): Вождь Кокос сплетёт из трёх разных цветов, когда лея уже есть
+C('wreath_lei', 'head', 'wreath', 'Венок из цветов острова', '#fff', { island: true, shop: 'gift', tags: ['fancy', 'summer', 'beach', 'cute'] });
 C('lei_island', 'acc', 'lei', 'Лея из цветов', '#ff922b', { c2: '#fff3bf', shop: 'gift', tags: ['summer', 'beach', 'cute', 'fancy'] });
 // --- аксессуары
 C('glasses_red', 'acc', 'glasses', 'Красные очки', '#e03131', { tags: ['cute'] });
