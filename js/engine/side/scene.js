@@ -58,6 +58,8 @@ import { drawLight } from './light.js';
  * дом, не трогая описаний (шарики и гирлянда в основном доме на день рождения — features/holidays_bday.js).
  */
 export const sideArt = [];
+/** Общий рисунок для всех домов перед мебелью, но за жильцами и хомячком: [fn(ctx, sc, t)] (украшение праздника у двери). */
+export const sideArtFront = [];
 /**
  * Общие части всех домов (питомец — features/pet.js): [{ draw(ctx, sc, t), tap(sc, w) → true — нажатие обработано }].
  * draw — между жильцами и хомячком; tap зовётся первым, до жильцов и мебели (не в режиме «Обустроить»).
@@ -115,6 +117,8 @@ export function createSideScene(desc) {
     // Временное состояние мебели (крутится колесо, качнулась игрушка) живёт в сцене, а не в сохранении:
     live: new WeakMap(), // предмет → { on, t: сколько секунд осталось (0 — пока не выключат) }
 
+    /** Встроенные предметы ({ f, x, w, def … }) — где они стоят (украшение праздника ищет свободный пол). */
+    fixtures,
     /** Мебель этого дома. */
     items: () => (owned ? houseItems(furn.key) : fixed),
     /** Можно ли пользоваться предметом с таким описанием. */
@@ -591,6 +595,7 @@ export function createSideScene(desc) {
     for (const fn of sideArt) fn(ctx, sc, t);
     for (const b of drawOrder) if (b.def.back && floorSeen(b.f)) b.def.back(ctx, b.x - (b.def.ref || 0), fy(b.f), t, sc, b);
     drawItems(ctx, sc, t);
+    for (const fn of sideArtFront) fn(ctx, sc, t);
     drawActors(ctx, sc, t);
     for (const part of sideParts) if (part.draw) part.draw(ctx, sc, t);
     if (desc.art && desc.art.mid) desc.art.mid(ctx, sc, t);
