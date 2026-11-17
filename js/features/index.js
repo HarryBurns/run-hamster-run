@@ -34,6 +34,7 @@ export * from './jungle.js';
 export * from './cove.js';
 export * from './island.js';
 export * from './hotel.js';
+export * from './inside.js';
 export * from './holidays.js';
 export * from './holidays_scenes.js';
 export * from './holidays_winter.js';

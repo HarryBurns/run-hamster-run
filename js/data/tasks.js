@@ -165,6 +165,8 @@ export const EXTRA_STICKERS = [
   { id: 'x_island_night', sticker: '🛖', title: 'Ночь на острове' },
   { id: 'x_lei', sticker: '🌺', title: 'Лея из цветов' },
   { id: 'x_totem', sticker: '🗿', title: 'Маленький тотем' },
+  // войти внутрь (этап 13): побывать в каждом домике тайных мест — features/inside.js
+  { id: 'x_inside', sticker: '🛖', title: 'В гостях у тайных мест' },
   // курортный отель «Морская звезда» (П.17)
   { id: 'x_hotel', sticker: '🏨', title: 'Гостья отеля' },
   { id: 'x_hotel_night', sticker: '🛎️', title: 'Ночь в отеле' },

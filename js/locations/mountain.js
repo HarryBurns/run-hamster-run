@@ -462,7 +462,7 @@ const mountain = createTopDownScene({
       npc: 'vershinkin',
       art: chaletArt,
       frame: [-46, -100, 4 * T + 76, 2 * T + 44],
-      act: 'instructor', // постучать — выйдет Вершинкин
+      act: 'inside:chalet_vershinkin', // войти — внутри Вершинкин (interiors/chalet.js)
     },
   ],
   actors: [{ npc: 'vershinkin', at: [27.5, 21.5], home: 'chalet', always: true, act: 'instructor' }],

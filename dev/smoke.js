@@ -17,6 +17,7 @@
 //  секретный пляж, П.9 — dev/smoke_sbeach.js:  node dev/smoke.js <url> "step:секретный пляж";
 //  удалённый остров, П.9 — dev/smoke_island.js:  node dev/smoke.js <url> "step:удалённый остров";
 //  курортный отель, П.17 — dev/smoke_hotel.js:  node dev/smoke.js <url> step:отель;
+//  войти внутрь, этап 13 — dev/smoke_inside.js:  node dev/smoke.js <url> step:внутри;
 //  праздники, П.13 — dev/smoke_holidays.js:  node dev/smoke.js <url> step:праздники;
 //  вещи, рецепты, значки, этап 12 — dev/smoke_items.js:  node dev/smoke.js <url> step:вещи)
 // Скорость проверяется отдельно:  node dev/bench.js [url] --spots=forest --sizes=desktop --max-forest=45
@@ -40,6 +41,7 @@ const island = require('./smoke_island.js'); // П.9: удалённый ост�
 const hotel = require('./smoke_hotel.js'); // П.17: курортный отель — номер на ночь, шведский стол, спа, аниматор, «Горка», носильщица, люкс
 const title = require('./smoke_title.js'); // этап 9а: заставка, несколько игр, удаление нарочно, живая сцена
 const items = require('./smoke_items.js'); // этап 12: рисованные значки вещей, маракуйя, рецепты из леса, венок и гирлянда, карта сокровищ в рюкзаке
+const inside = require('./smoke_inside.js'); // этап 13: войти внутрь — дома тайных мест, хозяева, предметы, выход, ночь
 const holidays = require('./smoke_holidays.js'); // П.13: праздники — Новый год, Рождество, Китайский Новый год, Масленица
 
 // Размер (этап 8): переменная SMOKE_SIZE=desktop|phone или аргумент size:desktop / size:phone — только этот размер
@@ -2797,6 +2799,7 @@ const runParallel = () => {
     await sbeach({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
     await island({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
     await hotel({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
+    await inside({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
     await holidays({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
     await title({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
     await items({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });

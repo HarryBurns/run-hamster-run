@@ -463,9 +463,9 @@ const jungle = createTopDownScene({
     // хижина у причала: кораблик обратно в город (voyage:back — features/jungle.js)
     { id: 'dock', kind: 'dock', ...AT.dock, name: 'Причал', mapName: 'Кораблик в город', icon: '⛵', act: 'voyage:back' },
     // палатка исследовательницы Лианы
-    { id: 'camp', kind: 'camp', ...AT.camp, name: 'Лагерь', mapName: 'Лагерь Лианы', icon: '⛺', act: 'explorer' },
+    { id: 'camp', kind: 'camp', ...AT.camp, name: 'Лагерь', mapName: 'Лагерь Лианы', icon: '⛺', act: 'inside:tent_liana' },
     // руины храма: загадка «Узор храма»
-    { id: 'temple', kind: 'temple', ...AT.temple, name: 'Руины храма', icon: '🗿', act: 'jungle:temple' },
+    { id: 'temple', kind: 'temple', ...AT.temple, name: 'Руины храма', icon: '🗿', act: 'inside:temple_hall' },
   ],
   actors: [{ npc: 'liana', at: [31.5, 25.6], home: 'camp', always: true, act: 'explorer' }],
   places: [

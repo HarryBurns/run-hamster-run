@@ -11,7 +11,8 @@
 //   island:bowling     мини-игра «Кокосовый боулинг» (minigames/bowling.js): за первые ISLAND.bowling.paid игр в день —
 //                      монеты по звёздам
 //   island:sleep       хижина для гостей: переночевать на острове (сон — features/sleep.js; утро — тоже на острове)
-//   island:home:<id>   домики островитян: хозяин гуляет — подсказка, где его найти
+//   island:home:<id>   домики островитян: хозяин гуляет — подсказка, где его найти (с этапа 13 двери ведут внутрь —
+//                      interiors/island_huts.js, там записка; действие осталось для старых ссылок)
 //   faraway:go | back  кораблик: из моря города (отметка «Далеко на юг» — LANDS.island.go) к причалу острова и обратно
 //                      к пирсу города; картинка-переезд подольше — открытый океан, дельфины, вдали вулкан
 // Находки продаются на рынке (features/market.js, цены — ISLAND). Числа — ISLAND в data/economy.js. Каждое занятие
@@ -430,16 +431,20 @@ function sleepHut() {
   return true;
 }
 on('wake', () => {
-  if (!S() || sceneName() !== 'island') return;
+  // спят теперь внутри хижины для гостей (interiors/island_huts.js, этап 13) — утро там же, у циновки
+  const inHut = sceneName() === 'hut_guest';
+  if (!S() || (sceneName() !== 'island' && !inHut)) return;
   const sc = getLocation('island');
   placeFlowers(sc); // новый день — новый цветок
-  // хомячок просыпается у двери хижины для гостей
-  const b = sc.map.bById.guest,
-    d = sc.map.doorPx(b);
-  sc.p.x = d.x;
-  sc.p.y = d.y;
-  sc.p.path = [];
-  sc.p.pending = null;
+  if (!inHut) {
+    // проснулась на острове (старая ночёвка снаружи) — у двери хижины для гостей
+    const b = sc.map.bById.guest,
+      d = sc.map.doorPx(b);
+    sc.p.x = d.x;
+    sc.p.y = d.y;
+    sc.p.path = [];
+    sc.p.pending = null;
+  }
   if (nightOnIsland && award('x_island_night', { delay: 2600 }))
     setTimeout(() => toast('🛖 Доброе утро на острове! Волны шумят, вулкан дымит, а Бум уже стучит в барабан.', 'good'), 1400);
   nightOnIsland = false;

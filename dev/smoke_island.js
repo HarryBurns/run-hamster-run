@@ -618,12 +618,19 @@ module.exports = async function island({ page, step, ev, wait, closeAll }) {
       const sc = window.__dev.locations.island;
       sc.enterBuilding(sc.map.bById.guest);
     });
+    await wait(800);
+    // этап 13: дверь ведёт внутрь хижины, спать — на циновке (её действие — island:sleep)
+    expect((await ev(() => window.__dev.sceneName)) === 'hut_guest', 'дверь хижины не ведёт внутрь', await ev(() => window.__dev.sceneName));
+    await ev(() => window.__dev.run('island:sleep'));
     await wait(600);
     expect(/Пора спать/.test(await panelText()), 'хижина для гостей не предлагает поспать', await panelText());
     await page.click('.panel-foot .btn >> text=Спать');
     await wait(4500);
     await closeAll();
     let s = await state();
+    expect((await ev(() => window.__dev.sceneName)) === 'hut_guest', 'утро не в хижине', await ev(() => window.__dev.sceneName));
+    await ev(() => window.__dev.scene.exit()); // выйти из хижины — к её двери на острове
+    await wait(500);
     const r0 = await where();
     const gd = await ev(() => {
       const sc = window.__dev.locations.island;

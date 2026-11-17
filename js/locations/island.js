@@ -430,12 +430,12 @@ const island = createTopDownScene({
     // хижина у причала: кораблик обратно в город (faraway:back — features/island.js)
     { id: 'dock', kind: 'dock', ...AT.dock, name: 'Причал', mapName: 'Кораблик в город', icon: '⛵', act: 'faraway:back' },
     // хижина вождя Кокоса (вход — разговор с вождём)
-    { id: 'chief', kind: 'chiefHut', ...AT.chief, name: 'Хижина вождя', icon: '🌴', act: 'chief' },
+    { id: 'chief', kind: 'chiefHut', ...AT.chief, name: 'Хижина вождя', icon: '🌴', act: 'inside:hut_kokos' },
     // хижина для гостей: переночевать (features/island.js)
-    { id: 'guest', kind: 'stiltHut', ...AT.guest, v: 1, sign: '🛏️ Для гостей', name: 'Хижина для гостей', icon: '🛏️', act: 'island:sleep' },
+    { id: 'guest', kind: 'stiltHut', ...AT.guest, v: 1, sign: '🛏️ Для гостей', name: 'Хижина для гостей', icon: '🛏️', act: 'inside:hut_guest' },
     // домики островитян
-    { id: 'laguna', kind: 'stiltHut', ...AT.laguna, v: 0, name: 'Домик Лагуны', icon: '🛖', act: 'island:home:laguna' },
-    { id: 'bumhut', kind: 'stiltHut', ...AT.bum, v: 2, name: 'Домик Бума', icon: '🛖', act: 'island:home:bum' },
+    { id: 'laguna', kind: 'stiltHut', ...AT.laguna, v: 0, name: 'Домик Лагуны', icon: '🛖', act: 'inside:hut_laguna' },
+    { id: 'bumhut', kind: 'stiltHut', ...AT.bum, v: 2, name: 'Домик Бума', icon: '🛖', act: 'inside:hut_bum' },
   ],
   actors: [
     { npc: 'kokos', at: [18, 18], always: true, act: 'chief' },

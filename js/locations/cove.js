@@ -291,7 +291,7 @@ const cove = createTopDownScene({
       tile: 'cgrotto',
       stand: AT.entry,
       reach: 1.6,
-      act: 'grotto:back',
+      act: 'inside:grotto_cave', // войти в грот (interiors/grotto.js); там нырнуть в озерцо — в город
       map: { icon: '🌊', at: [AT.grotto[0] + 0.5, AT.grotto[1] + 1], label: '🌊 Грот (в город)' },
     },
     {

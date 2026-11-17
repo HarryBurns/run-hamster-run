@@ -433,9 +433,9 @@ const desert = createTopDownScene({
     // остановка каравана: обратно в город (caravan:back — features/desert.js)
     { id: 'stop', kind: 'caravanStop', ...AT.stop, name: 'Остановка каравана', mapName: 'Караван в город', icon: '🚌', act: 'caravan:back' },
     // шатёр кочевника Бархана у оазиса
-    { id: 'tent', kind: 'tent', ...AT.tent, name: 'Шатёр', mapName: 'Шатёр Бархана', icon: '⛺', act: 'nomad' },
+    { id: 'tent', kind: 'tent', ...AT.tent, name: 'Шатёр', mapName: 'Шатёр Бархана', icon: '⛺', act: 'inside:tent_barkhan' },
     // пирамида: внутри — загадка «Пары»
-    { id: 'pyramid', kind: 'pyramid', ...AT.pyramid, name: 'Пирамида', icon: '🔺', act: 'desert:pairs' },
+    { id: 'pyramid', kind: 'pyramid', ...AT.pyramid, name: 'Пирамида', icon: '🔺', act: 'inside:pyramid_hall' },
   ],
   actors: [{ npc: 'barkhan', at: [27.5, 19.6], home: 'tent', always: true, act: 'nomad' }],
   places: [

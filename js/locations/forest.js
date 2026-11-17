@@ -388,7 +388,7 @@ const forest = createTopDownScene({
       attic: false,
       art: hutArt,
       frame: [-64, -100, 3 * T + 64, 2 * T + 44],
-      act: 'forester',
+      act: 'inside:hut_shishkin', // войти — внутри Шишкин (interiors/hut_shishkin.js)
     },
     // лесной домик — своё жильё (HOMES.cabin, building: 'cabin'): куплен — войти, нет — окно риелтора
     {

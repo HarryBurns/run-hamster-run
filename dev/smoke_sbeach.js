@@ -617,11 +617,14 @@ module.exports = async function sbeach({ page, step, ev, wait, closeAll }) {
     await closeAll();
     let r = await where();
     expect(r.scene === 'cove' && near(r, pos, 30), 'после загрузки — на пляже на том же месте', [r, pos]);
-    // в город — нырнуть в гроте (нажатие на воду грота)
+    // в город — войти в грот (нажатие на воду у арки, этап 13) и нырнуть в озерцо внутри
     await ev(() => window.__dev.locations.cove.debugTeleport(6, 6));
     await wait(400);
     const k = await ev(() => window.__dev.locations.cove.debugScreen(6.5 * 48, 4.5 * 48));
     await page.mouse.click(k.x, k.y);
+    await wait(1800);
+    expect((await ev(() => window.__dev.sceneName)) === 'grotto_cave', 'вода у арки не ведёт в грот', await ev(() => window.__dev.sceneName));
+    await ev(() => window.__dev.run('grotto:back'));
     await wait(1200);
     expect(await ev(() => !!document.querySelector('.grotto-ride')), 'нет картинки заплыва в город');
     await wait(2600);
