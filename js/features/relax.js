@@ -492,6 +492,15 @@ export function volleyTeams() {
   const rest = shuffle(town.slice(1));
   return { mate: who(town[0]), rivals: rest.slice(0, 2).map(who) };
 }
+/** Строчка на заставке: с кем играешь и как сердечки дружбы помогают другу. */
+export function volleyTeamNote(team) {
+  const m = team.mate,
+    h = m.hearts ? '❤️'.repeat(Math.min(5, m.hearts)) : '🤍';
+  const vs = team.rivals.length ? ` Соперники — <b>${team.rivals.map((r) => r.name).join('</b> и <b>')}</b>.` : '';
+  return `<div class="pay-note">🏐 Твоя пара — <b>${m.name}</b> ${h}.${vs}<br>${
+    m.hearts ? 'Вы дружите — у сетки друг возьмёт больше мячей!' : 'Подружитесь — и друг у сетки будет брать больше мячей.'
+  }</div>`;
+}
 /** Сыграть в волейбол у сетки на пляже. */
 export async function volleyGame() {
   if (cur) standUp(true);
@@ -501,9 +510,11 @@ export async function volleyGame() {
   const team = volleyTeams();
   const res = await playMinigame('volley', {
     team,
-    introNote: left
+    introNote:
+      volleyTeamNote(team) +
+      (left
       ? note(`🏐 <b>Приз пляжа:</b> ⭐ 🪙 ${c[0]} · ⭐⭐ 🪙 ${c[1]} · ⭐⭐⭐ 🪙 ${c[2]}. Сегодня ещё ${left} ${left === 1 ? 'игра' : 'игры'} с призом.`)
-      : note('💛 Сегодня призы за волейбол уже получены. Играть можно для удовольствия — завтра призы снова!'),
+      : note('💛 Сегодня призы за волейбол уже получены. Играть можно для удовольствия — завтра призы снова!')),
     resultNote: (stars) => (left ? note(`<span class="sum">🪙 +${fmtMoney(c[stars - 1])}</span>`) : note('💛 Эта игра была для удовольствия.')),
   });
   if (!res) return res;

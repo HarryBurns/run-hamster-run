@@ -409,6 +409,11 @@ const { pathToFileURL } = require('url');
   }
   if (!(ISLAND.bowling.coins.length === 3 && ISLAND.bowling.paid >= 1)) bad('ISLAND.bowling: нужны coins на 1–3★ и paid');
   if (ISLAND.bowling.coins[2] >= avg2) bad(`«Кокосовый боулинг» на 3★ даёт ${ISLAND.bowling.coins[2]} — это не меньше смены на 2★ (${fmt(avg2)})`);
+  // отдых в городе (этап 17а): «Пляжный волейбол» — маленький приз, меньше смены на 2★
+  const VB = D.RELAX_PRIZE.volley;
+  if (!(VB.coins.length === 3 && VB.paid >= 1 && VB.paid <= 2)) bad('RELAX_PRIZE.volley: нужны coins на 1–3★ и paid 1–2');
+  if (VB.coins[2] >= ISLAND.bowling.coins[2]) bad(`«Пляжный волейбол» на 3★ даёт ${VB.coins[2]} — не меньше боулинга`);
+  if (VB.coins[2] * VB.paid >= avg2) bad(`«Пляжный волейбол» за день — ${VB.coins[2] * VB.paid}, это не меньше смены на 2★ (${fmt(avg2)})`);
   if (ISLAND.lei !== LEI_IDS.length) bad('ISLAND.lei: лея — по одному цветку каждого вида');
   if (!(ISLAND.totem >= 3)) bad('ISLAND.totem: тотем — из трёх кусочков стекла и больше');
   if (D.FURNITURE.some((f) => f.shop === 'island' && f.price)) bad('украшения с острова не продаются — у них не должно быть цены');
@@ -836,6 +841,7 @@ const { pathToFileURL } = require('url');
     `вулканическое стекло ${D.ISLAND.obsidian} (одно в день), цветы для леи ${Object.values(D.ISLAND.flowers).join(' / ')} (один в день); в день до ${fmt(D.ISLAND.obsidian + Math.max(...Object.values(D.ISLAND.flowers)))}`,
   );
   line('«Кокосовый боулинг» (1★ / 2★ / 3★, первые ' + D.ISLAND.bowling.paid + ' в день)', `${D.ISLAND.bowling.coins.join(' / ')} монет`);
+  line('«Пляжный волейбол» (1★ / 2★ / 3★, первые ' + D.RELAX_PRIZE.volley.paid + ' в день)', `${D.RELAX_PRIZE.volley.coins.join(' / ')} монет`);
   line('лея из цветов / маленький тотем', `${D.ISLAND.lei} разных цветка → вещь (один раз) / ${D.ISLAND.totem} кусочка стекла → украшение`);
   line('праздник огней (каждый вечер)', `с ${D.ISLAND.fest.from}:00 до ${D.ISLAND.fest.to}:00 — танец и наклейка, без монет`);
   console.log('\n«День сбора» (этап 12): что реально обойти за день — с дорогой, обходом и временем на сбор');
