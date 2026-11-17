@@ -52,7 +52,7 @@ const CSS = `
 #photo .ph-flash{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none;transition:opacity .45s}
 #photo .ph-flash.on{opacity:1;transition:none}
 #photo.hidebar .ph-bar,#photo.hidebar .ph-top{display:none}
-#photo.mini .ph-row.opt{display:none}
+#photo.mini .ph-row.ph-opt{display:none}
 #photo .ph-top .tg{margin-left:auto}
 .ph-pic{display:block;max-width:100%;max-height:52vh;margin:0 auto;border-radius:10px;box-shadow:0 3px 10px rgba(0,0,0,.18)}
 .ph-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px}
@@ -269,8 +269,8 @@ export function openPhotoMode() {
   };
   top.append(hint, tg, x);
   const bar = el('div', 'ph-bar');
-  const rowF = el('div', 'ph-row opt', '<span class="lb">Рамка</span>');
-  const rowD = el('div', 'ph-row opt', '<span class="lb">Наклейки</span>');
+  const rowF = el('div', 'ph-row ph-opt', '<span class="lb">Рамка</span>');
+  const rowD = el('div', 'ph-row ph-opt', '<span class="lb">Наклейки</span>');
   const rowC = el('div', 'ph-row');
   const cap = document.createElement('input');
   cap.className = 'ph-cap';

@@ -59,6 +59,22 @@ module.exports = async function jobs({ page, step, ev, wait, closeAll }) {
     await page.mouse.click(k.x, k.y);
   };
   const played = async () => (await state()).dayFlags.shifts || {};
+  /** Что на экране, если ждали окно, а его нет (для сообщения об ошибке). */
+  const why = () =>
+    ev(() => {
+      const d = window.__dev,
+        sc = d.locations[d.sceneName];
+      return {
+        scene: d.sceneName,
+        modal: d.G.modal,
+        p: sc ? [+(sc.p.x / 48).toFixed(1), +(sc.p.y / 48).toFixed(1), sc.p.path.length, !!sc.p.pending] : null,
+        ui: [...document.querySelectorAll('.overlay .panel, .dialog, #mg')].map((e) => e.textContent.slice(0, 80)),
+      };
+    });
+  const waitDialog = async (text) => {
+    const ok = await page.waitForSelector(`.dialog >> text=${text}`, { timeout: 8000 }).catch(() => null);
+    if (!ok) throw new Error(`нет окна «${text}»: ${JSON.stringify(await why())}`);
+  };
 
   await step('17в: парикмахер — кнопка в окне салона, гости-жители по картинке, добрая подсказка, зарплата', async () => {
     await fresh();
@@ -99,10 +115,11 @@ module.exports = async function jobs({ page, step, ev, wait, closeAll }) {
     if (!(await page.waitForSelector('.dialog >> text=На вышку', { timeout: 4000 }).catch(() => null))) {
       await closeAll();
       await ev(() => window.__dev.World.walkToPlace('lifeguard'));
-      await page.waitForSelector('.dialog >> text=На вышку', { timeout: 8000 });
+      await waitDialog('На вышку');
     }
     const d = await dialogText();
     expect(/Волна/.test(d) && /Зарплата/.test(d) && !/Купить заведение/.test(d), 'диалог у вышки', d);
+    await wait(500);
     await page.click('.dialog >> text=На вышку');
     await start();
     const kinds = new Set();
@@ -130,9 +147,10 @@ module.exports = async function jobs({ page, step, ev, wait, closeAll }) {
     await ev(([x, y]) => window.__dev.World.debugTeleport(x, y), [spot[0] - 1, spot[1] + 1]);
     await wait(300);
     await ev(() => window.__dev.World.walkToPlace('gardencart'));
-    await page.waitForSelector('.dialog >> text=Помочь в парке', { timeout: 8000 });
+    await waitDialog('Помочь в парке');
     const d = await dialogText();
     expect(/Мята/.test(d) && /Зарплата/.test(d), 'диалог у тележки', d);
+    await wait(500); // кнопки диалога оживают не сразу
     await page.click('.dialog >> text=Помочь в парке');
     await start();
     const stages = new Set();
@@ -247,13 +265,15 @@ module.exports = async function jobs({ page, step, ev, wait, closeAll }) {
     const hole = await ev(async () => (await import('/js/locations/caves.js')).AT.hole);
     await ev(([x, y]) => window.__dev.locations.caves.debugTeleport(x - 2, y), hole);
     await wait(500);
-    let k = await ev(([x, y]) => window.__dev.locations.caves.debugScreen((x + 0.5) * 48, (y + 0.5) * 48), hole);
-    await page.mouse.click(k.x, k.y);
+    let k;
+    await ev(() => window.__dev.locations.caves.walkToPlace('ladder'));
     await page.waitForSelector('.overlay >> text=Подземная река', { timeout: 6000 });
     expect(await ev(() => window.__dev.sceneName === 'caves'), 'закрытый люк пустил вниз');
     await closeAll();
     await ev(() => window.__dev.actions.openLand('deep'));
-    await page.mouse.click(k.x, k.y);
+    await ev(([x, y]) => window.__dev.locations.caves.debugTeleport(x - 3, y), hole);
+    await wait(300);
+    await ev(() => window.__dev.locations.caves.walkToPlace('ladder'));
     await page.waitForFunction(() => window.__dev.sceneName === 'deep', null, { timeout: 8000 });
     await wait(800);
     // карта мира: из подземной реки в город — через пещеры
