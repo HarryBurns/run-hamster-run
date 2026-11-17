@@ -19,12 +19,17 @@
 // Атмосфера: всегда лето (season), снега и холодного дождя не бывает (dry), бабочки днём, светлячки ночью; своя
 // музыка с барабанами (sound → features/soundscape.js), у моря шумит прибой.
 import { G, darkness } from '../core/state.js';
+import { setFlag, setDayFlag } from '../core/actions.js';
+import { emit } from '../core/events.js';
+import { sfx } from '../core/audio.js';
+import { toast } from '../ui/toast.js';
 import { clamp, seeded } from '../core/util.js';
 import { ell } from '../core/draw.js';
 import { drawHamster } from '../art/hamster.js';
 import { ISLAND, LEI_IDS, FIND_BY_ID, pickOn, resolveLook } from '../data/index.js';
-import { T, PS, put, defineArt, createTopDownScene } from '../engine/topdown/index.js';
+import { T, PS, SP, put, hash, defineArt, createTopDownScene } from '../engine/topdown/index.js';
 import './island_art.js';
+import './cove_art.js'; // бирюзовая вода лагуны (clag, cdeep) — как в бухте секретного пляжа
 import './common/index.js';
 
 const W = 40,
@@ -43,6 +48,7 @@ export const AT = {
   guest: { x: 27, y: 18, w: 3, h: 2 }, // хижина для гостей: дверь — (28, 20)
   bum: { x: 8, y: 19, w: 3, h: 2 }, // домик Бума: дверь — (9, 21)
   lane: [30, 23, 36, 25], // дорожка боулинга (клетки)
+  lagoon: [8, 31.7, 5.4, 2.5], // тёплая лагуна для купания у западного пляжа (О10): центр и полуоси (клетки)
   pins: [36, 24], // кегли-тотемчики
   torches: [
     [15, 14],
@@ -170,6 +176,13 @@ function build(m) {
     for (let y = sy; y < H; y++) m.set(x, y, y >= sy + 3 ? 'O' : y >= sy + 2 ? 'h' : 's');
   }
   for (let y = 0; y < 13; y++) for (let x = 0; x < W; x++) if (inEll(x, y, [20.5, 4.5, 13, 6.6])) m.set(x, y, 'iash');
+  // лагуна (О10): бирюзовое мелководье у пляжа — плавать можно, вода тёплая (swim where: 'cove' — не «ледяное море»)
+  const [lx, ly, lrx, lry] = AT.lagoon;
+  for (let y = 26; y < H; y++)
+    for (let x = 1; x < 16; x++) {
+      const d = ((x + 0.5 - lx) / lrx) ** 2 + ((y + 0.5 - ly) / lry) ** 2;
+      if (d < 1) m.set(x, y, 'clag');
+    }
   // 2. площадь у костра, дорожка боулинга, тропинки
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (inEll(x, y, AT.plaza)) m.set(x, y, 'iplaza');
   const [lx0, ly0, lx1, ly1] = AT.lane;
@@ -230,6 +243,14 @@ function build(m) {
       m.add('palm', x, y);
     }
   }
+  // лагуну от моря отделяют камни-рифы (на вид: вода за ними — открытое море)
+  for (const [x, y, v] of [
+    [3, 33, 0],
+    [13, 33, 1],
+    [6, 34, 1],
+    [11, 34, 0],
+  ])
+    if (m.at(x, y) === 'clag' || m.at(x, y) === 'O' || m.at(x, y) === 'h') m.add('mossRock', x, y, { v });
   // концы пляжа — камни (по краю карты не пройти)
   for (const x of [0, 1, W - 2, W - 1]) for (let y = sandY(x) - 1; y < H; y++) if (['s', 'h'].includes(m.at(x, y))) m.add('mossRock', x, y, { v: (x + y) % 2 });
   // 4. особые предметы — на место того, что выросло (m.clear)
@@ -315,6 +336,116 @@ export function placeFlowers(sc) {
   const { i, id } = flowerToday(),
     f = FIND_BY_ID[id];
   sc.setPickups([{ id: 'f' + i, at: FLOWER_SPOTS[i], icon: f.e, give: ['finds', id, 1], text: `+1 ${f.e} ${f.name}`, act: 'island:flower' }]);
+}
+
+// ---------- «доброе извержение» (О9): раз в неделю вечером вулкан пускает искры над кратером, как салют ----------
+/** Идёт ли сейчас доброе извержение (ISLAND.erupt: раз в неделю, вечером). */
+export const eruptNow = () => {
+  const s = S(),
+    e = ISLAND.erupt;
+  return !!s && s.day % e.every === e.on && s.minutes >= e.from * 60 && s.minutes < e.to * 60;
+};
+/** Через сколько дней следующее доброе извержение (0 — сегодня). */
+export const eruptIn = (day = S().day) => (ISLAND.erupt.on - (day % ISLAND.erupt.every) + ISLAND.erupt.every) % ISLAND.erupt.every;
+const CRATER = { x: (AT.volcano[0] + 0.5) * T - 4, y: (AT.volcano[1] + 0.5) * T - 262 };
+const SPARK_C = ['#ffd43b', '#ff922b', '#ff6b9d', '#fff3bf', '#ffa94d'];
+const BURST = 0.8, // новый залп каждые 0,8 с
+  SPARK_LIFE = 1.9;
+/**
+ * Искры над кратером, как салют: из кратера взлетает огонёк и невысоко (кратер у края карты) раскрывается кольцом
+ * искр, они разлетаются и осыпаются; заодно из кратера брызжет мелкий фонтанчик. Точки одним путём на цвет.
+ */
+function drawEruption(ctx, t) {
+  const b0 = Math.floor(t / BURST);
+  for (let c = 0; c < SPARK_C.length; c++) {
+    ctx.fillStyle = SPARK_C[c];
+    ctx.beginPath();
+    for (let b = b0 - 2; b <= b0; b++) {
+      const age = t - b * BURST,
+        hb = hash(b, 3),
+        ax = CRATER.x + (hb - 0.5) * 170,
+        ay = CRATER.y - 28 - hash(5, b) * 34;
+      if (age < 0 || age > SPARK_LIFE + 0.35) continue;
+      if (age < 0.35) {
+        // огонёк летит вверх
+        if ((b + c) % SPARK_C.length) continue;
+        const q = age / 0.35,
+          x = CRATER.x + (ax - CRATER.x) * q,
+          y = CRATER.y + (ay - CRATER.y) * (1 - (1 - q) * (1 - q));
+        ctx.moveTo(x + 4, y);
+        ctx.arc(x, y, 4, 0, 6.2832);
+        continue;
+      }
+      const k = (age - 0.35) / SPARK_LIFE; // 0 → 1: кольцо раскрылось и осыпается
+      for (let i = c; i < 20; i += SPARK_C.length) {
+        const a = (i / 20) * 6.2832 + hb * 3,
+          rr = 78 * (1 - (1 - k) * (1 - k)) * (0.8 + hash(i, b) * 0.4),
+          x = ax + Math.cos(a) * rr,
+          y = ay + Math.sin(a) * rr * 0.6 + 110 * k * k, // осыпаются по склонам
+          r = 6 * (1 - k) * (Math.sin(t * 22 + i) > -0.4 ? 1 : 0.55);
+        if (r <= 0.4) continue;
+        ctx.moveTo(x + r, y);
+        ctx.arc(x, y, r, 0, 6.2832);
+      }
+    }
+    // фонтанчик искр над самым кратером
+    for (let i = c; i < 15; i += SPARK_C.length) {
+      const q = (t * 0.9 + i * 0.137) % 1,
+        a = -Math.PI / 2 + (hash(i, 9) - 0.5) * 1.6,
+        x = CRATER.x + Math.cos(a) * 130 * q,
+        y = CRATER.y + Math.sin(a) * 110 * q + 170 * q * q,
+        r = 3 * (1 - q);
+      ctx.moveTo(x + r, y);
+      ctx.arc(x, y, r, 0, 6.2832);
+    }
+    ctx.fill();
+  }
+  // вспышка в кратере
+  ctx.globalAlpha = 0.5 + Math.sin(t * 6) * 0.2;
+  ell(ctx, CRATER.x, CRATER.y + 6, 30, 10, '#ffd43b');
+  ctx.globalAlpha = 1;
+}
+/** Извержение началось, а хомячок на острове — сказать об этом (раз в день). */
+function updateEruption() {
+  const s = S();
+  if (!eruptNow() || (s.dayFlags.island && s.dayFlags.island.erupt)) return;
+  setDayFlag('erupt', 1, 'island');
+  emit('island', { what: 'erupt' });
+  sfx('magic');
+  toast('🌋✨ Доброе извержение! Раз в неделю вулкан пускает искры, как салют. Это совсем не опасно — полюбуйся со смотровой у кратера!', 'good');
+}
+
+// ---------- лагуна (О10): рыбки в тёплой воде ----------
+const LAG_FISH = [0, 1, 2, 3, 4, 5].map((i) => ({ ph: i * 1.7, rx: 1.2 + (i % 3) * 0.9, ry: 0.5 + (i % 2) * 0.5, sp: 0.35 + (i % 3) * 0.12, c: ['#ff922b', '#ffd43b', '#f783ac', '#4dabf7', '#ff922b', '#69db7c'][i] }));
+/** Рыбка лагуны i сейчас: где и куда плывёт (единицы мира). */
+function lagFishAt(i, t) {
+  const f = LAG_FISH[i],
+    a = t * f.sp + f.ph,
+    [lx, ly] = AT.lagoon;
+  return { x: (lx + 0.3 + Math.cos(a) * f.rx) * T, y: (ly + 0.2 + Math.sin(a) * f.ry) * T, dir: -Math.sin(a) >= 0 ? 1 : -1, c: f.c };
+}
+function drawLagFish(ctx, q, t) {
+  ctx.globalAlpha = 0.8;
+  ctx.save();
+  ctx.translate(q.x, q.y);
+  ctx.scale(q.dir, 1);
+  ctx.fillStyle = 'rgba(20,90,110,.25)';
+  ctx.beginPath();
+  ctx.ellipse(2, 8, 10, 3, 0, 0, 6.2832);
+  ctx.fill();
+  ctx.fillStyle = q.c;
+  ctx.beginPath();
+  ctx.ellipse(0, 0, 9, 5, 0, 0, 6.2832);
+  ctx.moveTo(-7, 0);
+  ctx.lineTo(-15, -5 + Math.sin(t * 9) * 1.5);
+  ctx.lineTo(-15, 5 + Math.sin(t * 9) * 1.5);
+  ctx.fill();
+  ctx.fillStyle = '#1d1b1b';
+  ctx.beginPath();
+  ctx.arc(4.5, -1, 1.3, 0, 6.2832);
+  ctx.fill();
+  ctx.restore();
+  ctx.globalAlpha = 1;
 }
 
 // ---------- праздник: танцующие островитяне и гирлянда огоньков ----------
@@ -479,6 +610,7 @@ const island = createTopDownScene({
   spots: {
     plaza: { at: [20.5, 18.4], label: '🔥 Площадь' },
     beach: { at: [9.5, 28.4], label: '🏖️ Пляж' },
+    lagoon: { at: [AT.lagoon[0] + 0.5, AT.lagoon[1] - 0.6], label: '🐠 Лагуна' },
   },
   // с кораблика выходят у хижины на причале (вход pier)
   entries: { pier: { building: 'dock' } },
@@ -493,7 +625,7 @@ const island = createTopDownScene({
   /** Ночью: лава в кратере и огоньки гирлянды светятся сквозь темноту. */
   sky(c, sc, lw, lh) {
     const k = darkness();
-    if (k > 0.2) drawNightGlow(c, sc, lw, lh, G.time, k);
+    if (k > 0.2) drawNightGlow(c, sc, lw, lh, G.time, eruptNow() ? Math.min(1, k * 1.6) : k);
   },
   /** Ограждение дорожки боулинга — неподвижный рисунок поверх земли (в кэше земли). */
   paintGround(ctx, env, x0, y0, x1, y1) {
@@ -530,10 +662,14 @@ const island = createTopDownScene({
       ctx.fill();
     }
   },
-  /** Праздник огней: островитяне танцуют хороводом вокруг костра. */
+  /** Рыбки в лагуне; праздник огней: островитяне танцуют хороводом вокруг костра. */
   things(sc, add, v) {
-    if (!festNow()) return;
     const t = G.time;
+    for (let i = 0; i < LAG_FISH.length; i++) {
+      const q = lagFishAt(i, t);
+      if (q.x > v.x0 - 30 && q.x < v.x1 + 30 && q.y > v.y0 - 30 && q.y < v.y1 + 30) add(q.y - 30, (ctx) => drawLagFish(ctx, q, t));
+    }
+    if (!festNow()) return;
     for (let i = 0; i < DANCERS.length; i++) {
       const p = dancerAt(i, t);
       if (p.x < v.x0 - 60 || p.x > v.x1 + 60 || p.y < v.y0 || p.y > v.y1 + 120) continue;
@@ -543,9 +679,26 @@ const island = createTopDownScene({
       });
     }
   },
-  /** Гирлянда огоньков между факелами — вечером и ночью. */
+  /** Гирлянда огоньков между факелами — вечером и ночью; искры доброго извержения над кратером. */
   over(ctx, sc, t) {
     if (garlandOn()) drawGarland(ctx, t);
+    if (eruptNow()) {
+      SP.world();
+      drawEruption(ctx, t);
+    }
+  },
+  update() {
+    updateEruption();
+  },
+  /** Зашла в лагуну — подсказка (один раз за игру) и событие. */
+  surface(sc, kind, was) {
+    if ((kind === 'clag' || kind === 'cdeep') && was !== 'clag' && was !== 'cdeep') {
+      emit('island', { what: 'lagoon' });
+      if (!S().flags.lagoonHint) {
+        setFlag('lagoonHint');
+        toast('🐠 Тёплая лагуна! Здесь мелко и тихо, плавают пёстрые рыбки. Купайся сколько хочешь!', 'good');
+      }
+    }
   },
   cold: () => false, // на острове всегда тепло
   /** Что слышно: своя музыка с барабанами; у моря — прибой; птицы днём, сверчки ночью. */
@@ -556,4 +709,5 @@ const island = createTopDownScene({
 });
 export default island;
 /** Для тестов: где танцоры сейчас и сколько огоньков в гирлянде. */
+export const debugErupt = () => ({ on: eruptNow(), inDays: eruptIn(), crater: CRATER });
 export const debugFest = () => ({ fest: festNow(), garland: garlandOn(), dancers: DANCERS.map((_, i) => dancerAt(i, G.time)), bulbs: BULBS.list.length });

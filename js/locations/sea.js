@@ -30,7 +30,7 @@ import { toast } from '../ui/toast.js';
 import { sfx } from '../core/audio.js';
 import { T, OUT, PS, SP, put, tileOf, defineObjects, defineArt } from '../engine/topdown/kinds.js';
 import { signBoard } from './common/paint.js';
-import './cove_art.js'; // буёк-ракушка над подводным гротом (рисунок seaMarker)
+import { drawDolphinJump, DOLPHIN_JUMP } from './cove_art.js'; // буёк-ракушка над подводным гротом (рисунок seaMarker), дельфины
 import { SICK_TEXT, LAND_BY_ID } from '../data/index.js';
 import './common/index.js';
 
@@ -393,6 +393,34 @@ defineObjects({
   },
 });
 
+// настоящие препятствия в море (С11, О12): скалы у буйка-ракушки и плотик у отметки «Далеко на юг» занимают свою
+// клетку — сквозь них не проплыть ни на кораблике, ни вплавь (кораблик обходит их, поиск пути — BOAT.pass)
+defineObjects({
+  seaCrag: {
+    solid: true,
+    art: { seaCrag: [[-34, -30, 34, 24], (ctx, r) => paintSeaCrag(ctx, r)] },
+    draw(ctx, o, env) {
+      SP.world(); // пена вокруг камня набегает и тает
+      const ph = (env.t * 0.45 + o.tx * 0.37) % 1;
+      ell(ctx, o.x, o.y + o.r * 0.35, o.r * 1.2 + ph * 12, o.r * 0.42 + ph * 5, null, `rgba(255,255,255,${(0.6 * (1 - ph)).toFixed(2)})`, 1.8);
+      put('seaCrag', o.x, o.y, o.r);
+    },
+  },
+  farRaft: {
+    solid: true,
+    draw(ctx, o, env) {
+      SP.world();
+      drawFarRaft(ctx, o, env.t);
+    },
+  },
+});
+/** Скалы у буйка-ракушки: сдвиг от буйка (единицы мира) и размер — так они стояли и раньше, только картинкой. */
+const GROT_ROCKS = [
+  [52, -26, 24],
+  [78, 4, 18],
+  [-46, -34, 16],
+];
+
 const SEA_DUR = { fish: 0.85, shark: 2.4, whale: 5 };
 const isDeep = (c) => c === 'w' || c === 'O';
 const isSea = (c) => c === 'w' || c === 'O' || c === 'h'; // где проходит кораблик
@@ -419,7 +447,7 @@ export function createSea(cfg) {
   const BOAT = {
     id: 'boat',
     speed: 330,
-    pass: (tx, ty) => isSea(ch(tx, ty)),
+    pass: (tx, ty) => isSea(ch(tx, ty)) && !m.solid[ty][tx], // по воде, в обход скал и плотика (С11, О12)
     step: { sfx: 'paddle', pause: 0.25 },
     moved: () => setBoat({ x: sc.p.x, y: sc.p.y }),
     draw: (ctx, s, p, t, look) => drawBoat(ctx, p.x, p.y, p.dir, t, look, p.moving),
@@ -459,6 +487,10 @@ export function createSea(cfg) {
         g.add(type, Math.floor(is.x) + dx, Math.floor(is.y) + dy, type === 'umbrella' ? { beach: true } : {});
     for (let x = 1; x < g.w; x += 5) g.add('buoy', x, BUOY_Y);
     for (const [x, y] of cfg.icebergs || []) g.add('iceberg', x, y);
+    // настоящие скалы у буйка-ракушки и плотик у отметки «Далеко на юг» (С11, О12)
+    if (GROT_PX)
+      for (const [dx, dy, r] of GROT_ROCKS) g.add('seaCrag', tileOf(GROT_PX.x + dx), tileOf(GROT_PX.y + dy), { x: GROT_PX.x + dx, y: GROT_PX.y + dy, r });
+    if (FAR_PX) g.add('farRaft', tileOf(FAR_PX.x), tileOf(FAR_PX.y), { land: FAR.land });
     if (PORT) {
       // остров причала: джунгли (рисунки — jungle_art.js) и табличка с замочком, пока место закрыто
       const X = Math.floor(PORT.x),
@@ -494,21 +526,7 @@ export function createSea(cfg) {
     if (d < T * 1.9 && !farNear && !sc.p.path.length) farGo();
     else if (d > T * 4) farNear = false;
   }
-  const drawFar = (ctx, g, t) => {
-    const x = g.x,
-      y = g.y,
-      bob = Math.round(Math.sin(t * 1.6) * 2);
-    for (let i = 0; i < 2; i++) {
-      const ph = (t * 0.35 + i * 0.5) % 1;
-      ell(ctx, x, y + 12, 34 + ph * 30, 9 + ph * 8, null, `rgba(255,255,255,${(0.55 * (1 - ph)).toFixed(2)})`, 2);
-    }
-    put('farMarker', x, y + bob);
-    SP.world();
-    // стрелка на юг покачивается под табличкой
-    const ay = y - 30 + bob + Math.sin(t * 3) * 3;
-    poly(ctx, [x + 22, ay - 6, x + 32, ay - 6, x + 32, ay + 4, x + 37, ay + 4, x + 27, ay + 14, x + 17, ay + 4, x + 22, ay + 4], '#ffd43b', OUT, 1.6);
-    if (!landOpen(g.land)) emoji(ctx, '🔒', x + 40, y - 100 + bob, 18);
-  };
+
 
   // ---------- кораблик ----------
   function boardBoat() {
@@ -638,16 +656,6 @@ export function createSea(cfg) {
     for (let i = 0; i < 2; i++) {
       const ph = (t * 0.45 + i * 0.5) % 1;
       ell(ctx, x, y + 6, 18 + ph * 46, 7 + ph * 17, null, `rgba(255,255,255,${(0.7 * (1 - ph)).toFixed(2)})`, 2);
-    }
-    // скалы над входом в грот
-    for (const [dx, dy, r] of [
-      [52, -26, 24],
-      [78, 4, 18],
-      [-46, -34, 16],
-    ]) {
-      ell(ctx, x + dx, y + dy + r * 0.35, r * 1.15, r * 0.4, 'rgba(255,255,255,.55)');
-      ell(ctx, x + dx, y + dy, r, r * 0.75, '#a7aeb6', OUT, 2);
-      ell(ctx, x + dx - r * 0.3, y + dy - r * 0.25, r * 0.45, r * 0.25, '#cfd5db');
     }
     put('seaMarker', x, Math.round(y + Math.sin(t * 2) * 3));
     SP.world();
@@ -851,6 +859,32 @@ export function createSea(cfg) {
     }
   }
 
+  // ---------- дельфины (С5): плывёшь на кораблике по глубокой воде — иногда рядом выпрыгивает пара дельфинов ----------
+  let dolph = null, // { x, y, dir, t0 } — прыжок, который сейчас виден
+    dolphT = 6; // через сколько секунд плавания следующий (в открытом море — чаще)
+  function updateDolphins(dt) {
+    if (dolph && G.time - dolph.t0 > DOLPHIN_JUMP * 1.8) dolph = null;
+    if (!isBoating() || !sc.p.moving || dolph) return;
+    const p = sc.p,
+      c = ch(tileOf(p.x), tileOf(p.y));
+    if (!isDeep(c)) return;
+    dolphT -= dt * (c === 'O' ? 1.8 : 1);
+    if (dolphT > 0) return;
+    dolphT = rnd(10, 20);
+    showDolphins(p.x + p.dir * rnd(170, 230), p.y + rnd(55, 85), p.dir, 250); // плывут рядом, чуть медленнее кораблика
+  }
+  /** Пара дельфинов выпрыгивает в точке (x, y) мира и плывёт в сторону dir со скоростью v — если там глубоко. */
+  function showDolphins(x, y, dir, v = 0) {
+    for (const dx of [-80, 0, 80, 80 + v * 1.6]) if (!isDeep(ch(tileOf(x + dir * dx), tileOf(y)))) return false;
+    dolph = { x, y, dir, v, t0: G.time };
+    if (scene() === sc) sfx('splash');
+    if (!G.state.dayFlags.dolphins) {
+      setDayFlag('dolphins');
+      toast('Дельфины! Плывут рядом с корабликом и прыгают из воды 🐬', 'good');
+    }
+    return true;
+  }
+
   // ---------- ныряние ----------
   /** Нырять можно только там, где глубоко. */
   const canDive = () => !!sc && sc.built && isDeep(ch(tileOf(sc.p.x), tileOf(sc.p.y)));
@@ -924,7 +958,7 @@ export function createSea(cfg) {
       const p = s.p;
       let bt = boatState();
       // карту могли перерисовать (старое сохранение): кораблик, оказавшийся не на воде, возвращается к пирсу
-      if (!Number.isFinite(bt.x) || !Number.isFinite(bt.y) || !isSea(ch(tileOf(bt.x), tileOf(bt.y)))) {
+      if (!Number.isFinite(bt.x) || !Number.isFinite(bt.y) || !BOAT.pass(tileOf(bt.x), tileOf(bt.y))) {
         if (bt.on && isSea(ch(tileOf(p.x), tileOf(p.y)))) setBoat({ x: p.x, y: p.y });
         else setBoat({ x: BOAT_HOME.x, y: BOAT_HOME.y, on: false });
         bt = boatState();
@@ -980,6 +1014,7 @@ export function createSea(cfg) {
     idle: dive,
     update(s, dt) {
       updateSea(dt);
+      updateDolphins(dt);
       updatePort();
       updateGrotto();
       updateFar();
@@ -998,8 +1033,7 @@ export function createSea(cfg) {
         const bt = boatState();
         add(bt.y + 12, drawFreeBoat, bt, true);
       }
-      if (FAR_PX && FAR_PX.x > v.x0 - 120 && FAR_PX.x < v.x1 + 120 && FAR_PX.y > v.y0 && FAR_PX.y < v.y1 + 140)
-        add(FAR_PX.y, drawFar, { ...FAR_PX, land: FAR.land });
+      if (dolph) add(dolph.y + 4, (ctx, j, t) => drawDolphinJump(ctx, j, t), dolph);
       if (GROT_PX && GROT_PX.x > v.x0 - 120 && GROT_PX.x < v.x1 + 120 && GROT_PX.y > v.y0 && GROT_PX.y < v.y1)
         add(GROT_PX.y, drawGrotto, { ...GROT_PX, land: GROT.land });
     },
@@ -1066,6 +1100,14 @@ export function createSea(cfg) {
       for (const c of creatures) n[c.kind] = (n[c.kind] || 0) + 1;
       return n;
     },
+    /** Дельфины выпрыгивают прямо сейчас перед хомячком (true — выпрыгнули; false — там мелко). */
+    debugDolphins() {
+      dolph = null;
+      const d0 = sc.p.dir || 1;
+      return showDolphins(sc.p.x + d0 * 170, sc.p.y + 30, d0) || showDolphins(sc.p.x - d0 * 170, sc.p.y + 30, -d0) ? sc.debugScreen(dolph.x, dolph.y) : false;
+    },
+    /** Прыжок дельфинов, который сейчас виден (или null), — для тестов. */
+    dolphinJump: () => dolph,
     /** Перенести ближайшее существо этого вида к хомячку и заставить вынырнуть. */
     debugSeaShow(kind) {
       const c = creatures.find((q) => q.kind === kind);
@@ -1080,6 +1122,29 @@ export function createSea(cfg) {
 }
 
 // ---------- рисунки ----------
+/** Скала в море у буйка-ракушки: серый камень с бликом и отражением в воде (r — размер). */
+function paintSeaCrag(ctx, r) {
+  ell(ctx, 0, r * 0.35, r * 1.15, r * 0.4, 'rgba(255,255,255,.55)');
+  ell(ctx, 0, 0, r, r * 0.75, '#a7aeb6', OUT, 2);
+  ell(ctx, r * 0.25, r * 0.2, r * 0.6, r * 0.35, 'rgba(70,80,95,.22)');
+  ell(ctx, -r * 0.3, -r * 0.25, r * 0.45, r * 0.25, '#cfd5db');
+}
+/** Плотик «Далеко на юг» (предмет farRaft): круги на воде, сам плотик из кэша, стрелка на юг, замочек, пока закрыто. */
+function drawFarRaft(ctx, g, t) {
+  const x = g.x,
+    y = g.y,
+    bob = Math.round(Math.sin(t * 1.6) * 2);
+  for (let i = 0; i < 2; i++) {
+    const ph = (t * 0.35 + i * 0.5) % 1;
+    ell(ctx, x, y + 12, 34 + ph * 30, 9 + ph * 8, null, `rgba(255,255,255,${(0.55 * (1 - ph)).toFixed(2)})`, 2);
+  }
+  put('farMarker', x, y + bob);
+  SP.world();
+  // стрелка на юг покачивается под табличкой
+  const ay = y - 30 + bob + Math.sin(t * 3) * 3;
+  poly(ctx, [x + 22, ay - 6, x + 32, ay - 6, x + 32, ay + 4, x + 37, ay + 4, x + 27, ay + 14, x + 17, ay + 4, x + 22, ay + 4], '#ffd43b', OUT, 1.6);
+  if (!landOpen(g.land)) emoji(ctx, '🔒', x + 40, y - 100 + bob, 18);
+}
 /** Отметка «Далеко на юг»: плотик из брёвен, столб и табличка (неподвижное — в кэше спрайтов). */
 function paintFarMarker(ctx) {
   ell(ctx, 0, 12, 40, 9, 'rgba(255,255,255,.45)');

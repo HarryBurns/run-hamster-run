@@ -18,10 +18,10 @@
 import { G, darkness } from '../core/state.js';
 import { emit } from '../core/events.js';
 import { sfx } from '../core/audio.js';
-import { clamp, seeded, dist } from '../core/util.js';
+import { clamp, seeded, dist, rnd } from '../core/util.js';
 import { COVE, SHELL_IDS, FIND_BY_ID, SEASON_OF_MONTH, pickOn, monthOfDay } from '../data/index.js';
-import { T, TILES, put, tileOf, createTopDownScene } from '../engine/topdown/index.js';
-import { drawXMark, drawDugHole } from './cove_art.js';
+import { T, TILES, SP, put, tileOf, createTopDownScene } from '../engine/topdown/index.js';
+import { drawXMark, drawDugHole, drawDolphinJump, DOLPHIN_JUMP } from './cove_art.js';
 import './common/index.js';
 import './jungle_art.js'; // цветы-геликонии у подножия скал — общие с джунглями
 
@@ -269,6 +269,20 @@ function drawGlow(c, sc, lw, lh, t, k) {
   c.restore();
 }
 
+// ---------- дельфины вдали (С5): днём за мысами, в открытом море, иногда выпрыгивает пара дельфинов ----------
+const dolph = { j: null, next: 6 };
+function updateDolphins(sc, dt) {
+  if (dolph.j && G.time - dolph.j.t0 > DOLPHIN_JUMP * 1.8) dolph.j = null;
+  if (darkness() > 0.4 || dolph.j || (dolph.next -= dt) > 0) return;
+  dolph.next = rnd(16, 32);
+  showDolphins(sc, 8 + rnd(0, 13), 24.5 + rnd(0, 3), rnd(0, 1) < 0.5 ? 1 : -1);
+}
+function showDolphins(sc, tx, ty, dir) {
+  if (sc.map.at(Math.floor(tx), Math.floor(ty)) !== 'copen') return false;
+  dolph.j = { x: tx * T, y: ty * T, dir, v: 30, t0: G.time, scale: 0.6 };
+  return true;
+}
+
 // ---------- клад ----------
 export const treasureDug = () => !!(S() && S().flags.coveTreasure);
 
@@ -335,6 +349,7 @@ const cove = createTopDownScene({
     glowCells = out;
   },
   enter(sc) {
+    dolph.j = null;
     hatch.on = false; // ушла — черепашата вернулись в гнездо (провожать — заново)
     hatch.list = [];
     placeShells(sc);
@@ -351,8 +366,13 @@ const cove = createTopDownScene({
     if (treasureDug()) drawDugHole(ctx, x, y);
     else drawXMark(ctx, x, y, G.time);
   },
-  /** Гнездо и черепашата. */
+  /** Гнездо и черепашата; дельфины вдали. */
   things(sc, add, v) {
+    if (dolph.j)
+      add(dolph.j.y, (ctx, j, t) => {
+        SP.world();
+        drawDolphinJump(ctx, j, t);
+      }, dolph.j);
     const nx = (AT.nest[0] + 0.5) * T,
       ny = (AT.nest[1] + 0.5) * T;
     add(ny - 20, () => put('cnest', nx, ny, hatch.on || SC().turtles ? 1 : 0));
@@ -367,6 +387,7 @@ const cove = createTopDownScene({
   },
   update(sc, dt) {
     updateTurtles(sc, dt);
+    updateDolphins(sc, dt);
   },
   /** Вошла в воду ночью — вода светится вокруг (событие: наклейка — features/cove.js). */
   surface(sc, kind, was) {
@@ -389,5 +410,7 @@ const cove = createTopDownScene({
 export default cove;
 /** Для отладки и тестов: черепашата (где и сколько в воде). */
 export const debugTurtles = () => ({ on: hatch.on, list: hatch.list.map((q) => ({ x: q.x, y: q.y, sea: q.sea })) });
+/** Для тестов: дельфины выпрыгивают за мысами прямо сейчас (возвращает прыжок). */
+export const debugDolphins = (sc) => (showDolphins(sc, 15, 25.5, 1) ? dolph.j : null);
 /** Для тестов: места ракушек (клетки). */
 export const SHELL_SPOTS = SHELL_X.map((x) => [x, sandEnd(x) - 1]);

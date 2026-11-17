@@ -14,7 +14,7 @@
 //          над входом в грот — в море города, locations/sea.js).
 import { TAU } from '../core/util.js';
 import { ell, fillRR, line, poly, star } from '../core/draw.js';
-import { T, OUT, put, hash, defineTiles, defineObjects, defineArt } from '../engine/topdown/index.js';
+import { T, OUT, SP, put, hash, defineTiles, defineObjects, defineArt } from '../engine/topdown/index.js';
 import { shadow } from './common/paint.js';
 
 export const SAND = '#fbf3df',
@@ -502,4 +502,82 @@ export function drawDugHole(ctx, x, y) {
   ell(ctx, x, y, 18, 9, '#d9c08e', 'rgba(140,105,60,.6)', 1.4);
   ell(ctx, x, y + 1, 11, 5, '#bfa070');
   ell(ctx, x + 22, y - 2, 8, 4, '#efdfbb', 'rgba(140,105,60,.5)', 1);
+}
+
+// ---------- дельфины (С5): прыжок пары дельфинов — в море города рядом с корабликом и вдали за бухтой ----------
+/** Сколько длится прыжок одного дельфина (секунды). */
+export const DOLPHIN_JUMP = 1.25;
+/** Дельфин в профиль, носом вправо; a — наклон (0…6: нос вверх → нос вниз), m — 1: зеркально, носом влево. */
+function paintDolphin(ctx, a, m) {
+  ctx.scale(m ? -1 : 1, 1);
+  ctx.rotate(((a - 3) / 3) * 0.9);
+  poly(ctx, [-28, 0, -42, -10, -38, 0, -42, 10], '#5b7fb8', OUT, 1.6); // хвост
+  ctx.beginPath();
+  ctx.moveTo(-30, 0);
+  ctx.quadraticCurveTo(-6, -16, 18, -9);
+  ctx.quadraticCurveTo(30, -6, 36, -1);
+  ctx.quadraticCurveTo(30, 4, 18, 6);
+  ctx.quadraticCurveTo(-6, 12, -30, 0);
+  ctx.closePath();
+  ctx.fillStyle = '#6f93cf';
+  ctx.fill();
+  ctx.strokeStyle = OUT;
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  ctx.beginPath(); // светлое брюшко
+  ctx.moveTo(-20, 3);
+  ctx.quadraticCurveTo(4, 10, 30, 2);
+  ctx.quadraticCurveTo(6, 5, -20, 3);
+  ctx.fillStyle = '#e7f0ff';
+  ctx.fill();
+  poly(ctx, [-6, -11, 2, -24, 8, -11], '#5b7fb8', OUT, 1.6); // спинной плавник
+  poly(ctx, [6, 4, 0, 13, 12, 6], '#5b7fb8', OUT, 1.3);
+  ell(ctx, 20, -4, 2.2, 2.4, '#1d1b1b');
+  ell(ctx, 19.4, -4.8, 0.8, 0.8, '#fff');
+  ctx.strokeStyle = OUT;
+  ctx.lineWidth = 1.3;
+  ctx.beginPath(); // улыбка
+  ctx.moveTo(26, 0.5);
+  ctx.quadraticCurveTo(31, 2, 35, -0.5);
+  ctx.stroke();
+}
+defineArt({ dolphin: [[-48, -48, 48, 48], paintDolphin] });
+/**
+ * Прыжок пары дельфинов: j = { x, y, dir, v, t0, scale } — где и когда начался (единицы мира, время G.time), куда
+ * и как быстро плывут (v — единиц в секунду, рядом с корабликом), t — сейчас.
+ * Дельфин — готовый спрайт из кэша (7 наклонов × 2 стороны); брызги и круги на воде — несколько эллипсов.
+ * Рисовать после SP.world() (координаты мира). scale < 1 — вдали (бухта): тогда рисуется линиями, без кэша.
+ */
+export function drawDolphinJump(ctx, j, t) {
+  const s = j.scale || 1;
+  for (let i = 0; i < 2; i++) {
+    const k = (t - j.t0 - i * 0.32) / DOLPHIN_JUMP;
+    if (k < -0.1 || k > 1.4) continue;
+    const bx = j.x + j.dir * ((j.v || 0) * (t - j.t0) - i * 46 * s), // плывут вперёд со скоростью v
+      by = j.y + i * 16 * s,
+      sx = bx - j.dir * 60 * s, // где выпрыгнул
+      ex = bx + j.dir * 60 * s; // где нырнул обратно
+    for (const [cx, k0] of [
+      [sx, 0],
+      [ex, 0.95],
+    ]) {
+      const q = (k - k0) / 0.4;
+      if (q >= 0 && q <= 1) ell(ctx, cx, by, (10 + q * 26) * s, (4 + q * 8) * s, null, `rgba(255,255,255,${(0.8 * (1 - q)).toFixed(2)})`, 2);
+    }
+    if (k < 0 || k > 1) continue;
+    const x = sx + (ex - sx) * k,
+      y = by - Math.sin(k * Math.PI) * 70 * s,
+      a = Math.round(3 - Math.cos(k * Math.PI) * 3);
+    if (k < 0.3 || k > 0.8) for (let d = 0; d < 3; d++) ell(ctx, x - j.dir * (18 + d * 8) * s, y + (8 + d * 5) * s, 2.4 * s, 2.6 * s, 'rgba(255,255,255,.9)');
+    if (s === 1) {
+      put('dolphin', x, y, a, j.dir < 0 ? 1 : 0);
+      SP.world();
+    } else {
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.scale(s, s);
+      paintDolphin(ctx, a, j.dir < 0 ? 1 : 0);
+      ctx.restore();
+    }
+  }
 }
