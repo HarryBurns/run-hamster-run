@@ -24,7 +24,9 @@
 //   guests        { f, enterX, gap, first, roam } — сюда приходят приглашённые друзья (см. actors.js)
 //   actors        [{ npc, f, x, roam, act, when }] — кто здесь живёт или работает (when() — когда он здесь)
 //   shell         { wall, roof, chimneyX, bushes, flat, ground, trees } — дом снаружи (см. rooms.js)
-//   maxZoom       не приближать сильнее (для маленьких домов);  music — дневная музыка ('villa' | 'town')
+//   maxZoom       не приближать сильнее (для маленьких домов);  music — дневная музыка ('villa' | 'town' | 'forest' |
+//                 'mountain' | 'desert' | 'jungle' | 'cove' | 'island');  ambience — что ещё слышно ({ sea, drips, wind…})
+//   lamps, dim, night   свет вечером и ночью (light.js): свои лампы, «темно и днём», насколько темнеет ночью
 //   art           { back(ctx, sc, t), mid(ctx, sc, t), front(ctx, sc, t) } — свой рисунок позади всех, между жильцами
 //                 и хомячком (стойка, за которой стоит работник, а хомячок проходит перед ней) и поверх хомячка;
 //                 что сейчас на экране — sc.view ({ x0, y0, x1, y1 } в единицах дома): невидимое можно не рисовать
@@ -49,6 +51,7 @@ import { buildFixtures } from './fixtures.js';
 import { hitItem, useItem, drawItems, isParty, SEAT_H } from './items.js';
 import { makeResidents, syncGuests, actorHappy, hitActor, updateActors, drawActors, actorHere } from './actors.js';
 import { setDecor, decorDown, decorMove, decorUp } from './decor.js';
+import { drawLight } from './light.js';
 
 /**
  * Общий рисунок для всех домов (позади всех, после art.back): [fn(ctx, sc, t)]. Пусто — ничего. Так занятия украшают
@@ -207,7 +210,7 @@ export function createSideScene(desc) {
       const on = sc.decor.on;
       return { main: { icon: '🔨', label: 'Обустроить', on, fn: () => setDecor(sc, !on) }, cls: on ? 'decor' : '' };
     },
-    sound: () => ({ force: isParty(sc) ? 'party' : null, day: desc.music || 'villa', sea: 0, rain: 0.3 }),
+    sound: () => ({ force: isParty(sc) ? 'party' : null, day: desc.music || 'villa', sea: 0, rain: 0.3, ...desc.ambience }),
     /** Можно ли сейчас впустить гостя, который пришёл сам. */
     canHostGuests: () => !!desc.guests && !sc.decor.on,
 
@@ -310,7 +313,7 @@ export function createSideScene(desc) {
   function hitZone(wx, wy) {
     for (const b of zones) {
       const y = fy(b.f);
-      if (wx >= b.x - b.w / 2 && wx <= b.x + b.w / 2 && wy >= y - b.h && wy <= y + 6) return b;
+      if (wx >= b.x - b.w / 2 && wx <= b.x + b.w / 2 && wy >= y - b.h && wy <= y - (b.up || 0) + 6) return b;
     }
     return null;
   }
@@ -585,6 +588,7 @@ export function createSideScene(desc) {
     for (const b of drawOrder) if (b.def.front && floorSeen(b.f)) b.def.front(ctx, b.x - (b.def.ref || 0), fy(b.f), t, sc, b);
     if (desc.art && desc.art.front) desc.art.front(ctx, sc, t);
     drawParts(ctx);
+    drawLight(ctx, sc, view);
     ctx.restore();
   }
 

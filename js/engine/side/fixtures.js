@@ -23,12 +23,13 @@
 // Рисунки сделаны «по чертежу виллы»: числа — координаты x на вилле, а o — сдвиг предмета относительно
 // того места (o = b.x − ref). Так картинка виллы осталась точь-в-точь прежней, а в другом доме предмет
 // просто стоит со сдвигом. y — пол этажа.
-import { clamp, rnd } from '../../core/util.js';
-import { ell, fillRR, line, rr, shade } from '../../core/draw.js';
+import { clamp, rnd, pick } from '../../core/util.js';
+import { ell, fillRR, line, rr, shade, mix, poly } from '../../core/draw.js';
+import { run } from '../../core/registry.js';
 import { sfx } from '../../core/audio.js';
 import { emit } from '../../core/events.js';
 import { toast } from '../../ui/toast.js';
-import { canSwim } from '../../core/state.js';
+import { G, canSwim, darkness } from '../../core/state.js';
 import { SICK_TEXT } from '../../data/index.js';
 import { OUT } from './rooms.js';
 
@@ -64,7 +65,94 @@ function drawSink(ctx, sx, sy) {
   line(ctx, sx, sy - 102, sx + 12, sy - 102, '#adb5bd', 5);
 }
 
+/**
+ * Вход без двери (look у двери): 'arch' — каменная арка (пирамида, храм), 'flap' — откинутый полог (шатёр, палатка),
+ * 'curtain' — занавеска из травы (хижины острова), 'cave' — светлый проход в скале (грот). За проёмом — день или ночь.
+ */
+function drawOpening(ctx, x, y, b, t) {
+  const d = darkness(),
+    out = mix(b.sky || '#fff3bf', '#1d2350', d * 0.85);
+  if (b.look === 'arch' || b.look === 'cave') {
+    const stone = b.c || (b.look === 'cave' ? '#6c6f7d' : '#c9a36a');
+    ctx.beginPath();
+    ctx.moveTo(x - 62, y);
+    ctx.lineTo(x - 62, y - 150);
+    ctx.quadraticCurveTo(x, y - 232, x + 62, y - 150);
+    ctx.lineTo(x + 62, y);
+    ctx.closePath();
+    ctx.fillStyle = stone;
+    ctx.fill();
+    ctx.strokeStyle = OUT;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(x - 44, y);
+    ctx.lineTo(x - 44, y - 140);
+    ctx.quadraticCurveTo(x, y - 200, x + 44, y - 140);
+    ctx.lineTo(x + 44, y);
+    ctx.closePath();
+    ctx.fillStyle = out;
+    ctx.fill();
+    ctx.stroke();
+    if (b.look === 'arch') for (let i = 0; i < 4; i++) line(ctx, x - 62, y - 30 - i * 38, x - 44, y - 30 - i * 38, OUT, 1.2);
+    else ell(ctx, x - 50, y - 120, 9, 6, shade(stone, -0.15));
+    if (b.ground) fillRR(ctx, x - 44, y - 14, 88, 14, 3, mix(b.ground, '#2b2b55', d * 0.6));
+    return;
+  }
+  if (b.look === 'flap' || b.look === 'curtain') {
+    const col = b.c || '#c0392b';
+    fillRR(ctx, x - 46, y - 176, 92, 176, 6, out, OUT, 2);
+    if (b.ground) fillRR(ctx, x - 46, y - 16, 92, 16, 3, mix(b.ground, '#2b2b55', d * 0.6));
+    if (b.look === 'flap') {
+      // полог откинут на обе стороны и подвязан
+      poly(ctx, [x - 54, y - 182, x - 6, y - 182, x - 40, y - 96, x - 54, y], col, OUT, 2);
+      poly(ctx, [x + 54, y - 182, x + 6, y - 182, x + 40, y - 96, x + 54, y], shade(col, -0.08), OUT, 2);
+      ell(ctx, x - 44, y - 98, 7, 5, '#ffd43b', OUT, 1.2);
+      ell(ctx, x + 44, y - 98, 7, 5, '#ffd43b', OUT, 1.2);
+    } else {
+      // травяная занавеска качается
+      for (let i = 0; i < 12; i++) {
+        const xx = x - 44 + i * 8,
+          sway = Math.sin(t * 1.6 + i * 0.7) * 3;
+        if (i > 3 && i < 8) continue; // посередине — проход
+        line(ctx, xx, y - 176, xx + sway, y - 40 - (i % 3) * 10, i % 2 ? col : shade(col, -0.15), 5);
+      }
+      fillRR(ctx, x - 52, y - 186, 104, 14, 5, shade(col, -0.25), OUT, 1.5);
+    }
+  }
+}
+const propK = (b, t) => (b.touchT === undefined ? 0 : Math.max(0, 1 - (t - b.touchT) / 1.4));
+/** Потрогали предмет-«реквизит»: качнулся, искорки, реплика или действие из реестра. */
+function touchProp(sc, b) {
+  b.touchT = G.time;
+  sfx(b.sfx || 'pop');
+  sc.burst(b.x, sc.geo.fy(b.f) - (b.up || 0) - (b.h - (b.up || 0)) * 0.6, b.fx || 'spark', b.fxN || 5);
+  if (b.run) run(b.run, { scene: sc, fixture: b });
+  else if (b.say) toast(pick([].concat(b.say)));
+}
+
 export const FIXTURES = {
+  /**
+   * Предмет-«реквизит» дома, которого нет в каталоге мебели (печка лесника, лыжи, барабаны, светящаяся вода…):
+   *   { type: 'prop', f, x, w, h, up, draw(ctx, x, y, t, k, sc, b), say, run, fx, sfx, front }
+   *   draw — рисунок (x — центр, y — пол этажа, k — 0..1: только что потрогали, можно качнуть); front — поверх хомячка;
+   *   up — зона нажатия начинается на столько выше пола (картина на стене); say — реплика (строка или список);
+   *   run — вместо реплики действие из реестра (лечь спать, загадка); fx — частицы: spark | heart | note | bubble | steam.
+   */
+  prop: {
+    w: 90,
+    h: 120,
+    zoneIf: (b) => !!(b.say || b.run), // без реплики и действия — просто рисунок (факелы, ковёр на стене)
+    use: (sc, z) => touchProp(sc, z.fix),
+    back(ctx, o, y, t, sc, b) {
+      if (!b.front && b.draw) b.draw(ctx, b.x, y, t, propK(b, t), sc, b);
+    },
+    front(ctx, o, y, t, sc, b) {
+      if (b.front && b.draw) b.draw(ctx, b.x, y, t, propK(b, t), sc, b);
+    },
+  },
+
+
   /** Просто место нажатия: размер и действие задаёт описание дома. */
   zone: { w: 80, h: 110 },
 
@@ -78,6 +166,10 @@ export const FIXTURES = {
       sc.exit();
     },
     back(ctx, o, y, t, sc, b) {
+      if (b.look) {
+        drawOpening(ctx, b.x, y, b, t);
+        return;
+      }
       fillRR(ctx, o + 237, y - 176, 96, 176, 8, '#8d5524', OUT);
       fillRR(ctx, o + 245, y - 168, 80, 168, 5, b.c || '#e8590c', OUT, 1.5);
       fillRR(ctx, o + 259, y - 152, 52, 50, 24, '#d0ebff', OUT, 1.5);
@@ -394,13 +486,14 @@ export function buildFixtures(list = []) {
           fix,
         });
       }
-    } else if (b.act || def.act || def.use) {
+    } else if ((b.act || def.act || def.use) && (b.act || !def.zoneIf || def.zoneIf(b))) {
       zones.push({
         id: fix.id,
         f: b.f,
         x: b.x,
         w: fix.w,
         h: fix.h,
+        up: b.up || 0,
         act: b.act || def.act,
         use: b.act ? null : def.use,
         fix,

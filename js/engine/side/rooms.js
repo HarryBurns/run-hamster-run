@@ -228,6 +228,56 @@ function wallpaper(ctx, geo, r, y) {
       ctx.fillRect(r.x0, yy + h - 4, w, 4);
       for (let xx = r.x0 + 30 + ((i * 97) % 150); xx < r.x1 - 20; xx += 190) ell(ctx, xx, yy + h / 2, 4.5, 2.6, 'rgba(90,50,20,.32)');
     }
+  } else if (paper === 'stone') {
+    // каменные блоки (пирамида, храм): ряды со сдвигом швов, блоки чуть разного тона
+    const bh = 36,
+      bw = 78;
+    for (let yy = y - RH, i = 0; yy < y; yy += bh, i++) {
+      const h = Math.min(bh, y - yy);
+      for (let xx = r.x0 - (i % 2 ? bw / 2 : 0), j = 0; xx < r.x1; xx += bw, j++) {
+        const k = (i * 7 + j * 13) % 5;
+        if (k < 2) {
+          ctx.fillStyle = k ? 'rgba(255,255,255,.1)' : 'rgba(90,60,20,.08)';
+          ctx.fillRect(Math.max(r.x0, xx), yy, Math.min(bw, r.x1 - xx, xx + bw - r.x0), h);
+        }
+        if (xx > r.x0) line(ctx, xx, yy, xx, yy + h, 'rgba(90,60,20,.28)', 2);
+      }
+      line(ctx, r.x0, yy, r.x1, yy, 'rgba(90,60,20,.28)', 2);
+    }
+  } else if (paper === 'fabric') {
+    // ткань шатра: широкие полотнища, складки и фестоны поверху
+    const sw = 70,
+      dark = shade(r.wall, -0.12);
+    for (let xx = r.x0, i = 0; xx < r.x1; xx += sw, i++) {
+      if (i % 2) {
+        ctx.fillStyle = dark;
+        ctx.fillRect(xx, y - RH, Math.min(sw, r.x1 - xx), RH);
+      }
+      ctx.fillStyle = 'rgba(255,255,255,.14)';
+      ctx.fillRect(xx + 8, y - RH, 6, RH);
+    }
+    ctx.fillStyle = r.trim || '#ffd43b';
+    for (let xx = r.x0; xx < r.x1; xx += 46) {
+      ctx.beginPath();
+      ctx.arc(xx + 23, y - RH + 6, 23, 0, Math.PI);
+      ctx.fill();
+    }
+  } else if (paper === 'rock') {
+    // скала (грот): неровные пятна светлее и темнее
+    const w = r.x1 - r.x0;
+    for (let i = 0; i < w / 26; i++) {
+      const xx = r.x0 + ((i * 137) % w),
+        yy = y - RH + 14 + ((i * 89) % (RH - 30));
+      ell(ctx, xx, yy, 26 + (i % 4) * 8, 15 + (i % 3) * 5, i % 2 ? 'rgba(255,255,255,.08)' : 'rgba(10,20,40,.12)');
+    }
+  } else if (paper === 'reed') {
+    // стена из тростника (хижины острова): вертикальные стебли и обвязки
+    for (let xx = r.x0 + 6, i = 0; xx < r.x1; xx += 13, i++)
+      line(ctx, xx, y - RH, xx, y, i % 2 ? 'rgba(120,80,20,.22)' : 'rgba(255,255,255,.18)', 4);
+    for (const k of [0.25, 0.62]) {
+      const yy = y - RH + RH * k;
+      line(ctx, r.x0, yy, r.x1, yy, 'rgba(110,70,20,.45)', 5);
+    }
   } else if (paper === 'tile') {
     ctx.strokeStyle = 'rgba(255,255,255,.55)';
     ctx.lineWidth = 2;
@@ -246,7 +296,8 @@ function wallpaper(ctx, geo, r, y) {
 }
 /**
  * Окно: x — центр, y — пол этажа. За окном — время суток и сезон. hw — половина ширины стекла (обычное окно — 44,
- * панорамное — шире); view — что видно: 'sea' (море), 'city' (город внизу), 'forest' (ёлки), иначе просто небо.
+ * панорамное — шире); view — что видно: 'sea' (море), 'city' (город внизу), 'forest' (ёлки), 'mountain' (горы в снегу),
+ * 'dunes' (барханы), 'jungle' (листья джунглей), иначе просто небо.
  */
 function windowAt(ctx, x, y, hw = 44, view = null) {
   const d = darkness(),
@@ -296,6 +347,33 @@ function windowAt(ctx, x, y, hw = 44, view = null) {
       poly(ctx, [bx, y - 153, bx, y - 168, bx + 9, y - 155], '#fff');
     }
   } else if (view === 'city') skyline(ctx, x - hw, x + hw, y - 112, 54, d, Math.round(x / 37));
+  else if (view === 'mountain') {
+    // горы в снегу (шале на горе)
+    const rock = mix('#868e96', '#1d2350', d * 0.7),
+      snow = mix('#f8f9fa', '#3b4a8c', d * 0.7);
+    for (const [dx, h, w] of [
+      [-0.55, 62, 40],
+      [0.25, 78, 52],
+      [0.95, 50, 36],
+    ]) {
+      const px = x + dx * hw;
+      poly(ctx, [px - w, y - 112, px, y - 112 - h, px + w, y - 112], rock);
+      poly(ctx, [px - w * 0.36, y - 112 - h * 0.64, px, y - 112 - h, px + w * 0.36, y - 112 - h * 0.64], snow);
+    }
+  } else if (view === 'dunes') {
+    ctx.fillStyle = mix('#f2c46d', '#3b3566', d * 0.75);
+    ctx.beginPath();
+    ctx.moveTo(x - hw, y - 112);
+    ctx.quadraticCurveTo(x - hw * 0.4, y - 150, x + hw * 0.1, y - 128);
+    ctx.quadraticCurveTo(x + hw * 0.6, y - 112 - 44, x + hw, y - 124);
+    ctx.lineTo(x + hw, y - 112);
+    ctx.closePath();
+    ctx.fill();
+  } else if (view === 'jungle') {
+    const leaf = mix('#2f9e44', '#16214d', d * 0.75);
+    for (let i = 0, xx = x - hw; xx < x + hw + 20; xx += 26, i++)
+      ell(ctx, xx, y - 116 - (i % 3) * 16, 22, 12, i % 2 ? leaf : shade(leaf, -0.15), null, 2, (i % 2 ? 0.5 : -0.5));
+  }
   else if (view === 'forest') {
     const fir = mix(c.season === 'winter' ? '#b8d8c8' : '#2f9e44', '#16214d', d * 0.75);
     for (let i = 0, xx = x - hw - 6; xx < x + hw + 12; xx += 17, i++) {
@@ -313,14 +391,26 @@ function windowAt(ctx, x, y, hw = 44, view = null) {
   if (bars === 1) line(ctx, x - hw, y - 156, x + hw, y - 156, '#fff', 5);
   fillRR(ctx, x - hw - 14, y - 110, hw * 2 + 28, 9, 4, '#fff', OUT, 1.5);
 }
+/** Полы «тайных мест»: песок (шатёр), каменные плиты (пирамида, храм), циновка (хижины), скала (грот). */
+const FLOOR_COL = { sand: '#e9c98a', stone: '#b5946a', mat: '#d9b26f', rock: '#6b6e7c' };
 /** Пол комнаты: floor — 'wood' (доски), 'check' (шашечки), 'deck' (светлый настил) или 'tile' (плитка). */
 function floorSlab(ctx, geo, r, y) {
   const { SLAB } = geo;
   const col =
-    r.floor === 'wood' ? '#c98b5a' : r.floor === 'deck' ? '#e8c9a0' : r.floor === 'check' ? '#f1f3f5' : '#dfe9ee';
+    FLOOR_COL[r.floor] ||
+    (r.floor === 'wood' ? '#c98b5a' : r.floor === 'deck' ? '#e8c9a0' : r.floor === 'check' ? '#f1f3f5' : '#dfe9ee');
   ctx.fillStyle = col;
   ctx.fillRect(r.x0, y, r.x1 - r.x0, SLAB);
-  if (r.floor === 'check') {
+  if (r.floor === 'sand' || r.floor === 'rock') {
+    ctx.fillStyle = r.floor === 'sand' ? 'rgba(160,110,40,.25)' : 'rgba(255,255,255,.12)';
+    for (let xx = r.x0 + 9, i = 0; xx < r.x1; xx += 23, i++) ctx.fillRect(xx, y + 2 + (i % 3) * 3, 4, 3);
+  } else if (r.floor === 'stone') {
+    ctx.fillStyle = 'rgba(80,50,20,.25)';
+    for (let xx = r.x0 + 90; xx < r.x1; xx += 90) ctx.fillRect(xx, y, 2, 10);
+  } else if (r.floor === 'mat') {
+    ctx.fillStyle = 'rgba(120,80,20,.22)';
+    for (let xx = r.x0, i = 0; xx < r.x1; xx += 14, i++) ctx.fillRect(xx, y + (i % 2 ? 0 : 5), 7, 5);
+  } else if (r.floor === 'check') {
     ctx.fillStyle = '#ffa8a8';
     for (let xx = r.x0, i = 0; xx < r.x1; xx += 26, i++) if (i % 2) ctx.fillRect(xx, y, Math.min(26, r.x1 - xx), 10);
   } else if (r.floor === 'wood' || r.floor === 'deck') {
@@ -371,6 +461,102 @@ function greenery(ctx, kind, WTOT, season) {
   }
 }
 
+/** Земля у «тайных мест» (shell.ground): песок пустыни, снег горы, джунгли, скала, лагуна под сваями. */
+const GROUND = { desert: '#f2d49b', snow: '#f4f9fd', jungle: '#37b24d', rock: '#7a7d8a', lagoon: '#3bc9db' };
+function lagoon(ctx, WTOT, d) {
+  ctx.fillStyle = mix('#22b8cf', '#14365a', d * 0.8);
+  ctx.fillRect(-3000, 6, 8000, 600);
+  ctx.strokeStyle = 'rgba(255,255,255,.55)';
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  for (let i = 0; i < 4; i++)
+    for (let xx = -1400 + ((G.time * 12 + i * 70) % 140); xx < WTOT + 1400; xx += 140) {
+      ctx.moveTo(xx, 40 + i * 34);
+      ctx.lineTo(xx + 40, 40 + i * 34);
+    }
+  ctx.stroke();
+}
+/**
+ * Свои формы дома снаружи (shell.shape): 'pyramid' — каменная пирамида вокруг зала, 'tent' — шатёр на шестах,
+ * 'cave' — скала вокруг грота, 'thatch' — хижина с соломенной крышей, 'temple' — храм ступенями, во мху.
+ */
+function shellShape(ctx, sh, geo, c) {
+  const { WTOT, SLAB, top } = geo,
+    wall = sh.wall;
+  if (sh.shape === 'pyramid') {
+    const { B, H } = pyramidSize(geo),
+      cx = WTOT / 2;
+    poly(ctx, [cx - B, SLAB, cx, top - H, cx + B, SLAB], wall, OUT, 3);
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(cx - B, SLAB);
+    ctx.lineTo(cx, top - H);
+    ctx.lineTo(cx + B, SLAB);
+    ctx.closePath();
+    ctx.clip();
+    for (let yy = SLAB - 34, i = 0; yy > top - H; yy -= 34, i++) {
+      line(ctx, cx - B, yy, cx + B, yy, 'rgba(110,70,20,.25)', 2);
+      for (let xx = cx - B + (i % 2 ? 40 : 0); xx < cx + B; xx += 80) line(ctx, xx, yy, xx, yy + 34, 'rgba(110,70,20,.18)', 2);
+    }
+    ctx.restore();
+    return;
+  }
+  if (sh.shape === 'cave') {
+    ctx.fillStyle = wall;
+    ctx.beginPath();
+    ctx.moveTo(-220, SLAB + 10);
+    ctx.quadraticCurveTo(-260, top - 120, WTOT * 0.25, top - 170);
+    ctx.quadraticCurveTo(WTOT * 0.5, top - 240, WTOT * 0.75, top - 170);
+    ctx.quadraticCurveTo(WTOT + 260, top - 120, WTOT + 220, SLAB + 10);
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = OUT;
+    ctx.lineWidth = 3;
+    ctx.stroke();
+    for (let i = 0; i < 9; i++)
+      ell(ctx, -120 + ((i * 331) % (WTOT + 240)), top - 40 - ((i * 53) % 110), 40, 20, i % 2 ? shade(wall, 0.1) : shade(wall, -0.12));
+    if (sh.moss) for (let i = 0; i < 6; i++) ell(ctx, -80 + i * ((WTOT + 160) / 5), top - 150 + (i % 2) * 40, 46, 14, sh.moss);
+    return;
+  }
+  if (sh.shape === 'tent') {
+    const col = c.season === 'winter' && sh.snow ? '#f1f3f5' : sh.roof;
+    poly(ctx, [-90, SLAB, -30, top - 10, WTOT / 2, top - 130, WTOT + 30, top - 10, WTOT + 90, SLAB], col, OUT, 3);
+    for (let i = 1; i < 8; i++) {
+      const k = i / 8;
+      line(ctx, WTOT / 2, top - 130, -90 + (WTOT + 180) * k, SLAB, 'rgba(0,0,0,.1)', 10);
+    }
+    line(ctx, WTOT / 2, top - 130, WTOT / 2, top - 175, '#8d5524', 7);
+    poly(ctx, [WTOT / 2, top - 175, WTOT / 2 + 40, top - 165, WTOT / 2, top - 155], sh.flag || '#ffd43b', OUT, 1.5);
+    line(ctx, -30, top - 10, -160, SLAB, '#a68b6a', 2);
+    line(ctx, WTOT + 30, top - 10, WTOT + 160, SLAB, '#a68b6a', 2);
+    return;
+  }
+  // хижина и храм — коробка, сверху своя крыша
+  fillRR(ctx, -18, top - 12, WTOT + 36, -top + 12 + SLAB, 6, wall, OUT, 3);
+  if (sh.shape === 'thatch') {
+    const straw = c.season === 'winter' ? '#e3c98f' : sh.roof || '#d9a441';
+    poly(ctx, [-90, top + 4, WTOT / 2, top - 170, WTOT + 90, top + 4], straw, OUT, 3);
+    for (let xx = -80; xx < WTOT + 90; xx += 16) line(ctx, xx, top + 4, xx + 4, top + 22, shade(straw, -0.2), 4);
+    for (let i = 1; i < 4; i++) {
+      const yy = top + 4 - i * 42,
+        hw = (WTOT / 2 + 90) * (1 - (i * 42) / 174);
+      line(ctx, WTOT / 2 - hw, yy, WTOT / 2 + hw, yy, shade(straw, -0.18), 3);
+    }
+  } else if (sh.shape === 'temple') {
+    const stone = sh.roof || shade(wall, -0.08);
+    for (let i = 0; i < 3; i++) {
+      const inset = 40 + i * 120;
+      fillRR(ctx, -30 + inset, top - 46 - i * 46, WTOT + 60 - inset * 2, 50, 4, shade(stone, i * 0.05), OUT, 3);
+    }
+    if (sh.moss)
+      for (let i = 0; i < 7; i++) {
+        const xx = 30 + i * ((WTOT - 60) / 6);
+        ell(ctx, xx, top - 10 - (i % 3) * 30, 34, 10, sh.moss);
+        line(ctx, xx, top - 8, xx + 6, top + 40 + (i % 3) * 22, shade(sh.moss, -0.2), 4);
+      }
+  }
+}
+
 /**
  * Дом снаружи и комнаты без мебели (в координатах дома, камера уже включена).
  * desc.shell: { wall, roof, chimneyX, bushes, flat, ground, trees }:
@@ -392,7 +578,20 @@ const roomSeen = (geo, r, view) =>
   !view || (r.x1 > view.x0 && r.x0 < view.x1 && geo.fy(r.f) - geo.RH < view.y1 && geo.fy(r.f) + geo.SLAB > view.y0);
 /** Рамка неподвижного слоя дома [x0, y0, x1, y1] (единицы дома): коробка, крыша и труба. */
 export function houseBox(desc, geo) {
+  const sh = desc.shell || {};
+  if (sh.shape === 'pyramid') {
+    const p = pyramidSize(geo);
+    return [geo.WTOT / 2 - p.B - 4, geo.top - p.H - 4, geo.WTOT / 2 + p.B + 4, geo.SLAB + 4];
+  }
+  if (sh.shape === 'cave') return [-290, geo.top - 250, geo.WTOT + 290, geo.SLAB + 14];
+  if (sh.shape === 'tent') return [-170, geo.top - 190, geo.WTOT + 170, geo.SLAB + 4];
+  if (sh.shape) return [-100, geo.top - 180, geo.WTOT + 100, geo.SLAB + 4];
   return [-80, geo.top - 160, geo.WTOT + 80, geo.SLAB + 4];
+}
+/** Пирамида вокруг зала: полуширина основания B и высота вершины над потолком H (зал целиком внутри). */
+function pyramidSize(geo) {
+  const B = geo.WTOT / 2 + 280;
+  return { B, H: ((geo.WTOT / 2 + 30) * (-geo.top + geo.SLAB)) / (B - geo.WTOT / 2 - 30) };
 }
 
 /** Земля вокруг дома: море и песок, трава или вершина небоскрёба, зелень. */
@@ -448,10 +647,13 @@ export function drawHouseGround(ctx, desc, geo) {
         ? c.season === 'winter'
           ? '#f6efe0'
           : '#ffe8a1'
-        : { winter: '#f4f9fd', spring: '#9be36d', summer: '#7ed957', autumn: '#d9b65c' }[c.season];
+        : GROUND[sh.ground] || { winter: '#f4f9fd', spring: '#9be36d', summer: '#7ed957', autumn: '#d9b65c' }[c.season];
     ctx.fillRect(-3000, 6, 8000, 600);
+    if (sh.ground === 'lagoon') lagoon(ctx, WTOT, d);
     if (sh.bushes) greenery(ctx, sh.trees || 'bush', WTOT, c.season);
   }
+  // сваи хижины над лагуной — под полом, в слое земли
+  if (sh.stilts) for (let xx = 20; xx < WTOT; xx += Math.max(120, WTOT / 6)) fillRR(ctx, xx - 9, SLAB - 4, 18, 150, 4, '#8d5524', OUT, 2);
 }
 
 /** Неподвижное: коробка дома, крыша, чердачное окно, труба; обои и полы комнат (кроме открытых террас). */
@@ -459,9 +661,12 @@ export function drawHouseStill(ctx, desc, geo, view = null) {
   const { RH, SLAB, WTOT, fy, top } = geo;
   const c = cal(),
     sh = shellOf(desc);
-  // коробка дома, крыша, чердачное окно, труба
-  fillRR(ctx, -18, top - 12, WTOT + 36, -top + 12 + SLAB, 6, sh.wall, OUT, 3);
-  if (sh.flat) {
+  // коробка дома, крыша, чердачное окно, труба (у «тайных мест» — своя форма: пирамида, шатёр, скала, хижина, храм)
+  if (sh.shape) shellShape(ctx, sh, geo, c);
+  else fillRR(ctx, -18, top - 12, WTOT + 36, -top + 12 + SLAB, 6, sh.wall, OUT, 3);
+  if (sh.shape) {
+    // форма уже нарисована
+  } else if (sh.flat) {
     const snow = c.season === 'winter' && sh.ground !== 'tower';
     fillRR(ctx, -34, top - 34, WTOT + 68, 28, 6, snow ? '#f8f9fa' : sh.roof, OUT, 3);
     fillRR(ctx, -22, top - 46, WTOT + 44, 14, 5, snow ? '#fff' : shade(sh.roof, 0.25), OUT, 2);
@@ -469,14 +674,14 @@ export function drawHouseStill(ctx, desc, geo, view = null) {
     poly(
       ctx,
       [-70, top - 8, WTOT / 2, top - 150, WTOT + 70, top - 8],
-      c.season === 'winter' ? '#f8f9fa' : sh.roof,
+      c.season === 'winter' || sh.snowRoof ? '#f8f9fa' : sh.roof,
       OUT,
       3,
     );
     fillRR(ctx, WTOT / 2 - 46, top - 104, 92, 60, 30, '#d0ebff', OUT, 3);
     line(ctx, WTOT / 2, top - 104, WTOT / 2, top - 44, OUT, 2);
   }
-  if (sh.chimneyX !== null && !sh.flat) {
+  if (sh.chimneyX !== null && !sh.flat && !sh.shape) {
     fillRR(ctx, sh.chimneyX, top - 130, 60, 90, 4, '#e8590c', OUT, 3);
     fillRR(ctx, sh.chimneyX - 8, top - 140, 76, 16, 4, '#f1e0c5', OUT, 2);
   }
