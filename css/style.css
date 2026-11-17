@@ -320,6 +320,7 @@ h4.sect .muted { font-size: 13px; }
   display: flex; align-items: center; gap: 8px; min-height: 44px;
 }
 .opt.sel { border-color: var(--pink); background: #fff0f5; }
+.opt.been { border-color: #ffd8a8; } /* карта: здесь уже была — быстрый переход ⚡ (Ф4) */
 .opt.done::after { content: '✓'; color: var(--pink); } /* салон: что сделано сейчас (примерка — .sel) */
 .salon-pay { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; margin: -6px 0 14px; }
 .salon-pay .btn { min-height: 44px; }

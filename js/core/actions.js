@@ -529,6 +529,13 @@ export const setPos = act((pos) => {
  * Кусочек сохранения, которым владеет одна сцена (например, кораблик в городе): завести, если его ещё нет,
  * и/или поменять поля. Сохранение не помечает (кораблик двигается каждый кадр) — когда надо, зовут touchState().
  */
+/** Хомячок дошла до места id локации loc (здание, особое место, точка с карты) — к нему потом можно быстро (Ф4). */
+export const markVisited = act((loc, id) => {
+  const v = S().visited || (S().visited = {});
+  if (v[loc] && v[loc][id]) return;
+  (v[loc] || (v[loc] = {}))[id] = 1;
+  touch();
+});
 export const patchState = act((key, patch, init) => {
   const s = S();
   if (!s[key]) s[key] = { ...init };

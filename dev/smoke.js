@@ -1979,6 +1979,76 @@ const runParallel = () => {
       ])
         if (!r.ids.includes(id)) throw new Error('на карте нет места ' + id);
     });
+    await step('город: карта — быстрый переход к месту, где уже была; где не была — пешком (Ф4)', async () => {
+      await closeAll();
+      const at = () => ev(() => ({ scene: window.__dev.sceneName, fade: !!document.querySelector('.fade') }));
+      const fromVillaArea = () =>
+        ev(() => {
+          const d = window.__dev;
+          if (d.sceneName !== 'world') d.go('world');
+          d.World.debugTeleport(16, 10);
+          d.World.p.pending = null;
+          d.actions.mutate((s) => {
+            s.visited = {};
+          });
+        });
+      await fromVillaArea();
+      await ev(() => window.__dev.F.openMap());
+      await wait(400);
+      if (await page.locator('.overlay .opt.been').count()) throw new Error('в новой игре на карте есть «уже была» ⚡');
+      await page.click('.overlay .opt >> text=Морская звезда');
+      await wait(1200);
+      let r = await at();
+      const walking = await ev(() => window.__dev.World.p.path.length > 0);
+      if (r.scene !== 'world' || r.fade || !walking) throw new Error('к месту, где не была, — не пешком: ' + JSON.stringify(r));
+      // дошла (пешком) — отель «посещён»
+      await ev(() => {
+        const W = window.__dev.World,
+          d = W.doorOf('hotel');
+        W.debugTeleport(Math.floor(d.x / 48), Math.floor(d.y / 48) + 2);
+        W.walkToPlace('hotel');
+      });
+      for (let i = 0; i < 30 && (await at()).scene !== 'hotel'; i++) await wait(200);
+      if ((await at()).scene !== 'hotel') throw new Error('не дошла до отеля');
+      if (!(await ev(() => window.__dev.G.state.visited.world.hotel))) throw new Error('отель не отмечен «уже была»');
+      await closeAll();
+      // снова с другого конца города: быстро — затемнение, и уже в отеле
+      await ev(() => {
+        const d = window.__dev;
+        d.go('world');
+        d.World.debugTeleport(16, 10);
+        d.go('villa');
+      });
+      await wait(300);
+      await ev(() => window.__dev.F.openMap());
+      await wait(400);
+      const btn = page.locator('.overlay .opt.been');
+      if ((await btn.count()) !== 1 || !(await btn.innerText()).includes('⚡')) throw new Error('на кнопке отеля нет ⚡');
+      const t0 = Date.now();
+      await btn.click();
+      await wait(250);
+      if (!(await at()).fade) throw new Error('быстрый переход без затемнения');
+      for (let i = 0; i < 40 && (await at()).scene !== 'hotel'; i++) await wait(100);
+      const sec = (Date.now() - t0) / 1000;
+      if ((await at()).scene !== 'hotel' || sec > 3) throw new Error('быстрый переход: ' + sec + ' с, сцена ' + (await at()).scene);
+      await closeAll();
+      // рядом (меньше 8 клеток) — пешком, даже если уже была
+      await ev(() => {
+        const d = window.__dev,
+          W = d.World,
+          door = W.doorOf('hotel');
+        d.go('world');
+        W.debugTeleport(Math.floor(door.x / 48) - 3, Math.floor(door.y / 48) + 1);
+      });
+      await ev(() => window.__dev.F.openMap());
+      await wait(400);
+      await page.click('.overlay .opt.been');
+      await wait(250);
+      if ((await at()).fade) throw new Error('быстрый переход на короткой дороге');
+      await wait(2500);
+      await closeAll();
+      await ev(() => window.__dev.go('world'));
+    });
     await step('город: ночь — слой неба со светом фонарей; в доме и днём без осадков его нет', async () => {
       const sky = () =>
         ev(() => {

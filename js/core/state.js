@@ -189,6 +189,7 @@ export function newGame(name) {
     quests: {}, // сюжетные задания (журнал): id → { day: когда взято, n: { шаг: сколько }, got: { шаг: [что] }, done: день | null }
     lands: {}, // открытые новые места (лес, гора…): id → день, когда открылось
     finds: {}, // находки (не еда): id → сколько (data/finds.js)
+    visited: {}, // где хомячок уже побывала — к таким местам карта переносит быстро (Ф4): локация → { место: 1 }
     // первый день
     weather: 'snow',
     visitor: null,
@@ -315,6 +316,9 @@ export function repair(s) {
     if (!Number.isFinite(q.done)) q.done = null;
   }
   for (const id of Object.keys(s.lands)) if (!LAND_BY_ID[id] || !Number.isFinite(s.lands[id])) delete s.lands[id];
+  // где уже побывала (быстрый переход по карте, Ф4): в старом сохранении поля нет — пока нигде
+  obj(s, 'visited');
+  for (const k of Object.keys(s.visited)) obj(s.visited, k);
   // жильё и заведения: только известные id; основной дом и дом с гостями — вилла или купленное жильё
   arr('homesOwned');
   s.homesOwned = [...new Set(s.homesOwned)].filter((id) => id !== 'villa' && HOME_BY_ID[id]);
@@ -606,6 +610,8 @@ export function houseItems(key) {
 // ---------- сюжетные задания и новые места (этап 5; только чтение) ----------
 // Описания — data/quests.js, места — LANDS в data/places.js; ход задания по событиям считает features/quests.js.
 /** Открыто ли новое место (лес, пустыня…). */
+/** Побывала ли хомячок у места id локации loc (дошла и зашла / сделала там что-то) — для быстрого перехода (Ф4). */
+export const wasAt = (loc, id) => !!(G.state && G.state.visited && G.state.visited[loc] && G.state.visited[loc][id]);
 export const landOpen = (id) => !!G.state && Number.isFinite(G.state.lands[id]);
 /** Сколько в рюкзаке того, что просит шаг «принести»: штук (или разных находок, если distinct). */
 function bringHave(b) {

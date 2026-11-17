@@ -1,16 +1,24 @@
 // Карта локации, где сейчас хомячок (пока он в доме — той, что снаружи): нажми на место — он сам туда дойдёт.
+// Быстрый переход (Ф4): к месту, где хомячок уже побывала (state.visited — дошла и зашла / сделала там что-то),
+// дальняя дорога — коротким затемнением «🐾 …», и хомячок уже в двух шагах от цели; эти шаги — пешком, так что
+// всё, что ждёт «дошла» (вход в здание, место, выход в другую локацию, задания), срабатывает как обычно.
+// Где ещё не была — идёт пешком, как раньше: город надо сначала обойти самой.
 // Под картой города — «Тайные места» (LANDS в data/places.js): закрытые — серым силуэтом с замочком; нажми —
 // подсказка, кто знает дорогу (действие way, features/quests.js).
 import { sfx } from '../core/audio.js';
 import { makeCanvas } from '../core/draw.js';
 import { go, sceneName } from '../core/loop.js';
 import { run } from '../core/registry.js';
-import { landOpen } from '../core/state.js';
+import { landOpen, wasAt } from '../core/state.js';
 import { el } from '../core/util.js';
 import { NPC_BY_ID, LANDS } from '../data/index.js';
 import { T, currentLocation, homeLocation } from '../engine/topdown/index.js';
+import { fadeTo } from '../ui/fade.js';
 import { openPanel } from '../ui/panel.js';
 import { toast } from '../ui/toast.js';
+
+const FAST_FROM = 8; // быстрый переход — если идти дальше стольких клеток
+const FAST_MS = 650; // сколько длится затемнение быстрого перехода (мс)
 
 /** Карта текущей локации: нажми на место — хомячок сам туда дойдёт. */
 export function openMap() {
@@ -18,11 +26,21 @@ export function openMap() {
   const loc = currentLocation(); // сцена-локация (engine/topdown/scene.js)
   const walkTo = (id, name, panel) => {
     if (sceneName() !== loc.name) go(loc.name);
-    if (loc.walkToPlace(id)) {
-      sfx('ok');
-      toast(`Идём: ${name} 🐾`);
-      panel.close();
-    } else toast('Туда сейчас не пройти');
+    if (!loc.walkToPlace(id)) {
+      toast('Туда сейчас не пройти');
+      return;
+    }
+    sfx('ok');
+    panel.close();
+    if (wasAt(loc.name, id) && loc.pathLength() > FAST_FROM * T) {
+      // уже была здесь — быстро: затемнение, и хомячок почти у цели (последние шаги — пешком)
+      fadeTo(`🐾 ${name}`, FAST_MS).then((uncover) => {
+        loc.skipAlong();
+        uncover();
+      });
+      return;
+    }
+    toast(`Идём: ${name} 🐾`);
   };
   openPanel({
     title: loc.desc.title || 'Карта',
@@ -68,7 +86,7 @@ export function openMap() {
         el(
           'p',
           'muted center',
-          'Розовая точка — это ты. Нажми на место на карте или на кнопку — и хомячок сама туда дойдёт.',
+          'Розовая точка — это ты. Нажми на место на карте или на кнопку — и хомячок сама туда дойдёт. Где ты уже была (⚡) — доберёшься быстро.',
         ),
       );
       // что сейчас растёт: значки плодовых растений на карте (common/plants.js) — подпись, что они значат
@@ -85,7 +103,8 @@ export function openMap() {
       const row = el('div', 'opt-row');
       row.style.justifyContent = 'center';
       for (const [id, name] of loc.mapPlaces()) {
-        const bt = el('button', 'opt', name);
+        const been = wasAt(loc.name, id),
+          bt = el('button', 'opt' + (been ? ' been' : ''), been ? `${name} ⚡` : name);
         bt.onclick = () => walkTo(id, name, panel);
         row.appendChild(bt);
       }

@@ -79,11 +79,13 @@
 // звёздочки задания: место, точка, здание, 'npc:<житель>' или имя, которое знает крюк where.
 // Звёздочку сюжетного задания (журнал) подставляет занятие: setTargetHook(fn) — fn(sc) → { x, y, icon } | null;
 // если она есть, она важнее звёздочки письма.
-// pending — «что сделать, когда дойдём»: { fn(sc) } | { place } | { b: здание } | { npc } | { obj }.
+// pending — «что сделать, когда дойдём»: { fn(sc) } | { place } | { b: здание } | { npc } | { obj } | { spot: id }.
+// Дошла до здания, места или точки — они «посещены» (state.visited, Ф4): карта потом переносит к ним быстро —
+// sc.skipAlong() переносит героя вперёд по его пути, последние шаги — пешком (всё, что ждёт «дошла», срабатывает).
 // Способ передвижения героя (кораблик): sc.p.ride = { speed, pass(tx, ty), step: { sfx, pause }, moved(sc),
 // draw(ctx, sc, p, t, look), drop(sc) } — пока он задан, герой ходит по его правилам; null — пешком.
 import { G, darkness, cal, playerLook, beachLook, walkK, canSwim } from '../../core/state.js';
-import { addItem, setFlag, setDayFlag, collectMailItem } from '../../core/actions.js';
+import { addItem, setFlag, setDayFlag, collectMailItem, markVisited } from '../../core/actions.js';
 import { emit } from '../../core/events.js';
 import { run } from '../../core/registry.js';
 import { go, scene } from '../../core/loop.js';
@@ -279,12 +281,57 @@ export function createTopDownScene(desc) {
         if (sc.walkTo(pl.stand[0] * T, pl.stand[1] * T, true)) p.pending = { place: pl };
         return true;
       }
-      if (spots[id]) return sc.walkTo(spots[id].at[0] * T, spots[id].at[1] * T, true);
+      if (spots[id]) {
+        if (!sc.walkTo(spots[id].at[0] * T, spots[id].at[1] * T, true)) return false;
+        p.pending = { spot: id }; // дошла — точка «посещена» (быстрый переход по карте, Ф4)
+        return true;
+      }
       const b = map.bById[id];
       if (!b) return false;
       const d = map.doorPx(b);
       if (!sc.walkTo(d.x, d.y, true)) return false;
       p.pending = { b };
+      return true;
+    },
+    /** Сколько ещё идти герою по его пути (единицы мира). */
+    pathLength() {
+      const p = sc.p;
+      let n = 0,
+        x = p.x,
+        y = p.y;
+      for (const q of p.path) {
+        n += Math.hypot(q.x - x, q.y - y);
+        x = q.x;
+        y = q.y;
+      }
+      return n;
+    },
+    /**
+     * Быстрый переход (карта, Ф4): перенести героя вперёд по его пути так, чтобы осталось пройти keep (единиц мира).
+     * Дальше всё как пешком: дошла — pending (вход в здание, особое место, выход в другую локацию). false — путь
+     * и так короче keep.
+     */
+    skipAlong(keep = T * 1.5) {
+      const p = sc.p;
+      let step = sc.pathLength() - keep;
+      if (step <= 0) return false;
+      while (p.path.length) {
+        const q = p.path[0],
+          dx = q.x - p.x,
+          dy = q.y - p.y,
+          d = Math.hypot(dx, dy);
+        if (Math.abs(dx) > 2) p.dir = dx > 0 ? 1 : -1;
+        if (d > step) {
+          p.x += (dx / d) * step;
+          p.y += (dy / d) * step;
+          break;
+        }
+        p.x = q.x;
+        p.y = q.y;
+        step -= d;
+        p.path.shift();
+      }
+      sc.cam.snap(p.x, p.y - 20);
       return true;
     },
     exit: (id) => exits.find((e) => e.id === id),
@@ -743,6 +790,10 @@ export function createTopDownScene(desc) {
       run(pd.npc.act, { scene: sc, actor: pd.npc });
       return;
     }
+    // дошла до места — запомнить: потом карта перенесёт сюда быстро (Ф4)
+    const been = pd.b ? pd.b.id : pd.place ? pd.place.id : pd.spot;
+    if (been) markVisited(sc.name, been);
+    if (pd.spot) return;
     if (pd.b) {
       sfx('door');
       sc.enterBuilding(pd.b);
