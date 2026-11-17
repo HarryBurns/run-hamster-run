@@ -277,7 +277,11 @@ module.exports = async function hotel({ page, step, ev, wait, closeAll }) {
     let t = norm(await ev(() => document.querySelector('#mg').textContent));
     expect(/Горка/.test(t) && /Рули/.test(t) && /Приз отеля/.test(t) && (await ev(() => document.querySelectorAll('#mg .sd-rules img').length)) >= 4, 'заставка «Горки»', t);
     await page.click('#mg .btn.green');
-    await wait(400);
+    await wait(300);
+    // выбор трассы (От5): четыре горки с картинками — едем по «Змейке»
+    expect((await ev(() => document.querySelectorAll('#mg .sd-pick button img').length)) === 4, 'выбор из четырёх горок');
+    await page.click('#mg .sd-pick button[data-track="snake"]');
+    await wait(300);
     let moves = 0;
     const t0 = Date.now();
     while (Date.now() - t0 < 50000) {

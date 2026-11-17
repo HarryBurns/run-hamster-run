@@ -3,6 +3,7 @@
 // пальцем или мышью (круг едет туда, где палец), или стрелками ← →: на поворотах «наклоняйся» внутрь, чтобы не
 // вылететь к бортику. Собирай пузыри и звёздочки. Проигрыша нет: задела бортик — «плюх!», брызги, круг на миг
 // притормозит. 40 секунд; в конце — в бассейн с брызгами. Звёзды — по тому, сколько собрано. Приз даёт занятие.
+// Горок четыре (От5, TRACKS): после «Начать!» выбираешь трассу — у каждой свой рисунок поворотов, ширина и скорость.
 import { el, clamp, plural } from '../core/util.js';
 import { ell, fillRR, line, star } from '../core/draw.js';
 
@@ -11,9 +12,90 @@ const OUT = '#4a3728';
 /** Сколько очков на 2★ и 3★ (пузырь — 1, звёздочка — 3). */
 export const SLIDE_STARS = [24, 44];
 const KINDS = { bubble: { pts: 1, r: 14 }, star: { pts: 3, r: 16 } };
-/** Центр трубы (доля ширины трассы) на расстоянии u (в экранах) от старта: плавные повороты, к концу — круче. */
-const center = (u) => 0.5 + 0.2 * Math.sin(u * 1.9) + 0.09 * Math.sin(u * 4.3 + 1.2);
-const HALF = 0.17; // полуширина трубы (доля ширины трассы)
+/**
+ * Трассы (От5): c(u) — центр трубы (доля ширины полосы) на расстоянии u (в экранах) от старта; half — полуширина
+ * трубы; speed — множитель скорости; rim/water — цвета бортика и воды. Центр всегда в 0.25…0.75 — труба на экране.
+ */
+export const TRACKS = [
+  {
+    id: 'kid',
+    name: 'Детская',
+    icon: '🐣',
+    say: 'широкая и спокойная',
+    half: 0.2,
+    speed: 0.88,
+    rim: '#8ce99a',
+    water: '#74c0fc',
+    c: (u) => 0.5 + 0.13 * Math.sin(u * 1.25) + 0.04 * Math.sin(u * 2.7 + 0.5),
+  },
+  {
+    id: 'snake',
+    name: 'Змейка',
+    icon: '🐍',
+    say: 'плавные повороты',
+    half: 0.17,
+    speed: 1,
+    rim: '#ffd43b',
+    water: '#74c0fc',
+    c: (u) => 0.5 + 0.2 * Math.sin(u * 1.9) + 0.09 * Math.sin(u * 4.3 + 1.2),
+  },
+  {
+    id: 'zigzag',
+    name: 'Зигзаг',
+    icon: '⚡',
+    say: 'прямо — и резко вбок!',
+    half: 0.18,
+    speed: 0.95,
+    rim: '#ff8787',
+    water: '#66d9e8',
+    c: (u) => 0.5 + (0.23 * Math.tanh(3 * Math.sin(u * 1.5))) / Math.tanh(3),
+  },
+  {
+    id: 'typhoon',
+    name: 'Тайфун',
+    icon: '🌪️',
+    say: 'чем дальше, тем круче',
+    half: 0.16,
+    speed: 1.05,
+    rim: '#b197fc',
+    water: '#4dabf7',
+    c: (u) => 0.5 + (0.09 + 0.15 * Math.min(1, u / 12)) * Math.sin(u * 1.5 + u * u * 0.035),
+  },
+];
+export const TRACK_BY_ID = Object.fromEntries(TRACKS.map((q) => [q.id, q]));
+/** Картинка трассы для выбора: труба сверху вниз (u от 0 до len). */
+function trackPic(tr, w = 84, h = 104, len = 9) {
+  const c = document.createElement('canvas');
+  c.width = w * 2;
+  c.height = h * 2;
+  const x = c.getContext('2d');
+  x.scale(2, 2);
+  x.lineJoin = 'round';
+  x.lineCap = 'round';
+  x.fillStyle = '#fff4e6';
+  x.fillRect(0, 0, w, h);
+  const path = () => {
+    x.beginPath();
+    for (let i = 0; i <= 60; i++) {
+      const u = (i / 60) * len,
+        px = 6 + tr.c(u) * (w - 12),
+        py = h - 4 - (i / 60) * (h - 8);
+      if (i) x.lineTo(px, py);
+      else x.moveTo(px, py);
+    }
+  };
+  for (const [lw, col] of [
+    [tr.half * w * 1.3 + 5, OUT],
+    [tr.half * w * 1.3 + 2, tr.rim],
+    [tr.half * w * 1.3 - 3, tr.water],
+  ]) {
+    path();
+    x.strokeStyle = col;
+    x.lineWidth = lw;
+    x.stroke();
+  }
+  return `<img src="${c.toDataURL()}" width="${w}" height="${h}" alt="">`;
+}
 
 /** Хомячок на круге (вид сверху-сзади). */
 function drawRing(ctx, x, y, s, tilt) {
@@ -86,6 +168,16 @@ const CSS = `
 .sd-col .row{display:flex;gap:4px;justify-content:center;align-items:center;font-size:26px;font-weight:900}
 .sd-col small{display:block;font-size:12px;opacity:.75;line-height:1.2}
 .sd-top{position:absolute;left:0;right:0;top:0;display:flex;gap:8px;justify-content:center;padding:8px;pointer-events:none;z-index:2}
+.sd-pick{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:12px;z-index:3;background:rgba(231,245,255,.92);overflow:auto}
+.sd-pick h3{margin:0;font-size:20px}
+.sd-pick .cards{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;max-width:720px}
+.sd-pick button{background:#fff;border:3px solid #74c0fc;border-radius:16px;padding:6px 8px;font:inherit;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px;width:146px;touch-action:manipulation}
+.sd-pick button:hover,.sd-pick button:focus-visible{border-color:#ff6b9d;transform:translateY(-2px)}
+.sd-pick button b{font-size:16px;white-space:nowrap}
+.sd-pick button small{font-size:12px;opacity:.75;line-height:1.2}
+.sd-pick img{border-radius:10px}
+@media (max-width:420px){.sd-pick button{width:136px}}
+@media (max-height:460px){.sd-pick button{width:112px}.sd-pick img{height:60px;width:auto}}
 .sd-chip{background:rgba(255,255,255,.92);border-radius:12px;padding:4px 12px;font-weight:900;font-size:16px;box-shadow:0 2px 0 rgba(74,55,40,.15)}
 `;
 
@@ -100,7 +192,8 @@ export default {
         <div class="sd-col turn"><b>↪ Поворот</b><div class="row">${pic((c, x, y, s) => turnPic(c, x, y, s))}</div><small>на повороте рули внутрь —<br>не задевай бортик</small></div>
         <div class="sd-col"><b>✅ Собирай</b><div class="row">${pic((c, x, y, s) => drawBubble(c, x, y, s * 1.4, 0))}${pic((c, x, y, s) => drawStar(c, x, y, s * 1.3, 0))}</div><small>пузыри и звёздочки<br>(звёздочка — за три!)</small></div>
       </div>
-      За ${TIME} секунд собери побольше! Задела бортик — «плюх!», и катишься дальше.`;
+      За ${TIME} секунд собери побольше! Задела бортик — «плюх!», и катишься дальше.
+      Горок — ${TRACKS.length}: ${TRACKS.map((q) => `${q.icon} ${q.name}`).join(', ')}. Выбирай любую!`;
   },
   start(host) {
     const root = host.root;
@@ -114,6 +207,8 @@ export default {
     const cv = host.canvas();
     const ctx = cv.ctx;
     const level = host.level || 0;
+    let track = TRACK_BY_ID[host.info && host.info.track] || null; // трасса: выбирают после «Начать!» (или задана заранее)
+    const center = (u) => (track || TRACKS[1]).c(u);
     let t = 0,
       last = performance.now(),
       raf = 0,
@@ -136,8 +231,30 @@ export default {
     const S = () => clamp(LW() / 400, 0.85, 1.45);
     const ringY = () => cv.h * 0.72;
     const U = (d) => d / Math.max(300, cv.h); // расстояние в «экранах»
-    const speed = () => cv.h * (0.5 + Math.min(t / TIME, 1) * 0.25 + level * 0.02) * slow;
-    const halfW = () => HALF;
+    const speed = () => cv.h * (0.5 + Math.min(t / TIME, 1) * 0.25 + level * 0.02) * slow * (track ? track.speed : 1);
+    const halfW = () => (track || TRACKS[1]).half;
+    // ---------- выбор трассы ----------
+    let pick = null;
+    const choose = (id) => {
+      if (track && !pick) return;
+      track = TRACK_BY_ID[id] || TRACKS[0];
+      if (pick) pick.remove();
+      pick = null;
+      host.sfx('splash');
+      last = performance.now();
+    };
+    if (!track) {
+      pick = el('div', 'sd-pick', '<h3>Какую горку выберешь?</h3>');
+      const cards = el('div', 'cards');
+      for (const q of TRACKS) {
+        const b = el('button', '', `<b>${q.icon} ${q.name}</b>${trackPic(q)}<small>${q.say}</small>`);
+        b.dataset.track = q.id;
+        b.onclick = () => choose(q.id);
+        cards.appendChild(b);
+      }
+      pick.appendChild(cards);
+      root.appendChild(pick);
+    }
 
     // ---------- управление ----------
     const toX = (e) => {
@@ -174,10 +291,16 @@ export default {
       x0: X0(),
       lw: LW(),
       tube: center(U(dist)),
+      track: track ? track.id : null,
+      picking: !!pick,
+      half: halfW(),
+      t,
       items: items.filter((q) => !q.hit).map((q) => ({ kind: q.kind, x: center(U(q.d)) + q.off * halfW() * 0.8, y: ringY() - (q.d - dist) })),
     });
 
+    cv.canvas.__slideSkip = (sec) => (t = Math.max(t, TIME - sec)); // автотест: «до финиша осталось sec секунд»
     function update(dt) {
+      if (!track || pick) return; // ждём выбора трассы
       t += dt;
       if (end > 0) {
         end += dt;
@@ -254,7 +377,9 @@ export default {
       const W = cv.w,
         H = cv.h,
         s = S(),
-        ry = ringY();
+        ry = ringY(),
+        HALF = halfW(),
+        tr = track || TRACKS[1];
       // палуба у бассейна: плитка бежит навстречу, по краям — пальмы и шезлонги
       ctx.fillStyle = '#fff4e6';
       ctx.fillRect(0, 0, W, H);
@@ -309,8 +434,8 @@ export default {
           ctx.stroke();
         }
       };
-      band(HALF + 0.035, '#ffd43b', OUT);
-      band(HALF, '#74c0fc', null);
+      band(HALF + 0.035, tr.rim, OUT);
+      band(HALF, tr.water, null);
       band(HALF * 0.55, 'rgba(165,216,255,.6)', null);
       // струйки воды бегут вниз
       ctx.strokeStyle = 'rgba(255,255,255,.75)';
@@ -388,8 +513,8 @@ export default {
       const stars = got >= SLIDE_STARS[1] ? 3 : got >= SLIDE_STARS[0] ? 2 : 1;
       host.finish({
         stars,
-        text: `Плюх — и в бассейн! На счету ${got} 🫧 — пузыри и звёздочки${bumps ? `, задела бортик ${bumps} ${plural(bumps, 'раз', 'раза', 'раз')}.` : ', и ни разу не задела бортик!'}${stars === 3 ? ' Королева водной горки!' : ''}`,
-        extra: { got, bumps },
+        text: `${track.icon} «${track.name}» — плюх, и в бассейн! На счету ${got} 🫧 — пузыри и звёздочки${bumps ? `, задела бортик ${bumps} ${plural(bumps, 'раз', 'раза', 'раз')}.` : ', и ни разу не задела бортик!'}${stars === 3 ? ' Королева водной горки!' : ''}`,
+        extra: { got, bumps, track: track.id },
       });
     }
     raf = requestAnimationFrame(frame);
@@ -405,6 +530,7 @@ export default {
         if (cv.destroy) cv.destroy();
         style.remove();
         top.remove();
+        if (pick) pick.remove();
       },
     };
   },

@@ -20,7 +20,8 @@
 //  войти внутрь, этап 13 — dev/smoke_inside.js:  node dev/smoke.js <url> step:внутри;
 //  праздники, П.13 — dev/smoke_holidays.js:  node dev/smoke.js <url> step:праздники;
 //  вещи, рецепты, значки, этап 12 — dev/smoke_items.js:  node dev/smoke.js <url> step:вещи;
-//  музыка и звуки, этап 9б — dev/smoke_audio.js:  node dev/smoke.js <url> step:звук:)
+//  музыка и звуки, этап 9б — dev/smoke_audio.js:  node dev/smoke.js <url> step:звук:;
+//  мини-игры вместо сценок, этап 14 — dev/smoke_games.js:  node dev/smoke.js <url> "step:игры 14:")
 // Скорость проверяется отдельно:  node dev/bench.js [url] --spots=forest --sizes=desktop --max-forest=45
 const { chromium } = require('playwright');
 const fs = require('fs');
@@ -45,6 +46,7 @@ const audio = require('./smoke_audio.js'); // этап 9б: файлы музы�
 const items = require('./smoke_items.js'); // этап 12: рисованные значки вещей, маракуйя, рецепты из леса, венок и гирлянда, карта сокровищ в рюкзаке
 const inside = require('./smoke_inside.js'); // этап 13: войти внутрь — дома тайных мест, хозяева, предметы, выход, ночь
 const worldmap = require('./smoke_worldmap.js'); // этап 11: «карта мира» — звёздочка к выходу в нужное место, жители вспоминают открытые места, попугай учит слова
+const games = require('./smoke_games.js'); // этап 14: мини-игры вместо сценок — трассы «Горки», лифт носильщицы, лыжи, канат с друзьями, ёлка, танец, «Повтори движение»
 const holidays = require('./smoke_holidays.js'); // П.13: праздники — Новый год, Рождество, Китайский Новый год, Масленица
 
 // Размер (этап 8): переменная SMOKE_SIZE=desktop|phone или аргумент size:desktop / size:phone — только этот размер
@@ -2808,6 +2810,7 @@ const runParallel = () => {
     await audio({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
     await items({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
     await worldmap({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
+    await games({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
     await estate({ page, step: (n, f, o) => step(n, f, { ...o, extra: true, estate: true }), ev, wait, closeAll });
     if (tag === 'desktop')
       await extra({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll, hold });
