@@ -449,11 +449,13 @@ module.exports = async function mountain({ page, step, ev, wait, closeAll }) {
     await wait(1200);
     const intro = norm(await ev(() => document.querySelector('#mg').textContent));
     expect(
-      /Собирай/.test(intro) && /Объезжай/.test(intro) && (await ev(() => document.querySelectorAll('#mg .sl-col img').length)) === 5 && /Приз Вершинкина/.test(intro),
+      /Собирай/.test(intro) && /Объезжай/.test(intro) && (await ev(() => document.querySelectorAll('#mg .sl-col img').length)) === 6 && /Приз Вершинкина/.test(intro),
       'правило картинкой',
       intro,
     );
     await page.click('#mg >> text=Начать!');
+    await wait(300);
+    await page.click('#mg .sl-pick button[data-ride="sled"]'); // санки или лыжи (Г4) — санки
     const t0 = Date.now();
     let moves = 0;
     while (Date.now() - t0 < 52000) {

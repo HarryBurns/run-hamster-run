@@ -156,4 +156,37 @@ module.exports = async function games({ page, step, ev, wait, closeAll }) {
     const s1 = await state();
     expect(s1.plays.porter === 5 && s1.money > s0.money, 'смена не записана', [s1.plays.porter, s1.money - s0.money]);
   });
+
+  await step('игры 14: «Спуск» на горе — выбор «санки или лыжи», на лыжах ворота-флажки, итог по воротам', async () => {
+    await fresh();
+    await mutate('s.mail = null;');
+    const s0 = await state();
+    await ev(() => {
+      window.__dev.F.sledRide();
+    });
+    await wait(800);
+    expect(/лыжах/.test(await mgText()), 'на заставке нет лыж', await mgText());
+    await start();
+    let st = await hook('__sled');
+    expect(st && st.picking && !st.ride, 'нет выбора «санки или лыжи»', st);
+    expect((await ev(() => document.querySelectorAll('#mg .sl-pick button img').length)) === 2, 'у выбора нет картинок');
+    await page.click('#mg .sl-pick button[data-ride="ski"]');
+    // едем к воротам: держим лыжи посередине ближайших ворот
+    const t0 = Date.now();
+    while (Date.now() - t0 < 14000) {
+      st = await hook('__sled');
+      const gate = st.gates.filter((g) => g.y < st.y + 5).sort((a, b) => b.y - a.y)[0];
+      const target = gate ? gate.x : 0.5;
+      const r = await box();
+      await page.mouse.move(r.x + (st.x0 + target * st.lw) * (r.w / st.w), r.y + r.h * 0.8);
+      await wait(90);
+    }
+    st = await hook('__sled');
+    expect(st.ride === 'ski' && st.gatesAll >= 6 && st.gatesOk >= 4 && st.got >= st.gatesOk * 2, 'ворота не проходятся', st);
+    await ev(() => [...document.querySelectorAll('#mg canvas')].find((q) => q.__sledSkip).__sledSkip(1));
+    const end = await ura();
+    expect(/На лыжах/.test(end) && /ворот пройдено/.test(end) && /Приз/.test(end), 'итог лыж', end);
+    const s1 = await state();
+    expect(s1.plays.sled === 1 && s1.dayFlags.mountain.sleds === 1 && s1.money > s0.money, 'спуск на лыжах не записан', [s1.plays, s1.money - s0.money]);
+  });
 };
