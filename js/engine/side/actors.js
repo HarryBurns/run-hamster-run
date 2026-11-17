@@ -11,7 +11,7 @@
 // Гость может нести что-то в лапках: g.carry = { c, c2, give } — коробочка с лентой (подарок на «Год в городе»,
 // рассада во вводном задании). give = { x, y, a } — коробочку вручают: она летит дугой к точке (x, y), a — 0…1
 // (двигает тот, кто вручает: features/holidays_bday.js, features/welcome.js).
-import { G, questBadge } from '../../core/state.js';
+import { G, questBadge, npcDress } from '../../core/state.js';
 import { rnd } from '../../core/util.js';
 import { fillRR, ell } from '../../core/draw.js';
 import { sfx } from '../../core/audio.js';
@@ -139,13 +139,14 @@ export function paintGiftBox(ctx, x, y, k, b) {
 const WALK_FRAMES = 8,
   IDLE_FRAMES = 4;
 export function drawActors(ctx, sc, t) {
+  const fest = npcDress(); // в праздник жители — в праздничных нарядах (этап 15)
   for (const g of sc.actors) {
     const n = NPC_BY_ID[g.id];
     if (!n || !actorHere(g)) continue;
     const y = sc.geo.fy(g.f),
       s = HS * (n.small ? 0.78 : 1);
     if (g.happy > 0 || !sc.sprite) {
-      drawHamster(ctx, g.x, y, s, npcLook(g.id), {
+      drawHamster(ctx, g.x, y, s, npcLook(g.id, fest), {
         time: t + g.ph,
         dir: g.dir,
         walk: g.moving ? g.walkT : null,
@@ -163,10 +164,10 @@ export function drawActors(ctx, sc, t) {
         time = i < 0 ? 0 : Math.asin((((i + 0.5) / IDLE_FRAMES) * 2 - 1) * 0.9) / 2.2;
       const dir = g.dir === -1 ? -1 : 1;
       sc.sprite(
-        `actor:${g.id}:${dir}:${fr}:${shut}`,
+        `actor:${g.id}:${fest || ''}:${dir}:${fr}:${shut}`,
         [-62 * s, -128 * s, 62 * s, 12 * s],
         (c) =>
-          drawHamster(c, 0, 0, s, npcLook(g.id), {
+          drawHamster(c, 0, 0, s, npcLook(g.id, fest), {
             time,
             dir,
             walk: i < 0 ? (fr + 0.5) / WALK_FRAMES : null,
@@ -188,7 +189,7 @@ export function drawActors(ctx, sc, t) {
       } else {
         paintGiftBox(ctx, hx, hy, k, g.carry);
         // лапки держат коробочку с боков
-        const fur = npcLook(g.id).fur || '#f0c27b';
+        const fur = npcLook(g.id, fest).fur || '#f0c27b';
         ell(ctx, hx - 14 * k, hy + 2 * k, 5 * k, 4.5 * k, fur, OUT, 1.5);
         ell(ctx, hx + 14 * k, hy + 2 * k, 5 * k, 4.5 * k, fur, OUT, 1.5);
       }

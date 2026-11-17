@@ -9,9 +9,9 @@
 import { addItem, setDayFlag, earn, award, meetFriend, spendMinutes } from '../core/actions.js';
 import { sfx } from '../core/audio.js';
 import { makeCanvas, ell } from '../core/draw.js';
-import { G, playerLook } from '../core/state.js';
+import { G, playerLook, npcLookNow } from '../core/state.js';
 import { el, fmtMoney } from '../core/util.js';
-import { NPC_BY_ID, DISH_BY_ID, HOLIDAY, npcLook } from '../data/index.js';
+import { NPC_BY_ID, DISH_BY_ID, HOLIDAY } from '../data/index.js';
 import { dialog } from '../ui/dialog.js';
 import { openLayer } from '../ui/modals.js';
 import { openPanel, message } from '../ui/panel.js';
@@ -22,7 +22,7 @@ import { playMinigame } from './minigames.js';
 
 const S = () => G.state;
 const HF = () => S().dayFlags.holiday || {};
-export const holidaySay = (id, text, options, happy = false) => dialog({ look: npcLook(id), name: NPC_BY_ID[id].name, text, options, happy });
+export const holidaySay = (id, text, options, happy = false) => dialog({ look: npcLookNow(id), name: NPC_BY_ID[id].name, text, options, happy });
 
 /**
  * Окно-сценка с картинкой и кнопкой «действия»: каждое нажатие (на картинку, кнопку, пробел или Enter) — шаг; после

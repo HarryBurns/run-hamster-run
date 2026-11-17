@@ -2,6 +2,7 @@
 // Маленькие чистые функции над таблицами — единственный «код» в data/.
 import { CLOTHES_BY_ID } from './clothes.js';
 import { NPC_BY_ID, VENDORS } from './npcs.js';
+import { holidayDress } from './holidays.js';
 
 /** Хомячок по умолчанию: белый с пятнышком, без одежды. */
 export function defaultLook() {
@@ -24,9 +25,18 @@ export function resolveLook(look) {
   return { ...look, outfit };
 }
 const _npcLooks = {};
-export function npcLook(id) {
-  if (!_npcLooks[id]) _npcLooks[id] = resolveLook(NPC_BY_ID[id].look);
-  return _npcLooks[id];
+/**
+ * Внешность жителя для рисования. fest — праздник, в чей наряд он одет (этап 15: HOLIDAY_DRESS в data/holidays.js;
+ * сегодняшний — npcDress() в core/state.js); без него — обычная одежда.
+ */
+export function npcLook(id, fest = null) {
+  const patch = holidayDress(fest, id),
+    k = patch ? id + '|' + fest : id;
+  if (!_npcLooks[k]) {
+    const base = NPC_BY_ID[id].look;
+    _npcLooks[k] = resolveLook(patch ? { ...base, outfit: { ...base.outfit, ...patch } } : base);
+  }
+  return _npcLooks[k];
 }
 export function vendorLook(id) {
   const k = 'v_' + id;

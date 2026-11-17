@@ -236,6 +236,105 @@ export const HOLIDAYS = [
 ];
 export const HOLIDAY_BY_ID = Object.fromEntries(HOLIDAYS.map((h) => [h.id, h]));
 
+/**
+ * Праздничные наряды жителей города (этап 15, Пр4, Пр20): в сам праздник жители весь день ходят в них — поверх своей
+ * одежды: { житель: { слот: id вещи | null — снять } }. Рисуются так же, как одежда хомячка (art/hamster.js), кадры —
+ * в кэше спрайтов (ключ кадра знает праздник). Внешность в наряде — npcLook(id, праздник) в data/looks.js; какой наряд
+ * сегодня — npcDress() в core/state.js. Вещи берутся из каталога одежды (data/clothes.js) — новых рисунков не нужно.
+ */
+export const HOLIDAY_DRESS = {
+  // колпаки и тёплые шарфы
+  newyear: {
+    plusha: { head: 'hat_santa', acc: 'scarf_pink' },
+    ponchik: { head: 'hat_santa' },
+    senya: { head: 'beanie_red', acc: 'scarf_yellow' },
+    busya: { head: 'earmuffs_snow', acc: 'scarf_pink' },
+    prof: { head: 'hat_santa' },
+    myata: { head: 'hat_santa', body: 'sw_snow' },
+    bob: { head: 'hat_santa' },
+    zefirka: { head: 'hat_santa', acc: 'scarf_yellow' },
+  },
+  // звёздочки на ободках и крылья ангела
+  xmas: {
+    plusha: { head: 'starband_gold' },
+    ponchik: { head: 'beanie_red', acc: 'scarf_yellow' },
+    senya: { head: 'beanie_blue' },
+    busya: { head: 'starband_gold', acc: 'wings_angel' },
+    prof: { acc: 'scarf_blue' },
+    myata: { head: 'starband_gold' },
+    bob: { acc: 'scarf_yellow' },
+    zefirka: { head: 'starband_gold', acc: 'wings_angel' },
+  },
+  // красное — на удачу
+  cny: {
+    plusha: { body: 'dress_qipao', acc: 'fan_red' },
+    ponchik: { body: 'overall_red', head: 'hat_dragon' },
+    senya: { body: 'overall_red' },
+    busya: { body: 'dress_qipao', head: null, acc: 'fan_red' },
+    prof: { head: 'beret_red', acc: 'tie_red' },
+    myata: { body: 'dress_red', head: 'hair_flower' },
+    bob: { head: 'cap_red', acc: 'tie_red' },
+    zefirka: { body: 'dress_qipao', head: 'hat_dragon' },
+  },
+  // кокошники и расписные платки
+  maslenitsa: {
+    plusha: { head: 'kokoshnik_red', acc: 'shawl_rose' },
+    ponchik: { head: 'beanie_red', acc: 'scarf_yellow' },
+    senya: { acc: 'scarf_pink' },
+    busya: { head: 'kokoshnik_red', acc: 'shawl_rose' },
+    prof: { acc: 'scarf_yellow' },
+    myata: { head: 'kokoshnik_red' },
+    bob: { acc: 'scarf_yellow' },
+    zefirka: { head: 'kokoshnik_red', acc: 'shawl_rose' },
+  },
+  // майские венки, колпачки и шарики
+  mayday: {
+    plusha: { head: 'wreath_may', acc: 'balloon_red' },
+    ponchik: { head: 'hat_party', acc: 'balloon_red' },
+    senya: { head: 'hat_party' },
+    busya: { head: 'wreath_may' },
+    prof: { acc: 'balloon_red' },
+    myata: { head: 'wreath_may', body: 'dress_may' },
+    bob: { head: 'hat_party' },
+    zefirka: { head: 'wreath_may', acc: 'balloon_red' },
+  },
+  // венки из цветов и вышитые сарафаны
+  kupala: {
+    plusha: { head: 'wreath_fern', body: 'dress_linen' },
+    ponchik: { head: 'wreath' },
+    senya: { head: 'wreath_fern' },
+    busya: { head: 'wreath', body: 'dress_flowers' },
+    prof: { head: 'wreath' },
+    myata: { head: 'wreath_fern', body: 'dress_linen' },
+    bob: { head: 'wreath' },
+    zefirka: { head: 'wreath', body: 'dress_daisy' },
+  },
+  // костюмы: волшебница, тыковка, супергерой, фея, кошечка, пират, летучая мышка
+  halloween: {
+    plusha: { head: 'hat_witch', acc: 'cape_violet' },
+    ponchik: { head: 'hat_pumpkin' },
+    senya: { acc: 'cape_red', head: 'cap_red' },
+    busya: { head: 'crown', body: 'princess_fairy', acc: 'wings' },
+    prof: { head: 'hat_witch', acc: 'cape_violet' },
+    myata: { head: 'catears', acc: null },
+    bob: { head: 'hat_pirate' },
+    zefirka: { head: 'catears', acc: 'wings_bat' },
+  },
+  // «Год в городе»: праздничные колпачки
+  birthday: {
+    plusha: { head: 'hat_party' },
+    ponchik: { head: 'hat_party' },
+    senya: { head: 'hat_party' },
+    busya: { head: 'hat_party' },
+    prof: { head: 'hat_party' },
+    myata: { head: 'hat_party' },
+    bob: { head: 'hat_party' },
+    zefirka: { head: 'hat_party' },
+  },
+};
+/** Праздничный наряд жителя id в праздник hid: { слот: вещь } или null (наряда нет). */
+export const holidayDress = (hid, id) => (hid && HOLIDAY_DRESS[hid] && HOLIDAY_DRESS[hid][id]) || null;
+
 /** Дней в году (36: 12 месяцев по 3 дня). */
 export const YEAR_DAYS = 36;
 /** Год игры (с 1) по номеру дня. */

@@ -42,6 +42,9 @@ import {
   RIDE_BY_ID,
   YARD_BY_ID,
   YARD_BY_ID_HOME,
+  HOLIDAY_DRESS,
+  holidayOn,
+  npcLook,
 } from '../data/index.js';
 
 // Ключ хранилища («v1» в имени — исторически; версия сохранения лежит в поле v). Здесь всегда лежит ТА ИГРА,
@@ -645,6 +648,19 @@ export function npcWhere(id) {
   if (invitedToday(id)) return 'home';
   return m < VISIT.morningEnd || m >= VISIT.eveningStart ? 'home' : 'out';
 }
+
+/**
+ * В чей праздничный наряд жители города одеты сегодня (этап 15, Пр4): id праздника или null. Наряды — HOLIDAY_DRESS
+ * (data/holidays.js), только в сам праздник; внешность — npcLook(id, npcDress()).
+ */
+export function npcDress() {
+  const s = G.state;
+  if (!s) return null;
+  const h = holidayOn(s.day, s.startDay || 0);
+  return h && HOLIDAY_DRESS[h.id] ? h.id : null;
+}
+/** Внешность жителя сейчас — в праздник в праздничном наряде (для разговоров и сцен). */
+export const npcLookNow = (id) => npcLook(id, npcDress());
 
 /**
  * Кто из жителей сейчас отдыхает у бассейна курортного отеля (П.17) — id или null. Расписание — poolGuestOn

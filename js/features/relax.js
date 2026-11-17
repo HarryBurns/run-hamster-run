@@ -13,7 +13,7 @@
 // (в гамаке — тоже); на качелях качается выше-ниже; на скамейке болтает ногами. Посидела немного — иногда рядом
 // садится житель (на второе место того же предмета или на соседний такой же предмет), говорит реплику (RELAX_LINES)
 // и раз в день от этого чуть крепче дружба (+1). Житель на это время «занят» (n.hold, engine/topdown/actors.js).
-import { G, cal, canSwim, walkK, friendHearts } from '../core/state.js';
+import { G, cal, canSwim, walkK, friendHearts, npcDress } from '../core/state.js';
 import { award, addFriendPts, setDayFlag, earn } from '../core/actions.js';
 import { on, emit } from '../core/events.js';
 import { register } from '../core/registry.js';
@@ -406,7 +406,7 @@ function drawMate(c, m, t) {
     s = st.spots[m.spot];
   const how = c.how === 'swing' && m.o !== c.o ? 'sit' : c.how;
   const dir = m.t < 4 ? (c.ax > m.ax ? 1 : -1) : 0;
-  drawSitter(SP.ctx, how, npcLook(n.id), 'n' + n.id, m.o.x + s[0], m.o.y + s[1], m.t + 0.37, n.ph, m.o, m.spot, dir);
+  drawSitter(SP.ctx, how, npcLook(n.id, npcDress()), 'n' + n.id + (npcDress() || ''), m.o.x + s[0], m.o.y + s[1], m.t + 0.37, n.ph, m.o, m.spot, dir);
   if (m.line && m.t < 4.5) {
     SP.world();
     bubble(SP.ctx, m.line, m.o.x + s[0], m.o.y + s[1] - (c.how === 'lie' ? 100 : 110));

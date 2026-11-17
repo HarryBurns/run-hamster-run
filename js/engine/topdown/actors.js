@@ -13,7 +13,7 @@
 //   позвал в гости («Заходи ко мне сегодня!», письмо «день гостей» — invitedToday) — идёт домой и ждёт внутри:
 //   дошёл до двери — и на улице его нет до конца дня;
 //   в гостях у хомячка дома или ночью — на улице его нет.
-import { G, invitedToday, questBadge } from '../../core/state.js';
+import { G, invitedToday, questBadge, npcDress } from '../../core/state.js';
 import { rnd, dist } from '../../core/util.js';
 import { ell } from '../../core/draw.js';
 import { NPC_BY_ID, VISIT, npcLook } from '../../data/index.js';
@@ -190,14 +190,16 @@ export function drawResident(n, t) {
   const fr = n.moving
     ? Math.floor((n.walkT % 1) * WALK_FRAMES)
     : WALK_FRAMES + Math.min(IDLE_FRAMES - 1, Math.floor(((Math.sin((t + n.ph) * 2.2) + 1) / 2) * IDLE_FRAMES));
-  const key = `npc:${n.id}:${faceDir(n)}:${fr}:${shut}`;
+  // в праздник — в праздничном наряде (этап 15): праздник входит в ключ кадра
+  const fest = npcDress(),
+    key = `npc:${n.id}:${fest || ''}:${faceDir(n)}:${fr}:${shut}`;
   let s = SP.find(key);
   if (!s) {
     // поза кадра: для шага — середина его отрезка фазы; для «дыхания» — время, в которое тело на нужной высоте
     const i = fr - WALK_FRAMES,
       time = i < 0 ? 0 : Math.asin((((i + 0.5) / IDLE_FRAMES) * 2 - 1) * 0.9) / 2.2;
     const pose = { dir: faceDir(n), time, walk: i < 0 ? (fr + 0.5) / WALK_FRAMES : null, blink: shut };
-    s = SP.get(key, [-56 * sc, -124 * sc, 56 * sc, 12 * sc], (c) => drawHamster(c, 0, 0, sc, npcLook(n.id), pose));
+    s = SP.get(key, [-56 * sc, -124 * sc, 56 * sc, 12 * sc], (c) => drawHamster(c, 0, 0, sc, npcLook(n.id, fest), pose));
   }
   SP.draw(s, n.x, n.y + 10);
 }

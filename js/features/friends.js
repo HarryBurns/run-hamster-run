@@ -18,7 +18,7 @@ import { makeCanvas } from '../core/draw.js';
 import { on, emit } from '../core/events.js';
 import { scene } from '../core/loop.js';
 import { register } from '../core/registry.js';
-import { G, cal, friendHearts, outfitTags, ownsHome, ownedHomes, invitedToday, npcWhere } from '../core/state.js';
+import { G, cal, friendHearts, outfitTags, ownsHome, ownedHomes, invitedToday, npcWhere, npcLookNow } from '../core/state.js';
 import { el, esc, pick } from '../core/util.js';
 import { drawPortrait } from '../art/hamster.js';
 import {
@@ -139,7 +139,7 @@ function chatLine(npc) {
 export async function npcDialog(id) {
   const npc = NPC_BY_ID[id],
     fr = S().friends[id],
-    look = npcLook(id);
+    look = npcLookNow(id); // в праздник — в праздничном наряде (этап 15)
   let text;
   if (!fr.met) {
     meetFriend(id);
@@ -225,7 +225,7 @@ function invite(id, home = hostHome()) {
 export async function guestDialog(id) {
   const npc = NPC_BY_ID[id],
     fr = S().friends[id],
-    look = npcLook(id);
+    look = npcLookNow(id); // в праздник — в праздничном наряде (этап 15)
   const here = S().guestsAt;
   let text = pick(
     here === 'villa'
