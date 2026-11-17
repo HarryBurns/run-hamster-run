@@ -309,6 +309,9 @@ h4.sect .muted { font-size: 13px; }
   display: flex; align-items: center; gap: 8px; min-height: 44px;
 }
 .opt.sel { border-color: var(--pink); background: #fff0f5; }
+.opt.done::after { content: '✓'; color: var(--pink); } /* салон: что сделано сейчас (примерка — .sel) */
+.salon-pay { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; margin: -6px 0 14px; }
+.salon-pay .btn { min-height: 44px; }
 .opt .dotc { width: 22px; height: 22px; border-radius: 50%; box-shadow: 0 0 0 2px var(--line); }
 h4 { margin: 4px 0; font-size: 16px; }
 .need { display: inline-flex; align-items: center; gap: 2px; background: #f3e6cf; border-radius: 10px; padding: 2px 7px; margin: 2px 3px 2px 0; font-size: 14px; }

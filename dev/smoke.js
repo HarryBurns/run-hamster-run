@@ -607,7 +607,8 @@ async function extra({ page, step, ev, wait, closeAll, hold }) {
       window.__dev.enterBuilding('salon');
     });
     await wait(400);
-    await click('.overlay .opt:not(.sel)');
+    await click('.overlay .opt:not(.sel)'); // примерка (Ф1) — бесплатно, «Сделать за» — по-настоящему
+    await click('.overlay .salon-pay .btn');
     await closeAll();
     await ev(() => {
       window.__dev.F.openCooking();
@@ -2160,6 +2161,55 @@ const runParallel = () => {
         await closeAll();
       });
     }
+    await step('салон: примерка бесплатно, «Сделать за» списывает, без покупки — как было (Ф1)', async () => {
+      const st = () => ev(() => ({ money: window.__dev.G.state.money, b: { ...window.__dev.G.state.look.beauty } }));
+      await ev(() => {
+        const d = window.__dev;
+        if (d.G.state.money > 3000) d.actions.spend(d.G.state.money - 3000);
+        else d.actions.earn(3000 - d.G.state.money);
+        d.actions.setBeauty('tuft', 0);
+        d.actions.setBeauty('hair', null);
+        d.enterBuilding('salon');
+      });
+      await wait(400);
+      const s0 = await st();
+      await page.click('.overlay .opt >> text=Кудряшки');
+      await page.click('.overlay .opt >> text=Хвостики');
+      await page.click('.overlay .opt >> text=Розовый');
+      await wait(200);
+      let s = await st();
+      if (s.money !== s0.money || s.b.tuft !== 0 || s.b.hair !== null)
+        throw new Error('примерка списала монеты или поменяла внешность: ' + JSON.stringify(s));
+      if ((await page.locator('.overlay .salon-pay .btn').count()) !== 2) throw new Error('нет двух кнопок «Сделать за»');
+      if (!(await page.locator('.overlay .salon-pay .btn').first().innerText()).includes('Сделать за'))
+        throw new Error('кнопка без «Сделать за»');
+      await page.click('.overlay .salon-pay .btn >> nth=0'); // причёска
+      await wait(250);
+      s = await st();
+      if (s.money !== s0.money - 400 || s.b.tuft !== 4 || s.b.hair !== null)
+        throw new Error('«Сделать за» причёску: ' + JSON.stringify(s));
+      await closeAll();
+      s = await st();
+      if (s.b.hair !== null || s.money !== s0.money - 400) throw new Error('закрыла без покупки — цвет изменился: ' + JSON.stringify(s));
+      // мало монет: кнопка бледная, нажатие — подсказка, монеты и внешность прежние
+      await ev(() => {
+        const d = window.__dev;
+        d.actions.spend(d.G.state.money - 100);
+        d.enterBuilding('salon');
+      });
+      await wait(400);
+      await page.click('.overlay .opt >> text=Ирокез');
+      await wait(200);
+      if (!(await page.locator('.overlay .salon-pay .btn.ghost').count())) throw new Error('при нехватке кнопка не бледная');
+      await page.click('.overlay .salon-pay .btn');
+      await wait(250);
+      s = await st();
+      if (s.money !== 100 || s.b.tuft !== 4) throw new Error('при нехватке что-то списалось: ' + JSON.stringify(s));
+      if (!(await ev(() => document.getElementById('toasts').innerText)).includes('не хватает'))
+        throw new Error('нет подсказки «не хватает»');
+      await closeAll();
+      await ev(() => window.__dev.actions.earn(3000));
+    });
     for (const g of ['swim', 'fishing', 'teacher', 'doctor', 'chef', 'fashion']) {
       await step('мини-игра ' + g, async () => {
         await ev((g) => {
