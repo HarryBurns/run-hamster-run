@@ -163,8 +163,9 @@ module.exports = async function inside({ page, step, ev, wait, closeAll }) {
     // после ночи в хижине позиция в сохранении — у двери хижины снаружи (дом не сохраняет своё место)
     const pos = await ev(() => window.__dev.scene.savePos());
     expect(pos.scene === 'island', 'сохранение не у двери хижины', pos);
+    await closeAll();
     await tapZone('door');
-    await wait(2000);
+    for (let i = 0; i < 25 && (await sceneName()) === 'hut_guest'; i++) await wait(250);
     expect((await sceneName()) === 'island', 'из хижины не вышли на остров', await sceneName());
   });
 
@@ -182,7 +183,7 @@ module.exports = async function inside({ page, step, ev, wait, closeAll }) {
     expect(/Жемчужинк/.test(await toasts()), 'сундучок молчит', await toasts());
     // выход на пляж
     await tapZone('door');
-    await wait(2000);
+    for (let i = 0; i < 25 && (await sceneName()) === 'grotto_cave'; i++) await wait(250);
     expect((await sceneName()) === 'cove', 'из грота не вышли на пляж', await sceneName());
     // снова в грот — и нырнуть в озерцо: заплыв в город, как раньше
     k = await ev(() => window.__dev.locations.cove.debugScreen(6.5 * 48, 4.5 * 48));
