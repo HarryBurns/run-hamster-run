@@ -596,7 +596,6 @@ defineObjects({
       [1, 1],
       [2, 1],
     ],
-    map: () => NUT.base,
     art: {
       nutcliff: [
         [-44, -90, 144, 88],
@@ -782,8 +781,6 @@ defineObjects({
       put('townsign', o.x, o.y, env.season === 'winter' ? 1 : 0);
     },
   },
-  // точка цвета скалы на карте города (сама ничего не рисует): большая скала занимает шесть клеток
-  nutdot: { flat: true, map: () => NUT.base, draw() {} },
   fishsign: {
     art: {
       fishsign: [
@@ -804,6 +801,33 @@ defineObjects({
 // ---------- построение карты ----------
 // Ореховые скалы: по ним городок назван Ореховой Гаванью (этап 10). Цвет — тёплый, как скорлупа лесного ореха.
 const NUT = { base: '#c98a4b', light: '#e9b97f', mid: '#b97a40', dark: '#99602f', vein: '#8a5428' };
+/** Ореховые скалы на карте города: середина (клетки) и зеркально ли — по скалам в build(). */
+const NUT_CLIFFS_MAP = [
+  [2.1, 55.2, false],
+  [93.9, 56.2, true],
+];
+/** Значок ореховой скалы на карте: два рыжих уступа с травкой на макушке, k — пикселей карты в клетке. */
+function mapNutCliff(ctx, x, y, k, flip) {
+  const s = Math.max(k, 4) / 10;
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.scale(flip ? -s : s, s);
+  ctx.lineJoin = 'round';
+  ell(ctx, 2, 19, 19, 4, 'rgba(60,40,30,.28)');
+  poly(ctx, [-17, 19, -16, 2, -9, -10, -2, -16, 4, -9, 9, -19, 16, -13, 19, 2, 18, 19], NUT.base, '#fff', 4.5);
+  poly(ctx, [-17, 19, -16, 2, -9, -10, -2, -16, 4, -9, 9, -19, 16, -13, 19, 2, 18, 19], NUT.base, OUT, 1.6);
+  poly(ctx, [-9, -10, -2, -16, 4, -9, -1, -4, -8, -3], NUT.light);
+  poly(ctx, [9, -19, 16, -13, 19, 2, 18, 19, 11, 19, 12, 0, 8, -10], NUT.dark);
+  ctx.strokeStyle = NUT.vein;
+  ctx.lineWidth = 1.2;
+  ctx.beginPath();
+  ctx.moveTo(-14, 8);
+  ctx.quadraticCurveTo(0, 4, 14, 9);
+  ctx.stroke();
+  ell(ctx, -2, -16, 5, 2, '#74b85a', OUT, 1);
+  ell(ctx, 10, -19, 5, 2, '#74b85a', OUT, 1);
+  ctx.restore();
+}
 const sea = createSea(WORLD_SEA);
 const plants = createPlants(); // подпись «Сорвать…», кнопка и клавиша E у плодовых растений
 // Места, где можно сорвать находку для гербария Мяты (common/herbs.js): вид места и клетка клумбы, дерева или ёлки.
@@ -1241,11 +1265,6 @@ function build(m) {
   put1('nutcliff', 0, 55, { v: 1 });
   put1('nutcliff', 93, 54, { v: 1 });
   put1('nutcliff', 93, 56, { v: 0 });
-  for (const [x0, y0] of [
-    [0, 53],
-    [93, 54],
-  ])
-    for (let y = y0; y < y0 + 4; y++) for (let x = x0; x < x0 + 3; x++) if (x !== x0 || y !== y0) add('nutdot', x, y);
   for (const [x, y, v] of [
     [3, 55, 1],
     [1, 57, 2],
@@ -1579,8 +1598,9 @@ const town = createTopDownScene({
       }
     }
   },
-  /** На мини-карте: забор двора виллы. */
+  /** На мини-карте: забор двора виллы; ореховые скалы — значком-скалой (В13: раньше — россыпь коричневых точек). */
   miniMap(ctx, sc, k) {
+    for (const [x, y, flip] of NUT_CLIFFS_MAP) mapNutCliff(ctx, x * k, y * k, k, flip);
     ctx.strokeStyle = '#fff';
     ctx.lineWidth = Math.max(1.5, k * 0.22);
     ctx.setLineDash([k * 0.5, k * 0.35]);

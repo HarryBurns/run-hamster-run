@@ -345,6 +345,11 @@ h4.sect .muted { font-size: 13px; }
 #title .sub { font-size: clamp(15px, 3.6vw, 22px); font-weight: 800; }
 #title .t-head .sub, #title .t-menu .sub { background: rgba(255, 255, 255, .86); border-radius: 999px; padding: 4px 16px; }
 #title .t-menu .sub { border-radius: 18px; }
+/* табличка с названием городка — как резная доска на набережной */
+#title .t-town {
+  font-size: clamp(13px, 2.4vw, 17px); font-weight: 900; color: #fff8ec; background: #c98a4b; border: 3px solid #8a5428;
+  border-radius: 10px; padding: 1px 12px 2px; transform: rotate(-2deg); box-shadow: 0 3px 0 rgba(74, 55, 40, .35); letter-spacing: .3px;
+}
 /* кнопки: экран стоит — внизу по центру; лежит — справа; сцена занимает всё остальное (features/title.js: free) */
 #title .t-menu {
   position: absolute; left: 50%; transform: translateX(-50%); bottom: calc(14px + env(safe-area-inset-bottom));
@@ -363,6 +368,7 @@ h4.sect .muted { font-size: 13px; }
   #title h1 { font-size: clamp(26px, 6vh + 10px, 44px); }
   #title .t-head { padding-top: calc(6px + env(safe-area-inset-top)); gap: 4px; }
   #title .t-head .sub { font-size: 13px; padding: 2px 12px; }
+  #title .t-town { font-size: 12px; padding: 0 10px 1px; border-width: 2px; }
   #title .t-menu { gap: 6px; padding: 8px; top: 58%; width: min(38vw, 300px); }
   #title .t-menu .btn.big { font-size: 18px; padding: 9px 16px; }
   #title .t-menu .btn { min-height: 40px; padding-top: 6px; padding-bottom: 6px; }

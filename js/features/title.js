@@ -64,6 +64,7 @@ export function openTitle({ start }) {
   const head = el('div', 't-head');
   head.appendChild(el('h1', '', GAME_NAME));
   head.appendChild(el('div', 'sub', 'Большая жизнь маленького хомячка'));
+  head.appendChild(el('div', 't-town', '🌰 Ореховая Гавань')); // табличка: где живёт хомячок (В13)
   const menu = el('div', 't-menu');
   t.append(cv, head, menu);
   document.body.appendChild(t);
