@@ -369,6 +369,7 @@ export const VENDORS = {
   hospital: { name: 'Медсестра Ромашка', look: lk('#fff', { outfit: { body: 'robe', head: 'panama_white' }, beauty: { blush: '#ffb0bd', lashes: true } }) },
   fashion: { name: 'Модельер Пуговка', look: lk('#e88b3a', { belly: '#ffe8cc', outfit: { body: 'dress_evening', acc: 'sung_pink', head: 'sunhat' }, beauty: { blush: '#ff6b9d', lashes: true, nails: '#845ef7' } }) },
   tower: { name: 'Лифтёр Этажкин', look: ETAZHKIN_LOOK },
+  shelter: { name: 'Няня Ладушка', look: lk('#f6dfb8', { belly: '#fff', outfit: { body: 'overall_red', acc: 'scarf_yellow' }, beauty: { lashes: true, blush: '#ffb0bd', tuft: 2, hair: '#e8590c' } }) },
   market: { name: 'Торговец Грошик', look: lk('#c98b5a', { belly: '#f6dfb8', mask: '#f6dfb8', outfit: { body: 'overall_red', head: 'panama_green', acc: 'scarf_yellow' }, beauty: { blush: '#ffa94d', tuft: 1, hair: '#8d5524' } }) },
   realtor: { name: 'Риелтор Ключик', look: lk('#f2b34c', { belly: '#fff3d6', mask: '#fff3d6', outfit: { body: 'tuxedo', acc: 'tie_red', head: 'beret_black' }, beauty: { blush: '#ffb0bd', tuft: 2, hair: '#8d5524' } }) },
   // доктор в больнице: принимает простуженную хомячку (features/health.js); на работе встречает медсестра Ромашка

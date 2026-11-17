@@ -206,7 +206,8 @@ export function newGame(name) {
     finds: {}, // находки (не еда): id → сколько (data/finds.js)
     parrots: {}, // чему научили попугаев в джунглях (Дж6): номер попугая → [id слов из PARROT_WORDS], до PARROT_MEMORY
     visited: {}, // где хомячок уже побывала — к таким местам карта переносит быстро (Ф4): локация → { место: 1 }
-    // этап 17б: питомец ({ kind, name, love, fed, pet, play — дни последней еды, ласки, игры; food — корма в запасе;
+    // этап 17б: питомец ({ kind, name, love, fed — день последней еды; feedDay, pet, play — дни, за которые уже даны
+    // очки дружбы (еда, ласка, игра); food — корма в запасе;
     // ball — есть мячик; stay — ждёт дома } или null), транспорт (own — что куплено, use — на чём ездит) и двор
     // (store — купленное, но не поставленное: id → сколько; at — что где стоит: двор → [{ id, x, y }])
     pet: null,
@@ -360,7 +361,7 @@ export function repair(s) {
       pt.name = pt.name.slice(0, PET.nameMax);
       for (const k of ['love', 'food']) if (!Number.isFinite(pt[k]) || pt[k] < 0) pt[k] = 0;
       pt.love = Math.min(pt.love, PET.heart * PET.hearts);
-      for (const k of ['fed', 'pet', 'play']) if (!Number.isFinite(pt[k])) pt[k] = -1;
+      for (const k of ['fed', 'feedDay', 'pet', 'play']) if (!Number.isFinite(pt[k])) pt[k] = -1;
       pt.ball = !!pt.ball;
       pt.stay = !!pt.stay;
     }

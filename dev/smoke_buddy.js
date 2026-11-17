@@ -5,6 +5,7 @@
 module.exports = async function buddy({ page, step, ev, wait, closeAll }) {
   const T = 48;
   const expect = (ok, msg, data) => {
+    if (process.env.SMOKE_TRACE) console.log('   · ' + msg);
     if (!ok) throw new Error(msg + (data === undefined ? '' : ': ' + JSON.stringify(data)));
   };
   const fresh = async () => {
@@ -291,5 +292,208 @@ module.exports = async function buddy({ page, step, ev, wait, closeAll }) {
     await closeAll();
     const b6 = await ev(() => ({ y: window.__dev.state.yard, pet: window.__dev.state.pet, w: window.__dev.state.wheels }));
     expect(b6.y && !Object.keys(b6.y.store).length && b6.pet === null && b6.w.own.length === 0 && b6.w.use === '', 'старое сохранение: поля по умолчанию', b6);
+  });
+
+  await step('17б питомец: приют «Тёплые лапки» — выбрать друга, имя, взнос; идёт следом по городу и не застревает, ждёт у воды, прибегает после переноса; окно: погладить, покормить, поиграть (мячик из приюта), имя; сердечки растут раз в день и не убывают, «Лучший друг»; голодный просит; живёт дома, «Подожди дома»; сохраняется', async () => {
+    await fresh();
+    await toTown(90, 23);
+    expect((await ev(() => window.__dev.state.pet)) === null && !(await ev(() => window.__dev.F.petDebug().world)), 'питомец есть в новой игре');
+    await ev(() => window.__dev.actions.earn(3000));
+    await watch();
+    const money0 = await ev(() => window.__dev.state.money);
+    // к двери приюта — пешком
+    await ev(() => window.__dev.World.walkToPlace('shelter'));
+    await until(() => document.querySelector('.dialog'), null, 9000, 'диалог в приюте');
+    await wait(450);
+    await page.click('.dialog >> text=Посмотреть зверят');
+    await wait(400);
+    expect((await ev(() => document.querySelectorAll('.pet-shop .card').length)) === 4, 'в приюте не четыре зверька');
+    await page.click('.card.pet-bunny');
+    await wait(200);
+    expect((await ev(() => document.querySelector('.pet-name input').value)) === 'Снежок', 'имя по умолчанию для крольчонка');
+    await page.fill('.pet-name input', 'Пушок');
+    await page.click('.pet-take');
+    await wait(500);
+    const a1 = await ev(() => ({ pet: window.__dev.state.pet, money: window.__dev.state.money, st: window.__dev.state.stickers.includes('x_pet') }));
+    expect(a1.pet && a1.pet.kind === 'bunny' && a1.pet.name === 'Пушок' && a1.pet.food === 2 && a1.pet.love === 0, 'питомец не тот', a1.pet);
+    expect(money0 - a1.money === 500, 'взнос приюту', money0 - a1.money);
+    await closeAll();
+    await wait(1200);
+    expect(await ev(() => window.__dev.state.stickers.includes('x_pet')), 'нет наклейки «Друг из приюта»');
+    // рядом с хомячком, на суше
+    const near = () =>
+      ev(() => {
+        const d = window.__dev,
+          w = d.F.petDebug().world,
+          p = d.World.playerPos();
+        return w ? { d: Math.hypot(w.x - p.x, w.y - p.y), dry: d.World.map.dry(Math.floor(w.x / 48), Math.floor(w.y / 48)), away: w.away, moving: w.moving } : null;
+      });
+    let n = await near();
+    expect(n && n.d < 48 * 2 && n.dry, 'питомец не рядом после приюта', n);
+    // идёт следом: через полгорода по улицам (углы, фонари, скамейки) — не отстаёт и не застревает
+    await ev(() => window.__dev.World.walkTo(64.5 * 48, 30.5 * 48, true));
+    let worst = 0;
+    for (let i = 0; i < 60; i++) {
+      await wait(200);
+      n = await near();
+      worst = Math.max(worst, n.d);
+      expect(n.dry, 'питомец зашёл туда, где не ходят', n);
+      if (await ev(() => !window.__dev.World.p.path.length && !window.__dev.World.p.moving)) break;
+    }
+    await wait(900);
+    n = await near();
+    expect(n.d < 48 * 1.6 && worst < 48 * 4, 'питомец отстал', { n, worst });
+    // быстрый переход по карте: прибегает
+    await ev(() => window.__dev.World.debugTeleport(40, 14));
+    await wait(400);
+    n = await near();
+    expect(n.d < 48 * 2 && n.dry, 'после переноса питомец не прибежал', n);
+    // в воду не идёт: ждёт на берегу, потом прибегает
+    await ev(() => window.__dev.World.debugTeleport(40, 56));
+    await wait(300);
+    await ev(() => window.__dev.World.walkTo(40.5 * 48, 61.5 * 48, true));
+    await until(() => window.__dev.World.map.kindAt(Math.floor(window.__dev.World.p.x / 48), Math.floor(window.__dev.World.p.y / 48)).swim, null, 9000, 'хомячок в воде');
+    await wait(1500);
+    n = await near();
+    expect(n.dry && n.away, 'питомец пошёл в воду', n);
+    await ev(() => window.__dev.World.walkTo(40.5 * 48, 55.5 * 48, true));
+    await until(() => !window.__dev.World.p.path.length && !window.__dev.World.p.moving, null, 9000, 'хомячок вышла на берег');
+    await wait(500);
+    n = await near();
+    expect(n.d < 48 * 2 && n.dry && !n.away, 'питомец не прибежал на берег', n);
+    // окно питомца: нажать на него
+    await wait(600);
+    const sp = await ev(() => window.__dev.F.petDebug().screen);
+    await page.mouse.click(sp.x, sp.y);
+    await until(() => document.querySelector('.pet-win'), null, 7000, 'окно питомца');
+    await wait(450);
+    await page.click('.pet-win .act-feed');
+    await wait(300);
+    let pt = await ev(() => window.__dev.state.pet);
+    const day = await ev(() => window.__dev.state.day);
+    expect(pt.food === 1 && pt.love === 8 && pt.fed === day, 'покормить', pt);
+    expect((await ev(() => window.__dev.F.petDebug().world.fx)) === 'feed', 'не видно, как ест');
+    await wait(2600);
+    // второй раз за день — корм тратится, очков нет
+    expect(await ev(() => window.__dev.F.careForPet('feed')), 'второй раз не покормить');
+    pt = await ev(() => window.__dev.state.pet);
+    expect(pt.food === 0 && pt.love === 8, 'второе кормление дало очки', pt);
+    await wait(2600);
+    expect((await ev(() => window.__dev.F.careForPet('feed'))) === false, 'покормили без корма');
+    expect((await ev(() => window.__dev.F.careForPet('play'))) === false, 'поиграли без мячика');
+    expect(await ev(() => window.__dev.F.careForPet('pet')), 'не погладить');
+    pt = await ev(() => window.__dev.state.pet);
+    expect(pt.love === 11, 'погладить: +3', pt);
+    await wait(1800);
+    // корм и мячик — в приюте
+    await ev(() => void window.__dev.run('shelter'));
+    await until(() => document.querySelector('.dialog'), null, 5000, 'диалог в приюте (питомец есть)');
+    await wait(450);
+    await page.click('.dialog >> text=Корм и игрушки');
+    await wait(300);
+    const m1 = await ev(() => window.__dev.state.money);
+    await page.click('.pet-good-food .btn');
+    await wait(150);
+    await page.click('.pet-good-ball .btn');
+    await wait(150);
+    pt = await ev(() => window.__dev.state.pet);
+    expect(pt.food === 1 && pt.ball && m1 - (await ev(() => window.__dev.state.money)) === 230, 'покупка корма и мячика', pt);
+    expect(await ev(() => !document.querySelector('.pet-good-ball .btn')), 'мячик продаётся второй раз');
+    await closeAll();
+    expect(await ev(() => window.__dev.F.careForPet('play')), 'не поиграть');
+    await wait(400);
+    expect((await ev(() => window.__dev.F.petDebug().world.fx)) === 'play', 'не видно игры с мячиком');
+    for (let i = 0; i < 12; i++) {
+      await wait(250);
+      n = await near();
+      expect(n.dry, 'за мячиком забежал куда нельзя', n);
+    }
+    pt = await ev(() => window.__dev.state.pet);
+    expect(pt.love === 16, 'поиграть: +5', pt);
+    // голодный: грустит и просит, очки не убывают; покормили — весёлый
+    await unwatch();
+    await ev(() => window.__dev.actions.mutate((s) => {
+        s.pet.fed = s.day - 2;
+      }));
+    await watch();
+    let dbg = await ev(() => window.__dev.F.petDebug());
+    expect(dbg.hungry && (await ev(() => window.__dev.state.pet.love)) === 16, 'голодный питомец', dbg);
+    await ev(() => window.__dev.F.careForPet('feed'));
+    await wait(200);
+    dbg = await ev(() => window.__dev.F.petDebug());
+    expect(!dbg.hungry, 'покормили — всё ещё грустит', dbg);
+    await wait(2600);
+    // пять сердечек — «Лучший друг»
+    await unwatch();
+    await ev(() =>
+      window.__dev.actions.mutate((s) => {
+        s.pet.love = 98;
+        s.pet.pet = -1;
+      }),
+    );
+    await watch();
+    await ev(() => window.__dev.F.careForPet('pet'));
+    await wait(2300);
+    dbg = await ev(() => ({ h: window.__dev.F.petDebug().hearts, love: window.__dev.state.pet.love, st: window.__dev.state.stickers.includes('x_pet_best') }));
+    expect(dbg.h === 5 && dbg.love === 100 && dbg.st, '«Лучший друг»', dbg);
+    // другое имя
+    await ev(() => void window.__dev.run('pet'));
+    await wait(400);
+    await page.fill('.pet-win input', 'Облачко');
+    await page.keyboard.press('Enter');
+    await wait(200);
+    expect((await ev(() => window.__dev.state.pet.name)) === 'Облачко', 'имя не поменялось');
+    await closeAll();
+    // дома — рядом; в чужом месте (отель) его нет; в лесу — идёт с хомячком
+    await ev(() => window.__dev.go('villa'));
+    await wait(500);
+    dbg = await ev(() => window.__dev.F.petDebug());
+    expect(dbg.home && dbg.home.scene === 'villa' && dbg.home.f === (await ev(() => window.__dev.scene.p.f)), 'дома питомца нет', dbg);
+    await page.mouse.click(dbg.screen.x, dbg.screen.y);
+    await until(() => document.querySelector('.pet-win'), null, 5000, 'окно питомца дома');
+    await wait(450);
+    await page.click('.pet-win .act-pet');
+    await wait(400);
+    expect((await ev(() => window.__dev.F.petDebug().home.fx)) === 'pet', 'дома не видно, как гладят');
+    await wait(1500);
+    await ev(() => window.__dev.go('hotel'));
+    await wait(400);
+    expect(!(await ev(() => window.__dev.F.petDebug().home)), 'питомец зашёл в отель');
+    await ev(() => {
+      window.__dev.actions.openLand('forest');
+      window.__dev.go('forest');
+    });
+    await wait(600);
+    dbg = await ev(() => window.__dev.F.petDebug());
+    expect(dbg.world && dbg.world.scene === 'forest', 'в лесу питомца нет', dbg);
+    // «Подожди дома»: в городе его нет, дома — есть
+    await ev(() => void window.__dev.run('pet'));
+    await wait(400);
+    await page.click('.act-stay');
+    await wait(300);
+    expect((await ev(() => window.__dev.state.pet.stay)) === true && !(await ev(() => window.__dev.F.petDebug().world)), '«Подожди дома» не сработало');
+    await ev(() => window.__dev.go('world'));
+    await wait(400);
+    expect(!(await ev(() => window.__dev.F.petDebug().world)), 'ждёт дома — а гуляет по городу');
+    await ev(() => window.__dev.go('villa'));
+    await wait(400);
+    expect(await ev(() => !!window.__dev.F.petDebug().home), 'ждёт дома — а дома его нет');
+    await ev(() => void window.__dev.run('pet'));
+    await wait(400);
+    await page.click('.act-walk');
+    await wait(300);
+    await unwatch();
+    // сохранение
+    await page.reload();
+    await wait(500);
+    await page.click('text=Продолжить');
+    await wait(600);
+    await closeAll();
+    pt = await ev(() => window.__dev.state.pet);
+    expect(pt && pt.kind === 'bunny' && pt.name === 'Облачко' && pt.love === 100 && pt.ball && !pt.stay, 'после перезагрузки питомец не тот', pt);
+    await ev(() => window.__dev.go('world'));
+    await wait(500);
+    n = await near();
+    expect(n && n.d < 48 * 2, 'после перезагрузки питомец не рядом', n);
   });
 };

@@ -563,13 +563,14 @@ export const patchState = act((key, patch, init) => {
 export const touchState = () => touch();
 
 // ---------- питомец (этап 17б) ----------
-// Питомец — один: state.pet. Очки дружбы (love) только растут; «покормили», «погладили», «поиграли» — по дням.
+// Питомец — один: state.pet. Очки дружбы (love) только растут; за что сегодня уже дали очки — дни feedDay, pet, play;
+// fed — день последней еды (по нему питомец «голоден»; в день, когда взяли из приюта, он сыт).
 /** Взять питомца из приюта: вид и имя. false — питомец уже есть или вида такого нет. */
 export const adoptPet = act((kind, name) => {
   const s = S();
   if (s.pet || !PET_BY_ID[kind]) return false;
   const nm = String(name || '').trim().slice(0, PET.nameMax) || PET_BY_ID[kind].names[0];
-  s.pet = { kind, name: nm, love: 0, fed: s.day, pet: -1, play: -1, food: 2, ball: false, stay: false };
+  s.pet = { kind, name: nm, love: 0, fed: s.day, feedDay: -1, pet: -1, play: -1, food: 2, ball: false, stay: false };
   touch();
   emit('pet', { what: 'adopt', kind });
   return true;
@@ -595,11 +596,14 @@ export const petCare = act((what) => {
   if (!pt || !['pet', 'feed', 'play'].includes(what)) return false;
   if (what === 'feed' && !(pt.food > 0)) return false;
   if (what === 'play' && !pt.ball) return false;
-  const key = what === 'feed' ? 'fed' : what,
+  const key = what === 'feed' ? 'feedDay' : what, // fed — когда ел (для «голоден»), feedDay — день очков за еду
     first = pt[key] !== s.day,
     max = PET.heart * PET.hearts,
     was = pt.love;
-  if (what === 'feed') pt.food--;
+  if (what === 'feed') {
+    pt.food--;
+    pt.fed = s.day;
+  }
   pt[key] = s.day;
   if (first) pt.love = Math.min(max, pt.love + PET[what]);
   touch();

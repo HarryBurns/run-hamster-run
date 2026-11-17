@@ -15,6 +15,7 @@ import './common/index.js';
 import { createSea, WORLD_SEA } from './sea.js';
 import './jungle_art.js'; // остров причала джунглей за буйками (WORLD_SEA.port): тропические деревья и попугай
 import { HOUSE_ART, HOUSE_STYLE } from './town_buildings.js';
+import './town_pets.js';
 import { signBoard, fitText, snowCap, shadow } from './common/paint.js';
 import { createPlants, hasFruit } from './common/plants.js';
 import { createHerbs } from './common/herbs.js';
@@ -74,6 +75,15 @@ export const BUILDINGS = [
   B('cafe', 'cafe', 56, 17, 4, 4, { name: 'Кафе «Семечка»', icon: '☕', wall: '#ffdeeb', roof: '#d6336c' }),
   B('hospital', 'hospital', 67, 18, 7, 6, { name: 'Больница', icon: '🏥', wall: '#ffffff', roof: '#fa5252' }),
   B('school', 'school', 77, 18, 7, 6, { name: 'Школа', icon: '🔔', wall: '#ffd8a8', roof: '#e8590c' }),
+  // приют для зверят (этап 17б): за школой, у детской площадки — отсюда берут питомца (features/pet.js). Здание
+  // и дорожка от него целиком в рамке keep(84, 17, 92, 23) детской площадки: «случайная» зелень города не сдвинулась
+  B('shelter', 'shelter', 88, 17, 4, 4, {
+    name: 'Приют «Тёплые лапки»',
+    mapName: 'Приют «Тёплые лапки»: питомцы',
+    icon: '🐾',
+    wall: '#fff3d6',
+    roof: '#ff922b',
+  }),
   // к югу от главной улицы
   B('home_apartment', 'apartment', 53, 31, 6, 5, {
     name: 'Жилой дом',
@@ -128,6 +138,7 @@ const BUILDING_ACTS = {
   home_apartment: 'home:flat',
   home_bungalow: 'home:bungalow',
   hotel: 'scene:hotel',
+  shelter: 'shelter',
   fashion: ask('fashion', 'Дорогая! Подиум ждёт. Выйдешь на показ мод?', [
     { text: '👠 На подиум!', cls: 'green', do: 'minigame:fashion' },
     { text: 'Не сейчас' },
@@ -834,6 +845,8 @@ function build(m) {
   fill(33, 24, 39, 25, 'r'); // перед ТЦ «Вкусный»
   fill(67, 24, 73, 25, 'r'); // перед больницей
   fill(77, 24, 83, 25, 'r'); // перед школой
+  fill(90, 21, 91, 23, 'y'); // от приюта «Тёплые лапки» — мимо площадки к Главной улице
+  fill(91, 24, 91, 25, 'y');
   fill(83, 47, 93, 47, 'r'); // перед отелем
   fill(51, 46, 59, 47, 'r'); // терраса ресторана
   fill(63, 50, 64, 62, 'i'); // пирс
