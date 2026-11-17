@@ -8,7 +8,7 @@
 //     над полом, r — радиус пятна, c — цвет 'r,g,b'.
 // Поля описания: dim — темно и днём (0..1: грот, пирамида); night — насколько темнеет ночью (по умолчанию 1).
 // Темнота — маской в маленькой канве (у ламп в ней «дырки» — свет снимает темноту, а не прибавляется, светлые стены
-// не выгорают), сверху — лёгкий тёплый оттенок. Рисуется только видимое (sc.view), градиенты кэшируются.
+// не выгорают) с лёгким тёплым оттенком у ламп; на экран — одним рисунком. Рисуется только видимое (sc.view), градиенты кэшируются.
 import { darkness } from '../../core/state.js';
 import { FURN_BY_ID } from '../../data/index.js';
 
@@ -102,23 +102,19 @@ export function drawLight(ctx, sc, view) {
     mc.fillRect(-l.r, -l.r, l.r * 2, l.r * 2);
     mc.translate(-l.x, -l.y);
   }
+  // тёплый оттенок у ламп — в той же маске (один проход по экрану вместо второго)
+  mc.globalCompositeOperation = 'source-over';
+  mc.globalAlpha = Math.min(1, dk) * 0.3;
+  for (const l of vis) {
+    mc.translate(l.x, l.y);
+    mc.fillStyle = glowGrad(mc, l.r, l.c);
+    mc.fillRect(-l.r, -l.r, l.r * 2, l.r * 2);
+    mc.translate(-l.x, -l.y);
+  }
   mc.restore();
   ctx.save();
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.drawImage(mask, 0, 0, mw * q, mh * q);
-  ctx.restore();
-  // 2) тёплый оттенок у ламп — чуть-чуть, поверх
-  ctx.save();
-  roomsPath(ctx);
-  ctx.clip();
-  ctx.globalCompositeOperation = 'lighter';
-  ctx.globalAlpha = Math.min(1, dk) * 0.32;
-  for (const l of vis) {
-    ctx.translate(l.x, l.y);
-    ctx.fillStyle = glowGrad(ctx, l.r, l.c);
-    ctx.fillRect(-l.r, -l.r, l.r * 2, l.r * 2);
-    ctx.translate(-l.x, -l.y);
-  }
   ctx.restore();
 }
 let mask = null;
