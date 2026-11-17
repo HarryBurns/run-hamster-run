@@ -18,7 +18,7 @@ import { ell, fillRR, poly, rr, shade, star, emoji } from '../../core/draw.js';
 import { drawHamster, blinkAt } from '../../art/hamster.js';
 import { NPC_BY_ID, TASK_BY_ID } from '../../data/index.js';
 import { T, OUT, PS, SP, TILES, OBJECTS, BUILDING_KINDS, tileOf, label, hash } from './kinds.js';
-import { drawResident, drawBadge } from './actors.js';
+import { drawResident, drawBadge, faceDir } from './actors.js';
 import { drawGround, buildShore, paintGroundMap, CH } from './ground.js';
 
 // ---------- погода ----------
@@ -411,7 +411,7 @@ function drawHero(ctx, sc, look, ent, t) {
   }
   const kind = TILES[ent.surf] || {},
     swim = kind.swim;
-  const pose = { time: t, dir: ent.dir, walk: ent.moving ? ent.walkT : null, blink: blinkAt(t, 0), sneeze: sneezePhase() };
+  const pose = { time: t, dir: faceDir(ent), walk: ent.moving ? ent.walkT : null, blink: blinkAt(t, 0), sneeze: sneezePhase() };
   if (swim) {
     pose.clipBelow = swim.clip;
     pose.walk = ent.walkT;

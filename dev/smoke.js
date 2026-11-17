@@ -1733,6 +1733,61 @@ const runParallel = () => {
         await hold('ArrowLeft', 300);
       }
     });
+    await step('город: поворот хомячка — вбок повёрнута, вверх-вниз мордочкой прямо (З6)', async () => {
+      await ev(() => {
+        const d = window.__dev;
+        if (d.sceneName !== 'world') d.go('world');
+        d.World.debugTeleport(40, 36); // парк: есть место во все стороны
+      });
+      await wait(300);
+      const face = () => ev(() => ({ dir: window.__dev.World.p.dir, vert: !!window.__dev.World.p.vert }));
+      await hold('ArrowRight', 300);
+      let f = await face();
+      if (f.dir !== 1 || f.vert) throw new Error('шаг вправо: ' + JSON.stringify(f));
+      await hold('ArrowUp', 300);
+      f = await face();
+      if (!f.vert) throw new Error('шаг вверх — не прямо: ' + JSON.stringify(f));
+      await hold('ArrowLeft', 300);
+      f = await face();
+      if (f.dir !== -1 || f.vert) throw new Error('шаг влево: ' + JSON.stringify(f));
+      // по нажатию (путь): вниз — прямо, вбок — повёрнута
+      await ev(() => {
+        const W = window.__dev.World;
+        W.walkTo(W.p.x, W.p.y + 48 * 3, true);
+      });
+      await wait(500);
+      f = await face();
+      if (!f.vert) throw new Error('путь вниз — не прямо: ' + JSON.stringify(f));
+      await ev(() => {
+        const W = window.__dev.World;
+        W.walkTo(W.p.x + 48 * 3, W.p.y, true);
+      });
+      await wait(500);
+      f = await face();
+      if (f.dir !== 1 || f.vert) throw new Error('путь вправо: ' + JSON.stringify(f));
+      // мордочка заметно сдвинута: глаза у повёрнутой — на 5+ точек в сторону взгляда (в масштабе города)
+      const r = await ev(async () => {
+        const { drawHamster } = await import(new URL('js/art/hamster.js', location.href).href);
+        const look = { fur: '#ffffff', ear: '#ffb3c1', outfit: {}, beauty: { blush: null } };
+        const eyeX = (dir) => {
+          const c = document.createElement('canvas');
+          c.width = c.height = 100;
+          const x = c.getContext('2d', { willReadFrequently: true });
+          drawHamster(x, 50, 90, 0.78, look, { dir, time: 1, shadow: false });
+          const d = x.getImageData(0, 0, 100, 100).data;
+          let n = 0,
+            sx = 0;
+          for (let i = 0; i < d.length; i += 4)
+            if (Math.abs(d[i] - 0x1d) < 8 && Math.abs(d[i + 1] - 0x1b) < 8 && Math.abs(d[i + 2] - 0x1b) < 8) {
+              n++;
+              sx += (i / 4) % 100;
+            }
+          return sx / (n || 1);
+        };
+        return [eyeX(-1), eyeX(0), eyeX(1)];
+      });
+      if (!(r[2] - r[1] >= 5 && r[1] - r[0] >= 5)) throw new Error('поворот мордочки слабый: ' + JSON.stringify(r));
+    });
     await step('город: от двери виллы можно дойти до каждой двери, особого места, жителя и выезда', async () => {
       const bad = await ev(() => {
         const W = window.__dev.World,

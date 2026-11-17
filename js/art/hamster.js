@@ -1273,7 +1273,9 @@ function drawBow(ctx, col, x, y) {
 }
 
 // Поворот: насколько мордочка сдвигается в сторону взгляда и насколько хомячок наклоняется на ходу.
-const TURN = 5,
+// З6 (этап 9): мордочка сдвигается заметнее (было 5), дальний глаз чуть уже, уши и светлое брюшко уходят
+// навстречу повороту — в городе хомячок мелкий, и прежний поворот читался слабо.
+const TURN = 8.5,
   LEAN = 0.05;
 
 /**
@@ -1342,7 +1344,7 @@ export function drawHamster(ctx, x, y, s, look, pose = {}) {
   ctx.fill();
   ctx.save();
   ctx.clip();
-  if (look.belly) ell(ctx, 0, -18, 14, 16, look.belly);
+  if (look.belly) ell(ctx, k * 4, -18, 14, 16, look.belly); // брюшко — в сторону взгляда
   if (look.spots) {
     ell(ctx, -17, -18, 10, 9, look.spots);
     ell(ctx, 17, -8, 7, 6, look.spots);
@@ -1398,8 +1400,9 @@ export function drawHamster(ctx, x, y, s, look, pose = {}) {
   // --- уши
   for (const sx of [-1, 1]) {
     const spotEar = look.spots && sx === 1;
-    ell(ctx, sx * 19, -71, 8.5, 8.5, spotEar ? look.spots : fur, OUT, 2);
-    ell(ctx, sx * 19, -70.5, 4.8, 4.8, look.ear || '#ffb3c1');
+    const ux = sx * 19 - k * 2.5; // повернулась — уши чуть «назад», к затылку
+    ell(ctx, ux, -71, 8.5, 8.5, spotEar ? look.spots : fur, OUT, 2);
+    ell(ctx, ux, -70.5, 4.8, 4.8, look.ear || '#ffb3c1');
   }
 
   // --- голова
@@ -1434,7 +1437,8 @@ export function drawHamster(ctx, x, y, s, look, pose = {}) {
   const closed = bl > 0.72 || burst;
   for (const sx of [-1, 1]) {
     const ex = fx(sx * 10),
-      ey = -55;
+      ey = -55,
+      ew = k && sx === -k ? 0.8 : 1; // дальний глаз при повороте чуть уже
     const onSpot = look.spots && sx === 1;
     if (onSpot && !closed && !pose.happy) ell(ctx, ex, ey, 6, 7, '#fff');
     if (burst) {
@@ -1464,10 +1468,10 @@ export function drawHamster(ctx, x, y, s, look, pose = {}) {
       ctx.stroke();
     } else {
       const k = 1 - bl * 0.9; // глаз плавно «сплющивается», пока закрывается
-      ell(ctx, ex, ey + (1 - k) * 2, 4.3, Math.max(0.9, 5.3 * k), '#1d1b1b');
+      ell(ctx, ex, ey + (1 - k) * 2, 4.3 * ew, Math.max(0.9, 5.3 * k), '#1d1b1b');
       if (k > 0.5) {
-        ell(ctx, ex - 1.4, ey - 2 * k, 1.7, 1.7 * k, '#fff');
-        ell(ctx, ex + 1.3, ey + 1.6 * k, 0.8, 0.8 * k, '#fff');
+        ell(ctx, ex - 1.4 * ew, ey - 2 * k, 1.7 * ew, 1.7 * k, '#fff');
+        ell(ctx, ex + 1.3 * ew, ey + 1.6 * k, 0.8, 0.8 * k, '#fff');
       }
     }
     if (b.lashes && !closed) {

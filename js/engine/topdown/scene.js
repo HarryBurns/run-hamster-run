@@ -97,7 +97,7 @@ import { toast } from '../../ui/toast.js';
 import { TASK_BY_ID, SICK_TEXT } from '../../data/index.js';
 import { T, SP, TILES, OBJECTS, BUILDING_KINDS, tileOf } from './kinds.js';
 import { createMap, mapSize } from './map.js';
-import { moveAlong, canStand, makeResidents, settleResidents, updateResidents, hitResident } from './actors.js';
+import { moveAlong, faceTo, canStand, makeResidents, settleResidents, updateResidents, hitResident } from './actors.js';
 import { drawFrame, drawMiniMapBase, drawMiniMapPlayer, initWeather, updateWeather, hideSky } from './render.js';
 import { groundStats } from './ground.js';
 
@@ -320,7 +320,7 @@ export function createTopDownScene(desc) {
           dx = q.x - p.x,
           dy = q.y - p.y,
           d = Math.hypot(dx, dy);
-        if (Math.abs(dx) > 2) p.dir = dx > 0 ? 1 : -1;
+        faceTo(p, dx, dy);
         if (d > step) {
           p.x += (dx / d) * step;
           p.y += (dy / d) * step;
@@ -614,7 +614,7 @@ export function createTopDownScene(desc) {
             wk = TILES[m.at(wx, wy)];
           if (wk && wk.swim && !inWater()) waterHint();
         }
-        if (kx) p.dir = kx;
+        faceTo(p, kx * 10, ky * 10); // вбок — повернуться, вверх-вниз — мордочкой прямо (З6)
         p.moving = true;
         p.walkT += dt * 2.4;
       } else if (moveAlong(m, p, sp, dt)) arrive();
@@ -784,6 +784,7 @@ export function createTopDownScene(desc) {
     if (!pd) return;
     if (pd.npc) {
       p.dir = pd.npc.x >= p.x ? 1 : -1;
+      p.vert = false;
       pd.npc.dir = -p.dir;
       pd.npc.path = [];
       pd.npc.wait = 4;

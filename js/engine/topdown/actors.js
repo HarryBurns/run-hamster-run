@@ -24,6 +24,20 @@ import { T, PS, OUT, SP, OBJECTS, tileOf, doorX } from './kinds.js';
  * Сдвинуть ent ({ x, y, dir, path, moving, walkT }) по его пути. true — в этом шаге дошли до конца.
  * Через «медленные» клетки (кусты) — медленнее.
  */
+/**
+ * Куда смотрит идущий (З6): шаг вбок — повернулся в его сторону (dir), шаг вверх или вниз — мордочкой прямо
+ * (vert = true, рисуется без поворота). Совсем короткие шаги направление не меняют.
+ */
+export function faceTo(ent, dx, dy) {
+  if (Math.abs(dy) > Math.abs(dx) * 1.5 && Math.abs(dy) > 2) ent.vert = true;
+  else if (Math.abs(dx) > 2) {
+    ent.vert = false;
+    ent.dir = dx > 0 ? 1 : -1;
+  }
+}
+/** Направление для позы хомячка: 1 / -1 — повёрнут, 0 — смотрит прямо (идёт или стоит после шага вверх-вниз). */
+export const faceDir = (ent) => (ent.vert ? 0 : ent.dir);
+
 export function moveAlong(m, ent, speed, dt) {
   if (!ent.path.length) {
     ent.moving = false;
@@ -41,7 +55,7 @@ export function moveAlong(m, ent, speed, dt) {
       dx = t.x - ent.x,
       dy = t.y - ent.y,
       d = Math.hypot(dx, dy);
-    if (Math.abs(dx) > 2) ent.dir = dx > 0 ? 1 : -1;
+    faceTo(ent, dx, dy);
     if (d > step) {
       ent.x += (dx / d) * step;
       ent.y += (dy / d) * step;
@@ -170,13 +184,13 @@ export function drawResident(n, t) {
   const fr = n.moving
     ? Math.floor((n.walkT % 1) * WALK_FRAMES)
     : WALK_FRAMES + Math.min(IDLE_FRAMES - 1, Math.floor(((Math.sin((t + n.ph) * 2.2) + 1) / 2) * IDLE_FRAMES));
-  const key = `npc:${n.id}:${n.dir}:${fr}:${shut}`;
+  const key = `npc:${n.id}:${faceDir(n)}:${fr}:${shut}`;
   let s = SP.find(key);
   if (!s) {
     // поза кадра: для шага — середина его отрезка фазы; для «дыхания» — время, в которое тело на нужной высоте
     const i = fr - WALK_FRAMES,
       time = i < 0 ? 0 : Math.asin((((i + 0.5) / IDLE_FRAMES) * 2 - 1) * 0.9) / 2.2;
-    const pose = { dir: n.dir, time, walk: i < 0 ? (fr + 0.5) / WALK_FRAMES : null, blink: shut };
+    const pose = { dir: faceDir(n), time, walk: i < 0 ? (fr + 0.5) / WALK_FRAMES : null, blink: shut };
     s = SP.get(key, [-56 * sc, -124 * sc, 56 * sc, 12 * sc], (c) => drawHamster(c, 0, 0, sc, npcLook(n.id), pose));
   }
   SP.draw(s, n.x, n.y + 10);
