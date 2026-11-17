@@ -108,19 +108,48 @@ export function updateActors(sc, dt) {
   }
 }
 
+// Житель — из кэша кадров (От12, как жители локаций — engine/topdown/actors.js): 8 кадров шага или 4 кадра
+// «дыхания», глаза открыты или закрыты, смотрит влево или вправо. Радуется (руки вверх) — рисуется линиями.
+const WALK_FRAMES = 8,
+  IDLE_FRAMES = 4;
 export function drawActors(ctx, sc, t) {
   for (const g of sc.actors) {
     const n = NPC_BY_ID[g.id];
     if (!n || !actorHere(g)) continue;
-    const y = sc.geo.fy(g.f);
-    drawHamster(ctx, g.x, y, HS * (n.small ? 0.78 : 1), npcLook(g.id), {
-      time: t + g.ph,
-      dir: g.dir,
-      walk: g.moving ? g.walkT : null,
-      happy: g.happy > 0,
-      armsUp: g.happy > 0 && Math.sin(t * 10) > 0,
-      blink: blinkAt(t, g.ph),
-    });
+    const y = sc.geo.fy(g.f),
+      s = HS * (n.small ? 0.78 : 1);
+    if (g.happy > 0 || !sc.sprite) {
+      drawHamster(ctx, g.x, y, s, npcLook(g.id), {
+        time: t + g.ph,
+        dir: g.dir,
+        walk: g.moving ? g.walkT : null,
+        happy: g.happy > 0,
+        armsUp: g.happy > 0 && Math.sin(t * 10) > 0,
+        blink: blinkAt(t, g.ph),
+      });
+    } else {
+      const shut = blinkAt(t, g.ph) > 0.5 ? 1 : 0;
+      const fr = g.moving
+        ? Math.floor((((g.walkT % 1) + 1) % 1) * WALK_FRAMES)
+        : WALK_FRAMES +
+          Math.min(IDLE_FRAMES - 1, Math.floor(((Math.sin((t + g.ph) * 2.2) + 1) / 2) * IDLE_FRAMES));
+      const i = fr - WALK_FRAMES,
+        time = i < 0 ? 0 : Math.asin((((i + 0.5) / IDLE_FRAMES) * 2 - 1) * 0.9) / 2.2;
+      const dir = g.dir === -1 ? -1 : 1;
+      sc.sprite(
+        `actor:${g.id}:${dir}:${fr}:${shut}`,
+        [-62 * s, -128 * s, 62 * s, 12 * s],
+        (c) =>
+          drawHamster(c, 0, 0, s, npcLook(g.id), {
+            time,
+            dir,
+            walk: i < 0 ? (fr + 0.5) / WALK_FRAMES : null,
+            blink: shut,
+          }),
+        g.x,
+        y,
+      );
+    }
     // табличка с именем
     ctx.font = '800 15px ui-rounded, "Trebuchet MS", sans-serif';
     ctx.textAlign = 'center';

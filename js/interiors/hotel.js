@@ -7,7 +7,8 @@
 //             (через день кто-то из друзей отдыхает здесь днём), аниматор Хлопушка по расписанию (зарядка утром,
 //             дискотека вечером) и доска с расписанием.
 // Дом сам ничего не делает: зоны и работники называют действия реестра hotel:* (features/hotel.js). Рисунок стоек,
-// дверей, горки и шезлонгов — крюки art (back — позади всех, mid — стойки перед работниками, но позади хомячка).
+// дверей, горки и шезлонгов — крюки art (back — позади всех, mid — стойки перед работниками, но позади хомячка);
+// он неподвижен и рисуется один раз в кэш (sc.still, engine/side/cache.js — От12), живое — огоньки свечей и диско-шар.
 // Своя позиция в сохранении (persist): уснула в номере — утро в отеле, и после перезагрузки тоже.
 import { G, ownsHome, hotelPoolGuest } from '../core/state.js';
 import { ell, fillRR, line, poly, star, shade, emoji } from '../core/draw.js';
@@ -80,7 +81,7 @@ function lounger(ctx, x, y, col) {
 }
 
 /** Холл: люстра, ключи на стене, логотип, диванчик, растения, тележка с чемоданами. */
-function drawLobby(ctx, t) {
+function drawLobby(ctx) {
   const y = 0;
   // люстра
   line(ctx, 260, y - 250, 260, y - 220, OUT, 2);
@@ -153,19 +154,23 @@ function drawBuffetCounter(ctx) {
   });
 }
 
-/** Спа: массажный стол, полка с полотенцами, свечи, вывеска. */
-function drawSpaBack(ctx, t) {
+const CANDLES = [1530, 1556];
+/** Огоньки свечей в спа — живые (колышутся), поверх неподвижного рисунка из кэша. */
+function drawCandleFlames(ctx, t) {
+  for (const cx of CANDLES) {
+    const f = Math.sin(t * 6 + cx) * 1.5;
+    poly(ctx, [cx - 3, -134, cx + f, -146, cx + 3, -134], '#ffa94d');
+  }
+}
+/** Спа: массажный стол, полка с полотенцами, свечи (без огоньков), вывеска. */
+function drawSpaBack(ctx) {
   const y = 0,
     x = HX.massage;
   plate(ctx, '🧖 Спа «Пенка»', 1600, y - 222, 190, '#12b886', 15);
   // полка с полотенцами и свечи
   fillRR(ctx, 1380, y - 186, 120, 10, 3, '#c98b5a', OUT, 1.5);
   for (let i = 0; i < 3; i++) fillRR(ctx, 1388 + i * 36, y - 210, 30, 24, 6, ['#ffd8e4', '#c3fae8', '#fff3bf'][i], OUT, 1.5);
-  for (const cx of [1530, 1556]) {
-    fillRR(ctx, cx - 5, y - 134, 10, 18, 2, '#fff', OUT, 1.2);
-    const f = Math.sin(t * 6 + cx) * 1.5;
-    poly(ctx, [cx - 3, y - 134, cx + f, y - 146, cx + 3, y - 134], '#ffa94d');
-  }
+  for (const cx of CANDLES) fillRR(ctx, cx - 5, y - 134, 10, 18, 2, '#fff', OUT, 1.2);
   fillRR(ctx, 1516, y - 118, 56, 8, 3, '#c98b5a', OUT, 1.5);
   // массажный стол с подушкой-валиком и огуречными масками в мисочке
   fillRR(ctx, x - 80, y - 58, 160, 16, 7, '#fff', OUT, 2);
@@ -250,8 +255,8 @@ function drawSlide(ctx) {
   ctx.lineCap = 'butt';
 }
 
-/** Терраса: шезлонги, сцена аниматора (вечером — диско-шар и огоньки), доска с расписанием. */
-function drawTerrace(ctx, t) {
+/** Терраса: шезлонги, сцена аниматора, доска с расписанием (неподвижное — из кэша). */
+function drawTerrace(ctx) {
   const y = -552;
   lounger(ctx, HX.loungers[0], y, '#ff8fab');
   lounger(ctx, HX.loungers[1], y, '#63e6be');
@@ -275,6 +280,20 @@ function drawTerrace(ctx, t) {
     ell(ctx, sx + dx, y - 60, 9, 9, '#868e96', OUT, 1.5);
     ell(ctx, sx + dx, y - 32, 6, 6, '#868e96', OUT, 1.5);
   }
+  // доска с расписанием
+  const bx = HX.board;
+  line(ctx, bx, y - 4, bx, y - 90, OUT, 4);
+  fillRR(ctx, bx - 44, y - 180, 88, 96, 8, '#fff9db', OUT, 2);
+  label(ctx, 'Аниматор', bx, y - 164, 12, '#e64980');
+  label(ctx, '🤸 8:00', bx, y - 140, 13);
+  label(ctx, 'зарядка', bx, y - 124, 10, '#495057');
+  label(ctx, '🪩 19:00', bx, y - 104, 13);
+  label(ctx, 'дискотека', bx, y - 90, 10, '#495057');
+}
+/** Вечером над сценой аниматора — диско-шар и цветные лучи (живые, крутятся). */
+function drawDisco(ctx, t) {
+  const y = -552,
+    sx = HX.stage;
   if (evening()) {
     // диско-шар и цветные лучи
     line(ctx, sx, y - 250, sx, y - 210, OUT, 2);
@@ -286,15 +305,6 @@ function drawTerrace(ctx, t) {
       ctx.globalAlpha = 1;
     }
   }
-  // доска с расписанием
-  const bx = HX.board;
-  line(ctx, bx, y - 4, bx, y - 90, OUT, 4);
-  fillRR(ctx, bx - 44, y - 180, 88, 96, 8, '#fff9db', OUT, 2);
-  label(ctx, 'Аниматор', bx, y - 164, 12, '#e64980');
-  label(ctx, '🤸 8:00', bx, y - 140, 13);
-  label(ctx, 'зарядка', bx, y - 124, 10, '#495057');
-  label(ctx, '🪩 19:00', bx, y - 104, 13);
-  label(ctx, 'дискотека', bx, y - 90, 10, '#495057');
 }
 
 /** Стойка ресепшена (перед администратором, позади хомячка). */
@@ -364,22 +374,29 @@ export default {
     { npc: 'hlopushka', f: 2, x: HX.stage, roam: [HX.stage - 70, HX.stage + 70], act: 'hotel:animator', when: () => !!G.state && !!animatorNow(G.state.minutes) },
     ...POOL_GUESTS.map((id) => ({ npc: id, f: 2, x: HX.loungers[1] - 60, roam: [1380, 1560], act: 'npc:' + id, when: () => hotelPoolGuest() === id })),
   ],
-  // рисуем только то, что видно на экране (sc.view — scene.js): этаж и полоса по x
+  // рисуем только то, что видно на экране (sc.view — scene.js): этаж и полоса по x. Неподвижное — из кэша
+  // (sc.still, От12; рамки — в единицах дома), живое (огоньки свечей, диско-шар) — линиями поверх.
   art: {
     back(ctx, sc, t) {
       const v = sc.view,
         on = (f, x0, x1) => seen(v, f, x0, x1);
-      if (on(0, 0, 820)) drawLobby(ctx, t);
-      if (on(0, 780, 1340)) drawBuffetBack(ctx);
-      if (on(0, 1340, W)) drawSpaBack(ctx, t);
-      if (on(1, 0, 1300)) drawCorridor(ctx);
-      if (on(1, 1300, W)) drawRoom(ctx);
-      if (on(2, 900, 1300)) drawSlide(ctx);
-      if (on(2, 1250, W)) drawTerrace(ctx, t);
+      if (on(0, 0, 820)) sc.still('lobby', [100, -262, 840, 4], (c) => drawLobby(c));
+      if (on(0, 780, 1340)) sc.still('buffet', [790, -240, 1310, 2], drawBuffetBack);
+      if (on(0, 1340, W)) {
+        sc.still('spa', [1350, -240, 1700, 2], drawSpaBack);
+        drawCandleFlames(ctx, t);
+      }
+      if (on(1, 0, 1300)) sc.still('corridor:' + (ownsHome('suite') ? 'mine' : 'shut'), [10, -510, 1270, -268], drawCorridor);
+      if (on(1, 1300, W)) sc.still('room:' + (roomRented() ? 'rented' : 'free'), [1340, -514, 1700, -350], drawRoom);
+      if (on(2, 900, 1300)) sc.still('slide', [960, -812, 1290, -538], drawSlide);
+      if (on(2, 1250, W)) {
+        sc.still('terrace', [1280, -752, 1950, -546], drawTerrace);
+        drawDisco(ctx, t);
+      }
     },
     mid(ctx, sc) {
-      if (seen(sc.view, 0, HX.desk - 130, HX.desk + 130)) drawDesk(ctx);
-      if (seen(sc.view, 0, HX.buffet - 190, HX.buffet + 190)) drawBuffetCounter(ctx);
+      if (seen(sc.view, 0, HX.desk - 130, HX.desk + 130)) sc.still('desk', [295, -96, 545, 3], drawDesk);
+      if (seen(sc.view, 0, HX.buffet - 190, HX.buffet + 190)) sc.still('counter', [865, -120, 1235, 3], drawBuffetCounter);
     },
   },
 };

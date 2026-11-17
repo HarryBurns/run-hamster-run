@@ -377,13 +377,30 @@ function greenery(ctx, kind, WTOT, season) {
  *   wall, roof — цвета коробки и крыши;  chimneyX — где труба (null — без трубы);  bushes — рисовать ли зелень;
  *   flat: true — плоская крыша (квартира, пентхаус);  trees: 'palm' | 'fir' — что растёт вместо кустов;
  *   ground: 'sand' — пляж и полоска моря, 'tower' — дом стоит на вершине небоскрёба, иначе — трава.
+ * Рисуется в три слоя (От12): drawHouseGround — земля, море, зелень (позади дома, с анимацией); drawHouseStill —
+ * коробка, крыша, обои и полы — неподвижное, сцена кладёт это в кэш (engine/side/cache.js); drawHouseLive — окна
+ * и открытые террасы (за стеклом идёт снег, плывут облака и кораблик) и перегородки.
  */
 export function drawHouse(ctx, desc, geo, view = null) {
-  const { RH, SLAB, WTOT, fy, top } = geo;
+  drawHouseGround(ctx, desc, geo);
+  drawHouseStill(ctx, desc, geo, view);
+  drawHouseLive(ctx, desc, geo, view);
+}
+const shellOf = (desc) => ({ wall: '#fff3d6', roof: '#f76e5c', chimneyX: 300, bushes: true, ...desc.shell });
+/** Комната видна (view в единицах дома; без view — все). */
+const roomSeen = (geo, r, view) =>
+  !view || (r.x1 > view.x0 && r.x0 < view.x1 && geo.fy(r.f) - geo.RH < view.y1 && geo.fy(r.f) + geo.SLAB > view.y0);
+/** Рамка неподвижного слоя дома [x0, y0, x1, y1] (единицы дома): коробка, крыша и труба. */
+export function houseBox(desc, geo) {
+  return [-80, geo.top - 160, geo.WTOT + 80, geo.SLAB + 4];
+}
+
+/** Земля вокруг дома: море и песок, трава или вершина небоскрёба, зелень. */
+export function drawHouseGround(ctx, desc, geo) {
+  const { SLAB, WTOT } = geo;
   const c = cal(),
     d = darkness(),
-    sh = { wall: '#fff3d6', roof: '#f76e5c', chimneyX: 300, bushes: true, ...desc.shell };
-  // земля и зелень
+    sh = shellOf(desc);
   if (sh.ground === 'tower') {
     // вершина небоскрёба: стеклянная башня уходит вниз, вокруг — небо и облака
     for (let i = 0; i < 5; i++) {
@@ -435,6 +452,13 @@ export function drawHouse(ctx, desc, geo, view = null) {
     ctx.fillRect(-3000, 6, 8000, 600);
     if (sh.bushes) greenery(ctx, sh.trees || 'bush', WTOT, c.season);
   }
+}
+
+/** Неподвижное: коробка дома, крыша, чердачное окно, труба; обои и полы комнат (кроме открытых террас). */
+export function drawHouseStill(ctx, desc, geo, view = null) {
+  const { RH, SLAB, WTOT, fy, top } = geo;
+  const c = cal(),
+    sh = shellOf(desc);
   // коробка дома, крыша, чердачное окно, труба
   fillRR(ctx, -18, top - 12, WTOT + 36, -top + 12 + SLAB, 6, sh.wall, OUT, 3);
   if (sh.flat) {
@@ -456,23 +480,14 @@ export function drawHouse(ctx, desc, geo, view = null) {
     fillRR(ctx, sh.chimneyX, top - 130, 60, 90, 4, '#e8590c', OUT, 3);
     fillRR(ctx, sh.chimneyX - 8, top - 140, 76, 16, 4, '#f1e0c5', OUT, 2);
   }
-  // комнаты (только те, что видны на экране — view в единицах дома; без view — все)
-  const seen = (r) => !view || (r.x1 > view.x0 && r.x0 < view.x1 && fy(r.f) - RH < view.y1 && fy(r.f) + SLAB > view.y0);
+  // комнаты: обои (открытая терраса — в живом слое), пол, полоска под потолком
   for (const r of desc.rooms) {
-    if (!seen(r)) continue;
+    if (!roomSeen(geo, r, view)) continue;
     const y = fy(r.f);
-    wallpaper(ctx, geo, r, y);
-    // окна: win — x центра или список x; winW — ширина стекла (панорамное окно); view — что за окном
-    for (const wx of r.win ? [].concat(r.win) : []) windowAt(ctx, wx, y, (r.winW || 88) / 2, r.view || null);
+    if (r.paper !== 'open') wallpaper(ctx, geo, r, y);
     floorSlab(ctx, geo, r, y);
     ctx.fillStyle = sh.wall;
     ctx.fillRect(r.x0, y - RH - 3, r.x1 - r.x0, 3);
-  }
-  // перегородки с проёмами
-  for (const r of desc.rooms) {
-    if (r.x0 === 0) continue;
-    const y = fy(r.f);
-    fillRR(ctx, r.x0 - 7, y - RH, 14, RH - 170, 2, sh.wall, OUT, 2);
   }
   // стеклянная крыша (glass: true) — блики
   for (const r of desc.rooms) {
@@ -483,6 +498,25 @@ export function drawHouse(ctx, desc, geo, view = null) {
       const x = r.x0 + 60 + i * 160;
       poly(ctx, [x, y, x + 50, y, x - 10, y + 90, x - 40, y + 90], 'rgba(255,255,255,.3)');
     }
+  }
+}
+
+/** Живое: открытые террасы и окна (за ними время суток, погода, облака, кораблик) и перегородки с проёмами. */
+export function drawHouseLive(ctx, desc, geo, view = null) {
+  const { RH, fy } = geo;
+  const sh = shellOf(desc);
+  for (const r of desc.rooms) {
+    if (!roomSeen(geo, r, view)) continue;
+    const y = fy(r.f);
+    if (r.paper === 'open') wallpaper(ctx, geo, r, y);
+    // окна: win — x центра или список x; winW — ширина стекла (панорамное окно); view — что за окном
+    for (const wx of r.win ? [].concat(r.win) : []) windowAt(ctx, wx, y, (r.winW || 88) / 2, r.view || null);
+  }
+  // перегородки с проёмами
+  for (const r of desc.rooms) {
+    if (r.x0 === 0) continue;
+    const y = fy(r.f);
+    fillRR(ctx, r.x0 - 7, y - RH, 14, RH - 170, 2, sh.wall, OUT, 2);
   }
 }
 

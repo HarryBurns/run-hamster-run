@@ -464,4 +464,66 @@ module.exports = async function hotel({ page, step, ev, wait, closeAll }) {
     const tg = await ev(() => ({ t: window.__dev.World.target(), door: window.__dev.World.doorOf('hotel') }));
     expect(tg.t && Math.abs(tg.t.x - tg.door.x) < 60, 'звёздочка задания не ведёт к отелю', tg);
   });
+
+  await step('отель: неподвижное — из кэша (От12): картинка как линиями, сезон и «снят ли номер» меняют кэш', async () => {
+    await fresh();
+    // нарисовать кадр сцены в отдельную канву с кэшем и мимо кэша — картинки совпадают (кроме кадров жителей:
+    // из кэша они «дышат» ступеньками)
+    const cmp = () =>
+      ev(() => {
+        const d = window.__dev,
+          sc = d.scene,
+          v = d.G.view,
+          dpr = v.dpr || 1;
+        const mk = () => {
+          const c = document.createElement('canvas');
+          c.width = Math.round(v.w * dpr);
+          c.height = Math.round(v.h * dpr);
+          const x = c.getContext('2d', { willReadFrequently: true });
+          x.setTransform(dpr, 0, 0, dpr, 0, 0);
+          return [c, x];
+        };
+        const [c1, x1] = mk();
+        sc.debugCache(false);
+        sc.draw(x1);
+        const st = sc.debugCache();
+        const [c2, x2] = mk();
+        sc.debugCache(true);
+        sc.draw(x2);
+        sc.debugCache(false);
+        const a = x1.getImageData(0, 0, c1.width, c1.height).data,
+          b = x2.getImageData(0, 0, c1.width, c1.height).data;
+        let n = 0;
+        for (let i = 0; i < a.length; i += 4)
+          if (Math.abs(a[i] - b[i]) + Math.abs(a[i + 1] - b[i + 1]) + Math.abs(a[i + 2] - b[i + 2]) > 60) n++;
+        return { share: n / (a.length / 4), count: st.count, built: st.built };
+      });
+    for (const [f, x] of [
+      [0, 300],
+      [0, 1100],
+      [0, 1600],
+      [1, 600],
+      [1, 1500],
+      [2, 1000],
+      [2, 1700],
+    ]) {
+      await toHotel(f, x);
+      await wait(500);
+      const r = await cmp();
+      expect(r.count > 0 && r.share < 0.01, `кэш отеля: этаж ${f}, x ${x} — картинка не как линиями`, r);
+    }
+    // снятый номер: на кровати уже не «Свободно» — в кэше новая картинка
+    await toHotel(1, 1500);
+    await wait(300);
+    const b0 = (await cmp()).built;
+    await mutate('s.dayFlags.hotel = { ...(s.dayFlags.hotel || {}), room: 1 };');
+    await wait(300);
+    const r1 = await cmp();
+    expect(r1.built > b0 && r1.share < 0.01, 'снятый номер: кэш не обновился', [b0, r1]);
+    // другой сезон — кэш собран заново
+    await mutate('s.day = 0; s.weather = "snow";');
+    await wait(300);
+    const r2 = await cmp();
+    expect(r2.built > r1.built && r2.share < 0.01, 'зима: кэш не обновился', [r1, r2]);
+  });
 };

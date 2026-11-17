@@ -31,7 +31,7 @@
 //
 // Сцена умеет: ходьбу по нажатию и стрелками, лифт, «дойти и сделать», мебель и встроенные предметы,
 // гостей и жильцов, режим «Обустроить» с кладовкой, сон (событие wake), HUD и звук.
-import { G, playerLook, houseItems, walkK, sneezePhase } from '../../core/state.js';
+import { G, cal, playerLook, houseItems, walkK, sneezePhase } from '../../core/state.js';
 import { initHouse } from '../../core/actions.js';
 import { emit, scope } from '../../core/events.js';
 import { run } from '../../core/registry.js';
@@ -43,7 +43,8 @@ import { ell, heart } from '../../core/draw.js';
 import { sfx } from '../../core/audio.js';
 import { FURN_BY_ID } from '../../data/index.js';
 import { drawHamster, blinkAt } from '../../art/hamster.js';
-import { geometry, drawSky, drawHouse, drawLift, HS } from './rooms.js';
+import { geometry, drawSky, drawHouseGround, drawHouseStill, drawHouseLive, houseBox, drawLift, HS } from './rooms.js';
+import { LayerCache } from './cache.js';
 import { buildFixtures } from './fixtures.js';
 import { hitItem, useItem, drawItems, isParty, SEAT_H } from './items.js';
 import { makeResidents, syncGuests, actorHappy, hitActor, updateActors, drawActors, actorHere } from './actors.js';
@@ -72,6 +73,8 @@ export function createSideScene(desc) {
   for (const b of fixtures) if (b.def.state && b.def.pose) poses[b.def.state] = b.def.pose;
   const sub = scope(); // подписки на события, пока сцена — текущая
 
+  // кэш неподвижного рисунка (От12): коробка дома с обоями и полами, неподвижные части art (sc.still)
+  const cache = new LayerCache();
   const sc = {
     name: desc.id,
     desc,
@@ -214,6 +217,19 @@ export function createSideScene(desc) {
     syncGuests: () => syncGuests(sc),
     /** Для тестов: где на экране точка дома. */
     debugScreen: (wx, wy) => sc.cam.toScreen(wx, wy),
+    /**
+     * Неподвижная часть рисунка дома — из кэша (От12): крюки art зовут sc.still(ключ, [x0, y0, x1, y1], paint) вместо
+     * того, чтобы рисовать линиями каждый кадр. Рамка — в единицах дома; ключ — всё, от чего зависит рисунок
+     * («снят ли номер»…); сезон и масштаб кэш учитывает сам.
+     */
+    still: (key, box, paint) => cache.layer(key, box, paint),
+    /** Подвижная картинка из кэша (кадры жителей — actors.js): вокруг точки (0, 0), встаёт в точку дома (x, y). */
+    sprite: (key, box, paint, x, y) => cache.sprite(key, box, paint, x, y),
+    /** Для тестов: кэш неподвижного (stats) и рисование мимо кэша (off: true). */
+    debugCache: (off) => {
+      if (off !== undefined) cache.off = !!off;
+      return cache.stats();
+    },
   };
 
   // ---------- вход, сон ----------
@@ -542,12 +558,22 @@ export function createSideScene(desc) {
       t = G.time;
     drawSky(ctx, w, h);
     ctx.save();
-    sc.cam.apply(ctx);
+    // координаты дома со сдвигом камеры в целых пикселях устройства (как cam.apply, но без дробной части) —
+    // тогда неподвижное из кэша (engine/side/cache.js) ложится 1:1 и совпадает с рисунком линиями (От12)
+    const cam = sc.cam,
+      dpr = G.view.dpr || 1,
+      k = cam.k,
+      tx = Math.round(dpr * cam.ax - k * cam.x),
+      ty = Math.round(dpr * cam.ay - k * cam.y);
+    ctx.setTransform(k, 0, 0, k, tx, ty);
     ctx.lineJoin = 'round';
     // что видно на экране (единицы дома, с запасом): комнаты и встроенные предметы других этажей не рисуем
     const view = (sc.view = sc.cam.visible(40));
     const floorSeen = (f) => fy(f) - geo.RH - 60 < view.y1 && fy(f) + geo.SLAB + 20 > view.y0;
-    drawHouse(ctx, desc, geo, view);
+    cache.begin(ctx, k, tx, ty, cal().season);
+    drawHouseGround(ctx, desc, geo);
+    cache.tiles('house', houseBox(desc, geo), view, (c) => drawHouseStill(c, desc, geo));
+    drawHouseLive(ctx, desc, geo, view);
     if (geo.lift) drawLift(ctx, geo, sc.liftY);
     if (desc.art && desc.art.back) desc.art.back(ctx, sc, t);
     for (const fn of sideArt) fn(ctx, sc, t);
