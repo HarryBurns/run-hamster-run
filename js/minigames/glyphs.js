@@ -122,6 +122,14 @@ const CSS = `
 .gl-stone.lit{filter:drop-shadow(0 0 12px #ffe066)}
 .gl-top{position:absolute;left:0;right:0;top:0;display:flex;gap:8px;justify-content:center;padding:8px;pointer-events:none;z-index:2}
 .gl-chip{background:rgba(255,255,255,.92);border-radius:12px;padding:4px 12px;font-weight:900;font-size:16px;box-shadow:0 2px 0 rgba(74,55,40,.15)}
+/* телефон лёжа: маска и подсказка слева, камни справа — иначе нижний ряд камней уходит за край экрана */
+@media (max-height:520px) and (orientation:landscape){
+  .gl-wrap{display:grid;grid-template-columns:auto auto;grid-template-rows:auto auto;align-content:center;justify-content:center;
+    gap:8px 28px;padding:46px 10px 10px}
+  .gl-mask{grid-column:1;grid-row:1;width:min(26vw,150px,calc((100vh - 160px) * 1.33));justify-self:center;align-self:end}
+  .gl-say{grid-column:1;grid-row:2;justify-self:center;align-self:start;font-size:16px}
+  .gl-grid{grid-column:2;grid-row:1 / span 2;grid-template-columns:repeat(2,min(calc((100vh - 140px) / 2),130px))}
+}
 `;
 
 export default {

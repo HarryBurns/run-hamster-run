@@ -213,6 +213,18 @@ const CSS = `
 .sc-chips{position:absolute;left:0;right:0;top:0;display:flex;gap:8px;justify-content:center;padding:8px;pointer-events:none;z-index:2}
 .sc-chip{background:rgba(255,255,255,.92);border-radius:12px;padding:4px 12px;font-weight:900;font-size:16px;box-shadow:0 2px 0 rgba(74,55,40,.15)}
 @media (max-width:520px){.sc-pal{grid-template-columns:repeat(3,1fr)}.sc-piece img{max-width:54px}}
+/* телефон лёжа: по вертикали места мало — образец и подсказка слева, замок справа, детали и «Готово!» внизу */
+@media (max-height:520px) and (orientation:landscape){
+  .sc-wrap{display:grid;grid-template-columns:auto auto;grid-template-rows:minmax(0,1fr) auto;justify-content:center;
+    align-items:center;justify-items:center;gap:6px 14px;padding:46px 10px 8px}
+  .sc-top{grid-column:1;grid-row:1;flex-direction:column;gap:6px}
+  .sc-sample canvas{width:min(24vw,150px,calc((100vh - 230px) * 1.25))}
+  .sc-say{font-size:14px;max-width:min(30vw,220px);padding:3px 8px}
+  .sc-castle{grid-column:2;grid-row:1;width:auto;height:min(calc(100vh - 210px),300px);max-width:60vw}
+  .sc-pal{grid-column:2;grid-row:2;width:min(60vw,460px);gap:4px}
+  .sc-piece{font-size:11px}.sc-piece img{max-width:36px}
+  .sc-done{grid-column:1;grid-row:2;font-size:16px;padding:8px 14px;min-height:44px}
+}
 `;
 
 export default {
