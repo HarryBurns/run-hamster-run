@@ -496,6 +496,13 @@ async function extra({ page, step, ev, wait, closeAll, hold }) {
         titles: [...document.querySelectorAll('.overlay .panel-head .title')].map((e) => e.textContent),
         queued: window.__dev.ui.queued(),
       }));
+    // окна, которые игра уже поставила в очередь (1 января — новогодние), — дождаться и закрыть: шаг считает только свои
+    for (let i = 0; i < 12; i++) {
+      await closeAll();
+      if (!(await st()).queued) break;
+      await wait(500);
+    }
+    await closeAll();
     await ev(() => {
       window.__dev.F.npcDialog('plusha');
     });

@@ -444,8 +444,9 @@ module.exports = async function wares({ page, step, ev, wait, closeAll }) {
         let all = 0,
           here = 0;
         for (let i = 0; i < tabs.length; i++) {
-          // семена, инструменты, предметы двора и транспорт (этап 17б) — не «вещи» витрины дня, продаются всегда
-          if (['Семена', 'Для походов', 'Для двора', 'Колёса'].some((t) => tabs[i].includes(t))) continue;
+          // семена, инструменты, предметы двора и транспорт (этап 17б) — не «вещи» витрины дня, продаются всегда;
+          // праздничная полка (этап 15) — свои дни около праздника
+          if (['Семена', 'Для походов', 'Для двора', 'Колёса', 'К празднику'].some((t) => tabs[i].includes(t))) continue;
           await page.locator('.overlay .tab').nth(i).click();
           await wait(200);
           const n = await ev(() => ({
