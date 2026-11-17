@@ -91,7 +91,7 @@ export function createHerbs(list) {
       const m = sc.map;
       spots = list.map(([type, tx, ty]) => {
         if (!m.objs.some((o) => o.tx === tx && o.ty === ty))
-          console.warn(`Гербарий: в клетке ${tx}, ${ty} локации «${sc.name}» ничего не растёт`);
+          console.error(`Гербарий: в клетке ${tx}, ${ty} локации «${sc.name}» ничего не растёт`);
         return { type, tx, ty, x: (tx + 0.5) * T, y: (ty + 0.5) * T, key: `${sc.name}:${tx}_${ty}` };
       });
     },
