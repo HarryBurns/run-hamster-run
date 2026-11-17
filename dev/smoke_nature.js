@@ -1,0 +1,232 @@
+// Шаги автотеста этапа 16 «Природа, море и оживление мест»: настоящие скалы у буйка-ракушки и плотик «Далеко на юг»
+// (кораблик их обходит), дельфины рядом с корабликом и за бухтой, тёплая лагуна у острова, «доброе извержение»,
+// лодочка-пирога по реке в джунглях — и дальше по группам этапа (гора, пустыня, пляж, остров, отель).
+// Подключается из dev/smoke.js. Только эти шаги:  node dev/smoke.js <url> step:природа
+module.exports = async function nature({ page, step, ev, wait, closeAll }) {
+  const T = 48;
+  const norm = (t) => t.replace(/[  ]/g, ' ');
+  const expect = (ok, msg, data) => {
+    if (!ok) throw new Error(msg + (data === undefined ? '' : ': ' + JSON.stringify(data)));
+  };
+  const toasts = async () => norm(await ev(() => (document.querySelector('#toasts') || { textContent: '' }).textContent));
+  const clearToasts = () =>
+    ev(() => {
+      const t = document.querySelector('#toasts');
+      if (t) t.innerHTML = '';
+    });
+  const fresh = async () => {
+    await ev(() => {
+      window.__dev.G.state = null;
+      localStorage.clear();
+    });
+    await page.reload();
+    await wait(400);
+    await page.click('text=Играть!');
+    await page.click('text=Пропустить'); // вступительная сценка новой игры (этап 10)
+    await wait(400);
+    await page.click('text=Поехали!');
+    await wait(500);
+    await closeAll();
+  };
+  const watch = () =>
+    ev(() => {
+      window.__stopWatchNature = window.__dev.watchState();
+    });
+  const unwatch = async () => {
+    const bad = await ev(() => window.__stopWatchNature());
+    expect(!bad.length, `запись в состояние мимо действий (${bad.length})`, [...new Set(bad)].slice(0, 4));
+  };
+  /** Открыть места и встать в локации (полдень, лето, отметки дня чистые). */
+  const toLand = async (scene, tx, ty, minutes = 12 * 60, day = 18) => {
+    await closeAll();
+    await ev(
+      ([scene, tx, ty, minutes, day]) => {
+        const d = window.__dev;
+        for (const id of ['forest', 'mountain', 'caves', 'desert', 'jungle', 'cove', 'island']) if (!d.QuestState.landOpen(id)) d.actions.openLand(id);
+        d.actions.mutate((s) => {
+          s.day = day;
+          s.minutes = minutes;
+          s.weather = 'sun';
+          s.dayFlags = {};
+          for (const f of ['jungleHint', 'islandHint', 'coveHint', 'desertHint', 'cavesHint']) s.flags[f] = 1;
+        });
+        d.go(scene);
+        d.locations[scene].debugTeleport(tx, ty);
+      },
+      [scene, tx, ty, minutes, day],
+    );
+    await wait(300);
+  };
+
+  await step('природа: море — скалы у буйка-ракушки и плотик «Далеко на юг» настоящие, кораблик их обходит; дельфины рядом с корабликом', async () => {
+    await fresh();
+    await ev(() => window.__dev.go('world'));
+    await wait(200);
+    // скалы и плотик занимают свои клетки
+    const r = await ev(() => {
+      const d = window.__dev,
+        m = d.World.map,
+        objs = m.objs.filter((o) => o.type === 'seaCrag' || o.type === 'farRaft');
+      return { objs: objs.map((o) => [o.type, o.tx, o.ty, m.solid[o.ty][o.tx]]), g: d.World.grottoAt(), f: d.World.farAt() };
+    });
+    expect(r.objs.filter((o) => o[0] === 'seaCrag').length === 3 && r.objs.some((o) => o[0] === 'farRaft'), 'нет скал или плотика', r.objs);
+    expect(r.objs.every((o) => o[3]), 'скалы и плотик не занимают клетку', r.objs);
+    // кораблик у плотика: плывём на другую сторону — путь не проходит через занятые клетки
+    await watch();
+    const sail = async (x0, y0, x1, y1) =>
+      ev(
+        async ([x0, y0, x1, y1]) => {
+          const d = window.__dev,
+            W = d.World;
+          d.actions.patchState('boat', { x: x0, y: y0, on: true });
+          d.go('world', { pos: { scene: 'world', x: x0, y: y0 } });
+          await new Promise((q) => setTimeout(q, 200));
+          const ok = W.walkTo(x1, y1, true),
+            cells = d.locations.world.p.path.map((q) => [Math.floor(q.x / 48), Math.floor(q.y / 48)]);
+          // каждый отрезок пути — по клеткам: ни одна не занята
+          const p = d.locations.world.p;
+          let px = p.x,
+            py = p.y,
+            hit = null;
+          for (const q of p.path) {
+            for (let k = 0; k <= 20; k++) {
+              const x = Math.floor((px + ((q.x - px) * k) / 20) / 48),
+                y = Math.floor((py + ((q.y - py) * k) / 20) / 48);
+              if (W.map.solid[y][x]) hit = [x, y];
+            }
+            px = q.x;
+            py = q.y;
+          }
+          return { ok, boating: W.isBoating(), cells, hit };
+        },
+        [x0, y0, x1, y1],
+      );
+    let s = await sail(r.f.x - 3 * T, r.f.y, r.f.x + 3 * T, r.f.y);
+    expect(s.ok && s.boating && !s.hit, 'кораблик плывёт сквозь плотик', s);
+    s = await sail(r.g.x + 4 * T, r.g.y - 2 * T, r.g.x - 4 * T, r.g.y - 1 * T);
+    expect(s.ok && s.boating && !s.hit, 'кораблик плывёт сквозь скалы у буйка', s);
+    // вплавь — тоже не пройти
+    const foot = await ev(() => {
+      const d = window.__dev,
+        m = d.World.map;
+      return m.objs.filter((o) => o.type === 'seaCrag').map((o) => m.foot(o.tx, o.ty));
+    });
+    expect(foot.every((f) => !f), 'сквозь скалу можно проплыть', foot);
+    // дельфины: выпрыгивают перед корабликом, подсказка раз в день
+    await clearToasts();
+    const dol = await ev(() => window.__dev.World.debugDolphins());
+    expect(dol && dol.x > 0 && dol.x < 1280 * 2, 'дельфины не выпрыгнули', dol);
+    await wait(300);
+    expect(/Дельфины/.test(await toasts()), 'нет подсказки про дельфинов', await toasts());
+    expect(await ev(() => !!window.__dev.G.state.dayFlags.dolphins), 'нет отметки дня про дельфинов');
+    // дельфины сами: плывём по открытому морю — рано или поздно выпрыгивают
+    const auto = await ev(async () => {
+      const d = window.__dev,
+        W = d.World,
+        f = W.farAt();
+      d.actions.patchState('boat', { x: f.x - 20 * 48, y: f.y - 8 * 48, on: true });
+      d.go('world', { pos: { scene: 'world', x: f.x - 20 * 48, y: f.y - 8 * 48 } });
+      await new Promise((q) => setTimeout(q, 150));
+      for (let i = 0; i < 30 && !W.dolphinJump(); i++) {
+        const p = d.locations.world.p;
+        if (!p.path.length) W.walkTo(p.x + (i % 2 ? -14 : 14) * 48, p.y, true);
+        await new Promise((q) => setTimeout(q, 1000));
+      }
+      return W.dolphinJump();
+    });
+    expect(auto, 'на кораблике в открытом море дельфины так и не выпрыгнули');
+    await ev(() => window.__dev.World.leaveBoat());
+    await unwatch();
+  });
+
+  await step('природа: остров — тёплая лагуна с рыбками (плавать можно), «доброе извержение» раз в неделю вечером', async () => {
+    await toLand('island', 9, 29);
+    await watch();
+    const lag = await ev(async () => {
+      const d = window.__dev,
+        sc = d.locations.island;
+      const ok = sc.walkTo(8.5 * 48, 31.5 * 48, true);
+      await new Promise((q) => setTimeout(q, 1800));
+      return { ok, tile: sc.map.at(Math.floor(sc.p.x / 48), Math.floor(sc.p.y / 48)), flag: d.G.state.flags.lagoonHint };
+    });
+    expect(lag.ok && lag.tile === 'clag' && lag.flag, 'в лагуну не зайти', lag);
+    expect(/лагуна/i.test(await toasts()), 'нет подсказки про лагуну', await toasts());
+    // извержение: только в свой день недели и вечером
+    const er = await ev(async () => {
+      const d = window.__dev,
+        m = await import('/js/locations/island.js'),
+        out = [];
+      for (const [day, min] of [
+        [18, 12 * 60],
+        [18, 18 * 60],
+        [19, 18 * 60],
+        [25, 18 * 60],
+        [18, 22 * 60],
+      ]) {
+        d.actions.mutate((s) => {
+          s.day = day;
+          s.minutes = min;
+        });
+        out.push(m.debugErupt().on);
+      }
+      return { out, inDays: m.eruptIn(19) };
+    });
+    expect(er.out.join() === 'false,true,false,true,false' && er.inDays === 6, 'извержение не раз в неделю вечером', er);
+    await clearToasts();
+    await ev(() => {
+      window.__dev.actions.mutate((s) => {
+        s.day = 18;
+        s.minutes = 18 * 60;
+        s.dayFlags = {};
+      });
+    });
+    await wait(400);
+    expect(/извержение/.test(await toasts()), 'нет подсказки про доброе извержение', await toasts());
+    expect(await ev(() => !!(window.__dev.G.state.dayFlags.island || {}).erupt), 'нет отметки дня про извержение');
+    await unwatch();
+  });
+
+  await step('природа: джунгли — лодочка-пирога у мостков, по реке к водопаду, под мост нельзя, сойти на берег', async () => {
+    await toLand('jungle', 25, 16);
+    await watch();
+    const r = await ev(async () => {
+      const d = window.__dev,
+        sc = d.locations.jungle,
+        m = await import('/js/locations/jungle.js'),
+        c0 = m.debugCanoe(sc);
+      const s0 = sc.debugScreen(c0.x, c0.y);
+      return { c0, s0 };
+    });
+    expect(r.c0 && !r.c0.on, 'лодочки нет у мостков', r);
+    await page.mouse.click(r.s0.x, r.s0.y - 4);
+    await wait(1500);
+    let c = await ev(async () => (await import('/js/locations/jungle.js')).debugCanoe(window.__dev.locations.jungle));
+    expect(c.on, 'нажала на лодочку — не села', c);
+    expect(await ev(() => !!document.querySelector('#hud') && /Сойти/.test(document.body.textContent)), 'нет кнопки «Сойти»');
+    // под мост — нельзя, к водопаду — можно
+    const sail = await ev(async () => {
+      const d = window.__dev,
+        sc = d.locations.jungle,
+        m = await import('/js/locations/jungle.js');
+      const under = sc.walkTo(15 * 48, 14.5 * 48, true);
+      const up = sc.walkTo(36 * 48, 8.6 * 48, true);
+      for (let i = 0; i < 40 && !m.debugCanoe(sc).fall; i++) await new Promise((q) => setTimeout(q, 200));
+      return { under, up, c: m.debugCanoe(sc) };
+    });
+    expect(!sail.under && sail.up && sail.c.fall, 'лодочка не доплыла до водопада или прошла под мостом', sail);
+    // сойти: на берег рядом, лодочка осталась там, где сошла
+    c = await ev(async () => {
+      const sc = window.__dev.locations.jungle,
+        m = await import('/js/locations/jungle.js');
+      m.endCanoe(sc);
+      return { ...m.debugCanoe(sc), foot: sc.map.foot(Math.floor(sc.p.x / 48), Math.floor(sc.p.y / 48)) };
+    });
+    expect(!c.on && c.foot && c.x > 30 * T, 'не сошла на берег у водопада', c);
+    await unwatch();
+    // ушла и вернулась — лодочка снова у мостков
+    await ev(() => window.__dev.go('world'));
+    await toLand('jungle', 25, 16);
+    c = await ev(async () => (await import('/js/locations/jungle.js')).debugCanoe(window.__dev.locations.jungle));
+    expect(Math.abs(c.x - r.c0.x) < 1 && Math.abs(c.y - r.c0.y) < 1, 'лодочка не вернулась к мосткам', c);
+  });
+};

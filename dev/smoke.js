@@ -20,6 +20,7 @@
 //  войти внутрь, этап 13 — dev/smoke_inside.js:  node dev/smoke.js <url> step:внутри;
 //  праздники, П.13 — dev/smoke_holidays.js:  node dev/smoke.js <url> step:праздники;
 //  вещи, рецепты, значки, этап 12 — dev/smoke_items.js:  node dev/smoke.js <url> step:вещи;
+//  природа, море и оживление мест, этап 16 — dev/smoke_nature.js:  node dev/smoke.js <url> step:природа;
 //  музыка и звуки, этап 9б — dev/smoke_audio.js:  node dev/smoke.js <url> step:звук:;
 //  мини-игры вместо сценок, этап 14 — dev/smoke_games.js:  node dev/smoke.js <url> "step:игры 14:")
 // Скорость проверяется отдельно:  node dev/bench.js [url] --spots=forest --sizes=desktop --max-forest=45
@@ -44,6 +45,7 @@ const hotel = require('./smoke_hotel.js'); // П.17: курортный отел
 const title = require('./smoke_title.js'); // этап 9а: заставка, несколько игр, удаление нарочно, живая сцена
 const audio = require('./smoke_audio.js'); // этап 9б: файлы музыки и звуков, музыка по месту, выключение, «Авторы»
 const items = require('./smoke_items.js'); // этап 12: рисованные значки вещей, маракуйя, рецепты из леса, венок и гирлянда, карта сокровищ в рюкзаке
+const nature = require('./smoke_nature.js'); // этап 16: природа и море — скалы и плотик, дельфины, лагуна, извержение, пирога, гора, пустыня, пляж, отель
 const inside = require('./smoke_inside.js'); // этап 13: войти внутрь — дома тайных мест, хозяева, предметы, выход, ночь
 const worldmap = require('./smoke_worldmap.js'); // этап 11: «карта мира» — звёздочка к выходу в нужное место, жители вспоминают открытые места, попугай учит слова
 const games = require('./smoke_games.js'); // этап 14: мини-игры вместо сценок — трассы «Горки», лифт носильщицы, лыжи, канат с друзьями, ёлка, танец, «Повтори движение»
@@ -2812,6 +2814,7 @@ const runParallel = () => {
     await title({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
     await audio({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
     await items({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
+    await nature({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
     await worldmap({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
     await games({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
     await estate({ page, step: (n, f, o) => step(n, f, { ...o, extra: true, estate: true }), ev, wait, closeAll });

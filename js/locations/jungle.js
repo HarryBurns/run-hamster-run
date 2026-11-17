@@ -19,10 +19,13 @@ import { G, questNow } from '../core/state.js';
 import { emit } from '../core/events.js';
 import { keys } from '../core/input.js';
 import { sfx } from '../core/audio.js';
-import { clamp, seeded } from '../core/util.js';
+import { clamp, seeded, dist } from '../core/util.js';
+import { toast } from '../ui/toast.js';
+import { setFlag } from '../core/actions.js';
+import { emoji } from '../core/draw.js';
 import { drawHamster, blinkAt } from '../art/hamster.js';
 import { JUNGLE, JUNGLE_GATHER, QUEST_BY_ID, PARROT_WORD_BY_ID, dayRoll } from '../data/index.js';
-import { T, PS, put, label, createTopDownScene } from '../engine/topdown/index.js';
+import { T, PS, SP, put, label, tileOf, createTopDownScene } from '../engine/topdown/index.js';
 import { createPlants } from './common/plants.js';
 import { drawFallWater } from './jungle_art.js';
 import './common/index.js';
@@ -83,6 +86,14 @@ const PATHS = [
       [12, 19.4],
     ],
   }, // к манго у реки
+  {
+    r: 0.5,
+    pts: [
+      [22.4, 18.6],
+      [24.4, 16.8],
+      [25.5, 16],
+    ],
+  }, // к мосткам у реки: там лодочка-пирога (Дж5)
 ];
 // особые места
 export const AT = {
@@ -92,6 +103,7 @@ export const AT = {
   vines: [19, 7], // дерево-великан с лианами (занимает клетки 18–20 ряда 7)
   fall: [37, 4], // скала с водопадом (клетки 35–39 ряда 4)
   pool: [37, 7, 3.4, 2.1], // заводь под водопадом: центр и полуоси (клетки)
+  canoe: [25.5, 14.6], // лодочка-пирога у мостков на южном берегу реки (Дж5): где она ждёт (клетки)
   bridge: [21, 22], // столбцы подвесного моста
   notebook: [32, 6], // дневник Лианы (задание «Дневник исследовательницы»)
   bananas: [
@@ -455,6 +467,143 @@ function drawDrizzle(ctx, w, h, t) {
   ctx.stroke();
 }
 
+// ---------- лодочка-пирога (Дж5): по реке от моста до заводи под водопадом ----------
+// Пирога ждёт у мостков (AT.canoe). Села — способ передвижения ride с canoe: true: плывёт только по реке и заводи
+// (под мостом — нет: мост низкий), нажатие на воду — плыть туда, на берег рядом — сойти; лодочка остаётся, где сошла
+// (до ухода из джунглей; вернулась — снова у мостков). Доплыла до водопада — брызги и событие jungle { what: 'canoe' }.
+const CANOE_HOME = { x: AT.canoe[0] * T, y: AT.canoe[1] * T };
+const canoe = { x: CANOE_HOME.x, y: CANOE_HOME.y, dir: -1, fall: false };
+const isCanoeing = (sc) => !!(sc.p.ride && sc.p.ride.canoe);
+const riverAt = (m, tx, ty) => {
+  const c = m.at(tx, ty);
+  return c === 'jriver' || c === 'jpool';
+};
+/** Нарисовать пирогу (и хомячка в ней, если look) в точке мира; dir — куда смотрит нос, весло машет на ходу. */
+function drawCanoe(ctx, x, y, dir, t, look, moving) {
+  const bob = Math.round(Math.sin(t * 2.4 + x * 0.01) * 2);
+  if (moving) {
+    ctx.strokeStyle = 'rgba(255,255,255,.75)';
+    ctx.lineWidth = 2.5;
+    for (let i = 0; i < 2; i++) {
+      const k = (t * 1.5 + i / 2) % 1;
+      ctx.globalAlpha = 1 - k;
+      ctx.beginPath();
+      ctx.ellipse(x - dir * (52 + k * 34), y + 12, 8 + k * 12, 3 + k * 4, 0, 0, 6.2832);
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+  }
+  put('canoe', x, y + bob, dir < 0 ? 1 : 0);
+  SP.world();
+  if (!look) return;
+  drawHamster(ctx, x + dir * 4, y + 6 + bob, PS, look, { dir, time: t, clipBelow: -24, shadow: false, blink: blinkAt(t), happy: true });
+  // весло: гребёт то слева, то справа
+  const a = moving ? Math.sin(t * 5) : 0.3,
+    hx = x + dir * 10,
+    hy = y - 30 + bob;
+  ctx.strokeStyle = '#4a3728';
+  ctx.lineWidth = 5;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(hx + a * 14, hy - 18);
+  ctx.lineTo(hx - a * 22, hy + 34);
+  ctx.stroke();
+  ctx.strokeStyle = '#c98b5a';
+  ctx.lineWidth = 2.6;
+  ctx.stroke();
+  ctx.fillStyle = '#c98b5a';
+  ctx.beginPath();
+  ctx.ellipse(hx - a * 24, hy + 40, 5, 10, a * 0.4, 0, 6.2832);
+  ctx.fill();
+}
+/** Сесть в пирогу (хомячок рядом с ней). */
+export function startCanoe(sc) {
+  const p = sc.p;
+  if (isBathing(sc) || dist(p.x, p.y, canoe.x, canoe.y) > T * 2.6) return false;
+  p.path = [];
+  p.pending = null;
+  p.x = canoe.x;
+  p.y = canoe.y;
+  p.dir = canoe.dir;
+  canoe.fall = false;
+  p.ride = {
+    canoe: true,
+    speed: 170,
+    pass: (tx, ty) => riverAt(sc.map, tx, ty),
+    step: { sfx: 'paddle', pause: 0.35 },
+    draw: (ctx, _sc, e, t, look) => drawCanoe(ctx, e.x, e.y, e.dir || -1, t, look, e.moving),
+    drop: (s) => endCanoe(s),
+  };
+  sfx('splash');
+  if (!G.state.flags.canoeHint) {
+    toast('🛶 Ты в лодочке! Нажимай на воду — поплывём вверх по реке, к водопаду. На берег рядом — сойти.');
+    setFlag('canoeHint');
+  }
+  return true;
+}
+/** Сойти с пироги на ближайший берег (у точки w, если она рядом, иначе — у хомячка). false — хомячок не в лодке. */
+export function endCanoe(sc, w) {
+  if (!isCanoeing(sc)) return false;
+  const p = sc.p,
+    m = sc.map,
+    cx = tileOf(w ? w.x : p.x),
+    cy = tileOf(w ? w.y : p.y);
+  let best = null,
+    bd = 1e9;
+  for (let dy = -2; dy <= 2; dy++)
+    for (let dx = -2; dx <= 2; dx++) {
+      const x = cx + dx,
+        y = cy + dy;
+      if (!m.foot(x, y) || riverAt(m, x, y) || m.at(x, y) === 'jbridge') continue;
+      const d = Math.hypot((x + 0.5) * T - p.x, (y + 0.5) * T - p.y);
+      if (d < bd && d < T * 2.8) (bd = d), (best = [x, y]);
+    }
+  if (!best) {
+    if (w) toast('Отсюда до берега далеко — подплыви поближе 🛶');
+    else {
+      // кнопка «Сойти» посреди воды: лодочка сама возвращается к мосткам
+      canoe.x = CANOE_HOME.x;
+      canoe.y = CANOE_HOME.y;
+      p.ride = null;
+      p.x = CANOE_HOME.x;
+      p.y = CANOE_HOME.y + T * 1.2;
+      sfx('pop');
+      return true;
+    }
+    return true;
+  }
+  canoe.x = p.x;
+  canoe.y = p.y;
+  canoe.dir = p.dir || -1;
+  p.ride = null;
+  p.path = [];
+  p.x = (best[0] + 0.5) * T;
+  p.y = (best[1] + 0.5) * T;
+  sfx('pop');
+  emit('hud');
+  return true;
+}
+/** Нажатие, пока хомячок в пироге: по воде — плыть, на берег рядом — сойти. */
+function canoeTap(sc, w, tx, ty) {
+  if (!isCanoeing(sc)) return false;
+  if (riverAt(sc.map, tx, ty)) {
+    if (sc.walkTo(w.x, w.y, true)) sfx('paddle');
+    else toast('Туда на лодочке не проплыть 🛶');
+  } else if (sc.map.at(tx, ty) === 'jbridge') toast('Под мостом лодочке не пройти — он низко над водой 🌉');
+  else endCanoe(sc, w);
+  return true;
+}
+/** Доплыла до заводи под водопадом — брызги и подсказка (раз за поездку). */
+function updateCanoe(sc) {
+  if (!isCanoeing(sc) || canoe.fall) return;
+  if (Math.hypot(sc.p.x / T - AT.pool[0], sc.p.y / T - AT.pool[1]) < 2.6) {
+    canoe.fall = true;
+    sfx('splash');
+    toast('💦 Водопад совсем рядом — брызги долетают до лодочки! Ух, как шумит!', 'good');
+    emit('jungle', { what: 'canoe' });
+  }
+}
+
 const plants = createPlants(); // подпись «Сорвать…», кнопка и клавиша E у бананов, манго, ананасов и кокоса
 let bridgeOn = false;
 const jungle = createTopDownScene({
@@ -520,6 +669,7 @@ const jungle = createTopDownScene({
   spots: {
     grove: { at: [11.5, 29.5], label: '🍌 Банановая роща' },
     bridge: { at: [21.5, 18.4], label: '🌉 Подвесной мост' },
+    canoe: { at: [AT.canoe[0], AT.canoe[1] + 1.3], label: '🛶 Лодочка на реке' },
   },
   // с кораблика выходят у хижины на причале (вход pier)
   entries: { pier: { building: 'dock' } },
@@ -532,6 +682,8 @@ const jungle = createTopDownScene({
   enter(sc) {
     bridgeOn = false;
     if (isBathing(sc)) endFallBath(sc);
+    if (isCanoeing(sc)) sc.p.ride = null;
+    Object.assign(canoe, CANOE_HOME, { dir: -1, fall: false }); // вернулась в джунгли — лодочка снова у мостков
     for (const q of talk) q.next = G.time + 1.5; // попугаи заговорят не сразу
   },
   /** Утром — туман в слое неба. */
@@ -575,6 +727,8 @@ const jungle = createTopDownScene({
     }
   },
   things(sc, add, v) {
+    if (!isCanoeing(sc) && canoe.x > v.x0 - 80 && canoe.x < v.x1 + 80 && canoe.y > v.y0 && canoe.y < v.y1 + 40)
+      add(canoe.y + 10, (ctx, _v, t) => drawCanoe(ctx, canoe.x, canoe.y, canoe.dir, t, null, false));
     if (notebookHidden()) {
       const bx = (AT.notebook[0] + 0.5) * T,
         by = (AT.notebook[1] + 0.5) * T;
@@ -590,12 +744,27 @@ const jungle = createTopDownScene({
     }
   },
   /** Под водопадом: нажатие куда угодно, стрелки и E — вылезти. */
-  tap: (sc) => endFallBath(sc),
-  interact: (sc) => endFallBath(sc),
+  tap(sc, w, tx, ty) {
+    if (endFallBath(sc) || canoeTap(sc, w, tx, ty)) return true;
+    // нажали на лодочку-пирогу — дойти до неё и сесть
+    if (dist(w.x, w.y, canoe.x, canoe.y - 6) < 56) {
+      sc.goNear(canoe.x, canoe.y, { fn: () => startCanoe(sc) });
+      sfx('tap');
+      return true;
+    }
+    return false;
+  },
+  interact: (sc) => endFallBath(sc) || endCanoe(sc),
+  /** Клавиша E рядом с лодочкой — сесть в неё. */
+  near(sc) {
+    const d = dist(sc.p.x, sc.p.y, canoe.x, canoe.y);
+    return !isCanoeing(sc) && d < T * 2 ? { d: d * 0.6, pending: { fn: () => startCanoe(sc) } } : null;
+  },
   update(sc, dt) {
     if (isBathing(sc) && ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'KeyA', 'KeyD', 'KeyW', 'KeyS', 'Escape'].some((k) => keys.has(k)))
       endFallBath(sc);
     updateParrots(sc);
+    updateCanoe(sc);
   },
   /** Ступила на подвесной мост — событие (наклейка — features/jungle.js). */
   surface(sc, kind) {
@@ -603,7 +772,17 @@ const jungle = createTopDownScene({
     if (on && !bridgeOn) emit('jungle', { what: 'bridge' });
     bridgeOn = on;
   },
-  buttons: (sc) => (isBathing(sc) ? [{ id: 'bath', icon: '🧺', label: 'Вылезти', fn: () => endFallBath(sc) }] : []),
+  buttons: (sc) =>
+    isBathing(sc)
+      ? [{ id: 'bath', icon: '🧺', label: 'Вылезти', fn: () => endFallBath(sc) }]
+      : isCanoeing(sc)
+        ? [{ id: 'canoe', icon: '⚓', label: 'Сойти', on: true, fn: () => endCanoe(sc) }]
+        : [],
+  /** Лодочка-пирога на мини-карте. */
+  miniMap(ctx, sc, k) {
+    if (isCanoeing(sc)) return;
+    emoji(ctx, '🛶', (canoe.x / T) * k, (canoe.y / T) * k, Math.max(12, k * 2.4));
+  },
   cold: () => false, // в джунглях всегда тепло
   /** Что слышно: своя музыка, птицы весь год; у водопада и у моря — шум воды; в дождик — капли. */
   sound(sc) {
@@ -624,3 +803,5 @@ export default jungle;
 /** Для отладки и тестов: сколько попугаев сейчас говорит и что. */
 export const debugParrots = () => talk.map((q, i) => ({ i, text: q.text, on: talking(i) }));
 export { isBathing as fallBathing };
+/** Для тестов: где лодочка-пирога и сидит ли в ней хомячок. */
+export const debugCanoe = (sc) => ({ x: canoe.x, y: canoe.y, on: isCanoeing(sc), fall: canoe.fall });

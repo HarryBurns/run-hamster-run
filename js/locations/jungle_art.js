@@ -549,9 +549,33 @@ function paintTorch(ctx, lit) {
     poly(ctx, [-3, -58, 0, -70, 3, -58], '#ffe066');
   }
 }
+/**
+ * Лодочка-пирога для реки (Дж5): долблёный корпус, весло лежит поперёк; m — 1: носом влево. Хомячок садится в неё
+ * (рисуется поверх, по пояс в лодке — clipBelow) — см. locations/jungle.js, drawCanoe.
+ */
+function paintCanoe(ctx, m) {
+  ctx.scale(m ? -1 : 1, 1);
+  ell(ctx, 0, 12, 58, 8, 'rgba(255,255,255,.45)');
+  ctx.beginPath();
+  ctx.moveTo(-56, -6);
+  ctx.quadraticCurveTo(-40, 14, 0, 14);
+  ctx.quadraticCurveTo(44, 14, 60, -8);
+  ctx.quadraticCurveTo(10, 0, -56, -6);
+  ctx.closePath();
+  ctx.fillStyle = '#a8703f';
+  ctx.fill();
+  ctx.strokeStyle = OUT;
+  ctx.lineWidth = 2.2;
+  ctx.stroke();
+  line(ctx, -44, 3, 48, 2, 'rgba(255,255,255,.25)', 2.5);
+  ell(ctx, 2, -2, 40, 5, '#6b4423', OUT, 1.6); // внутри долблёнки
+  for (const x of [-30, 30]) line(ctx, x, -6, x + 2, 2, '#c98b5a', 3); // перекладины
+  poly(ctx, [-60, -10, -52, -6, -58, -2], '#ffd43b', OUT, 1.2); // жёлтый флажок на носу
+}
 defineArt({
   parrot: [[-28, -42, 20, 26], paintParrot],
   notebook: [[-18, -18, 18, 12], paintNotebook],
+  canoe: [[-66, -16, 66, 24], paintCanoe],
 });
 
 defineObjects({
