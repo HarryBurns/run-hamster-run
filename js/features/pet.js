@@ -97,10 +97,11 @@ function popNear(sc) {
 function sideSpot(sc) {
   const p = sc.p,
     m = sc.map,
-    sx = w.x >= p.x ? 1 : -1;
+    sx = w.x >= p.x ? 1 : -1,
+    far = p.ride && p.ride.wheels ? 68 : 38; // рядом с велосипедом и машинкой — подальше, не под колёса
   for (const [dx, dy] of [
-    [38 * sx, 6],
-    [-38 * sx, 6],
+    [far * sx, 6],
+    [-far * sx, 6],
     [30 * sx, 26],
     [-30 * sx, 26],
   ]) {
