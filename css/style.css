@@ -444,6 +444,18 @@ h4 { margin: 4px 0; font-size: 16px; }
   .panel-head .title { white-space: normal; line-height: 1.1; }
   .panel-head .money { font-size: 13px; padding: 3px 7px; }
 }
+/* ⚙️ Меню (features/settings.js): кнопки столбиком; лёжа на телефоне — в два столбца и компактнее, всё видно без прокрутки */
+.set-col { display: flex; flex-direction: column; gap: 12px; align-items: stretch; }
+.set-own { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+@media (orientation: landscape) and (max-height: 520px) {
+  .panel.set-panel { width: min(100%, 640px); }
+  .set-panel .panel-head { padding-top: 6px; padding-bottom: 6px; }
+  .set-panel .panel-body { padding: 8px 14px 12px; }
+  .set-panel .panel-body > p { margin: 0 0 8px; line-height: 1.2; }
+  .set-col { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 10px; align-items: center; }
+  .set-own { display: contents; }
+  .set-col .btn { padding: 7px 12px; font-size: 15px; min-height: 44px; }
+}
 .vol { display: flex; align-items: center; gap: 10px; font-size: 20px; padding: 0 6px; }
 .vol input { flex: 1; height: 28px; accent-color: var(--pink); touch-action: pan-x; }
 

@@ -11,7 +11,7 @@ export function openSettings() {
   openPanel({
     title: 'Меню',
     icon: '⚙️',
-    cls: 'narrow',
+    cls: 'narrow set-panel',
     render(body, tab, panel) {
       const c = cal();
       body.appendChild(
@@ -61,8 +61,7 @@ export function openSettings() {
         panel.close();
         run('my-biz');
       };
-      const own = el('div');
-      own.style.cssText = 'display:grid;grid-template-columns:1fr 1fr;gap:10px';
+      const own = el('div', 'set-own');
       own.append(homes, biz);
       const help = el('button', 'btn yellow', '❓ Как играть');
       help.onclick = () => showHelp();
@@ -77,8 +76,7 @@ export function openSettings() {
         persist();
         location.reload();
       };
-      const col = el('div');
-      col.style.cssText = 'display:flex;flex-direction:column;gap:12px;align-items:stretch';
+      const col = el('div', 'set-col'); // лёжа на телефоне — в два столбца (css/style.css)
       col.append(own, mus, vol, snd, help, authors, exit);
       body.appendChild(col);
     },
