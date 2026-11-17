@@ -164,6 +164,13 @@ export function nightSky(ctx, w, h, t, top = '#1b2a5a', bot = '#4a5a9a', snow = 
 export function doorRound({ holiday, step, title, icon, ask, go, scene, treats, thanks, ok, hourHint, talkBtn }) {
   const hours = () => S().minutes >= HOLIDAY.carols[0] * 60 && S().minutes < HOLIDAY.carols[1] * 60;
   holidayDoor(holiday, async (npc, ctx, where) => {
+    // уже угостили, а хозяин ещё стоит у двери (с 16:00, этап 15) — дверь не «закрыта, гуляет»
+    const was = stepDoneFor(holiday, step, npc);
+    if (hours() && where === 'out' && (was || !stepWanted(holiday, step))) {
+      const n = NPC_BY_ID[npc];
+      toast(was ? `${n.name} уже угощал${n.fem ? 'а' : ''} тебя сегодня — вон, машет у двери! 👋` : `${n.name} стоит у двери и встречает гостей — поздоровайся! 👋`);
+      return true;
+    }
     if (!stepWanted(holiday, step) || stepDoneFor(holiday, step, npc)) return false;
     if (!hours()) {
       // ходят вечером; днём дверь — как обычно, а напомнить — можно
