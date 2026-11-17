@@ -313,7 +313,9 @@ export function openPhone() {
         }
         body.appendChild(row);
       }
-      for (const n of NPCS) {
+      // знакомые — первыми: иначе первый друг оказывался под четырьмя «???» за краем экрана телефона
+      const met = (n) => !!S().friends[n.id].met;
+      for (const n of [...NPCS.filter(met), ...NPCS.filter((n) => !met(n))]) {
         const fr = S().friends[n.id],
           here = S().guests.includes(n.id);
         const li = el('div', 'list-item');

@@ -47,7 +47,9 @@ export function openAlbum(tab) {
         }
         body.appendChild(grid);
       } else if (tab === 'fr') {
-        for (const n of NPCS) {
+        // знакомые — первыми (как наклейки): незнакомые «?» не заслоняют друзей
+        const met = (n) => !!s.friends[n.id].met;
+        for (const n of [...NPCS.filter(met), ...NPCS.filter((n) => !met(n))]) {
           const fr = s.friends[n.id],
             h = friendHearts(n.id);
           const li = el('div', 'list-item');
