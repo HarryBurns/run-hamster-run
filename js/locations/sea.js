@@ -683,7 +683,9 @@ export function createSea(cfg) {
       return;
     }
     if (m.foot(tx, ty)) {
-      if (sc.walkTo(w.x, w.y, false)) p.pending = { fn: () => landFromBoat(tx, ty) };
+      // берег совсем рядом (пирс у борта) — сразу сойти: путь туда пустой, и «дойти и сойти» не срабатывало
+      if (dist(p.x / T, p.y / T, tx + 0.5, ty + 0.5) <= 2.6) landFromBoat(tx, ty);
+      else if (sc.walkTo(w.x, w.y, false)) p.pending = { fn: () => landFromBoat(tx, ty) };
       sfx('tap');
       return;
     } // берег: подплыть и сойти

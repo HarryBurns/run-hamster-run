@@ -2307,6 +2307,15 @@ const runParallel = () => {
       await wait(2200);
       await closeAll();
       if (!(await ev(() => window.__dev.World.isBoating()))) throw new Error('не сели на кораблик');
+      // этап 8: нажали на пирс прямо у борта — сразу сошли (раньше путь был пустой, и ничего не происходило)
+      const pier = await ev(() => window.__dev.World.debugScreen(64.5 * 48, 61.5 * 48));
+      await page.mouse.click(pier.x, pier.y);
+      await wait(600);
+      if (await ev(() => window.__dev.World.isBoating())) throw new Error('нажатие на пирс у борта не сняло с кораблика');
+      await page.mouse.click(s.x, s.y);
+      await wait(2200);
+      await closeAll();
+      if (!(await ev(() => window.__dev.World.isBoating()))) throw new Error('не сели на кораблик второй раз');
       await hold('ArrowDown', 1500);
       await ev(() => {
         window.__dev.World.leaveBoat();
