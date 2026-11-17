@@ -653,6 +653,32 @@ export function createSea(cfg) {
     SP.world();
     if (!landOpen(g.land)) emoji(ctx, '🔒', x + 16, y - 30, 16);
   };
+  /**
+   * Суша, на которую можно сойти, вплотную к точке w (не дальше клетки): клетка [tx, ty] или null. Так нажатие на
+   * мокрый песок у кромки (клетка мелководья h рядом с берегом) высаживает, а не гонит кораблик вдоль берега.
+   */
+  function shoreBy(w) {
+    const tx = tileOf(w.x),
+      ty = tileOf(w.y);
+    let best = null,
+      bd = T * 1.01;
+    for (let dy = -1; dy <= 1; dy++)
+      for (let dx = -1; dx <= 1; dx++) {
+        const x = tx + dx,
+          y = ty + dy,
+          c = ch(x, y);
+        if (!c || isSea(c) || c === 'o' || !m.foot(x, y)) continue;
+        // расстояние от точки нажатия до клетки (0 — внутри)
+        const ex = Math.max(x * T - w.x, 0, w.x - (x + 1) * T),
+          ey = Math.max(y * T - w.y, 0, w.y - (y + 1) * T),
+          d = Math.hypot(ex, ey);
+        if (d < bd) {
+          bd = d;
+          best = [x, y];
+        }
+      }
+    return best;
+  }
   /** Нажатие, когда хомячок на кораблике. */
   function boatTap(w, tx, ty) {
     const p = sc.p;
@@ -678,6 +704,17 @@ export function createSea(cfg) {
         return;
       }
     const c = ch(tx, ty);
+    if (c === 'h') {
+      // мокрый песок у кромки (Ф3): первая полоса мелководья у берега на вид — песок с пеной; нажали туда — сойти
+      // на ближайшую клетку суши (подплыть к нажатому месту), а не плыть вдоль берега
+      const land = shoreBy(w);
+      if (land) {
+        if (dist(p.x / T, p.y / T, land[0] + 0.5, land[1] + 0.5) <= 2.6) landFromBoat(land[0], land[1]);
+        else if (sc.walkTo(w.x, w.y, true)) p.pending = { fn: () => landFromBoat(land[0], land[1]) };
+        sfx('tap');
+        return;
+      }
+    }
     if (isSea(c)) {
       if (sc.walkTo(w.x, w.y, true)) sfx('paddle');
       return;

@@ -2393,7 +2393,11 @@ const runParallel = () => {
       if ((await ev(() => window.__dev.sceneName)) !== 'world') throw new Error('не всплыли');
     });
     await step('кораблик', async () => {
-      await ev(() => window.__dev.World.debugTeleport(63, 60));
+      await closeAll();
+      await ev(() => {
+        if (window.__dev.sceneName !== 'world') window.__dev.go('world');
+        window.__dev.World.debugTeleport(63, 60);
+      });
       await wait(400);
       const s = await ev(() => window.__dev.World.debugScreen(65.5 * 48, 61.2 * 48));
       await page.mouse.click(s.x, s.y);
@@ -2410,6 +2414,33 @@ const runParallel = () => {
       await wait(2200);
       await closeAll();
       if (!(await ev(() => window.__dev.World.isBoating()))) throw new Error('не сели на кораблик второй раз');
+      // этап 9 (Ф3): нажали на мокрый песок у кромки (клетка мелководья h у берега) — подплыть и сойти на берег
+      const wet = await ev(() => {
+        const W = window.__dev.World;
+        return { at: W.map.at(67, 57), s: W.debugScreen(67.5 * 48, 57.25 * 48) };
+      });
+      if (wet.at !== 'h') throw new Error('у пирса нет мокрого песка (h): ' + wet.at);
+      await page.mouse.click(wet.s.x, wet.s.y);
+      await wait(3200);
+      const off = await ev(() => {
+        const W = window.__dev.World;
+        return { boat: W.isBoating(), y: W.p.y / 48, c: W.map.at(Math.floor(W.p.x / 48), Math.floor(W.p.y / 48)) };
+      });
+      if (off.boat || off.c === 'h' || off.c === 'w' || off.y > 57)
+        throw new Error('нажатие на мокрый песок не высадило на берег: ' + JSON.stringify(off));
+      // нажатие на мелководье подальше от берега — по-прежнему «плыть»: сесть снова и нажать на вторую полосу
+      const s3 = await ev(() => {
+        const b = window.__dev.G.state.boat;
+        return window.__dev.World.debugScreen(b.x, b.y - 10);
+      });
+      await page.mouse.click(s3.x, s3.y);
+      await wait(2200);
+      await closeAll();
+      if (!(await ev(() => window.__dev.World.isBoating()))) throw new Error('не сели на кораблик у берега');
+      const far = await ev(() => window.__dev.World.debugScreen(70.5 * 48, 58.7 * 48));
+      await page.mouse.click(far.x, far.y);
+      await wait(1500);
+      if (!(await ev(() => window.__dev.World.isBoating()))) throw new Error('нажатие на дальнюю полосу мелководья высадило');
       await hold('ArrowDown', 1500);
       await ev(() => {
         window.__dev.World.leaveBoat();
