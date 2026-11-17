@@ -23,7 +23,13 @@ defineArt({
 });
 const HELLO = ['Добро пожаловать в «Морскую звезду»!', 'Рады вас видеть!', 'Прошу, проходите!'];
 
-/** Швейцар у двери здания bid (сдвиг от середины фасада влево — как его рисовали на здании). */
+/**
+ * Швейцар у двери здания bid: слева от входа, у столбика навеса — между кадкой и красной дорожкой, чтобы кадка
+ * его не закрывала (В16; раньше стоял на 82 точки левее середины — наполовину за кадкой). Здороваться к нему подходят
+ * спереди-слева (STAND), там свободная плитка.
+ */
+const DX = -52,
+  STAND = [-14, 44];
 export function createDoorman(bid = 'hotel') {
   let pos = null,
     greetT = -99,
@@ -33,7 +39,7 @@ export function createDoorman(bid = 'hotel') {
   return {
     built(sc) {
       const b = sc.map.bById[bid];
-      if (b) pos = { x: (b.x + b.w / 2) * T - 82, y: (b.y + b.h) * T + 2 };
+      if (b) pos = { x: (b.x + b.w / 2) * T + DX, y: (b.y + b.h) * T + 2 };
     },
     /** Подошла — машет и кланяется (один раз, пока не отойдёт подальше). */
     update(sc) {
@@ -60,14 +66,14 @@ export function createDoorman(bid = 'hotel') {
     /** Нажали на швейцара — подойти и поздороваться. */
     tap(sc, w) {
       if (!pos || dist(w.x, w.y, pos.x, pos.y - 28) > 32) return false;
-      sc.goNear(pos.x - 30, pos.y + 12, { fn: () => run('hotel:doorman') });
+      sc.goNear(pos.x + STAND[0], pos.y + STAND[1], { fn: () => run('hotel:doorman') });
       sfx('tap');
       return true;
     },
     /** Клавиша E рядом со швейцаром. */
     near(sc) {
       if (!pos) return null;
-      const d = dist(sc.p.x, sc.p.y, pos.x - 30, pos.y + 12);
+      const d = dist(sc.p.x, sc.p.y, pos.x + STAND[0], pos.y + STAND[1]);
       return d < T * 1.2 ? { d, pending: { fn: () => run('hotel:doorman') } } : null;
     },
     /** Для тестов: где швейцар и когда он здоровался. */
