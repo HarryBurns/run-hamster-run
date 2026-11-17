@@ -136,6 +136,24 @@ export function installDevHooks({ F }) {
       return loop.scenes.villa;
     },
     Audio: audio,
+    /**
+     * Для автотеста: начало игры, как до этапа 10, — 1 января (день 0), зима и снег, тёплый наряд, салат в семенах,
+     * без вводной цепочки заданий. Шаги, написанные для такой игры (что есть на прилавках в первый день, кто где
+     * гуляет, холод), зовут это сразу после «Новой игры»; шаги про само начало игры (dev/smoke_start.js) — нет.
+     */
+    oldStart() {
+      actions.mutate((s) => {
+        s.day = 0;
+        s.startDay = 0;
+        s.immuneUntil = 3;
+        s.weather = 'snow';
+        s.look.outfit = { head: 'beanie_red', body: 'jw_blue', legs: 'pants_jeans', feet: 'boots_brown', acc: 'scarf_yellow' };
+        s.seeds = { seed_lettuce: 2 };
+        s.flags.intro = 0;
+      });
+      events.emit('look');
+      events.emit('hud');
+    },
     /** Войти в здание города по его id — так же, как если бы хомячок дошёл до двери. */
     enterBuilding: (id) => town.enterBuilding(BUILDINGS.find((b) => b.id === id)),
     /** Поставить хомячка на вилле: этаж и x. */

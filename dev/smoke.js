@@ -276,7 +276,7 @@ async function extra({ page, step, ev, wait, closeAll, hold }) {
     if (await page.locator('text=Продолжить').count()) throw new Error('битое сохранение предложено продолжить');
     await page.click('text=Играть!');
     await page.click('text=Пропустить'); // вступительная сценка новой игры (этап 10)
-    await page.evaluate(() => window.__dev.actions.setFlag('intro', 0)); // вводная цепочка заданий — в своих шагах (dev/smoke_start.js)
+    await page.evaluate(() => window.__dev.oldStart()); // как до этапа 10: 1 января, без вводной цепочки (начало игры — dev/smoke_start.js)
     await wait(400);
     await page.click('text=Поехали!');
     await wait(400);
@@ -1064,6 +1064,10 @@ async function economy({ page, step, ev, wait, closeAll }) {
     expect(s.money === 3000 && s.earned === 0 && s.spent === 0 && s.v === 5, 'новая игра', [s.money, s.earned, s.v]);
     expect(s.ledger && s.ledger.today.out === 0 && s.ledger.yesterday, 'нет учёта денег', s.ledger);
     expect(chip.includes('3 000'), 'плашка монет', chip);
+    // шаги про экономику написаны для игры, которая началась 1 января (зима: морковка не в сезон, в ТЦ не всё
+    // привезли): переводим календарь, как у игр до этапа 10 (новая игра начинается 1 июня)
+    expect(s.day === 15 && s.startDay === 15, 'новая игра — 1 июня', [s.day, s.startDay]);
+    await ev(() => window.__dev.oldStart());
     // все цены по карману или хотя бы разумны: ничего дешевле 10 и ничего «за миллион»
     const prices = await ev(async () => {
       const d = await import('./js/data/index.js');
@@ -1640,7 +1644,7 @@ const runParallel = () => {
       await wait(400);
       await page.click('text=Играть!');
       await page.click('text=Пропустить'); // вступительная сценка новой игры (этап 10)
-      await page.evaluate(() => window.__dev.actions.setFlag('intro', 0)); // вводная цепочка заданий — в своих шагах (dev/smoke_start.js)
+      await page.evaluate(() => window.__dev.oldStart()); // как до этапа 10: 1 января, без вводной цепочки (начало игры — dev/smoke_start.js)
       await wait(400);
       await page.click('text=Поехали!');
       await wait(500);

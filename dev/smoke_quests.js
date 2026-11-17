@@ -238,7 +238,7 @@ module.exports = async function quests({ page, step, ev, wait, closeAll }) {
     // урожай
     await ev(() => {
       const d = window.__dev;
-      d.F.plantOn(0, 'seed_lettuce');
+      d.F.plantOn(0, 'seed_carrot'); // новая игра — в июне: сажают морковку
       d.actions.nextDay();
       d.F.gardenBed(0);
     });

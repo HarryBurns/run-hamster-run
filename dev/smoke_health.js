@@ -31,8 +31,11 @@ module.exports = async function health({ page, step, ev, wait, closeAll }) {
     }, id);
     await wait(500);
   };
-  /** Новая игра с чистого листа. */
-  const fresh = async () => {
+  /**
+   * Новая игра с чистого листа. Шаги про болезнь написаны для игры, которая началась 1 января (холод, ледяное море,
+   * первые дни 0–2): january — перевести календарь на 1 января, как у игр до этапа 10 (новая игра начинается 1 июня).
+   */
+  const fresh = async (january = true) => {
     await ev(() => {
       window.__dev.G.state = null;
       localStorage.clear();
@@ -45,6 +48,15 @@ module.exports = async function health({ page, step, ev, wait, closeAll }) {
     await wait(400);
     await page.click('text=Поехали!');
     await wait(500);
+    if (january)
+      await ev(() =>
+        window.__dev.actions.mutate((s) => {
+          s.day = 0;
+          s.startDay = 0;
+          s.immuneUntil = 3;
+          s.weather = 'snow';
+        }),
+      );
   };
   const putSave = async (raw) => {
     await ev((raw) => {
@@ -94,22 +106,22 @@ module.exports = async function health({ page, step, ev, wait, closeAll }) {
   const ALL = { cold: 1, sea: 1, rain: 1 };
 
   await step('болезнь: в первые 3 дня новой игры не болеет', async () => {
-    await fresh();
+    await fresh(false); // как у игрока: игра началась 1 июня (день 15)
     const s = await state();
-    expect(s.v === 5 && s.sick === null && s.immuneUntil === 3, 'новая игра', [s.v, s.sick, s.immuneUntil]);
+    expect(s.v === 5 && s.sick === null && s.day === 15 && s.immuneUntil === 18, 'новая игра', [s.v, s.sick, s.day, s.immuneUntil]);
     // со всеми неосторожностями в ночи на 1-й и 2-й день — ничего; по-настоящему спим две ночи
-    for (const d of [0, 1]) {
+    for (const d of [15, 16]) {
       await setDay(d, ALL);
-      expect(JSON.stringify(await ev(() => window.__dev.F.planNight())) === '{}', `ночь на день ${d + 1}`);
+      expect(JSON.stringify(await ev(() => window.__dev.F.planNight())) === '{}', `ночь на день ${d - 14}`);
     }
-    await setDay(0, ALL);
+    await setDay(15, ALL);
     await sleep();
     await closeAll();
     await ev(() => window.__dev.actions.mutate((s) => (s.dayFlags.careless = { cold: 1, sea: 1, rain: 1 })));
     await sleep();
     await closeAll();
     const s2 = await state();
-    expect(s2.day === 2 && !s2.sick, 'заболела в первые дни', [s2.day, s2.sick]);
+    expect(s2.day === 17 && !s2.sick, 'заболела в первые дни', [s2.day, s2.sick]);
     // а с третьего дня — уже может: шанс со всеми неосторожностями почти половина
     const p = await ev(async () => {
       const D = await import('./js/data/index.js');

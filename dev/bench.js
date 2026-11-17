@@ -139,7 +139,7 @@ const SEASON = { winter: { day: 0, weather: 'snow' }, summer: { day: 20, weather
     await wait(400);
     await page.click('text=Играть!');
     await page.click('text=Пропустить'); // вступительная сценка новой игры (этап 10)
-    await page.evaluate(() => window.__dev.actions.setFlag('intro', 0)); // вводная цепочка заданий — в своих шагах (dev/smoke_start.js)
+    await page.evaluate(() => window.__dev.oldStart()); // как до этапа 10: 1 января, без вводной цепочки (начало игры — dev/smoke_start.js)
     await wait(400);
     await page.click('text=Поехали!');
     await wait(400);

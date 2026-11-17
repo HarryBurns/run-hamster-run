@@ -388,11 +388,11 @@ module.exports = async function seasons({ page, step, ev, wait, closeAll }) {
       'сезоны посадки',
       sow.byMonth,
     );
-    expect(sow.start.join() === 'seed_lettuce', 'новая игра (январь) должна начинаться с семян салата', sow.start);
+    expect(sow.start.join() === 'seed_carrot', 'новая игра (июнь) должна начинаться с семян морковки', sow.start);
     await ev(() => {
       const a = window.__dev.actions;
       a.addItem('seeds', 'seed_pumpkin', 1);
-      a.addItem('seeds', 'seed_carrot', 1);
+      a.addItem('seeds', 'seed_carrot', 1 - (window.__dev.G.state.seeds.seed_carrot || 0)); // ровно одна морковка
     });
     // летом тыкву не посадить: грядка пустая, семена целы, подсказка — когда можно
     await clearToasts();
@@ -438,6 +438,7 @@ module.exports = async function seasons({ page, step, ev, wait, closeAll }) {
     const w = await ev(() => {
       const d = window.__dev;
       d.actions.addItem('seeds', 'seed_carrot', 1);
+      d.actions.addItem('seeds', 'seed_lettuce', 1); // в новой игре (июнь) салата в семенах нет
       const res = { carrot: d.F.plantOn(1, 'seed_carrot'), lettuce: d.F.plantOn(2, 'seed_lettuce') };
       d.actions.nextDay();
       d.F.newDayMail();

@@ -519,7 +519,7 @@ defineObjects({
     map: () => NUT.base,
     art: {
       nutcliff: [
-        [-36, -86, 132, 84],
+        [-44, -90, 144, 88],
         (ctx, v, snow) => {
           if (v) {
             ctx.translate(96, 0);
