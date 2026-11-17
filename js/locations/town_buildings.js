@@ -1611,7 +1611,7 @@ defineBuildings({
   },
   towerHamster: {
     paint: paintTowerHamster,
-    box: (b) => towerBox(b, 150, 52),
+    box: (b) => towerBox(b, 160, 64),
     hitUp: (b) => b.floors * T * 0.62,
     live: (ctx, b, t) => beacon(ctx, b, t, 136),
     lights: (b) => doorLight(b, 90, b.floors * T * 0.62 - b.h * T + T + 80),

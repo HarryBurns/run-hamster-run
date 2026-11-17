@@ -591,7 +591,7 @@ defineObjects({
   ruinHead: {
     solid: true,
     map: () => STONE_JD,
-    art: { ruinHead: [[-40, -90, 42, 22], paintHead] },
+    art: { ruinHead: [[-40, -90, 42, 26], paintHead] }, // тень у основания — до y = 23
     draw: (ctx, o) => put('ruinHead', o.x, o.y),
   },
   // жёрдочка с попугаем: попугай чуть покачивается (готовым спрайтом) и машет крылом, когда говорит (o.talk())
