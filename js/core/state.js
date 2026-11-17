@@ -37,6 +37,11 @@ import {
   defaultLook,
   PARROT_WORD_BY_ID,
   PARROT_MEMORY,
+  PET,
+  PET_BY_ID,
+  RIDE_BY_ID,
+  YARD_BY_ID,
+  YARD_BY_ID_HOME,
 } from '../data/index.js';
 
 // Ключ хранилища («v1» в имени — исторически; версия сохранения лежит в поле v). Здесь всегда лежит ТА ИГРА,
@@ -198,6 +203,12 @@ export function newGame(name) {
     finds: {}, // находки (не еда): id → сколько (data/finds.js)
     parrots: {}, // чему научили попугаев в джунглях (Дж6): номер попугая → [id слов из PARROT_WORDS], до PARROT_MEMORY
     visited: {}, // где хомячок уже побывала — к таким местам карта переносит быстро (Ф4): локация → { место: 1 }
+    // этап 17б: питомец ({ kind, name, love, fed, pet, play — дни последней еды, ласки, игры; food — корма в запасе;
+    // ball — есть мячик; stay — ждёт дома } или null), транспорт (own — что куплено, use — на чём ездит) и двор
+    // (store — купленное, но не поставленное: id → сколько; at — что где стоит: двор → [{ id, x, y }])
+    pet: null,
+    wheels: { own: [], use: '' },
+    yard: { store: {}, at: {} },
     // первый день
     weather: 'sun',
     visitor: null,
@@ -331,6 +342,37 @@ export function repair(s) {
   for (const k of Object.keys(s.parrots))
     s.parrots[k] = Array.isArray(s.parrots[k]) ? s.parrots[k].filter((id) => PARROT_WORD_BY_ID[id]).slice(-PARROT_MEMORY) : [];
   for (const k of Object.keys(s.visited)) obj(s.visited, k);
+  // питомец, транспорт, двор (этап 17б): в старом сохранении полей нет — питомца нет, транспорта нет, двор как был
+  {
+    const pt = s.pet;
+    if (!pt || typeof pt !== 'object' || !PET_BY_ID[pt.kind]) s.pet = null;
+    else {
+      if (typeof pt.name !== 'string' || !pt.name.trim()) pt.name = PET_BY_ID[pt.kind].names[0];
+      pt.name = pt.name.slice(0, PET.nameMax);
+      for (const k of ['love', 'food']) if (!Number.isFinite(pt[k]) || pt[k] < 0) pt[k] = 0;
+      pt.love = Math.min(pt.love, PET.heart * PET.hearts);
+      for (const k of ['fed', 'pet', 'play']) if (!Number.isFinite(pt[k])) pt[k] = -1;
+      pt.ball = !!pt.ball;
+      pt.stay = !!pt.stay;
+    }
+    if (!s.wheels || typeof s.wheels !== 'object' || Array.isArray(s.wheels)) s.wheels = { own: [], use: '' };
+    s.wheels.own = [...new Set(Array.isArray(s.wheels.own) ? s.wheels.own : [])].filter((id) => RIDE_BY_ID[id]);
+    if (!s.wheels.own.includes(s.wheels.use)) s.wheels.use = s.wheels.own[s.wheels.own.length - 1] || '';
+    if (!s.yard || typeof s.yard !== 'object' || Array.isArray(s.yard)) s.yard = { store: {}, at: {} };
+    obj(s.yard, 'store');
+    obj(s.yard, 'at');
+    for (const id of Object.keys(s.yard.store)) if (!YARD_BY_ID[id] || !(s.yard.store[id] > 0)) delete s.yard.store[id];
+    for (const k of Object.keys(s.yard.at)) {
+      const yd = YARD_BY_ID_HOME[k];
+      if (!yd) {
+        delete s.yard.at[k];
+        continue;
+      }
+      s.yard.at[k] = (Array.isArray(s.yard.at[k]) ? s.yard.at[k] : []).filter(
+        (i) => i && YARD_BY_ID[i.id] && Number.isInteger(i.x) && Number.isInteger(i.y),
+      );
+    }
+  }
   // жильё и заведения: только известные id; основной дом и дом с гостями — вилла или купленное жильё
   arr('homesOwned');
   s.homesOwned = [...new Set(s.homesOwned)].filter((id) => id !== 'villa' && HOME_BY_ID[id]);

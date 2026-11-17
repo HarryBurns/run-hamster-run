@@ -71,6 +71,8 @@
 //   where(sc, имя)               точка по имени, которую знает только эта часть (места для гербария: 'herb') — для
 //                                sc.whereIs; { x, y } или null
 //   buttons(sc)                  кнопки HUD: [{ id, icon, label, on, fn }]
+// ОБЩИЕ ЧАСТИ — addWorldPart(часть): те же крюки сразу во всех локациях (питомец, транспорт, двор — этап 17б).
+// РЕЖИМ — sc.mode = { down, move, up, end }: пока задан, указатель идёт ему, хомячок стоит (обустройство двора).
 //
 // СЦЕНА (то, что вернул createTopDownScene) умеет: ходьбу по нажатию и стрелками, «дойти и сделать», вход в
 // здания, особые места, жителей, предметы заданий и находки, переходы, камеру, погоду и ночь, сохранение позиции.
@@ -123,10 +125,22 @@ let targetHook = null;
 export function setTargetHook(fn) {
   targetHook = fn;
 }
+/**
+ * Общие части всех локаций: объекты с теми же крюками, что и части описания (things, tap, update, buttons…).
+ * Так занятие добавляет своё во все места сразу, не трогая описаний: питомец, транспорт, двор (этап 17б).
+ * Звать при загрузке модуля занятия — до первого входа в локацию.
+ */
+const WORLD_PARTS = [],
+  partLists = [];
+export function addWorldPart(part) {
+  WORLD_PARTS.push(part);
+  for (const l of partLists) l.push(part);
+}
 const cellPx = (c) => ({ x: c[0] * T, y: c[1] * T }); // [15.5, 8.5] «в клетках» → единицы мира
 
 export function createTopDownScene(desc) {
-  const parts = [desc, ...(desc.parts || [])];
+  const parts = [desc, ...(desc.parts || []), ...WORLD_PARTS];
+  partLists.push(parts);
   const size = mapSize(desc);
   const places = desc.places || [],
     placeById = Object.fromEntries(places.map((pl) => [pl.id, pl])),
@@ -171,6 +185,9 @@ export function createTopDownScene(desc) {
     weather: [],
     weatherKind: null,
     down: null,
+    // «режим» сцены (обустройство двора): { down(sc, sx, sy), move(sc, sx, sy), up(sc, sx, sy) } — пока он задан,
+    // палец и мышь идут ему, а хомячок стоит (стрелки и клавиша E не работают); null — обычная игра
+    mode: null,
     built: false,
     env: null,
     get map() {
@@ -437,6 +454,7 @@ export function createTopDownScene(desc) {
       p.path = [];
       p.pending = null;
       p.moving = false;
+      sc.mode = null;
       // куда встать: названный вход → вход «для пришедших из этой сцены» → позиция из сохранения → где стояли
       const fromEntry = Object.keys(entries).find((id) => entries[id].from === from);
       const e = params.at !== undefined ? entryPx(params.at) : fromEntry ? entryPx(fromEntry) : null;
@@ -472,6 +490,8 @@ export function createTopDownScene(desc) {
       if (desc.sky !== false && !desc.dry) initWeather(sc);
     },
     leave() {
+      if (sc.mode && sc.mode.end) sc.mode.end(sc);
+      sc.mode = null;
       hideSky(); // слой неба (темнота, тени облаков) — только над локацией
     },
     savePos: () => ({ scene: sc.name, x: sc.p.x, y: sc.p.y }),
@@ -483,10 +503,20 @@ export function createTopDownScene(desc) {
     },
 
     pointerDown(sx, sy) {
+      if (sc.mode) {
+        if (sc.mode.down) sc.mode.down(sc, sx, sy);
+        return;
+      }
       sc.down = { sx, sy };
     },
-    pointerMove() {},
+    pointerMove(sx, sy) {
+      if (sc.mode && sc.mode.move) sc.mode.move(sc, sx, sy);
+    },
     pointerUp(sx, sy) {
+      if (sc.mode) {
+        if (sc.mode.up) sc.mode.up(sc, sx, sy);
+        return;
+      }
       if (!sc.down) return;
       const moved = Math.hypot(sx - sc.down.sx, sy - sc.down.sy) > 16;
       sc.down = null;
@@ -561,6 +591,7 @@ export function createTopDownScene(desc) {
     },
     interact() {
       const p = sc.p;
+      if (sc.mode) return;
       if (sc.first('interact', sc)) return;
       let best = null,
         bd = T * 1.7;
@@ -618,10 +649,13 @@ export function createTopDownScene(desc) {
     update(dt) {
       const p = sc.p,
         m = map;
-      const kx =
-        (keys.has('ArrowRight') || keys.has('KeyD') ? 1 : 0) - (keys.has('ArrowLeft') || keys.has('KeyA') ? 1 : 0);
-      const ky =
-        (keys.has('ArrowDown') || keys.has('KeyS') ? 1 : 0) - (keys.has('ArrowUp') || keys.has('KeyW') ? 1 : 0);
+      const free = !sc.mode; // в «режиме» (обустройство двора) хомячок стоит
+      const kx = free
+        ? (keys.has('ArrowRight') || keys.has('KeyD') ? 1 : 0) - (keys.has('ArrowLeft') || keys.has('KeyA') ? 1 : 0)
+        : 0;
+      const ky = free
+        ? (keys.has('ArrowDown') || keys.has('KeyS') ? 1 : 0) - (keys.has('ArrowUp') || keys.has('KeyW') ? 1 : 0)
+        : 0;
       // пешком простуженная (Ф1) ходит медленнее; кораблик плывёт как обычно
       const sp = p.ride ? p.ride.speed : ((TILES[p.surf] && TILES[p.surf].speed) || 225) * walkK();
       if (kx || ky) {

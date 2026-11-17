@@ -37,6 +37,7 @@ export * from './island.js';
 export * from './hotel.js';
 export * from './inside.js';
 export * from './relax.js';
+export * from './wheels.js';
 export * from './holidays.js';
 export * from './holidays_scenes.js';
 export * from './holidays_winter.js';

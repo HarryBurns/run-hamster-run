@@ -208,6 +208,11 @@ export const EXTRA_STICKERS = [
   // отдых в городе (этап 17а): первый отдых на скамейке, лежаке, качелях…; сыграть в пляжный волейбол
   { id: 'x_relax', sticker: '😌', title: 'Отдыхаю красиво' },
   { id: 'x_volley', sticker: '🏐', title: 'Пляжный волейбол' },
+  // питомец, транспорт, двор (этап 17б)
+  { id: 'x_pet', sticker: '🐾', title: 'Друг из приюта' },
+  { id: 'x_pet_best', sticker: '💞', title: 'Лучший друг' },
+  { id: 'x_wheels', sticker: '🛴', title: 'С ветерком' },
+  { id: 'x_yard', sticker: '🌷', title: 'Цветущий двор' },
   // сюжетные задания (журнал, data/quests.js): наклейка — награда за задание
   { id: 'q_newcomer', sticker: '🧳', title: 'Новосёл' }, // вводная цепочка новой игры (этап 10)
   { id: 'q_herbarium', sticker: '🌱', title: 'Юный ботаник' },

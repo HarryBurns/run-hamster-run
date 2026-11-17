@@ -23,6 +23,10 @@ import {
   HEALTH,
   PARROT_WORD_BY_ID,
   PARROT_MEMORY,
+  PET,
+  PET_BY_ID,
+  RIDE_BY_ID,
+  YARD_BY_ID,
 } from '../data/index.js';
 
 let depth = 0;
@@ -557,3 +561,131 @@ export const patchState = act((key, patch, init) => {
 });
 /** Пометить сохранение изменённым (после серии «тихих» действий, например в конце перетаскивания мебели). */
 export const touchState = () => touch();
+
+// ---------- питомец (этап 17б) ----------
+// Питомец — один: state.pet. Очки дружбы (love) только растут; «покормили», «погладили», «поиграли» — по дням.
+/** Взять питомца из приюта: вид и имя. false — питомец уже есть или вида такого нет. */
+export const adoptPet = act((kind, name) => {
+  const s = S();
+  if (s.pet || !PET_BY_ID[kind]) return false;
+  const nm = String(name || '').trim().slice(0, PET.nameMax) || PET_BY_ID[kind].names[0];
+  s.pet = { kind, name: nm, love: 0, fed: s.day, pet: -1, play: -1, food: 2, ball: false, stay: false };
+  touch();
+  emit('pet', { what: 'adopt', kind });
+  return true;
+});
+/** Дать питомцу другое имя. */
+export const renamePet = act((name) => {
+  const pt = S().pet,
+    nm = String(name || '').trim().slice(0, PET.nameMax);
+  if (!pt || !nm) return false;
+  pt.name = nm;
+  touch();
+  emit('pet', { what: 'name' });
+  return true;
+});
+/**
+ * Позаботиться о питомце: what — 'pet' (погладить), 'feed' (покормить: тратит корм), 'play' (поиграть: нужен мячик).
+ * Возвращает, сколько очков дружбы прибавилось (первое за день — PET[what], потом 0), или false — нельзя (нет корма,
+ * нет мячика, нет питомца). Очки не убывают никогда.
+ */
+export const petCare = act((what) => {
+  const s = S(),
+    pt = s.pet;
+  if (!pt || !['pet', 'feed', 'play'].includes(what)) return false;
+  if (what === 'feed' && !(pt.food > 0)) return false;
+  if (what === 'play' && !pt.ball) return false;
+  const key = what === 'feed' ? 'fed' : what,
+    first = pt[key] !== s.day,
+    max = PET.heart * PET.hearts,
+    was = pt.love;
+  if (what === 'feed') pt.food--;
+  pt[key] = s.day;
+  if (first) pt.love = Math.min(max, pt.love + PET[what]);
+  touch();
+  emit('pet', { what, gain: pt.love - was });
+  return pt.love - was;
+});
+/** Купили для питомца: 'food' — корм (n штук), 'ball' — мячик. */
+export const addPetGood = act((id, n = 1) => {
+  const pt = S().pet;
+  if (!pt) return false;
+  if (id === 'food') pt.food += n;
+  else if (id === 'ball') pt.ball = true;
+  else return false;
+  touch();
+  emit('pet', { what: 'good', id });
+  return true;
+});
+/** Питомец ждёт дома (true) или гуляет вместе с хомячком (false). */
+export const setPetStay = act((stay) => {
+  const pt = S().pet;
+  if (!pt) return;
+  pt.stay = !!stay;
+  touch();
+  emit('pet', { what: 'stay' });
+});
+
+// ---------- транспорт (этап 17б) ----------
+/** Купили самокат, велосипед или машинку: он сразу становится «тем, на чём езжу». */
+export const addWheels = act((id) => {
+  const w = S().wheels;
+  if (!RIDE_BY_ID[id] || w.own.includes(id)) return false;
+  w.own.push(id);
+  w.use = id;
+  touch();
+  emit('wheels', { what: 'buy', id });
+  return true;
+});
+/** Выбрать, на чём ездить (из купленного). */
+export const useWheels = act((id) => {
+  const w = S().wheels;
+  if (!w.own.includes(id) || w.use === id) return false;
+  w.use = id;
+  touch();
+  emit('wheels', { what: 'use', id });
+  return true;
+});
+
+// ---------- двор (этап 17б) ----------
+// state.yard.store — купленные, но не поставленные предметы (id → сколько); state.yard.at[двор] — что где стоит.
+/** Купили предмет для двора — он ложится в «садовый сарайчик» (store). */
+export const addYardItem = act((id, n = 1) => {
+  if (!YARD_BY_ID[id]) return false;
+  const st = S().yard.store;
+  st[id] = (st[id] || 0) + n;
+  touch();
+  emit('yard', { what: 'buy', id });
+  return true;
+});
+/** Поставить предмет из сарайчика на клетку двора; возвращает запись { id, x, y } или null. */
+export const placeYard = act((yard, id, x, y) => {
+  const yd = S().yard;
+  if (!(yd.store[id] > 0)) return null;
+  if (--yd.store[id] <= 0) delete yd.store[id];
+  const it = { id, x, y };
+  (yd.at[yard] || (yd.at[yard] = [])).push(it);
+  touch();
+  emit('yard', { what: 'place', yard, id });
+  return it;
+});
+/** Переставить предмет двора на другую клетку. */
+export const moveYard = act((yard, it, x, y) => {
+  if (it.x === x && it.y === y) return;
+  it.x = x;
+  it.y = y;
+  touch();
+  emit('yard', { what: 'move', yard });
+});
+/** Убрать предмет двора обратно в сарайчик. */
+export const stashYard = act((yard, it) => {
+  const yd = S().yard,
+    list = yd.at[yard] || [],
+    i = list.indexOf(it);
+  if (i < 0) return false;
+  list.splice(i, 1);
+  yd.store[it.id] = (yd.store[it.id] || 0) + 1;
+  touch();
+  emit('yard', { what: 'stash', yard, id: it.id });
+  return true;
+});

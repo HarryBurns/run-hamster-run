@@ -1098,7 +1098,7 @@ export function createPlants() {
   const REACH = T * 1.75;
   function find(sc) {
     const p = sc.p;
-    if (p.ride) return null;
+    if (p.ride && !p.ride.wheels) return null; // с самоката и велосипеда до ветки дотянуться можно (этап 17б)
     let best = null,
       bd = REACH;
     for (const o of list) {

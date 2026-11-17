@@ -76,6 +76,9 @@ export const EVENTS = {
   holiday:
     'праздник (П.13) { id, what } — what: шаг праздника (tree, gifts, crib, carols, lanterns, envelopes, cook, treat, tug), done (все занятия дня сделаны), dragon, carousel, effigy, blini — features/holidays.js, features/holidays_winter.js',
   warmup: 'хомячок согрелась (горячий источник на горе): мороза за день как не бывало — features/health.js',
+  pet: 'питомец (этап 17б) { what } — adopt (взяли из приюта, поле kind), name (дали имя), pet / feed / play (погладили, покормили, поиграли; gain — очки дружбы), good (купили корм или мячик), stay (ждёт дома или гуляет)',
+  wheels: 'транспорт (этап 17б) { what, id } — buy (купили), use (выбрали, на чём ездить), on / off (сели, слезли)',
+  yard: 'двор (этап 17б) { what, yard, id } — buy (купили предмет), place / move / stash (поставили, переставили, убрали в сарайчик)',
   forest: 'занятие в лесу { what } — hive (мёд), squirrel (обмен у белки), fire (жарили зефир), treehouse (домик на дереве), wreath (венок), kit (нашли бельчонка), kitHome (отнесли маме) — features/forest.js',
 };
 

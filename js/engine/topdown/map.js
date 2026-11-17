@@ -99,6 +99,22 @@ export function createMap(desc) {
       }
     },
 
+    /**
+     * Убрать один предмет с карты — и после постройки тоже (двор, который обустраивает хозяйка: features/yard.js).
+     * Вместе с m.add это единственный способ менять карту на ходу; земля и здания не меняются.
+     */
+    remove(ob) {
+      const i = objs.indexOf(ob);
+      if (i < 0) return;
+      const s = ob.solid !== undefined ? ob.solid : OBJECTS[ob.type].solid;
+      if (s === true) solid[ob.ty][ob.tx] = false;
+      else if (s) for (const [dx, dy] of s) solid[ob.ty + dy][ob.tx + dx] = false;
+      if (slow[ob.ty][ob.tx] === ob) slow[ob.ty][ob.tx] = null;
+      const t = m.tappable.indexOf(ob);
+      if (t >= 0) m.tappable.splice(t, 1);
+      objs.splice(i, 1);
+    },
+
     // ---------- после постройки ----------
     kindAt: (tx, ty) => (m.kinds[ty] ? m.kinds[ty][tx] : undefined),
     inside: (px, py) => px >= 0 && px < w * T && py >= 0 && py < h * T,

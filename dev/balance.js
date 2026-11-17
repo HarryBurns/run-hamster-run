@@ -1211,6 +1211,39 @@ const { pathToFileURL } = require('url');
     }
   }
 
+  // этап 17б: питомец, транспорт, двор — только траты; у всего есть цена, рынок этого не покупает
+  {
+    const { PETS, PET, PET_GOODS, PET_PRICES, RIDES, RIDE_PRICES, YARD_ITEMS, YARD_PRICES, HOME_PRICES } = D;
+    console.log('\nПитомец, транспорт, двор (этап 17б)');
+    if (!(PET_PRICES.fee > 0 && PET_PRICES.food > 0 && PET_PRICES.ball > 0)) bad('PET_PRICES: нужны fee, food и ball');
+    if (PET_PRICES.fee > avg2 * 2) bad(`взнос приюту (${PET_PRICES.fee}) дороже двух смен на 2★ — питомец должен быть доступен в первые дни`);
+    if (PET_PRICES.food * 30 > avg2 * 4) bad('корм на месяц дороже четырёх смен на 2★');
+    for (const g of PET_GOODS) if (!(g.price > 0)) bad(`товар для питомца без цены: ${g.id}`);
+    const days = Math.ceil((PET.heart * PET.hearts) / (PET.pet + PET.feed + PET.play));
+    if (days < 3 || days > 14) bad(`«Лучший друг» за ${days} дн. заботы — должно быть от 3 до 14`);
+    line(`питомец из приюта (${PETS.map((q) => q.name.toLowerCase()).join(', ')})`, `взнос на корм ${fmt(PET_PRICES.fee)}, корм ${PET_PRICES.food} за раз, мячик ${PET_PRICES.ball}`);
+    line('«Лучший друг» (5 сердечек)', `${days} дн., если каждый день гладить, кормить и играть; монет не даёт`);
+    let prev = 0,
+      prevSp = 1;
+    for (const r of RIDES) {
+      if (!(RIDE_PRICES[r.id] > 0) || r.price !== RIDE_PRICES[r.id]) bad(`транспорт без цены: ${r.id}`);
+      if (!(r.price > prev && r.speed > prevSp)) bad(`транспорт ${r.id}: каждый следующий — дороже и быстрее`);
+      if (r.speed > 2.5) bad(`транспорт ${r.id}: быстрее 2,5× — хомячок пролетает мимо всего`);
+      prev = r.price;
+      prevSp = r.speed;
+      line(`${r.name.toLowerCase()} (ТЦ «Уютный дом»)`, `${fmt(r.price)} монет, по дорогам ×${r.speed}`);
+    }
+    if (RIDE_PRICES.scooter > avg2 * 4) bad('самокат дороже четырёх смен на 2★');
+    if (RIDE_PRICES.car >= Math.min(...Object.values(HOME_PRICES))) bad('кабриолет не дешевле самого дешёвого жилья');
+    for (const id of Object.keys(RIDE_PRICES)) if (!RIDES.some((r) => r.id === id)) bad(`RIDE_PRICES: неизвестный транспорт ${id}`);
+    for (const y of YARD_ITEMS) if (!(y.price > 0)) bad(`предмет для двора без цены: ${y.id}`);
+    for (const id of Object.keys(YARD_PRICES)) if (!YARD_ITEMS.some((y) => y.id === id)) bad(`YARD_PRICES: неизвестный предмет ${id}`);
+    for (const id of [...YARD_ITEMS.map((y) => y.id), ...RIDES.map((r) => r.id), 'food', 'ball'])
+      if (MARKET.sell[id] !== undefined) bad(`${id} покупает рынок — питомец, транспорт и двор не продаются`);
+    const yp = YARD_ITEMS.map((y) => y.price);
+    line(`для двора (${YARD_ITEMS.length} предметов, ТЦ «Уютный дом»)`, `от ${fmt(Math.min(...yp))} до ${fmt(Math.max(...yp))} монет; всё по одному — ${fmt(yp.reduce((q, v) => q + v, 0))}`);
+  }
+
   if (problems.length) {
     console.log('\nБАЛАНС НАРУШЕН:\n' + problems.map((p) => '  - ' + p).join('\n'));
     process.exit(1);

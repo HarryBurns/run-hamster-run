@@ -67,7 +67,7 @@ export function createHerbs(list) {
   }
   function find(sc) {
     const p = sc.p;
-    if (p.ride || !findsWanted('herb')) return null;
+    if ((p.ride && !p.ride.wheels) || !findsWanted('herb')) return null;
     let best = null,
       bd = REACH;
     for (const h of spots) {
