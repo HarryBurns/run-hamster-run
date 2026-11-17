@@ -318,4 +318,55 @@ module.exports = async function nature({ page, step, ev, wait, closeAll }) {
     await wait(400);
     expect(/Летучих мышей нет/.test(await toasts()), 'нет подсказки, куда улетели мыши', await toasts());
   });
+
+  await step('природа: пустыня — жара без штрафов (обмахивается, в тени прохладно), мираж раз в день, Финик везёт куда скажешь, звёзды ночью', async () => {
+    await toLand('desert', 30, 26);
+    await watch();
+    // жара: на солнце без шляпы стоит и обмахивается лапкой; в тени пальмы — нет, и подсказка про тень
+    const pose = await ev(() => {
+      const d = window.__dev,
+        sc = d.locations.desert;
+      d.actions.mutate((s) => (s.look.outfit.head = null));
+      const sun = sc.first('heroPose', sc, sc.p, 1);
+      const palm = sc.map.objs.find((o) => o.type === 'palm');
+      sc.debugTeleport(palm.tx, palm.ty + 1);
+      const shade = sc.first('heroPose', sc, sc.p, 1);
+      return { sun, shade, money: d.G.state.money };
+    });
+    expect(pose.sun && typeof pose.sun.fan === 'number' && !pose.shade, 'хомячок не обмахивается на солнце (или обмахивается в тени)', pose);
+    await wait(600);
+    expect(/тени пальм/.test(await toasts()), 'нет подсказки про тень пальм', await toasts());
+    // мираж: «Это мираж!» — один раз за день
+    await clearToasts();
+    await ev(() => window.__dev.emit('desert', { what: 'mirage' }));
+    await wait(200);
+    expect(/мираж/.test(await toasts()), 'нет подсказки про мираж', await toasts());
+    await clearToasts();
+    await ev(() => window.__dev.emit('desert', { what: 'mirage' }));
+    await wait(200);
+    expect(!/мираж/.test(await toasts()), 'мираж второй раз за день', await toasts());
+    // Финик: сначала спрашивает, куда ехать; к пирамиде — довёз и сам ушёл домой
+    await ev(() => {
+      window.__dev.run('desert:camel'); // не ждать: окно «Куда поедем?» ждёт ответа
+    });
+    await wait(500);
+    const opts = await ev(() => [...document.querySelectorAll('.dialog .btn')].map((b) => b.textContent));
+    expect(opts.some((t) => /По кругу/.test(t)) && opts.some((t) => /пирамид/.test(t)) && opts.some((t) => /раскопк/.test(t)), 'нет выбора, куда ехать', opts);
+    await page.click('.dialog .btn >> text=пирамиде');
+    await wait(300);
+    const ride = await ev(async () => {
+      const sc = window.__dev.locations.desert,
+        camel = sc.map.objs.find((o) => o.type === 'camel'),
+        on = !!(sc.p.ride && sc.p.ride.camel),
+        away = camel.away();
+      for (let i = 0; i < 60 && sc.p.ride; i++) await new Promise((q) => setTimeout(q, 200));
+      return { on, away, after: !!sc.p.ride, home: !camel.away(), at: [sc.p.x / 48, sc.p.y / 48] };
+    });
+    expect(ride.on && ride.away && !ride.after && ride.home && Math.hypot(ride.at[0] - 8.5, ride.at[1] - 10.6) < 1.5, 'Финик не довёз до пирамиды', ride);
+    await unwatch();
+    // ночью — звёзды (крюк overlay рисует их, когда темно)
+    await ev(() => window.__dev.actions.mutate((s) => (s.minutes = 23 * 60)));
+    await wait(300);
+    expect(await ev(() => window.__dev.locations.desert.darkness() > 0.5), 'ночью не темно');
+  });
 };

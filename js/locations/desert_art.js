@@ -576,60 +576,93 @@ defineObjects({
 });
 
 // ---------- здания ----------
-/** Шатёр Бархана: полосатый навес на шестах, вход откинут — внутри ковёр и подушки; верёвки к колышкам. */
+/**
+ * Шатёр Бархана по-кочевому (Д5): низкий и широкий, из тёмной шерстяной ткани в полоску, натянут на несколько
+ * шестов (три «гребня» на крыше), спереди полог поднят на двух шестах — открытый вход, внутри подушки; у входа ковры.
+ * Дверь — посередине внизу, как и раньше (вход внутрь — дом шатра, interiors/desert_inside.js).
+ */
 function paintTent(ctx, b, snow, lit) {
   const g = geom(b),
-    { X, W, bot, cx } = g,
-    top = g.Y - 54;
-  baseShadow(ctx, g, 10);
-  // верёвки и колышки
-  for (const [x0, x1] of [
-    [X + 8, X - 18],
-    [X + W - 8, X + W + 18],
+    { X, W, Y, bot, cx } = g,
+    L = X - 30,
+    R = X + W + 30,
+    CLOTH = '#3f332e',
+    CLOTH_L = '#5a4a41',
+    BAND = '#a8432a';
+  shadow(ctx, cx + 10, bot - 2, W * 0.66, 14);
+  // растяжки и колышки — далеко в стороны: шатёр стоит широко и низко
+  for (const [x0, x1, y0] of [
+    [L + 6, L - 6, Y + 34],
+    [R - 6, R + 6, Y + 34],
+    [X + W * 0.2, X + W * 0.1 - 30, Y + 18],
+    [X + W * 0.8, X + W * 0.9 + 30, Y + 18],
   ]) {
-    line(ctx, x0, top + 30, x1, bot - 2, 'rgba(74,55,40,.7)', 1.4);
-    fillRR(ctx, x1 - 2, bot - 8, 4, 10, 1, WOOD_D, OUT, 1);
+    line(ctx, x0, y0, x1, bot + 4, 'rgba(74,55,40,.7)', 1.4);
+    fillRR(ctx, x1 - 2, bot - 2, 4, 9, 1, WOOD_D, OUT, 1);
   }
-  // задняя стенка
-  poly(ctx, [X + 4, bot - 6, X + 12, top + 26, X + W - 12, top + 26, X + W - 4, bot - 6], '#e9d8b4', OUT, 2.2);
-  // крыша: два ската полосами
-  const roof = [X - 10, top + 40, cx, top, X + W + 10, top + 40, X + W, top + 52, X, top + 52];
-  poly(ctx, roof, '#f1e3c4', OUT, 2.4);
+  // задняя и боковые стенки — тёмная ткань в полоску
+  poly(ctx, [L + 8, bot - 4, L + 4, Y + 36, R - 4, Y + 36, R - 8, bot - 4], CLOTH, OUT, 2.2);
   ctx.save();
   ctx.beginPath();
-  ctx.moveTo(roof[0], roof[1]);
-  for (let i = 2; i < roof.length; i += 2) ctx.lineTo(roof[i], roof[i + 1]);
-  ctx.closePath();
+  ctx.rect(L, Y + 36, R - L, bot - Y - 36);
   ctx.clip();
-  ctx.fillStyle = '#c2255c';
-  for (let x = X - 10; x < X + W + 10; x += 28) {
-    ctx.beginPath();
-    ctx.moveTo(x, top + 60);
-    ctx.lineTo(x + 12, top + 60);
-    ctx.lineTo(cx + (x + 6 - cx) * 0.12 + 6, top - 4);
-    ctx.lineTo(cx + (x - cx) * 0.12, top - 4);
-    ctx.fill();
-  }
-  ctx.fillStyle = 'rgba(0,0,0,.12)';
-  ctx.fillRect(cx, top - 10, W, 80);
+  for (let y = Y + 46; y < bot; y += 16) line(ctx, L, y, R, y, CLOTH_L, 3);
+  line(ctx, L, Y + 62, R, Y + 62, BAND, 4);
   ctx.restore();
-  poly(ctx, roof, null, OUT, 2.4);
-  // бахрома по краю крыши
-  for (let x = X + 2; x < X + W - 2; x += 10) poly(ctx, [x, top + 52, x + 5, top + 60, x + 10, top + 52], '#ffd43b', OUT, 1);
-  // вход: тёмный проём, ковёр, откинутые полы
-  poly(ctx, [cx - 30, bot - 4, cx - 22, top + 56, cx + 22, top + 56, cx + 30, bot - 4], lit ? '#7a4a22' : '#4a2f22', OUT, 2);
-  if (lit) glow(ctx, cx, bot - 30, 40, 0.35);
-  fillRR(ctx, cx - 26, bot - 12, 52, 10, 3, '#e8590c', OUT, 1.4);
-  for (let i = 0; i < 5; i++) ell(ctx, cx - 18 + i * 9, bot - 7, 2, 2, '#ffd43b');
-  ell(ctx, cx - 12, bot - 18, 8, 5, '#4dabf7', OUT, 1.2);
-  ell(ctx, cx + 12, bot - 18, 8, 5, '#ffd43b', OUT, 1.2);
-  for (const s of [-1, 1])
-    poly(ctx, [cx + s * 22, top + 56, cx + s * 40, top + 62, cx + s * 34, bot - 4, cx + s * 28, bot - 4], '#f1e3c4', OUT, 1.8);
-  // шест с флажком
-  line(ctx, cx, top, cx, top - 26, OUT, 3);
-  poly(ctx, [cx, top - 26, cx + 18, top - 21, cx, top - 16], '#ffd43b', OUT, 1.4);
+  // крыша на трёх шестах: гребни и провисы между ними
+  const peaks = [
+      [X + W * 0.16, Y + 14],
+      [cx, Y + 2],
+      [X + W * 0.84, Y + 14],
+    ],
+    roof = [L - 4, Y + 44, peaks[0][0], peaks[0][1], (peaks[0][0] + cx) / 2, Y + 20, cx, peaks[1][1], (cx + peaks[2][0]) / 2, Y + 20, peaks[2][0], peaks[2][1], R + 4, Y + 44, R, Y + 52, L, Y + 52];
+  const roofPath = () => {
+    ctx.beginPath();
+    ctx.moveTo(roof[0], roof[1]);
+    for (let i = 2; i < roof.length; i += 2) ctx.lineTo(roof[i], roof[i + 1]);
+    ctx.closePath();
+  };
+  roofPath();
+  ctx.fillStyle = CLOTH;
+  ctx.fill();
+  ctx.save();
+  ctx.clip();
+  for (let x = L; x < R; x += 22) line(ctx, x, Y - 4, x + (x - cx) * 0.08, Y + 56, CLOTH_L, 6); // полотнища, сшитые полосами
+  ctx.fillStyle = 'rgba(0,0,0,.18)';
+  ctx.fillRect(cx, Y - 10, R - cx + 10, 70);
+  ctx.restore();
+  roofPath();
+  ctx.strokeStyle = OUT;
+  ctx.lineWidth = 2.4;
+  ctx.stroke();
+  // кисточки по краю крыши
+  for (let x = L + 4; x < R - 4; x += 16) {
+    line(ctx, x, Y + 52, x, Y + 59, BAND, 2);
+    ell(ctx, x, Y + 60, 2.2, 2.2, '#ffd43b');
+  }
+  // верхушки шестов над гребнями
+  for (const [px, py] of peaks) {
+    line(ctx, px, py, px, py - 9, OUT, 3);
+    ell(ctx, px, py - 10, 2.6, 2.6, '#ffd43b', OUT, 1);
+  }
+  // открытый вход: полог поднят на двух шестах навесом, внутри — тёплый свет и подушки
+  poly(ctx, [cx - 36, bot - 4, cx - 32, Y + 54, cx + 32, Y + 54, cx + 36, bot - 4], lit ? '#7a4a22' : '#2b211d', OUT, 2);
+  if (lit) glow(ctx, cx, bot - 28, 44, 0.4);
+  ell(ctx, cx - 14, bot - 16, 10, 6, '#c2255c', OUT, 1.2);
+  ell(ctx, cx + 14, bot - 16, 10, 6, '#f59f00', OUT, 1.2);
+  ell(ctx, cx, bot - 22, 8, 5, '#4dabf7', OUT, 1.2);
+  poly(ctx, [cx - 32, Y + 54, cx - 46, Y + 40, cx + 46, Y + 40, cx + 32, Y + 54], CLOTH_L, OUT, 2); // навес
+  for (const s of [-1, 1]) {
+    line(ctx, cx + s * 46, Y + 40, cx + s * 48, bot, OUT, 4.4);
+    line(ctx, cx + s * 46, Y + 40, cx + s * 48, bot, '#c98b5a', 2.4);
+  }
+  // ковры у входа: большой красный с узором и маленький синий наискосок
+  poly(ctx, [cx - 52, bot - 6, cx + 52, bot - 6, cx + 60, bot + 10, cx - 60, bot + 10], '#c92a2a', OUT, 1.6);
+  poly(ctx, [cx - 44, bot - 3, cx + 44, bot - 3, cx + 50, bot + 7, cx - 50, bot + 7], null, '#ffd43b', 1.4);
+  for (let i = -2; i <= 2; i++) poly(ctx, [cx + i * 18, bot - 1, cx + i * 18 + 5, bot + 2, cx + i * 18, bot + 5, cx + i * 18 - 5, bot + 2], '#ffd43b');
+  poly(ctx, [cx + 64, bot - 10, cx + 96, bot - 14, cx + 100, bot + 2, cx + 68, bot + 6], '#1971c2', OUT, 1.4);
   // фонарик у входа
-  const lx = cx + 50;
+  const lx = cx - 76;
   line(ctx, lx, bot - 2, lx, bot - 44, OUT, 3);
   line(ctx, lx, bot - 2, lx, bot - 44, WOOD_D, 1.6);
   fillRR(ctx, lx - 6, bot - 56, 12, 14, 3, lit ? LIT : '#ffe8a1', OUT, 1.6);
@@ -731,8 +764,8 @@ defineBuildings({
   tent: {
     paint: paintTent,
     icon: '⛺',
-    box: (b) => [-40, -96, b.w * T + 40, b.h * T + 14],
-    hitUp: () => 60,
+    box: (b) => [-60, -30, b.w * T + 60, b.h * T + 28], // низкий и широкий (Д5)
+    hitUp: () => 10,
     lights: (b) => [[(b.x + b.w / 2) * T, (b.y + b.h) * T - 24, 70, 50, 0.9]],
   },
   pyramid: {

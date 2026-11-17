@@ -27,7 +27,7 @@ import { el, esc, pick, fmtMoney } from '../core/util.js';
 import { drawHamster } from '../art/hamster.js';
 import { NPC_BY_ID, FIND_BY_ID, FOSSIL_IDS, DESERT, LAND_BY_ID, CLOTHES_BY_ID, npcLook, isSunHat } from '../data/index.js';
 import { getLocation } from '../engine/topdown/index.js';
-import { startCamelRide } from '../locations/desert.js';
+import { startCamelRide, CAMEL_GOALS, inShade } from '../locations/desert.js';
 import { paintBus, paintCamel } from '../locations/desert_art.js';
 import { dialog } from '../ui/dialog.js';
 import { openLayer } from '../ui/modals.js';
@@ -175,21 +175,43 @@ export async function pairsGame() {
 }
 
 // ---------- верблюд Финик ----------
-/** Покататься на верблюде (из разговора с Барханом или у привязи): хомячок садится на Финика. */
-export function rideCamel(ctx) {
+/**
+ * Покататься на верблюде (из разговора с Барханом или у привязи): сначала — куда ехать (Д10): по кругу по верблюжьей
+ * тропе или к одному из мест пустыни (Финик довезёт быстрее, чем пешком, и сам вернётся к шатру). p.to — сразу
+ * поехать: 'ring' — по кругу, иначе id места из CAMEL_GOALS (для тестов и кнопок).
+ */
+export async function rideCamel(ctx, p = {}) {
   const sc = (ctx && ctx.scene) || (sceneName() === 'desert' ? getLocation('desert') : null);
-  if (!sc || !startCamelRide(sc)) return false;
+  if (!sc) return false;
+  let to = p.to;
+  if (!to) {
+    const opts = [{ text: '🔄 По кругу, по верблюжьей тропе', cls: 'yellow', to: 'ring' }, ...CAMEL_GOALS.map((g) => ({ text: `${g.icon} ${g.name[0].toUpperCase()}${g.name.slice(1)}`, cls: 'blue', to: g.id })), { text: 'Не сейчас' }];
+    const i = await sayB('Куда поедем? Финик знает в пустыне все тропинки — скажи, куда, и он довезёт!', opts);
+    to = (opts[i] || {}).to;
+    if (!to) return false;
+  }
+  if (!startCamelRide(sc, to === 'ring' ? null : to)) return false;
   sfx('pop');
-  toast('🐫 Держись крепче! Финик идёт по кругу — цок-цок по песку…', 'good');
+  const g = CAMEL_GOALS.find((q) => q.id === to);
+  toast(g ? `🐫 Держись крепче! Финик везёт тебя ${g.name} — цок-цок по песку…` : '🐫 Держись крепче! Финик идёт по кругу — цок-цок по песку…', 'good');
   return true;
 }
-on('desert', ({ what }) => {
+on('desert', ({ what, to }) => {
   if (!S()) return;
-  if (what === 'ride') {
+  if (what === 'ride' && to) {
+    // приехали «куда сказала» (Д10)
+    const g = CAMEL_GOALS.find((q) => q.id === to);
+    sfx('win');
+    award('x_camel', { delay: 900 });
+    toast(`🐫 Приехали${g ? ' ' + g.name : ''}! Финик фыркнул «до встречи» и сам пошёл домой, к шатру.`, 'good');
+  } else if (what === 'ride') {
     sfx('win');
     if (award('x_camel', { delay: 900 })) toast('🐫 Вот это прогулка! Финик доволен и фыркает от радости.', 'good');
     else toast('🐫 Финик довёз тебя обратно к шатру. Прокатимся ещё?', 'good');
   } else if (what === 'mirage') {
+    // мираж — один раз за день (Д8): отошла и вернулась — он снова виден вдали, но «Это мираж!» уже не повторяется
+    if (SD().mirage) return;
+    setDayFlag('mirage', 1, 'desert');
     sfx('magic');
     toast('🏝️ Ой! Озеро с пальмами… исчезло! Это был мираж: в жару воздух дрожит и «рисует» воду вдали.', 'good');
     award('x_mirage', { delay: 1800 });
@@ -330,7 +352,7 @@ const DESERT_ACTS = {
 };
 register(
   'desert',
-  (p, ctx) => DESERT_ACTS[p.arg] && DESERT_ACTS[p.arg](ctx),
+  (p, ctx) => DESERT_ACTS[p.arg] && DESERT_ACTS[p.arg](ctx, p),
   'пустыня: desert:dig | pairs | camel | stars | oasis | well | bell',
 );
 
@@ -343,7 +365,17 @@ on('step', ({ dt }) => {
     heatMin = 0;
   }
   const sc = scene();
-  if (!sc.hot || !sc.hot() || SD().heat) return;
+  if (!sc.hot || !sc.hot()) return;
+  // в тени пальм и в траве у оазиса прохладно (Д7): жара не копится, а первый раз за день — подсказка
+  if (inShade(sc)) {
+    heatMin = Math.max(0, heatMin - dt / 0.3);
+    if (!SD().shade) {
+      setDayFlag('shade', 1, 'desert');
+      toast('🌴 В тени пальм прохладно — хорошо! Здесь можно передохнуть от солнышка.', 'good');
+    }
+    return;
+  }
+  if (SD().heat) return;
   const head = playerLook().outfit.head;
   if (isSunHat(typeof head === 'string' ? CLOTHES_BY_ID[head] : head)) return;
   heatMin += dt / 0.6;

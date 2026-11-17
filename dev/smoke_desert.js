@@ -572,6 +572,9 @@ module.exports = async function desert({ page, step, ev, wait, closeAll }) {
       window.__dev.run('desert:camel');
     });
     await wait(400);
+    // сначала Бархан спрашивает, куда ехать (этап 16, Д10) — «По кругу»
+    await page.click('.dialog .btn >> text=По кругу');
+    await wait(400);
     const r = await ev(() => {
       const sc = window.__dev.locations.desert,
         camel = sc.map.objs.find((o) => o.type === 'camel');
@@ -591,7 +594,7 @@ module.exports = async function desert({ page, step, ev, wait, closeAll }) {
     expect(!after.ride && s.stickers.includes('x_camel') && near(after, { x: 29.5 * T, y: 19.6 * T }, 30), 'прогулка не закончилась', [after, s.stickers]);
     // ещё раз — и слезть кнопкой
     await ev(() => {
-      window.__dev.run('desert:camel');
+      window.__dev.run({ do: 'desert', arg: 'camel', to: 'ring' });
     });
     await wait(500);
     await page.click('.hud-btns.left .rbtn >> text=Слезть');

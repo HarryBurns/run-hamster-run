@@ -1552,7 +1552,9 @@ const TURN = 8.5,
  * @param pose  {dir:1|-1|нет, walk:фаза 0..1|null, time:сек, blink, sleep, happy, armsUp, sit,
  *               clipBelow:y (не рисовать ниже, для воды), shadow:false, lean:false (не наклоняться на ходу),
  *               kick: фаза 0..1 — сидит и болтает ногами (лапки по очереди приподнимаются; без walk),
- *               sneeze: 0..1 — чихает (0–0,45 «а-а-а…», 0,45–0,85 «апчхи!»), null — нет}
+ *               sneeze: 0..1 — чихает (0–0,45 «а-а-а…», 0,45–0,85 «апчхи!»), null — нет,
+ *               fan: время — обмахивается правой лапкой у мордочки (жара в пустыне),
+ *               grip: true — висит, держась обеими лапками за лиану над головой (лапки вверх, вместе)}
  *
  * Направление (dir) показывает ПОЗА, рисунок не зеркалится: мордочка (глаза, нос, рот, усы, щёчки, очки)
  * поворачивается в сторону dir, носки и козырёк кепки смотрят туда же, на ходу хомячок слегка наклоняется
@@ -1635,9 +1637,18 @@ export function drawHamster(ctx, x, y, s, look, pose = {}) {
   const swing = walking ? Math.sin(t * TAU) * 0.25 : 0;
   for (const sx of [-1, 1]) {
     ctx.save();
-    if (pose.armsUp) {
+    if (pose.grip) {
+      // висит на лапках: обе лапки прямо вверх, ладошки сходятся над головой — там, где лиана
+      ctx.translate(sx * 17, -46);
+      ctx.rotate(sx * 2.92);
+      ctx.scale(1, 1.25);
+    } else if (pose.armsUp) {
       ctx.translate(sx * 25, -42);
       ctx.rotate(sx * 2.4);
+    } else if (typeof pose.fan === 'number' && sx === 1) {
+      // обмахивается: правая лапка у щеки машет туда-сюда, как веером
+      ctx.translate(24, -40);
+      ctx.rotate(2.2 + Math.sin(pose.fan * 14) * 0.45);
     } else {
       ctx.translate(sx * 23, -30);
       ctx.rotate(sx * -0.35 + swing);

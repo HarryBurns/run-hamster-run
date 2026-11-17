@@ -16,13 +16,13 @@
 // чёрточка за раз). Свои музыка и ветер (sound → features/soundscape.js); у верблюда, когда бубенчик нашёлся, —
 // звон бубенчика (колокольчики, как у коров на горе). Днём без шляпы жарко — крюк hot (добрая подсказка —
 // features/desert.js).
-import { G, questNow } from '../core/state.js';
+import { G, questNow, playerLook } from '../core/state.js';
 import { emit } from '../core/events.js';
 import { keys } from '../core/input.js';
 import { clamp, seeded } from '../core/util.js';
 import { drawHamster, blinkAt } from '../art/hamster.js';
-import { DESERT, DESERT_GATHER, QUEST_BY_ID } from '../data/index.js';
-import { T, PS, SP, put, createTopDownScene } from '../engine/topdown/index.js';
+import { DESERT, DESERT_GATHER, QUEST_BY_ID, CLOTHES_BY_ID, isSunHat } from '../data/index.js';
+import { T, PS, SP, put, hash, createTopDownScene } from '../engine/topdown/index.js';
 import { createPlants } from './common/plants.js';
 import './desert_art.js';
 import './common/index.js';
@@ -284,33 +284,100 @@ function sealPockets(m) {
 
 // ---------- катание на верблюде: хомячок верхом на Финике, круг по верблюжьей тропе ----------
 let riding = false,
-  rideT = 0;
+  rideT = 0,
+  rideTo = null; // куда везёт Финик (Д10): null — по кругу; иначе { id, x, y } — к месту, а потом сам домой
+/** Куда может отвезти Финик (Д10): где сойти (клетки) и как это место называется. */
+export const CAMEL_GOALS = [
+  { id: 'pyramid', icon: '🔺', name: 'к пирамиде', at: [8.5, 10.6] },
+  { id: 'dig', icon: '🦴', name: 'к раскопкам', at: [34.5, 11.2] },
+  { id: 'stars', icon: '🌠', name: 'на Звёздный бархан', at: [21.5, 5.8] },
+  { id: 'well', icon: '🪣', name: 'к старому колодцу', at: [9.5, 32.8] },
+  { id: 'stop', icon: '🚌', name: 'к остановке каравана', at: [21.5, 37.4] },
+];
 const isRiding = (sc) => !!(sc.p.ride && sc.p.ride.camel);
 /** Сесть на верблюда: способ передвижения ride — хомячок сам не ходит, верблюд везёт его по кругу. */
-export function startCamelRide(sc) {
+export function startCamelRide(sc, to = null) {
   if (isRiding(sc)) return false;
   const p = sc.p;
   p.path = [];
   p.pending = null;
   riding = true;
   rideT = 0;
-  placeOnRing(p, 0);
+  const goal = to && CAMEL_GOALS.find((g) => g.id === to);
+  rideTo = goal ? { id: goal.id, x: goal.at[0] * T, y: goal.at[1] * T } : null;
+  if (rideTo) {
+    // к месту: Финик идёт сам, по тропам и барханам — быстрее, чем пешком
+    p.x = (AT.camel[0] + 0.5) * T;
+    p.y = (AT.camel[1] + 1.2) * T;
+    p.dir = -1;
+  } else placeOnRing(p, 0);
   p.ride = {
     camel: true,
-    speed: 0,
-    pass: () => false,
+    speed: rideTo ? DESERT.camelSpeed : 0,
+    pass: rideTo ? (tx, ty) => sc.map.foot(tx, ty) && !TILE_WET.has(sc.map.at(tx, ty)) : () => false,
     draw(ctx, _sc, e, t, look) {
       const leg = 1 + (Math.floor(t * 4) % 2);
       put('camel', e.x, e.y + 8, e.dir || 1, leg);
       SP.world(); // спрайт рисуется в пикселях устройства — дальше снова координаты мира
-      const sx = e.x - (e.dir || 1) * 4,
-        sy = e.y - 38 + (leg === 1 ? -1.5 : 0);
-      drawHamster(ctx, sx, sy, PS * 0.86, look, { time: t, dir: e.dir || 1, clipBelow: -24, happy: true, blink: blinkAt(t) });
+      drawRider(ctx, e.x, e.y, e.dir || 1, leg, t, look);
     },
     drop: (s) => endCamelRide(s),
   };
+  if (rideTo && !sc.walkTo(rideTo.x, rideTo.y, true)) {
+    endCamelRide(sc);
+    return false;
+  }
   return true;
 }
+const TILE_WET = new Set(['oasisWater']);
+/**
+ * Хомячок верхом (Д12): сидит на самой макушке горба, в седле — поверх неё попона с кисточками, из-под попоны
+ * свешивается лапка. Горб в спрайте верблюда — над точкой x = −4 (по ходу), его верх на 60 выше копыт.
+ */
+function drawRider(ctx, x, y, dir, leg, t, look) {
+  const hx = x - dir * 4,
+    up = leg === 1 ? -1.5 : 0;
+  drawHamster(ctx, hx, y - 44 + up, PS * 0.86, look, { time: t, dir, clipBelow: -18, happy: true, blink: blinkAt(t) });
+  // седло — мягкая подушка на горбе с жёлтой каймой и кисточками; хомячок сидит в нём
+  ctx.save();
+  ctx.translate(hx, y + up);
+  ctx.scale(dir, 1);
+  ctx.beginPath();
+  ctx.moveTo(-18, -58);
+  ctx.quadraticCurveTo(0, -61, 18, -58);
+  ctx.quadraticCurveTo(21, -51, 17, -48);
+  ctx.lineTo(-17, -48);
+  ctx.quadraticCurveTo(-21, -51, -18, -58);
+  ctx.closePath();
+  ctx.fillStyle = '#c2255c';
+  ctx.fill();
+  ctx.strokeStyle = '#4a3728';
+  ctx.lineWidth = 1.8;
+  ctx.stroke();
+  ctx.strokeStyle = '#ffd43b';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(-16, -53);
+  ctx.lineTo(16, -53);
+  ctx.stroke();
+  ctx.fillStyle = '#ffd43b';
+  for (let i = 0; i < 5; i++) ctx.fillRect(-15 + i * 7, -49, 2.6, 4);
+  // лапка свешивается сбоку горба — сидит верхом
+  ctx.fillStyle = look.fur || '#fff';
+  ctx.beginPath();
+  ctx.ellipse(6, -43, 4.5, 6.5, 0.2, 0, 6.2832);
+  ctx.fill();
+  ctx.strokeStyle = '#4a3728';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+  ctx.restore();
+}
+const ell2 = (ctx, x, y, rx, ry, c) => {
+  ctx.fillStyle = c;
+  ctx.beginPath();
+  ctx.ellipse(x, y, rx, ry, 0, 0, 6.2832);
+  ctx.fill();
+};
 /** Точка на верблюжьей тропе: k — доля круга (0 — внизу, у шатра). */
 function placeOnRing(p, k) {
   const [cx, cy, rx, ry] = AT.ring,
@@ -325,16 +392,31 @@ function placeOnRing(p, k) {
 /** Слезть с верблюда (круг пройден — событие ride). false — хомячок и так не на верблюде. */
 export function endCamelRide(sc, done = false) {
   if (!isRiding(sc)) return false;
-  sc.p.ride = null;
+  const p = sc.p,
+    to = rideTo;
+  p.ride = null;
+  p.path = [];
   riding = false;
-  sc.p.x = (AT.camel[0] + 0.5) * T;
-  sc.p.y = (AT.camel[1] + 1.6) * T;
+  rideTo = null;
+  if (to) {
+    // слезла там, куда приехали (или где остановились), — Финик сам идёт домой, к шатру
+    p.y += T * 0.5;
+    if (!sc.map.foot(Math.floor(p.x / T), Math.floor(p.y / T))) p.y -= T * 0.5;
+    if (done) emit('desert', { what: 'ride', to: to.id });
+    return true;
+  }
+  p.x = (AT.camel[0] + 0.5) * T;
+  p.y = (AT.camel[1] + 1.6) * T;
   if (done) emit('desert', { what: 'ride' });
   return true;
 }
 function updateRide(sc, dt) {
   if (!isRiding(sc)) {
     riding = false;
+    return;
+  }
+  if (rideTo) {
+    if (!sc.p.path.length) endCamelRide(sc, Math.hypot(sc.p.x - rideTo.x, sc.p.y - rideTo.y) < T * 1.2);
     return;
   }
   rideT += dt;
@@ -359,6 +441,75 @@ function updateMirage(sc) {
 /** Насколько виден мираж: вдали — почти целиком, ближе 3 клеток — нет совсем. */
 export const mirageAlpha = (sc) =>
   daytime(sc) ? clamp((Math.hypot(sc.p.x - MIRAGE_X, sc.p.y - MIRAGE_Y) - T * 3) / (T * 6), 0, 0.85) : 0;
+
+// ---------- жара без штрафов (Д7): в тени пальм прохладно; на солнце без шляпы хомячок обмахивается лапкой ----------
+let palms = [];
+/** Стоит ли хомячок в тени пальмы (ближе полутора клеток к стволу) или в траве оазиса у воды. */
+export const inShade = (sc) => palms.some(([x, y]) => Math.hypot(sc.p.x - x, sc.p.y - y) < T * 1.5) || sc.map.at(Math.floor(sc.p.x / T), Math.floor(sc.p.y / T)) === 'g';
+/** Жарко ли хомячку прямо сейчас: день, на солнце и без шляпы от солнца. */
+export function feelsHot(sc) {
+  if (!daytime(sc) || inShade(sc)) return false;
+  const head = playerLook().outfit.head;
+  return !isSunHat(typeof head === 'string' ? CLOTHES_BY_ID[head] : head);
+}
+
+// ---------- звёздное небо ночью (Д6): чёткие точки-звёзды поверх кадра (в экранных координатах), мерцают ----------
+const STARS = Array.from({ length: 90 }, (_, i) => ({ x: hash(i, 1), y: hash(2, i), r: 1.1 + hash(i, 3) * 1.3, tw: hash(i, 4) * 6.3, big: hash(i, 5) > 0.9 }));
+function drawStars(ctx, sc, w, h, t, k) {
+  // небо чуть сдвигается вслед за камерой, но медленнее земли — оно далеко
+  const ox = sc.cam.x * 0.05,
+    oy = sc.cam.y * 0.05;
+  ctx.save();
+  ctx.fillStyle = `rgba(255,255,245,${k.toFixed(3)})`;
+  ctx.beginPath();
+  for (const q of STARS) {
+    const tw = 0.65 + Math.sin(t * 1.7 + q.tw) * 0.35,
+      x = ((((q.x * w - ox) % w) + w) % w),
+      y = ((((q.y * h - oy) % h) + h) % h),
+      r = q.r * tw;
+    ctx.moveTo(x + r, y);
+    ctx.arc(x, y, r, 0, 6.2832);
+    if (q.big) {
+      // яркие — с лучиками
+      const l = 7 * tw;
+      ctx.moveTo(x - l, y);
+      ctx.lineTo(x, y - 0.8);
+      ctx.lineTo(x + l, y);
+      ctx.lineTo(x, y + 0.8);
+      ctx.closePath();
+      ctx.moveTo(x, y - l);
+      ctx.lineTo(x + 0.8, y);
+      ctx.lineTo(x, y + l);
+      ctx.lineTo(x - 0.8, y);
+      ctx.closePath();
+    }
+  }
+  ctx.fill();
+  ctx.restore();
+}
+/** Свечение звёзд в слое неба (поверх ночной темноты): маленькое мягкое пятнышко под каждой чёткой точкой. */
+function drawStarGlow(c, sc, lw, lh, t, k) {
+  const w = G.view.w,
+    h = G.view.h,
+    kx = (lw - 1) / w,
+    ky = (lh - 1) / h,
+    ox = sc.cam.x * 0.05,
+    oy = sc.cam.y * 0.05;
+  c.save();
+  c.globalCompositeOperation = 'lighter';
+  c.fillStyle = `rgba(255,255,235,${(0.85 * k).toFixed(3)})`;
+  c.beginPath();
+  for (const q of STARS) {
+    const tw = 0.65 + Math.sin(t * 1.7 + q.tw) * 0.35,
+      x = ((((q.x * w - ox) % w) + w) % w) * kx,
+      y = ((((q.y * h - oy) % h) + h) % h) * ky,
+      r = (q.big ? 1 : 0.6) * tw;
+    c.moveTo(x + r, y);
+    c.arc(x, y, r, 0, 6.2832);
+  }
+  c.fill();
+  c.restore();
+}
 
 // ---------- перекати-поле и звездопад ----------
 const WEEDS = [
@@ -494,6 +645,7 @@ const desert = createTopDownScene({
   parts: [plants],
   built(sc) {
     sealPockets(sc.map);
+    palms = sc.map.objs.filter((o) => o.type === 'palm').map((o) => [o.x, o.y]);
   },
   enter(sc) {
     mirageNear = false;
@@ -503,10 +655,16 @@ const desert = createTopDownScene({
   /** Днём — жаркое марево в слое неба. */
   sky(c, sc, lw, lh) {
     if (daytime(sc)) drawHaze(c, lw, lh, G.time);
+    const dk = sc.darkness();
+    if (dk > 0.4) drawStarGlow(c, sc, lw, lh, G.time, Math.min(1, (dk - 0.4) / 0.3));
   },
-  /** Ночью падают звёзды. */
+  /** Жарко на солнце без шляпы — стоит и обмахивается лапкой (без штрафов, только картинка). */
+  heroPose: (sc, ent, t) => (!ent.moving && feelsHot(sc) ? { fan: t } : null),
+  /** Ночью — звёздное небо и падающие звёзды. */
   overlay(ctx, sc, w, h) {
-    if (sc.darkness() > 0.5) drawShootingStar(ctx, w, h, G.time);
+    const dk = sc.darkness();
+    if (dk > 0.4) drawStars(ctx, sc, w, h, G.time, Math.min(1, (dk - 0.4) / 0.3)); // звёздное небо (Д6)
+    if (dk > 0.5) drawShootingStar(ctx, w, h, G.time);
   },
   things(sc, add, v) {
     // мираж вдали (тает, когда подходишь)

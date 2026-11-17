@@ -412,6 +412,9 @@ function drawHero(ctx, sc, look, ent, t) {
   const kind = TILES[ent.surf] || {},
     swim = kind.swim;
   const pose = { time: t, dir: faceDir(ent), walk: ent.moving ? ent.walkT : null, blink: blinkAt(t, 0), sneeze: sneezePhase() };
+  // крюк локации heroPose(sc, ent, t): добавить позе своё (в пустыне в жару — обмахивается лапкой)
+  const more = sc.first('heroPose', sc, ent, t);
+  if (more) Object.assign(pose, more);
   if (swim) {
     pose.clipBelow = swim.clip;
     pose.walk = ent.walkT;
