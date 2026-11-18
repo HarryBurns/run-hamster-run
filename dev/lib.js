@@ -118,6 +118,9 @@ function lib(ctx) {
     await answer(txt);
     await settle(await snapshot(), ms);
   };
+  /** Приехали: сцена name (если дана), затемнения и картинки поездки (.fade: караван, кораблик, канатка) уже нет. */
+  const untilArrive = (name, timeout = 9000) =>
+    until((n) => (!n || window.__dev.sceneName === n) && !document.querySelector('.fade'), name || '', { timeout, msg: 'приехали ' + (name || '') });
   const untilNoWindows = (timeout) =>
     until(() => !document.querySelector('.overlay, .dialog, #mg, .fade'), undefined, { timeout, msg: 'все окна закрыты' });
   /** Хомячок в локации дошёл, куда шла (путь пуст, отложенного дела нет). */
@@ -450,6 +453,7 @@ function lib(ctx) {
     reply,
     answer,
     untilNoWindows,
+    untilArrive,
     untilIdle,
     snapshot,
     settle,
