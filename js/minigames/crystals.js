@@ -6,6 +6,7 @@
 // Проигрыша нет. Монеты и самоцветы по звёздам выдаёт занятие (features/caves.js).
 import { el, clamp } from '../core/util.js';
 import { ell, poly, fillRR, line } from '../core/draw.js';
+import { pic as kitPic } from './kit.js';
 
 const STRIKES = 15;
 const OUT = '#4a3728';
@@ -72,16 +73,7 @@ function bar(ctx, x, y, w, h, z0, z1, g0, g1, pos, flash = 0) {
 }
 
 /** Маленькая картинка для правил (data: URL). */
-function pic(draw, w = 120, h = 50) {
-  const c = document.createElement('canvas');
-  c.width = w * 2;
-  c.height = h * 2;
-  const x = c.getContext('2d');
-  x.scale(2, 2);
-  x.lineJoin = 'round';
-  draw(x, w, h);
-  return `<img src="${c.toDataURL()}" width="${w}" height="${h}" alt="">`;
-}
+const pic = (draw, w = 120, h = 50) => kitPic(draw, w, h);
 
 const CSS = `
 .cr-rules{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin:8px 0 2px}
@@ -98,8 +90,9 @@ export default {
   id: 'crystals',
   title: 'Кристаллы',
   icon: '💎',
+  css: CSS,
   get howTo() {
-    return `<style>${CSS}</style>По полоске бегает кирка. <b>Стучи, когда она над зелёным!</b>
+    return `По полоске бегает кирка. <b>Стучи, когда она над зелёным!</b>
       <div class="cr-rules">
         <div class="cr-col"><b>✅ Зелёное</b>${pic((c, w, h) => bar(c, 6, 20, w - 12, 18, 0.3, 0.7, 0.45, 0.55, 0.36))}<small>дзынь! — кристалл</small></div>
         <div class="cr-col gold"><b>⭐ Серединка</b>${pic((c, w, h) => bar(c, 6, 20, w - 12, 18, 0.3, 0.7, 0.45, 0.55, 0.5))}<small>золото — два кристалла!</small></div>
@@ -112,22 +105,17 @@ export default {
       Мимо — не страшно, просто «тук». ${STRIKES} ударов — добудь побольше!`;
   },
   start(host) {
-    const root = host.root;
-    const style = el('style', '', CSS);
     const top = el('div', 'cr-top');
     const tLeft = el('div', 'cr-chip'),
       tGot = el('div', 'cr-chip');
     top.append(tLeft, tGot);
-    root.append(style, top);
+    host.add(top);
     const cv = host.canvas();
     const ctx = cv.ctx;
     const level = host.level || 0;
     // у жилы хомячок всегда в каске шахтёра (только на время игры — наряд не меняется)
     const look = { ...host.look, outfit: { ...host.look.outfit, head: { kind: 'helmet', c: '#ffd43b', c2: '#e8a400' } } };
     let t = 0,
-      last = performance.now(),
-      raf = 0,
-      stopped = false,
       over = false,
       left = STRIKES,
       got = 0,
@@ -137,7 +125,7 @@ export default {
       flash = 0,
       gold = 0;
     const zone = { c: 0.5, w: 0.24, g: 0.08 };
-    const pops = [],
+    const pops = host.pops({ line: 5 }),
       chips = [];
     const pos = () => (phase < 1 ? phase : 2 - phase);
     const zoneAt = () => ({
@@ -172,7 +160,7 @@ export default {
         host.sfx(n === 2 ? 'win' : 'clink');
         flash = 0.25;
         if (n === 2) gold++;
-        pops.push({ text: n === 2 ? 'Отлично! +2' : 'Дзынь! +1', col: n === 2 ? '#f08c00' : '#2b8a3e', x: v.x, y: v.y - 120 * s, t: 0 });
+        pops.add(n === 2 ? 'Отлично! +2' : 'Дзынь! +1', v.x, v.y - 120 * s, n === 2 ? '#f08c00' : '#2b8a3e');
         for (let i = 0; i < n * 3; i++)
           chips.push({
             x: v.x + (Math.random() - 0.5) * 60 * s,
@@ -184,7 +172,7 @@ export default {
           });
       } else {
         host.sfx('thud');
-        pops.push({ text: 'Тук!', col: '#868e96', x: v.x, y: v.y - 110 * s, t: 0 });
+        pops.add('Тук!', v.x, v.y - 110 * s, '#868e96');
       }
       // зона переезжает, становится чуть уже
       zone.w = Math.max(0.15, 0.24 - (STRIKES - left) * 0.006 - level * 0.01);
@@ -192,7 +180,7 @@ export default {
       let c = zone.c;
       for (let k = 0; k < 6 && Math.abs(c - zone.c) < 0.2; k++) c = 0.15 + Math.random() * 0.7;
       zone.c = c;
-      if (left <= 0) setTimeout(finish, 650);
+      if (left <= 0) host.later(finish, 650);
     }
 
     // ---------- управление ----------
@@ -200,14 +188,14 @@ export default {
       e.preventDefault();
       strike();
     };
-    cv.canvas.addEventListener('pointerdown', down);
+    host.on(cv.canvas, 'pointerdown', down);
     const kd = (e) => {
       if (['Space', 'Enter', 'NumpadEnter', 'ArrowDown', 'KeyE'].includes(e.code)) {
         e.preventDefault();
         if (!e.repeat) strike();
       }
     };
-    window.addEventListener('keydown', kd);
+    host.on(window, 'keydown', kd);
     // для автотеста (dev/smoke_caves.js): где кирка, где зона, сколько ударов осталось
     cv.canvas.__crystals = () => ({ pos: pos(), ...zoneAt(), left, got, gold, ready: cool <= 0 && !over });
 
@@ -217,8 +205,7 @@ export default {
       cool = Math.max(0, cool - dt);
       swing = Math.max(0, swing - dt * 4);
       flash = Math.max(0, flash - dt);
-      for (const p of pops) p.t += dt;
-      for (let i = pops.length - 1; i >= 0; i--) if (pops[i].t > 1) pops.splice(i, 1);
+      pops.step(dt);
       for (const c of chips) {
         c.t += dt;
         c.x += c.vx * dt;
@@ -296,31 +283,17 @@ export default {
         crystal(ctx, c.x, c.y, 16 * s, c.t * 8, c.c, 4 * s);
       }
       ctx.globalAlpha = 1;
-      ctx.textAlign = 'center';
-      ctx.font = `900 ${Math.round(22 * s)}px ui-rounded, "Trebuchet MS", sans-serif`;
-      for (const p of pops) {
-        ctx.globalAlpha = Math.max(0, 1 - p.t);
-        ctx.lineWidth = 5;
-        ctx.strokeStyle = '#fff';
-        ctx.strokeText(p.text, p.x, p.y - p.t * 30);
-        ctx.fillStyle = p.col;
-        ctx.fillText(p.text, p.x, p.y - p.t * 30);
-      }
-      ctx.globalAlpha = 1;
+      pops.draw(ctx, Math.round(22 * s));
     }
 
-    function frame(now) {
-      if (stopped) return;
-      const dt = Math.min(0.05, (now - last) / 1000);
-      last = now;
+    host.loop((dt) => {
       if (!over) update(dt);
       tLeft.textContent = `⛏️ ${left}`;
       tGot.textContent = `💎 ${got}`;
       draw();
-      raf = requestAnimationFrame(frame);
-    }
+    });
     function finish() {
-      if (over || stopped) return;
+      if (over) return;
       over = true;
       const stars = got >= CRYSTAL_STARS[1] ? 3 : got >= CRYSTAL_STARS[0] ? 2 : 1;
       host.finish({
@@ -329,17 +302,5 @@ export default {
         extra: { got, gold },
       });
     }
-    raf = requestAnimationFrame(frame);
-    return {
-      stop() {
-        stopped = true;
-        cancelAnimationFrame(raf);
-        cv.canvas.removeEventListener('pointerdown', down);
-        window.removeEventListener('keydown', kd);
-        if (cv.destroy) cv.destroy();
-        style.remove();
-        top.remove();
-      },
-    };
   },
 };
