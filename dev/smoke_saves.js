@@ -4,10 +4,10 @@
 // Подключается из dev/smoke.js. Только эти шаги:  node dev/smoke.js <url> "step:надёжность:"
 const fs = require('fs');
 
-module.exports = async function saves({ page, step, ev, wait, closeAll }) {
-  const expect = (ok, msg, data) => {
-    if (!ok) throw new Error(msg + (data === undefined ? '' : ': ' + JSON.stringify(data)));
-  };
+const lib = require('./lib.js');
+
+module.exports = async function saves(ctx) {
+  const { page, step, ev, wait, closeAll, expect, fresh: newGame, act, sel, until, cont } = lib(ctx);
   const panelTitles = (p = page) => p.evaluate(() => [...document.querySelectorAll('.overlay .panel-head .title')].map((e) => e.textContent).join('|'));
   const sub = () => ev(() => [...document.querySelectorAll('#title .sub')].map((e) => e.textContent).join(' | '));
   /** Стереть всё, что игра хранит в браузере: localStorage и базу снимков. */
@@ -21,23 +21,15 @@ module.exports = async function saves({ page, step, ev, wait, closeAll }) {
   };
   const fresh = async (name) => {
     await wipe();
-    await page.reload();
-    await wait(400);
-    if (name) await page.fill('#title input', name);
-    await page.click('text=Играть!');
-    await page.click('text=Пропустить');
-    await page.evaluate(() => window.__dev.actions.setFlag('intro', 0));
-    await wait(400);
-    await page.click('text=Поехали!');
-    await wait(500);
-    await closeAll();
+    await newGame({ name });
   };
+  /** Окон стало не больше n (закрылось верхнее). */
+  const untilWindows = (n) => until((n) => document.querySelectorAll('.overlay').length <= n, n, { timeout: 3000 }).catch(() => {});
   /** Выйти на заставку: сохраниться и перезагрузить страницу. */
   const toTitle = async () => {
     await ev(() => window.dispatchEvent(new Event('pagehide')));
     await page.reload();
     await page.waitForSelector('#title .t-menu button', { timeout: 8000 });
-    await wait(300);
   };
   const photos = (gid) =>
     ev(async (gid) => {
@@ -87,8 +79,7 @@ module.exports = async function saves({ page, step, ev, wait, closeAll }) {
     await ev(([gid, old]) => localStorage.setItem('rhr-photos-' + gid, JSON.stringify([{ ...old, id: 'old1' }])), [gid, old]);
     await toTitle(); // при запуске игра сама переносит снимки в базу
     await page.waitForFunction(() => !Object.keys(localStorage).some((k) => k.startsWith('rhr-photos-')), null, { timeout: 5000 });
-    await page.click('text=Продолжить');
-    await wait(600);
+    await cont();
     await closeAll();
     let ph = await photos();
     expect(ph.store === 'idb', 'IndexedDB не работает — снимки идут запасным путём', ph);
@@ -101,8 +92,7 @@ module.exports = async function saves({ page, step, ev, wait, closeAll }) {
     expect(ph.caps.join() === 'Старый снимок,Новый снимок' && !ph.ls.length, 'снимки после записи', ph);
     expect(!/data:image/.test(await ev(() => JSON.stringify(Object.entries(localStorage)))), 'снимок лежит в localStorage');
     await toTitle();
-    await page.click('text=Продолжить');
-    await wait(600);
+    await cont();
     await closeAll();
     // альбом после перезагрузки показывает оба снимка
     await ev(() => window.__dev.F.openAlbum('ph'));
@@ -131,7 +121,7 @@ module.exports = async function saves({ page, step, ev, wait, closeAll }) {
     const shot = await snap('Море');
     await ev(async (shot) => (await import('/js/core/photos.js')).addPhoto(shot), shot);
     await toTitle();
-    await page.click('text=Мои игры');
+    await act('games');
     await page.waitForSelector('.g-card', { timeout: 4000 });
     const hint = await page.locator('.g-hint').innerText();
     expect(/Для взрослых/.test(hint) && /Safari/.test(hint) && /Сохранить в файл/.test(hint), 'нет подсказки для взрослых', hint);
@@ -152,25 +142,26 @@ module.exports = async function saves({ page, step, ev, wait, closeAll }) {
     await page.waitForSelector('#title .t-import', { timeout: 8000 });
     const pick = async (selector, payload) => {
       const [fc] = await Promise.all([page.waitForEvent('filechooser', { timeout: 8000 }), page.click(selector)]);
+      const n = await ev(() => document.querySelectorAll('.overlay').length);
       await fc.setFiles(payload);
-      await wait(700);
+      await until((n) => document.querySelectorAll('.overlay').length > n, n, { timeout: 4000 }).catch(() => {}); // окно «загружена» или «не получилось»
     };
     await pick('#title .t-import', { name: fname, mimeType: 'application/json', buffer: fs.readFileSync(file) });
     expect(/Игра загружена/.test(await panelTitles()), 'нет окна «Игра загружена!»', await panelTitles());
     const okText = await ev(() => document.querySelector('.overlay .panel-body').textContent);
     expect(/Ириска/.test(okText) && /снимки/.test(okText), 'окно не говорит, чья игра и про снимки', okText);
     await page.click('.overlay button:has-text("Ура!")');
-    await wait(300);
+    await until(() => /С возвращением/.test(document.querySelector('#title').textContent), undefined, { timeout: 3000 }).catch(() => {});
     expect(/С возвращением, Ириска/.test(await sub()), 'загруженная игра не стала последней', await sub());
     const st = await ev(() => ({ n: window.__dev.games.listGames().length, money: window.__dev.G.state.money, gid: window.__dev.G.state.gid }));
     expect(st.n === 1 && st.money === 4321, 'загруженная игра', st);
     expect((await photos(st.gid)).caps.join() === 'Море', 'снимки из файла не вернулись', await photos(st.gid));
     // второй раз тот же файл — добавляется ещё одна игра, первая не тронута; плохой файл — окно, ничего не меняется
-    await page.click('text=Мои игры');
+    await act('games');
     await page.waitForSelector('.g-card', { timeout: 4000 });
     await pick('.panel-foot button:has-text("Загрузить из файла")', { name: fname, mimeType: 'application/json', buffer: fs.readFileSync(file) });
     await page.click('.overlay button:has-text("Ура!")');
-    await wait(300);
+    await until(() => document.querySelectorAll('.g-card').length === 2, undefined, { timeout: 3000 }).catch(() => {});
     expect((await page.locator('.g-card').count()) === 2, 'вторая загрузка не добавила игру', await page.locator('.g-card').count());
     const before = await ev(() => JSON.stringify(Object.entries(localStorage).sort()));
     for (const bad of ['это не игра', '{"app":"rhr-game","save":{"v":"x"}}']) {
@@ -178,14 +169,14 @@ module.exports = async function saves({ page, step, ev, wait, closeAll }) {
       const t = await ev(() => [...document.querySelectorAll('.overlay')].pop().textContent);
       expect(/Не получилось загрузить/.test(t) && /кот\.json/.test(t) && /Твои игры целы/.test(t), 'плохой файл: нет понятного окна', t);
       await page.click('.overlay button:has-text("Понятно") >> nth=-1');
-      await wait(300);
+      await untilWindows(1); // осталось окно «Мои игры»
     }
     const newer = JSON.stringify({ ...data, build: 99999 });
     await pick('.panel-foot button:has-text("Загрузить из файла")', { name: fname, mimeType: 'application/json', buffer: Buffer.from(newer) });
     const t = await ev(() => [...document.querySelectorAll('.overlay')].pop().textContent);
     expect(/более новой игре/.test(t) && /Обнови/.test(t), 'файл новее игры: нет понятного окна', t);
     await page.click('.overlay button:has-text("Потом")');
-    await wait(300);
+    await untilWindows(1);
     expect((await ev(() => JSON.stringify(Object.entries(localStorage).sort()))) === before, 'плохой файл изменил хранилище');
     await closeAll();
     await wipe();
@@ -201,7 +192,7 @@ module.exports = async function saves({ page, step, ev, wait, closeAll }) {
     const tab2 = await openTab();
     await tab2.waitForSelector('#title .t-menu button', { timeout: 8000 });
     expect((await ev(() => document.querySelectorAll('.overlay').length)) === 0, 'окно появилось, хотя во второй вкладке ещё не играют');
-    await tab2.click('text=Продолжить');
+    await tab2.click(sel('continue'));
     await page.waitForSelector('.overlay:has-text("Игра открыта дважды")', { timeout: 6000 });
     // первая вкладка больше ничего не пишет
     await tab2.evaluate(() => window.__dev.actions.mutate((s) => (s.money = 2000)));
@@ -214,8 +205,7 @@ module.exports = async function saves({ page, step, ev, wait, closeAll }) {
     await closeTab(tab2);
     await page.click('.overlay button:has-text("Играть здесь")');
     await page.waitForSelector('#title .t-menu button', { timeout: 8000 });
-    await page.click('#title >> text=Продолжить');
-    await wait(500);
+    await cont();
     expect((await ev(() => window.__dev.G.state.money)) === 2000, 'после «Играть здесь» открылась не последняя запись', await ev(() => window.__dev.G.state.money));
     // и наоборот: теперь, если игру продолжат в другой вкладке, окно получит та, что играла раньше, — проверено выше
     await closeAll();
@@ -252,7 +242,6 @@ module.exports = async function saves({ page, step, ev, wait, closeAll }) {
     // «Обновить»: страница та же (код «старый») — заставка не открывает игру и просит обновить, сохранение цело
     await page.click('.overlay button:has-text("Обновить")');
     await page.waitForSelector('#title .t-menu button', { timeout: 8000 });
-    await wait(300);
     expect(/Игра обновилась/.test(await sub()) && (await page.locator('#title button:has-text("Обновить")').count()) === 1, 'заставка не просит обновить страницу', await sub());
     expect((await page.locator('#title button:has-text("Продолжить")').count()) === 0, 'игру более новой сборки можно «Продолжить»');
     expect((await ev(() => localStorage.getItem('rhr-save-v1'))) === newer, 'заставка изменила сохранение более новой игры');
