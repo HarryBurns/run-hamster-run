@@ -103,16 +103,7 @@ export default {
   start(host) {
     const root = host.root;
     const level = host.level || 0;
-    let stopped = false,
-      raf = 0;
-    const timers = new Set();
-    const later = (fn, ms) => {
-      const id = setTimeout(() => {
-        timers.delete(id);
-        if (!stopped) fn();
-      }, ms);
-      timers.add(id);
-    };
+    const { later } = host;
 
     // --- задания
     const wrongCount = pick([4, 5, 5, 6]);
@@ -132,7 +123,8 @@ export default {
 
     // --- разметка
     const wrap = el('div', 'tch tall');
-    wrap.innerHTML = `<style>${CSS}</style>
+    host.css(CSS);
+    wrap.innerHTML = `
       <div class="tch-top"><div class="tch-count"></div><div class="tch-marks"></div></div>
       <div class="tch-mid">
         <div class="tch-boardwrap">
@@ -144,7 +136,7 @@ export default {
         <button class="btn big green tch-yes">✔ Верно</button>
         <button class="btn big no tch-no">✘ Ошибка</button>
       </div>`;
-    root.appendChild(wrap);
+    host.add(wrap);
     const $ = (s) => wrap.querySelector(s);
     const countEl = $('.tch-count'),
       marksEl = $('.tch-marks');
@@ -209,7 +201,7 @@ export default {
     }
 
     function answer(saysCorrect) {
-      if (phase !== 'ask' || stopped) return;
+      if (phase !== 'ask') return;
       const t = tasks[idx];
       const right = saysCorrect === !t.isWrong;
       phase = 'react';
@@ -268,7 +260,7 @@ export default {
         answer(false);
       }
     };
-    window.addEventListener('keydown', onKey);
+    host.on(window, 'keydown', onKey);
 
     // --- подгонка размеров
     const fit = () => {
@@ -288,14 +280,11 @@ export default {
       wrap.style.setProperty('--bl', clamp(Math.min(ex * 0.85, boardW / 8), 14, 50) + 'px');
     };
     fit();
-    const ro = new ResizeObserver(fit);
-    ro.observe(root);
+    host.onResize(fit);
 
     // --- анимация хомячков
-    const t0 = performance.now();
-    const frame = (ts) => {
-      if (stopped) return;
-      now = (ts - t0) / 1000;
+    host.loop((_, time) => {
+      now = time; // время игры: на скрытой вкладке стоит вместе с таймерами
       const blink = now % 3.4 < 0.13;
       // учительница
       const c1 = tea.ctx;
@@ -318,22 +307,9 @@ export default {
       });
       fillRR(c2, 6, 108, 138, 30, 8, '#c98b5a', '#4a3728', 2);
       fillRR(c2, 12, 113, 126, 5, 2, '#e0a877');
-      raf = requestAnimationFrame(frame);
-    };
-    raf = requestAnimationFrame(frame);
+    });
 
     showTask();
 
-    return {
-      stop() {
-        stopped = true;
-        cancelAnimationFrame(raf);
-        timers.forEach(clearTimeout);
-        timers.clear();
-        window.removeEventListener('keydown', onKey);
-        ro.disconnect();
-        wrap.remove();
-      },
-    };
   },
 };
