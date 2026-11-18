@@ -25,7 +25,7 @@ module.exports = async function build(ctx) {
         /BUILD\s*=\s*(\d+)/.exec(fs.readFileSync(path.join(__dirname, '..', 'js/data/build.js'), 'utf8'))[1],
       );
       const js = urls.filter((u) => /\/js\/.*\.js(\?|$)/.test(u));
-      const plain = js.filter((u) => !u.endsWith('?v=' + BUILD) && !u.endsWith('/js/data/build.js')); // build.js читает запуск
+      const plain = js.filter((u) => !u.endsWith('?v=' + BUILD) && !u.includes('/js/data/build.js?t=')); // build.js читает запуск
       expect(js.length > 150, 'мало модулей (проверка не годится)', js.length);
       expect(!plain.length, 'модули без метки версии', plain.slice(0, 5));
       const mods = js.filter((u) => u.includes('?v='));
