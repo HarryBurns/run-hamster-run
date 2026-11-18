@@ -184,7 +184,7 @@ on('saveLost', ({ why }) => {
   const newer = why === 'newer';
   enqueue(() =>
     message({
-      title: newer ? 'Игра обновилась' : 'Игра открыта в другой вкладке',
+      title: newer ? 'Игра обновилась' : 'Игра открыта дважды',
       icon: newer ? '🔄' : '🪟',
       sticky: true,
       html: newer

@@ -191,7 +191,7 @@ module.exports = async function saves({ page, step, ev, wait, closeAll }) {
     await wipe();
   });
 
-  await step('надёжность: вторая вкладка — первая перестаёт сохранять и показывает окно «Игра открыта в другой вкладке»; «Играть здесь» возвращает игру этой вкладке', async () => {
+  await step('надёжность: вторая вкладка — первая перестаёт сохранять и показывает окно «Игра открыта дважды»; «Играть здесь» возвращает игру этой вкладке', async () => {
     await fresh('Ириска');
     await ev(() => window.__dev.actions.mutate((s) => (s.money = 1000)));
     await ev(() => window.dispatchEvent(new Event('pagehide'))); // записать
@@ -202,7 +202,7 @@ module.exports = async function saves({ page, step, ev, wait, closeAll }) {
     await tab2.waitForSelector('#title .t-menu button', { timeout: 8000 });
     expect((await ev(() => document.querySelectorAll('.overlay').length)) === 0, 'окно появилось, хотя во второй вкладке ещё не играют');
     await tab2.click('text=Продолжить');
-    await page.waitForSelector('.overlay:has-text("Игра открыта в другой вкладке")', { timeout: 6000 });
+    await page.waitForSelector('.overlay:has-text("Игра открыта дважды")', { timeout: 6000 });
     // первая вкладка больше ничего не пишет
     await tab2.evaluate(() => window.__dev.actions.mutate((s) => (s.money = 2000)));
     await tab2.evaluate(() => window.dispatchEvent(new Event('pagehide')));
