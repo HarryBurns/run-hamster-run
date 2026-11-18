@@ -16,26 +16,22 @@
 // Состояние меняют только действия (core/actions.js); «раз в день» — отметки дня (dayFlags.mountain).
 import { setFlag, setDayFlag, addClothes, addItem, award } from '../core/actions.js';
 import { sfx } from '../core/audio.js';
-import { makeCanvas, ell, fillRR, line, poly } from '../core/draw.js';
+import { makeCanvas } from '../core/draw.js';
 import { go } from '../core/loop.js';
 import { register } from '../core/registry.js';
 import { emit } from '../core/events.js';
 import { G, cal, darkness, hasClothes, isSick, count } from '../core/state.js';
 import { el, esc, pick, fmtMoney } from '../core/util.js';
-import { drawHamster } from '../art/hamster.js';
 import {
   CLOTHES,
   CLOTHES_BY_ID,
   LAND_BY_ID,
   NPC_BY_ID,
-  ING_BY_ID,
   FIND_BY_ID,
   MOUNTAIN,
   npcLook,
   isWarmItem,
 } from '../data/index.js';
-import { ART } from '../engine/topdown/index.js';
-import { VIEW_LAYERS, viewEnv, renderViewLayer } from '../interiors/tower_view.js';
 import { startBath, snowmanNow } from '../locations/mountain.js';
 import { dialog } from '../ui/dialog.js';
 import { fadeScene, smooth } from '../ui/fade.js';
@@ -45,6 +41,8 @@ import { frostToday } from './health.js';
 import { prizeGame } from './minigames.js';
 import { setWaitHook, questTalk } from './quests.js';
 import { placeLine } from './tales.js';
+import { paintSummitView, paintSnowmanPic } from './pictures_art.js';
+import { paintRide } from './trips_art.js';
 
 const S = () => G.state;
 
@@ -200,77 +198,6 @@ export function pickEdelweiss() {
 }
 
 // ---------- смотровая площадка ----------
-/**
- * Вид с вершины на юг: вдали — город и море слоями вида с башни (interiors/tower_view.js — те же небо, море
- * с островами, пляж и кварталы, только мельче: гора дальше от города, чем башня), над ними — Хомяк-Тауэр, ближе —
- * лес под горой, облака ниже вершины и снежный край вершины с флагом.
- */
-export function paintSummitView(ctx, w, h, season, dark) {
-  const env = viewEnv(season, dark),
-    dpr = Math.min(window.devicePixelRatio || 1, 2.5),
-    cityBot = h * 0.6,
-    k = cityBot / VIEW_LAYERS.find((l) => l.id === 'mid').y1, // пикселей на единицу панорамы
-    L = w / k;
-  for (const l of VIEW_LAYERS) {
-    if (l.id === 'near') continue; // крыши у самой башни отсюда не видно
-    const r = renderViewLayer(l, L, env, k * dpr);
-    ctx.drawImage(r.c, 0, r.top / dpr, r.c.width / dpr, r.c.height / dpr);
-  }
-  // Хомяк-Тауэр посреди города (с башни её не видно — мы на ней стояли)
-  const tx = w * 0.5,
-    tb = cityBot - 18,
-    th = h * 0.27;
-  fillRR(ctx, tx - 8, tb - th, 16, th, 4, env.c('#a5d8ff', 0.5), env.out, 1.6);
-  for (let y = tb - th + 8; y < tb - 6; y += 9) {
-    ctx.fillStyle = env.lit ? '#ffe066' : 'rgba(255,255,255,.7)';
-    ctx.fillRect(tx - 4.5, y, 3, 4);
-    ctx.fillRect(tx + 1.5, y, 3, 4);
-  }
-  poly(ctx, [tx - 9, tb - th, tx, tb - th - 15, tx + 9, tb - th], env.c('#ffd43b', 0.5), env.out, 1.4);
-  ell(ctx, tx, tb - th - 17, 3, 3, '#ff6b6b');
-  // лес под горой: ряды крон и ёлок, ближние крупнее
-  const leaf = env.leaf;
-  for (let row = 0; row < 4; row++) {
-    const y = h * (0.6 + row * 0.07),
-      sc = 0.6 + row * 0.18;
-    for (let i = 0, x = -10 + row * 9; x < w + 30; i++, x += 24 * sc) {
-      const yy = y + ((i * 13) % 7);
-      if ((i + row) % 3 === 0) {
-        poly(ctx, [x - 14 * sc, yy + 14 * sc, x, yy - 28 * sc, x + 14 * sc, yy + 14 * sc], env.fir, env.out, 1.2);
-        if (env.snow) poly(ctx, [x - 6 * sc, yy - 14 * sc, x, yy - 28 * sc, x + 6 * sc, yy - 14 * sc], '#ffffff');
-      } else {
-        ell(ctx, x, yy, 16 * sc, 12 * sc, leaf[(i + row) % leaf.length], env.out, 1.2);
-        ell(ctx, x - 5 * sc, yy - 4 * sc, 6 * sc, 3.5 * sc, 'rgba(255,255,255,.3)');
-      }
-    }
-  }
-  // облака ниже вершины
-  for (let i = 0; i < 6; i++) {
-    const x = ((i * 0.23 + 0.05) % 1) * w,
-      y = h * (0.6 + (i % 3) * 0.06);
-    ctx.globalAlpha = env.d > 0.5 ? 0.45 : 0.85;
-    for (const [dx, dy, r] of [
-      [0, 0, 34],
-      [30, -10, 26],
-      [58, 2, 30],
-    ])
-      ell(ctx, x + dx, y + dy, r, r * 0.55, '#ffffff');
-    ctx.globalAlpha = 1;
-  }
-  // край вершины в снегу и флаг
-  const snowTop = [0, h * 0.88, w * 0.18, h * 0.84, w * 0.36, h * 0.86, w * 0.55, h * 0.82, w * 0.78, h * 0.85, w, h * 0.83];
-  poly(ctx, [0, h, ...snowTop, w, h], '#ffffff', OUT, 2);
-  poly(ctx, [w * 0.55, h * 0.82, w * 0.78, h * 0.85, w, h * 0.83, w, h, w * 0.62, h], '#e3eef8');
-  for (let i = 0; i < 6; i++) ell(ctx, w * (0.1 + i * 0.15), h * 0.93 + (i % 2) * 6, 14, 4, '#e7f1f9');
-  line(ctx, w * 0.84, h * 0.86, w * 0.84, h * 0.56, OUT, 4);
-  line(ctx, w * 0.84, h * 0.86, w * 0.84, h * 0.56, '#dee2e6', 2);
-  poly(ctx, [w * 0.84, h * 0.56, w * 0.95, h * 0.59, w * 0.84, h * 0.635], '#ff6b9d', OUT, 1.6);
-  if (env.d > 0.3) {
-    // вечером и ночью — темнее (слои города уже тёмные)
-    ctx.fillStyle = `rgba(27,31,74,${(env.d * 0.35).toFixed(2)})`;
-    ctx.fillRect(0, h * 0.55, w, h * 0.45);
-  }
-}
 /** Подняться на смотровую площадку: окно с видом на лес, город и море; в первый раз — наклейка. */
 export function climbLookout() {
   sfx('door');
@@ -303,25 +230,6 @@ export function climbLookout() {
 }
 
 // ---------- снеговик-строитель ----------
-/** Нарисовать снеговик в окне (stage, roll — как в мире). */
-function paintSnowmanPic(ctx, w, h, sm) {
-  const g = ctx.createLinearGradient(0, 0, 0, h);
-  g.addColorStop(0, '#d0ebff');
-  g.addColorStop(1, '#f8fbff');
-  ctx.fillStyle = g;
-  ctx.fillRect(0, 0, w, h);
-  ell(ctx, w / 2, h - 10, w * 0.6, 26, '#ffffff', '#cfe3f0', 2);
-  ctx.save();
-  ctx.translate(w / 2 - 20, h - 18);
-  ctx.scale(1.5, 1.5);
-  ART.snowman[1](ctx, sm.stage, sm.stage < 3 ? sm.roll : 0); // тот же рисунок, что в мире (mountain_art.js)
-  ctx.restore();
-  // ведёрко ждёт рядом, пока его не надели
-  if (sm.stage < 4) {
-    poly(ctx, [w - 70, h - 22, w - 46, h - 22, w - 49, h - 46, w - 67, h - 46], '#74c0fc', OUT, 2);
-    line(ctx, w - 72, h - 22, w - 44, h - 22, OUT, 3);
-  }
-}
 /** Слепить снеговика: окно с картинкой и кнопкой следующего шага. Сделанное лежит в отметках дня. */
 export function buildSnowman() {
   let pic = null;
@@ -448,64 +356,6 @@ register(
 );
 
 // ---------- канатная дорога ----------
-const OUT = '#4a3728';
-/** Картинка переезда: лес внизу слева, гора со снежной шапкой справа, по тросу едет вагончик (k — 0..1 пути). */
-export function paintRide(ctx, w, h, k, season, look, t) {
-  const sky = ctx.createLinearGradient(0, 0, 0, h);
-  sky.addColorStop(0, season === 'winter' ? '#a9d4f2' : '#7cc8f8');
-  sky.addColorStop(1, '#e7f6ff');
-  ctx.fillStyle = sky;
-  ctx.fillRect(0, 0, w, h);
-  // гора
-  const mx = w * 0.72;
-  poly(ctx, [mx - w * 0.5, h, mx, h * 0.12, mx + w * 0.5, h], '#9aa9c9', OUT, 2.5);
-  poly(ctx, [mx, h * 0.12, mx + w * 0.5, h, mx + w * 0.12, h], '#7d8db0');
-  poly(ctx, [mx - 52, h * 0.12 + 62, mx, h * 0.12, mx + 56, h * 0.12 + 66, mx + 26, h * 0.12 + 52, mx + 6, h * 0.12 + 70, mx - 22, h * 0.12 + 54], '#ffffff', OUT, 2);
-  // облака ниже вершины
-  for (let i = 0; i < 4; i++) {
-    const cx = ((i * 0.31 + t * 0.03) % 1.3) * w - w * 0.15,
-      cy = h * (0.36 + (i % 2) * 0.08);
-    ctx.globalAlpha = 0.85;
-    for (const [dx, dy, r] of [
-      [0, 0, 30],
-      [26, -8, 24],
-      [50, 2, 26],
-    ])
-      ell(ctx, cx + dx, cy + dy, r, r * 0.6, '#ffffff');
-    ctx.globalAlpha = 1;
-  }
-  // лес внизу
-  const fir = season === 'winter' ? '#cfe3f0' : '#2b8a3e';
-  for (let i = 0; i < 16; i++) {
-    const x = (i / 15) * w * 0.75 - 10,
-      y = h - 8 - ((i * 37) % 23);
-    poly(ctx, [x - 20, y + 20, x, y - 38, x + 20, y + 20], fir, OUT, 1.6);
-  }
-  // трос и вагончик
-  const ax = w * 0.06,
-    ay = h * 0.82,
-    bx = mx - 8,
-    by = h * 0.2;
-  line(ctx, ax, ay, bx, by, OUT, 2.2);
-  const x = ax + (bx - ax) * k,
-    y = ay + (by - ay) * k,
-    sway = Math.sin(t * 3) * 0.06;
-  ctx.save();
-  ctx.translate(x, y);
-  ctx.rotate(sway);
-  line(ctx, 0, 0, 0, 22, OUT, 2.4);
-  fillRR(ctx, -34, 22, 68, 56, 14, '#fa5252', OUT, 2.5);
-  fillRR(ctx, -26, 30, 52, 28, 6, '#cfeaff', OUT, 2);
-  ctx.save();
-  ctx.beginPath();
-  ctx.rect(-26, 30, 52, 28);
-  ctx.clip();
-  drawHamster(ctx, 0, 80, 0.5, look, { time: t, shadow: false, happy: true });
-  ctx.restore();
-  ctx.fillStyle = 'rgba(0,0,0,.14)';
-  ctx.fillRect(18, 24, 12, 52);
-  ctx.restore();
-}
 let riding = false;
 /** Проехать на канатной дороге: up — из леса на гору, иначе — с горы в лес. */
 export function rideCableway(up) {

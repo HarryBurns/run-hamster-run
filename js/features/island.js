@@ -20,7 +20,6 @@
 // «раз в день» — отметки дня (dayFlags.island).
 import { setFlag, setDayFlag, addItem, addClothes, award } from '../core/actions.js';
 import { sfx } from '../core/audio.js';
-import { ell, poly } from '../core/draw.js';
 import { on, emit } from '../core/events.js';
 import { go, sceneName } from '../core/loop.js';
 import { register, run } from '../core/registry.js';
@@ -29,9 +28,6 @@ import { esc, pick } from '../core/util.js';
 import { NPC_BY_ID, FIND_BY_ID, LEI_IDS, ISLAND, LAND_BY_ID, npcLook } from '../data/index.js';
 import { getLocation } from '../engine/topdown/index.js';
 import { festNow, placeFlowers, AT } from '../locations/island.js';
-import { paintDolphin } from '../locations/cove_art.js';
-import { paintCoconut } from '../locations/island_art.js';
-import { drawBoat } from '../locations/sea.js';
 import { sea } from '../locations/town.js';
 import { dialog } from '../ui/dialog.js';
 import { fadeScene, smooth } from '../ui/fade.js';
@@ -40,9 +36,9 @@ import { toast, hintOnce } from '../ui/toast.js';
 import { playMinigame, prizeGame } from './minigames.js';
 import { questTalk } from './quests.js';
 import { placeLine } from './tales.js';
+import { paintFaraway } from './trips_art.js';
 
 const S = () => G.state;
-const OUT = '#4a3728';
 const SI = () => S().dayFlags.island || {};
 /** Реплика по времени суток: ночью, вечером или днём (у жителей острова — lines.day / evening / night). */
 function timeLine(id) {
@@ -360,92 +356,6 @@ on('scene', ({ name }) => {
 });
 
 // ---------- кораблик: долгое плавание на юг и обратно ----------
-/** Картинка долгого плавания: открытый океан, дельфины, вдали вулкан (k — 0..1 пути). */
-export function paintFaraway(ctx, w, h, k, toIsland, look, t) {
-  const sky = ctx.createLinearGradient(0, 0, 0, h * 0.55);
-  sky.addColorStop(0, '#339af0');
-  sky.addColorStop(1, '#d0ebff');
-  ctx.fillStyle = sky;
-  ctx.fillRect(0, 0, w, h);
-  ell(ctx, w * 0.84, h * 0.16, 22, 22, '#ffe066');
-  ell(ctx, w * 0.84, h * 0.16, 32, 32, 'rgba(255,224,102,.3)');
-  for (const [x, y, sc] of [
-    [0.2, 0.12, 1],
-    [0.55, 0.2, 0.7],
-  ]) {
-    const cx = ((x + t * 0.012) % 1.2) * w;
-    ell(ctx, cx, h * y, 30 * sc, 10 * sc, '#fff');
-    ell(ctx, cx + 18 * sc, h * y - 6 * sc, 18 * sc, 10 * sc, '#fff');
-  }
-  // вдали: туда — вулкан растёт по мере пути, обратно — тает, а из-за горизонта встают башни города
-  const near = toIsland ? k : 1 - k,
-    vs = 0.35 + near * 0.9,
-    vx = toIsland ? w * 0.72 : w * 0.24,
-    hz = h * 0.55;
-  poly(ctx, [vx - 70 * vs, hz, vx - 14 * vs, hz - 70 * vs, vx + 14 * vs, hz - 70 * vs, vx + 70 * vs, hz], '#8a7568', OUT, 2);
-  poly(ctx, [vx - 14 * vs, hz - 70 * vs, vx - 8 * vs, hz - 62 * vs, vx + 8 * vs, hz - 64 * vs, vx + 14 * vs, hz - 70 * vs], '#ff6b35');
-  for (let i = 0; i < 6; i++) ell(ctx, vx - 66 * vs + i * 26 * vs, hz - 4 * vs, 18 * vs, 9 * vs, i % 2 ? '#37b24d' : '#2b8a3e', OUT, 1.2);
-  for (let i = 0; i < 3; i++) {
-    const ph = (t * 0.3 + i / 3) % 1;
-    ell(ctx, vx + ph * 30 * vs, hz - (78 + ph * 60) * vs, (6 + ph * 14) * vs, (5 + ph * 9) * vs, `rgba(240,240,245,${(0.75 * (1 - ph)).toFixed(2)})`);
-  }
-  if (!toIsland) {
-    ctx.fillStyle = '#b6c6dd';
-    for (const [x, bw, bh] of [
-      [0.78, 0.03, 0.12],
-      [0.82, 0.02, 0.08],
-      [0.86, 0.035, 0.2],
-      [0.91, 0.025, 0.1],
-    ])
-      ctx.fillRect(w * x, hz - h * bh * k, w * bw, h * bh * k);
-  }
-  // открытый океан с волнами
-  const seaG = ctx.createLinearGradient(0, hz, 0, h);
-  seaG.addColorStop(0, '#1c7ed6');
-  seaG.addColorStop(1, '#0b4f9c');
-  ctx.fillStyle = seaG;
-  ctx.fillRect(0, hz, w, h - hz);
-  ctx.strokeStyle = 'rgba(255,255,255,.55)';
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-  for (let r = 0; r < 5; r++) {
-    const y = h * (0.6 + r * 0.085);
-    for (let x = ((t * (36 + r * 14)) % 70) - 70; x < w; x += 70) {
-      ctx.moveTo(x, y);
-      ctx.quadraticCurveTo(x + 12, y - 5, x + 24, y);
-    }
-  }
-  ctx.stroke();
-  // дельфины выпрыгивают по очереди
-  for (let i = 0; i < 3; i++) {
-    const ph = (t * 0.45 + i * 0.37) % 1;
-    if (ph > 0.6) continue;
-    const q = ph / 0.6,
-      dx = w * (0.18 + i * 0.27) + q * 60,
-      dy = h * (0.72 + (i % 2) * 0.08) - Math.sin(q * Math.PI) * h * 0.14;
-    ctx.save();
-    ctx.translate(dx, dy);
-    ctx.scale(0.62, 0.62);
-    paintDolphin(ctx, 3 - Math.cos(q * Math.PI) * 2.7, 0); // нос вверх → нос вниз
-    ctx.restore();
-    if (q > 0.85) ell(ctx, dx + 10, h * (0.72 + (i % 2) * 0.08), 16, 4, 'rgba(255,255,255,.7)');
-  }
-  // кораблик с хомячком
-  const z = w / 560,
-    dir = toIsland ? 1 : -1,
-    bx = toIsland ? -60 * z + k * (w * 0.56 + 40 * z) : w * 0.62 - k * (w * 0.62 + 90 * z),
-    by = h * 0.84 + Math.sin(t * 2) * 3 * z;
-  ctx.save();
-  ctx.translate(bx, by);
-  ctx.scale(0.9 * z, 0.9 * z);
-  drawBoat(ctx, 0, 0, dir, t, look, true);
-  ctx.restore();
-  // кокос плывёт мимо — на счастье
-  ctx.save();
-  ctx.translate(((1 - k) * 1.3 - 0.15) * w, h * 0.93 + Math.sin(t * 3) * 2);
-  paintCoconut(ctx, 7 * z + 3);
-  ctx.restore();
-}
 let sailing = false;
 /** Долгое плавание: toIsland — от отметки «Далеко на юг» к причалу острова, иначе — обратно к пирсу города. */
 export function rideFaraway(toIsland) {

@@ -21,13 +21,13 @@ import { register } from '../core/registry.js';
 import { G, darkness, count } from '../core/state.js';
 import { el, esc, pick, fmtMoney } from '../core/util.js';
 import { NPC_BY_ID, FIND_BY_ID, GEM_IDS, CAVES, npcLook } from '../data/index.js';
-import { ART } from '../engine/topdown/index.js';
 import { dialog } from '../ui/dialog.js';
 import { message, openPanel } from '../ui/panel.js';
 import { toast, hintOnce } from '../ui/toast.js';
 import { prizeGame } from './minigames.js';
 import { questTalk } from './quests.js';
 import { placeLine } from './tales.js';
+import { paintWallPic } from './pictures_art.js';
 
 const S = () => G.state;
 const S3 = () => S().dayFlags.caves || {};
@@ -157,26 +157,6 @@ export function crystalDig() {
 }
 
 // ---------- древние рисунки ----------
-/** Нарисовать стену с рисунками крупно (те же куски, что в мире: ART.paintWall — caves_art.js). */
-function paintWallPic(ctx, w, h) {
-  ctx.fillStyle = '#2e2734';
-  ctx.fillRect(0, 0, w, h);
-  const k = Math.min(w / (5 * 56), h / 70);
-  ctx.save();
-  ctx.translate(w / 2 - 2.5 * 48 * k + 24 * k, (h - 64 * k) / 2);
-  ctx.scale(k, k);
-  for (let p = 0; p < 5; p++) {
-    ART.paintWall[1](ctx, p);
-    ctx.translate(48, 0);
-  }
-  ctx.restore();
-  // тёплый свет фонарика по краям темнее
-  const g = ctx.createRadialGradient(w / 2, h / 2, h * 0.2, w / 2, h / 2, w * 0.6);
-  g.addColorStop(0, 'rgba(255,214,140,.12)');
-  g.addColorStop(1, 'rgba(10,8,26,.55)');
-  ctx.fillStyle = g;
-  ctx.fillRect(0, 0, w, h);
-}
 /** Рассмотреть древние рисунки: окно с картинкой; в первый раз — наклейка. */
 export function seePaintings() {
   sfx('magic');

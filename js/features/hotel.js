@@ -20,14 +20,12 @@
 // в «Горку» с призом). Сохранение не менялось.
 import { setFlag, setDayFlag, award, spendMinutes } from '../core/actions.js';
 import { sfx } from '../core/audio.js';
-import { ell, fillRR, line, poly, star } from '../core/draw.js';
 import { on, emit } from '../core/events.js';
 import { sceneName } from '../core/loop.js';
 import { register, run } from '../core/registry.js';
 import { G, darkness, ownsHome, canSwim, isSick, hotelRoomGuest } from '../core/state.js';
 import { el, esc, pick, fmtMoney } from '../core/util.js';
-import { drawHamster } from '../art/hamster.js';
-import { NPC_BY_ID, DISH_BY_ID, HOTEL, HOTEL_ROOM, HOTEL_ROOMS, GUEST_ROOM, BUFFET, HOME_BY_ID, SICK_TEXT, animatorNow, npcLook } from '../data/index.js';
+import { NPC_BY_ID, DISH_BY_ID, HOTEL, HOTEL_ROOMS, GUEST_ROOM, BUFFET, HOME_BY_ID, SICK_TEXT, animatorNow, npcLook } from '../data/index.js';
 import { HX, rentedRoom } from '../interiors/hotel.js';
 import { DOORMAN } from '../locations/town_buildings.js';
 import { go } from '../core/loop.js';
@@ -37,9 +35,9 @@ import { openPanel } from '../ui/panel.js';
 import { toast, hintOnce } from '../ui/toast.js';
 import { buy, priceTag, buyBtn } from './purchase.js';
 import { playMinigame, prizeGame } from './minigames.js';
+import { paintSpa } from './pictures_art.js';
 
 const S = () => G.state;
-const OUT = '#4a3728';
 const HF = () => S().dayFlags.hotel || {};
 const ROOM_BY = Object.fromEntries(HOTEL_ROOMS.map((r) => [r.id, r]));
 /** Где номер: подсказка гостье. */
@@ -236,63 +234,6 @@ export function openBuffet() {
 }
 
 // ---------- сценки: спа и танцы ----------
-/** Спа: хомячок лежит на массажном столе; маска — кружочки огурцов и пена, массаж — лапки Пенки. */
-function paintSpa(what) {
-  return (ctx, w, h, k, look, t) => {
-    const g = ctx.createLinearGradient(0, 0, 0, h);
-    g.addColorStop(0, '#e6fcf5');
-    g.addColorStop(1, '#c3fae8');
-    ctx.fillStyle = g;
-    ctx.fillRect(0, 0, w, h);
-    const s = Math.min(w / 560, h / 320);
-    // волны на стене, свечи, полотенца
-    ctx.strokeStyle = 'rgba(255,255,255,.7)';
-    ctx.lineWidth = 3 * s;
-    for (let r = 0; r < 3; r++) {
-      ctx.beginPath();
-      for (let x = 0; x <= w; x += 10) ctx.lineTo(x, h * (0.18 + r * 0.12) + Math.sin(x * 0.03 + t * 1.5 + r) * 5 * s);
-      ctx.stroke();
-    }
-    for (const cx of [w * 0.12, w * 0.18]) {
-      fillRR(ctx, cx - 6 * s, h * 0.62, 12 * s, 24 * s, 3, '#fff', OUT, 1.5);
-      poly(ctx, [cx - 4 * s, h * 0.62, cx + Math.sin(t * 7 + cx) * 2 * s, h * 0.62 - 14 * s, cx + 4 * s, h * 0.62], '#ffa94d');
-    }
-    // стол
-    const tx = w * 0.55,
-      ty = h * 0.78;
-    fillRR(ctx, tx - 150 * s, ty, 300 * s, 22 * s, 10 * s, '#fff', OUT, 2);
-    for (const dx of [-130, 130]) line(ctx, tx + dx * s, ty + 22 * s, tx + dx * s, h, OUT, 5 * s);
-    // хомячок «лёжа»: повёрнут на бок
-    ctx.save();
-    ctx.translate(tx - 10 * s, ty);
-    ctx.rotate(-Math.PI / 2);
-    drawHamster(ctx, 0, 0, 1.05 * s, look, { time: t, dir: 0, happy: true, blink: 1, shadow: false });
-    ctx.restore();
-    if (what === 'mask') {
-      // огурчики на глазах и пена
-      for (const dy of [-16, 10]) {
-        ell(ctx, tx - 92 * s, ty - 34 * s + dy * s, 10 * s, 10 * s, '#b2f2bb', '#2f9e44', 2);
-        ell(ctx, tx - 92 * s, ty - 34 * s + dy * s, 4 * s, 4 * s, '#d3f9d8');
-      }
-      for (let i = 0; i < 8; i++) {
-        const ph = (t * 0.6 + i / 8) % 1;
-        ctx.globalAlpha = 1 - ph;
-        ell(ctx, tx - 40 * s + i * 22 * s, ty - 50 * s - ph * h * 0.3, 7 * s, 7 * s, 'rgba(255,255,255,.9)', '#a5d8ff', 1.2);
-      }
-      ctx.globalAlpha = 1;
-    } else {
-      // массаж: Пенка разминает спинку — лапки двигаются
-      drawHamster(ctx, tx + 40 * s, ty - 4 * s, 0.95 * s, npcLook('penka'), { time: t, dir: -1, armsUp: Math.sin(t * 8) > 0, happy: true });
-      for (let i = 0; i < 3; i++) {
-        const ph = (t * 0.7 + i / 3) % 1;
-        ctx.globalAlpha = 1 - ph;
-        star(ctx, tx - 20 * s + i * 30 * s, ty - 60 * s - ph * 50 * s, 6 * s, '#ffd43b');
-      }
-      ctx.globalAlpha = 1;
-    }
-    ctx.globalAlpha = Math.min(1, k * 5);
-  };
-}
 // ---------- спа: Мастер Пенка ----------
 let busy = false;
 async function spa() {

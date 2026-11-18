@@ -18,17 +18,15 @@
 // задания. Состояние меняют только действия (core/actions.js); «раз в день» — отметки дня (dayFlags.desert).
 import { setFlag, setDayFlag, addItem, award } from '../core/actions.js';
 import { sfx } from '../core/audio.js';
-import { makeCanvas, ell, fillRR, line, poly } from '../core/draw.js';
+import { makeCanvas } from '../core/draw.js';
 import { on, emit } from '../core/events.js';
 import { go, scene, sceneName } from '../core/loop.js';
 import { register } from '../core/registry.js';
 import { G, cal, darkness, count, playerLook } from '../core/state.js';
 import { el, esc, pick, fmtMoney } from '../core/util.js';
-import { drawHamster } from '../art/hamster.js';
 import { NPC_BY_ID, FIND_BY_ID, FOSSIL_IDS, DESERT, LAND_BY_ID, CLOTHES_BY_ID, npcLook, isSunHat } from '../data/index.js';
 import { getLocation } from '../engine/topdown/index.js';
 import { startCamelRide, CAMEL_GOALS, inShade } from '../locations/desert.js';
-import { paintBus, paintCamel } from '../locations/desert_art.js';
 import { dialog } from '../ui/dialog.js';
 import { fadeScene, smooth } from '../ui/fade.js';
 import { message, openPanel } from '../ui/panel.js';
@@ -36,9 +34,10 @@ import { toast, hintOnce, hintToday } from '../ui/toast.js';
 import { prizeGame, prizeLeft } from './minigames.js';
 import { questTalk } from './quests.js';
 import { placeLine } from './tales.js';
+import { paintStarSky } from './pictures_art.js';
+import { paintCaravan } from './trips_art.js';
 
 const S = () => G.state;
-const OUT = '#4a3728';
 const SD = () => S().dayFlags.desert || {};
 
 // ---------- кочевник Бархан ----------
@@ -213,42 +212,6 @@ const WISHES = [
   '🌈 Чтобы завтра светило солнышко',
   '🦄 Встретить настоящего единорога',
 ];
-/** Ночное небо над барханами: звёзды и падающие звёзды (t — время, для мерцания). */
-function paintStarSky(ctx, w, h, t, look) {
-  const g = ctx.createLinearGradient(0, 0, 0, h);
-  g.addColorStop(0, '#0b1340');
-  g.addColorStop(0.7, '#2b2a6e');
-  g.addColorStop(1, '#5a3d7a');
-  ctx.fillStyle = g;
-  ctx.fillRect(0, 0, w, h);
-  for (let i = 0; i < 90; i++) {
-    const x = ((i * 0.618) % 1) * w,
-      y = ((i * 0.377) % 1) * h * 0.72,
-      r = 0.6 + ((i * 7) % 5) * 0.35,
-      a = 0.5 + Math.sin(t * 2 + i) * 0.4;
-    ctx.globalAlpha = Math.max(0.15, a);
-    ell(ctx, x, y, r, r, '#ffffff');
-  }
-  ctx.globalAlpha = 1;
-  ell(ctx, w * 0.82, h * 0.16, 16, 16, '#fff3bf');
-  ell(ctx, w * 0.82 + 6, h * 0.16 - 4, 13, 13, '#1a1f5a');
-  // падающие звёзды
-  for (let i = 0; i < 3; i++) {
-    const k = (t * 0.45 + i / 3) % 1,
-      sx = w * (0.1 + i * 0.28),
-      sy = h * (0.04 + (i % 2) * 0.1),
-      x = sx + k * w * 0.3,
-      y = sy + k * h * 0.3;
-    ctx.globalAlpha = Math.sin(k * Math.PI);
-    line(ctx, x - 40, y - 40 * (h / w), x, y, 'rgba(255,250,210,.9)', 2.4);
-    ell(ctx, x, y, 3, 3, '#ffffff');
-  }
-  ctx.globalAlpha = 1;
-  // барханы и хомячок на гребне
-  poly(ctx, [0, h, 0, h * 0.8, w * 0.3, h * 0.72, w * 0.6, h * 0.8, w, h * 0.74, w, h], '#6b4f7a');
-  poly(ctx, [0, h, 0, h * 0.9, w * 0.4, h * 0.84, w * 0.75, h * 0.92, w, h * 0.88, w, h], '#4f3b62');
-  drawHamster(ctx, w * 0.32, h * 0.76, 0.55, look, { time: t, dir: 0, happy: true, armsUp: Math.sin(t * 3) > 0.6, shadow: false });
-}
 /** Загадать желание на Звёздном бархане: ночью — окно со звездопадом; днём — когда приходить. */
 export function makeWish() {
   if (darkness() < 0.5) {
@@ -373,67 +336,6 @@ on('scene', ({ name }) => {
 });
 
 // ---------- караван-автобус ----------
-/** Картинка переезда: город вдали, барханы и кактусы, по дороге едет караван-автобус (k — 0..1 пути). */
-export function paintCaravan(ctx, w, h, k, toDesert, look, t) {
-  const sky = ctx.createLinearGradient(0, 0, 0, h);
-  sky.addColorStop(0, '#74c0fc');
-  sky.addColorStop(1, '#fff3d6');
-  ctx.fillStyle = sky;
-  ctx.fillRect(0, 0, w, h);
-  ell(ctx, w * 0.84, h * 0.2, 26, 26, '#ffe066');
-  ell(ctx, w * 0.84, h * 0.2, 36, 36, 'rgba(255,224,102,.3)');
-  // город — у левого края, пирамида — у правого
-  ctx.fillStyle = '#a5b4cf';
-  for (const [x, bw, bh] of [
-    [0.02, 0.05, 0.32],
-    [0.07, 0.04, 0.22],
-    [0.11, 0.06, 0.4],
-    [0.17, 0.04, 0.18],
-  ])
-    ctx.fillRect(w * x, h * (0.62 - bh), w * bw, h * bh);
-  poly(ctx, [w * 0.68, h * 0.62, w * 0.78, h * 0.4, w * 0.88, h * 0.62], '#e8b974', OUT, 1.6);
-  // барханы
-  poly(ctx, [0, h, 0, h * 0.62, w * 0.3, h * 0.58, w * 0.55, h * 0.64, w * 0.8, h * 0.56, w, h * 0.62, w, h], '#f2d39a', OUT, 2);
-  poly(ctx, [0, h, 0, h * 0.86, w * 0.35, h * 0.8, w * 0.7, h * 0.88, w, h * 0.82, w, h], '#e6c288');
-  // кактусы и пальма
-  for (const x of [0.28, 0.58, 0.9]) {
-    fillRR(ctx, w * x - 5, h * 0.6, 10, 28, 5, '#4f9a3a', OUT, 1.6);
-    fillRR(ctx, w * x + 4, h * 0.62, 7, 12, 3, '#4f9a3a', OUT, 1.2);
-  }
-  // дорога
-  fillRR(ctx, -10, h * 0.7, w + 20, 22, 8, '#d9b06c', OUT, 1.6);
-  for (let x = ((t * 120) % 40) - 40; x < w; x += 40) fillRR(ctx, x, h * 0.7 + 10, 18, 3, 1.5, '#fff3d6');
-  // автобус: едет вправо (в пустыню) или влево (в город)
-  const dir = toDesert ? 1 : -1,
-    z = w / 560, // масштаб картинки
-    bx = toDesert ? -150 * z + k * (w + 120 * z) : w + 30 * z - k * (w + 180 * z),
-    by = h * 0.74 + Math.sin(t * 18) * 1.2;
-  ctx.save();
-  ctx.translate(bx, by);
-  ctx.scale(0.95 * z, 0.95 * z);
-  paintBus(ctx, dir);
-  // хомячок в окошке
-  ctx.save();
-  ctx.beginPath();
-  ctx.rect(dir > 0 ? 44 : 22, -52, 24, 22);
-  ctx.clip();
-  drawHamster(ctx, dir > 0 ? 56 : 34, -16, 0.42, look, { time: t, dir, happy: true, shadow: false });
-  ctx.restore();
-  ctx.restore();
-  // пыль из-под колёс
-  for (let i = 0; i < 4; i++) {
-    const ph = (t * 2 + i / 4) % 1;
-    ctx.globalAlpha = 0.5 * (1 - ph);
-    ell(ctx, bx + (toDesert ? -30 * z - ph * 50 * z : 120 * z + ph * 50 * z), by + 4 - ph * 12, (8 + ph * 12) * z, (5 + ph * 7) * z, '#e6c288');
-  }
-  ctx.globalAlpha = 1;
-  // верблюд идёт рядом (караван!)
-  ctx.save();
-  ctx.translate(toDesert ? bx - 95 * z : bx + 215 * z, h * 0.69);
-  ctx.scale(0.6 * z, 0.6 * z);
-  paintCamel(ctx, dir, 1 + (Math.floor(t * 6) % 2));
-  ctx.restore();
-}
 let riding = false;
 /** Проехать на караван-автобусе: toDesert — из города в пустыню, иначе — обратно в город. */
 export function rideCaravan(toDesert) {

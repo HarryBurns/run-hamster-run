@@ -16,7 +16,7 @@ import { emit } from '../core/events.js';
 import { register } from '../core/registry.js';
 import { G, cal, darkness, count, questNow } from '../core/state.js';
 import { esc, pick, fmtMoney } from '../core/util.js';
-import { makeCanvas, ell, poly, line } from '../core/draw.js';
+import { makeCanvas } from '../core/draw.js';
 import {
   NPC_BY_ID,
   npcLook,
@@ -35,6 +35,7 @@ import { placeLine } from './tales.js';
 import { questTalk } from './quests.js';
 import { eat } from './cooking.js';
 import { prizeGame } from './minigames.js';
+import { paintTreeView } from './pictures_art.js';
 
 const S = () => G.state;
 const SHISHKIN = 'shishkin';
@@ -249,81 +250,6 @@ export async function visitFire() {
 }
 
 // ---------- домик на дереве ----------
-/** Нарисовать вид с домика на дереве: верхушки леса, ручей, вдали гора с канатной дорогой (закрыта). */
-export function paintTreeView(ctx, w, h, season, dark) {
-  const night = dark > 0.6,
-    eve = !night && dark > 0.25;
-  const sky = ctx.createLinearGradient(0, 0, 0, h * 0.6);
-  sky.addColorStop(0, night ? '#1b1f4a' : eve ? '#f08c69' : season === 'winter' ? '#b8dcf2' : '#8fd3ff');
-  sky.addColorStop(1, night ? '#3b3f7a' : eve ? '#ffd8a8' : '#e7f6ff');
-  ctx.fillStyle = sky;
-  ctx.fillRect(0, 0, w, h);
-  // солнце или луна и звёзды
-  if (night) {
-    ell(ctx, w * 0.8, h * 0.16, 16, 16, '#fff3bf');
-    ell(ctx, w * 0.8 + 6, h * 0.16 - 4, 13, 13, '#3b3f7a');
-    ctx.fillStyle = '#fff';
-    for (let i = 0; i < 30; i++) ctx.fillRect((i * 97) % w, (i * 53) % (h * 0.45), 2, 2);
-  } else ell(ctx, w * 0.82, h * 0.18, 20, 20, eve ? '#ff922b' : '#ffe066', '#fcc419', 2);
-  // гора вдали: снежная шапка круглый год, к ней тянется трос канатной дороги
-  const mx = w * 0.3,
-    my = h * 0.12;
-  poly(ctx, [mx - 150, h * 0.62, mx, my, mx + 160, h * 0.62], night ? '#4c5a8a' : '#9aa9c9', '#4a3728', 2);
-  poly(
-    ctx,
-    [mx - 44, my + 40, mx, my, mx + 46, my + 42, mx + 22, my + 34, mx + 6, my + 46, mx - 16, my + 36],
-    '#ffffff',
-  );
-  line(ctx, w * 0.62, h * 0.66, mx + 10, my + 50, '#4a3728', 1.5);
-  ell(ctx, mx + 10, my + 52, 6, 5, '#fa5252', '#4a3728', 1.2);
-  ctx.font = '20px sans-serif';
-  ctx.textAlign = 'center';
-  ctx.fillText('🔒', mx + 30, my + 34);
-  // ряды верхушек леса: дальние мельче и в дымке, ближние крупнее; ели вперемешку с лиственными
-  const leaf =
-    season === 'winter'
-      ? ['#dbe9f4', '#f1f7fc', '#e6f0f7']
-      : season === 'autumn'
-        ? ['#e8590c', '#fcc419', '#f59f00', '#2b8a3e']
-        : season === 'spring'
-          ? ['#74d680', '#b2f2bb', '#8ce99a', '#37a34a']
-          : ['#2f9e44', '#51cf66', '#40c057', '#2b8a3e'];
-  const haze = night ? 'rgba(27,31,74,' : eve ? 'rgba(255,216,168,' : 'rgba(231,246,255,';
-  for (let row = 0; row < 5; row++) {
-    const y = h * (0.56 + row * 0.11),
-      sc = 0.55 + row * 0.18,
-      step = 40 * sc;
-    for (let i = 0, x = -10 + ((row * 17) % 23); x < w + 40; i++, x += step * (0.8 + ((i * 7 + row * 3) % 5) * 0.1)) {
-      const k = (i * 5 + row * 3) % 7,
-        pine = k < 2,
-        col = pine ? (season === 'winter' ? '#cfe3f0' : '#2b8a3e') : leaf[k % leaf.length],
-        yy = y + ((i * 13) % 9) - 4;
-      if (pine) {
-        poly(ctx, [x - 20 * sc, yy + 18 * sc, x, yy - 40 * sc, x + 20 * sc, yy + 18 * sc], col, '#4a3728', 1.4);
-        if (season === 'winter')
-          poly(ctx, [x - 8 * sc, yy - 22 * sc, x, yy - 40 * sc, x + 8 * sc, yy - 22 * sc], '#ffffff');
-      } else {
-        ell(ctx, x, yy, 26 * sc, 20 * sc, col, '#4a3728', 1.4);
-        ell(ctx, x - 8 * sc, yy - 7 * sc, 10 * sc, 6 * sc, 'rgba(255,255,255,.28)');
-      }
-    }
-    // дымка на дальних рядах
-    ctx.fillStyle = haze + (0.35 - row * 0.08).toFixed(2) + ')';
-    if (row < 4) ctx.fillRect(0, y - 46 * sc, w, h);
-  }
-  // ручей блестит между деревьями
-  ctx.strokeStyle = season === 'winter' ? '#d3edfb' : '#4fb0dc';
-  ctx.lineWidth = 6;
-  ctx.beginPath();
-  ctx.moveTo(w * 0.62, h * 0.6);
-  ctx.quadraticCurveTo(w * 0.7, h * 0.8, w * 0.6, h);
-  ctx.stroke();
-  // светлячки летней ночью
-  if (night && season === 'summer') {
-    ctx.fillStyle = '#ffe066';
-    for (let i = 0; i < 18; i++) ell(ctx, (i * 131) % w, h * 0.6 + ((i * 71) % (h * 0.4)), 2.2, 2.2, '#ffe066');
-  }
-}
 /** Забраться в домик на дереве: окно с видом сверху на лес. */
 export function climbTreehouse() {
   sfx('door');
