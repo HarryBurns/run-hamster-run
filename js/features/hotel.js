@@ -126,8 +126,10 @@ function bed(cls = 'std') {
     return false;
   }
   nightInHotel = true;
-  run('sleep');
-  setTimeout(() => (nightInHotel = false), 6000); // передумала спать — не считаем ночёвку
+  // передумала спать («Ещё погуляю») — ночёвку не считаем; уснула — флаг снимет утро (wake)
+  Promise.resolve(run('sleep')).then((slept) => {
+    if (!slept) nightInHotel = false;
+  });
   return true;
 }
 // утро после ночи в номере: хомячок уже у кровати (движок домов ставит её у кровати в «своей спальне» — номере 207)

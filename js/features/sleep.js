@@ -14,6 +14,7 @@ import { planNight, applyNight, morningNews } from './health.js';
 
 const S = () => G.state;
 
+/** Окно «Пора спать?» и новый день. Возвращает true, если уснула, false — если передумала. */
 export async function askSleep() {
   const early = S().minutes < 18 * 60;
   const ok = await confirmBox(
@@ -22,7 +23,7 @@ export async function askSleep() {
     'Спать 😴',
     'Ещё погуляю',
   );
-  if (!ok) return;
+  if (!ok) return false;
   const before = cal();
   sfx('sleep');
   const release = await fadeTo('Спокойной ночи… 💤', 1700);
@@ -53,6 +54,7 @@ export async function askSleep() {
     if (got > 0) setTimeout(() => toast(`Вчера ты заработала 🪙 ${fmtMoney(got)}. Молодец!`, 'good'), 1800);
     morningNews(night);
   }, 600);
+  return true;
 }
 
 register('sleep', () => askSleep(), 'кровать: лечь спать');

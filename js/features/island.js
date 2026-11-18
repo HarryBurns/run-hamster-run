@@ -333,8 +333,10 @@ function sleepHut() {
     setFlag('hutHint');
     toast('🛏️ В хижине для гостей постелена мягкая циновка. Можно переночевать — утро тоже будет на острове!');
   }
-  run('sleep');
-  setTimeout(() => (nightOnIsland = false), 6000); // передумала спать — не считаем ночёвку
+  // передумала спать («Ещё погуляю») — ночёвку не считаем; уснула — флаг снимет утро (wake)
+  Promise.resolve(run('sleep')).then((slept) => {
+    if (!slept) nightOnIsland = false;
+  });
   return true;
 }
 on('wake', () => {
