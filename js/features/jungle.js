@@ -244,7 +244,7 @@ export function teachWindow(i) {
           panel.close();
           parrotSay(i, w.text);
           sfx('win');
-          toast(has ? `🦜 ${p.name} повторил: «${text}»` : `🦜 ${p.name} запомнил: «${text}» Теперь он будет это повторять!`, 'good');
+          toast(has ? `🦜 ${p.name} повторил: «${esc(text)}»` : `🦜 ${p.name} запомнил: «${esc(text)}» Теперь он будет это повторять!`, 'good');
         };
         list.appendChild(b);
       }

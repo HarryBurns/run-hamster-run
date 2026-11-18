@@ -20,7 +20,7 @@ import { sfx } from '../core/audio.js';
 import { on, emit } from '../core/events.js';
 import { register } from '../core/registry.js';
 import { G, cal, hasClothes, houseItems, ownedHomes } from '../core/state.js';
-import { el, fmtMoney, pick } from '../core/util.js';
+import { el, esc, fmtMoney, pick } from '../core/util.js';
 import {
   HOLIDAYS,
   HOLIDAY_BY_ID,
@@ -299,7 +299,7 @@ export function holidayLineFor(id) {
   // сначала — сегодняшний праздник, потом канун и «наутро после»
   for (const { h, k } of decorsOn(s.day, START()).sort((a, b) => (a.k === 0 ? 0 : 1) - (b.k === 0 ? 0 : 1))) {
     const list = h.lines[k < 0 ? 'eve' : k === 0 ? 'day' : 'after'];
-    if (list && list.length) return holidayLine(pick(list), s.name, npc.fem);
+    if (list && list.length) return holidayLine(pick(list), esc(s.name), npc.fem);
   }
   return null;
 }

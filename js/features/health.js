@@ -56,7 +56,7 @@ export function applyNight(plan) {
 export function morningNews(plan) {
   if (plan.fall) enqueue(() => sickMorning(plan.fall));
   else if (plan.recover)
-    setTimeout(() => toast(`Ура, ${S().name} выздоровела! 💪 Нос больше не красный.`, 'good'), 900);
+    setTimeout(() => toast(`Ура, ${esc(S().name)} выздоровела! 💪 Нос больше не красный.`, 'good'), 900);
 }
 
 /** Маленькая картинка: простуженная хомячок (иногда чихает). Возвращает { canvas, stop }. */

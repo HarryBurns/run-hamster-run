@@ -18,7 +18,7 @@ import { on, emit } from '../core/events.js';
 import { register } from '../core/registry.js';
 import { scene } from '../core/loop.js';
 import { sfx } from '../core/audio.js';
-import { dist, el, clamp } from '../core/util.js';
+import { dist, el, esc, clamp } from '../core/util.js';
 import { ell, heart, line } from '../core/draw.js';
 import { blinkAt } from '../art/hamster.js';
 import { drawPet, petIcon, PET_BOX } from '../art/pets.js';
@@ -515,11 +515,11 @@ export function openPet() {
           'div',
           'muted',
           hungry
-            ? `${p2.name} грустит и просит поесть.`
+            ? `${esc(p2.name)} грустит и просит поесть.`
             : petHearts() >= PET.hearts
-              ? `${p2.name} — твой лучший друг!`
+              ? `${esc(p2.name)} — твой лучший друг!`
               : p2.feedDay === today && p2.pet === today && (p2.play === today || !p2.ball)
-                ? `${p2.name} сегодня счастлив. Завтра дружба станет ещё крепче!`
+                ? `${esc(p2.name)} сегодня счастлив. Завтра дружба станет ещё крепче!`
                 : 'Гладь, корми и играй каждый день — и сердечек станет больше.',
         ),
       );
@@ -556,7 +556,7 @@ export function openPet() {
       inp.onchange = () => {
         if (renamePet(inp.value)) {
           sfx('ok');
-          toast(`Теперь его зовут ${pet().name}!`, 'good');
+          toast(`Теперь его зовут ${esc(pet().name)}!`, 'good');
         }
         inp.value = pet().name;
       };
@@ -571,7 +571,7 @@ export function openPet() {
             fn: (panel) => {
               setPetStay(false);
               panel.close();
-              toast(`${pet().name} идёт с тобой!`, 'good');
+              toast(`${esc(pet().name)} идёт с тобой!`, 'good');
             },
           }
         : {
@@ -580,7 +580,7 @@ export function openPet() {
             fn: (panel) => {
               setPetStay(true);
               panel.close();
-              toast(`${pet().name} подождёт тебя дома.`);
+              toast(`${esc(pet().name)} подождёт тебя дома.`);
             },
           },
       { text: 'Закрыть', cls: 'ghost', fn: (panel) => panel.close() },
@@ -628,7 +628,7 @@ function openShelterShop() {
         top = el('div', 'pet-top');
       top.appendChild(petIcon(pt.kind, 84, petHungry() ? 'sad' : 'happy'));
       const info = el('div', 'pet-info');
-      info.appendChild(el('div', 'nm', `<b>${pt.name}</b>`));
+      info.appendChild(el('div', 'nm', `<b>${esc(pt.name)}</b>`));
       info.appendChild(heartsRow());
       info.appendChild(el('div', 'muted', 'Чтобы покормить или поиграть, нажми на питомца — он ждёт тебя у двери.'));
       top.appendChild(info);
@@ -708,7 +708,7 @@ function openAdopt() {
           dialog({
             look: vendorLook(VENDOR),
             name: VENDORS[VENDOR].name,
-            text: PET_LINES.done(pet().name) + ' Нажми на него — и сможешь погладить, покормить и поиграть.',
+            text: PET_LINES.done(esc(pet().name)) + ' Нажми на него — и сможешь погладить, покормить и поиграть.',
             options: [{ text: 'Спасибо!', cls: 'green' }],
             happy: true,
           });
@@ -733,7 +733,7 @@ register(
     }
     const i = await dialog({
       ...who,
-      text: PET_LINES.have(pet().name),
+      text: PET_LINES.have(esc(pet().name)),
       options: [{ text: '🥣 Корм и игрушки', cls: 'green' }, { text: 'Пока!' }],
       happy: true,
     });

@@ -35,7 +35,9 @@ export function openPanel(o) {
     }
     head.appendChild(canvas);
   } else if (o.icon) head.appendChild(el('span', '', o.icon));
-  head.appendChild(el('span', 'title', o.title || ''));
+  const titleEl = el('span', 'title');
+  titleEl.textContent = o.title || ''; // заголовок — простой текст (в нём бывают имя питомца, название заведения, подпись снимка)
+  head.appendChild(titleEl);
   let moneyEl = null,
     dropAnchor = null;
   if (o.money) {

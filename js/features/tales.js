@@ -10,7 +10,7 @@ import { setFlag, addFriendPts } from '../core/actions.js';
 import { sfx } from '../core/audio.js';
 import { emit } from '../core/events.js';
 import { G, landOpen } from '../core/state.js';
-import { pick } from '../core/util.js';
+import { esc, pick } from '../core/util.js';
 import { PLACE_TALK, TALES, NPC_BY_ID, npcLook } from '../data/index.js';
 import { dialog } from '../ui/dialog.js';
 
@@ -18,7 +18,7 @@ const S = () => G.state;
 const FRESH_DAYS = 2; // столько дней после открытия место — «свежая новость»: о нём говорят чаще
 const CHANCE = 0.3, // как часто «Поболтать» вспоминает открытые места
   CHANCE_FRESH = 0.7; // …и свежую новость
-const named = (text) => text.replace(/\{name\}/g, (S() && S().name) || 'хомячок');
+const named = (text) => text.replace(/\{name\}/g, esc((S() && S().name) || 'хомячок')); // реплики идут в окно разговора (HTML)
 
 /** Выполнено ли условие записи (PLACE_TALK, TALES): место открыто, задание сделано, наклейка есть, отметка стоит. */
 function holds(e) {
