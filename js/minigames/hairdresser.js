@@ -71,29 +71,21 @@ export default {
     const root = host.root;
     const level = host.level || 0;
     const shelves = SHELVES.filter((s) => level >= s.from);
-    let stopped = false,
-      raf = 0;
-    const timers = new Set();
-    const later = (fn, ms) => {
-      const id = setTimeout(() => {
-        timers.delete(id);
-        if (!stopped) fn();
-      }, ms);
-      timers.add(id);
-    };
+    const { later } = host;
     const fallback = [{ id: 'me', name: 'Гостья', look: host.look }];
     const clients = shuffle(host.friends && host.friends.length ? host.friends : fallback);
     // мастер — хомячок игрока без шляпы (её не видно за креслом, зато видно причёску)
     const me = { ...host.look, outfit: { ...(host.look.outfit || {}), head: null } };
 
     const wrap = el('div', 'hd');
-    wrap.innerHTML = `<style>${CSS}</style>
+    host.css(CSS);
+    wrap.innerHTML = `
       <div class="hd-top"><div class="hd-count"></div><div class="hd-miss"></div></div>
       <div class="hd-main">
         <div class="hd-left"><div class="hd-stage"><div class="hd-pic">📋 Как на картинке</div></div><div class="hd-say"></div></div>
         <div class="hd-right"></div>
       </div>`;
-    root.appendChild(wrap);
+    host.add(wrap);
     const $ = (s) => wrap.querySelector(s);
     const cv = makeCanvas(CW, CH);
     cv.canvas.className = 'hd-cv';
@@ -207,7 +199,7 @@ export default {
     }
 
     function choose(key, v) {
-      if (phase !== 'wait' || stopped) return;
+      if (phase !== 'wait') return;
       cur[key] = v;
       snip = now;
       markOn();
@@ -215,7 +207,7 @@ export default {
     }
 
     function ready() {
-      if (phase !== 'wait' || stopped) return;
+      if (phase !== 'wait') return;
       const wrong = shelves.map((s) => s.key).filter((k) => cur[k] !== want[k]);
       const c = client();
       if (!wrong.length) {
@@ -274,8 +266,7 @@ export default {
       wrap.style.setProperty('--cv', clamp(w, 150, 480) + 'px');
     };
     fit();
-    const ro = new ResizeObserver(fit);
-    ro.observe(root);
+    host.onResize(fit);
 
     // --- рисунки
     function drawPic() {
@@ -317,10 +308,8 @@ export default {
       fillRR(ctx, 134, 186, 52, 8, 4, '#adb5bd', '#4a3728', 2);
     }
 
-    const t0 = performance.now();
-    const frame = (ts) => {
-      if (stopped) return;
-      now = (ts - t0) / 1000;
+    host.loop((_, time) => {
+      now = time; // время игры: на скрытой вкладке стоит вместе с таймерами
       const dt = now - phaseAt;
       const blink = now % 3.1 < 0.13;
       ctx.clearRect(0, 0, CW, CH);
@@ -372,9 +361,7 @@ export default {
         heart(ctx, gx - 34, 86 - k * 30, 6, '#ffa8c5');
         ctx.globalAlpha = 1;
       }
-      raf = requestAnimationFrame(frame);
-    };
-    raf = requestAnimationFrame(frame);
+    });
 
     // dev-хуки для автотеста
     cv.canvas.__hair = () => ({ i: idx, total: CLIENTS, phase, want: { ...want }, cur: { ...cur }, hints, shelves: shelves.map((s) => s.key) });
@@ -392,15 +379,5 @@ export default {
 
     startClient();
 
-    return {
-      stop() {
-        stopped = true;
-        cancelAnimationFrame(raf);
-        timers.forEach(clearTimeout);
-        timers.clear();
-        ro.disconnect();
-        wrap.remove();
-      },
-    };
   },
 };
