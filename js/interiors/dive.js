@@ -123,7 +123,9 @@ export function enter(from, params = {}) {
   sfx('splash');
   if (!A.award('x_dive') && !D.hint) toast('Нажимай, куда плыть. Чтобы всплыть — плыви вверх или жми ⬆️');
   else if (mapChest() && Math.abs(p.x - MAP_X) > 700)
-    toast(`🧰 Сундучок Зефирки лежит на дне у затонувшего корабля — плыви ${p.x > MAP_X ? 'налево ⬅️' : 'направо ➡️'}, на золотой блеск у края!`);
+    toast(
+      `🧰 Сундучок Зефирки лежит на дне у затонувшего корабля — плыви ${p.x > MAP_X ? 'налево ⬅️' : 'направо ➡️'}, на золотой блеск у края!`,
+    );
   D.hint = true;
   emit('dive');
 }
@@ -925,4 +927,21 @@ function debugSwim(x, y) {
   D.p.tx = null;
 }
 const debugMapChest = () => ({ x: MAP_X, y: bedY(MAP_X) - 60, on: mapChest() });
-export default { enter, leave, update, draw, pointerDown, pointerMove, pointerUp, interact, savePos, hud, sound, debugSwim, debugMapChest };
+export default {
+  enter,
+  leave,
+  update,
+  draw,
+  pointerDown,
+  pointerMove,
+  pointerUp,
+  interact,
+  savePos,
+  hud,
+  sound,
+  debugSwim,
+  debugMapChest,
+  // для общих занятий: фото-режим двигает кадр камерой сцены (features/photo.js) и подписывает снимок названием места
+  cam: D.cam,
+  desc: { title: '🤿 Под водой' },
+};

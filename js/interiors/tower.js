@@ -128,7 +128,7 @@ function layout() {
   S.cam.setAnchor(null, S.floorY);
 }
 function clampCam() {
-  S.cam.setBounds(0, null, width(), null); // камера ездит только по горизонтали
+  S.cam.setBounds(0, 0, width(), 0); // камера ездит только по горизонтали (и в фото-режиме тоже)
   S.cam.clamp();
 }
 const toWorld = (sx, sy) => S.cam.toWorld(sx, sy);
@@ -439,7 +439,7 @@ export function update(dt) {
     }
   }
   if (S.level === 'deck') updatePlanes(dt);
-  S.cam.setBounds(0, null, width(), null);
+  S.cam.setBounds(0, 0, width(), 0);
   S.cam.follow(p.x, null, dt, 5);
 }
 
@@ -690,7 +690,8 @@ function drawDeck(ctx, t) {
     emoji(ctx, x < 1000 ? '🏙️' : '🌊', x, -164 + Math.sin(t * 3 + x) * 4, 26);
     // задания Зефирки и Этажкина: в подзорную трубу на море видна чайка с кусочком карты или далёкий остров —
     // над трубой блестит звёздочка
-    if (x > 1000 && (gullWaits() || islandWaits())) star(ctx, x + 34, -200 + Math.sin(t * 4) * 5, 9 + Math.sin(t * 6) * 2, '#ffe066', OUT, 2);
+    if (x > 1000 && (gullWaits() || islandWaits()))
+      star(ctx, x + 34, -200 + Math.sin(t * 4) * 5, 9 + Math.sin(t * 6) * 2, '#ffe066', OUT, 2);
   }
   // скамейка
   fillRR(ctx, 900, -44, 180, 12, 5, '#d9a066', OUT, 2);
@@ -933,7 +934,21 @@ export function draw(ctx) {
 function sound() {
   return { day: 'town', sea: onDeck() ? 0.3 : 0, rain: 0.3, birds: onDeck(), crickets: false };
 }
-export default { enter, leave, update, draw, pointerDown, pointerMove, pointerUp, interact, savePos, sound };
+export default {
+  enter,
+  leave,
+  update,
+  draw,
+  pointerDown,
+  pointerMove,
+  pointerUp,
+  interact,
+  savePos,
+  sound,
+  // для общих занятий: фото-режим двигает кадр камерой сцены (features/photo.js) и подписывает снимок названием места
+  cam: S.cam,
+  desc: { title: '🏙️ Хомяк-Тауэр' },
+};
 
 // ---------- вид в подзорную трубу: море ----------
 /** Остров с вулканом у самого горизонта ищут для Лифтёра Этажкина (задание «Остров на горизонте», П.9). */
@@ -949,7 +964,14 @@ function drawFarIsle(ctx, t, d, find) {
   ell(ctx, x + 18, y + 2, 8, 4, mix('#2f9e44', '#1d3b38', d * 0.7));
   for (let i = 0; i < 4; i++) {
     const ph = (t * 0.25 + i / 4) % 1;
-    ell(ctx, x - 1 + ph * 10, y - 20 - ph * 26, 3 + ph * 6, 2.5 + ph * 4, `rgba(240,240,245,${(0.75 * (1 - ph)).toFixed(2)})`);
+    ell(
+      ctx,
+      x - 1 + ph * 10,
+      y - 20 - ph * 26,
+      3 + ph * 6,
+      2.5 + ph * 4,
+      `rgba(240,240,245,${(0.75 * (1 - ph)).toFixed(2)})`,
+    );
   }
   if (d > 0.4) ell(ctx, x - 1, y - 17, 6, 4, `rgba(255,120,60,${(0.4 + 0.3 * Math.sin(t * 4)).toFixed(2)})`);
   if (find)

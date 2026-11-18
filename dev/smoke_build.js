@@ -1,4 +1,4 @@
-// Шаг автотеста этапа 25: метки версий модулей. index.html читает номер сборки (js/data/build.js) и список модулей
+// Шаги автотеста этапа 25 (метки версий, общий кэш картинок, фото-режим на башне). Метки версий модулей: index.html читает номер сборки (js/data/build.js) и список модулей
 // (js/modules.json) и строит карту импортов — каждый файл игры грузится как «файл.js?v=BUILD», без дублей.
 // Подключается из dev/smoke.js. Только этот шаг:  node dev/smoke.js <url> "step:сборка"
 const fs = require('fs');
@@ -6,7 +6,7 @@ const path = require('path');
 const lib = require('./lib.js');
 
 module.exports = async function build(ctx) {
-  const { page, step, ev, expect } = lib(ctx);
+  const { page, step, ev, expect, fresh, go, closeAll, frames } = lib(ctx);
 
   await step(
     'сборка: все модули и стили грузятся с меткой версии ?v=BUILD, ни один файл не загружен дважды',
@@ -47,6 +47,58 @@ module.exports = async function build(ctx) {
         map.length === files.length && files.every((f) => map.some((u) => u.endsWith('/' + f))),
         'карта импортов не совпадает с js/modules.json',
       );
+    },
+  );
+
+  await step(
+    'память: у всех кэшей картинок один учёт и один предел — спрайты, земля и дом в сумме дают «всего», дом отпускает свои картинки',
+    async () => {
+      await fresh();
+      await go('world');
+      await frames(4);
+      const a = await ev(() => window.__dev.pix());
+      expect(a.sprites > 0 && a.ground > 0, 'в городе нет спрайтов или земли в кэше', a);
+      expect(a.total === a.sprites + a.ground + a.layers && a.layers === 0, 'учёт не сходится', a);
+      await go('villa');
+      await frames(4);
+      const b = await ev(() => window.__dev.pix());
+      expect(b.layers > 0 && b.total === b.sprites + b.ground + b.layers, 'картинки дома не учтены', b);
+      expect(b.budget >= 16e6 && b.budget <= 24e6, 'предел памяти вне 64–96 МБ', b.budget);
+      await go('world');
+      await frames(4);
+      const c = await ev(() => window.__dev.pix());
+      expect(c.layers === 0 && c.total <= c.budget, 'дом не отпустил картинки или память выше предела', c);
+    },
+  );
+
+  await step(
+    'башня: фото-режим двигает кадр по площадке (камера сцены), по вертикали кадр стоит; снимок подписан местом',
+    async () => {
+      await fresh();
+      await go('tower');
+      await ev(() => window.__dev.Tower.debugDeck());
+      await frames(150); // камера догнала хомячка
+      await closeAll();
+      const cam = () => ev(() => ({ x: window.__dev.scene.cam.x, y: window.__dev.scene.cam.y }));
+      await ev(() => window.__dev.F.openPhotoMode());
+      await page.waitForSelector('#photo', { timeout: 4000 });
+      const c0 = await cam();
+      const [w, h] = await ev(() => [innerWidth, innerHeight]);
+      await page.mouse.move(w / 2, h / 3);
+      await page.mouse.down();
+      await page.mouse.move(w / 2 - 160, h / 3 + 90, { steps: 4 });
+      await page.mouse.up();
+      const c1 = await cam();
+      expect(c1.x > c0.x + 50, 'кадр на башне не сдвинулся', [c0, c1]);
+      expect(c1.y === c0.y, 'кадр уехал по вертикали', [c0, c1]);
+      expect(
+        await ev(() => window.__dev.scene.desc.title.includes('Хомяк-Тауэр')),
+        'у башни нет названия для подписи снимка',
+      );
+      await page.click('#photo .ph-x:not(.tg)');
+      await frames(150); // камера сама возвращается к хомячку
+      const c2 = await cam();
+      expect(Math.abs(c2.x - c0.x) < 5, 'после фото-режима камера не вернулась', [c0, c2]);
     },
   );
 };
