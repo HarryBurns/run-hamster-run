@@ -56,6 +56,7 @@ export function dialog({ look, name, text, options = [{ text: 'Пока!' }], ha
     };
     options.forEach((o, i) => {
       const b = el('button', 'btn ' + (o.cls || (i === options.length - 1 ? 'ghost' : '')), o.text);
+      if (o.act) b.dataset.act = o.act; // метка для автотеста
       b.onclick = () => {
         if (!ready()) return;
         sfx('tap');

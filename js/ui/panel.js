@@ -18,7 +18,8 @@ const markOpen = (d) => {
 };
 
 /**
- * openPanel({ title, icon, cls, money, tabs:[{id,name}], tab, render(body, tabId, panel), foot:[{text, cls, fn}], onClose })
+ * openPanel({ title, icon, cls, money, tabs:[{id,name}], tab, render(body, tabId, panel), foot:[{text, cls, fn, act}], onClose })
+ * act — метка кнопки для автотеста (data-act), на вид и поведение не влияет.
  * Возвращает { close(), refresh(), setTab(id), body, tab }
  */
 export function openPanel(o) {
@@ -46,6 +47,7 @@ export function openPanel(o) {
     dropAnchor = moneyAnchor(moneyEl); // «+350» и «−120» всплывают у числа монет этого окна (ui/coins.js)
   }
   const x = el('button', 'xbtn', '✕');
+  x.dataset.act = 'close'; // метки data-act — для автотеста: текст кнопок меняют ради ребёнка, тесты падать не должны
   head.appendChild(x);
   p.appendChild(head);
   let tabsEl = null;
@@ -106,6 +108,7 @@ export function openPanel(o) {
         const list = typeof o.foot === 'function' ? o.foot(api) : o.foot;
         for (const f of list) {
           const b = el('button', 'btn ' + (f.cls || ''), f.text);
+          if (f.act) b.dataset.act = f.act;
           b.onclick = () => {
             sfx('tap');
             f.fn(api);
@@ -134,7 +137,10 @@ export function openPanel(o) {
   return api;
 }
 
-/** Простое сообщение с кнопками. Возвращает Promise с индексом кнопки (-1 — закрыли). */
+/**
+ * Простое сообщение с кнопками. Возвращает Promise с индексом кнопки (-1 — закрыли).
+ * Метки для автотеста: первая кнопка — data-act="ok", последняя из нескольких — "no" (или своя: { text, act }).
+ */
 export function message({
   title = '',
   icon = '',
@@ -162,6 +168,7 @@ export function message({
       foot: buttons.map((bt, i) => ({
         text: bt.text,
         cls: bt.cls || (i === 0 ? 'green' : 'ghost'),
+        act: bt.act || (i === 0 ? 'ok' : i === buttons.length - 1 ? 'no' : ''),
         fn: (p) => {
           fin(i);
           p.close();

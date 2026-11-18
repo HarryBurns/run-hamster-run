@@ -143,6 +143,7 @@ export function openTitle({ start }) {
       inp.value = 'Хомка';
       inp.setAttribute('aria-label', 'Имя');
       const b = el('button', 'btn big green', 'Играть! ▶');
+      b.dataset.act = 'play'; // метки data-act — для автотеста (dev/lib.js)
       b.onclick = () => {
         const why = createGame((inp.value || '').trim() || 'Хомка');
         if (why) return noRoom(why);
@@ -188,6 +189,7 @@ export function openTitle({ start }) {
             el('div', 'sub', '<small>Игра открылась из запасной копии 💾 — что-то из последнего могло не сохраниться.</small>'),
           );
         const b1 = el('button', 'btn big green', 'Продолжить ▶');
+        b1.dataset.act = 'continue';
         b1.onclick = () => close(false);
         menu.appendChild(b1);
       } else if (res.problem === 'newer') {
@@ -196,17 +198,20 @@ export function openTitle({ start }) {
           el('div', 'sub', 'Игра обновилась, а страница — ещё нет.<br>Нажми «Обновить», чтобы продолжить свою игру.'),
         );
         const b1 = el('button', 'btn big green', 'Обновить 🔄');
+        b1.dataset.act = 'reload';
         b1.onclick = () => location.reload();
         menu.appendChild(b1);
       } else if (res.problem === 'broken')
         menu.appendChild(el('div', 'sub', 'Последнюю игру не получилось открыть 😿'));
       const row = el('div', 't-row');
       const b2 = el('button', 'btn blue', '📒 Мои игры');
+      b2.dataset.act = 'games';
       b2.onclick = () => {
         sfx('tap');
         openGames();
       };
       const b3 = el('button', 'btn ghost', '✨ Новая игра');
+      b3.dataset.act = 'new';
       b3.onclick = () => {
         sfx('tap');
         askNew();

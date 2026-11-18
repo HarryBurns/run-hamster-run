@@ -74,7 +74,7 @@ export function showSurprise(title, { html, icon }) {
       }
       body.appendChild(el('div', '', html));
     },
-    foot: [{ text: 'Ура!', cls: 'green', fn: (p) => p.close() }],
+    foot: [{ text: 'Ура!', cls: 'green', act: 'ok', fn: (p) => p.close() }],
   });
 }
 

@@ -636,11 +636,13 @@ export function playIntro({ name = 'Хомка', look = playerLook(), frameTime 
     box.id = 'intro';
     const cv = el('canvas', 'i-scene');
     const skip = el('button', 'btn small ghost i-skip', 'Пропустить ⏭');
+    skip.dataset.act = 'skip'; // метки data-act — для автотеста (dev/lib.js)
     const cap = el('div', 'i-cap');
     const text = el('p', 'i-text');
     const row = el('div', 'i-row');
     const dots = el('div', 'i-dots');
     const next = el('button', 'btn big green i-next', 'Дальше ▶');
+    next.dataset.act = 'next';
     row.append(dots, next);
     cap.append(text, row);
     box.append(cv, skip, cap);
