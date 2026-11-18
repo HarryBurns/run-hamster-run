@@ -139,6 +139,12 @@ export async function runMinigame(id, info) {
       css: (text) => kit.css(wrap, text),
       /** Всплывающие надписи (kit.js, makePops). */
       pops: makePops,
+      /** fn() при смене размера рамки игры (и сразу при подписке — так работает ResizeObserver). */
+      onResize(fn) {
+        const ro = new ResizeObserver(fn);
+        ro.observe(root);
+        kit.onDispose(() => ro.disconnect());
+      },
       /** Canvas на весь root, сам подстраивается под размер. draw-код работает в CSS-пикселях: cv.w × cv.h */
       canvas() {
         const canvas = document.createElement('canvas');

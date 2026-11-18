@@ -77,7 +77,7 @@ const CSS = `
 .brs.short .brs-msg{font-size:15px}
 `;
 
-/** Запустить игру «собери по заказу» с настройкой cfg. Возвращает { stop() } — как start() любой мини-игры. */
+/** Запустить игру «собери по заказу» с настройкой cfg. Снимать нечего — всё снимает хост (kit.js). */
 export function orderGame(host, cfg) {
   const root = host.root;
   const level = host.level || 0;
@@ -85,28 +85,15 @@ export function orderGame(host, cfg) {
   const noun = cfg.noun || 'Заказ';
   const byKey = {};
   for (const sh of cfg.shelves) for (const it of sh.items) byKey[it.k] = { ...it, shelf: sh.id };
-  let stopped = false,
-    raf = 0;
-  const timers = new Set();
-  const later = (fn, ms) => {
-    const id = setTimeout(() => {
-      timers.delete(id);
-      if (!stopped) fn();
-    }, ms);
-    timers.add(id);
-    return id;
-  };
-  const cancel = (id) => {
-    clearTimeout(id);
-    timers.delete(id);
-  };
+  const { later, cancel } = host;
 
   const fallback = [{ id: 'me', name: 'Гость', look: host.look }];
   const guests = shuffle(host.friends && host.friends.length ? host.friends : fallback);
 
   const wrap = el('div', 'brs');
   wrap.style.background = cfg.bg;
-  wrap.innerHTML = `<style>${CSS}</style>
+  host.css(CSS);
+  wrap.innerHTML = `
     <div class="brs-top"><div class="brs-count"></div><div class="brs-marks"></div></div>
     <div class="brs-main">
       <div class="brs-left">
@@ -122,7 +109,7 @@ export function orderGame(host, cfg) {
         <div class="brs-shelves"></div>
       </div>
     </div>`;
-  root.appendChild(wrap);
+  host.add(wrap);
   const $ = (s) => wrap.querySelector(s);
   const countEl = $('.brs-count'),
     marksEl = $('.brs-marks'),
@@ -191,7 +178,8 @@ export function orderGame(host, cfg) {
     phase = 'order', // order | yum
     enterAt = 0,
     yumAt = 0,
-    lateTimer = 0;
+    lateTimer = 0,
+    waitFor = 1; // терпение этого гостя, с
 
   const setMsg = (t, cls = '') => {
     msgEl.textContent = t;
@@ -222,13 +210,8 @@ export function orderGame(host, cfg) {
         trayEl.appendChild(el('span', 'small', byKey[k].e));
     for (const k of want) if (byKey[k].shelf === last && got.has(k)) trayEl.appendChild(el('span', '', byKey[k].e));
   }
-  function runTimer(ms) {
-    timerBar.style.transition = 'none';
-    timerBar.style.width = '100%';
-    void timerBar.offsetWidth;
-    timerBar.style.transition = `width ${ms}ms linear`;
-    timerBar.style.width = '0%';
-  }
+  // полоска терпения убывает в кадре (по времени игры): на скрытой вкладке гость ждёт вместе с ней
+  const runTimer = (ms) => (waitFor = ms / 1000);
 
   function startOrder() {
     const g = guests[idx % guests.length];
@@ -259,7 +242,7 @@ export function orderGame(host, cfg) {
   }
 
   function tap(k, btn) {
-    if (phase !== 'order' || stopped) return;
+    if (phase !== 'order') return;
     if (want.includes(k) && !got.has(k)) {
       got.add(k);
       host.sfx('pop');
@@ -285,7 +268,7 @@ export function orderGame(host, cfg) {
     cancel(lateTimer);
     lock(true);
     Object.values(buttons).forEach((b) => b.classList.remove('hint'));
-    timerBar.style.transition = 'none';
+    timerBar.style.width = '0%';
     if (clean) perfect++;
     marks[idx].classList.remove('cur');
     marks[idx].textContent = clean ? '⭐' : '👌';
@@ -314,14 +297,12 @@ export function orderGame(host, cfg) {
     wrap.style.setProperty('--u', u.toFixed(3));
   };
   fit();
-  const ro = new ResizeObserver(fit);
-  ro.observe(root);
+  host.onResize(fit);
 
   // --- хомячки: гость и героиня за работой; картинки заказа
-  const t0 = performance.now();
-  const frame = (ts) => {
-    if (stopped) return;
-    now = (ts - t0) / 1000;
+  host.loop((dt, time) => {
+    now = time;
+    if (phase === 'order') timerBar.style.width = `${clamp(1 - (now - enterAt) / waitFor, 0, 1) * 100}%`;
     const blink = now % 3.3 < 0.13;
     const yum = phase === 'yum';
     const g = guests[idx % guests.length];
@@ -349,20 +330,7 @@ export function orderGame(host, cfg) {
       trayPic.ctx.clearRect(0, 0, w, h);
       pic.draw(trayPic.ctx, w, h, [...got], now, g);
     }
-    raf = requestAnimationFrame(frame);
-  };
-  raf = requestAnimationFrame(frame);
+  });
 
   startOrder();
-
-  return {
-    stop() {
-      stopped = true;
-      cancelAnimationFrame(raf);
-      timers.forEach(clearTimeout);
-      timers.clear();
-      ro.disconnect();
-      wrap.remove();
-    },
-  };
 }
