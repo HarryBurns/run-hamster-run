@@ -529,10 +529,13 @@ export function createSea(cfg) {
 
 
   // ---------- кораблик ----------
+  // Одно расстояние (в клетках) на «сойти на берег» и «сесть обратно»: откуда сошла — оттуда и сядет, даже простуженная,
+  // которой в воду нельзя (Б1 ревью мест: было 2,6 и 2,4 — сойдя «с дальней клетки», на кораблик было не сесть).
+  const BOARD_R = 2.6;
   function boardBoat() {
     const p = sc.p,
       bt = boatState();
-    if (dist(p.x, p.y, bt.x, bt.y) > T * 2.4) return;
+    if (dist(p.x, p.y, bt.x, bt.y) > T * BOARD_R) return;
     p.ride = BOAT;
     setBoat({ on: true });
     p.x = bt.x;
@@ -564,7 +567,7 @@ export function createSea(cfg) {
   }
   function landFromBoat(tx, ty) {
     const p = sc.p;
-    if (dist(p.x / T, p.y / T, tx + 0.5, ty + 0.5) > 2.6 || !m.foot(tx, ty)) {
+    if (dist(p.x / T, p.y / T, tx + 0.5, ty + 0.5) > BOARD_R || !m.foot(tx, ty)) {
       toast('Ближе на кораблике не подплыть. Попробуй с другой стороны!');
       return;
     }
@@ -582,6 +585,7 @@ export function createSea(cfg) {
       for (let dx = -2; dx <= 2; dx++) {
         const c = ch(tx + dx, ty + dy);
         if (c === 'w' || c === 'O' || c === 'h' || c === 'o' || !m.foot(tx + dx, ty + dy)) continue;
+        if (dist(p.x / T, p.y / T, tx + dx + 0.5, ty + dy + 0.5) > BOARD_R) continue; // оттуда не сесть обратно
         const d = dx * dx + dy * dy;
         if (d < bd) {
           bd = d;
@@ -1013,7 +1017,7 @@ export function createSea(cfg) {
     near(s) {
       const bt = boatState(),
         d = dist(s.p.x, s.p.y, bt.x, bt.y);
-      return d < T * 2 ? { d: d * 0.5, pending: { fn: boardBoat } } : null;
+      return d < T * BOARD_R ? { d: d * 0.5, pending: { fn: boardBoat } } : null;
     },
     idle: dive,
     update(s, dt) {
