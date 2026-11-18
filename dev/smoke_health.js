@@ -7,65 +7,23 @@ const path = require('path');
 const SAVE_V3 = fs.readFileSync(path.join(__dirname, 'saves', 'v3.json'), 'utf8'); // до болезни (этап 4)
 const SAVE_V4 = fs.readFileSync(path.join(__dirname, 'saves', 'v4.json'), 'utf8'); // простуженная Ириска (Ф1)
 
-module.exports = async function health({ page, step, ev, wait, closeAll }) {
-  const state = () => ev(() => JSON.parse(JSON.stringify(window.__dev.G.state)));
-  const norm = (t) => t.replace(/[   ]/g, ' ');
-  const expect = (ok, msg, data) => {
-    if (!ok) throw new Error(msg + (data === undefined ? '' : ': ' + JSON.stringify(data)));
-  };
-  const toasts = async () =>
-    norm(await ev(() => (document.querySelector('#toasts') || { textContent: '' }).textContent));
-  const clearToasts = () =>
-    ev(() => {
-      const t = document.querySelector('#toasts');
-      if (t) t.innerHTML = '';
-    });
-  const scene = () => ev(() => window.__dev.sceneName);
-  const dialogText = async () => norm(await ev(() => (document.querySelector('.dialog .say') || {}).textContent || ''));
+const lib = require('./lib.js');
+
+module.exports = async function health(ctx) {
+  const L = lib(ctx);
+  const { page, step, ev, wait, closeAll, until, untilScene, untilPanel, frames, go, T, expect, state, dialogText, panelText, toasts, clearToasts, scene, tap, mgClose } = L;
   const dialogBtns = () => ev(() => [...document.querySelectorAll('.dialog .btn')].map((b) => b.textContent));
-  const panelText = async () =>
-    norm(await ev(() => [...document.querySelectorAll('.overlay .panel')].map((p) => p.textContent).join(' | ')));
-  const enter = async (id) => {
-    await ev((id) => {
-      window.__dev.enterBuilding(id);
-    }, id);
-    await wait(500);
-  };
+  /** Войти в здание города; ждём отклика (диалог, окно, сцена), но не дольше 500 мс. */
+  const enter = (id) => L.enter(id, 500);
   /**
    * Новая игра с чистого листа. Шаги про болезнь написаны для игры, которая началась 1 января (холод, ледяное море,
    * первые дни 0–2): january — перевести календарь на 1 января, как у игр до этапа 10 (новая игра начинается 1 июня).
    */
-  const fresh = async (january = true) => {
-    await ev(() => {
-      window.__dev.G.state = null;
-      localStorage.clear();
-    });
-    await page.reload();
-    await wait(400);
-    await page.click('text=Играть!');
-    await page.click('text=Пропустить'); // вступительная сценка новой игры (этап 10)
-    await page.evaluate(() => window.__dev.actions.setFlag('intro', 0)); // вводная цепочка заданий — в своих шагах (dev/smoke_start.js)
-    await wait(400);
-    await page.click('text=Поехали!');
-    await wait(500);
-    if (january)
-      await ev(() =>
-        window.__dev.actions.mutate((s) => {
-          s.day = 0;
-          s.startDay = 0;
-          s.immuneUntil = 3;
-          s.weather = 'snow';
-        }),
-      );
-  };
-  const putSave = async (raw) => {
-    await ev((raw) => {
-      window.__dev.G.state = null;
-      localStorage.removeItem('rhr-save-backup');
-      localStorage.setItem('rhr-save-v1', raw);
-    }, raw);
-    await page.reload();
-    await wait(500);
+  const fresh = (january = true) => L.fresh(january ? { set: 's.day = 0; s.startDay = 0; s.immuneUntil = 3; s.weather = "snow";' } : {});
+  /** Подложить сохранение и открыть его («Продолжить»). */
+  const openSave = async (raw) => {
+    await L.putSave(raw);
+    await L.cont();
   };
   /** День, отметки дня (неосторожности), деньги — разом. */
   const setDay = (day, careless = null, money = null) =>
@@ -80,16 +38,7 @@ module.exports = async function health({ page, step, ev, wait, closeAll }) {
       [day, careless, money],
     );
   /** Лечь спать по-настоящему (кровать → вопрос → ночь → утро) на вилле. */
-  const sleep = async () => {
-    await ev(() => {
-      window.__dev.go('villa');
-      window.__dev.evening(); // спать можно только вечером, с 19:00 (этап 18)
-      window.__dev.F.askSleep();
-    });
-    await wait(400);
-    await page.click('.panel-foot .btn.green');
-    await wait(3600);
-  };
+  const sleep = () => L.sleep({ keep: true }); // утренние окна не закрывать: их проверяют
   /** Какой день (≥ from) с такими неосторожностями заболеет ночью, а без них — нет. */
   const findDay = (careless, from = 3) =>
     ev(
@@ -147,9 +96,11 @@ module.exports = async function health({ page, step, ev, wait, closeAll }) {
       d.go('world');
     });
     await clearToasts();
-    await wait(14500); // 20 игровых минут = 12 с
+    await untilScene('world');
+    await L.ff(14.5); // 20 игровых минут = 12 с — промотать время игры
+    await frames(2);
     expect(/холодно/.test(await toasts()), 'нет подсказки про холод', await toasts());
-    await wait(24500); // ещё 40 минут — неосторожность
+    await L.ff(24.5); // ещё 40 минут — неосторожность
     let s = await state();
     expect(s.dayFlags.careless && s.dayFlags.careless.cold === 1, 'холод не отмечен', s.dayFlags);
     // тёплая шапка — и на холоде уже не считается (новый день)
@@ -158,13 +109,13 @@ module.exports = async function health({ page, step, ev, wait, closeAll }) {
       d.actions.mutate((s) => (s.dayFlags = {}));
       d.actions.wear('head', 'beanie_red');
     });
-    await wait(4000);
+    await L.ff(4);
     s = await state();
     expect(!s.dayFlags.careless && !(s.dayFlags.warn || {}).cold, 'в шапке холод всё равно считается', s.dayFlags);
     // купание в море зимой — неосторожность сразу (с подсказкой), летом — нет
     await clearToasts();
     await ev(() => window.__dev.emit('swim', { where: 'sea' }));
-    await wait(300);
+    await frames(2);
     s = await state();
     expect(s.dayFlags.careless.sea === 1 && /ледяная/.test(await toasts()), 'ледяное море', s.dayFlags);
     await ev(() => {
@@ -187,10 +138,11 @@ module.exports = async function health({ page, step, ev, wait, closeAll }) {
       d.actions.wear('head', null);
     });
     await clearToasts();
-    await wait(14500);
+    await L.ff(14.5);
+    await frames(2);
     expect(/дожд/.test(await toasts()), 'нет подсказки про дождь', await toasts());
     await ev(() => window.__dev.actions.wear('body', 'ja_yellow'));
-    await wait(25000);
+    await L.ff(25);
     s = await state();
     expect(!s.dayFlags.careless, 'в дождевике дождь считается', s.dayFlags);
     await ev(() => window.__dev.go('villa'));
@@ -212,9 +164,7 @@ module.exports = async function health({ page, step, ev, wait, closeAll }) {
     await closeAll();
     expect(!(await state()).sick, 'заболела без причины');
     // тот же день, но гуляла на морозе без тёплых вещей — простыла; состояние меняют только действия
-    await putSave(before);
-    await page.click('text=Продолжить');
-    await wait(700);
+    await openSave(before);
     await setDay(d, { cold: 1 });
     const saved = await ev(() => {
       window.__dev.actions.touchState();
@@ -225,6 +175,7 @@ module.exports = async function health({ page, step, ev, wait, closeAll }) {
       window.__stopWatchHealth = window.__dev.watchState();
     });
     await sleep();
+    await untilPanel().catch(() => {}); // утреннее «Апчхи!»
     const bad = await ev(() => window.__stopWatchHealth());
     expect(!bad.length, `запись в состояние мимо действий (${bad.length})`, [...new Set(bad)].slice(0, 4));
     let s = await state();
@@ -241,7 +192,7 @@ module.exports = async function health({ page, step, ev, wait, closeAll }) {
     await closeAll();
     // значок: по нажатию — что делать
     await page.click('.chip.sick');
-    await wait(500);
+    await untilPanel().catch(() => {});
     expect(/больниц/.test(await panelText()), 'окно «что делать»', await panelText());
     await closeAll();
     // письмо дня — не работа, не купание и не ныряние
@@ -258,9 +209,7 @@ module.exports = async function health({ page, step, ev, wait, closeAll }) {
     expect(!tasks.length, 'простуженной пришло письмо про работу или купание', tasks);
     // перезагрузка: та же ночь даёт то же решение
     for (let i = 0; i < 2; i++) {
-      await putSave(saved);
-      await page.click('text=Продолжить');
-      await wait(700);
+      await openSave(saved);
       await sleep();
       await closeAll();
       s = await state();
@@ -277,8 +226,8 @@ module.exports = async function health({ page, step, ev, wait, closeAll }) {
     await setDay(10, null);
     // шаг здоровой и простуженной: на вилле, стрелкой вправо
     const walk = async () => {
-      await ev(() => window.__dev.go('villa', { pos: { scene: 'villa', floor: 0, x: 300 } }));
-      await wait(400);
+      await go('villa', { pos: { scene: 'villa', floor: 0, x: 300 } });
+      await frames(3);
       const x0 = await ev(() => window.__dev.Villa.p.x);
       await page.keyboard.down('ArrowRight');
       await wait(700);
@@ -291,8 +240,7 @@ module.exports = async function health({ page, step, ev, wait, closeAll }) {
     const slow = await walk();
     expect(k === 0.7 && slow / fast > 0.5 && slow / fast < 0.88, 'простуженная не медленнее', { k, fast, slow });
     // работа: в школе и больнице вежливый отказ (в больнице — сразу к доктору), в бассейне — «нельзя купаться»
-    await ev(() => window.__dev.go('world'));
-    await wait(500);
+    await go('world');
     await enter('school');
     expect(/Сначала выздоровей/.test(await dialogText()), 'школа: нет отказа', await dialogText());
     expect(!(await dialogBtns()).some((b) => /урок/.test(b)), 'школа: кнопка работы осталась', await dialogBtns());
@@ -311,7 +259,7 @@ module.exports = async function health({ page, step, ev, wait, closeAll }) {
     await ev(() => {
       window.__dev.F.playMinigame('chef');
     });
-    await wait(500);
+    await untilPanel().catch(() => {});
     expect(
       /Сначала выздоровей/.test(await panelText()) && !(await ev(() => !!document.querySelector('#mg'))),
       'шеф-повар: нет отказа',
@@ -320,14 +268,13 @@ module.exports = async function health({ page, step, ev, wait, closeAll }) {
     await ev(() => {
       window.__dev.F.playMinigame('fishing', { spot: 'pier' });
     });
-    await wait(700);
+    await until(() => !!document.querySelector('#mg'), undefined, { timeout: 3000 }).catch(() => {});
     expect(await ev(() => !!document.querySelector('#mg')), 'рыбалка не открылась');
-    await page.click('#mg .xbtn');
-    await wait(400);
+    await mgClose();
     await closeAll();
     // у воды: дальше песка не идёт, подсказка
     await ev(() => window.__dev.World.debugTeleport(40, 53));
-    await wait(300);
+    await frames(3);
     await clearToasts();
     await page.keyboard.down('ArrowDown');
     await wait(2500);
@@ -356,11 +303,10 @@ module.exports = async function health({ page, step, ev, wait, closeAll }) {
     expect(deep, 'нет глубокой воды');
     await clearToasts();
     await ev(() => window.__dev.World.dive());
-    await wait(500);
+    await until(() => /купаться нельзя/.test(document.querySelector('#toasts').textContent), undefined, { timeout: 2000 }).catch(() => {});
     expect((await scene()) === 'world' && /купаться нельзя/.test(await toasts()), 'нырнула простуженной');
     // домашний бассейн на вилле — нельзя, ванна — можно
-    await ev(() => window.__dev.go('villa'));
-    await wait(300);
+    await go('villa');
     await clearToasts();
     const pool = await ev(async () => {
       const { FIXTURES } = await import('./js/engine/side/fixtures.js');
@@ -368,7 +314,7 @@ module.exports = async function health({ page, step, ev, wait, closeAll }) {
       FIXTURES.pool.use(sc, { x: 1150, w: 770, h: 90, f: 0 });
       return sc.p.state;
     });
-    await wait(200);
+    await frames(2);
     expect(pool !== 'swim' && /купаться нельзя/.test(await toasts()), 'домашний бассейн', pool);
     // тёплый чай с мёдом: обычный шаг на сегодня, но всё ещё простыла
     await ev(() => {
@@ -376,7 +322,7 @@ module.exports = async function health({ page, step, ev, wait, closeAll }) {
       d.actions.addItem('dishes', 'honey_tea', 1);
       d.F.eat('honey_tea');
     });
-    await wait(1200);
+    await until(() => window.__dev.G.state.dayFlags.sickTea && /полегче/.test(document.querySelector('#toasts').textContent), undefined, { timeout: 3000 }).catch(() => {});
     const s = await state();
     const k2 = await ev(async () => (await import('./js/core/state.js')).walkK());
     expect(s.sick && s.dayFlags.sickTea && k2 === 1, 'чай не помог', [s.sick, s.dayFlags, k2]);
@@ -390,22 +336,19 @@ module.exports = async function health({ page, step, ev, wait, closeAll }) {
       window.__dev.actions.fallSick('sea');
       window.__dev.go('world');
     });
-    await wait(400);
+    await untilScene('world');
+    await frames(2);
     await enter('hospital');
     expect(/Витаминкин/.test(await ev(() => document.querySelector('.dialog .name').textContent)), 'не доктор');
     expect(/150/.test(await dialogText()), 'нет цены приёма', await dialogText());
-    await page.click('.dialog .btn.green');
-    await wait(700);
+    await tap('.dialog .btn.green', 700);
     expect(/Приём у доктора/.test(await panelText()) && /градусник/.test(await panelText()), 'нет приёма');
     expect((await state()).sick, 'вылечилась до конца приёма');
-    await page.click('.overlay .panel-foot .btn.green');
-    await wait(400);
+    await tap('.overlay .panel-foot .btn.green', 400);
     expect(/А-а-а/.test(await panelText()), 'нет «скажи а-а-а»');
-    await page.click('.overlay .panel-foot .btn.green');
-    await wait(400);
+    await tap('.overlay .panel-foot .btn.green', 400);
     expect(/витаминка/.test(await panelText()), 'нет витаминки');
-    await page.click('.overlay .panel-foot .btn.green');
-    await wait(1600);
+    await tap('.overlay .panel-foot .btn.green', 1600);
     let s = await state();
     expect(!s.sick && s.money === 2850 && s.immuneUntil === 12 + 4, 'после приёма', [s.sick, s.money, s.immuneUntil]);
     expect(s.stickers.includes('x_healthy') && s.ledger.today.out === 150, 'наклейка или учёт трат', s.stickers);
@@ -413,8 +356,7 @@ module.exports = async function health({ page, step, ev, wait, closeAll }) {
     // здоровой — больница снова зовёт работать, есть «Как не простыть?»
     await enter('hospital');
     expect(/Лечить/.test((await dialogBtns()).join()) && /не простыть/.test((await dialogBtns()).join()), 'больница');
-    await page.click('.dialog >> text=Как не простыть?');
-    await wait(500);
+    await tap('.dialog >> text=Как не простыть?', 500);
     expect(/шапку/.test(await panelText()), 'советы доктора', await panelText());
     await closeAll();
     // монет нет — лечит «за улыбку»; закрыть окно посреди приёма — всё равно здорова
@@ -425,10 +367,8 @@ module.exports = async function health({ page, step, ev, wait, closeAll }) {
     });
     await enter('hospital');
     expect(/за улыбку/.test(await dialogText()), 'бесплатно — не сказано', await dialogText());
-    await page.click('.dialog .btn.green');
-    await wait(700);
-    await page.click('.overlay .xbtn');
-    await wait(600);
+    await tap('.dialog .btn.green', 700);
+    await tap('.overlay .xbtn', 600);
     s = await state();
     expect(!s.sick && s.money === 40, 'бесплатный приём', [s.sick, s.money]);
     expect(await ev(() => document.querySelector('.chip.sick').hidden), 'значок 🤒 остался');
@@ -444,7 +384,7 @@ module.exports = async function health({ page, step, ev, wait, closeAll }) {
     expect(s.sick && s.day === 21, 'выздоровела слишком рано', [s.day, s.sick]);
     await clearToasts();
     await sleep(); // день 22 — здорова сама
-    await wait(600);
+    await until(() => /выздоровела/.test(document.querySelector('#toasts').textContent), undefined, { timeout: 3000 }).catch(() => {});
     s = await state();
     expect(!s.sick && s.day === 22 && s.immuneUntil === 26, 'не выздоровела сама', [s.day, s.sick, s.immuneUntil]);
     expect(/выздоровела/.test(await toasts()), 'нет подсказки о выздоровлении', await toasts());
@@ -469,9 +409,7 @@ module.exports = async function health({ page, step, ev, wait, closeAll }) {
 
   await step('болезнь: перенос сохранения v3 → v4 и образец v4', async () => {
     const old = JSON.parse(SAVE_V3);
-    await putSave(SAVE_V3);
-    await page.click('text=Продолжить');
-    await wait(900);
+    await openSave(SAVE_V3);
     let s = await state();
     expect(s.v === 5 && s.sick === null && s.immuneUntil === old.day + 3, 'перенос', [s.v, s.sick, s.immuneUntil]);
     for (const k of ['name', 'money', 'stickers', 'day', 'biz', 'homesOwned', 'homes', 'villa'])
@@ -482,31 +420,24 @@ module.exports = async function health({ page, step, ev, wait, closeAll }) {
     expect(backup.v === 3 && backup.money === old.money, 'нет копии сохранения v3', backup.v);
     // образец v4: простуженная Ириска — значок есть, доктор лечит
     const want = JSON.parse(SAVE_V4);
-    await putSave(SAVE_V4);
-    await page.click('text=Продолжить');
-    await wait(900);
+    await openSave(SAVE_V4);
     s = await state();
     expect(s.v === 5 && s.name === want.name && JSON.stringify(s.sick) === JSON.stringify(want.sick), 'образец v4', [
       s.v,
       s.sick,
     ]);
     expect(await ev(() => !document.querySelector('.chip.sick').hidden), 'образец v4: нет значка 🤒');
-    await ev(() => window.__dev.go('world'));
-    await wait(400);
+    await go('world');
     await enter('hospital');
-    await page.click('.dialog .btn.green');
-    await wait(600);
-    await page.click('.overlay .xbtn');
-    await wait(500);
+    await tap('.dialog .btn.green', 600);
+    await tap('.overlay .xbtn', 500);
     s = await state();
     expect(!s.sick && s.money === want.money - 150, 'образец v4: приём', [s.sick, s.money]);
     // испорченное поле болезни чинится, а не ломает игру
     const broken = JSON.parse(SAVE_V4);
     broken.sick = { since: 'вчера' };
     broken.immuneUntil = 'никогда';
-    await putSave(JSON.stringify(broken));
-    await page.click('text=Продолжить');
-    await wait(700);
+    await openSave(JSON.stringify(broken));
     s = await state();
     expect(s.sick === null && s.immuneUntil === 0, 'испорченное поле болезни', [s.sick, s.immuneUntil]);
     await ev(() => window.__dev.go('villa'));

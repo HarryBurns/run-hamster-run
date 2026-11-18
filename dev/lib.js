@@ -309,6 +309,15 @@ function lib(ctx) {
       timeout,
     );
 
+  /**
+   * Промотать время игры на sec секунд (игровая минута — 0,6 с): шаги логики (событие step, как в главном цикле) по
+   * 0,5 с — часы, подсказки и отметки дня (холод, дождь, жара) идут так же, как если бы столько прошло. Окна должны
+   * быть закрыты: на паузе цикл шагов не делает, а здесь — сделает.
+   */
+  const ff = (sec) =>
+    ev((sec) => {
+      for (let t = 0; t < sec - 1e-9; t += 0.5) window.__dev.emit('step', { dt: Math.min(0.5, sec - t) });
+    }, sec);
   /** Вечер (__dev.evening): часы не раньше m (по умолчанию 19:00 — можно спать). */
   const evening = (m) => ev((m) => window.__dev.evening(m === null ? undefined : m), m === undefined ? null : m);
   /**
@@ -484,6 +493,7 @@ function lib(ctx) {
     enter,
     run,
     evening,
+    ff,
     sleep,
     confirmSleep,
     putSave,
