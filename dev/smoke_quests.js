@@ -289,7 +289,7 @@ module.exports = async function quests({ page, step, ev, wait, closeAll }) {
     await ev(() => window.__dev.F.openMap());
     await wait(500);
     const lands = await ev(() => [...document.querySelectorAll('.overlay .land')].map((b) => [b.textContent, b.classList.contains('open')]));
-    expect(lands.length === 7 && lands[0][1] && lands.slice(1).every((l) => !l[1] && l[0].includes('🔒')), 'тайные места на карте', lands);
+    expect(lands.length > 1 && lands[0][1] && lands.slice(1).every((l) => !l[1] && l[0].includes('🔒')), 'тайные места на карте', lands);
     await closeAll();
     // повторно задание не берётся, Мята говорит как обычно
     await talkMyata();

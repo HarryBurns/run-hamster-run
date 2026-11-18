@@ -2706,9 +2706,16 @@ const runParallel = () => {
       // нажимаем на хозяйку: хомячок подходит, открывается диалог
       await at(880);
       await wait(900); // камера догоняет
+      // точка на хозяйке, не закрытая кнопками HUD (на телефоне её правый край — под «Рюкзаком»)
       const s = await ev(() => {
         const sc = window.__dev.scenes.demo_house,
           a = sc.actors[0];
+        for (const dy of [-60, -100, -30])
+          for (const dx of [0, -20, -35, 20, 35]) {
+            const p = sc.debugScreen(a.x + dx, dy);
+            const el = document.elementFromPoint(p.x, p.y);
+            if (el && el.tagName === 'CANVAS') return p;
+          }
         return sc.debugScreen(a.x, -60);
       });
       await page.mouse.click(s.x, s.y);

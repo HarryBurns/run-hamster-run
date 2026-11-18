@@ -455,7 +455,7 @@ module.exports = async function mountain({ page, step, ev, wait, closeAll }) {
       'правило картинкой',
       intro,
     );
-    await page.click('#mg >> text=Начать!');
+    await page.click('#mg button:has-text("Начать!")'); // кнопка, а не строка правил «…выберешь после «Начать!»»
     await wait(300);
     await page.click('#mg .sl-pick button[data-ride="sled"]'); // санки или лыжи (Г4) — санки
     const t0 = Date.now();
