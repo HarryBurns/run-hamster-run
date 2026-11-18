@@ -48,12 +48,12 @@ export default {
     const patience = 8 - Math.min(4, level) * 0.6; // сколько секунд ждёт помощи
     const gap = 3.6 - Math.min(4, level) * 0.3; // как часто просят
     const maxAtOnce = level >= 2 ? 2 : 1;
-    const style = el('style', '', CSS);
     const top = el('div', 'lg-top');
     const tCount = el('div', 'lg-chip'),
       tSay = el('div', 'lg-chip');
     top.append(tCount, tSay);
-    root.append(style, top);
+    host.css(CSS);
+    root.append(top);
     root.style.background = '#74c0fc';
     const cv = host.canvas();
     cv.canvas.classList.add('lg-canvas');
@@ -64,9 +64,6 @@ export default {
     const nextFriend = () => friends[fi++ % friends.length];
 
     let t = 0,
-      last = performance.now(),
-      raf = 0,
-      stopped = false,
       over = false,
       calls = 0, // сколько уже попросили
       helped = 0,
@@ -168,7 +165,7 @@ export default {
       const p = toWorld(e);
       tap(p.x, p.y);
     };
-    cv.canvas.addEventListener('pointerdown', down);
+    host.on(cv.canvas, 'pointerdown', down);
 
     // --- ход времени
     function update(dt) {
@@ -266,8 +263,7 @@ export default {
       // всё сделано: все просьбы отработаны, никто не ждёт
       if (!over && calls >= CALLS && swimmers.every((s) => ['swim', 'rest', 'happy'].includes(s.st)) && R.st !== 'toItem' && R.st !== 'toOwner') {
         over = true;
-        setTimeout(() => {
-          if (stopped) return;
+        host.later(() => {
           const stars = helped >= STARS[1] ? 3 : helped >= STARS[0] ? 2 : 1;
           host.finish({
             stars,
@@ -448,10 +444,7 @@ export default {
       if (R.carry) drawItem(R.carry, x + 12, y - 22);
     }
 
-    const frame = (ts) => {
-      if (stopped) return;
-      const dt = Math.min(0.05, (ts - last) / 1000);
-      last = ts;
+    host.loop((dt) => {
       update(dt);
       const k = Math.min(cv.w / W, cv.h / H);
       view.k = k;
@@ -484,9 +477,7 @@ export default {
         ctx.fillText(flash.text, W / 2, 67);
         ctx.globalAlpha = 1;
       }
-      raf = requestAnimationFrame(frame);
-    };
-    raf = requestAnimationFrame(frame);
+    });
 
     // dev-хуки
     const callers = () => swimmers.filter((s) => s.st === 'call');
@@ -508,13 +499,5 @@ export default {
     /** Нажать в точку мира (x, y) — как пальцем. */
     cv.canvas.__guardTap = (x, y) => tap(x, y);
 
-    return {
-      stop() {
-        stopped = true;
-        cancelAnimationFrame(raf);
-        cv.canvas.removeEventListener('pointerdown', down);
-        cv.destroy();
-      },
-    };
   },
 };
