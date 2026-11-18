@@ -8,12 +8,89 @@
   <meta name="mobile-web-app-capable" content="yes">
   <title>Пушистая жизнь — большая жизнь маленького хомячка</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🐹</text></svg>">
-  <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
   <canvas id="game"></canvas>
   <div id="hud"></div>
   <noscript>Для игры нужен JavaScript.</noscript>
-  <script type="module" src="js/main.js"></script>
+  <script>
+    // Запуск игры с метками версий (docs/ARCHITECTURE.md, «Выкладка и метки версий»). Номер сборки BUILD читается
+    // из js/data/build.js мимо кэша; по списку js/modules.json строится карта импортов: каждый модуль грузится
+    // как «файл.js?v=BUILD». Новая сборка — новые адреса: браузер не смешает старые и новые файлы из кэша.
+    // Не получилось узнать номер — игра запускается как раньше, без меток.
+    (function () {
+      var doc = document;
+      function start(q) {
+        var css = doc.createElement('link'),
+          done = false;
+        function go() {
+          if (done) return;
+          done = true;
+          var s = doc.createElement('script');
+          s.type = 'module';
+          s.src = 'js/main.js' + q;
+          doc.body.appendChild(s);
+        }
+        css.rel = 'stylesheet';
+        css.href = 'css/style.css' + q;
+        css.onload = css.onerror = go; // игра меряет экран по стилям — сначала стили, потом код
+        setTimeout(go, 4000);
+        doc.head.appendChild(css);
+      }
+      function get(url, cache) {
+        return fetch(url, { cache: cache }).then(function (r) {
+          if (!r.ok) throw new Error(url);
+          return r;
+        });
+      }
+      var build = get('js/data/build.js', 'no-cache').then(function (r) {
+        return r.text();
+      });
+      var list = get('js/modules.json', 'no-cache').then(function (r) {
+        return r.json();
+      });
+      Promise.all([build, list])
+        .then(function (a) {
+          var m = /BUILD\s*=\s*(\d+)/.exec(a[0]),
+            files = a[1];
+          if (!m) throw new Error('BUILD');
+          var v = m[1];
+          if (HTMLScriptElement.supports && HTMLScriptElement.supports('importmap')) {
+            var imports = {};
+            files.forEach(function (f) {
+              var u = new URL(f, doc.baseURI).href;
+              imports[u] = u + '?v=' + v;
+            });
+            var im = doc.createElement('script');
+            im.type = 'importmap';
+            im.textContent = JSON.stringify({ imports: imports });
+            doc.head.appendChild(im);
+            return start('?v=' + v);
+          }
+          // Старый браузер без карты импортов (Safari до 16.4): при новой сборке один раз перечитываем все файлы
+          // с сервера — кэш браузера обновляется целиком, и игра грузится по обычным адресам.
+          var seen = null;
+          try {
+            seen = localStorage.getItem('rhr-build-seen');
+          } catch (e) {}
+          if (seen === v) return start('');
+          return Promise.all(
+            files.concat('css/style.css').map(function (f) {
+              return get(f, 'reload').then(function (r) {
+                return r.text();
+              });
+            }),
+          ).then(function () {
+            try {
+              localStorage.setItem('rhr-build-seen', v);
+            } catch (e) {}
+            start('');
+          });
+        })
+        .catch(function () {
+          start('');
+        });
+    })();
+  </script>
 </body>
 </html>

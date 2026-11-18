@@ -1,5 +1,6 @@
 // Проверка зависимостей между модулями js/: нет ли круговых импортов и соблюдаются ли слои.
-// Запуск:  node dev/deps.js [--tree]      (браузер и сервер не нужны; код возврата 1 — есть нарушения)
+// Запуск:  node dev/deps.js [--tree] [--write]   (браузер и сервер не нужны; код возврата 1 — есть нарушения)
+// --write — обновить js/modules.json (список модулей для меток версий; нужен после добавления или удаления файла).
 //
 // Слои (модуль может импортировать только то, что ниже, и соседей по своей папке):
 //   main.js, devhooks.js
@@ -83,6 +84,16 @@ const state = {},
   for (const f of files) if (!state[f]) visit(f);
 })();
 for (const c of cycles) problems.push('цикл: ' + c);
+
+// список модулей для меток версий (index.html строит по нему карту импортов «файл.js?v=BUILD»)
+const LIST = path.join(ROOT, 'js/modules.json');
+const listNow = JSON.stringify(files.slice().sort(), null, 0).replace(/,/g, ',\n') + '\n';
+if (process.argv.includes('--write')) {
+  fs.writeFileSync(LIST, listNow);
+  console.log('js/modules.json записан');
+} else if (!fs.existsSync(LIST) || fs.readFileSync(LIST, 'utf8') !== listNow) {
+  problems.push('js/modules.json не совпадает со списком файлов js/ — запусти: node dev/deps.js --write');
+}
 
 const edges = Object.values(graph).reduce((n, d) => n + d.length, 0);
 console.log(`модулей: ${files.length}, импортов: ${edges}`);
