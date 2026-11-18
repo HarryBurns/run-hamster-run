@@ -12,7 +12,7 @@ export const EVENTS = {
   hud: 'пора обновить HUD (плашки и кнопки)',
   money: 'изменилось число монет { delta, source } — delta > 0 заработано, < 0 потрачено',
   look: 'изменилась внешность или наряд хомячка',
-  sticker: 'получена наклейка { id, isNew, delay, quiet }',
+  sticker: 'получена наклейка { id, delay, quiet }',
   scene: 'сменилась сцена { name, from }',
   step: 'шаг логики, мир не на паузе { dt }',
   saveFail: 'сохранение не записалось { quota } — quota: хранилище переполнено (core/state.js, save)',

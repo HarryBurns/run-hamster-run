@@ -567,11 +567,6 @@ function shellShape(ctx, sh, geo, c) {
  * коробка, крыша, обои и полы — неподвижное, сцена кладёт это в кэш (engine/side/cache.js); drawHouseLive — окна
  * и открытые террасы (за стеклом идёт снег, плывут облака и кораблик) и перегородки.
  */
-export function drawHouse(ctx, desc, geo, view = null) {
-  drawHouseGround(ctx, desc, geo);
-  drawHouseStill(ctx, desc, geo, view);
-  drawHouseLive(ctx, desc, geo, view);
-}
 const shellOf = (desc) => ({ wall: '#fff3d6', roof: '#f76e5c', chimneyX: 300, bushes: true, ...desc.shell });
 /** Комната видна (view в единицах дома; без view — все). */
 const roomSeen = (geo, r, view) =>

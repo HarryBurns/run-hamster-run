@@ -140,7 +140,6 @@ export function activeGame() {
   if (!idx) syncGames();
   return idx.active;
 }
-export const gamesFull = () => listGames().length >= MAX_GAMES;
 
 /** Положить игру, в которую играли, на полку (перед тем как открыть или начать другую). */
 function park() {

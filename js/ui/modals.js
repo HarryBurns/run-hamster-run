@@ -41,8 +41,6 @@ export function openLayer({ pause = true, dim = false, cover = false } = {}) {
     }
   };
 }
-/** Открыто ли сейчас что-нибудь поверх игры. */
-export const anyOpen = () => G.modal > 0;
 
 /** Показать окно, когда экран свободен: fn открывает окно. delay — не раньше чем через столько мс. */
 export function enqueue(fn, { delay = 0 } = {}) {

@@ -323,15 +323,6 @@ function backup(raw) {
     /* хранилище недоступно */
   }
 }
-/** Отложить копию текущего сохранения (перед тем как стереть то, что прочитать не смогли). */
-export function backupSave() {
-  try {
-    const raw = localStorage.getItem(KEY);
-    if (raw) backup(raw);
-  } catch (e) {
-    /* ignore */
-  }
-}
 
 /**
  * Привести сохранение в порядок: дополнить недостающие поля и выбросить всё, чего игра не знает.
@@ -541,20 +532,6 @@ export function repair(s) {
 export function unload() {
   G.state = null;
 }
-export function hasSave() {
-  try {
-    return !!localStorage.getItem(KEY);
-  } catch (e) {
-    return false;
-  }
-}
-export function wipe() {
-  try {
-    localStorage.removeItem(KEY);
-  } catch (e) {
-    /* ignore */
-  }
-}
 
 // ---------- календарь ----------
 export function cal(s = G.state) {
@@ -742,9 +719,9 @@ export function houseItems(key) {
 
 // ---------- сюжетные задания и новые места (этап 5; только чтение) ----------
 // Описания — data/quests.js, места — LANDS в data/places.js; ход задания по событиям считает features/quests.js.
-/** Открыто ли новое место (лес, пустыня…). */
 /** Побывала ли хомячок у места id локации loc (дошла и зашла / сделала там что-то) — для быстрого перехода (Ф4). */
 export const wasAt = (loc, id) => !!(G.state && G.state.visited && G.state.visited[loc] && G.state.visited[loc][id]);
+/** Открыто ли новое место (лес, пустыня…). */
 export const landOpen = (id) => !!G.state && Number.isFinite(G.state.lands[id]);
 /** Сколько в рюкзаке того, что просит шаг «принести»: штук (или разных находок, если distinct). */
 function bringHave(b) {

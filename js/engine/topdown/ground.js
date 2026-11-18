@@ -23,7 +23,7 @@
 //
 // Память: держим только куски на экране и вокруг него; лишние вытесняются. Куски за краем экрана готовятся
 // заранее, по одному за кадр, чтобы при ходьбе не было рывков.
-import { T, TILES, hash } from './kinds.js';
+import { T, hash } from './kinds.js';
 
 /** Сторона куска в клетках. */
 export const CH = 4;
@@ -560,5 +560,3 @@ export function buildShore(m, land, water) {
   return res;
 }
 
-/** Виды клеток, которые рисуются «по слоям» (есть z). Для проверок. */
-export const layeredTiles = () => Object.values(TILES).filter((k) => k.z !== undefined);
