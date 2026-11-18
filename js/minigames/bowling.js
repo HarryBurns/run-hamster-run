@@ -8,6 +8,7 @@
 import { el, clamp } from '../core/util.js';
 import { ell, poly, fillRR, line } from '../core/draw.js';
 import { pic as kitPic } from './kit.js';
+import { DEV } from '../core/dev.js';
 
 const OUT = '#4a3728';
 const ROUNDS = 3,
@@ -385,7 +386,7 @@ export default {
     };
     host.on(window, 'keydown', key);
     // для автотеста: что сейчас в игре
-    cv.canvas.__bowling = () => ({ phase, round, throwN, score, strikes, angle, power, standing: standing(), over, ball: { x: ball.x, y: ball.y } });
+    if (DEV) cv.canvas.__bowling = () => ({ phase, round, throwN, score, strikes, angle, power, standing: standing(), over, ball: { x: ball.x, y: ball.y } });
     cv.canvas.classList.add('bw-canvas');
   },
 };

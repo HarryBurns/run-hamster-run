@@ -8,6 +8,7 @@
 import { el, clamp, pick, shuffle } from '../core/util.js';
 import { ell, fillRR, line, poly, heart } from '../core/draw.js';
 import { CLOTHES_BY_ID } from '../data/index.js';
+import { DEV } from '../core/dev.js';
 
 export const CALLS = 8;
 const STARS = [5, 7]; // помогла сама ⭐⭐ / ⭐⭐⭐
@@ -481,7 +482,7 @@ export default {
 
     // dev-хуки
     const callers = () => swimmers.filter((s) => s.st === 'call');
-    cv.canvas.__guard = () => ({
+    if (DEV) cv.canvas.__guard = () => ({
       calls,
       total: CALLS,
       helped,
@@ -490,14 +491,14 @@ export default {
       active: callers().map((s) => ({ kind: s.kind.id, x: s.x, y: s.y, item: s.item ? { x: s.item.x, y: s.item.y } : null })),
       view: { ...view, W, H },
     });
-    cv.canvas.__guardHelp = () => {
+    if (DEV) cv.canvas.__guardHelp = () => {
       const s = callers()[0];
       if (!s) return false;
       help(s, true);
       return true;
     };
     /** Нажать в точку мира (x, y) — как пальцем. */
-    cv.canvas.__guardTap = (x, y) => tap(x, y);
+    if (DEV) cv.canvas.__guardTap = (x, y) => tap(x, y);
 
   },
 };

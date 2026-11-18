@@ -6,6 +6,7 @@
 import { el, clamp, plural } from '../core/util.js';
 import { ell, poly, fillRR } from '../core/draw.js';
 import { pic as kitPic } from './kit.js';
+import { DEV } from '../core/dev.js';
 
 const TIME = 40;
 const OUT = '#4a3728';
@@ -215,7 +216,7 @@ export default {
     }
     host.on(cv.canvas, 'pointerdown', tap);
     // для автотеста (dev/smoke_forest.js): где сейчас какие грибы и куда нажать
-    cv.canvas.__mh = () =>
+    if (DEV) cv.canvas.__mh = () =>
       SPOTS.map((s) => {
         const g = geo(s);
         return s.m && !s.m.hit && rise(s.m) > 0.9

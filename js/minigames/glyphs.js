@@ -5,6 +5,7 @@
 // Сокровище (монеты раз в день) выдаёт занятие.
 import { el } from '../core/util.js';
 import { ell, poly, fillRR, line } from '../core/draw.js';
+import { DEV } from '../core/dev.js';
 
 const OUT = '#4a3728';
 const ROUNDS = [3, 4, 5];
@@ -245,7 +246,7 @@ export default {
       later(play, 900);
     }
     // для автотеста (dev/smoke_jungle.js): какой узор и что сейчас происходит
-    grid.__glyphs = () => ({ seq: [...seq], phase, round, input, miss });
+    if (DEV) grid.__glyphs = () => ({ seq: [...seq], phase, round, input, miss });
     newSeq();
     show();
     later(play, 300);

@@ -9,6 +9,7 @@
 import { el, clamp, pick, shuffle } from '../core/util.js';
 import { ell, fillRR, line, poly } from '../core/draw.js';
 import { CLOTHES_BY_ID } from '../data/index.js';
+import { DEV } from '../core/dev.js';
 
 const W = 400,
   H = 300,
@@ -443,16 +444,16 @@ export default {
       bed.forEach((r, y) => r.forEach((b, x) => b.got === null && out.push({ x: FX + (x + 0.5) * FCELL, y: FY + (y + 0.5) * FCELL, color: b.want })));
       return out;
     };
-    cv.canvas.__garden = () => ({ stage: STAGES[Math.min(stage, 2)].id, i: stage, over, hints, busy: !!can || t - stageAt < 0.3, todo: todo(), shape: shapeId, view: { ...view, W, H } });
-    cv.canvas.__gardenDo = () => {
+    if (DEV) cv.canvas.__garden = () => ({ stage: STAGES[Math.min(stage, 2)].id, i: stage, over, hints, busy: !!can || t - stageAt < 0.3, todo: todo(), shape: shapeId, view: { ...view, W, H } });
+    if (DEV) cv.canvas.__gardenDo = () => {
       const q = todo()[0];
       if (!q || can || t - stageAt < 0.3) return false;
       if (q.color !== undefined) sel = q.color;
       tap(q.x, q.y, false);
       return true;
     };
-    cv.canvas.__gardenTap = (x, y) => tap(x, y, false);
-    cv.canvas.__gardenSel = (i) => {
+    if (DEV) cv.canvas.__gardenTap = (x, y) => tap(x, y, false);
+    if (DEV) cv.canvas.__gardenSel = (i) => {
       sel = i;
       buildPalette();
     };

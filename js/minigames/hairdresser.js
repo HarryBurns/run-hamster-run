@@ -7,6 +7,7 @@ import { el, shuffle, clamp, pick } from '../core/util.js';
 import { makeCanvas, fillRR, heart, ell, star } from '../core/draw.js';
 import { drawPortrait } from '../art/hamster.js';
 import { BEAUTY, defaultLook } from '../data/index.js';
+import { DEV } from '../core/dev.js';
 
 export const CLIENTS = 5;
 const TUFTS = BEAUTY.tuft.options.filter((o) => o.v); // без «гладкой»: стрижём всегда что-то
@@ -364,8 +365,8 @@ export default {
     });
 
     // dev-хуки для автотеста
-    cv.canvas.__hair = () => ({ i: idx, total: CLIENTS, phase, want: { ...want }, cur: { ...cur }, hints, shelves: shelves.map((s) => s.key) });
-    cv.canvas.__hairSolve = (wrongFirst) => {
+    if (DEV) cv.canvas.__hair = () => ({ i: idx, total: CLIENTS, phase, want: { ...want }, cur: { ...cur }, hints, shelves: shelves.map((s) => s.key) });
+    if (DEV) cv.canvas.__hairSolve = (wrongFirst) => {
       if (phase !== 'wait') return false;
       if (wrongFirst) {
         const k = shelves[0].key,

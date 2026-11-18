@@ -7,6 +7,7 @@
 import { el, clamp, TAU } from '../core/util.js';
 import { ell, fillRR, line, poly, star } from '../core/draw.js';
 import { pic as kitPic } from './kit.js';
+import { DEV } from '../core/dev.js';
 
 const OUT = '#4a3728';
 /** Такты песни: восьмые доли (1 — кокос-«шаг»). */
@@ -170,11 +171,11 @@ export default {
     };
     host.on(window, 'keydown', kd);
     // для автотеста (dev/smoke_games.js): время песни, сколько до ближайшего кокоса, очки
-    cv.canvas.__drum = () => {
+    if (DEV) cv.canvas.__drum = () => {
       const n = notes.find((q) => !q.res && q.at > t - GOOD);
       return { t, next: n ? n.at - t : null, total: notes.length, pts, perfect, good, missed: notes.filter((q) => q.res === 'miss').length, best, over };
     };
-    cv.canvas.__drumSkip = () => {
+    if (DEV) cv.canvas.__drumSkip = () => {
       // автотест: пропустить песню почти до конца (оставшиеся кокосы — мимо)
       t = Math.max(t, songEnd - 1.5);
     };

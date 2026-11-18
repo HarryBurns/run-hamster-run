@@ -9,6 +9,7 @@
 import { el, clamp, shuffle } from '../core/util.js';
 import { ell, fillRR, line, star } from '../core/draw.js';
 import { pic as kitPic } from './kit.js';
+import { DEV } from '../core/dev.js';
 
 const N = 8; // чемоданов за смену
 const OUT = '#4a3728';
@@ -284,7 +285,7 @@ export default {
     host.on(window, 'keydown', kd);
     // для автотеста (dev/smoke_hotel.js, dev/smoke_games.js): номер на бирке, двери и кнопки лифта (CSS-пиксели
     // канвы), где хомячок (at: 1 — холл, иначе номер этажа), сколько довезено и ошибок
-    cv.canvas.__porter = () => ({
+    if (DEV) cv.canvas.__porter = () => ({
       tag: bags[i] ? bags[i].n : null,
       done: i,
       mistakes,

@@ -9,6 +9,7 @@
 import { el, clamp, plural } from '../core/util.js';
 import { ell, poly, fillRR, line } from '../core/draw.js';
 import { pic as kitPic } from './kit.js';
+import { DEV } from '../core/dev.js';
 
 const TIME = 45;
 const OUT = '#4a3728';
@@ -267,7 +268,7 @@ export default {
     host.on(window, 'keydown', kd);
     host.on(window, 'keyup', ku);
     // для автотеста (dev/smoke_mountain.js): где санки и что впереди (x — доля ширины, y — пиксели)
-    cv.canvas.__sled = () => ({
+    if (DEV) cv.canvas.__sled = () => ({
       x: sled.x,
       y: sledY(),
       w: cv.w,
@@ -282,7 +283,7 @@ export default {
       gatesOk,
       gatesAll,
     });
-    cv.canvas.__sledSkip = (sec) => (t = Math.max(t, TIME - sec)); // автотест: «до финиша осталось sec секунд»
+    if (DEV) cv.canvas.__sledSkip = (sec) => (t = Math.max(t, TIME - sec)); // автотест: «до финиша осталось sec секунд»
 
     function spawn(good) {
       // на лыжах флажков-находок нет — флажки там только у ворот

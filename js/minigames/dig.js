@@ -7,6 +7,7 @@
 import { el, clamp } from '../core/util.js';
 import { ell, poly, fillRR, line } from '../core/draw.js';
 import { pic as kitPic } from './kit.js';
+import { DEV } from '../core/dev.js';
 
 const OUT = '#4a3728';
 const TIME = 30; // секунд на раскопку, потом Бархан помогает
@@ -368,7 +369,7 @@ export default {
     host.on(window, 'pointerup', up);
     host.on(cv.canvas, 'pointerleave', leave);
     // для автотеста (dev/smoke_desert.js): где плита (CSS-пиксели канвы), где окаменелость, сколько расчищено
-    cv.canvas.__dig = () => ({
+    if (DEV) cv.canvas.__dig = () => ({
       box: { ...box },
       cells: mask ? [...mask].map((v, i) => (v ? [box.x + ((i % GX) + 0.5) * (box.w / GX), box.y + (Math.floor(i / GX) + 0.5) * (box.h / GY)] : null)).filter(Boolean) : [],
       progress: progress(),

@@ -9,6 +9,7 @@
 import { el, clamp } from '../core/util.js';
 import { ell, poly, fillRR, line } from '../core/draw.js';
 import { pic as kitPic } from './kit.js';
+import { DEV } from '../core/dev.js';
 
 const OUT = '#4a3728';
 /** Сколько секунд длится игра. */
@@ -422,7 +423,7 @@ export default {
     };
     host.on(window, 'keydown', key);
     // для автотеста: что сейчас в игре (up — кто выглянул и в него можно брызнуть)
-    cv.canvas.__splash = () => ({ t, over, hits, pops, backs, cool, up: lanes.map((l) => l.on && l.up > 0.35 && !l.wet) });
+    if (DEV) cv.canvas.__splash = () => ({ t, over, hits, pops, backs, cool, up: lanes.map((l) => l.on && l.up > 0.35 && !l.wet) });
     cv.canvas.classList.add('sp-canvas');
   },
 };

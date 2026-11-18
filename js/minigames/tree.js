@@ -8,6 +8,7 @@
 // Управление: мышь и касание; клавиатура — 1–7 выбрать игрушку, стрелки — место, Enter/пробел — повесить, З/S — звезда.
 import { el, clamp, TAU } from '../core/util.js';
 import { ell, fillRR, line, poly, star } from '../core/draw.js';
+import { DEV } from '../core/dev.js';
 
 const OUT = '#4a3728';
 /** Сколько игрушек повесить, чтобы можно было надеть звезду. */
@@ -361,7 +362,7 @@ export default {
     };
     host.on(window, 'keydown', kd);
     // для автотеста (dev/smoke_games.js): места (CSS-пиксели канвы), что где висит, можно ли звезду
-    cv.canvas.__tree = () => {
+    if (DEV) cv.canvas.__tree = () => {
       const g = L();
       return {
         w: cv.w,

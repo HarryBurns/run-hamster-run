@@ -43,17 +43,19 @@ import * as F from './features/index.js';
 import { preloadMinigames } from './minigames/host.js';
 import { openTitle } from './features/title.js';
 import { installDevHooks } from './devhooks.js';
+import { DEV } from './core/dev.js';
 
 const canvas = document.getElementById('game');
 const hud = document.getElementById('hud');
 
 // Сцены игры. Локации — описания (locations/*.js) для «движка локаций», дома — описания (interiors/*.js)
 // для «движка домов».
-for (const loc of [town, forest, mountain, caves, deep, desert, jungle, cove, island, demoMeadow]) registerScene(loc.name, loc); // demo_meadow — пробная, входа в игре нет
+for (const loc of [town, forest, mountain, caves, deep, desert, jungle, cove, island]) registerScene(loc.name, loc);
+if (DEV) registerScene(demoMeadow.name, demoMeadow); // demo_meadow — пробная, входа в игре нет (только отладка)
 registerScene('tower', TowerScene);
 registerScene('dive', DiveScene);
 // HOUSES — вилла, покупное жильё и дома жителей (interiors/houses.js); demo_house — пробный, входа в игре нет
-for (const house of [...HOUSES, demoHouse]) registerScene(house.id, createSideScene(house));
+for (const house of [...HOUSES, ...(DEV ? [demoHouse] : [])]) registerScene(house.id, createSideScene(house));
 const HOME = villa.id; // сцена-дом: там начинается новая игра, туда возвращает окно «Что-то сломалось»
 
 // ---------- HUD ----------
@@ -245,9 +247,8 @@ every(0.25, F.updateSound, { needScene: false });
 every(1, updateHud);
 every(20, persist);
 // Отладочные хуки window.__dev (dev/smoke.js, dev/bench.js, консоль) — только на своём компьютере (localhost) или
-// с ?dev в адресе; в выложенной игре их нет.
-const DEV_HOST = ['localhost', '127.0.0.1', '[::1]'].includes(location.hostname);
-if (DEV_HOST || new URLSearchParams(location.search).has('dev')) installDevHooks({ F });
+// с ?dev в адресе (core/dev.js); в выложенной игре их нет. F — все функции занятий (features/index.js: devAll).
+if (DEV) installDevHooks({ F: F.devAll() });
 migrateAllPhotos(); // снимки альбома, оставшиеся в localStorage, — в IndexedDB (один раз; освобождает место под игры)
 // новая игра: сначала вступительная сценка — переезд в Ореховую Гавань (features/intro.js), потом сама игра
 openTitle({ start: (fresh) => (fresh ? F.playIntro({ name: G.state.name }).then(() => startGame(true)) : startGame(false)) });

@@ -13,6 +13,7 @@
 import { el, clamp } from '../core/util.js';
 import { ell, poly, fillRR, line, star } from '../core/draw.js';
 import { pic as kitPic } from './kit.js';
+import { DEV } from '../core/dev.js';
 
 const OUT = '#4a3728';
 const ROUNDS = 3;
@@ -360,7 +361,7 @@ export default {
     };
     host.on(window, 'keydown', key);
     // для автотеста: что сейчас в игре
-    cv.canvas.__tug = () => ({ round, phase, p, fill, full: fill >= FULL, wins, lost, over, strong, taps, help, team: crew.map((f) => f.hearts || 0) });
+    if (DEV) cv.canvas.__tug = () => ({ round, phase, p, fill, full: fill >= FULL, wins, lost, over, strong, taps, help, team: crew.map((f) => f.hearts || 0) });
     cv.canvas.classList.add('tg-canvas');
   },
 };

@@ -7,6 +7,7 @@
 import { el, clamp } from '../core/util.js';
 import { ell, poly, fillRR, line } from '../core/draw.js';
 import { pic as kitPic } from './kit.js';
+import { DEV } from '../core/dev.js';
 
 const STRIKES = 15;
 const OUT = '#4a3728';
@@ -206,7 +207,7 @@ export default {
     };
     host.on(window, 'keydown', kd);
     // для автотеста (dev/smoke_caves.js): где кирка, где зона, сколько ударов осталось
-    cv.canvas.__crystals = () => ({ pos: pos(), ...zoneAt(), left, got, gold, ready: cool <= 0 && !over });
+    if (DEV) cv.canvas.__crystals = () => ({ pos: pos(), ...zoneAt(), left, got, gold, ready: cool <= 0 && !over });
 
     function update(dt) {
       t += dt;

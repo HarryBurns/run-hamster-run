@@ -5,6 +5,7 @@
 // Проигрыша нет. Сокровище (монеты раз в день) выдаёт занятие.
 import { el, shuffle } from '../core/util.js';
 import { ell, poly, fillRR, line } from '../core/draw.js';
+import { DEV } from '../core/dev.js';
 
 const OUT = '#4a3728';
 const PAIRS = 6;
@@ -257,7 +258,7 @@ export default {
       }, 800);
     }
     // для автотеста (dev/smoke_desert.js): что на табличках и что уже открыто
-    grid.__pairs = () => ({ deck: [...deck], done: [...done], open: [...open], miss, busy, over });
+    if (DEV) grid.__pairs = () => ({ deck: [...deck], done: [...done], open: [...open], miss, busy, over });
     show();
     function finish() {
       const stars = miss <= PAIR_STARS[0] ? 3 : miss <= PAIR_STARS[1] ? 2 : 1;

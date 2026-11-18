@@ -11,6 +11,7 @@ import { el, clamp } from '../core/util.js';
 import { ell, fillRR, line, poly } from '../core/draw.js';
 import { pic as kitPic } from './kit.js';
 import { VOLLEY } from '../data/relax.js';
+import { DEV } from '../core/dev.js';
 
 const OUT = '#4a3728';
 // мир игры — 800 × 450 единиц: сетка посередине, песок внизу
@@ -563,7 +564,7 @@ function start(host) {
   host.on(window, 'keydown', key);
   host.on(window, 'keyup', key);
   // для автотеста: что сейчас в игре; __volleyBot(true) — играет сама
-  cv.canvas.__volley = () => ({
+  if (DEV) cv.canvas.__volley = () => ({
     phase,
     us,
     them,
@@ -576,8 +577,8 @@ function start(host) {
     over2: sk.over,
     ball: { x: b.x, y: b.y, side: b.side, who: b.who === me ? 'me' : b.who === pal ? 'mate' : b.who ? 'rival' : null, tx: b.tx },
   });
-  cv.canvas.__volleyBot = (on = true) => (bot = !!on);
+  if (DEV) cv.canvas.__volleyBot = (on = true) => (bot = !!on);
   /** Точка игры (единицы мира 800 × 450) → CSS-пиксели канвы: куда нажимать автотесту. */
-  cv.canvas.__volleyScreen = (x, y) => ({ x: OX() + x * K(), y: OY() + y * K() });
+  if (DEV) cv.canvas.__volleyScreen = (x, y) => ({ x: OX() + x * K(), y: OY() + y * K() });
   cv.canvas.classList.add('vb-canvas');
 }

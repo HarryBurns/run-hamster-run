@@ -7,6 +7,7 @@
 import { el, clamp } from '../core/util.js';
 import { ell, poly, fillRR, line, emoji } from '../core/draw.js';
 import { pic as kitPic } from './kit.js';
+import { DEV } from '../core/dev.js';
 
 const OUT = '#4a3728';
 const JUMPS = 9;
@@ -163,7 +164,7 @@ export default {
     };
     host.on(window, 'keydown', kd);
     // для автотеста (dev/smoke_jungle.js): на какой лиане, летит ли вперёд, насколько далеко качнулась (−1..1)
-    cv.canvas.__vines = () => ({ at, n: JUMPS, forward: vel(at) > 0, q: ang(at) / A, flying: !!fly, score, miss, over });
+    if (DEV) cv.canvas.__vines = () => ({ at, n: JUMPS, forward: vel(at) > 0, q: ang(at) / A, flying: !!fly, score, miss, over });
 
     // ---------- фон: слои джунглей (рисуются один раз на размер, дальше только копируются со сдвигом) ----------
     let bg = null;

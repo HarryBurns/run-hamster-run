@@ -8,6 +8,7 @@
 // Пальцем и мышкой; на телефоне — всё крупно, в столбик.
 import { el } from '../core/util.js';
 import { ell, poly, fillRR, line, star } from '../core/draw.js';
+import { DEV } from '../core/dev.js';
 
 const OUT = '#4a3728',
   SAND = '#f2d48a',
@@ -404,7 +405,7 @@ export default {
       paint();
     }
     // для автотеста (dev/smoke_sbeach.js): образец, что стоит, и где на экране каждое место
-    cv.__castle = () => {
+    if (DEV) cv.__castle = () => {
       const r = cv.getBoundingClientRect(),
         at = (j) => ({
           x: r.left + (BASE_X[j % 5] / CW) * r.width,

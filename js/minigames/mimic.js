@@ -7,6 +7,7 @@
 // Управление: мышь и касание (кнопки), клавиатура — цифры 1–6.
 import { el, clamp, TAU, pick, plural } from '../core/util.js';
 import { ell, fillRR, line, poly, star } from '../core/draw.js';
+import { DEV } from '../core/dev.js';
 
 const OUT = '#4a3728';
 export const MOVES = [
@@ -141,8 +142,8 @@ export default {
     };
     host.on(window, 'keydown', kd);
     // для автотеста (dev/smoke_games.js)
-    cv.canvas.__mimic = () => ({ phase, seq: seq.slice(), pos, round, wins, mistakes, over });
-    cv.canvas.__mimicSkip = () => (round = ROUNDS - 1); // автотест: сразу последний раунд
+    if (DEV) cv.canvas.__mimic = () => ({ phase, seq: seq.slice(), pos, round, wins, mistakes, over });
+    if (DEV) cv.canvas.__mimicSkip = () => (round = ROUNDS - 1); // автотест: сразу последний раунд
 
     function nextRound() {
       round++;

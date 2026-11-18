@@ -7,6 +7,7 @@
 import { el, clamp, plural } from '../core/util.js';
 import { ell, fillRR, line, star } from '../core/draw.js';
 import { pic as kitPic } from './kit.js';
+import { DEV } from '../core/dev.js';
 
 const TIME = 40;
 const OUT = '#4a3728';
@@ -272,7 +273,7 @@ export default {
     host.on(window, 'keydown', kd);
     host.on(window, 'keyup', ku);
     // для автотеста (dev/smoke_hotel.js): где круг, где центр трубы и что впереди (x — доля ширины, y — пиксели)
-    cv.canvas.__slide = () => ({
+    if (DEV) cv.canvas.__slide = () => ({
       x: ring.x,
       y: ringY(),
       w: cv.w,
@@ -286,7 +287,7 @@ export default {
       items: items.filter((q) => !q.hit).map((q) => ({ kind: q.kind, x: center(U(q.d)) + q.off * halfW() * 0.8, y: ringY() - (q.d - dist) })),
     });
 
-    cv.canvas.__slideSkip = (sec) => (t = Math.max(t, TIME - sec)); // автотест: «до финиша осталось sec секунд»
+    if (DEV) cv.canvas.__slideSkip = (sec) => (t = Math.max(t, TIME - sec)); // автотест: «до финиша осталось sec секунд»
     function update(dt) {
       if (!track || pick) return; // ждём выбора трассы
       t += dt;
