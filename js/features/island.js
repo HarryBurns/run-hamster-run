@@ -18,39 +18,41 @@
 // Находки продаются на рынке (features/market.js, цены — ISLAND). Числа — ISLAND в data/economy.js. Каждое занятие
 // шлёт событие island { what } — по нему считают задания. Состояние меняют только действия (core/actions.js);
 // «раз в день» — отметки дня (dayFlags.island).
-import { setFlag, setDayFlag, addItem, addClothes, award } from '../core/actions.js';
+// Разговоры, лея и тотем, действие места, подсказка входа, плавание — набор тайных мест (features/land_kit.js).
+import { setDayFlag, addItem, award } from '../core/actions.js';
 import { sfx } from '../core/audio.js';
 import { on, emit } from '../core/events.js';
 import { go, sceneName } from '../core/loop.js';
 import { register, run } from '../core/registry.js';
-import { G, darkness, count, hasClothes } from '../core/state.js';
-import { esc, pick } from '../core/util.js';
+import { G, darkness, hasClothes } from '../core/state.js';
+import { pick } from '../core/util.js';
 import { NPC_BY_ID, FIND_BY_ID, LEI_IDS, ISLAND, LAND_BY_ID, npcLook } from '../data/index.js';
 import { getLocation } from '../engine/topdown/index.js';
 import { festNow, placeFlowers, AT } from '../locations/island.js';
 import { sea } from '../locations/town.js';
-import { dialog } from '../ui/dialog.js';
-import { fadeScene, smooth } from '../ui/fade.js';
-import { message } from '../ui/panel.js';
+import { smooth } from '../ui/fade.js';
 import { toast, hintOnce } from '../ui/toast.js';
 import { playMinigame, prizeGame } from './minigames.js';
 import { questTalk } from './quests.js';
-import { placeLine } from './tales.js';
 import { paintFaraway } from './trips_art.js';
+import {
+  dayFlags,
+  npcLine,
+  sayAs,
+  landNpc,
+  craftSet,
+  craftCount,
+  sellTalk,
+  landFind,
+  landActs,
+  landHint,
+  landRide,
+} from './land_kit.js';
 
 const S = () => G.state;
-const SI = () => S().dayFlags.island || {};
+const SI = dayFlags('island');
 /** Реплика по времени суток: ночью, вечером или днём (у жителей острова — lines.day / evening / night). */
-function timeLine(id) {
-  const place = placeLine(id); // вспомнить другое место, которое хомячок открыла (data/tales.js)
-  if (place) return place;
-  const L = NPC_BY_ID[id].lines,
-    m = S().minutes;
-  if (darkness() > 0.6 || m >= 22 * 60 || m < 5 * 60) return pick(L.night);
-  if (m >= 18 * 60) return pick(L.evening);
-  return pick(L.day);
-}
-const sayAs = (id, text, options, happy = false) => dialog({ look: npcLook(id), name: NPC_BY_ID[id].name, text, options, happy });
+const timeLine = (id) => npcLine(id, { day: (L) => L.day })();
 
 // ---------- Лифтёр Этажкин (Хомяк-Тауэр) ----------
 /** Разговор с лифтёром: сначала задание из журнала, потом — как обычно. */
@@ -72,126 +74,83 @@ const landIsOpen = () => Number.isFinite(S().lands.island);
 register('liftman', () => talkLiftman(), 'лифтёр Этажкин в холле Хомяк-Тауэра: задание «Остров на горизонте» и болтовня');
 
 /** Нашли остров в подзорную трубу (шаг задания «Остров на горизонте»). */
-export async function spotIsland() {
-  emit('island', { what: 'spot' });
-  sfx('magic');
-  await message({
-    title: 'Остров на горизонте!',
-    icon: '🌋',
-    html: `<p class="center big-emoji">🔭🌋</p><p class="center">Вот он! Далеко-далеко на юге, у самой линии горизонта, — остров, а над ним поднимается дымок. Настоящий вулкан! Без компаса туда не доплыть… Компас есть у <b>Капитана Боба</b> на пирсе!</p>`,
-    buttons: [{ text: 'Ух ты!' }],
-  });
-}
-register('island', (p, ctx) => islandAct(p, ctx), 'удалённый остров: island:spot | volcano | obsidian | flower | fire | dance | bowling | sleep | home:<id>');
+export const spotIsland = landFind('island', 'spot', {
+  title: 'Остров на горизонте!',
+  icon: '🌋',
+  pic: '🔭🌋',
+  text: 'Вот он! Далеко-далеко на юге, у самой линии горизонта, — остров, а над ним поднимается дымок. Настоящий вулкан! Без компаса туда не доплыть… Компас есть у <b>Капитана Боба</b> на пирсе!',
+  btn: 'Ух ты!',
+  sound: 'magic',
+});
 
 // ---------- Вождь Кокос ----------
-const CHIEF = 'kokos';
-/** Сколько разных цветов для леи в рюкзаке. */
-export const leiKinds = () => LEI_IDS.filter((id) => count('finds', id) > 0).length;
-const leiLine = () => LEI_IDS.map((id) => `${FIND_BY_ID[id].e} ${count('finds', id) ? '✓' : '—'}`).join(' · ');
+const flowers = { ids: LEI_IDS, sep: ' · ' };
 /** Разговор с Вождём: сначала задание из журнала, потом — лея, тотем и болтовня. */
-export async function talkChief() {
-  const s = S();
-  let text;
-  if (!s.flags.metKokos) {
-    setFlag('metKokos');
-    text = `Алоха, ${esc(s.name)}! Добро пожаловать на наш остров! Я — Вождь Кокос. Видишь вулкан? Он у нас добрый, только иногда ворчит. Каждый вечер у костра — праздник огней, а на востоке, у тотемов, играют в кокосовый боулинг!`;
-  } else text = pick([`Алоха, ${esc(s.name)}!`, 'О, гостья из далёкого города! Как тебе наш остров?', 'Алоха! Вулкан сегодня в хорошем настроении — видишь, какой ровный дымок?']);
-  emit('talk', { id: CHIEF });
-  sfx('tap');
-  const qt = await questTalk(CHIEF);
-  if (qt && qt.end) return;
-  if (qt && qt.text) text = qt.text;
-  for (;;) {
-    const opts = [{ text: '🥥 Сыграть в кокосовый боулинг', cls: 'yellow', fn: async () => (await bowlingGame(), null) }];
-    for (const o of MORE_TALK) {
-      const x = o(S());
-      if (x) opts.push(x);
-    }
-    opts.push({ text: '💬 Поболтать', cls: 'blue', go: 'chat' }, { text: 'Пока!', go: 'bye' });
-    const i = await sayAs(CHIEF, text, opts);
-    const o = opts[i] || {};
-    if (o.go === 'chat') text = timeLine(CHIEF);
-    else if (o.fn) {
-      const r = await o.fn();
-      if (!r) return;
-      text = r;
-    } else return;
-  }
-}
-/** Дополнительные ответы Вождя: (s) → { text, cls, fn: async () => следующая реплика | null } или ничего. */
-const MORE_TALK = [
-  // лея из трёх разных цветов (одна на всю игру — это вещь в шкафу)
-  () =>
-    LEI_IDS.some((id) => count('finds', id) > 0) &&
-    !hasClothes('lei_island') && {
-      text: `🌺 Сплети лею (${leiKinds()} из ${LEI_IDS.length})`,
-      cls: 'green',
-      fn: async () => {
-        if (leiKinds() < ISLAND.lei) return `Для леи нужны три разных цветка: ${leiLine()}. Каждое утро на острове распускается новый — ищи у цветущих кустов!`;
-        for (const id of LEI_IDS) addItem('finds', id, -1);
-        addClothes('lei_island');
-        sfx('win');
-        award('x_lei', { delay: 1200 });
-        emit('island', { what: 'lei' });
-        return 'Плюмерия, гибискус и орхидея — вот и лея! Носи её на шее — и ты настоящая островитянка 🌺 Она уже в шкафу.';
-      },
-    },
-  // венок и гирлянда (этап 12, О11): когда лея уже есть, цветы годятся не только для рынка
-  () =>
-    LEI_IDS.some((id) => count('finds', id) > 0) &&
-    hasClothes('lei_island') &&
-    !hasClothes('wreath_lei') && {
-      text: `🌸 Сплети венок (${leiKinds()} из ${LEI_IDS.length})`,
-      cls: 'green',
-      fn: async () => {
-        if (leiKinds() < ISLAND.wreath) return `Для венка тоже нужны три разных цветка: ${leiLine()}. Каждое утро на острове распускается новый!`;
-        for (const id of LEI_IDS) addItem('finds', id, -1);
-        addClothes('wreath_lei');
-        sfx('win');
-        emit('island', { what: 'wreath' });
-        return 'Раз цветок, два цветок… Готово! Венок из цветов острова — к твоей лее в самый раз 🌸 Он уже в шкафу.';
-      },
-    },
-  () =>
-    LEI_IDS.some((id) => count('finds', id) > 0) &&
-    hasClothes('lei_island') && {
-      text: `🌼 Сплети гирлянду для дома (${leiKinds()} из ${LEI_IDS.length})`,
-      cls: 'green',
-      fn: async () => {
-        if (leiKinds() < ISLAND.garland) return `Для гирлянды нужны три разных цветка: ${leiLine()}. Приходи, когда соберёшь все!`;
-        for (const id of LEI_IDS) addItem('finds', id, -1);
-        addItem('storage', 'flower_garland', 1);
-        sfx('win');
-        emit('island', { what: 'garland' });
-        return 'Вот и гирлянда из цветов! Повесь её дома на стену — и будет пахнуть нашим островом 🌺 Она уже в кладовке: дома нажми «Обустроить».';
-      },
-    },
-  // маленький тотем из трёх кусочков вулканического стекла (можно много — это украшение для дома)
-  () =>
-    count('finds', 'obsidian') > 0 && {
-      text: `🗿 Вырежи маленький тотем (${Math.min(count('finds', 'obsidian'), ISLAND.totem)} из ${ISLAND.totem})`,
-      cls: 'green',
-      fn: async () => {
-        const n = count('finds', 'obsidian');
-        if (n < ISLAND.totem) return `Для тотема нужно три кусочка вулканического стекла — у тебя ${n}. Каждый день у подножия вулкана лежит новый кусочек!`;
-        addItem('finds', 'obsidian', -ISLAND.totem);
-        addItem('storage', 'mini_totem', 1);
-        sfx('win');
-        award('x_totem', { delay: 1200 });
-        emit('island', { what: 'totem' });
-        return 'Тук-тук-тук… Готово! Маленький тотем из вулканического стекла — он охраняет хорошее настроение 🗿 Тотем уже в кладовке: дома нажми 🔨.';
-      },
-    },
-  // куда деть находки
-  () =>
-    (count('finds', 'obsidian') > 0 || LEI_IDS.some((id) => count('finds', id) > 0)) && {
-      text: '🪙 А находки можно продать?',
-      fn: async () =>
+export const { talk: talkChief } = landNpc({
+  id: 'kokos',
+  act: 'chief',
+  desc: 'Вождь Кокос: разговор (житель удалённого острова у костра)',
+  met: 'metKokos',
+  hello: (name) =>
+    `Алоха, ${name}! Добро пожаловать на наш остров! Я — Вождь Кокос. Видишь вулкан? Он у нас добрый, только иногда ворчит. Каждый вечер у костра — праздник огней, а на востоке, у тотемов, играют в кокосовый боулинг!`,
+  greet: (name) => [`Алоха, ${name}!`, 'О, гостья из далёкого города! Как тебе наш остров?', 'Алоха! Вулкан сегодня в хорошем настроении — видишь, какой ровный дымок?'],
+  line: () => timeLine('kokos'),
+  top: [{ text: '🥥 Сыграть в кокосовый боулинг', cls: 'yellow', fn: async () => (await bowlingGame(), null) }],
+  more: [
+    // лея из трёх разных цветов (одна на всю игру — это вещь в шкафу)
+    craftSet({
+      ...flowers,
+      need: ISLAND.lei,
+      title: '🌺 Сплети лею',
+      when: () => !hasClothes('lei_island'),
+      lack: (have) => `Для леи нужны три разных цветка: ${have}. Каждое утро на острове распускается новый — ищи у цветущих кустов!`,
+      give: ['clothes', 'lei_island'],
+      sticker: 'x_lei',
+      event: ['island', 'lei'],
+      done: 'Плюмерия, гибискус и орхидея — вот и лея! Носи её на шее — и ты настоящая островитянка 🌺 Она уже в шкафу.',
+    }),
+    // венок и гирлянда (этап 12, О11): когда лея уже есть, цветы годятся не только для рынка
+    craftSet({
+      ...flowers,
+      need: ISLAND.wreath,
+      title: '🌸 Сплети венок',
+      when: () => hasClothes('lei_island') && !hasClothes('wreath_lei'),
+      lack: (have) => `Для венка тоже нужны три разных цветка: ${have}. Каждое утро на острове распускается новый!`,
+      give: ['clothes', 'wreath_lei'],
+      event: ['island', 'wreath'],
+      done: 'Раз цветок, два цветок… Готово! Венок из цветов острова — к твоей лее в самый раз 🌸 Он уже в шкафу.',
+    }),
+    craftSet({
+      ...flowers,
+      need: ISLAND.garland,
+      title: '🌼 Сплети гирлянду для дома',
+      when: () => hasClothes('lei_island'),
+      lack: (have) => `Для гирлянды нужны три разных цветка: ${have}. Приходи, когда соберёшь все!`,
+      give: ['storage', 'flower_garland'],
+      event: ['island', 'garland'],
+      done: 'Вот и гирлянда из цветов! Повесь её дома на стену — и будет пахнуть нашим островом 🌺 Она уже в кладовке: дома нажми «Обустроить».',
+    }),
+    // маленький тотем из трёх кусочков вулканического стекла (можно много — это украшение для дома)
+    craftCount({
+      id: 'obsidian',
+      need: ISLAND.totem,
+      cap: true,
+      title: '🗿 Вырежи маленький тотем',
+      lack: (n) => `Для тотема нужно три кусочка вулканического стекла — у тебя ${n}. Каждый день у подножия вулкана лежит новый кусочек!`,
+      give: ['storage', 'mini_totem'],
+      sticker: 'x_totem',
+      event: ['island', 'totem'],
+      done: 'Тук-тук-тук… Готово! Маленький тотем из вулканического стекла — он охраняет хорошее настроение 🗿 Тотем уже в кладовке: дома нажми 🔨.',
+    }),
+    // куда деть находки
+    sellTalk({
+      ids: ['obsidian', ...LEI_IDS],
+      ask: 'находки',
+      say: () =>
         `Конечно! Торговец Грошик на рынке в городе берёт вулканическое стекло — ${ISLAND.obsidian} монет за кусочек, а цветы — по ${Math.min(...Object.values(ISLAND.flowers))}–${Math.max(...Object.values(ISLAND.flowers))}. А из трёх разных цветов я сплету лею, из трёх кусочков стекла — вырежу тотем!`,
-    },
-];
-register('chief', () => talkChief(), 'Вождь Кокос: разговор (житель удалённого острова у костра)');
+    }),
+  ],
+});
 
 // ---------- островитяне ----------
 async function talkIslander(id) {
@@ -217,12 +176,6 @@ async function talkIslander(id) {
 register('islander', (p) => talkIslander(p.arg), 'островитяне удалённого острова: islander:<bum | laguna> — поболтать');
 
 // ---------- занятия острова ----------
-function islandAct(p, ctx) {
-  const a = p.arg || '';
-  if (a.startsWith('home:')) return homeTap(a.slice(5));
-  const fn = ACTS[a];
-  return fn ? fn(ctx) : false;
-}
 function homeTap(id) {
   sfx('tap');
   const n = NPC_BY_ID[id];
@@ -338,46 +291,41 @@ on('wake', () => {
   nightOnIsland = false;
 });
 
-const ACTS = {
-  spot: spotIsland,
-  volcano: volcanoLook,
-  obsidian: takeObsidian,
-  flower: flowerFound,
-  fire: fireTap,
-  dance,
-  bowling: bowlingGame,
-  sleep: sleepHut,
-};
+landActs(
+  'island',
+  {
+    spot: spotIsland,
+    volcano: volcanoLook,
+    obsidian: takeObsidian,
+    flower: flowerFound,
+    fire: fireTap,
+    dance,
+    bowling: bowlingGame,
+    sleep: sleepHut,
+    home: (ctx, p, id) => homeTap(id),
+  },
+  'удалённый остров: island:spot | volcano | obsidian | flower | fire | dance | bowling | sleep | home:<id>',
+);
 
 // ---------- подсказки ----------
-on('scene', ({ name }) => {
-  if (name === 'island') hintOnce('islandHint', '🌋 Вот он — удалённый остров! Деревня островитян — прямо по тропинке на север. Вождь Кокос ждёт у костра!', 'good');
-});
+landHint('island', 'islandHint', '🌋 Вот он — удалённый остров! Деревня островитян — прямо по тропинке на север. Вождь Кокос ждёт у костра!');
 
 // ---------- кораблик: долгое плавание на юг и обратно ----------
-let sailing = false;
 /** Долгое плавание: toIsland — от отметки «Далеко на юг» к причалу острова, иначе — обратно к пирсу города. */
-export function rideFaraway(toIsland) {
-  if (sailing) return false;
-  const land = LAND_BY_ID.island;
-  sailing = true;
-  sfx('splash');
-  fadeScene({
-    cls: 'faraway-ride',
-    text: toIsland ? '🧭 Плывём далеко на юг, к острову с вулканом!' : '⛵ Плывём домой, в город!',
-    ms: 5200,
-    paint: (ctx, w, h, p, look, t) => paintFaraway(ctx, w, h, smooth(p), toIsland, look, t),
-    go: () => {
-      sea.boatHome(); // кораблик ждёт у пирса города (на острове — свой, у причала)
-      if (toIsland) go(land.scene, { at: land.entry });
-      else go('world', { at: 'pier' });
-    },
-  }).then(() => {
-    sailing = false;
-    sfx('ding');
-    if (toIsland) award('x_far_voyage', { delay: 600 });
-  });
-  return true;
-}
-register('faraway', (p) => rideFaraway(p.arg !== 'back'), 'кораблик на удалённый остров: faraway:go (от отметки «Далеко на юг») | faraway:back');
+export const rideFaraway = landRide({
+  act: 'faraway',
+  desc: 'кораблик на удалённый остров: faraway:go (от отметки «Далеко на юг») | faraway:back',
+  sound: 'splash',
+  cls: 'faraway-ride',
+  text: ['🧭 Плывём далеко на юг, к острову с вулканом!', '⛵ Плывём домой, в город!'],
+  ms: 5200,
+  paint: (toIsland) => (ctx, w, h, p, look, t) => paintFaraway(ctx, w, h, smooth(p), toIsland, look, t),
+  to: (toIsland) => {
+    const land = LAND_BY_ID.island;
+    sea.boatHome(); // кораблик ждёт у пирса города (на острове — свой, у причала)
+    if (toIsland) go(land.scene, { at: land.entry });
+    else go('world', { at: 'pier' });
+  },
+  done: (toIsland) => toIsland && award('x_far_voyage', { delay: 600 }),
+});
 export { AT as ISLAND_AT };
