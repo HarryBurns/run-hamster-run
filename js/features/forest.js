@@ -10,7 +10,7 @@
 // Числа — FOREST в data/economy.js, сезоны — WILD_MONTHS в data/seasons.js. Каждое занятие шлёт событие forest
 // { what } — по нему считают задания. Состояние меняют только действия (core/actions.js); «раз в день» — отметки
 // дня (dayFlags.forest), утром сбрасываются сами.
-import { setFlag, setDayFlag, addItem, award, earn } from '../core/actions.js';
+import { setFlag, setDayFlag, addItem, award } from '../core/actions.js';
 import { sfx } from '../core/audio.js';
 import { emit } from '../core/events.js';
 import { register } from '../core/registry.js';
@@ -34,7 +34,7 @@ import { toast } from '../ui/toast.js';
 import { placeLine } from './tales.js';
 import { questTalk } from './quests.js';
 import { eat } from './cooking.js';
-import { playMinigame } from './minigames.js';
+import { prizeGame } from './minigames.js';
 
 const S = () => G.state;
 const SHISHKIN = 'shishkin';
@@ -354,8 +354,6 @@ export function climbTreehouse() {
 }
 
 // ---------- «Грибная охота» ----------
-/** Сколько охот сегодня ещё с наградой. */
-const huntsLeft = () => Math.max(0, FOREST.hunt.paid - (S2().hunts || 0));
 /** Награда за охоту на stars звёзд: монеты и грибы (пополам белые и обычные). */
 export const huntReward = (stars) => {
   const n = FOREST.hunt.items[stars - 1],
@@ -365,30 +363,26 @@ export const huntReward = (stars) => {
 const rewardText = (r) =>
   `🪙 ${fmtMoney(r.coins)} и ${ING_BY_ID.mushroom.e}×${r.mushroom} ${ING_BY_ID.porcini.e}×${r.porcini}`;
 /** Сыграть в «Грибную охоту»: за первые игры дня — монеты и грибы в рюкзак. */
-export async function mushroomHunt() {
-  const left = huntsLeft(),
-    note = (html) => `<div class="pay-note${left ? '' : ' off'}">${html}</div>`;
-  const res = await playMinigame('mushrooms', {
-    introNote: left
-      ? note(
-          `🧺 <b>Награда Шишкина:</b> ⭐ 🪙 ${FOREST.hunt.coins[0]} · ⭐⭐ 🪙 ${FOREST.hunt.coins[1]} · ⭐⭐⭐ 🪙 ${FOREST.hunt.coins[2]} — и грибы в корзинку. Сегодня ещё ${left} ${left === 1 ? 'охота' : 'охоты'} с наградой.`,
-        )
-      : note('💛 Сегодня Шишкин уже наградил тебя. Сыграть можно для удовольствия — завтра награда снова!'),
-    resultNote: (stars) =>
-      left
-        ? note(`<span class="sum">🧺 Награда: ${rewardText(huntReward(stars))}</span>`)
-        : note('💛 Эта охота была для удовольствия.'),
+export const mushroomHunt = () =>
+  prizeGame('mushrooms', {
+    group: 'forest',
+    flag: 'hunts',
+    ...FOREST.hunt,
+    label: '🧺 <b>Награда Шишкина:</b>',
+    more: ' — и грибы в корзинку.',
+    words: ['охота', 'охоты'],
+    what: 'с наградой',
+    done: '💛 Сегодня Шишкин уже наградил тебя. Сыграть можно для удовольствия — завтра награда снова!',
+    sum: (stars) => `🧺 Награда: ${rewardText(huntReward(stars))}`,
+    fun: '💛 Эта охота была для удовольствия.',
+    reward: (stars) => {
+      const r = huntReward(stars);
+      addItem('ing', 'mushroom', r.mushroom);
+      addItem('ing', 'porcini', r.porcini);
+      return r;
+    },
+    thanks: (stars, r) => `Шишкин: «Вот это грибник!» ${rewardText(r)} — в рюкзаке`,
   });
-  if (!res || !left) return res;
-  const r = huntReward(res.stars);
-  setDayFlag('hunts', (S2().hunts || 0) + 1, 'forest');
-  earn(r.coins, 'work');
-  addItem('ing', 'mushroom', r.mushroom);
-  addItem('ing', 'porcini', r.porcini);
-  sfx('coin');
-  toast(`Шишкин: «Вот это грибник!» ${rewardText(r)} — в рюкзаке`, 'good');
-  return res;
-}
 
 // ---------- бельчонок (задание «Потерянный бельчонок», data/quests.js) ----------
 /** Нашли бельчонка на грибной поляне (место kit видно, пока задание на первом шаге). */

@@ -22,7 +22,7 @@ import { MAY_BEDS, paintMayBed, balloon, jackFace, wreathRing } from '../locatio
 import { T, getLocation } from '../engine/topdown/index.js';
 import { toast } from '../ui/toast.js';
 import { holidayActs, holidayStep, holidayWhere, stepDoneFor } from './holidays.js';
-import { tapScene, playScene, nightSky, doorRound, prizeGame } from './holidays_scenes.js';
+import { tapScene, playScene, nightSky, doorRound, holidayPrize } from './holidays_scenes.js';
 
 const S = () => G.state;
 const OUT = '#4a3728';
@@ -237,7 +237,7 @@ function bonfire() {
 /** «Водяная битва» на пляже: за первые HOLIDAY.splash.paid игр — монеты по звёздам. */
 async function splash() {
   if (offset('kupala') < 0) return void toast('💦 Вёдра и водяные пистолеты уже на пляже! Водяная битва — завтра, на Ивана Купалу.');
-  const res = await prizeGame('splash', { flag: 'splashes', cfg: HOLIDAY.splash, label: '🌿 <b>Приз Купалы</b>', sticker: 'x_splash' });
+  const res = await holidayPrize('splash', { flag: 'splashes', cfg: HOLIDAY.splash, label: '🌿 <b>Приз Купалы</b>', sticker: 'x_splash' });
   if (res) soak();
   return res;
 }

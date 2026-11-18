@@ -13,7 +13,7 @@
 // продаются на рынке (features/market.js, цены — CAVES.gems); фонарик продаётся в ТЦ «Уютный дом» (features/shops.js).
 // Числа — CAVES в data/economy.js. Каждое занятие шлёт событие caves { what } — по нему считают задания.
 // Состояние меняют только действия (core/actions.js); «раз в день» — отметки дня (dayFlags.caves).
-import { setFlag, setDayFlag, addItem, award, earn } from '../core/actions.js';
+import { setFlag, setDayFlag, addItem, award } from '../core/actions.js';
 import { sfx } from '../core/audio.js';
 import { makeCanvas } from '../core/draw.js';
 import { on, emit } from '../core/events.js';
@@ -25,7 +25,7 @@ import { ART } from '../engine/topdown/index.js';
 import { dialog } from '../ui/dialog.js';
 import { message, openPanel } from '../ui/panel.js';
 import { toast } from '../ui/toast.js';
-import { playMinigame } from './minigames.js';
+import { prizeGame } from './minigames.js';
 import { questTalk } from './quests.js';
 import { placeLine } from './tales.js';
 
@@ -125,8 +125,6 @@ const MORE_TALK = [
 register('miner', () => talkKamushkin(), 'шахтёр Камушкин: разговор (житель пещер у кристальной жилы)');
 
 // ---------- «Кристаллы» ----------
-/** Сколько игр сегодня ещё с добычей. */
-export const digsLeft = () => Math.max(0, CAVES.crystals.paid - (S3().digs || 0));
 /** Какие самоцветы дадут за n следующих (по кругу, от номера дня: за два дня попадаются все виды). */
 export function nextGems(n) {
   const got = S3().gems || 0,
@@ -135,30 +133,27 @@ export function nextGems(n) {
 }
 const gemIcons = (ids) => ids.map((id) => FIND_BY_ID[id].e).join('');
 /** Поиграть в «Кристаллы»: за первые игры дня — монеты и самоцветы по звёздам. */
-export async function crystalDig() {
-  const left = digsLeft(),
-    c = CAVES.crystals,
-    note = (html) => `<div class="pay-note${left ? '' : ' off'}">${html}</div>`;
-  const res = await playMinigame('crystals', {
-    introNote: left
-      ? note(
-          `⛏️ <b>Добыча Камушкина:</b> ⭐ 🪙 ${c.coins[0]} + ${c.gems[0]} самоцвет · ⭐⭐ 🪙 ${c.coins[1]} + ${c.gems[1]} · ⭐⭐⭐ 🪙 ${c.coins[2]} + ${c.gems[2]}. Сегодня ещё ${left} ${left === 1 ? 'игра' : 'игры'} с добычей.`,
-        )
-      : note('💛 Сегодня жила уже поделилась самоцветами. Постучать можно для удовольствия — завтра добыча снова!'),
-    resultNote: (stars) =>
-      left
-        ? note(`<span class="sum">🪙 +${fmtMoney(c.coins[stars - 1])} и ${gemIcons(nextGems(c.gems[stars - 1]))}</span>`)
-        : note('💛 Эта игра была для удовольствия.'),
+export function crystalDig() {
+  const c = CAVES.crystals;
+  return prizeGame('crystals', {
+    group: 'caves',
+    flag: 'digs',
+    ...c,
+    label: '⛏️ <b>Добыча Камушкина:</b>',
+    scale: `⭐ 🪙 ${c.coins[0]} + ${c.gems[0]} самоцвет · ⭐⭐ 🪙 ${c.coins[1]} + ${c.gems[1]} · ⭐⭐⭐ 🪙 ${c.coins[2]} + ${c.gems[2]}`,
+    what: 'с добычей',
+    done: '💛 Сегодня жила уже поделилась самоцветами. Постучать можно для удовольствия — завтра добыча снова!',
+    sum: (stars) => `🪙 +${fmtMoney(c.coins[stars - 1])} и ${gemIcons(nextGems(c.gems[stars - 1]))}`,
+    fun: '💛 Эта игра была для удовольствия.',
+    reward: (stars) => {
+      const gems = nextGems(c.gems[stars - 1]);
+      setDayFlag('gems', (S3().gems || 0) + gems.length, 'caves');
+      for (const id of gems) addItem('finds', id, 1);
+      return gems;
+    },
+    thanks: (stars, gems) =>
+      `Камушкин: «Вот это добыча!» 🪙 +${fmtMoney(c.coins[stars - 1])} и ${gems.map((id) => FIND_BY_ID[id].e + ' ' + FIND_BY_ID[id].name).join(', ')}`,
   });
-  if (!res || !left) return res;
-  const gems = nextGems(c.gems[res.stars - 1]);
-  setDayFlag('digs', (S3().digs || 0) + 1, 'caves');
-  setDayFlag('gems', (S3().gems || 0) + gems.length, 'caves');
-  for (const id of gems) addItem('finds', id, 1);
-  earn(c.coins[res.stars - 1], 'work');
-  sfx('coin');
-  toast(`Камушкин: «Вот это добыча!» 🪙 +${fmtMoney(c.coins[res.stars - 1])} и ${gems.map((id) => FIND_BY_ID[id].e + ' ' + FIND_BY_ID[id].name).join(', ')}`, 'good');
-  return res;
 }
 
 // ---------- древние рисунки ----------

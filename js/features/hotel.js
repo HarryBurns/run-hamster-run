@@ -18,7 +18,7 @@
 // Каждое занятие шлёт событие hotel { what }. Состояние меняют только действия (core/actions.js); «раз в день» —
 // отметки дня dayFlags.hotel (room — номер снят, ate — поела со скидкой, slept — ночевала в отеле, slides — игр
 // в «Горку» с призом). Сохранение не менялось.
-import { setFlag, setDayFlag, award, earn, spendMinutes } from '../core/actions.js';
+import { setFlag, setDayFlag, award, spendMinutes } from '../core/actions.js';
 import { sfx } from '../core/audio.js';
 import { makeCanvas, ell, fillRR, line, poly, star } from '../core/draw.js';
 import { on, emit } from '../core/events.js';
@@ -36,7 +36,7 @@ import { openLayer } from '../ui/modals.js';
 import { openPanel } from '../ui/panel.js';
 import { toast } from '../ui/toast.js';
 import { buy, priceTag, buyBtn } from './purchase.js';
-import { playMinigame } from './minigames.js';
+import { playMinigame, prizeGame } from './minigames.js';
 
 const S = () => G.state;
 const OUT = '#4a3728';
@@ -444,31 +444,23 @@ function schedule() {
 }
 
 // ---------- «Горка» ----------
-/** Сколько игр в «Горку» сегодня ещё с призом. */
-export const hotelSlidesLeft = () => Math.max(0, HOTEL.slide.paid - (HF().slides || 0));
 export async function slideGame() {
   if (!canSwim()) {
     toast(SICK_TEXT.water);
     return null;
   }
-  const left = hotelSlidesLeft(),
-    c = HOTEL.slide.coins,
-    note = (html) => `<div class="pay-note${left ? '' : ' off'}">${html}</div>`;
-  const res = await playMinigame('slide', {
-    introNote: left
-      ? note(`🌀 <b>Приз отеля:</b> ⭐ 🪙 ${c[0]} · ⭐⭐ 🪙 ${c[1]} · ⭐⭐⭐ 🪙 ${c[2]}. Сегодня ещё ${left} ${left === 1 ? 'спуск' : 'спуска'} с призом.`)
-      : note('💛 Сегодня призы за горку уже получены. Кататься можно для удовольствия — завтра призы снова!'),
-    resultNote: (stars) => (left ? note(`<span class="sum">🪙 +${fmtMoney(c[stars - 1])}</span>`) : note('💛 Этот спуск был для удовольствия.')),
+  return prizeGame('slide', {
+    group: 'hotel',
+    flag: 'slides',
+    ...HOTEL.slide,
+    label: '🌀 <b>Приз отеля:</b>',
+    words: ['спуск', 'спуска'],
+    done: '💛 Сегодня призы за горку уже получены. Кататься можно для удовольствия — завтра призы снова!',
+    fun: '💛 Этот спуск был для удовольствия.',
+    after: () => emit('hotel', { what: 'slide' }),
+    sticker: 'x_slide',
+    thanks: 'Звёздочка с ресепшена: «Какой спуск!»',
   });
-  if (!res) return res;
-  emit('hotel', { what: 'slide' });
-  award('x_slide', { delay: 1200 });
-  if (!left) return res;
-  setDayFlag('slides', (HF().slides || 0) + 1, 'hotel');
-  earn(c[res.stars - 1], 'work');
-  sfx('coin');
-  toast(`Звёздочка с ресепшена: «Какой спуск!» 🪙 +${fmtMoney(c[res.stars - 1])}`, 'good');
-  return res;
 }
 
 // ---------- носильщица: Тележкин ----------

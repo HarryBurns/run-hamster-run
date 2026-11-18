@@ -32,7 +32,7 @@ import { addPts } from './friends.js';
 import { openCooking } from './cooking.js';
 import { playMinigame } from './minigames.js';
 import { holidayActs, holidayTalk, holidayStep, stepDoneFor, stepWanted } from './holidays.js';
-import { tapScene, playScene, nightSky, doorRound, prizeGame, holidaySay as say } from './holidays_scenes.js';
+import { tapScene, playScene, nightSky, doorRound, holidayPrize, holidaySay as say } from './holidays_scenes.js';
 
 const S = () => G.state;
 const OUT = '#4a3728';
@@ -386,7 +386,7 @@ function tug() {
   const team = tugTeam(),
     help = teamHelp(team),
     names = team.map((f) => `<b>${f.name}</b>${f.hearts ? ` ${'❤️'.repeat(f.hearts)}` : ''}`).join(', ');
-  return prizeGame('tug', {
+  return holidayPrize('tug', {
     flag: 'tugs',
     cfg: HOLIDAY.tug,
     label: '🥞 <b>Приз ярмарки</b>',

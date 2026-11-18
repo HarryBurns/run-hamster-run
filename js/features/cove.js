@@ -33,7 +33,7 @@ import { dialog } from '../ui/dialog.js';
 import { openLayer } from '../ui/modals.js';
 import { message } from '../ui/panel.js';
 import { toast } from '../ui/toast.js';
-import { playMinigame } from './minigames.js';
+import { prizeGame } from './minigames.js';
 import { questTalk } from './quests.js';
 import { placeLine } from './tales.js';
 
@@ -119,31 +119,24 @@ const MORE_TALK = [
 register('mermaid', () => talkPearl(), 'русалочка Жемчужинка: разговор (жительница секретного пляжа на камне в воде)');
 
 // ---------- «Замок из песка» ----------
-/** Сколько игр сегодня ещё с призом. */
-export const castleLeft = () => Math.max(0, COVE.castle.paid - (SC().castles || 0));
 /** Построить замок из песка: за первые игры дня — монеты по звёздам. */
-export async function castleGame() {
-  const left = castleLeft(),
-    c = COVE.castle.coins,
-    note = (html) => `<div class="pay-note${left ? '' : ' off'}">${html}</div>`;
-  const res = await playMinigame('sandcastle', {
-    introNote: left
-      ? note(`🧜‍♀️ <b>Приз Жемчужинки:</b> ⭐ 🪙 ${c[0]} · ⭐⭐ 🪙 ${c[1]} · ⭐⭐⭐ 🪙 ${c[2]}. Сегодня ещё ${left} ${left === 1 ? 'замок' : 'замка'} с призом.`)
-      : note('💛 Сегодня призы за замки уже получены. Строить можно для удовольствия — завтра призы снова!'),
-    resultNote: (stars) => (left ? note(`<span class="sum">🪙 +${fmtMoney(c[stars - 1])}</span>`) : note('💛 Этот замок был для удовольствия.')),
+export const castleGame = () =>
+  prizeGame('sandcastle', {
+    group: 'cove',
+    flag: 'castles',
+    ...COVE.castle,
+    label: '🧜‍♀️ <b>Приз Жемчужинки:</b>',
+    words: ['замок', 'замка'],
+    done: '💛 Сегодня призы за замки уже получены. Строить можно для удовольствия — завтра призы снова!',
+    fun: '💛 Этот замок был для удовольствия.',
+    sticker: 'x_castle',
+    // свой замок (третий, «как хочется») остаётся на пляже до завтра — Жемчужинка любуется им с камня (С7)
+    after: (res) => {
+      const cells = res.extra && res.extra.cells;
+      if (Array.isArray(cells) && cells.some(Boolean)) setFlag('coveCastle', { day: S().day, cells: cells.map((x) => x || null) });
+    },
+    thanks: 'Жемчужинка: «Какой красивый замок!»',
   });
-  if (!res) return res;
-  award('x_castle', { delay: 1200 });
-  // свой замок (третий, «как хочется») остаётся на пляже до завтра — Жемчужинка любуется им с камня (С7)
-  const cells = res.extra && res.extra.cells;
-  if (Array.isArray(cells) && cells.some(Boolean)) setFlag('coveCastle', { day: S().day, cells: cells.map((x) => x || null) });
-  if (!left) return res;
-  setDayFlag('castles', (SC().castles || 0) + 1, 'cove');
-  earn(c[res.stars - 1], 'work');
-  sfx('coin');
-  toast(`Жемчужинка: «Какой красивый замок!» 🪙 +${fmtMoney(c[res.stars - 1])}`, 'good');
-  return res;
-}
 
 // ---------- черепашата, клад, ракушки ----------
 /** Гнездо черепашат: вечером — вылупиться и ползти за хомячком; днём и после — добрая подсказка. */

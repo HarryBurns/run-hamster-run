@@ -5,12 +5,12 @@
 //   playScene(текст, paint, мс)   короткая сценка без нажатий (затемнение с картинкой)
 //   doorRound({...})   обход домиков вечером: колядки на Рождество, «сладость или гадость» на Хеллоуин — у двери
 //                      домика (holidayDoor), в свои часы (HOLIDAY.carols), сценка, хозяин угощает, шаг «разные домики»
-//   prizeGame(игра, {...})  мини-игра праздника с призом по звёздам за первые paid игр в день (канат, водяная битва)
-import { addItem, setDayFlag, earn, award, meetFriend, spendMinutes } from '../core/actions.js';
+//   holidayPrize(игра, {...})  мини-игра праздника с призом по звёздам за первые paid игр в день (канат, водяная битва)
+import { addItem, meetFriend, spendMinutes } from '../core/actions.js';
 import { sfx } from '../core/audio.js';
 import { makeCanvas, ell } from '../core/draw.js';
 import { G, playerLook, npcLookNow } from '../core/state.js';
-import { el, fmtMoney } from '../core/util.js';
+import { el } from '../core/util.js';
 import { NPC_BY_ID, DISH_BY_ID, HOLIDAY } from '../data/index.js';
 import { dialog } from '../ui/dialog.js';
 import { openLayer } from '../ui/modals.js';
@@ -18,10 +18,9 @@ import { openPanel, message } from '../ui/panel.js';
 import { toast } from '../ui/toast.js';
 import { addPts } from './friends.js';
 import { holidayDoor, holidayTalk, holidayStep, stepDoneFor, stepWanted } from './holidays.js';
-import { playMinigame } from './minigames.js';
+import { prizeGame } from './minigames.js';
 
 const S = () => G.state;
-const HF = () => S().dayFlags.holiday || {};
 export const holidaySay = (id, text, options, happy = false) => dialog({ look: npcLookNow(id), name: NPC_BY_ID[id].name, text, options, happy });
 
 /**
@@ -217,28 +216,20 @@ export function doorRound({ holiday, step, title, icon, ask, go, scene, treats, 
 const pickLine = (holiday) => (holiday === 'xmas' ? 'С Рождеством! Как тебе свечи в окнах?' : 'С Хеллоуином! Нравится мой костюм?');
 
 /**
- * Мини-игра праздника с призом: за первые cfg.paid игр в день — монеты cfg.coins по звёздам (отметка дня flag), потом —
- * «для удовольствия». label — как назвать приз («🥞 Приз ярмарки»). После игры — наклейка sticker. info — что ещё
+ * Мини-игра праздника с призом (общий prizeGame — minigames.js): за первые cfg.paid игр в день — монеты cfg.coins
+ * по звёздам (отметка дня flag), потом — «для удовольствия». label — как назвать приз («🥞 Приз ярмарки»). После игры — наклейка sticker. info — что ещё
  * передать игре (команда друзей у каната), intro — HTML на заставке над строкой про приз.
  */
-export async function prizeGame(id, { flag, cfg, label, sticker, info = {}, intro = '' }) {
-  const c = cfg.coins,
-    left = Math.max(0, cfg.paid - (HF()[flag] || 0)),
-    note = (html) => `<div class="pay-note${left ? '' : ' off'}">${html}</div>`;
-  const res = await playMinigame(id, {
-    ...info,
-    introNote:
-      intro +
-      (left
-      ? note(`${label}: ⭐ 🪙 ${c[0]} · ⭐⭐ 🪙 ${c[1]} · ⭐⭐⭐ 🪙 ${c[2]}. Сегодня ещё ${left} ${left === 1 ? 'игра' : 'игры'} с призом.`)
-      : note('💛 Призы уже получены. Играть можно для удовольствия!')),
-    resultNote: (stars) => (left ? note(`<span class="sum">🪙 +${fmtMoney(c[stars - 1])}</span>`) : note('💛 Эта игра была для удовольствия.')),
+export const holidayPrize = (id, { flag, cfg, label, sticker, info, intro }) =>
+  prizeGame(id, {
+    group: 'holiday',
+    flag,
+    ...cfg,
+    source: 'gift',
+    info,
+    intro,
+    label: `${label}:`,
+    done: '💛 Призы уже получены. Играть можно для удовольствия!',
+    fun: '💛 Эта игра была для удовольствия.',
+    sticker,
   });
-  if (!res) return res;
-  if (sticker) award(sticker, { delay: 1200 });
-  if (!left) return res;
-  setDayFlag(flag, (HF()[flag] || 0) + 1, 'holiday');
-  earn(c[res.stars - 1], 'gift');
-  sfx('coin');
-  return res;
-}

@@ -18,14 +18,14 @@
 // Находки продаются на рынке (features/market.js, цены — ISLAND). Числа — ISLAND в data/economy.js. Каждое занятие
 // шлёт событие island { what } — по нему считают задания. Состояние меняют только действия (core/actions.js);
 // «раз в день» — отметки дня (dayFlags.island).
-import { setFlag, setDayFlag, addItem, addClothes, award, earn } from '../core/actions.js';
+import { setFlag, setDayFlag, addItem, addClothes, award } from '../core/actions.js';
 import { sfx } from '../core/audio.js';
 import { makeCanvas, ell, poly } from '../core/draw.js';
 import { on, emit } from '../core/events.js';
 import { go, sceneName } from '../core/loop.js';
 import { register, run } from '../core/registry.js';
 import { G, darkness, count, playerLook, hasClothes } from '../core/state.js';
-import { el, esc, pick, fmtMoney } from '../core/util.js';
+import { el, esc, pick } from '../core/util.js';
 import { NPC_BY_ID, FIND_BY_ID, LEI_IDS, ISLAND, LAND_BY_ID, npcLook } from '../data/index.js';
 import { getLocation } from '../engine/topdown/index.js';
 import { festNow, placeFlowers, AT } from '../locations/island.js';
@@ -37,7 +37,7 @@ import { dialog } from '../ui/dialog.js';
 import { openLayer } from '../ui/modals.js';
 import { message } from '../ui/panel.js';
 import { toast } from '../ui/toast.js';
-import { playMinigame } from './minigames.js';
+import { playMinigame, prizeGame } from './minigames.js';
 import { questTalk } from './quests.js';
 import { placeLine } from './tales.js';
 
@@ -301,28 +301,18 @@ export function dance() {
 }
 
 // ---------- «Кокосовый боулинг» ----------
-/** Сколько игр сегодня ещё с призом. */
-export const bowlingLeft = () => Math.max(0, ISLAND.bowling.paid - (SI().bowls || 0));
 /** Сыграть в кокосовый боулинг: за первые игры дня — монеты по звёздам. */
-export async function bowlingGame() {
-  const left = bowlingLeft(),
-    c = ISLAND.bowling.coins,
-    note = (html) => `<div class="pay-note${left ? '' : ' off'}">${html}</div>`;
-  const res = await playMinigame('bowling', {
-    introNote: left
-      ? note(`🌴 <b>Приз Вождя:</b> ⭐ 🪙 ${c[0]} · ⭐⭐ 🪙 ${c[1]} · ⭐⭐⭐ 🪙 ${c[2]}. Сегодня ещё ${left} ${left === 1 ? 'игра' : 'игры'} с призом.`)
-      : note('💛 Сегодня призы за боулинг уже получены. Играть можно для удовольствия — завтра призы снова!'),
-    resultNote: (stars) => (left ? note(`<span class="sum">🪙 +${fmtMoney(c[stars - 1])}</span>`) : note('💛 Эта игра была для удовольствия.')),
+export const bowlingGame = () =>
+  prizeGame('bowling', {
+    group: 'island',
+    flag: 'bowls',
+    ...ISLAND.bowling,
+    label: '🌴 <b>Приз Вождя:</b>',
+    done: '💛 Сегодня призы за боулинг уже получены. Играть можно для удовольствия — завтра призы снова!',
+    fun: '💛 Эта игра была для удовольствия.',
+    sticker: 'x_bowling',
+    thanks: 'Вождь Кокос: «Страйк-кокос!»',
   });
-  if (!res) return res;
-  award('x_bowling', { delay: 1200 });
-  if (!left) return res;
-  setDayFlag('bowls', (SI().bowls || 0) + 1, 'island');
-  earn(c[res.stars - 1], 'work');
-  sfx('coin');
-  toast(`Вождь Кокос: «Страйк-кокос!» 🪙 +${fmtMoney(c[res.stars - 1])}`, 'good');
-  return res;
-}
 
 // ---------- хижина для гостей: ночёвка на острове ----------
 let nightOnIsland = false;

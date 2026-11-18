@@ -14,7 +14,7 @@
 //                        LANDS.mountain.go) и обратно в лес (станция на горе); короткая картинка-переезд
 // Числа — MOUNTAIN в data/economy.js. Каждое занятие шлёт событие mountain { what } — по нему считают задания.
 // Состояние меняют только действия (core/actions.js); «раз в день» — отметки дня (dayFlags.mountain).
-import { setFlag, setDayFlag, addClothes, addItem, award, earn } from '../core/actions.js';
+import { setFlag, setDayFlag, addClothes, addItem, award } from '../core/actions.js';
 import { sfx } from '../core/audio.js';
 import { makeCanvas, ell, fillRR, line, poly } from '../core/draw.js';
 import { go } from '../core/loop.js';
@@ -42,7 +42,7 @@ import { openLayer } from '../ui/modals.js';
 import { message, openPanel } from '../ui/panel.js';
 import { toast } from '../ui/toast.js';
 import { frostToday } from './health.js';
-import { playMinigame } from './minigames.js';
+import { prizeGame } from './minigames.js';
 import { setWaitHook, questTalk } from './quests.js';
 import { placeLine } from './tales.js';
 
@@ -405,29 +405,19 @@ export function buildSnowman() {
 }
 
 // ---------- «Спуск на санках» ----------
-/** Сколько спусков сегодня ещё с наградой. */
-const sledsLeft = () => Math.max(0, MOUNTAIN.sled.paid - (S2().sleds || 0));
 /** Спуститься на санках: за первые игры дня Вершинкин платит монетами по звёздам. */
-export async function sledRide() {
-  const left = sledsLeft(),
-    c = MOUNTAIN.sled.coins,
-    note = (html) => `<div class="pay-note${left ? '' : ' off'}">${html}</div>`;
-  const res = await playMinigame('sled', {
-    introNote: left
-      ? note(
-          `🛷 <b>Приз Вершинкина:</b> ⭐ 🪙 ${c[0]} · ⭐⭐ 🪙 ${c[1]} · ⭐⭐⭐ 🪙 ${c[2]}. Сегодня ещё ${left} ${left === 1 ? 'спуск' : 'спуска'} с призом.`,
-        )
-      : note('💛 Сегодня Вершинкин уже вручил тебе призы. Скатиться можно для удовольствия — завтра призы снова!'),
-    resultNote: (stars) =>
-      left ? note(`<span class="sum">🪙 Приз: +${fmtMoney(c[stars - 1])}</span>`) : note('💛 Этот спуск был для удовольствия.'),
+export const sledRide = () =>
+  prizeGame('sled', {
+    group: 'mountain',
+    flag: 'sleds',
+    ...MOUNTAIN.sled,
+    label: '🛷 <b>Приз Вершинкина:</b>',
+    words: ['спуск', 'спуска'],
+    done: '💛 Сегодня Вершинкин уже вручил тебе призы. Скатиться можно для удовольствия — завтра призы снова!',
+    sum: (stars) => `🪙 Приз: +${fmtMoney(MOUNTAIN.sled.coins[stars - 1])}`,
+    fun: '💛 Этот спуск был для удовольствия.',
+    thanks: 'Вершинкин: «Вот это спуск!»',
   });
-  if (!res || !left) return res;
-  setDayFlag('sleds', (S2().sleds || 0) + 1, 'mountain');
-  earn(c[res.stars - 1], 'work');
-  sfx('coin');
-  toast(`Вершинкин: «Вот это спуск!» 🪙 +${fmtMoney(c[res.stars - 1])}`, 'good');
-  return res;
-}
 
 // ---------- варежка Вершинкина (задание «Потерянная варежка», data/quests.js) ----------
 /** Нашли варежку на вершине (место mitten видно, пока задание на первом шаге). */

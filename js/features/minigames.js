@@ -261,6 +261,48 @@ export async function playMinigame(id, extra = {}) {
   return res;
 }
 
+// ---------- призовая мини-игра места (и праздника) ----------
+/** Сколько игр сегодня ещё с призом: paid минус отметка дня dayFlags[group][flag]. */
+export const prizeLeft = (group, flag, paid) => Math.max(0, paid - ((S().dayFlags[group] || {})[flag] || 0));
+/** Шкала приза «⭐ 🪙 40 · ⭐⭐ 🪙 80 · ⭐⭐⭐ 🪙 120». */
+export const prizeScale = (c) => `⭐ 🪙 ${c[0]} · ⭐⭐ 🪙 ${c[1]} · ⭐⭐⭐ 🪙 ${c[2]}`;
+/**
+ * Призовая мини-игра (лес, гора, пещеры, пустыня, джунгли, бухта, остров, отель, волейбол, праздники): первые paid
+ * игр в день — монеты coins по звёздам (и что даст reward), дальше — «для удовольствия». Счётчик игр с призом —
+ * отметка дня dayFlags[group][flag]; данные призов — в data/economy.js. Подписи на заставке и в итоге:
+ *   label — начало строки о призе («🛷 <b>Приз Вершинкина:</b>»), scale — шкала (по умолчанию prizeScale(coins)),
+ *   more — что после шкалы (по умолчанию «.»), дальше «Сегодня ещё 2 игры с призом.» (words — [«игра», «игры»],
+ *   what — «с призом»); tail — вместо more и «Сегодня ещё…» (« — раз в день.»)
+ *   done — заставка, когда призы на сегодня получены; fun — итог игры «для удовольствия»
+ *   sum(stars) — итог игры с призом (по умолчанию «🪙 +80»)
+ *   thanks — тост о призе: строка (к ней — «🪙 +80») или thanks(stars, got), got — что вернул reward
+ *   intro — HTML над строкой о призе (команда у каната, пара в волейболе); info — что ещё передать игре
+ *   after(res) — после любой сыгранной игры (отметки, дружба); sticker — наклейка после любой сыгранной игры
+ *   reward(stars) — дополнительный приз (грибы, самоцветы, находка); source — откуда деньги (по умолчанию work)
+ */
+export async function prizeGame(id, o) {
+  const c = o.coins,
+    left = prizeLeft(o.group, o.flag, o.paid),
+    words = o.words || ['игра', 'игры'],
+    note = (html) => `<div class="pay-note${left ? '' : ' off'}">${html}</div>`,
+    tail = o.tail || `${o.more || '.'} Сегодня ещё ${left} ${left === 1 ? words[0] : words[1]} ${o.what || 'с призом'}.`;
+  const res = await playMinigame(id, {
+    ...(o.info || {}),
+    introNote: (o.intro || '') + (left ? note(`${o.label} ${o.scale || prizeScale(c)}${tail}`) : note(o.done)),
+    resultNote: (stars) => (left ? note(`<span class="sum">${o.sum ? o.sum(stars) : `🪙 +${fmtMoney(c[stars - 1])}`}</span>`) : note(o.fun)),
+  });
+  if (!res) return res;
+  if (o.after) o.after(res);
+  if (o.sticker) award(o.sticker, { delay: 1200 });
+  if (!left) return res;
+  const got = o.reward ? o.reward(res.stars) : null;
+  setDayFlag(o.flag, ((S().dayFlags[o.group] || {})[o.flag] || 0) + 1, o.group);
+  earn(c[res.stars - 1], o.source || 'work');
+  sfx('coin');
+  if (o.thanks) toast(typeof o.thanks === 'function' ? o.thanks(res.stars, got) : `${o.thanks} 🪙 +${fmtMoney(c[res.stars - 1])}`, 'good');
+  return res;
+}
+
 export function goFishing(spot) {
   playMinigame('fishing', { spot });
 }

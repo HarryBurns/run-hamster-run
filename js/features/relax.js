@@ -14,19 +14,19 @@
 // садится житель (на второе место того же предмета или на соседний такой же предмет), говорит реплику (RELAX_LINES)
 // и раз в день от этого чуть крепче дружба (+1). Житель на это время «занят» (n.hold, engine/topdown/actors.js).
 import { G, cal, canSwim, walkK, friendHearts, npcDress } from '../core/state.js';
-import { award, addFriendPts, setDayFlag, earn } from '../core/actions.js';
+import { award, addFriendPts, setDayFlag } from '../core/actions.js';
 import { on, emit } from '../core/events.js';
 import { register } from '../core/registry.js';
 import { scene } from '../core/loop.js';
 import { sfx } from '../core/audio.js';
-import { dist, fmtMoney, shuffle, TAU } from '../core/util.js';
+import { dist, shuffle, TAU } from '../core/util.js';
 import { ell, line, fillRR, emoji } from '../core/draw.js';
 import { drawHamster, blinkAt } from '../art/hamster.js';
 import { NPCS, NPC_BY_ID, npcLook, RELAX, RELAX_LINES, RELAX_PRIZE } from '../data/index.js';
 import { T, PS, SP, OUT, OBJECTS, TILES } from '../engine/topdown/kinds.js';
 import { canStand } from '../engine/topdown/actors.js';
 import { toast } from '../ui/toast.js';
-import { playMinigame } from './minigames.js';
+import { prizeGame } from './minigames.js';
 
 const S = () => G.state;
 /** Сейчас отдыхаем: { sc, o, how, spot, ride, t, ax, ay, lk, mate, joinAt, say } или null. */
@@ -482,8 +482,6 @@ export function relaxJoinNow() {
 }
 
 // ---------- «Пляжный волейбол» ----------
-/** Сколько игр сегодня ещё с призом. */
-export const volleyLeft = () => Math.max(0, RELAX_PRIZE.volley.paid - ((S().dayFlags.relax || {}).volleys || 0));
 /** Команды: друг — житель города с самыми крепкими сердечками (из равных — любой), соперники — двое других. */
 export function volleyTeams() {
   const town = shuffle(NPCS.filter((n) => !n.land));
@@ -502,34 +500,27 @@ export function volleyTeamNote(team) {
   }</div>`;
 }
 /** Сыграть в волейбол у сетки на пляже. */
-export async function volleyGame() {
+export function volleyGame() {
   if (cur) standUp(true);
-  const left = volleyLeft(),
-    c = RELAX_PRIZE.volley.coins,
-    note = (html) => `<div class="pay-note${left ? '' : ' off'}">${html}</div>`;
-  const team = volleyTeams();
-  const res = await playMinigame('volley', {
-    team,
-    introNote:
-      volleyTeamNote(team) +
-      (left
-      ? note(`🏐 <b>Приз пляжа:</b> ⭐ 🪙 ${c[0]} · ⭐⭐ 🪙 ${c[1]} · ⭐⭐⭐ 🪙 ${c[2]}. Сегодня ещё ${left} ${left === 1 ? 'игра' : 'игры'} с призом.`)
-      : note('💛 Сегодня призы за волейбол уже получены. Играть можно для удовольствия — завтра призы снова!')),
-    resultNote: (stars) => (left ? note(`<span class="sum">🪙 +${fmtMoney(c[stars - 1])}</span>`) : note('💛 Эта игра была для удовольствия.')),
+  const team = volleyTeams(),
+    m = team.mate;
+  return prizeGame('volley', {
+    group: 'relax',
+    flag: 'volleys',
+    ...RELAX_PRIZE.volley,
+    source: 'other',
+    info: { team },
+    intro: volleyTeamNote(team),
+    label: '🏐 <b>Приз пляжа:</b>',
+    done: '💛 Сегодня призы за волейбол уже получены. Играть можно для удовольствия — завтра призы снова!',
+    fun: '💛 Эта игра была для удовольствия.',
+    // сыграли вместе — раз в день дружба с напарником чуть крепче
+    after: () => {
+      if ((S().dayFlags.relaxWith || {})['v:' + m.id]) return;
+      setDayFlag('v:' + m.id, 1, 'relaxWith');
+      addFriendPts(m.id, 1);
+    },
+    sticker: 'x_volley',
+    thanks: `${m.name}: «Мы отличная команда!»`,
   });
-  if (!res) return res;
-  award('x_volley', { delay: 1200 });
-  // сыграли вместе — раз в день дружба с напарником чуть крепче
-  const m = team.mate,
-    flags = S().dayFlags.relaxWith || {};
-  if (!flags['v:' + m.id]) {
-    setDayFlag('v:' + m.id, 1, 'relaxWith');
-    addFriendPts(m.id, 1);
-  }
-  if (!left) return res;
-  setDayFlag('volleys', ((S().dayFlags.relax || {}).volleys || 0) + 1, 'relax');
-  earn(c[res.stars - 1], 'other');
-  sfx('coin');
-  toast(`${m.name}: «Мы отличная команда!» 🪙 +${fmtMoney(c[res.stars - 1])}`, 'good');
-  return res;
 }

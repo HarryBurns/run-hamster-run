@@ -16,7 +16,7 @@
 // подсказка про солнце (крюк hot локации, раз в день); окаменелости продаются на рынке (features/market.js, цены —
 // DESERT.fossils). Числа — DESERT в data/economy.js. Каждое занятие шлёт событие desert { what } — по нему считают
 // задания. Состояние меняют только действия (core/actions.js); «раз в день» — отметки дня (dayFlags.desert).
-import { setFlag, setDayFlag, addItem, award, earn } from '../core/actions.js';
+import { setFlag, setDayFlag, addItem, award } from '../core/actions.js';
 import { sfx } from '../core/audio.js';
 import { makeCanvas, ell, fillRR, line, poly } from '../core/draw.js';
 import { on, emit } from '../core/events.js';
@@ -33,7 +33,7 @@ import { dialog } from '../ui/dialog.js';
 import { openLayer } from '../ui/modals.js';
 import { message, openPanel } from '../ui/panel.js';
 import { toast } from '../ui/toast.js';
-import { playMinigame } from './minigames.js';
+import { prizeGame, prizeLeft } from './minigames.js';
 import { questTalk } from './quests.js';
 import { placeLine } from './tales.js';
 
@@ -121,57 +121,45 @@ const MORE_TALK = [
 register('nomad', () => talkBarkhan(), 'кочевник Бархан: разговор (житель пустыни у шатра в оазисе)');
 
 // ---------- «Раскопки» ----------
-/** Сколько игр сегодня ещё с находкой. */
-export const digsLeft = () => Math.max(0, DESERT.dig.paid - (SD().digs || 0));
-/** Какую окаменелость откопают следующей (по кругу, от номера дня: за два дня — все виды). */
-export const nextFossil = () => FOSSIL_IDS[(S().day * 2 + (SD().digs || 0)) % FOSSIL_IDS.length];
-/** Покопать: за первые игры дня — монеты по звёздам и окаменелость. */
-export async function digGame() {
-  const left = digsLeft(),
-    c = DESERT.dig.coins,
-    fossil = left ? nextFossil() : FOSSIL_IDS[(S().day + 1) % FOSSIL_IDS.length],
-    f = FIND_BY_ID[fossil],
-    note = (html) => `<div class="pay-note${left ? '' : ' off'}">${html}</div>`;
-  const res = await playMinigame('dig', {
-    fossil,
-    introNote: left
-      ? note(
-          `🦴 <b>Приз Бархана:</b> ⭐ 🪙 ${c[0]} · ⭐⭐ 🪙 ${c[1]} · ⭐⭐⭐ 🪙 ${c[2]} — и находка остаётся у тебя! Сегодня ещё ${left} ${left === 1 ? 'раскопка' : 'раскопки'} с призом.`,
-        )
-      : note('💛 Сегодня раскоп уже поделился находками. Покопать можно для удовольствия — завтра находки снова!'),
-    resultNote: (stars) =>
-      left ? note(`<span class="sum">🪙 +${fmtMoney(c[stars - 1])} и ${f.e} ${f.name}</span>`) : note('💛 Эта раскопка была для удовольствия.'),
+/** Покопать: за первые игры дня — монеты по звёздам и окаменелость (виды — по кругу, от номера дня: за два дня — все). */
+export function digGame() {
+  const c = DESERT.dig.coins,
+    left = prizeLeft('desert', 'digs', DESERT.dig.paid),
+    fossil = left ? FOSSIL_IDS[(S().day * 2 + (SD().digs || 0)) % FOSSIL_IDS.length] : FOSSIL_IDS[(S().day + 1) % FOSSIL_IDS.length],
+    f = FIND_BY_ID[fossil];
+  return prizeGame('dig', {
+    group: 'desert',
+    flag: 'digs',
+    ...DESERT.dig,
+    info: { fossil },
+    label: '🦴 <b>Приз Бархана:</b>',
+    more: ' — и находка остаётся у тебя!',
+    words: ['раскопка', 'раскопки'],
+    done: '💛 Сегодня раскоп уже поделился находками. Покопать можно для удовольствия — завтра находки снова!',
+    sum: (stars) => `🪙 +${fmtMoney(c[stars - 1])} и ${f.e} ${f.name}`,
+    fun: '💛 Эта раскопка была для удовольствия.',
+    reward: () => addItem('finds', fossil, 1),
+    thanks: (stars) => `Бархан: «Вот это находка!» 🪙 +${fmtMoney(c[stars - 1])} и ${f.e} ${f.name}`,
   });
-  if (!res || !left) return res;
-  setDayFlag('digs', (SD().digs || 0) + 1, 'desert');
-  addItem('finds', fossil, 1);
-  earn(c[res.stars - 1], 'work');
-  sfx('coin');
-  toast(`Бархан: «Вот это находка!» 🪙 +${fmtMoney(c[res.stars - 1])} и ${f.e} ${f.name}`, 'good');
-  return res;
 }
 
 // ---------- загадка пирамиды «Пары» ----------
 /** Решить загадку пирамиды: приз — раз в день (по звёздам), в первый раз — наклейка. */
-export async function pairsGame() {
+export function pairsGame() {
   sfx('door');
-  const paid = !SD().pairs,
-    c = DESERT.pairs.coins,
-    note = (html) => `<div class="pay-note${paid ? '' : ' off'}">${html}</div>`;
-  const res = await playMinigame('pairs', {
-    introNote: paid
-      ? note(`🔺 <b>Сокровище пирамиды:</b> ⭐ 🪙 ${c[0]} · ⭐⭐ 🪙 ${c[1]} · ⭐⭐⭐ 🪙 ${c[2]} — раз в день.`)
-      : note('💛 Сегодня пирамида уже открыла тебе сокровище. Решить загадку можно для удовольствия — завтра снова!'),
-    resultNote: (stars) => (paid ? note(`<span class="sum">🪙 Сокровище: +${fmtMoney(c[stars - 1])}</span>`) : note('💛 Эта загадка была для удовольствия.')),
+  return prizeGame('pairs', {
+    group: 'desert',
+    flag: 'pairs',
+    paid: 1,
+    coins: DESERT.pairs.coins,
+    label: '🔺 <b>Сокровище пирамиды:</b>',
+    tail: ' — раз в день.',
+    done: '💛 Сегодня пирамида уже открыла тебе сокровище. Решить загадку можно для удовольствия — завтра снова!',
+    sum: (stars) => `🪙 Сокровище: +${fmtMoney(DESERT.pairs.coins[stars - 1])}`,
+    fun: '💛 Эта загадка была для удовольствия.',
+    sticker: 'x_pyramid',
+    thanks: '🔺 Тайна пирамиды разгадана!',
   });
-  if (!res) return res;
-  award('x_pyramid', { delay: 1200 });
-  if (!paid) return res;
-  setDayFlag('pairs', 1, 'desert');
-  earn(c[res.stars - 1], 'work');
-  sfx('coin');
-  toast(`🔺 Тайна пирамиды разгадана! 🪙 +${fmtMoney(c[res.stars - 1])}`, 'good');
-  return res;
 }
 
 // ---------- верблюд Финик ----------

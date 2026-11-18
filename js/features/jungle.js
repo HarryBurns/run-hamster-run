@@ -14,7 +14,7 @@
 // продаются на рынке (features/market.js, цены — JUNGLE.feathers). Числа — JUNGLE в data/economy.js. Каждое занятие
 // шлёт событие jungle { what } — по нему считают задания. Состояние меняют только действия (core/actions.js);
 // «раз в день» — отметки дня (dayFlags.jungle).
-import { setFlag, setDayFlag, addItem, award, earn, teachParrot } from '../core/actions.js';
+import { setFlag, setDayFlag, addItem, award, teachParrot } from '../core/actions.js';
 import { sfx } from '../core/audio.js';
 import { makeCanvas, ell, fillRR, line, poly } from '../core/draw.js';
 import { on, emit } from '../core/events.js';
@@ -32,7 +32,7 @@ import { dialog } from '../ui/dialog.js';
 import { openLayer } from '../ui/modals.js';
 import { message, openPanel } from '../ui/panel.js';
 import { toast } from '../ui/toast.js';
-import { playMinigame } from './minigames.js';
+import { prizeGame } from './minigames.js';
 import { questTalk } from './quests.js';
 import { placeLine } from './tales.js';
 
@@ -116,50 +116,37 @@ const MORE_TALK = [
 register('explorer', () => talkLiana(), 'исследовательница Лиана: разговор (жительница джунглей у палатки)');
 
 // ---------- «Лианы» ----------
-/** Сколько игр сегодня ещё с призом. */
-export const vinesLeft = () => Math.max(0, JUNGLE.vines.paid - (SJ().vines || 0));
 /** Покачаться на лианах: за первые игры дня — монеты по звёздам. */
-export async function vinesGame() {
-  const left = vinesLeft(),
-    c = JUNGLE.vines.coins,
-    note = (html) => `<div class="pay-note${left ? '' : ' off'}">${html}</div>`;
-  const res = await playMinigame('vines', {
-    introNote: left
-      ? note(`🐒 <b>Приз Лианы:</b> ⭐ 🪙 ${c[0]} · ⭐⭐ 🪙 ${c[1]} · ⭐⭐⭐ 🪙 ${c[2]}. Сегодня ещё ${left} ${left === 1 ? 'полёт' : 'полёта'} с призом.`)
-      : note('💛 Сегодня призы за лианы уже получены. Покачаться можно для удовольствия — завтра призы снова!'),
-    resultNote: (stars) => (left ? note(`<span class="sum">🪙 +${fmtMoney(c[stars - 1])}</span>`) : note('💛 Этот полёт был для удовольствия.')),
+export const vinesGame = () =>
+  prizeGame('vines', {
+    group: 'jungle',
+    flag: 'vines',
+    ...JUNGLE.vines,
+    label: '🐒 <b>Приз Лианы:</b>',
+    words: ['полёт', 'полёта'],
+    done: '💛 Сегодня призы за лианы уже получены. Покачаться можно для удовольствия — завтра призы снова!',
+    fun: '💛 Этот полёт был для удовольствия.',
+    sticker: 'x_vines',
+    thanks: 'Лиана: «Вот это полёт!»',
   });
-  if (!res) return res;
-  award('x_vines', { delay: 1200 });
-  if (!left) return res;
-  setDayFlag('vines', (SJ().vines || 0) + 1, 'jungle');
-  earn(c[res.stars - 1], 'work');
-  sfx('coin');
-  toast(`Лиана: «Вот это полёт!» 🪙 +${fmtMoney(c[res.stars - 1])}`, 'good');
-  return res;
-}
 
 // ---------- руины храма: «Узор храма» ----------
 /** Разгадать узор храма: приз — раз в день (по звёздам), в первый раз — наклейка. */
-export async function glyphsGame() {
+export function glyphsGame() {
   sfx('door');
-  const paid = !SJ().glyphs,
-    c = JUNGLE.glyphs.coins,
-    note = (html) => `<div class="pay-note${paid ? '' : ' off'}">${html}</div>`;
-  const res = await playMinigame('glyphs', {
-    introNote: paid
-      ? note(`🗿 <b>Сокровище храма:</b> ⭐ 🪙 ${c[0]} · ⭐⭐ 🪙 ${c[1]} · ⭐⭐⭐ 🪙 ${c[2]} — раз в день.`)
-      : note('💛 Сегодня храм уже открыл тебе сокровище. Повторять узор можно для удовольствия — завтра снова!'),
-    resultNote: (stars) => (paid ? note(`<span class="sum">🪙 Сокровище: +${fmtMoney(c[stars - 1])}</span>`) : note('💛 Этот узор был для удовольствия.')),
+  return prizeGame('glyphs', {
+    group: 'jungle',
+    flag: 'glyphs',
+    paid: 1,
+    coins: JUNGLE.glyphs.coins,
+    label: '🗿 <b>Сокровище храма:</b>',
+    tail: ' — раз в день.',
+    done: '💛 Сегодня храм уже открыл тебе сокровище. Повторять узор можно для удовольствия — завтра снова!',
+    sum: (stars) => `🪙 Сокровище: +${fmtMoney(JUNGLE.glyphs.coins[stars - 1])}`,
+    fun: '💛 Этот узор был для удовольствия.',
+    sticker: 'x_temple',
+    thanks: '🗿 Узор разгадан — каменная маска улыбнулась!',
   });
-  if (!res) return res;
-  award('x_temple', { delay: 1200 });
-  if (!paid) return res;
-  setDayFlag('glyphs', 1, 'jungle');
-  earn(c[res.stars - 1], 'work');
-  sfx('coin');
-  toast(`🗿 Узор разгадан — каменная маска улыбнулась! 🪙 +${fmtMoney(c[res.stars - 1])}`, 'good');
-  return res;
 }
 
 // ---------- водопад, попугаи, дневник ----------
