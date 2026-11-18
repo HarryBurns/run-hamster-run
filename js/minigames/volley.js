@@ -9,6 +9,7 @@
 // хотя бы одна. Монеты по звёздам выдаёт занятие (features/relax.js).
 import { el, clamp } from '../core/util.js';
 import { ell, fillRR, line, poly } from '../core/draw.js';
+import { pic as kitPic } from './kit.js';
 import { VOLLEY } from '../data/relax.js';
 
 const OUT = '#4a3728';
@@ -37,17 +38,7 @@ export function mateSkill(hearts, rule = VOLLEY) {
 }
 
 /** Маленькая картинка для правил (data: URL). */
-function pic(draw, w = 96, h = 56) {
-  const c = document.createElement('canvas');
-  c.width = w * 2;
-  c.height = h * 2;
-  const x = c.getContext('2d');
-  x.scale(2, 2);
-  x.lineJoin = 'round';
-  x.lineCap = 'round';
-  draw(x, w, h);
-  return `<img src="${c.toDataURL()}" width="${w}" height="${h}" alt="">`;
-}
+const pic = (draw, w = 96, h = 56) => kitPic(draw, w, h, { cap: true });
 function ball(ctx, x, y, r, rot = 0) {
   ctx.save();
   ctx.translate(x, y);
@@ -105,6 +96,7 @@ export default {
   id: 'volley',
   title: 'Пляжный волейбол',
   icon: '🏐',
+  css: CSS,
   get howTo() {
     return howTo();
   },
@@ -115,7 +107,7 @@ export default {
 
 /** Правила на заставке. С кем играешь и сколько у друга сердечек — пишет занятие (features/relax.js, volleyTeamNote). */
 function howTo() {
-  return `<style>${CSS}</style>Перекинь мяч через сетку — пусть он упадёт на той стороне!
+  return `Перекинь мяч через сетку — пусть он упадёт на той стороне!
     <div class="vb-rules">
       <div class="vb-col"><b>1 · Беги</b>${pic((c, w, h) => {
         c.fillStyle = '#ffe9a8';
@@ -151,13 +143,12 @@ function howTo() {
 }
 
 function start(host) {
-  const root = host.root;
-  const style = el('style', '', CSS);
+
   const top = el('div', 'vb-top');
   const tScore = el('div', 'vb-chip'),
     tSay = el('div', 'vb-chip');
   top.append(tScore, tSay);
-  root.append(style, top);
+  host.root.append(top);
   const cv = host.canvas();
   const ctx = cv.ctx;
   const info = host.info || {};
@@ -171,9 +162,6 @@ function start(host) {
   const zone0 = NET - 16 - sk.zone; // зона друга: от zone0 до сетки
 
   let t = 0,
-    last = performance.now(),
-    raf = 0,
-    stopped = false,
     over = false,
     phase = 'serve', // serve → fly → point → serve …
     phaseT = 0,
@@ -307,8 +295,8 @@ function start(host) {
       us > them
         ? `Счёт ${us} : ${them} — победа! ${short} ${glad}: «Вот это команда!» Мячей отбила сама: ${hits}.`
         : `Счёт ${us} : ${them}. Почти получилось! ${short}: «В следующий раз точно выиграем!» Мячей отбила сама: ${hits}.`;
-    setTimeout(() => {
-      if (!stopped) host.finish({ stars, text, extra: { us, them, hits, mate: mate.id } });
+    host.later(() => {
+      host.finish({ stars, text, extra: { us, them, hits, mate: mate.id } });
     }, 1300);
   }
 
@@ -530,17 +518,12 @@ function start(host) {
     if (me.swing > 0 && phase === 'fly') poly(ctx, [me.x - 6, G - 108, me.x, G - 122, me.x + 6, G - 108], '#ffd43b', OUT, 1.4);
     ctx.restore();
   }
-  const loop = (now) => {
-    if (stopped) return;
-    const dt = Math.min(0.05, (now - last) / 1000);
-    last = now;
+  host.loop((dt) => {
     if (!over || phase === 'point') update(dt);
     drawScene();
     chips();
-    raf = requestAnimationFrame(loop);
-  };
+  });
   serve();
-  raf = requestAnimationFrame(loop);
 
   // ввод: нажатие — бежать туда и отбить; провести пальцем — бежать за пальцем
   let held = false;
@@ -562,10 +545,10 @@ function start(host) {
     if (held) me.tx = clamp(at(e).x, 40, NET - 34);
   };
   const pu = () => (held = false);
-  cv.canvas.addEventListener('pointerdown', pd);
-  cv.canvas.addEventListener('pointermove', pm);
-  cv.canvas.addEventListener('pointerup', pu);
-  cv.canvas.addEventListener('pointercancel', pu);
+  host.on(cv.canvas, 'pointerdown', pd);
+  host.on(cv.canvas, 'pointermove', pm);
+  host.on(cv.canvas, 'pointerup', pu);
+  host.on(cv.canvas, 'pointercancel', pu);
   const keys = { left: false, right: false };
   const key = (e) => {
     const dn = e.type === 'keydown';
@@ -577,8 +560,8 @@ function start(host) {
     } else return;
     e.preventDefault();
   };
-  window.addEventListener('keydown', key);
-  window.addEventListener('keyup', key);
+  host.on(window, 'keydown', key);
+  host.on(window, 'keyup', key);
   // для автотеста: что сейчас в игре; __volleyBot(true) — играет сама
   cv.canvas.__volley = () => ({
     phase,
@@ -597,13 +580,4 @@ function start(host) {
   /** Точка игры (единицы мира 800 × 450) → CSS-пиксели канвы: куда нажимать автотесту. */
   cv.canvas.__volleyScreen = (x, y) => ({ x: OX() + x * K(), y: OY() + y * K() });
   cv.canvas.classList.add('vb-canvas');
-  return {
-    stop() {
-      stopped = true;
-      cancelAnimationFrame(raf);
-      window.removeEventListener('keydown', key);
-      window.removeEventListener('keyup', key);
-      cv.destroy();
-    },
-  };
 }
