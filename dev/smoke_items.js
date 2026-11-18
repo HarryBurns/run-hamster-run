@@ -3,40 +3,17 @@
 // острова у Вождя Кокоса, карта сокровищ в рюкзаке. (Масленичные блины и ярмарочная печка — в шаге «праздники:
 // Масленица», dev/smoke_holidays.js; сбор маракуйи по сезону — в шаге «джунгли: всё важное…», dev/smoke_jungle.js.)
 // Подключается из dev/smoke.js. Только эти шаги:  node dev/smoke.js <url> step:вещи
-module.exports = async function items({ page, step, ev, wait, closeAll }) {
-  const norm = (t) => t.replace(/[  ]/g, ' ');
-  const expect = (ok, msg, data) => {
-    if (!ok) throw new Error(msg + (data === undefined ? '' : ': ' + JSON.stringify(data)));
-  };
-  const state = () => ev(() => JSON.parse(JSON.stringify(window.__dev.G.state)));
-  const panelText = async () =>
-    norm(await ev(() => [...document.querySelectorAll('.overlay .panel')].map((p) => p.textContent).join(' | ')));
-  const fresh = async () => {
-    await ev(() => {
-      window.__dev.G.state = null;
-      localStorage.clear();
-    });
-    await page.reload();
-    await wait(400);
-    await page.click('text=Играть!');
-    await page.click('text=Пропустить'); // вступительная сценка новой игры (этап 10)
-    await page.evaluate(() => window.__dev.oldStart()); // как до этапа 10: 1 января, без вводной цепочки (начало игры — dev/smoke_start.js)
-    await wait(400);
-    await page.click('text=Поехали!');
-    await wait(500);
-    await closeAll();
-  };
-  const watch = () =>
-    ev(() => {
-      window.__stopWatchItems = window.__dev.watchState();
-    });
-  const unwatch = async () => {
-    const bad = await ev(() => window.__stopWatchItems());
-    expect(!bad.length, `запись в состояние мимо действий (${bad.length})`, [...new Set(bad)].slice(0, 4));
-  };
+const lib = require('./lib.js');
+
+module.exports = async function items(ctx) {
+  const L = lib(ctx);
+  const { page, step, ev, wait, closeAll, norm, expect, state, panelText, watch, unwatch, until, untilPanel, untilDialog, frames, drain } = L;
+  /** Следующий диалог (если будет) — с защитой кнопок от случайного нажатия. */
+  const nextDialog = () => untilDialog(1500).catch(() => {});
+  const fresh = () => L.fresh(); // 1 июня, без вводной цепочки
   const tab = async (name) => {
     await ev((name) => [...document.querySelectorAll('.overlay .tabs button, .overlay .tab')].find((b) => b.textContent.includes(name)).click(), name);
-    await wait(350);
+    await frames(2);
   };
 
   await step('вещи: рисованные значки — у каждого свой рисунок, в рюкзаке, на рынке, в подсказке и на канве; без рисунка — эмодзи', async () => {
@@ -100,7 +77,7 @@ module.exports = async function items({ page, step, ev, wait, closeAll }) {
       a.addItem('ing', 'porcini', 2);
       window.__dev.F.openBackpack();
     });
-    await wait(400);
+    await untilPanel();
     await tab('Находки');
     const cards = await ev(() =>
       [...document.querySelectorAll('.overlay .card')].map((c) => {
@@ -118,13 +95,13 @@ module.exports = async function items({ page, step, ev, wait, closeAll }) {
     await closeAll();
     // рынок и подсказка
     await ev(() => window.__dev.run('market'));
-    await wait(500);
+    await untilPanel();
     expect(await ev(() => !![...document.querySelectorAll('.overlay .card')].find((c) => /Рубин/.test(c.textContent) && c.querySelector('img.ico[data-ico="gem_ruby"]'))), 'рубин на рынке — рисованный значок');
     await ev(async () => {
       const D = await import('/js/data/index.js');
       window.__dev.ui.toast(`+1 ${D.FIND_BY_ID.shell_sun.e} Ракушка-солнышко`, 'good');
     });
-    await wait(200);
+    await frames(2);
     const toast = await ev(() => {
       const t = [...document.querySelectorAll('#toasts .toast')].pop(),
         img = t && t.querySelector('img.ico');
@@ -167,10 +144,8 @@ module.exports = async function items({ page, step, ev, wait, closeAll }) {
       localStorage.setItem('rhr-save-v1', JSON.stringify(st));
     });
     await page.reload();
-    await wait(500);
-    const cont = page.locator('text=Продолжить').first();
-    if (await cont.count()) await cont.click();
-    await wait(500);
+    await page.waitForSelector(L.sel('continue'));
+    await L.cont();
     await closeAll();
     s = await state();
     expect(s && ['passion_drink', 'berry_jam', 'honey_nuts', 'strawberry_cream'].every((id) => s.recipes.includes(id)) && !s.recipes.includes('passion_mousse'), 'старая игра получила стартовые рецепты', s && s.recipes);
@@ -184,7 +159,7 @@ module.exports = async function items({ page, step, ev, wait, closeAll }) {
       a.addItem('ing', 'sugar', 1);
       window.__dev.F.openCooking();
     });
-    await wait(400);
+    await untilPanel();
     const row = await ev(() => {
       const li = [...document.querySelectorAll('.overlay .list-item')].find((q) => /Морс из маракуйи/.test(q.textContent));
       return li ? { icons: [...li.querySelectorAll('img.ico')].map((i) => i.dataset.ico), ok: !li.querySelector('.btn').disabled } : null;
@@ -192,7 +167,6 @@ module.exports = async function items({ page, step, ev, wait, closeAll }) {
     expect(row && row.ok && row.icons.includes('passion_drink') && row.icons.includes('passionfruit'), 'морс в списке плиты: значки блюда и маракуйи', row);
     for (const name of ['Орешки в меду', 'Морс из маракуйи']) {
       await page.click(`.overlay .list-item:has-text("${name}") .btn`);
-      await wait(300);
       await page.click('.panel-foot .btn:has-text("Снять с плиты")');
       await wait(400);
       await page.click('.overlay .panel-foot .btn');
@@ -220,17 +194,18 @@ module.exports = async function items({ page, step, ev, wait, closeAll }) {
       d.go('island');
       d.locations.island.debugTeleport(18, 19);
     });
-    await wait(400);
+    await L.untilScene('island');
+    await frames(3);
     await closeAll();
     await watch();
     const talk = async () => {
       await ev(() => {
         window.__dev.run('chief');
       });
-      await wait(500);
+      await nextDialog();
       if (await ev(() => !!document.querySelector('.dialog') && /Помогу/.test(document.querySelector('.dialog').textContent))) {
         await page.click('.dialog .btn >> text=Потом');
-        await wait(450);
+        await nextDialog();
       }
     };
     const opts = () => ev(() => [...document.querySelectorAll('.dialog .btn')].map((b) => b.textContent));
@@ -244,7 +219,7 @@ module.exports = async function items({ page, step, ev, wait, closeAll }) {
     let o = await opts();
     expect(o.some((t) => /Сплети лею/.test(t)) && !o.some((t) => /венок|гирлянд/.test(t)), 'до леи — только лея', o);
     await page.click('.dialog .btn >> text=Сплети лею');
-    await wait(500);
+    await nextDialog();
     await closeAll();
     // лея есть: венок (один раз) и гирлянда (сколько угодно)
     await give(2);
@@ -252,11 +227,11 @@ module.exports = async function items({ page, step, ev, wait, closeAll }) {
     o = await opts();
     expect(o.some((t) => /Сплети венок \(3 из 3\)/.test(t)) && o.some((t) => /Сплети гирлянду для дома \(3 из 3\)/.test(t)), 'венок и гирлянда у Вождя', o);
     await page.click('.dialog .btn >> text=Сплети венок');
-    await wait(500);
+    await nextDialog();
     o = await opts();
     expect(!o.some((t) => /венок/.test(t)) && o.some((t) => /гирлянд/.test(t)), 'венок — один раз', o);
     await page.click('.dialog .btn >> text=Сплети гирлянду');
-    await wait(500);
+    await nextDialog();
     await closeAll();
     let s = await state();
     expect(s.clothes.includes('wreath_lei') && s.storage.flower_garland === 1 && !s.finds.flower_orchid, 'венок в шкафу, гирлянда в кладовке, цветы потрачены', [s.clothes.includes('wreath_lei'), s.storage, s.finds]);
@@ -266,7 +241,7 @@ module.exports = async function items({ page, step, ev, wait, closeAll }) {
     await ev(() => window.__dev.actions.addItem('finds', 'flower_orchid', 1));
     await talk();
     await page.click('.dialog .btn >> text=Сплети гирлянду');
-    await wait(500);
+    await nextDialog();
     const say = norm(await ev(() => (document.querySelector('.dialog .say') || {}).textContent || ''));
     expect(/три разных цветка/.test(say), 'подсказка про три разных цветка', say);
     await closeAll();
@@ -293,7 +268,7 @@ module.exports = async function items({ page, step, ev, wait, closeAll }) {
     await watch();
     const findsTab = async () => {
       await ev(() => window.__dev.F.openBackpack());
-      await wait(400);
+      await untilPanel();
       await tab('Находки');
       return ev(() => {
         const c = document.querySelector('.overlay .card.map-card');
@@ -307,12 +282,12 @@ module.exports = async function items({ page, step, ev, wait, closeAll }) {
       window.__dev.actions.takeQuest('treasure_map');
       window.__dev.emit('cove', { what: 'piece', id: 'tower' });
     });
-    await wait(300);
-    await closeAll();
+    await wait(300); // окна из очереди (кусочек карты) — закрыть до тишины
+    await drain(3000);
     let card = await findsTab();
     expect(card && card.ico && /Карта сокровищ/.test(card.text) && /1 из 3/.test(card.text), 'карта в рюкзаке: 1 из 3', card);
     await page.click('.overlay .card.map-card');
-    await wait(400);
+    await until(() => document.querySelector('.overlay img.treasure-map'), undefined, { timeout: 3000 }).catch(() => {});
     let t = await panelText();
     const img = await ev(() => {
       const i = document.querySelector('.overlay img.treasure-map');
@@ -326,11 +301,11 @@ module.exports = async function items({ page, step, ev, wait, closeAll }) {
       window.__dev.emit('cove', { what: 'piece', id: 'isle' });
     });
     await wait(300);
-    await closeAll();
+    await drain(3000);
     card = await findsTab();
     expect(card && /вся/.test(card.text), 'карта в рюкзаке: вся', card);
     await page.click('.overlay .card.map-card');
-    await wait(400);
+    await until(() => document.querySelector('.overlay img.treasure-map'), undefined, { timeout: 3000 }).catch(() => {});
     t = await panelText();
     expect(/Все три кусочка/.test(t), 'окно с целой картой', t.slice(-160));
     await closeAll();
