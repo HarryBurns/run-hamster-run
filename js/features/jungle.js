@@ -14,104 +14,64 @@
 // продаются на рынке (features/market.js, цены — JUNGLE.feathers). Числа — JUNGLE в data/economy.js. Каждое занятие
 // шлёт событие jungle { what } — по нему считают задания. Состояние меняют только действия (core/actions.js);
 // «раз в день» — отметки дня (dayFlags.jungle).
-import { setFlag, setDayFlag, addItem, award, teachParrot } from '../core/actions.js';
+// Разговор, рамка, «нашлось», действие места, подсказка входа, кораблик — набор тайных мест (features/land_kit.js).
+import { setDayFlag, addItem, award, teachParrot } from '../core/actions.js';
 import { sfx } from '../core/audio.js';
 import { on, emit } from '../core/events.js';
 import { go, sceneName } from '../core/loop.js';
-import { register } from '../core/registry.js';
-import { G, cal, darkness, count } from '../core/state.js';
+import { G } from '../core/state.js';
 import { el, esc, pick, fmtMoney } from '../core/util.js';
-import { NPC_BY_ID, FIND_BY_ID, FEATHER_IDS, JUNGLE, LAND_BY_ID, PARROT_WORDS, PARROT_MEMORY, npcLook } from '../data/index.js';
+import { FIND_BY_ID, FEATHER_IDS, JUNGLE, LAND_BY_ID, PARROT_WORDS, PARROT_MEMORY } from '../data/index.js';
 import { getLocation } from '../engine/topdown/index.js';
 import { startFallBath, parrotSay, parrotWords, PARROTS } from '../locations/jungle.js';
 import { sea } from '../locations/town.js';
-import { dialog } from '../ui/dialog.js';
-import { fadeScene, smooth } from '../ui/fade.js';
+import { smooth } from '../ui/fade.js';
 import { message, openPanel } from '../ui/panel.js';
-import { toast, hintOnce } from '../ui/toast.js';
+import { toast } from '../ui/toast.js';
 import { prizeGame } from './minigames.js';
-import { questTalk } from './quests.js';
-import { placeLine } from './tales.js';
 import { paintVoyage } from './trips_art.js';
+import { dayFlags, npcLine, landNpc, craftSet, sellTalk, landFind, landActs, landHint, landRide } from './land_kit.js';
 export { paintVoyage } from './trips_art.js';
 
 const S = () => G.state;
-const SJ = () => S().dayFlags.jungle || {};
+const SJ = dayFlags('jungle');
 
 // ---------- исследовательница Лиана ----------
-const LIANA = 'liana';
 /** Что сказать под настроение: ночью — про ночные звуки, вечером — про лягушек, днём — про фрукты по сезону. */
-export function lianaLine() {
-  const place = placeLine(LIANA); // вспомнить соседнее место, которое хомячок открыла (data/tales.js)
-  if (place) return place;
-  const L = NPC_BY_ID[LIANA].lines,
-    m = S().minutes;
-  if (darkness() > 0.6 || m >= 22 * 60 || m < 5 * 60) return pick(L.night);
-  if (m >= 18 * 60) return pick(L.evening);
-  return pick(L[cal().season]);
-}
-const sayL = (text, options, happy = false) => dialog({ look: npcLook(LIANA), name: NPC_BY_ID[LIANA].name, text, options, happy });
-/** Сколько разных перьев в рюкзаке (для рамки нужно по одному каждого цвета). */
-export const featherKinds = () => FEATHER_IDS.filter((id) => count('finds', id) > 0).length;
-const feathersLine = () => FEATHER_IDS.map((id, i) => `${PARROTS[i].name} ${count('finds', id) ? '✓' : '—'}`).join(' · ');
-
+export const lianaLine = npcLine('liana');
 /** Разговор с Лианой: сначала задание из журнала, потом — лианы, перья и болтовня. */
-export async function talkLiana() {
-  const s = S();
-  let text;
-  if (!s.flags.metLiana) {
-    setFlag('metLiana');
-    text = `Ой, гостья! Добро пожаловать в джунгли, ${esc(s.name)}! Я исследовательница Лиана — зарисовываю бабочек, цветы и попугаев. Капитан Боб писал, что приплывёт юнга! Здесь есть водопад, подвесной мост, древний храм и лианы, на которых можно качаться. А попугаи повторяют всё, что услышат!`;
-  } else text = pick([`Привет, ${esc(s.name)}!`, 'О, это ты! Смотри, какую бабочку я сегодня зарисовала!', 'Здравствуй! Попугаи весь день повторяли твоё имя!']);
-  emit('talk', { id: LIANA });
-  sfx('tap');
-  const qt = await questTalk(LIANA);
-  if (qt && qt.end) return;
-  if (qt && qt.text) text = qt.text;
-  for (;;) {
-    const opts = [{ text: '🐒 Покачаться на лианах', cls: 'yellow', fn: async () => (await vinesGame(), null) }];
-    for (const o of MORE_TALK) {
-      const x = o(S());
-      if (x) opts.push(x);
-    }
-    opts.push({ text: '💬 Поболтать', cls: 'blue', go: 'chat' }, { text: 'Пока!', go: 'bye' });
-    const i = await sayL(text, opts);
-    const o = opts[i] || {};
-    if (o.go === 'chat') text = lianaLine();
-    else if (o.fn) {
-      const r = await o.fn();
-      if (!r) return;
-      text = r;
-    } else return;
-  }
-}
-/** Дополнительные ответы: (s) → { text, cls, fn: async () => следующая реплика | null } или ничего. */
-const MORE_TALK = [
-  // перья в рамке — по одному каждого цвета
-  () =>
-    FEATHER_IDS.some((id) => count('finds', id) > 0) && {
-      text: `🪶 Перья в рамке (${featherKinds()} из ${FEATHER_IDS.length})`,
-      cls: 'green',
-      fn: async () => {
-        if (featherKinds() < FEATHER_IDS.length)
-          return `Для рамки нужно по перышку от каждого попугая: ${feathersLine()}. Поболтай с ними — каждый раз в день роняет своё перо!`;
-        for (const id of FEATHER_IDS) addItem('finds', id, -1);
-        addItem('storage', 'feather_frame', 1);
-        sfx('win');
-        award('x_feathers', { delay: 1200 });
-        emit('jungle', { what: 'frame' });
-        return 'Готово: красное, синее и жёлтое — перья под стеклом в бамбуковой рамке! Как радуга из джунглей 🦜 Рамка уже в кладовке: дома нажми 🔨.';
-      },
-    },
-  // куда деть перья
-  () =>
-    FEATHER_IDS.some((id) => count('finds', id) > 0) && {
-      text: '🪙 А перья можно продать?',
-      fn: async () =>
+export const { talk: talkLiana } = landNpc({
+  id: 'liana',
+  act: 'explorer',
+  desc: 'исследовательница Лиана: разговор (жительница джунглей у палатки)',
+  met: 'metLiana',
+  hello: (name) =>
+    `Ой, гостья! Добро пожаловать в джунгли, ${name}! Я исследовательница Лиана — зарисовываю бабочек, цветы и попугаев. Капитан Боб писал, что приплывёт юнга! Здесь есть водопад, подвесной мост, древний храм и лианы, на которых можно качаться. А попугаи повторяют всё, что услышат!`,
+  greet: (name) => [`Привет, ${name}!`, 'О, это ты! Смотри, какую бабочку я сегодня зарисовала!', 'Здравствуй! Попугаи весь день повторяли твоё имя!'],
+  line: lianaLine,
+  top: [{ text: '🐒 Покачаться на лианах', cls: 'yellow', fn: async () => (await vinesGame(), null) }],
+  more: [
+    // перья в рамке — по одному каждого цвета
+    craftSet({
+      ids: FEATHER_IDS,
+      title: '🪶 Перья в рамке',
+      mark: (id, i) => PARROTS[i].name,
+      sep: ' · ',
+      lack: (have) => `Для рамки нужно по перышку от каждого попугая: ${have}. Поболтай с ними — каждый раз в день роняет своё перо!`,
+      give: ['storage', 'feather_frame'],
+      sticker: 'x_feathers',
+      event: ['jungle', 'frame'],
+      done: 'Готово: красное, синее и жёлтое — перья под стеклом в бамбуковой рамке! Как радуга из джунглей 🦜 Рамка уже в кладовке: дома нажми 🔨.',
+    }),
+    // куда деть перья
+    sellTalk({
+      ids: FEATHER_IDS,
+      ask: 'перья',
+      say: () =>
         `Конечно! Торговец Грошик на рынке в городе берёт перья: красное — ${JUNGLE.feathers.feather_red}, синее — ${JUNGLE.feathers.feather_blue}, жёлтое — ${JUNGLE.feathers.feather_yellow} монет. А можно собрать по одному каждого цвета — я сделаю красивую рамку!`,
-    },
-];
-register('explorer', () => talkLiana(), 'исследовательница Лиана: разговор (жительница джунглей у палатки)');
+    }),
+  ],
+});
 
 // ---------- «Лианы» ----------
 /** Покачаться на лианах: за первые игры дня — монеты по звёздам. */
@@ -238,25 +198,21 @@ export function teachWindow(i) {
   });
 }
 /** Нашли дневник Лианы (место notebook видно, пока задание на первом шаге). */
-export async function findNotebook() {
-  emit('jungle', { what: 'notebook' });
-  sfx('win');
-  await message({
-    title: 'Дневник нашёлся!',
-    icon: '📓',
-    html: '<p class="center big-emoji">📓✨</p><p class="center">Вот он — зелёный, с красной закладкой, лежит у самой воды! На последней странице нарисован узор из кружочков, треугольников и волн. Теперь — к руинам храма: повтори узор на камнях!</p>',
-    buttons: [{ text: 'Ура!' }],
-  });
-}
-const JUNGLE_ACTS = {
-  vines: vinesGame,
-  temple: glyphsGame,
-  fall: fallBath,
-  notebook: findNotebook,
-};
-register(
+export const findNotebook = landFind('jungle', 'notebook', {
+  title: 'Дневник нашёлся!',
+  icon: '📓',
+  pic: '📓✨',
+  text: 'Вот он — зелёный, с красной закладкой, лежит у самой воды! На последней странице нарисован узор из кружочков, треугольников и волн. Теперь — к руинам храма: повтори узор на камнях!',
+});
+landActs(
   'jungle',
-  (p, ctx) => (p.arg === 'parrot' ? parrotChat(p.i || 0) : JUNGLE_ACTS[p.arg] && JUNGLE_ACTS[p.arg](ctx)),
+  {
+    vines: vinesGame,
+    temple: glyphsGame,
+    fall: fallBath,
+    notebook: findNotebook,
+    parrot: (ctx, p) => parrotChat(p.i || 0),
+  },
   'джунгли: jungle:vines | temple | fall | notebook; { do: jungle, arg: parrot, i }',
 );
 
@@ -267,32 +223,22 @@ on('jungle', ({ what }) => {
     toast('🦜 Попугай повторяет слова! Скажи ему что-нибудь доброе — и он тоже скажет. А если поболтать (нажми на него), может уронить перо.', 'good');
   else if (what === 'bridge' && award('x_bridge', { delay: 900 })) toast('🌉 Подвесной мост качается — ух! Внизу шумит река. Держись за верёвочные перила!', 'good');
 });
-on('scene', ({ name }) => {
-  if (name === 'jungle') hintOnce('jungleHint', '🦜 Вот они — джунгли! Лиана — у палатки, прямо по тропе на север. Слышишь попугаев?', 'good');
-});
+landHint('jungle', 'jungleHint', '🦜 Вот они — джунгли! Лиана — у палатки, прямо по тропе на север. Слышишь попугаев?');
 
 // ---------- кораблик: из моря города к причалу в джунглях и обратно ----------
-let voyaging = false;
 /** Проплыть на кораблике: toJungle — из моря города к причалу в джунглях, иначе — обратно к пирсу города. */
-export function rideVoyage(toJungle) {
-  if (voyaging) return false;
-  const land = LAND_BY_ID.jungle;
-  voyaging = true;
-  sfx('splash');
-  fadeScene({
-    cls: 'voyage-ride',
-    text: toJungle ? '⛵ Плывём в джунгли!' : '⛵ Плывём домой, в город!',
-    ms: 2600,
-    paint: (ctx, w, h, p, look, t) => paintVoyage(ctx, w, h, smooth(p), toJungle, look, t),
-    go: () => {
-      sea.boatHome(); // кораблик ждёт у пирса города (в джунглях — свой, у причала)
-      if (toJungle) go(land.scene, { at: land.entry });
-      else go('world', { at: 'pier' });
-    },
-  }).then(() => {
-    voyaging = false;
-    sfx('ding');
-  });
-  return true;
-}
-register('voyage', (p) => rideVoyage(p.arg !== 'back'), 'кораблик в джунгли: voyage:go (из моря города к причалу в джунглях) | voyage:back');
+export const rideVoyage = landRide({
+  act: 'voyage',
+  desc: 'кораблик в джунгли: voyage:go (из моря города к причалу в джунглях) | voyage:back',
+  sound: 'splash',
+  cls: 'voyage-ride',
+  text: ['⛵ Плывём в джунгли!', '⛵ Плывём домой, в город!'],
+  ms: 2600,
+  paint: (toJungle) => (ctx, w, h, p, look, t) => paintVoyage(ctx, w, h, smooth(p), toJungle, look, t),
+  to: (toJungle) => {
+    const land = LAND_BY_ID.jungle;
+    sea.boatHome(); // кораблик ждёт у пирса города (в джунглях — свой, у причала)
+    if (toJungle) go(land.scene, { at: land.entry });
+    else go('world', { at: 'pier' });
+  },
+});
