@@ -16,14 +16,11 @@ export default {
     const cv = host.canvas(),
       ctx = cv.ctx;
     const judges = host.friends.slice(0, 3);
-    let raf = 0,
-      t = 0,
-      last = performance.now(),
+    let t = 0,
       phase = 'theme',
       walk = 0,
       scores = null,
       shown = 0,
-      stopped = false,
       panel = null;
     const flashes = [];
     const ui = el('div');
@@ -70,10 +67,7 @@ export default {
       ['На подиум! ✨', 'green', go],
     ]);
 
-    const loop = (now) => {
-      if (stopped) return;
-      const dt = Math.min(0.05, (now - last) / 1000);
-      last = now;
+    host.loop((dt) => {
       t += dt;
       const w = cv.w,
         h = cv.h;
@@ -130,8 +124,8 @@ export default {
             total: sc,
             list: judges.map(() => clamp(Math.round(5 + sc / 2 + (Math.random() - 0.5) * 1.2), 5, 10)),
           };
-          setTimeout(() => {
-            if (!stopped) phase = 'judge';
+          host.later(() => {
+            phase = 'judge';
           }, 1400);
         }
         if (Math.random() < dt * 5) flashes.push({ x: Math.random() * w, y: h * (0.5 + Math.random() * 0.4), t: 0 });
@@ -188,15 +182,10 @@ export default {
           ]);
         }
       }
-      raf = requestAnimationFrame(loop);
-    };
-    raf = requestAnimationFrame(loop);
+    });
     return {
       stop() {
-        stopped = true;
-        cancelAnimationFrame(raf);
-        cv.destroy();
-        if (panel) panel.close();
+        if (panel) panel.close(); // шкаф — окно игры, а не элемент рамки: закрываем сами
       },
     };
   },
