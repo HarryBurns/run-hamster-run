@@ -993,6 +993,7 @@ export function openSeaScope() {
     cls: 'narrow',
     onClose: () => cancelAnimationFrame(raf),
     render(body, _tab, panel) {
+      cancelAnimationFrame(raf); // окно перерисовали — прежний цикл кадров не оставляем
       const N = 320,
         { canvas, ctx } = makeCanvas(N, N);
       const gull = gullWaits(),
