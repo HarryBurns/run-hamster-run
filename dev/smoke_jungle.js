@@ -5,45 +5,12 @@
 // «Лианы» и «Узор храма» до конца с призом; задание Лианы «Дневник исследовательницы»; сохранение и загрузка
 // в джунглях, кораблик обратно в город, «Домой». Состояние меняют только действия.
 // Подключается из dev/smoke.js. Только эти шаги:  node dev/smoke.js <url> step:джунгли
-const { MG_START } = require('./selectors.js'); // кнопка «Начать!» мини-игры — по метке, а не по тексту
-module.exports = async function jungle({ page, step, ev, wait, closeAll }) {
-  const T = 48;
-  const norm = (t) => t.replace(/[  ]/g, ' ');
-  const expect = (ok, msg, data) => {
-    if (!ok) throw new Error(msg + (data === undefined ? '' : ': ' + JSON.stringify(data)));
-  };
-  const state = () => ev(() => JSON.parse(JSON.stringify(window.__dev.G.state)));
-  const panelText = async () =>
-    norm(await ev(() => [...document.querySelectorAll('.overlay .panel')].map((p) => p.textContent).join(' | ')));
-  const dialogText = async () => norm(await ev(() => (document.querySelector('.dialog .say') || {}).textContent || ''));
-  const toasts = async () => norm(await ev(() => (document.querySelector('#toasts') || { textContent: '' }).textContent));
-  const clearToasts = () =>
-    ev(() => {
-      const t = document.querySelector('#toasts');
-      if (t) t.innerHTML = '';
-    });
-  const where = () =>
-    ev(() => {
-      const d = window.__dev,
-        sc = d.locations[d.sceneName];
-      return { scene: d.sceneName, x: sc ? sc.p.x : null, y: sc ? sc.p.y : null };
-    });
-  const near = (a, b, r = 20) => Math.abs(a.x - b.x) < r && Math.abs(a.y - b.y) < r;
-  const fresh = async () => {
-    await ev(() => {
-      window.__dev.G.state = null;
-      localStorage.clear();
-    });
-    await page.reload();
-    await wait(400);
-    await page.click('text=Играть!');
-    await page.click('text=Пропустить'); // вступительная сценка новой игры (этап 10)
-    await page.evaluate(() => window.__dev.oldStart()); // как до этапа 10: 1 января, без вводной цепочки (начало игры — dev/smoke_start.js)
-    await wait(400);
-    await page.click('text=Поехали!');
-    await wait(500);
-    await closeAll();
-  };
+const lib = require('./lib.js');
+
+module.exports = async function jungle(ctx) {
+  const L = lib(ctx);
+  const { page, step, ev, wait, closeAll, until, untilScene, untilPanel, frames, sel, T, norm, expect, near, state, dialogText, panelText, toasts, clearToasts, where, watch, unwatch, MG_START, tap, mgGo, mgDone, mgClose } = L;
+  const fresh = () => L.fresh(); // 1 июня, без вводной цепочки
   /** В джунгли (открыв лес и джунгли действием openLand); полдень, лето. */
   const toJungle = async (tx = 22, ty = 30, minutes = 12 * 60) => {
     await closeAll();
@@ -63,26 +30,15 @@ module.exports = async function jungle({ page, step, ev, wait, closeAll }) {
       },
       [tx, ty, minutes],
     );
-    await wait(300);
+    await untilScene('jungle');
+    await frames(2);
   };
   /** Поговорить с Лианой; если она предлагает задание — «Потом». */
   const talkL = async () => {
-    await ev(() => {
-      window.__dev.run('explorer');
-    });
-    await wait(500);
+    await L.run('explorer', 500);
     if (await ev(() => !!document.querySelector('.dialog') && /Помогу/.test(document.querySelector('.dialog').textContent))) {
-      await page.click('.dialog .btn >> text=Потом');
-      await wait(450);
+      await tap('.dialog .btn >> text=Потом', 450);
     }
-  };
-  const watch = () =>
-    ev(() => {
-      window.__stopWatchJungle = window.__dev.watchState();
-    });
-  const unwatch = async () => {
-    const bad = await ev(() => window.__stopWatchJungle());
-    expect(!bad.length, `запись в состояние мимо действий (${bad.length})`, [...new Set(bad)].slice(0, 4));
   };
   /** Табличка на острове причала за буйками (вторая строка — функция). */
   const portSign = () =>
@@ -100,7 +56,7 @@ module.exports = async function jungle({ page, step, ev, wait, closeAll }) {
       d.actions.patchState('boat', { x, y, on: true });
       d.go('world', { pos: { scene: 'world', x, y } }); // заново в город — кораблик берётся из сохранения (on: true)
     });
-    await wait(300);
+    await until(() => window.__dev.sceneName === 'world' && window.__dev.World.isBoating(), undefined, { timeout: 3000 }).catch(() => {});
     expect(await ev(() => window.__dev.World.isBoating()), 'хомячок не на кораблике');
     await ev(() => {
       const W = window.__dev.World,
@@ -123,29 +79,22 @@ module.exports = async function jungle({ page, step, ev, wait, closeAll }) {
       d.go('world');
       d.World.debugTeleport(63, 59);
     });
-    await wait(300);
+    await untilScene('world');
+    await frames(2);
     // табличка на острове за буйками — с замочком; окно места — про Боба
     let sign = await portSign();
     expect(sign && /Джунгли/.test(sign[0]) && /Боба/.test(sign[1]) && /🔒/.test(sign[1]), 'табличка у закрытого причала', sign);
-    await ev(() => {
-      window.__dev.run('way:jungle');
-    });
-    await wait(500);
+    await L.run('way:jungle', 500);
     expect(/Джунгли/.test(await panelText()) && /Боб/.test(await panelText()), 'окно у закрытого причала', await panelText());
     await closeAll();
     expect((await where()).scene === 'world', 'закрытый причал увёз в джунгли');
     await watch();
     const now = () => ev(() => window.__dev.QuestState.questNow('cabin_boy'));
     expect((await ev(() => window.__dev.QuestState.questBadge('bob'))) === '!', 'над Бобом нет «!»');
-    await ev(() => {
-      window.__dev.run('npc:bob');
-    });
-    await wait(500);
+    await L.run('npc:bob', 500);
     expect(/юнг/.test(await dialogText()) && /рыб/.test(await dialogText()), 'Боб не предлагает задание', await dialogText());
-    await page.click('.dialog .btn.green');
-    await wait(400);
-    await page.click('.dialog .btn.green');
-    await wait(400);
+    await tap('.dialog .btn.green', 400);
+    await tap('.dialog .btn.green', 400);
     let w = await now();
     expect(w.status === 'active' && w.i === 0, 'задание не взято', w);
     // звёздочка — к пирсу
@@ -153,26 +102,21 @@ module.exports = async function jungle({ page, step, ev, wait, closeAll }) {
     expect(tg && Math.abs(tg.x - 64 * T) < 60 && Math.abs(tg.y - 61.5 * T) < 60, 'звёздочка не у пирса', tg);
     // сели на кораблик (событие boat — как после настоящей посадки)
     await ev(() => window.__dev.emit('boat'));
-    await wait(300);
+    await until(() => window.__dev.QuestState.questNow('cabin_boy').i === 1, undefined, { timeout: 2000 }).catch(() => {});
     w = await now();
     expect(w.i === 1, 'кораблик не засчитан', w);
     // три рыбки: две — ещё нет, три — да (рыбу только ловят: в рюкзак её кладёт рыбалка)
     await ev(() => window.__dev.actions.addItem('ing', 'fish', 2));
-    await wait(200);
+    await frames(2);
     expect((await now()).i === 1, 'двух рыбок хватило', await now());
     await ev(() => window.__dev.actions.addItem('ing', 'fish', 1));
-    await wait(300);
+    await until(() => window.__dev.QuestState.questNow('cabin_boy').i === 2, undefined, { timeout: 2000 }).catch(() => {});
     w = await now();
     expect(w.i === 2 && (await ev(() => window.__dev.QuestState.questBadge('bob'))) === '?', 'после рыбы — к Бобу «?»', w);
     const s0 = await state();
-    await ev(() => {
-      window.__dev.run('npc:bob');
-    });
-    await wait(500);
-    await page.click('.dialog .btn.green');
-    await wait(500);
-    await page.click('.dialog .btn.green');
-    await wait(1500);
+    await L.run('npc:bob', 500);
+    await tap('.dialog .btn.green', 500);
+    await tap('.dialog .btn.green', 1500);
     const t = await panelText();
     expect(/Задание выполнено/.test(t) && /Морской волк/.test(t) && /Джунгли открыты/.test(t), 'праздничное окно', t);
     await closeAll();
@@ -190,21 +134,18 @@ module.exports = async function jungle({ page, step, ev, wait, closeAll }) {
         if (!st.stickers.includes('x_boat')) st.stickers.push('x_boat');
       }),
     );
-    await ev(() => {
-      window.__dev.run('npc:bob');
-    });
-    await wait(500);
-    await page.click('.dialog .btn.green');
-    await wait(400);
+    await L.run('npc:bob', 500);
+    await tap('.dialog .btn.green', 400);
     await closeAll();
     expect((await now()).i === 1, 'кораблик «уже был» — не засчитан сразу', await now());
     // причал открыт: на табличке — причал; кораблик подплыл к причалу — переезд картинкой
     sign = await portSign();
     expect(/Причал/.test(sign[1]), 'табличка у открытого причала', sign);
     await sailToPort();
-    await wait(2500);
-    expect(await ev(() => !!document.querySelector('.voyage-ride canvas')), 'нет картинки переезда');
-    await wait(2800);
+    const ride = await until(() => !!document.querySelector('.voyage-ride canvas'), undefined, { timeout: 6000 }).catch(() => false);
+    expect(ride, 'нет картинки переезда');
+    await until(() => window.__dev.sceneName === 'jungle' && !document.querySelector('.voyage-ride'), undefined, { timeout: 8000 }).catch(() => {});
+    await frames(2);
     const r = await where();
     const door = await ev(() => {
       const sc = window.__dev.locations.jungle;
@@ -302,7 +243,7 @@ module.exports = async function jungle({ page, step, ev, wait, closeAll }) {
     await ev(() => {
       window.__dev.F.openMap();
     });
-    await wait(500);
+    await untilPanel();
     const t = await panelText();
     expect(
       /Карта джунглей/.test(t) &&
@@ -317,8 +258,7 @@ module.exports = async function jungle({ page, step, ev, wait, closeAll }) {
       'карта джунглей',
       t,
     );
-    await page.click('.overlay .opt >> text=Водопад');
-    await wait(400);
+    await tap('.overlay .opt >> text=Водопад', 400);
     expect(await ev(() => window.__dev.locations.jungle.p.path.length > 0), 'по кнопке карты не пошли');
     await closeAll();
     for (const minutes of [12 * 60, 6 * 60, 23 * 60])
@@ -383,24 +323,30 @@ module.exports = async function jungle({ page, step, ev, wait, closeAll }) {
     await watch();
     await clearToasts();
     // искупаться под водопадом: хомячок в воде, кнопка «Вылезти»
-    await ev(() => {
-      window.__dev.run('jungle:fall');
-    });
-    await wait(400);
+    await L.run('jungle:fall', 400);
     let r = await ev(() => {
       const sc = window.__dev.locations.jungle;
       return { bath: !!(sc.p.ride && sc.p.ride.bath), hud: document.querySelector('#hud').textContent };
     });
     expect(r.bath && /Вылезти/.test(r.hud) && /водопад/i.test(await toasts()), 'не искупались', [r, await toasts()]);
     await page.click('.hud-btns.left .rbtn >> text=Вылезти');
-    await wait(300);
+    await until(() => !/Вылезти/.test(document.querySelector('.hud-btns.left').textContent), undefined, { timeout: 2000 }).catch(() => {});
     expect(!(await ev(() => !!window.__dev.locations.jungle.p.ride)), 'не вылезли из заводи');
     let s = await state();
     expect(s.stickers.includes('x_fall'), 'наклейка водопада', s.stickers);
     // попугай: подошла — говорит фразу (облачко), наклейка
     await clearToasts();
     await ev(() => window.__dev.locations.jungle.debugTeleport(25, 23));
-    await wait(2200);
+    // попугай заговорил, наклейка и подсказка
+    await ev(async () => (window.__jungleMod = await import('/js/locations/jungle.js')));
+    await until(
+      () => {
+        const p = window.__jungleMod.debugParrots();
+        return p[0].on && window.__dev.G.state.stickers.includes('x_parrot') && /попугай/i.test(document.querySelector('#toasts').textContent);
+      },
+      undefined,
+      { timeout: 5000 },
+    ).catch(() => {});
     const p = await ev(async () => (await import('/js/locations/jungle.js')).debugParrots());
     expect(p[0].on && p[0].text.length > 2, 'попугай молчит', p);
     s = await state();
@@ -418,7 +364,8 @@ module.exports = async function jungle({ page, step, ev, wait, closeAll }) {
     await ev(() => {
       window.__dev.run({ do: 'jungle', arg: 'parrot', i: 1 });
     });
-    await wait(600);
+    await until(() => ['feather_red', 'feather_blue', 'feather_yellow'].every((f) => window.__dev.G.state.finds[f] === 1), undefined, { timeout: 2000 }).catch(() => {});
+    await frames(2);
     s = await state();
     expect(s.finds.feather_red === 1 && s.finds.feather_blue === 1 && s.finds.feather_yellow === 1, 'перья попугаев', s.finds);
     await closeAll(); // разговор с попугаем («Научить слову» — этап 11, шаг «мир: попугай запоминает слово»)
@@ -430,7 +377,7 @@ module.exports = async function jungle({ page, step, ev, wait, closeAll }) {
       sc.debugTeleport(21, 18);
       sc.walkTo(21.5 * 48, 12.5 * 48, true);
     });
-    await wait(2500);
+    await until(() => window.__dev.G.state.stickers.includes('x_bridge') && /мост/.test(document.querySelector('#toasts').textContent), undefined, { timeout: 6000 }).catch(() => {});
     s = await state();
     expect(s.stickers.includes('x_bridge') && /мост/.test(await toasts()), 'наклейка моста', [s.stickers, await toasts()]);
     // перья в рамке: по одному каждого цвета
@@ -439,8 +386,7 @@ module.exports = async function jungle({ page, step, ev, wait, closeAll }) {
       window.__dev.locations.jungle.debugTeleport(30, 26);
     });
     await talkL();
-    await page.click('.dialog .btn >> text=Перья в рамке');
-    await wait(400);
+    await tap('.dialog .btn >> text=Перья в рамке', 400);
     await closeAll();
     s = await state();
     expect(
@@ -466,16 +412,14 @@ module.exports = async function jungle({ page, step, ev, wait, closeAll }) {
     await ev(() => window.__dev.actions.mutate((s) => (s.quests.lost_notebook = { day: s.day, n: {}, got: {}, done: s.day })));
     const s0 = await state();
     await talkL();
-    await page.click('.dialog .btn >> text=Покачаться на лианах');
-    await wait(1200);
+    await tap('.dialog .btn >> text=Покачаться на лианах', 1200);
     const intro = norm(await ev(() => document.querySelector('#mg').textContent));
     expect(
       /вперёд/.test(intro) && (await ev(() => document.querySelectorAll('#mg .vn-col img').length)) === 3 && /Приз Лианы/.test(intro),
       'правило картинкой',
       intro,
     );
-    await page.click(MG_START);
-    await wait(400);
+    await mgGo();
     // бот нажимает, когда лиана летит вперёд и почти на самом дальнем качу
     const box = await ev(() => {
       const r = document.querySelector('#mg canvas').getBoundingClientRect();
@@ -490,8 +434,7 @@ module.exports = async function jungle({ page, step, ev, wait, closeAll }) {
     await page.waitForSelector('#mg >> text=Ура!', { timeout: 20000 });
     const end = norm(await ev(() => document.querySelector('#mg').textContent));
     expect(/долетела/.test(end) && /⭐/.test(end), 'итог игры', end);
-    await page.click('#mg >> text=Ура!');
-    await wait(1500);
+    await mgDone();
     const s1 = await state();
     const stars = s1.best.vines;
     expect(s1.plays.vines === 1 && stars === 3 && s1.dayFlags.jungle.vines === 1 && s1.stickers.includes('x_vines'), 'игра записана', [
@@ -504,10 +447,9 @@ module.exports = async function jungle({ page, step, ev, wait, closeAll }) {
     await ev(() => {
       window.__dev.F.vinesGame();
     });
-    await wait(900);
+    await page.waitForSelector(MG_START);
     expect(/ещё 1 полёт/.test(norm(await ev(() => document.querySelector('#mg').textContent))), 'на заставке — сколько полётов с призом');
-    await page.click(MG_START);
-    await wait(300);
+    await mgGo();
     for (let k = 0; k < 200; k++) {
       const q = await ev(() => document.querySelector('#mg canvas').__vines());
       if (!q.forward && q.q < 0.3) {
@@ -516,31 +458,26 @@ module.exports = async function jungle({ page, step, ev, wait, closeAll }) {
       }
       await wait(30);
     }
-    await wait(200);
+    await until(() => document.querySelector('#mg canvas').__vines().miss === 1, undefined, { timeout: 2000 }).catch(() => {});
     const q = await ev(() => document.querySelector('#mg canvas').__vines());
     expect(q.miss === 1 && q.at === 0 && !q.flying, 'прыжок назад засчитан', q);
-    await page.click('#mg .xbtn');
-    await wait(400);
+    await mgClose();
     expect((await state()).money === s1.money, 'закрыли игру — а приз пришёл');
     // две игры уже были — третья для удовольствия
     await ev(() => window.__dev.actions.setDayFlag('vines', 2, 'jungle'));
     await ev(() => {
       window.__dev.F.vinesGame();
     });
-    await wait(900);
+    await page.waitForSelector(MG_START);
     expect(/для удовольствия/.test(norm(await ev(() => document.querySelector('#mg').textContent))), 'третья игра — без приза');
-    await page.click('#mg .xbtn');
-    await wait(300);
+    await mgClose();
     await closeAll();
   });
 
   await step('джунгли: «Узор храма» — до конца, сокровище раз в день, ошибка — маска показывает снова', async () => {
     await toJungle(9, 10);
     const s0 = await state();
-    await ev(() => {
-      window.__dev.run('jungle:temple');
-    });
-    await wait(1200);
+    await L.run('jungle:temple', 1200);
     const intro = norm(await ev(() => document.querySelector('#mg').textContent));
     expect(/Повтори/.test(intro) && (await ev(() => document.querySelectorAll('#mg .gl-col').length)) === 3 && /Сокровище храма/.test(intro), 'правило картинкой', intro);
     await page.click(MG_START);
@@ -559,8 +496,7 @@ module.exports = async function jungle({ page, step, ev, wait, closeAll }) {
     await page.waitForSelector('#mg >> text=Ура!', { timeout: 15000 });
     const end = norm(await ev(() => document.querySelector('#mg').textContent));
     expect(/без единой ошибки/.test(end), 'итог узора', end);
-    await page.click('#mg >> text=Ура!');
-    await wait(1600);
+    await mgDone();
     let s = await state();
     expect(
       s.plays.glyphs === 1 && s.best.glyphs === 3 && s.money === s0.money + 150 && s.dayFlags.jungle.glyphs === 1 && s.stickers.includes('x_temple'),
@@ -571,7 +507,7 @@ module.exports = async function jungle({ page, step, ev, wait, closeAll }) {
     await ev(() => {
       window.__dev.F.glyphsGame();
     });
-    await wait(900);
+    await page.waitForSelector(MG_START);
     expect(/для удовольствия/.test(norm(await ev(() => document.querySelector('#mg').textContent))), 'второй раз за день — без сокровища');
     await page.click(MG_START);
     for (let k = 0; k < 60; k++) {
@@ -583,8 +519,7 @@ module.exports = async function jungle({ page, step, ev, wait, closeAll }) {
     await wait(200);
     const g1 = await ev(() => document.querySelector('#mg .gl-grid').__glyphs());
     expect(g1.miss === 1 && g1.phase === 'show' && g1.round === 0, 'ошибка не показала узор снова', g1);
-    await page.click('#mg .xbtn');
-    await wait(400);
+    await mgClose();
     s = await state();
     expect(s.money === s0.money + 150, 'второй раз — снова сокровище');
     await closeAll();
@@ -601,22 +536,17 @@ module.exports = async function jungle({ page, step, ev, wait, closeAll }) {
     await watch();
     const now = () => ev(() => window.__dev.QuestState.questNow('lost_notebook'));
     expect((await ev(() => window.__dev.QuestState.questBadge('liana'))) === '!', 'над Лианой нет «!»');
-    await ev(() => {
-      window.__dev.run('explorer');
-    });
-    await wait(500);
+    await L.run('explorer', 500);
     expect(/дневник/.test(await dialogText()), 'Лиана не предлагает задание', await dialogText());
-    await page.click('.dialog .btn.green');
-    await wait(400);
-    await page.click('.dialog .btn.green');
-    await wait(400);
+    await tap('.dialog .btn.green', 400);
+    await tap('.dialog .btn.green', 400);
     let w = await now();
     expect(w.status === 'active' && w.i === 0, 'задание не взято', w);
     const tg = await ev(() => window.__dev.locations.jungle.target());
     expect(tg && Math.abs(tg.x - 32.5 * 48) < 30, 'звёздочка не ведёт к дневнику', tg);
     // нажатие на дневник у водопада
     await ev(() => window.__dev.locations.jungle.debugTeleport(30, 9));
-    await wait(500);
+    await frames(3);
     const k = await ev(() => window.__dev.locations.jungle.debugScreen(32.5 * 48, 6.5 * 48));
     await page.mouse.click(k.x, k.y);
     await page.waitForSelector('text=Дневник нашёлся', { timeout: 6000 });
@@ -625,7 +555,7 @@ module.exports = async function jungle({ page, step, ev, wait, closeAll }) {
     expect(w.i === 1, 'дневник не найден', w);
     // узор храма (событие мини-игры — сама игра проверена шагом выше)
     await ev(() => window.__dev.emit('minigame', { id: 'glyphs', stars: 2 }));
-    await wait(300);
+    await frames(2);
     w = await now();
     expect(w.i === 2 && (await ev(() => window.__dev.QuestState.questBadge('liana'))) === '?', 'после узора — к Лиане «?»', w);
     const s0 = await state();
@@ -633,11 +563,9 @@ module.exports = async function jungle({ page, step, ev, wait, closeAll }) {
       window.__dev.locations.jungle.debugTeleport(30, 26);
       window.__dev.run('explorer');
     });
-    await wait(500);
-    await page.click('.dialog .btn.green');
-    await wait(500);
-    await page.click('.dialog .btn.green');
-    await wait(1500);
+    await L.untilDialog();
+    await tap('.dialog .btn.green', 500);
+    await tap('.dialog .btn.green', 1500);
     const t = await panelText();
     expect(/Задание выполнено/.test(t) && /Юная исследовательница/.test(t) && /Панама исследовательницы/.test(t), 'праздничное окно', t);
     await closeAll();
@@ -655,7 +583,6 @@ module.exports = async function jungle({ page, step, ev, wait, closeAll }) {
   await step('джунгли: сохранение и загрузка в джунглях; кораблик в город; «Домой» из джунглей', async () => {
     await fresh(); // своя новая игра: не опираться на дом и место, оставленные прошлыми шагами
     await toJungle(24, 28);
-    await wait(300);
     const raw = await ev(() => {
       window.dispatchEvent(new Event('pagehide'));
       return localStorage.getItem('rhr-save-v1');
@@ -667,9 +594,8 @@ module.exports = async function jungle({ page, step, ev, wait, closeAll }) {
       localStorage.setItem('rhr-save-v1', raw);
     }, raw);
     await page.reload();
-    await wait(500);
-    await page.click('text=Продолжить');
-    await wait(800);
+    await page.waitForSelector(sel('continue'));
+    await L.cont();
     await closeAll();
     let r = await where();
     expect(r.scene === 'jungle' && near(r, pos, 30), 'после загрузки — в джунглях на том же месте', [r, pos]);
@@ -678,18 +604,18 @@ module.exports = async function jungle({ page, step, ev, wait, closeAll }) {
       const sc = window.__dev.locations.jungle;
       sc.enterBuilding(sc.map.bById.dock);
     });
-    await wait(700);
-    expect(await ev(() => !!document.querySelector('.voyage-ride')), 'нет картинки переезда в город');
-    await wait(2800);
+    const ride = await until(() => !!document.querySelector('.voyage-ride'), undefined, { timeout: 3000 }).catch(() => false);
+    expect(ride, 'нет картинки переезда в город');
+    await until(() => window.__dev.sceneName === 'world' && !document.querySelector('.voyage-ride'), undefined, { timeout: 8000 }).catch(() => {});
+    await frames(2);
     r = await where();
     const s = await state();
     expect(r.scene === 'world' && near(r, { x: 63.5 * T, y: 60.6 * T }, 40) && !s.boat.on, 'кораблик привёз не к пирсу города', [r, s.boat]);
     // «Домой» из джунглей — на виллу
     await toJungle(24, 28);
     await page.click('.hud-btns.left .rbtn:last-child');
-    await wait(450);
     await page.click('.panel-foot .btn.green');
-    await wait(800);
+    await untilScene('villa').catch(() => {});
     expect((await ev(() => window.__dev.sceneName)) === 'villa', 'кнопка «Домой» из джунглей', await ev(() => window.__dev.sceneName));
   });
 };
