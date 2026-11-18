@@ -1,25 +1,12 @@
 // Живая заставка: берег моря с пальмами, хомячок и всё, что можно потрогать. Время суток и погода приходят
 // снаружи (как в последней игре) и на заставке не меняются. Мышь и касание — одни и те же события указателя.
 //
-// Рисование: небо, море и песок без движения лежат в кэше (bg), каждый кадр поверх — волны, облака, пальмы,
-// зверьки и погода. Что можно трогать — см. down() ниже: порядок проверок там и есть «кто ближе к зрителю».
+// Рисование — features/title_art.js: небо, море и песок без движения лежат в кэше (bg), каждый кадр поверх —
+// волны, облака, пальмы, зверьки и погода. Что можно трогать — см. down() ниже: порядок проверок там и есть
+// «кто ближе к зрителю».
 import { TAU, clamp, lerp, rnd, pick, seeded } from '../core/util.js';
-import { mix, shade } from '../core/draw.js';
-import { drawHamster, blinkAt } from '../art/hamster.js';
 import { sfx } from '../core/audio.js';
-import { paintDolphin } from '../locations/cove_art.js';
-
-const ease = (t) => t * t * (3 - 2 * t);
-const bell = (t) => Math.sin(clamp(t, 0, 1) * Math.PI);
-
-// Облако — восемь «комков»; фигуры (зайчик, рыбка, хомячок) — те же восемь комков на других местах
-const CLOUD_SHAPES = {
-  cloud: { puffs: [[-1.4, 0.2, 0.7], [-0.6, -0.2, 0.9], [0.3, -0.35, 1], [1.1, 0, 0.8], [1.7, 0.3, 0.55], [0, 0.3, 0.9], [-0.9, 0.35, 0.7], [0.8, 0.35, 0.7]], eyes: [] }, // prettier-ignore
-  bunny: { puffs: [[0.2, 0.3, 1], [-1, -0.3, 0.7], [-1.25, -1.2, 0.32], [-1.2, -1.7, 0.28], [-0.8, -1.25, 0.3], [-0.68, -1.75, 0.27], [1.3, 0.3, 0.42], [-0.5, 0.9, 0.42]], eyes: [[-1.2, -0.4]] }, // prettier-ignore
-  fish: { puffs: [[-0.5, 0, 0.9], [0.3, 0, 0.85], [-1.2, 0, 0.55], [0.95, 0, 0.5], [1.65, -0.5, 0.5], [1.65, 0.5, 0.5], [-0.2, -0.85, 0.4], [1.3, 0, 0.3]], eyes: [[-1.25, -0.12]] }, // prettier-ignore
-  hamster: { puffs: [[0, 0.5, 1.05], [0, -0.6, 0.85], [-0.65, -1.3, 0.35], [0.65, -1.3, 0.35], [-0.75, -0.35, 0.5], [0.75, -0.35, 0.5], [-0.8, 1.2, 0.35], [0.8, 1.2, 0.35]], eyes: [[-0.3, -0.75], [0.3, -0.75]] }, // prettier-ignore
-};
-const CLOUD_ORDER = ['cloud', 'bunny', 'fish', 'hamster'];
+import { createTitleArt, CLOUD_ORDER, ease } from './title_art.js';
 
 let starShown = false; // падающая звезда — не больше одной за запуск страницы
 
@@ -158,76 +145,6 @@ export function createTitleScene(canvas, o) {
     return d;
   }
 
-  // ---------- то, что не движется: небо, море, песок ----------
-  function paintBg() {
-    bg = document.createElement('canvas');
-    bg.width = canvas.width;
-    bg.height = canvas.height;
-    const c = bg.getContext('2d');
-    c.setTransform(dpr, 0, 0, dpr, 0, 0);
-    const grey = rain ? 0.55 : snow ? 0.35 : 0;
-    const top = mix(mix('#4fb4ff', '#5a78c8', dusk * 0.8), '#8fa0b4', grey),
-      low = mix(mix('#cdeeff', '#ffb27a', dusk), '#c9d3de', grey);
-    let g = c.createLinearGradient(0, 0, 0, hy);
-    g.addColorStop(0, top);
-    g.addColorStop(1, low);
-    c.fillStyle = g;
-    c.fillRect(0, 0, W, hy + 1);
-    // солнце (ночью луну рисуем поверх затемнения — см. frame)
-    if (dk < 0.45 && !rain && !snow) {
-      const sx = F.x + F.w * 0.66,
-        syy = lerp(F.y + 34 * k, hy - 26 * k, dusk);
-      const gl = c.createRadialGradient(sx, syy, 4, sx, syy, 110 * k);
-      gl.addColorStop(0, 'rgba(255,244,200,.85)');
-      gl.addColorStop(1, 'rgba(255,244,200,0)');
-      c.fillStyle = gl;
-      c.fillRect(sx - 120 * k, syy - 120 * k, 240 * k, 240 * k);
-      c.fillStyle = mix('#fff3b0', '#ff9d5c', dusk);
-      c.beginPath();
-      c.arc(sx, syy, 26 * k, 0, TAU);
-      c.fill();
-    }
-    // далёкий остров на горизонте
-    c.fillStyle = mix(mix('#7fb7c9', '#8d7fb0', dusk), '#9aa6b5', grey);
-    c.beginPath();
-    c.moveTo(F.x + F.w * 0.02, hy + 1);
-    c.quadraticCurveTo(F.x + F.w * 0.1, hy - 30 * k, F.x + F.w * 0.19, hy - 10 * k);
-    c.quadraticCurveTo(F.x + F.w * 0.25, hy - 22 * k, F.x + F.w * 0.33, hy + 1);
-    c.fill();
-    // море
-    g = c.createLinearGradient(0, hy, 0, sy + 30 * k);
-    g.addColorStop(0, mix(mix('#2f8fd8', '#4a6fb5', dusk * 0.7), '#6c8296', grey));
-    g.addColorStop(1, mix(mix('#7fe3e2', '#f3b89a', dusk * 0.5), '#a9bcc4', grey));
-    c.fillStyle = g;
-    c.fillRect(0, hy, W, sy + 40 * k - hy);
-    // песок (верхний край закрывает волна, поэтому начинаем чуть выше кромки)
-    g = c.createLinearGradient(0, sy - 20 * k, 0, H);
-    const s0 = mix(winter ? '#fff1cf' : '#ffe6a8', '#e9dcc3', grey * 0.6),
-      s1 = mix(winter ? '#f3deb4' : '#f4c97c', '#d9c8a8', grey * 0.6);
-    g.addColorStop(0, s0);
-    g.addColorStop(1, s1);
-    c.fillStyle = g;
-    c.fillRect(0, sy - 20 * k, W, H - sy + 20 * k);
-    const rs = seeded(11);
-    for (let i = 0; i < (W * (H - sy)) / 900; i++) {
-      c.fillStyle = rs() < 0.5 ? 'rgba(255,255,255,.35)' : 'rgba(190,140,70,.25)';
-      c.fillRect(rs() * W, sy + 8 * k + rs() * (H - sy), 2, 2);
-    }
-    if (winter) {
-      // зимой на песке лежит снежок
-      c.fillStyle = 'rgba(255,255,255,.75)';
-      for (let i = 0; i < 9; i++) {
-        c.beginPath();
-        c.ellipse(rs() * W, sy + (0.25 + rs() * 0.75) * (H - sy), (40 + rs() * 60) * k, (7 + rs() * 8) * k, 0, 0, TAU);
-        c.fill();
-      }
-    }
-    // норка краба
-    c.fillStyle = 'rgba(120,80,40,.55)';
-    c.beginPath();
-    c.ellipse(crab.hx, crab.hy, 17 * k, 7 * k, 0, 0, TAU);
-    c.fill();
-  }
 
   // ---------- кромка воды ----------
   const surge = () => {
@@ -690,690 +607,76 @@ export function createTitleScene(canvas, o) {
     for (let i = texts.length - 1; i >= 0; i--) if ((texts[i].t += dt) > texts[i].life) texts.splice(i, 1);
   }
 
-  // ---------- рисование ----------
-  const circle = (x, y, r, fill) => {
-    ctx.fillStyle = fill;
-    ctx.beginPath();
-    ctx.arc(x, y, r, 0, TAU);
-    ctx.fill();
+
+
+  // рисование — в title_art.js; S — что ему видно отсюда (let — через геттеры: значения меняются)
+  const S = {
+    canvas,
+    crab,
+    crown,
+    ctx,
+    dk,
+    dolphin,
+    drops,
+    dusk,
+    feathers,
+    fly,
+    gull,
+    ham,
+    hamTop,
+    jumps,
+    kite,
+    kitePos,
+    look,
+    night,
+    rain,
+    rings,
+    shell,
+    ship,
+    shoreY,
+    snow,
+    snowman,
+    star,
+    stars,
+    strokes,
+    sway,
+    windy,
+    winter,
+    get F() {
+      return F;
+    },
+    get H() {
+      return H;
+    },
+    get T() {
+      return T;
+    },
+    get W() {
+      return W;
+    },
+    get bg() {
+      return bg;
+    },
+    set bg(v) {
+      bg = v;
+    },
+    get bot() {
+      return bot;
+    },
+    get dpr() {
+      return dpr;
+    },
+    get hy() {
+      return hy;
+    },
+    get k() {
+      return k;
+    },
+    get sy() {
+      return sy;
+    },
   };
-  function label(x, y, str, size, alpha = 1) {
-    ctx.save();
-    ctx.globalAlpha = alpha;
-    ctx.font = `900 ${size}px Nunito, "Trebuchet MS", sans-serif`;
-    const w = ctx.measureText(str).width + size * 1.1,
-      h = size * 1.7;
-    x = clamp(x, w / 2 + 6, W - w / 2 - 6);
-    ctx.fillStyle = 'rgba(255,255,255,.94)';
-    ctx.beginPath();
-    ctx.roundRect ? ctx.roundRect(x - w / 2, y - h / 2, w, h, h / 2) : ctx.rect(x - w / 2, y - h / 2, w, h);
-    ctx.fill();
-    ctx.fillStyle = '#5b3a29';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(str, x, y + 1);
-    ctx.restore();
-  }
-
-  function drawSea(sg) {
-    // блики-волны на воде: ближе к берегу крупнее
-    ctx.lineCap = 'round';
-    for (let r = 0; r < 6; r++) {
-      const q = (r + 0.5) / 6,
-        y = lerp(hy + 6 * k, sy - 14 * k, q * q * 0.6 + q * 0.4),
-        len = lerp(14, 60, q) * k;
-      ctx.strokeStyle = `rgba(255,255,255,${lerp(0.25, 0.5, q)})`;
-      ctx.lineWidth = lerp(1.2, 3, q) * k;
-      ctx.beginPath();
-      const step = lerp(70, 190, q) * k,
-        off = ((T * lerp(4, 16, q) * (r % 2 ? 1 : -1) * k) % step) + r * 37;
-      for (let x = -step + (off % step); x < W + step; x += step) {
-        const yy = y + Math.sin(T * 1.4 + x * 0.02 + r) * 2.5 * k;
-        ctx.moveTo(x, yy);
-        ctx.quadraticCurveTo(x + len / 2, yy - 4 * k * q, x + len, yy);
-      }
-      ctx.stroke();
-    }
-    // круги от рыбок
-    for (const g of rings) {
-      const q = g.t / 1.6,
-        sc = clamp((g.y - hy) / (sy - hy), 0.3, 1);
-      ctx.strokeStyle = `rgba(255,255,255,${0.8 * (1 - q)})`;
-      ctx.lineWidth = 2 * k;
-      for (const m2 of [1, 0.55]) {
-        ctx.beginPath();
-        ctx.ellipse(g.x, g.y, (8 + q * 46) * k * sc * m2, (3 + q * 13) * k * sc * m2, 0, 0, TAU);
-        ctx.stroke();
-      }
-    }
-    // мокрый песок и пена
-    const step = 16;
-    const path = (dy) => {
-      ctx.beginPath();
-      ctx.moveTo(-10, sy - 30 * k);
-      for (let x = -10; x <= W + step; x += step) ctx.lineTo(x, shoreY(x, sg) + dy);
-      ctx.lineTo(W + 10, sy - 30 * k);
-      ctx.closePath();
-    };
-    path(13 * k + sg * 0.12);
-    ctx.fillStyle = 'rgba(176,128,70,.28)';
-    ctx.fill();
-    path(5 * k);
-    ctx.fillStyle = 'rgba(255,255,255,.92)';
-    ctx.fill();
-    path(0);
-    const g = ctx.createLinearGradient(0, sy - 30 * k, 0, sy + 20 * k + sg);
-    g.addColorStop(0, 'rgba(120,222,226,0)');
-    g.addColorStop(0.35, rain || snow ? '#a9c3cb' : dusk > 0.4 ? '#f0c3a6' : '#8fe6e4');
-    g.addColorStop(1, rain || snow ? '#bcd2d8' : '#b5f1ee');
-    ctx.fillStyle = g;
-    ctx.fill();
-  }
-  function drawFish() {
-    for (const j of jumps) {
-      const q = j.t / 0.9,
-        sc = k * j.s,
-        x = j.x + j.dir * 46 * sc * q,
-        y = j.y - Math.sin(q * Math.PI) * 54 * sc;
-      ctx.save();
-      ctx.translate(x, y);
-      ctx.rotate(j.dir * lerp(-0.9, 0.9, q));
-      ctx.scale(j.dir * sc, sc);
-      ctx.fillStyle = '#ff9f43';
-      ctx.beginPath();
-      ctx.ellipse(0, 0, 13, 7, 0, 0, TAU);
-      ctx.fill();
-      ctx.beginPath();
-      ctx.moveTo(-11, 0);
-      ctx.lineTo(-21, -7);
-      ctx.lineTo(-21, 7);
-      ctx.fill();
-      ctx.fillStyle = '#fff';
-      ctx.fillRect(-1, -6, 3, 12);
-      circle(7, -2, 1.6, '#333');
-      ctx.restore();
-    }
-    if (dolphin.t >= 0) {
-      const q = dolphin.t / 1.5,
-        x = dolphin.x + q * 50 * k,
-        y = hy + 16 * k - Math.sin(q * Math.PI) * 30 * k;
-      ctx.save();
-      ctx.beginPath();
-      ctx.rect(0, 0, W, hy + 17 * k);
-      ctx.clip();
-      ctx.translate(x, y);
-      ctx.scale(k * 0.55, k * 0.55);
-      paintDolphin(ctx, 3 + lerp(-0.8, 0.8, q) / 0.3, 0); // добрый дельфин, как в море (В1)
-      ctx.restore();
-    }
-  }
-  function drawShip() {
-    const x = ship.x,
-      y = hy + Math.sin(T * 1.2) * 1.2 * k,
-      u = k * 0.9;
-    for (const p of ship.puffs) circle(p.x - p.t * 9 * k, p.y - p.t * 16 * k, (4 + p.t * 5) * k, `rgba(255,255,255,${0.7 * (1 - p.t / 2)})`); // prettier-ignore
-    ctx.save();
-    ctx.translate(x, y);
-    ctx.scale(u, u);
-    ctx.fillStyle = '#e8590c';
-    ctx.beginPath();
-    ctx.moveTo(-22, -9);
-    ctx.lineTo(24, -9);
-    ctx.lineTo(17, 1);
-    ctx.lineTo(-17, 1);
-    ctx.fill();
-    ctx.fillStyle = '#fff';
-    ctx.fillRect(-11, -19, 19, 10);
-    ctx.fillStyle = '#343a40';
-    ctx.fillRect(-4, -31, 7, 12);
-    ctx.fillStyle = '#ffd43b';
-    ctx.fillRect(-4, -27, 7, 3);
-    ctx.fillStyle = '#4dabf7';
-    for (const wx of [-8, -2, 4]) ctx.fillRect(wx, -16, 3, 3);
-    ctx.restore();
-  }
-  function drawCloud(c) {
-    const a = CLOUD_SHAPES[CLOUD_ORDER[c.from]],
-      b = CLOUD_SHAPES[CLOUD_ORDER[c.shape]],
-      q = ease(c.t),
-      u = 34 * k * c.size;
-    const col = rain ? '#8d99a8' : snow ? '#e3e9f0' : mix('#ffffff', '#ffd9c2', dusk * 0.6);
-    ctx.fillStyle = col;
-    ctx.beginPath();
-    for (let i = 0; i < 8; i++) {
-      const x = c.x + lerp(a.puffs[i][0], b.puffs[i][0], q) * u,
-        y = c.y + lerp(a.puffs[i][1], b.puffs[i][1], q) * u,
-        r = lerp(a.puffs[i][2], b.puffs[i][2], q) * u;
-      ctx.moveTo(x + r, y);
-      ctx.arc(x, y, r, 0, TAU);
-    }
-    ctx.fill();
-    if (c.t > 0.7) for (const e of b.eyes) circle(c.x + e[0] * u, c.y + e[1] * u, 0.09 * u, shade(col, -0.35));
-  }
-  function drawPalm(p) {
-    const [cx, cy] = crown(p);
-    const b = p.bend + sway(p);
-    // ствол
-    ctx.lineCap = 'round';
-    const mx = lerp(p.x, cx, 0.35) - b * p.h * 0.1,
-      my = p.y - p.h * 0.55;
-    for (const [col, lw] of [
-      ['#8a5a2b', 20],
-      ['#b07a3f', 13],
-    ]) {
-      // prettier-ignore
-      ctx.strokeStyle = col;
-      ctx.lineWidth = lw * k * p.size;
-      ctx.beginPath();
-      ctx.moveTo(p.x, p.y);
-      ctx.quadraticCurveTo(mx, my, cx, cy);
-      ctx.stroke();
-    }
-    ctx.strokeStyle = 'rgba(90,55,20,.5)';
-    ctx.lineWidth = 2 * k;
-    for (let i = 1; i < 8; i++) {
-      const q = i / 8,
-        x = (1 - q) * (1 - q) * p.x + 2 * q * (1 - q) * mx + q * q * cx,
-        y = (1 - q) * (1 - q) * p.y + 2 * q * (1 - q) * my + q * q * cy;
-      ctx.beginPath();
-      ctx.moveTo(x - 8 * k * p.size, y + 2 * k);
-      ctx.lineTo(x + 8 * k * p.size, y - 2 * k);
-      ctx.stroke();
-    }
-    // листья
-    const L = p.h * 0.42;
-    for (let i = 0; i < 7; i++) {
-      const base = -Math.PI / 2 + (i - 3) * 0.62,
-        a = base + b * 0.9 + Math.sin(T * (windy ? 3 : 1.4) + i * 1.3 + p.fx * 5) * (windy ? 0.12 : 0.04),
-        droop = 0.5 + Math.abs(i - 3) * 0.16;
-      const ex = cx + Math.cos(a) * L,
-        ey = cy + Math.sin(a) * L + droop * L * 0.5,
-        qx = cx + Math.cos(a) * L * 0.6,
-        qy = cy + Math.sin(a) * L * 0.6 - L * 0.12;
-      ctx.fillStyle = i % 2 ? '#2f9e44' : '#40c057';
-      ctx.beginPath();
-      ctx.moveTo(cx, cy);
-      ctx.quadraticCurveTo(qx - Math.sin(a) * L * 0.2, qy + Math.cos(a) * L * 0.2, ex, ey);
-      ctx.quadraticCurveTo(qx + Math.sin(a) * L * 0.16, qy - Math.cos(a) * L * 0.16, cx, cy);
-      ctx.fill();
-    }
-    if (winter) {
-      ctx.fillStyle = 'rgba(255,255,255,.85)';
-      ctx.beginPath();
-      ctx.ellipse(cx, cy - L * 0.16, L * 0.42, L * 0.1, 0, 0, TAU);
-      ctx.fill();
-    }
-    // кокосы
-    p.nuts.forEach((n, i) => {
-      if (n) circle(cx + (i - 1) * 12 * k, cy + 9 * k + (i === 1 ? 5 * k : 0), 8.5 * k, '#6b4423');
-    });
-  }
-  function drawNut(n) {
-    ctx.save();
-    ctx.translate(n.x, n.y - 9 * k);
-    ctx.fillStyle = 'rgba(0,0,0,.14)';
-    ctx.beginPath();
-    ctx.ellipse(0, n.floor - n.y + 9 * k, 10 * k, 3 * k, 0, 0, TAU);
-    ctx.fill();
-    ctx.rotate(n.rot);
-    circle(0, 0, 9.5 * k, '#6b4423');
-    for (const [dx, dy] of [[-3, -2], [3, -2], [0, 3]]) circle(dx * k, dy * k, 1.5 * k, '#3b2412'); // prettier-ignore
-    ctx.restore();
-  }
-  function drawCrab() {
-    if (crab.st === 'in') {
-      // выглядывает из норки: сначала никого, потом два глаза
-      const q = clamp((crab.t - 2.2) / 0.6, 0, 1);
-      if (q > 0)
-        for (const dx of [-5, 5]) {
-          ctx.strokeStyle = '#e03131';
-          ctx.lineWidth = 2.4 * k;
-          ctx.beginPath();
-          ctx.moveTo(crab.hx + dx * k, crab.hy);
-          ctx.lineTo(crab.hx + dx * k, crab.hy - 11 * k * q);
-          ctx.stroke();
-          circle(crab.hx + dx * k, crab.hy - 12 * k * q, 3.2 * k, '#fff');
-          circle(crab.hx + dx * k + Math.sin(T * 2) * k, crab.hy - 12 * k * q, 1.5 * k, '#222');
-        }
-      return;
-    }
-    const run = crab.st === 'flee',
-      w = Math.sin(T * (run ? 30 : 9));
-    const moving = run || crab.t > 1.2;
-    ctx.save();
-    ctx.translate(crab.x, crab.y - 8 * k);
-    ctx.scale(k, k);
-    ctx.fillStyle = 'rgba(0,0,0,.13)';
-    ctx.beginPath();
-    ctx.ellipse(0, 9, 17, 4, 0, 0, TAU);
-    ctx.fill();
-    ctx.strokeStyle = '#c92a2a';
-    ctx.lineWidth = 2.6;
-    ctx.lineCap = 'round';
-    for (const sd of [-1, 1])
-      for (let i = 0; i < 3; i++) {
-        const lift = moving ? Math.sin(T * (run ? 30 : 9) + i * 2 + sd) * 2.5 : 0;
-        ctx.beginPath();
-        ctx.moveTo(sd * 9, 2 + i * 1.5);
-        ctx.lineTo(sd * (17 + i), 7 + lift);
-        ctx.stroke();
-      }
-    ctx.fillStyle = '#f03e3e';
-    ctx.beginPath();
-    ctx.ellipse(0, 0, 13, 9, 0, 0, TAU);
-    ctx.fill();
-    for (const sd of [-1, 1]) {
-      ctx.beginPath();
-      ctx.ellipse(sd * 16, -7 + (moving ? w * sd : 0), 5.5, 4, sd * 0.5, 0, TAU);
-      ctx.fill();
-      ctx.strokeStyle = '#f03e3e';
-      ctx.beginPath();
-      ctx.moveTo(sd * 4, -7);
-      ctx.lineTo(sd * 4.5, -13);
-      ctx.stroke();
-      circle(sd * 4.5, -14, 3, '#fff');
-      circle(sd * 4.5 + crab.dir * 0.8, -14, 1.4, '#222');
-    }
-    ctx.restore();
-  }
-  function drawGull() {
-    const flying = gull.st !== 'stand';
-    ctx.save();
-    ctx.translate(gull.x, gull.y);
-    ctx.scale(k, k);
-    if (!flying) {
-      ctx.fillStyle = 'rgba(0,0,0,.13)';
-      ctx.beginPath();
-      ctx.ellipse(0, 1, 13, 3.5, 0, 0, TAU);
-      ctx.fill();
-      ctx.strokeStyle = '#f08c00';
-      ctx.lineWidth = 2;
-      for (const dx of [-3, 3]) {
-        ctx.beginPath();
-        ctx.moveTo(dx, -8);
-        ctx.lineTo(dx, 0);
-        ctx.stroke();
-      }
-    }
-    const bob = flying ? 0 : Math.sin(T * 2.2) * 0.8;
-    ctx.translate(0, -17 + bob);
-    ctx.fillStyle = '#fff';
-    ctx.beginPath();
-    ctx.ellipse(0, 0, 13, 9, -0.15, 0, TAU);
-    ctx.fill();
-    circle(10, -9, 6.5, '#fff');
-    ctx.fillStyle = '#f08c00';
-    ctx.beginPath();
-    ctx.moveTo(15, -10);
-    ctx.lineTo(24, -7.5);
-    ctx.lineTo(15, -6);
-    ctx.fill();
-    circle(11.5, -10.5, 1.3, '#222');
-    ctx.fillStyle = '#adb5bd';
-    if (flying) {
-      const fl = Math.sin(T * 14) * 12;
-      ctx.beginPath();
-      ctx.moveTo(-6, -2);
-      ctx.quadraticCurveTo(-10, -18 - fl, -26, -12 - fl * 1.5);
-      ctx.quadraticCurveTo(-12, -4, 4, -1);
-      ctx.fill();
-    } else {
-      ctx.beginPath();
-      ctx.ellipse(-3, 0, 10, 5.5, -0.25, 0, TAU);
-      ctx.fill();
-    }
-    ctx.restore();
-    for (const f of feathers) {
-      ctx.save();
-      ctx.globalAlpha = clamp(10 - f.t, 0, 1);
-      ctx.translate(f.x, f.y);
-      ctx.rotate(f.y < f.floor ? Math.sin(f.t * 3) * 0.7 : 0.3);
-      ctx.fillStyle = '#fff';
-      ctx.strokeStyle = '#ced4da';
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.ellipse(0, 0, 9 * k, 3 * k, 0, 0, TAU);
-      ctx.fill();
-      ctx.stroke();
-      ctx.restore();
-    }
-  }
-  function shellAt() {
-    const ear = [ham.x - 25 * ham.s, ham.y - 52 * ham.s];
-    const band = bot - sy,
-      home = [F.x + F.w * 0.27, sy + band * 0.84];
-    if (shell.st === 'go') return [lerp(home[0], ear[0], ease(shell.t / 0.5)), lerp(home[1], ear[1], ease(shell.t / 0.5)) - bell(shell.t / 0.5) * 40 * k]; // prettier-ignore
-    if (shell.st === 'ear') return ear;
-    if (shell.st === 'back') return [lerp(ear[0], home[0], ease(shell.t / 0.5)), lerp(ear[1], home[1], ease(shell.t / 0.5)) - bell(shell.t / 0.5) * 40 * k]; // prettier-ignore
-    return home;
-  }
-  function drawShell() {
-    const [x, y] = shellAt();
-    shell.x = x;
-    shell.y = y;
-    ctx.save();
-    ctx.translate(x, y - 7 * k);
-    ctx.scale(k, k);
-    ctx.fillStyle = '#ffd8e4';
-    ctx.strokeStyle = '#e599b0';
-    ctx.lineWidth = 1.6;
-    ctx.beginPath();
-    ctx.moveTo(0, 8);
-    ctx.bezierCurveTo(-17, 6, -15, -12, 0, -12);
-    ctx.bezierCurveTo(15, -12, 17, 6, 0, 8);
-    ctx.fill();
-    ctx.stroke();
-    for (const a of [-0.7, -0.35, 0, 0.35, 0.7]) {
-      ctx.beginPath();
-      ctx.moveTo(0, 7);
-      ctx.lineTo(Math.sin(a) * 15, 7 - Math.cos(a) * 18);
-      ctx.stroke();
-    }
-    ctx.restore();
-    if (shell.st === 'ear') {
-      // «шум моря»: волнистые чёрточки у уха
-      ctx.strokeStyle = 'rgba(77,171,247,.9)';
-      ctx.lineWidth = 2.5 * k;
-      for (let i = 0; i < 3; i++) {
-        const q = (shell.t * 0.9 + i / 3) % 1;
-        ctx.globalAlpha = 1 - q;
-        ctx.beginPath();
-        ctx.arc(x - 6 * k, y - 8 * k, (10 + q * 26) * k, Math.PI * 0.75, Math.PI * 1.25);
-        ctx.stroke();
-      }
-      ctx.globalAlpha = 1;
-    }
-  }
-  function drawSnowman() {
-    const q = clamp((T - snowman.t) / 1.2, 0, 1),
-      wob = Math.sin(q * TAU * 2) * (1 - q) * 0.16;
-    ctx.save();
-    ctx.translate(snowman.x, snowman.y);
-    ctx.fillStyle = 'rgba(0,0,0,.12)';
-    ctx.beginPath();
-    ctx.ellipse(0, 0, 26 * k, 6 * k, 0, 0, TAU);
-    ctx.fill();
-    ctx.scale(k, k);
-    ctx.rotate(wob);
-    for (const [y, r] of [
-      [-18, 20],
-      [-47, 15],
-      [-70, 11],
-    ]) {
-      // prettier-ignore
-      circle(0, y, r, '#fff');
-      ctx.strokeStyle = '#cfe0ee';
-      ctx.lineWidth = 1.5;
-      ctx.stroke();
-    }
-    circle(-4, -73, 1.6, '#333');
-    circle(4, -73, 1.6, '#333');
-    ctx.fillStyle = '#ff922b';
-    ctx.beginPath();
-    ctx.moveTo(0, -70);
-    ctx.lineTo(11, -68);
-    ctx.lineTo(0, -66.5);
-    ctx.fill();
-    ctx.fillStyle = '#e03131'; // ведёрко
-    ctx.beginPath();
-    ctx.moveTo(-8, -79);
-    ctx.lineTo(8, -79);
-    ctx.lineTo(6, -92);
-    ctx.lineTo(-6, -92);
-    ctx.fill();
-    ctx.strokeStyle = '#7a4a21';
-    ctx.lineWidth = 2.4;
-    ctx.beginPath();
-    ctx.moveTo(-13, -50);
-    ctx.lineTo(-30, -60 - bell(q) * 14);
-    ctx.moveTo(13, -50);
-    ctx.lineTo(30, -60 - bell(q) * 14);
-    ctx.stroke();
-    ctx.restore();
-  }
-  function drawKite() {
-    const [x, y] = kitePos();
-    const hx = ham.x + 22 * ham.s,
-      hy2 = ham.y - 30 * ham.s;
-    ctx.strokeStyle = 'rgba(255,255,255,.8)';
-    ctx.lineWidth = 1.3;
-    ctx.beginPath();
-    ctx.moveTo(hx, hy2);
-    ctx.quadraticCurveTo(lerp(hx, x, 0.5), lerp(hy2, y, 0.5) + 50 * k, x, y);
-    ctx.stroke();
-    ctx.save();
-    ctx.translate(x, y);
-    ctx.rotate(-0.5 + Math.sin(T * 1.7) * 0.15 + clamp((T - kite.loop) / 1.2, 0, 1) * TAU);
-    ctx.scale(k, k);
-    const cols = ['#ff6b9d', '#ffd43b', '#4dabf7', '#51cf66'];
-    [
-      [0, -26, 16, 0],
-      [16, 0, 0, 30],
-      [0, 30, -16, 0],
-      [-16, 0, 0, -26],
-    ].forEach(([x1, y1, x2, y2], i) => {
-      // prettier-ignore
-      ctx.fillStyle = cols[i];
-      ctx.beginPath();
-      ctx.moveTo(0, 0);
-      ctx.lineTo(x1, y1);
-      ctx.lineTo(x2, y2);
-      ctx.fill();
-    });
-    ctx.strokeStyle = '#ff6b9d';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(0, 30);
-    for (let i = 1; i <= 6; i++) ctx.lineTo(Math.sin(T * 5 + i) * 6, 30 + i * 8);
-    ctx.stroke();
-    ctx.restore();
-  }
-  function drawStrokes() {
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
-    for (const [col, lw, dy] of [
-      ['rgba(255,255,255,.55)', 7, 2],
-      ['rgba(150,100,45,.6)', 6, 0],
-    ]) {
-      // prettier-ignore
-      ctx.strokeStyle = col;
-      ctx.lineWidth = lw * Math.max(k, 0.7);
-      for (const st of strokes) {
-        if (!st.length) continue;
-        ctx.beginPath();
-        ctx.moveTo(st[0].x, st[0].y + dy);
-        for (let i = 1; i < st.length; i++) {
-          // точку смыло — дальше новая чёрточка
-          if (Math.hypot(st[i].x - st[i - 1].x, st[i].y - st[i - 1].y) > 30) ctx.moveTo(st[i].x, st[i].y + dy);
-          else ctx.lineTo(st[i].x, st[i].y + dy);
-        }
-        if (st.length === 1) ctx.lineTo(st[0].x + 0.1, st[0].y + dy);
-        ctx.stroke();
-      }
-    }
-  }
-  function drawHam() {
-    const s = ham.s,
-      t = ham.t;
-    let x = ham.x,
-      y = ham.y,
-      pose = { time: T, blink: blinkAt(T) },
-      lk = look;
-    if (ham.st === 'idle') {
-      const c = T % 7;
-      if (c > 6 && !rain) pose = { ...pose, happy: true, armsUp: Math.sin(T * 10) > 0 }; // сам машет время от времени
-    } else if (ham.st === 'jump') {
-      y -= Math.abs(Math.sin(t * 5.7)) * 34 * s * (1 - t / 1.3);
-      pose = { ...pose, happy: true, armsUp: Math.sin(t * 16) > 0 };
-    } else if (ham.st === 'dance') {
-      const beat = t * 5;
-      x += Math.sin(beat) * 12 * s;
-      y -= Math.abs(Math.sin(beat * 2)) * 9 * s;
-      pose = { ...pose, happy: true, armsUp: Math.sin(beat * 2) > 0, dir: Math.sin(beat) > 0 ? 1 : -1, lean: false };
-    } else if (ham.st === 'sneeze') {
-      lk = { ...look, sick: true };
-      pose = { ...pose, sneeze: clamp(t / 1.2, 0, 0.99) };
-    } else if (ham.st === 'yawn') {
-      pose = { ...pose, blink: 1, talk: true, armsUp: t > 0.3 && t < 1.4 };
-      y -= bell(t / 1.8) * 3 * s;
-    } else if (ham.st === 'hop') {
-      y += bell(t / 1.5) * 24 * s * 0.5 - Math.abs(Math.sin(t * 6.3)) * 22 * s * (1 - t / 1.5);
-      pose = { ...pose, armsUp: t < 0.8 };
-    } else if (ham.st === 'listen') {
-      pose = { ...pose, happy: true, dir: -1 };
-    }
-    // тень остаётся на песке, когда хомячок в прыжке
-    ctx.fillStyle = 'rgba(0,0,0,.16)';
-    ctx.beginPath();
-    ctx.ellipse(x, ham.y + (ham.st === 'hop' ? bell(t / 1.5) * 12 * s : 0) + s, 24 * s, 6 * s, 0, 0, TAU);
-    ctx.fill();
-    drawHamster(ctx, x, y, s, lk, { ...pose, shadow: false });
-    ham.px = x;
-    ham.py = y;
-    if (rain) {
-      // зонтик
-      const top = hamTop() - 26 * s + (y - ham.y),
-        hx = x + 22 * s;
-      ctx.strokeStyle = '#7a4a21';
-      ctx.lineWidth = 3 * s;
-      ctx.lineCap = 'round';
-      ctx.beginPath();
-      ctx.moveTo(hx, y - 26 * s);
-      ctx.lineTo(hx - 14 * s, top + 4 * s);
-      ctx.stroke();
-      const ux = x + 6 * s,
-        R = 52 * s;
-      ctx.fillStyle = '#ff6b9d';
-      ctx.beginPath();
-      ctx.moveTo(ux - R, top + 12 * s);
-      ctx.quadraticCurveTo(ux, top - R * 0.9, ux + R, top + 12 * s);
-      for (let i = 3; i >= 0; i--)
-        ctx.quadraticCurveTo(ux - R + (i + 0.5) * (R / 2), top + 2 * s, ux - R + i * (R / 2), top + 12 * s);
-      ctx.fill();
-      ctx.fillStyle = '#ffd43b';
-      ctx.beginPath();
-      ctx.moveTo(ux - R / 2, top + 12 * s);
-      ctx.quadraticCurveTo(ux - R * 0.3, top - R * 0.5, ux, top - R * 0.44);
-      ctx.quadraticCurveTo(ux + R * 0.3, top - R * 0.5, ux + R / 2, top + 12 * s);
-      ctx.quadraticCurveTo(ux + R / 4, top + 2 * s, ux, top + 12 * s);
-      ctx.quadraticCurveTo(ux - R / 4, top + 2 * s, ux - R / 2, top + 12 * s);
-      ctx.fill();
-    }
-  }
-  function drawFly(lit) {
-    if (night) {
-      // светлячки: пять огоньков вокруг одной точки
-      if (!lit) return;
-      for (let i = 0; i < 5; i++) {
-        const sp = fly.st === 'sit' ? 15 : 34,
-          x = fly.x + Math.sin(T * 1.3 + i * 2.1) * sp * k,
-          y = fly.y + Math.cos(T * 1.7 + i * 1.4) * sp * 0.6 * k - (fly.st === 'sit' ? 8 * k : 0),
-          a = 0.55 + 0.45 * Math.sin(T * 4 + i * 1.9);
-        const g = ctx.createRadialGradient(x, y, 0, x, y, 12 * k);
-        g.addColorStop(0, `rgba(230,255,120,${0.75 * a})`);
-        g.addColorStop(1, 'rgba(230,255,120,0)');
-        ctx.fillStyle = g;
-        ctx.fillRect(x - 12 * k, y - 12 * k, 24 * k, 24 * k);
-        circle(x, y, 2.2 * k, `rgba(250,255,190,${a})`);
-      }
-      return;
-    }
-    if (lit || rain || snow) return; // в дождь и снег бабочка прячется
-    const fl = fly.st === 'sit' ? Math.abs(Math.sin(T * 3)) * 0.5 + 0.5 : Math.abs(Math.sin(T * 13));
-    ctx.save();
-    ctx.translate(fly.x, fly.y + (fly.st === 'sit' ? 0 : Math.sin(T * 9) * 4 * k));
-    ctx.scale(k * 1.15, k * 1.15);
-    for (const sd of [-1, 1]) {
-      ctx.fillStyle = '#b197fc';
-      ctx.beginPath();
-      ctx.ellipse(sd * 7 * fl, -4, 8 * fl + 1, 8, sd * 0.4, 0, TAU);
-      ctx.fill();
-      ctx.fillStyle = '#ffa8d0';
-      ctx.beginPath();
-      ctx.ellipse(sd * 5 * fl, 5, 5 * fl + 1, 5, -sd * 0.4, 0, TAU);
-      ctx.fill();
-    }
-    ctx.fillStyle = '#5b3a29';
-    ctx.fillRect(-1.2, -8, 2.4, 15);
-    ctx.restore();
-  }
-  function drawWeather() {
-    if (rain) {
-      ctx.strokeStyle = 'rgba(220,235,255,.6)';
-      ctx.lineWidth = 1.4;
-      ctx.beginPath();
-      for (const d of drops) {
-        ctx.moveTo(d.x, d.y);
-        ctx.lineTo(d.x - 3 * d.z, d.y + 15 * d.z);
-      }
-      ctx.stroke();
-    } else if (snow) {
-      ctx.fillStyle = 'rgba(255,255,255,.92)';
-      ctx.beginPath();
-      for (const d of drops) {
-        ctx.moveTo(d.x + 2.6 * d.z, d.y);
-        ctx.arc(d.x, d.y, 2.6 * d.z, 0, TAU);
-      }
-      ctx.fill();
-    } else if (windy) {
-      for (const d of drops) {
-        ctx.save();
-        ctx.translate(d.x, d.y);
-        ctx.rotate(T * 3 + d.ph);
-        ctx.fillStyle = d.c;
-        ctx.beginPath();
-        ctx.ellipse(0, 0, 5.5 * d.z, 2.8 * d.z, 0, 0, TAU);
-        ctx.fill();
-        ctx.restore();
-      }
-    }
-  }
-  function drawNightSky() {
-    for (const s of stars) {
-      ctx.globalAlpha = dk * (0.55 + 0.45 * Math.sin(T * 1.6 + s.ph));
-      circle(s.x, s.y, s.r, '#fff');
-    }
-    ctx.globalAlpha = clamp((dk - 0.3) / 0.4, 0, 1); // луна выходит, когда солнце село
-    if (!rain && !snow) {
-      const mx = F.x + F.w * 0.66,
-        my = F.y + 38 * k;
-      const g = ctx.createRadialGradient(mx, my, 4, mx, my, 90 * k);
-      g.addColorStop(0, 'rgba(230,235,255,.5)');
-      g.addColorStop(1, 'rgba(230,235,255,0)');
-      ctx.fillStyle = g;
-      ctx.fillRect(mx - 95 * k, my - 95 * k, 190 * k, 190 * k);
-      circle(mx, my, 24 * k, '#fdf6d8');
-      circle(mx - 8 * k, my - 5 * k, 5 * k, '#eee3b5');
-      circle(mx + 7 * k, my + 8 * k, 3.5 * k, '#eee3b5');
-      // лунная дорожка
-      ctx.fillStyle = 'rgba(253,246,216,.28)';
-      for (let i = 0; i < 6; i++) {
-        const y = lerp(hy + 6 * k, sy - 16 * k, i / 6),
-          w = lerp(14, 60, i / 6) * k * (0.8 + 0.2 * Math.sin(T * 2 + i));
-        ctx.fillRect(mx - w / 2, y, w, 3 * k);
-      }
-    }
-    ctx.globalAlpha = 1;
-    // падающая звезда
-    const q = (T - star.t) / 1.3;
-    if (q >= 0 && q < 1) {
-      const x = star.x + lerp(-140, 140, q) * k,
-        y = star.y + lerp(-50, 50, q) * k;
-      const g = ctx.createLinearGradient(x - 80 * k, y - 28 * k, x, y);
-      g.addColorStop(0, 'rgba(255,255,255,0)');
-      g.addColorStop(1, 'rgba(255,255,255,.95)');
-      ctx.strokeStyle = g;
-      ctx.lineWidth = 3 * k;
-      ctx.lineCap = 'round';
-      ctx.beginPath();
-      ctx.moveTo(x - 80 * k, y - 28 * k);
-      ctx.lineTo(x, y);
-      ctx.stroke();
-      circle(x, y, 4 * k, '#fffbe0');
-    }
-    if (q >= 0.3 && q < 3.6) label(star.x, star.y + 70 * k, '🌠 Загадай желание!', 19 * Math.max(k, 0.75), clamp((3.6 - q) * 2, 0, 1) * clamp((q - 0.3) * 4, 0, 1)); // prettier-ignore
-  }
-
+  const { paintBg, label, drawSea, drawFish, drawShip, drawCloud, drawPalm, drawNut, drawCrab, drawGull, drawShell, drawSnowman, drawKite, drawStrokes, drawHam, drawFly, drawWeather, drawNightSky } = createTitleArt(S);
   function frame(now) {
     if (dead) return;
     raf = requestAnimationFrame(frame);
