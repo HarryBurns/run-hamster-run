@@ -19,7 +19,8 @@ import * as topdown from './engine/topdown/index.js';
 import { PLANTS, hasFruit, plantInSeason, gather } from './locations/common/plants.js';
 import * as Tower from './interiors/tower.js';
 import { debugDecor, debugFireworks } from './locations/holidays.js';
-import { debugLandDecor, debugRoomDecor } from './locations/holidays_lands.js';
+import { debugLandDecor } from './locations/holidays_lands.js';
+import { debugRoomDecor } from './interiors/holidays_rooms.js';
 import { viewFireworks } from './interiors/tower_view.js';
 import { HOLIDAY_BY_ID, holidayDoy, YEAR_DAYS, SEASON_OF_MONTH, SLEEP_FROM } from './data/index.js';
 

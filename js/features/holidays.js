@@ -23,7 +23,6 @@ import { G, cal, hasClothes, houseItems, ownedHomes } from '../core/state.js';
 import { el, esc, fmtMoney, pick } from '../core/util.js';
 import {
   HOLIDAYS,
-  HOLIDAY_BY_ID,
   HOLIDAY,
   MONTHS,
   NPC_BY_ID,
@@ -50,7 +49,13 @@ import { talkHooks } from './friends.js';
 import { doorHooks } from './visits.js';
 import { setExtraTarget, setJournalTop, trackQuest } from './quests.js';
 import { openMap, routeText } from './map.js';
-import '../locations/holidays_lands.js'; // этап 15 (Пр2): украшения в других местах и в домах
+import '../locations/holidays_lands.js'; // этап 15 (Пр2): украшения в других местах
+import { setupRoomDecor } from '../interiors/holidays_rooms.js';
+import { decorNow } from '../locations/holidays.js';
+import { paintString } from '../locations/holidays_art.js';
+
+// украшения в домах (interiors/holidays_rooms.js): когда украшено и как рисуется гирлянда — отсюда, из мест
+setupRoomDecor({ decorNow, paintString });
 
 const S = () => G.state;
 const HF = () => (S() && S().dayFlags.holiday) || {};
