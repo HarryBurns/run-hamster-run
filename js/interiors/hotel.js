@@ -266,7 +266,7 @@ function drawSlide(ctx) {
   ctx.lineCap = 'butt';
 }
 
-/** Терраса: шезлонги, сцена аниматора, доска с расписанием (неподвижное — из кэша). */
+/** Терраса: шезлонги, сцена аниматора (неподвижное — из кэша). */
 function drawTerrace(ctx) {
   const y = -552;
   lounger(ctx, HX.loungers[0], y, '#ff8fab');
@@ -291,8 +291,11 @@ function drawTerrace(ctx) {
     ell(ctx, sx + dx, y - 60, 9, 9, '#868e96', OUT, 1.5);
     ell(ctx, sx + dx, y - 32, 6, 6, '#868e96', OUT, 1.5);
   }
-  // доска с расписанием
-  const bx = HX.board;
+}
+/** Доска с расписанием (неподвижная — из кэша): поверх лучей диско-шара (Н2), поэтому отдельно от террасы. */
+function drawBoard(ctx) {
+  const y = -552,
+    bx = HX.board;
   line(ctx, bx, y - 4, bx, y - 90, OUT, 4);
   fillRR(ctx, bx - 44, y - 180, 88, 96, 8, '#fff9db', OUT, 2);
   label(ctx, 'Аниматор', bx, y - 164, 12, '#e64980');
@@ -413,6 +416,7 @@ export default {
       if (on(2, 1250, W)) {
         sc.still('terrace', [1280, -752, 1950, -546], drawTerrace);
         drawDisco(ctx, t);
+        sc.still('board', [1850, -738, 1950, -548], drawBoard); // доска — поверх лучей (Н2)
       }
     },
     mid(ctx, sc) {
