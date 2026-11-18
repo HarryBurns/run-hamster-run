@@ -1,6 +1,7 @@
 // Состояние игры: что лежит в сохранении, как оно читается, чинится и переносится между версиями; календарь.
 // Здесь состояние только создаётся, читается и сохраняется. МЕНЯТЬ его во время игры можно только через
 // функции из core/actions.js — так все деньги, предметы и наклейки проходят через одно место.
+import { emit } from './events.js';
 import {
   START_MONEY,
   MIGRATED_MONEY,
@@ -233,18 +234,41 @@ export function touch() {
   dirty = true;
   stamp++;
 }
+// Запись не удалась (хранилище переполнено снимками и играми или недоступно): изменения не теряем — dirty остаётся,
+// и запись повторяется, но не чаще раза в RETRY_MS (а не в каждом кадре).
+const RETRY_MS = 5000;
+let failedAt = 0,
+  failing = false;
 /** Записать сохранение, если с прошлой записи что-то изменилось. Цикл игры зовёт это раз в кадр. */
 export function flush() {
-  if (dirty) save();
+  if (dirty && (!failing || performance.now() - failedAt > RETRY_MS)) save();
 }
-/** Записать сохранение прямо сейчас. */
+/** Хранилище переполнено (а не просто недоступно)? Имена и коды ошибки — у разных браузеров свои. */
+const isQuota = (e) =>
+  !!e && (e.name === 'QuotaExceededError' || e.name === 'NS_ERROR_DOM_QUOTA_REACHED' || e.code === 22 || e.code === 1014);
+/**
+ * Записать сохранение прямо сейчас. Возвращает true, если записалось. Первая неудача после удачной записи
+ * сообщает событием saveFail { quota } — игра показывает об этом окно (main.js).
+ */
 export function save() {
-  dirty = false;
-  if (!G.state) return;
+  if (!G.state) {
+    dirty = false;
+    return true;
+  }
   try {
     localStorage.setItem(KEY, JSON.stringify(G.state));
+    dirty = false;
+    failing = false;
+    return true;
   } catch (e) {
-    /* хранилище недоступно */
+    dirty = true;
+    failedAt = performance.now();
+    if (!failing) {
+      failing = true;
+      console.warn('Сохранение не записано:', e);
+      emit('saveFail', { quota: isQuota(e) });
+    }
+    return false;
   }
 }
 /** Почему не удалась последняя load(): 'broken' — сохранение не прочитать, 'newer' — оно от более новой версии игры. */

@@ -61,12 +61,15 @@ module.exports = async function core({ page, step, ev, wait, closeAll }) {
       return true;
     });
     expect(got, 'не получилось добавить пробные части');
-    await page.keyboard.press('KeyE');
-    await wait(600);
-    const r = await ev(() => {
-      window.__nearOn = false;
-      return window.__nearTest.join();
-    });
+    // окно из очереди (письмо, сосед) может появиться в любой момент и перехватить E — тогда закрыть и ещё раз
+    let r = '';
+    for (let i = 0; i < 4 && !r; i++) {
+      await closeAll();
+      await page.keyboard.press('KeyE');
+      await wait(600);
+      r = await ev(() => window.__nearTest.join());
+    }
+    await ev(() => (window.__nearOn = false));
     expect(r === 'ближняя', 'E выбрала не ближайшую часть', r);
     await closeAll();
   });
@@ -168,4 +171,45 @@ module.exports = async function core({ page, step, ev, wait, closeAll }) {
     },
     { expectErrors: 'проба' },
   );
+
+  await step('основа: хранилище переполнено — окно для взрослых один раз, изменения не теряются и записываются потом', async () => {
+    await fresh();
+    // забиваем хранилище до отказа (как снимками в альбоме)
+    const n = await ev(() => {
+      let n = 0;
+      for (let size = 1 << 20; size >= 1; size >>= 1) {
+        const chunk = 'ж'.repeat(size);
+        for (;;)
+          try {
+            localStorage.setItem('__fill' + n, chunk);
+            n++;
+          } catch (e) {
+            break;
+          }
+      }
+      return n;
+    });
+    expect(n > 0, 'не получилось забить хранилище');
+    const saved = () => ev(() => JSON.parse(localStorage.getItem('rhr-save-v1')).money);
+    const before = await saved();
+    await ev(() => window.__dev.actions.mutate((s) => (s.money += 1000000)));
+    await wait(1200);
+    expect((await saved()) === before, 'сохранение записалось в переполненное хранилище (проверка не годится)');
+    const t = await panelTitles();
+    expect(/не может сохраниться/.test(t), 'нет окна «Игра не может сохраниться»', t);
+    const body = await ev(() => document.querySelector('.overlay .panel-body').textContent);
+    expect(/фото/.test(body) && /игры/.test(body), 'в окне не сказано, что удалить', body);
+    await closeAll();
+    // ещё изменение — второго окна за сеанс нет (+1 к 1 003 000 — длина та же, но запись и так в отказе)
+    await ev(() => window.__dev.actions.mutate((s) => (s.money += 1)));
+    await wait(1200);
+    expect(!/не может сохраниться/.test(await panelTitles()), 'окно о сохранении показалось второй раз');
+    // место освободили — игра сама дописывает сохранение (повтор не чаще раза в 5 с)
+    await ev(() => {
+      for (const k of Object.keys(localStorage)) if (k.startsWith('__fill')) localStorage.removeItem(k);
+    });
+    await wait(5800);
+    const r = { mem: await ev(() => window.__dev.G.state.money), saved: await saved() };
+    expect(r.mem === r.saved && r.saved === before + 1000001, 'после освобождения места сохранение не записалось', r);
+  });
 };

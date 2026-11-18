@@ -16,7 +16,9 @@ import {
 import { esc, fmtMoney } from './core/util.js';
 import { START_MONEY, FLIPFLOPS_GIFT } from './data/index.js';
 import { unlockAudio } from './core/audio.js';
+import { on } from './core/events.js';
 import { message } from './ui/panel.js';
+import { enqueue } from './ui/modals.js';
 import { toast } from './ui/toast.js';
 import { initHud, buildHud, updateHud } from './ui/hud.js';
 import { installItemIcons } from './ui/itemicons.js';
@@ -116,6 +118,25 @@ function showBroken() {
     });
   });
 }
+
+// Сохранение не записалось (core/state.js, save): игра идёт дальше и повторяет запись сама, а взрослому один раз
+// за сеанс объясняем, что делать. Окно — из очереди, чтобы не лечь поверх диалога или мини-игры.
+let saveWarned = false;
+on('saveFail', ({ quota }) => {
+  if (saveWarned) return;
+  saveWarned = true;
+  const why = quota
+    ? 'Места для сохранений мало: удалите старые фото в альбоме 📖 или ненужные игры на заставке («Мои игры»).'
+    : 'Браузер не даёт игре хранить сохранения: может быть, открыт режим «инкогнито» или запрещено хранить данные сайтов.';
+  enqueue(() =>
+    message({
+      title: 'Игра не может сохраниться',
+      icon: '💾',
+      html: `<p class="center big-emoji">💾</p><p><b>Для взрослых.</b> ${why}</p><p>Пока страница открыта, играть можно — игра сама попробует сохраниться ещё раз.</p>`,
+      buttons: [{ text: 'Понятно' }],
+    }),
+  );
+});
 
 // ---------- начало игры (заставка — features/title.js) ----------
 function startGame(fresh) {

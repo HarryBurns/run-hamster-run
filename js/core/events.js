@@ -15,6 +15,7 @@ export const EVENTS = {
   sticker: 'получена наклейка { id, isNew, delay, quiet }',
   scene: 'сменилась сцена { name, from }',
   step: 'шаг логики, мир не на паузе { dt }',
+  saveFail: 'сохранение не записалось { quota } — quota: хранилище переполнено (core/state.js, save)',
   // --- дом ---
   guests: 'изменился список гостей',
   guestHappy: 'гостя угостили { id }',
