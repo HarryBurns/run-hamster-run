@@ -70,8 +70,16 @@ function lib(ctx) {
       title || '',
       { timeout, msg: 'окно ' + (title || '') },
     );
-  const untilDialog = (timeout) =>
-    until(() => !!document.querySelector('.dialog .btn'), undefined, { timeout, msg: 'диалог' });
+  /** Открыт диалог с кнопками; ждёт ещё TAP_GUARD (350 мс): раньше кнопки диалога нажатия не принимают (ui/dialog.js). */
+  const untilDialog = async (timeout) => {
+    await until(() => !!document.querySelector('.dialog .btn'), undefined, { timeout, msg: 'диалог' });
+    await wait(380);
+  };
+  /** Ответить в диалоге кнопкой с этим текстом (дождавшись, пока диалог примет нажатие). */
+  const answer = async (txt, timeout) => {
+    await untilDialog(timeout);
+    await page.click(`.dialog .btn:has-text("${txt}")`);
+  };
   const untilNoWindows = (timeout) =>
     until(() => !document.querySelector('.overlay, .dialog, #mg, .fade'), undefined, { timeout, msg: 'все окна закрыты' });
   /** Хомячок в локации дошёл, куда шла (путь пуст, отложенного дела нет). */
@@ -284,6 +292,7 @@ function lib(ctx) {
     untilScene,
     untilPanel,
     untilDialog,
+    answer,
     untilNoWindows,
     untilIdle,
     act,
