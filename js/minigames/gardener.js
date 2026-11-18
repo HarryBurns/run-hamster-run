@@ -52,13 +52,13 @@ export default {
   start(host) {
     const root = host.root;
     const level = host.level || 0;
-    const style = el('style', '', CSS);
     const top = el('div', 'gd-top');
     const tStage = el('div', 'gd-chip'),
       tSay = el('div', 'gd-chip');
     top.append(tStage, tSay);
     const pal = el('div', 'gd-pal hide');
-    root.append(style, top, pal);
+    host.css(CSS);
+    root.append(top, pal);
     root.style.background = '#b2f2bb';
     const cv = host.canvas();
     cv.canvas.classList.add('gd-canvas');
@@ -66,9 +66,6 @@ export default {
     const me = { ...host.look, outfit: { ...(host.look.outfit || {}), head: (host.look.outfit && host.look.outfit.head) || CLOTHES_BY_ID.panama_green || null } };
 
     let t = 0,
-      last = performance.now(),
-      raf = 0,
-      stopped = false,
       over = false,
       stage = 0,
       hints = 0,
@@ -158,8 +155,7 @@ export default {
       over = true;
       pal.classList.add('hide');
       say('Парк — как картинка! 🌳');
-      setTimeout(() => {
-        if (stopped) return;
+      host.later(() => {
         const stars = hints <= STARS[0] ? 3 : hints <= STARS[1] ? 2 : 1;
         host.finish({
           stars,
@@ -213,7 +209,7 @@ export default {
         host.sfx('pop');
         if (bush.every((r) => r.every((b) => b.keep || b.cut))) {
           say('Точь-в-точь как на карточке! ✨');
-          setTimeout(() => !stopped && nextStage(), 700);
+          host.later(() => nextStage(), 700);
           stageAt = t + 5; // пока не перешли — нажатия не считаем
         }
       } else if (st === 'plant') {
@@ -236,7 +232,7 @@ export default {
         if (bed.every((r) => r.every((q) => q.got !== null))) {
           say('Клумба — как на схеме! 🌷');
           stageAt = t + 5;
-          setTimeout(() => !stopped && nextStage(), 700);
+          host.later(() => nextStage(), 700);
         }
       }
     }
@@ -258,9 +254,9 @@ export default {
       tap(p.x, p.y, true);
     };
     const up = () => (pressed = false);
-    cv.canvas.addEventListener('pointerdown', down);
-    cv.canvas.addEventListener('pointermove', move);
-    window.addEventListener('pointerup', up);
+    host.on(cv.canvas, 'pointerdown', down);
+    host.on(cv.canvas, 'pointermove', move);
+    host.on(window, 'pointerup', up);
 
     // ---------- ход времени ----------
     function update(dt) {
@@ -275,7 +271,7 @@ export default {
         say(left ? `Ещё ${left} 💧` : 'Все цветы напились! 🌼');
         if (!left) {
           stageAt = t + 5;
-          setTimeout(() => !stopped && nextStage(), 700);
+          host.later(() => nextStage(), 700);
         }
       }
       for (let i = fx.length - 1; i >= 0; i--) {
@@ -411,10 +407,7 @@ export default {
       }
       ctx.globalAlpha = 1;
     }
-    const frame = (ts) => {
-      if (stopped) return;
-      const dt = Math.min(0.05, (ts - last) / 1000);
-      last = ts;
+    host.loop((dt) => {
       update(dt);
       const palH = pal.classList.contains('hide') ? 0 : pal.getBoundingClientRect().height;
       const k = Math.min(cv.w / W, (cv.h - palH) / H);
@@ -433,9 +426,7 @@ export default {
       drawFx();
       // садовник — хомячок в уголке
       host.drawHamster(ctx, 34, 282, 0.7, me, { time: t, blink: t % 3.2 < 0.13, dir: 1, happy: over, armsUp: over });
-      raf = requestAnimationFrame(frame);
-    };
-    raf = requestAnimationFrame(frame);
+    });
     updTop();
     say(`Поникших цветов: ${plants.filter((p) => p.dry).length} 💧`);
 
@@ -466,15 +457,5 @@ export default {
       buildPalette();
     };
 
-    return {
-      stop() {
-        stopped = true;
-        cancelAnimationFrame(raf);
-        cv.canvas.removeEventListener('pointerdown', down);
-        cv.canvas.removeEventListener('pointermove', move);
-        window.removeEventListener('pointerup', up);
-        cv.destroy();
-      },
-    };
   },
 };
