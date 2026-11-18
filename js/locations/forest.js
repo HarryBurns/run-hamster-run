@@ -207,21 +207,10 @@ function build(m) {
   // 2. тропы
   const path = new Set();
   for (const { r, pts } of PATHS)
-    for (let i = 1; i < pts.length; i++) {
-      const [ax, ay] = pts[i - 1],
-        [bx, by] = pts[i],
-        n = Math.ceil(Math.hypot(bx - ax, by - ay) * 4);
-      for (let k = 0; k <= n; k++) {
-        const px = ax + ((bx - ax) * k) / n,
-          py = ay + ((by - ay) * k) / n;
-        for (let y = Math.floor(py - 1); y <= py + 1; y++)
-          for (let x = Math.floor(px - 1); x <= px + 1; x++)
-            if (x >= 0 && y >= 0 && x < W && y < H && Math.hypot(x + 0.5 - px, y + 0.5 - py) <= r) {
-              m.set(x, y, 'y');
-              path.add(x + ',' + y);
-            }
-      }
-    }
+    m.stroke(pts, r, (x, y) => {
+      m.set(x, y, 'y');
+      path.add(x + ',' + y);
+    });
   // 3. ручей с мостиком
   const brook = new Set();
   for (let y = 0; y < H; y++) {
@@ -264,23 +253,19 @@ function build(m) {
       else if (d < 0.28 && !floor) m.add('flowers', x, y, { v: Math.floor(rnd() * 3) });
     }
   // 5. особые предметы — на место того, что выросло (m.clear)
-  const put1 = (type, x, y, o) => {
-    m.clear(x, y);
-    m.add(type, x, y, o);
-  };
-  for (const [type, x, y] of FRUIT) put1(type, x, y, { v: (x + y) % 2 });
+  for (const [type, x, y] of FRUIT) m.put1(type, x, y, { v: (x + y) % 2 });
   for (const [x, y] of [...CONES, ...TWIGS]) m.clear(x, y); // там лежат находки — клетка свободна
-  put1('campfire', ...AT.fire, { burning: fireBurning });
-  put1('log', AT.fire[0] - 2, AT.fire[1]);
-  put1('log', AT.fire[0] + 2, AT.fire[1]);
-  put1('stump', AT.fire[0], AT.fire[1] - 2);
-  put1('hive', ...AT.hive, { busy: beesBusy });
+  m.put1('campfire', ...AT.fire, { burning: fireBurning });
+  m.put1('log', AT.fire[0] - 2, AT.fire[1]);
+  m.put1('log', AT.fire[0] + 2, AT.fire[1]);
+  m.put1('stump', AT.fire[0], AT.fire[1] - 2);
+  m.put1('hive', ...AT.hive, { busy: beesBusy });
   for (const x of [AT.oak[0], AT.oak[0] + 1]) m.clear(x, AT.oak[1]);
   m.add('squirrelOak', ...AT.oak);
   for (const x of [AT.treehouse[0], AT.treehouse[0] + 1]) m.clear(x, AT.treehouse[1]);
   m.add('treehouse', ...AT.treehouse);
   // указатель у ворот
-  put1('signpost', 12, 36, { text: '🏙️ Город', text2: '🔥 Костёр' });
+  m.put1('signpost', 12, 36, { text: '🏙️ Город', text2: '🔥 Костёр' });
   // перед зданиями — свободно (там двери)
   for (const b of [AT.hut, AT.station, AT.cabin])
     for (let x = b.x - 1; x <= b.x + b.w; x++) for (let y = b.y; y <= b.y + b.h + 1; y++) m.clear(x, y);
@@ -296,28 +281,6 @@ function build(m) {
     m.add('flowers', x, y, { v });
 }
 
-/** Клетки, до которых от ворот не дойти пешком, — закрыть (чтобы туда не попасть и ничего там не потерять). */
-function sealPockets(m) {
-  const seen = new Uint8Array(W * H),
-    q = [[10, 38]];
-  seen[38 * W + 10] = 1;
-  while (q.length) {
-    const [x, y] = q.pop();
-    for (const [dx, dy] of [
-      [1, 0],
-      [-1, 0],
-      [0, 1],
-      [0, -1],
-    ]) {
-      const nx = x + dx,
-        ny = y + dy;
-      if (nx < 0 || ny < 0 || nx >= W || ny >= H || seen[ny * W + nx] || !m.foot(nx, ny)) continue;
-      seen[ny * W + nx] = 1;
-      q.push([nx, ny]);
-    }
-  }
-  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (!seen[y * W + x] && m.foot(x, y)) m.block(x, y);
-}
 
 /** Находки дня: шишки — всегда, еловые веточки — зимой. Утром появляются снова (движок, dayFlags.finds). */
 function dailyPickups(sc) {
@@ -502,7 +465,8 @@ const forest = createTopDownScene({
     }
   },
   built(sc) {
-    sealPockets(sc.map);
+    // клетки, до которых от ворот не дойти пешком, — закрыть (туда не попасть и ничего там не потерять)
+    sc.map.sealFrom([[10, 38]]);
   },
   enter(sc) {
     dailyPickups(sc);

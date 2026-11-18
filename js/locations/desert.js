@@ -22,7 +22,7 @@ import { keys } from '../core/input.js';
 import { clamp, seeded } from '../core/util.js';
 import { drawHamster, blinkAt } from '../art/hamster.js';
 import { DESERT, DESERT_GATHER, QUEST_BY_ID, CLOTHES_BY_ID, isSunHat } from '../data/index.js';
-import { T, PS, SP, put, hash, createTopDownScene } from '../engine/topdown/index.js';
+import { T, PS, SP, put, hash, createTopDownScene, inEll } from '../engine/topdown/index.js';
 import { createPlants } from './common/plants.js';
 import './desert_art.js';
 import './common/index.js';
@@ -113,7 +113,6 @@ const bellOn = () => {
 };
 
 // ---------- карта ----------
-const inEll = (x, y, e, k = 1) => ((x + 0.5 - e[0]) / e[2]) ** 2 + ((y + 0.5 - e[1]) / e[3]) ** 2 < k;
 // гребни барханов: серп — эллипс с «выкушенным» с подветренной стороны боком [cx, cy, rx, ry, dx, dy]
 const DUNES = [
   [21, 4.6, 6, 2.6, 0, 1.6], // Звёздный бархан
@@ -162,19 +161,7 @@ function build(m) {
     if (c !== 'oasisWater' && c !== 'digPit') m.set(x, y, 'trail');
     path.add(x + ',' + y);
   };
-  for (const { r, pts } of PATHS)
-    for (let i = 1; i < pts.length; i++) {
-      const [ax, ay] = pts[i - 1],
-        [bx, by] = pts[i],
-        n = Math.ceil(Math.hypot(bx - ax, by - ay) * 4);
-      for (let k = 0; k <= n; k++) {
-        const px = ax + ((bx - ax) * k) / n,
-          py = ay + ((by - ay) * k) / n;
-        for (let y = Math.floor(py - 1); y <= py + 1; y++)
-          for (let x = Math.floor(px - 1); x <= px + 1; x++)
-            if (Math.hypot(x + 0.5 - px, y + 0.5 - py) <= r) mark(x, y);
-      }
-    }
+  for (const { r, pts } of PATHS) m.stroke(pts, r, mark);
   const [rcx, rcy, rrx, rry] = AT.ring;
   for (let a = 0; a < Math.PI * 2; a += 0.05) {
     const px = rcx + Math.cos(a) * rrx,
@@ -203,10 +190,6 @@ function build(m) {
       else if (r < 0.1) m.add('dryBush', x, y, { v: v % 2 });
     }
   // 5. особые предметы — на место того, что выросло (m.clear)
-  const put1 = (type, x, y, o) => {
-    m.clear(x, y);
-    m.add(type, x, y, o);
-  };
   // пальмы вокруг оазиса (по краю травы)
   for (const [x, y] of [
     [12, 18],
@@ -217,70 +200,48 @@ function build(m) {
     [14, 23],
     [20, 23],
   ])
-    put1('palm', x, y);
+    m.put1('palm', x, y);
   // кактусы-опунции с плодами (сбор — common/plants.js) и кактусы-столбики рядом
-  for (const [x, y] of AT.cacti) put1('pricklyPear', x, y);
+  for (const [x, y] of AT.cacti) m.put1('pricklyPear', x, y);
   for (const [x, y, v] of [
     [4, 24, 0],
     [9, 22, 1],
     [7, 20, 2],
     [3, 21, 1],
   ])
-    put1('saguaro', x, y, { v });
+    m.put1('saguaro', x, y, { v });
   // пирамида: обелиски по бокам входа
-  put1('obelisk', 5, 9);
-  put1('obelisk', 12, 9);
+  m.put1('obelisk', 5, 9);
+  m.put1('obelisk', 12, 9);
   // раскоп: верёвочная ограда (вход снизу посередине), инструменты
   const [dx0, dy0, dx1, dy1] = AT.dig;
   for (let x = dx0 - 1; x <= dx1 + 1; x++) {
-    put1('fenceH', x, dy0 - 1, { v: 1 });
-    if (x !== 34) put1('fenceH', x, dy1 + 1, { v: 1 });
+    m.put1('fenceH', x, dy0 - 1, { v: 1 });
+    if (x !== 34) m.put1('fenceH', x, dy1 + 1, { v: 1 });
     else m.clear(x, dy1 + 1);
   }
   for (let y = dy0; y <= dy1; y++) {
-    put1('fenceV', dx0 - 1, y, { v: 1 });
-    put1('fenceV', dx1 + 1, y, { v: 1 });
+    m.put1('fenceV', dx0 - 1, y, { v: 1 });
+    m.put1('fenceV', dx1 + 1, y, { v: 1 });
   }
-  put1('digTools', dx1, dy0);
+  m.put1('digTools', dx1, dy0);
   // верблюд у привязи (пока на нём катаются — у привязи пусто: рисует способ передвижения героя)
-  put1('camel', ...AT.camel, { away: () => riding });
+  m.put1('camel', ...AT.camel, { away: () => riding });
   // колодец; фонарь-звезда на Звёздном бархане; автобус у остановки
-  put1('well', ...AT.well);
+  m.put1('well', ...AT.well);
   m.clear(...AT.bell);
-  put1('starPost', ...AT.stars);
-  put1('safariBus', 24, 35);
+  m.put1('starPost', ...AT.stars);
+  m.put1('safariBus', 24, 35);
   for (const x of [25, 26]) m.clear(x, 35);
   // указатели
-  put1('signpost', 23, 29, { text: '🌴 Оазис', text2: '🪣 Колодец' });
-  put1('signpost', 20, 13, { text: '🌠 Бархан', text2: '🔺 Пирамида' });
-  put1('signpost', 30, 12, { text: '🦴 Раскопки' });
+  m.put1('signpost', 23, 29, { text: '🌴 Оазис', text2: '🪣 Колодец' });
+  m.put1('signpost', 20, 13, { text: '🌠 Бархан', text2: '🔺 Пирамида' });
+  m.put1('signpost', 30, 12, { text: '🦴 Раскопки' });
   // перед зданиями — свободно (там двери)
   for (const b of [AT.stop, AT.tent, AT.pyramid])
     for (let x = b.x - 1; x <= b.x + b.w; x++) for (let y = b.y; y <= b.y + b.h + 1; y++) if (m.at(x, y) !== 'oasisWater') m.clear(x, y);
 }
 
-/** Клетки, до которых от остановки не дойти пешком, — закрыть. */
-function sealPockets(m) {
-  const seen = new Uint8Array(W * H),
-    q = [[21, 37]];
-  seen[37 * W + 21] = 1;
-  while (q.length) {
-    const [x, y] = q.pop();
-    for (const [dx, dy] of [
-      [1, 0],
-      [-1, 0],
-      [0, 1],
-      [0, -1],
-    ]) {
-      const nx = x + dx,
-        ny = y + dy;
-      if (nx < 0 || ny < 0 || nx >= W || ny >= H || seen[ny * W + nx] || !m.foot(nx, ny)) continue;
-      seen[ny * W + nx] = 1;
-      q.push([nx, ny]);
-    }
-  }
-  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (!seen[y * W + x] && m.foot(x, y)) m.block(x, y);
-}
 
 // ---------- катание на верблюде: хомячок верхом на Финике, круг по верблюжьей тропе ----------
 let riding = false,
@@ -638,7 +599,8 @@ const desert = createTopDownScene({
   zones: { dunes: { tiles: ['dune', 'trail'], reach: { from: [21, 37] } } },
   parts: [plants],
   built(sc) {
-    sealPockets(sc.map);
+    // клетки, до которых от остановки не дойти пешком, — закрыть
+    sc.map.sealFrom([[21, 37]]);
     palms = sc.map.objs.filter((o) => o.type === 'palm').map((o) => [o.x, o.y]);
   },
   enter(sc) {

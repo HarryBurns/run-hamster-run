@@ -155,8 +155,7 @@ function build(m) {
   keepAround(28, 19, 1);
   keepAround(AT.hole[0], AT.hole[1]);
   const put1 = (type, x, y, o) => {
-    m.clear(x, y);
-    m.add(type, x, y, o);
+    m.put1(type, x, y, o);
     keep.add(x + ',' + y);
   };
   put1('crystals', AT.vein[0] - 1, AT.vein[1] + 1, { v: 0 });
@@ -206,28 +205,6 @@ function build(m) {
     }
 }
 
-/** Клетки, до которых от выхода не дойти пешком, — закрыть. */
-function sealPockets(m) {
-  const seen = new Uint8Array(W * H),
-    q = [[17, 28]];
-  seen[28 * W + 17] = 1;
-  while (q.length) {
-    const [x, y] = q.pop();
-    for (const [dx, dy] of [
-      [1, 0],
-      [-1, 0],
-      [0, 1],
-      [0, -1],
-    ]) {
-      const nx = x + dx,
-        ny = y + dy;
-      if (nx < 0 || ny < 0 || nx >= W || ny >= H || seen[ny * W + nx] || !m.foot(nx, ny)) continue;
-      seen[ny * W + nx] = 1;
-      q.push([nx, ny]);
-    }
-  }
-  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (!seen[y * W + x] && m.foot(x, y)) m.block(x, y);
-}
 
 // ---------- летучие мыши: висят под сводом галереи, вспархивают, когда подходишь ----------
 let bats = [];
@@ -381,7 +358,8 @@ const caves = createTopDownScene({
   entries: { gate: { at: [17.5, 27.6] }, ladder: { at: [AT.hole[0] - 0.5, AT.hole[1] + 0.6] } },
   exits: [{ id: 'mountain', area: AT.exit, to: 'mountain', entry: 'caves' }],
   built(sc) {
-    sealPockets(sc.map);
+    // клетки, до которых от выхода не дойти пешком, — закрыть
+    sc.map.sealFrom([[17, 28]]);
     placeBats(sc.map);
   },
   enter() {

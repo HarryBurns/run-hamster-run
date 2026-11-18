@@ -27,7 +27,7 @@ import { clamp, seeded } from '../core/util.js';
 import { ell } from '../core/draw.js';
 import { drawHamster } from '../art/hamster.js';
 import { ISLAND, LEI_IDS, FIND_BY_ID, pickOn, resolveLook } from '../data/index.js';
-import { T, PS, SP, put, hash, defineArt, createTopDownScene } from '../engine/topdown/index.js';
+import { T, PS, SP, put, hash, defineArt, createTopDownScene, inEll } from '../engine/topdown/index.js';
 import './island_art.js';
 import './cove_art.js'; // бирюзовая вода лагуны (clag, cdeep) — как в бухте секретного пляжа
 import './common/index.js';
@@ -151,22 +151,6 @@ const CALM = [
 const calm = (x, y) => CALM.some(([x0, y0, x1, y1]) => x >= x0 && x <= x1 && y >= y0 && y <= y1);
 /** Где начинается пляж в столбце x. */
 export const sandY = (x) => 28 + Math.round(Math.sin(x * 0.5) * 0.7);
-const inEll = (x, y, e) => ((x + 0.5 - e[0]) / e[2]) ** 2 + ((y + 0.5 - e[1]) / e[3]) ** 2 < 1;
-
-function stroke(pts, r, fn) {
-  for (let i = 1; i < pts.length; i++) {
-    const [ax, ay] = pts[i - 1],
-      [bx, by] = pts[i],
-      n = Math.ceil(Math.hypot(bx - ax, by - ay) * 4);
-    for (let k = 0; k <= n; k++) {
-      const px = ax + ((bx - ax) * k) / n,
-        py = ay + ((by - ay) * k) / n;
-      for (let y = Math.floor(py - r - 1); y <= py + r + 1; y++)
-        for (let x = Math.floor(px - r - 1); x <= px + r + 1; x++)
-          if (x >= 0 && y >= 0 && x < W && y < H && Math.hypot(x + 0.5 - px, y + 0.5 - py) <= r) fn(x, y);
-    }
-  }
-}
 
 function build(m) {
   const rnd = seeded(7741);
@@ -189,7 +173,7 @@ function build(m) {
   for (let y = ly0; y <= ly1; y++) for (let x = lx0; x <= lx1; x++) m.set(x, y, 'ilane');
   const path = new Set();
   for (const { r, pts } of PATHS)
-    stroke(pts, r, (x, y) => {
+    m.stroke(pts, r, (x, y) => {
       const c = m.at(x, y);
       if (!['s', 'h', 'O', 'iplaza', 'ilane'].includes(c)) m.set(x, y, 'itrail');
       path.add(x + ',' + y);
@@ -254,57 +238,31 @@ function build(m) {
   // концы пляжа — камни (по краю карты не пройти)
   for (const x of [0, 1, W - 2, W - 1]) for (let y = sandY(x) - 1; y < H; y++) if (['s', 'h'].includes(m.at(x, y))) m.add('mossRock', x, y, { v: (x + y) % 2 });
   // 4. особые предметы — на место того, что выросло (m.clear)
-  const put1 = (type, x, y, o) => {
-    m.clear(x, y);
-    m.add(type, x, y, o);
-  };
   for (let dy = -2; dy <= 0; dy++) for (let dx = -4; dx <= 4; dx++) m.clear(AT.volcano[0] + dx, AT.volcano[1] + dy);
-  put1('bigVolcano', ...AT.volcano);
-  put1('obsidian', ...AT.obsidian, { waits: obsidianWaits });
-  put1('campfire', ...AT.fire, { burning: fireBurning });
-  put1('drum', ...AT.drum);
-  for (const [x, y] of AT.torches) put1('tikiTorch', x, y);
-  for (const [x, y, v] of AT.totems) put1('totem', x, y, { v });
-  put1('pins', ...AT.pins);
+  m.put1('bigVolcano', ...AT.volcano);
+  m.put1('obsidian', ...AT.obsidian, { waits: obsidianWaits });
+  m.put1('campfire', ...AT.fire, { burning: fireBurning });
+  m.put1('drum', ...AT.drum);
+  for (const [x, y] of AT.torches) m.put1('tikiTorch', x, y);
+  for (const [x, y, v] of AT.totems) m.put1('totem', x, y, { v });
+  m.put1('pins', ...AT.pins);
   // цветущие кусты рядом с местами, где распускаются цветы для леи
   FLOWER_SPOTS.forEach(([x, y], i) => {
     const bx = x + (i % 2 ? 1 : -1);
-    if (!path.has(bx + ',' + y) && ['igrass'].includes(m.at(bx, y))) put1('iflowers', bx, y, { v: i % 3 });
+    if (!path.has(bx + ',' + y) && ['igrass'].includes(m.at(bx, y))) m.put1('iflowers', bx, y, { v: i % 3 });
     m.clear(x, y);
   });
   // кораблик у причала; указатели
-  put1('mooredBoat', 21, 33);
+  m.put1('mooredBoat', 21, 33);
   m.clear(22, 33);
-  put1('signpost', 21, 24, { text: '🔥 Деревня', text2: '🌋 Вулкан' });
-  put1('signpost', 29, 21, { text: '🥥 Боулинг', text2: '🛖 Хижина' });
-  put1('signpost', 26, 2, { text: '🌋 Смотровая', text2: 'у кратера' });
+  m.put1('signpost', 21, 24, { text: '🔥 Деревня', text2: '🌋 Вулкан' });
+  m.put1('signpost', 29, 21, { text: '🥥 Боулинг', text2: '🛖 Хижина' });
+  m.put1('signpost', 26, 2, { text: '🌋 Смотровая', text2: 'у кратера' });
   // перед зданиями — свободно (там двери)
   for (const b of [AT.dock, AT.chief, AT.laguna, AT.guest, AT.bum])
     for (let x = b.x - 1; x <= b.x + b.w; x++) for (let y = b.y; y <= b.y + b.h; y++) if (m.at(x, y) !== 'i') m.clear(x, y);
 }
 
-/** Клетки, до которых от причала не дойти пешком, — закрыть. */
-function sealPockets(m) {
-  const seen = new Uint8Array(W * H),
-    q = [[19, 28]];
-  seen[28 * W + 19] = 1;
-  while (q.length) {
-    const [x, y] = q.pop();
-    for (const [dx, dy] of [
-      [1, 0],
-      [-1, 0],
-      [0, 1],
-      [0, -1],
-    ]) {
-      const nx = x + dx,
-        ny = y + dy;
-      if (nx < 0 || ny < 0 || nx >= W || ny >= H || seen[ny * W + nx] || !m.foot(nx, ny)) continue;
-      seen[ny * W + nx] = 1;
-      q.push([nx, ny]);
-    }
-  }
-  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (!seen[y * W + x] && m.foot(x, y)) m.block(x, y);
-}
 
 // ---------- время праздника, костёр, находки ----------
 const S = () => G.state;
@@ -652,7 +610,8 @@ const island = createTopDownScene({
   // где разбрасывать предметы заданий (письма с loc: 'island'): тропинки и трава
   zones: { trails: { tiles: ['itrail', 'igrass'], reach: { from: [19, 27] } } },
   built(sc) {
-    sealPockets(sc.map);
+    // клетки, до которых от причала не дойти пешком, — закрыть
+    sc.map.sealFrom([[19, 28]]);
   },
   enter(sc) {
     placeFlowers(sc);

@@ -24,7 +24,8 @@ import { toast, hintOnce } from '../ui/toast.js';
 import { emoji } from '../core/draw.js';
 import { drawHamster, blinkAt } from '../art/hamster.js';
 import { JUNGLE, JUNGLE_GATHER, QUEST_BY_ID, PARROT_WORD_BY_ID, dayRoll } from '../data/index.js';
-import { T, PS, SP, put, label, tileOf, createTopDownScene } from '../engine/topdown/index.js';
+import { T, PS, SP, put, label, tileOf, createTopDownScene, inEll } from '../engine/topdown/index.js';
+import { bathSpot } from './common/bath.js';
 import { createPlants } from './common/plants.js';
 import './jungle_art.js';
 import './common/index.js';
@@ -151,7 +152,6 @@ export const notebookHidden = () => {
 };
 
 // ---------- карта ----------
-const inEll = (x, y, e, k = 1) => ((x + 0.5 - e[0]) / e[2]) ** 2 + ((y + 0.5 - e[1]) / e[3]) ** 2 < k;
 /** Река: от заводи под водопадом на запад, до края карты. */
 const RIVER = [
   [36.5, 8.6],
@@ -176,21 +176,6 @@ const calm = (x, y) => CALM.some(([x0, y0, x1, y1]) => x >= x0 && x <= x1 && y >
 /** Где начинается пляж (песок) в столбце x — и мелководье. */
 const sandY = (x) => 36 + Math.round(Math.sin(x * 0.45) * 0.8);
 
-function stroke(pts, r, fn) {
-  for (let i = 1; i < pts.length; i++) {
-    const [ax, ay] = pts[i - 1],
-      [bx, by] = pts[i],
-      n = Math.ceil(Math.hypot(bx - ax, by - ay) * 4);
-    for (let k = 0; k <= n; k++) {
-      const px = ax + ((bx - ax) * k) / n,
-        py = ay + ((by - ay) * k) / n;
-      for (let y = Math.floor(py - r - 1); y <= py + r + 1; y++)
-        for (let x = Math.floor(px - r - 1); x <= px + r + 1; x++)
-          if (x >= 0 && y >= 0 && x < W && y < H && Math.hypot(x + 0.5 - px, y + 0.5 - py) <= r) fn(x, y);
-    }
-  }
-}
-
 function build(m) {
   const rnd = seeded(5813);
   // 1. пляж и море снизу
@@ -200,14 +185,14 @@ function build(m) {
   }
   // 2. заводь и река
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (inEll(x, y, AT.pool)) m.set(x, y, 'jpool');
-  stroke(RIVER, 1.25, (x, y) => m.at(x, y) !== 'jpool' && m.set(x, y, 'jriver'));
+  m.stroke(RIVER, 1.25, (x, y) => m.at(x, y) !== 'jpool' && m.set(x, y, 'jriver'));
   // 3. плиты у храма
   for (let y = 8; y <= 11; y++) for (let x = 4; x <= 14; x++) if (!(y === 11 && (x === 4 || x === 14))) m.set(x, y, 'jstone');
   // 4. тропы; через реку — мост (плиты храма — тоже «тропа»: к югу от них высокое не растёт)
   const path = new Set();
   for (let y = 8; y <= 11; y++) for (let x = 4; x <= 14; x++) if (m.at(x, y) === 'jstone') path.add(x + ',' + y);
   for (const { r, pts } of PATHS)
-    stroke(pts, r, (x, y) => {
+    m.stroke(pts, r, (x, y) => {
       const c = m.at(x, y);
       if (c === 'jriver' || c === 'jpool') {
         if (AT.bridge.includes(x)) m.set(x, y, 'jbridge');
@@ -268,20 +253,16 @@ function build(m) {
     }
   }
   // 6. особые предметы — на место того, что выросло (m.clear)
-  const put1 = (type, x, y, o) => {
-    m.clear(x, y);
-    m.add(type, x, y, o);
-  };
   for (let dx = -2; dx <= 2; dx++) m.clear(AT.fall[0] + dx, AT.fall[1]);
-  put1('jfall', ...AT.fall);
+  m.put1('jfall', ...AT.fall);
   for (let dx = -1; dx <= 1; dx++) m.clear(AT.vines[0] + dx, AT.vines[1]);
-  put1('vineTree', ...AT.vines);
-  for (const [x, y] of AT.bananas) put1('bananaPalm', x, y);
-  for (const [x, y] of AT.mangos) put1('mangoTree', x, y);
-  for (const [x, y] of AT.pineapples) put1('pineapple', x, y);
-  for (const [x, y] of AT.passions) put1('passionVine', x, y);
-  put1('cocoPalm', ...AT.coco);
-  PARROTS.forEach((p, i) => put1('perch', ...p.at, { v: p.v, talk: () => talking(i) }));
+  m.put1('vineTree', ...AT.vines);
+  for (const [x, y] of AT.bananas) m.put1('bananaPalm', x, y);
+  for (const [x, y] of AT.mangos) m.put1('mangoTree', x, y);
+  for (const [x, y] of AT.pineapples) m.put1('pineapple', x, y);
+  for (const [x, y] of AT.passions) m.put1('passionVine', x, y);
+  m.put1('cocoPalm', ...AT.coco);
+  PARROTS.forEach((p, i) => m.put1('perch', ...p.at, { v: p.v, talk: () => talking(i) }));
   // храм: колонны и каменная голова
   for (const [x, y, v] of [
     [4, 8, 0],
@@ -290,46 +271,24 @@ function build(m) {
     [14, 11, 1],
     [3, 6, 1],
   ])
-    put1('ruinPillar', x, y, { v });
-  put1('ruinHead', 13, 6);
+    m.put1('ruinPillar', x, y, { v });
+  m.put1('ruinHead', 13, 6);
   // кораблик у причала; указатели
-  put1('mooredBoat', 24, 39);
+  m.put1('mooredBoat', 24, 39);
   m.clear(25, 39);
-  put1('signpost', 24, 30, { text: '⛺ Лагерь', text2: '🌴 Роща' });
-  put1('signpost', 23, 18, { text: '🌉 Мост', text2: '🌊 Река' });
-  put1('signpost', 23, 10, { text: '💦 Водопад', text2: '🗿 Храм' });
+  m.put1('signpost', 24, 30, { text: '⛺ Лагерь', text2: '🌴 Роща' });
+  m.put1('signpost', 23, 18, { text: '🌉 Мост', text2: '🌊 Река' });
+  m.put1('signpost', 23, 10, { text: '💦 Водопад', text2: '🗿 Храм' });
   // перед зданиями — свободно (там двери)
   for (const b of [AT.dock, AT.camp, AT.temple])
     for (let x = b.x - 1; x <= b.x + b.w; x++) for (let y = b.y; y <= b.y + b.h; y++) if (m.at(x, y) !== 'i') m.clear(x, y);
   // факелы по бокам палатки (ночью светят)
-  put1('tikiTorch', AT.camp.x - 2, AT.camp.y + 1);
-  put1('tikiTorch', AT.camp.x + AT.camp.w + 1, AT.camp.y + 1);
+  m.put1('tikiTorch', AT.camp.x - 2, AT.camp.y + 1);
+  m.put1('tikiTorch', AT.camp.x + AT.camp.w + 1, AT.camp.y + 1);
 }
 
 /** Ряды подвесного моста (первый и последний) — их находит build, перила рисует paintGround. */
 const BRIDGE_ROWS = [99, -1];
-/** Клетки, до которых от причала не дойти пешком, — закрыть. */
-function sealPockets(m) {
-  const seen = new Uint8Array(W * H),
-    q = [[20, 37]];
-  seen[37 * W + 20] = 1;
-  while (q.length) {
-    const [x, y] = q.pop();
-    for (const [dx, dy] of [
-      [1, 0],
-      [-1, 0],
-      [0, 1],
-      [0, -1],
-    ]) {
-      const nx = x + dx,
-        ny = y + dy;
-      if (nx < 0 || ny < 0 || nx >= W || ny >= H || seen[ny * W + nx] || !m.foot(nx, ny)) continue;
-      seen[ny * W + nx] = 1;
-      q.push([nx, ny]);
-    }
-  }
-  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (!seen[y * W + x] && m.foot(x, y)) m.block(x, y);
-}
 
 // ---------- попугаи: подошла — говорит фразу (облачко над жёрдочкой), потом молчит JUNGLE.parrot секунд ----------
 const talk = PARROTS.map(() => ({ until: 0, next: 0, text: '' }));
@@ -370,58 +329,32 @@ function updateParrots(sc) {
 }
 
 // ---------- купание под водопадом: хомячок в заводи (способ передвижения ride с bath: true) ----------
-const BATH = [AT.pool[0] - 0.4, AT.pool[1] - 0.3];
 export const FALL_STAND = [32.6, 7.6];
-const isBathing = (sc) => !!(sc.p.ride && sc.p.ride.bath);
-/** Искупаться: хомячок в воде по шейку, сверху брызги водопада. */
-export function startFallBath(sc) {
-  const p = sc.p;
-  p.path = [];
-  p.pending = null;
-  p.x = BATH[0] * T;
-  p.y = BATH[1] * T;
-  p.dir = 1;
-  p.ride = {
-    bath: true,
-    speed: 0,
-    pass: () => false,
-    draw(ctx, _sc, e, t, look) {
-      ell2(ctx, e.x, e.y - 18, 30, 10, 'rgba(255,255,255,.45)');
-      drawHamster(ctx, e.x, e.y + 6, PS, look, { time: t, dir: 0, clipBelow: -34, happy: true, blink: blinkAt(t) });
-      ctx.strokeStyle = 'rgba(255,255,255,.9)';
-      ctx.lineWidth = 2.5;
-      ctx.beginPath();
-      ctx.ellipse(e.x, e.y - 20, 26 + Math.sin(t * 3) * 3, 8, 0, 0, Math.PI);
-      ctx.stroke();
-      // капли брызгают вокруг
-      ctx.fillStyle = 'rgba(220,245,255,.9)';
-      ctx.beginPath();
-      for (let i = 0; i < 6; i++) {
-        const ph = (t * 1.4 + i / 6) % 1,
-          x = e.x + Math.cos(i * 1.05) * (16 + ph * 22),
-          y = e.y - 60 + ph * ph * 50 - Math.sin(ph * Math.PI) * 26;
-        ctx.moveTo(x + 2.4, y);
-        ctx.arc(x, y, 2.4, 0, 6.2832);
-      }
-      ctx.fill();
-    },
-    drop: (s) => endFallBath(s),
-  };
-}
-const ell2 = (ctx, x, y, rx, ry, c) => {
-  ctx.fillStyle = c;
+/** Брызги водопада вокруг хомячка в заводи. */
+function drawSplashes(ctx, e, t) {
+  ctx.fillStyle = 'rgba(220,245,255,.9)';
   ctx.beginPath();
-  ctx.ellipse(x, y, rx, ry, 0, 0, 6.2832);
+  for (let i = 0; i < 6; i++) {
+    const ph = (t * 1.4 + i / 6) % 1,
+      x = e.x + Math.cos(i * 1.05) * (16 + ph * 22),
+      y = e.y - 60 + ph * ph * 50 - Math.sin(ph * Math.PI) * 26;
+    ctx.moveTo(x + 2.4, y);
+    ctx.arc(x, y, 2.4, 0, 6.2832);
+  }
   ctx.fill();
-};
-/** Вылезти из заводи — на бережок. false — хомячок и так не в воде. */
-export function endFallBath(sc) {
-  if (!isBathing(sc)) return false;
-  sc.p.ride = null;
-  sc.p.x = FALL_STAND[0] * T;
-  sc.p.y = FALL_STAND[1] * T;
-  return true;
 }
+/** Заводь под водопадом: хомячок в воде по шейку, сверху брызги (common/bath.js); вылезает на бережок. */
+const bath = bathSpot({
+  at: [AT.pool[0] - 0.4, AT.pool[1] - 0.3],
+  stand: FALL_STAND,
+  extra: drawSplashes,
+  keys: ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'KeyA', 'KeyD', 'KeyW', 'KeyS', 'Escape'],
+});
+const isBathing = bath.isIn;
+/** Искупаться под водопадом (features/jungle.js). */
+export const startFallBath = bath.start;
+/** Вылезти из заводи — на бережок. false — хомячок и так не в воде. */
+const endFallBath = bath.end;
 
 // ---------- туман по утрам и тёплый дождик после обеда ----------
 /** Идёт ли сейчас тёплый дождик: в некоторые дни (JUNGLE.drizzle — доля дней) с 14:00 до 15:30. */
@@ -673,7 +606,8 @@ const jungle = createTopDownScene({
   zones: { trails: { tiles: ['jtrail', 'jfloor'], reach: { from: [20, 37] } } },
   parts: [plants],
   built(sc) {
-    sealPockets(sc.map);
+    // клетки, до которых от причала не дойти пешком, — закрыть
+    sc.map.sealFrom([[20, 37]]);
   },
   enter(sc) {
     bridgeOn = false;
@@ -757,8 +691,7 @@ const jungle = createTopDownScene({
     return !isCanoeing(sc) && d < T * 2 ? { d: d * 0.6, pending: { fn: () => startCanoe(sc) } } : null;
   },
   update(sc, dt) {
-    if (isBathing(sc) && ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'KeyA', 'KeyD', 'KeyW', 'KeyS', 'Escape'].some((k) => keys.has(k)))
-      endFallBath(sc);
+    bath.update(sc);
     updateParrots(sc);
     updateCanoe(sc);
   },
@@ -770,7 +703,7 @@ const jungle = createTopDownScene({
   },
   buttons: (sc) =>
     isBathing(sc)
-      ? [{ id: 'bath', icon: '🧺', label: 'Вылезти', fn: () => endFallBath(sc) }]
+      ? [bath.button(sc)]
       : isCanoeing(sc)
         ? [{ id: 'canoe', icon: '⚓', label: 'Сойти', on: true, fn: () => endCanoe(sc) }]
         : [],

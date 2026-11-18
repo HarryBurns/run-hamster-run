@@ -1428,39 +1428,10 @@ function build(m) {
  * Ворота выездов считаются проходимыми — тропа за ними остаётся тропой.
  */
 function sealPockets(m) {
-  const w = m.w,
-    h = 50;
-  const seen = new Uint8Array(w * h);
-  // ворота и клетки под праздничными украшениями (locations/holidays.js) считаются проходимыми: закрыты они не навсегда
-  const ok = (x, y) =>
-    x >= 0 && y >= 0 && x < w && y < h && (m.foot(x, y) || ((m.kinds[y][x].gate || m.kinds[y][x].holiday) && !m.solid[y][x]));
   const d = m.doorPx(m.bById.villa);
-  const q = [[Math.floor(d.x / T), Math.floor(d.y / T)]];
-  seen[q[0][1] * w + q[0][0]] = 1;
-  while (q.length) {
-    const [x, y] = q.pop();
-    for (const [dx, dy] of [
-      [1, 0],
-      [-1, 0],
-      [0, 1],
-      [0, -1],
-    ]) {
-      const nx = x + dx,
-        ny = y + dy;
-      if (ok(nx, ny) && !seen[ny * w + nx]) {
-        seen[ny * w + nx] = 1;
-        q.push([nx, ny]);
-      }
-    }
-  }
-  let n = 0;
-  for (let y = 0; y < h; y++)
-    for (let x = 0; x < w; x++)
-      if (!seen[y * w + x] && m.foot(x, y)) {
-        m.solid[y][x] = true;
-        n++;
-      }
-  return n;
+  // ворота и клетки под праздничными украшениями (locations/holidays.js) считаются проходимыми: закрыты они не навсегда
+  const ok = (x, y) => (m.kinds[y][x].gate || m.kinds[y][x].holiday) && !m.solid[y][x];
+  return m.sealFrom([[Math.floor(d.x / T), Math.floor(d.y / T)]], { ok, rows: 50 });
 }
 
 /** Куда идти по заданию из письма (единицы мира) или null. */

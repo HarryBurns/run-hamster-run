@@ -13,12 +13,11 @@
 // Атмосфера: облака ниже вершины плывут в слое неба (крюк sky), наверху ветер несёт снежинки (overlay), зимой
 // снег идёт везде; своя музыка, ветер и колокольчики коров (sound → features/soundscape.js).
 import { G, cal, questNow, landOpen } from '../core/state.js';
-import { keys } from '../core/input.js';
 import { clamp, seeded } from '../core/util.js';
 import { ell } from '../core/draw.js';
-import { drawHamster, blinkAt } from '../art/hamster.js';
 import { coldDay, QUEST_BY_ID, MOUNTAIN, SEASON_OF_MONTH, monthOfDay } from '../data/index.js';
-import { T, PS, put, createTopDownScene } from '../engine/topdown/index.js';
+import { T, put, createTopDownScene } from '../engine/topdown/index.js';
+import { bathSpot } from './common/bath.js';
 import { chaletArt, cloudPuff } from './mountain_art.js';
 import './common/index.js';
 
@@ -162,22 +161,11 @@ function build(m) {
   // 2. тропы: в снегу — утоптанный снег, ниже — земляная тропинка
   const path = new Set();
   for (const { r, pts } of PATHS)
-    for (let i = 1; i < pts.length; i++) {
-      const [ax, ay] = pts[i - 1],
-        [bx, by] = pts[i],
-        n = Math.ceil(Math.hypot(bx - ax, by - ay) * 4);
-      for (let k = 0; k <= n; k++) {
-        const px = ax + ((bx - ax) * k) / n,
-          py = ay + ((by - ay) * k) / n;
-        for (let y = Math.floor(py - 1); y <= py + 1; y++)
-          for (let x = Math.floor(px - 1); x <= px + 1; x++)
-            if (x >= 0 && y >= 0 && x < W && y < H && Math.hypot(x + 0.5 - px, y + 0.5 - py) <= r) {
-              const c = m.at(x, y);
-              if (c !== 'skiRun') m.set(x, y, c === 'snowCap' || c === 'snowPath' ? 'snowPath' : 'y');
-              path.add(x + ',' + y);
-            }
-      }
-    }
+    m.stroke(pts, r, (x, y) => {
+      const c = m.at(x, y);
+      if (c !== 'skiRun') m.set(x, y, c === 'snowCap' || c === 'snowPath' ? 'snowPath' : 'y');
+      path.add(x + ',' + y);
+    });
   // 3. смотровая площадка — доски; горячий источник; ручей от водопада вниз
   const [dx0, dy0, dx1, dy1] = AT.deck;
   for (let y = dy0; y <= dy1; y++) for (let x = dx0; x <= dx1; x++) m.set(x, y, 'logBridge');
@@ -228,25 +216,21 @@ function build(m) {
       else if (r < 0.32) m.add('alpFlowers', x, y, { v });
     }
   // 5. особые предметы — на место того, что выросло (m.clear)
-  const put1 = (type, x, y, o) => {
-    m.clear(x, y);
-    m.add(type, x, y, o);
-  };
   // скалы над входом в пещеры; сама скала со входом
-  for (let x = 25; x <= 34; x++) put1('crag', x, 3, { v: x % 2, snow: 1 });
-  for (const x of [26, 27, 31, 32, 33]) put1('crag', x, 4, { v: (x + 1) % 2, snow: 1 });
+  for (let x = 25; x <= 34; x++) m.put1('crag', x, 3, { v: x % 2, snow: 1 });
+  for (const x of [26, 27, 31, 32, 33]) m.put1('crag', x, 4, { v: (x + 1) % 2, snow: 1 });
   for (const x of [28, 29, 30]) m.clear(x, 5);
   m.add('caveRock', ...AT.cave, { open: () => landOpen('caves') }); // открыто — без досок (пещеры, П.9)
   // уступ с водопадом
   for (const x of [FALL[0], FALL[0] + 1]) m.clear(x, FALL[1]);
   m.add('fallRock', ...FALL, { snow: 1 });
   // смотровая площадка: подзорная труба и флаг
-  put1('viewer', ...AT.viewer);
-  put1('flagPole', ...AT.flag);
+  m.put1('viewer', ...AT.viewer);
+  m.put1('flagPole', ...AT.flag);
   // флажки вдоль трассы
   for (let y = ry0 + 1; y <= ry1; y += 3) {
-    put1('skiFlag', rx0 - 1, y, { v: 0 });
-    put1('skiFlag', rx1 + 1, y + 1, { v: 1 });
+    m.put1('skiFlag', rx0 - 1, y, { v: 0 });
+    m.put1('skiFlag', rx1 + 1, y + 1, { v: 1 });
   }
   // камни вокруг горячего источника
   for (const [x, y, v] of [
@@ -255,29 +239,29 @@ function build(m) {
     [2, 29, 2],
     [6, 28, 1],
   ])
-    put1('mtRock', x, y, { v });
+    m.put1('mtRock', x, y, { v });
   // загон для коров: деревянный забор, проход снизу у тропинки
   const [px0, py0, px1, py1] = AT.pasture;
   for (let x = px0; x <= px1; x++) {
-    put1('fenceH', x, py0, { v: 1 });
-    if (x !== 29) put1('fenceH', x, py1, { v: 1 });
+    m.put1('fenceH', x, py0, { v: 1 });
+    if (x !== 29) m.put1('fenceH', x, py1, { v: 1 });
     else m.clear(x, py1);
   }
   for (let y = py0 + 1; y < py1; y++) {
-    put1('fenceV', px0, y, { v: 1 });
-    put1('fenceV', px1, y, { v: 1 });
+    m.put1('fenceV', px0, y, { v: 1 });
+    m.put1('fenceV', px1, y, { v: 1 });
   }
   m.clear(...MITTEN); // там лежит варежка из задания Вершинкина
   m.clear(MITTEN[0], MITTEN[1] + 1);
   // эдельвейсы на лугах (видны летом, пока не сорван сегодняшний); клетка под ними и ниже — свободны
   for (const [x, y] of EDELWEISS) {
-    put1('edelweiss', x, y, { on: edelweissOn });
+    m.put1('edelweiss', x, y, { on: edelweissOn });
     m.clear(x, y + 1);
   }
   // скамейка у водопада, указатели
-  put1('bench', 32, 16);
-  put1('signpost', 23, 40, { text: '🔭 Вершина', text2: '♨️ Источник' });
-  put1('signpost', 22, 13, { text: '⛄ Поляна', text2: '💎 Пещеры' });
+  m.put1('bench', 32, 16);
+  m.put1('signpost', 23, 40, { text: '🔭 Вершина', text2: '♨️ Источник' });
+  m.put1('signpost', 22, 13, { text: '⛄ Поляна', text2: '💎 Пещеры' });
   // под указателем — ни ёлок, ни камней: на телефоне ёлка закрывала доску «Пещеры»
   for (let y = 14; y <= 15; y++) for (let x = 19; x <= 23; x++) if (!['y', 'snowPath'].includes(m.at(x, y))) m.clear(x, y);
   // перед зданиями — свободно (там двери)
@@ -285,28 +269,6 @@ function build(m) {
     for (let x = b.x - 1; x <= b.x + b.w; x++) for (let y = b.y; y <= b.y + b.h + 1; y++) m.clear(x, y);
 }
 
-/** Клетки, до которых от станции не дойти пешком, — закрыть (чтобы туда не попасть и ничего там не потерять). */
-function sealPockets(m) {
-  const seen = new Uint8Array(W * H),
-    q = [[20, 42]];
-  seen[42 * W + 20] = 1;
-  while (q.length) {
-    const [x, y] = q.pop();
-    for (const [dx, dy] of [
-      [1, 0],
-      [-1, 0],
-      [0, 1],
-      [0, -1],
-    ]) {
-      const nx = x + dx,
-        ny = y + dy;
-      if (nx < 0 || ny < 0 || nx >= W || ny >= H || seen[ny * W + nx] || !m.foot(nx, ny)) continue;
-      seen[ny * W + nx] = 1;
-      q.push([nx, ny]);
-    }
-  }
-  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (!seen[y * W + x] && m.foot(x, y)) m.block(x, y);
-}
 
 // ---------- облака ниже вершины (в слое неба) ----------
 const CLOUDS = Array.from({ length: 6 }, (_, i) => ({
@@ -363,40 +325,10 @@ function drawSteam(ctx, x, y, t, n = 4) {
   }
   ctx.globalAlpha = 1;
 }
-const isBathing = (sc) => !!(sc.p.ride && sc.p.ride.bath);
-/** Окунуться: хомячок садится в воду (способ передвижения ride — стоит на месте, рисуется по пояс в воде). */
-export function startBath(sc) {
-  const p = sc.p;
-  p.path = [];
-  p.pending = null;
-  p.x = SPRING_C[0] * T;
-  p.y = SPRING_C[1] * T;
-  p.dir = 1;
-  p.ride = {
-    bath: true,
-    speed: 0,
-    pass: () => false,
-    draw(ctx, _sc, e, t, look) {
-      ell(ctx, e.x, e.y - 18, 30, 10, 'rgba(255,255,255,.45)');
-      drawHamster(ctx, e.x, e.y + 6, PS, look, { time: t, dir: 0, clipBelow: -34, happy: true, blink: blinkAt(t) });
-      ctx.strokeStyle = 'rgba(255,255,255,.9)';
-      ctx.lineWidth = 2.5;
-      ctx.beginPath();
-      ctx.ellipse(e.x, e.y - 20, 26 + Math.sin(t * 3) * 3, 8, 0, 0, Math.PI);
-      ctx.stroke();
-      drawSteam(ctx, e.x, e.y - 50, t, 3);
-    },
-    drop: (s) => endBath(s),
-  };
-}
-/** Вылезти из источника — на бережок. false — хомячок и так не в воде. */
-export function endBath(sc) {
-  if (!isBathing(sc)) return false;
-  sc.p.ride = null;
-  sc.p.x = SPRING_STAND[0] * T;
-  sc.p.y = SPRING_STAND[1] * T;
-  return true;
-}
+/** Горячий источник: хомячок сидит в воде, над ним пар (common/bath.js); вылезает на бережок. */
+const bath = bathSpot({ at: SPRING_C, stand: SPRING_STAND, extra: (ctx, e, t) => drawSteam(ctx, e.x, e.y - 50, t, 3) });
+/** Окунуться в источник (features/mountain.js). */
+export const startBath = bath.start;
 
 /** Насколько герой у вершины: 1 — в снегу, 0 — на лугах. */
 export const highUp = (sc) => clamp((snowLine(sc.p.x / T) + 4 - sc.p.y / T) / 5, 0, 1);
@@ -543,7 +475,8 @@ const mountain = createTopDownScene({
   // где разбрасывать предметы заданий (письма с loc: 'mountain'): тропы и луга
   zones: { meadow: { tiles: ['g', 'y'], reach: { from: [20, 42] } } },
   built(sc) {
-    sealPockets(sc.map);
+    // клетки, до которых от станции не дойти пешком, — закрыть (туда не попасть и ничего не потерять)
+    sc.map.sealFrom([[20, 42]]);
   },
   skyLayer: true, // облака ниже вершины видны в любую погоду и ночью (Г8)
   /** Облака ниже вершины — в слое неба: днём белые, в дождь серее, ночью — тёмно-синие, подсвеченные луной. */
@@ -567,13 +500,10 @@ const mountain = createTopDownScene({
     drawSnowmanAndSteam(sc, add, v);
   },
   /** Сидит в источнике: нажатие куда угодно, стрелка или E — вылезти на бережок. */
-  tap: (sc) => endBath(sc),
-  interact: (sc) => endBath(sc),
-  update(sc) {
-    if (isBathing(sc) && ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'KeyA', 'KeyD', 'KeyW', 'KeyS'].some((k) => keys.has(k)))
-      endBath(sc);
-  },
-  buttons: (sc) => (isBathing(sc) ? [{ id: 'bath', icon: '🧺', label: 'Вылезти', fn: () => endBath(sc) }] : []),
+  tap: bath.end,
+  interact: bath.end,
+  update: bath.update,
+  buttons: (sc) => [bath.button(sc)].filter(Boolean),
   /** Холодно ли без тёплого: у вершины — всегда (вечный снег), ниже — как в городе, в холодные месяцы. */
   cold: (sc) => highUp(sc) > 0.5 || coldDay(G.state.day),
   /** Что слышно: горная музыка, ветер наверху, у водопада и ручья — шум воды, на лугу — колокольчики коров. */

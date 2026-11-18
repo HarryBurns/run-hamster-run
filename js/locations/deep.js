@@ -20,7 +20,7 @@ import { emit } from '../core/events.js';
 import { toast, hintOnce } from '../ui/toast.js';
 import { clamp, seeded } from '../core/util.js';
 import { ell } from '../core/draw.js';
-import { T, createTopDownScene } from '../engine/topdown/index.js';
+import { T, createTopDownScene, inEll } from '../engine/topdown/index.js';
 import { drawRowboat, boatLampAt } from './deep_art.js';
 import './caves_art.js';
 import './common/index.js';
@@ -65,7 +65,6 @@ const FINDS_AT = [
 ];
 
 // ---------- карта ----------
-const inOval = (x, y, c) => ((x + 0.5 - c[0]) / c[2]) ** 2 + ((y + 0.5 - c[1]) / c[3]) ** 2 < 1;
 /** Расстояние от середины клетки до середины реки (в клетках) и её y на этом x. */
 function riverAt(x) {
   const px = x + 0.5;
@@ -83,7 +82,7 @@ function build(m) {
   const rnd = seeded(7741);
   // 1. залы, проход от лестницы к мосткам, река
   for (let y = 1; y < H - 1; y++)
-    for (let x = 1; x < W - 1; x++) if (Object.values(CHAMBERS).some((c) => inOval(x, y, c))) m.set(x, y, 'caveFloor');
+    for (let x = 1; x < W - 1; x++) if (Object.values(CHAMBERS).some((c) => inEll(x, y, c))) m.set(x, y, 'caveFloor');
   for (let y = 7; y <= 10; y++) for (let x = 6; x <= 7; x++) m.set(x, y, 'caveFloor');
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (isWater(x, y)) m.set(x, y, 'deepRiver');
   // 2. уступы над водой: на них светятся грибы и кристаллы (до них не дойти — только любоваться с лодочки)
@@ -107,14 +106,10 @@ function build(m) {
       m.add('caveFace', x, y, { v: r < 0.35 ? 1 : r < 0.55 ? 2 : r < 0.7 ? 3 : 0, ends });
     }
   // 4. что где стоит
-  const put1 = (type, x, y, o) => {
-    m.clear(x, y);
-    m.add(type, x, y, o);
-  };
-  put1('ropeLadder', ...AT.ladder);
-  put1('deepPier', ...AT.pierW, { v: 0 });
-  put1('deepPier', ...AT.pierE, { v: 1 });
-  ledges.forEach(([x, y, k]) => put1(k % 3 === 1 ? 'crystals' : 'glowShroom', x, y, { v: k }));
+  m.put1('ropeLadder', ...AT.ladder);
+  m.put1('deepPier', ...AT.pierW, { v: 0 });
+  m.put1('deepPier', ...AT.pierE, { v: 1 });
+  ledges.forEach(([x, y, k]) => m.put1(k % 3 === 1 ? 'crystals' : 'glowShroom', x, y, { v: k }));
   // грот: кристаллы по стенам, грибы, колонна
   for (const [type, x, y, v] of [
     ['crystals', 26, 19, 0],
@@ -131,35 +126,7 @@ function build(m) {
     ['stalagmite', 3, 7, 1],
     ['stalagmite', 10, 3, 0],
   ])
-    if (m.at(x, y) === 'caveFloor') put1(type, x, y, { v });
-}
-/** Клетки, до которых от лестницы или от восточных мостков не дойти пешком, — закрыть (уступы над водой). */
-function sealPockets(m) {
-  const seen = new Uint8Array(W * H),
-    q = [];
-  for (const [x, y] of [
-    [Math.floor(AT.ladder[0]), AT.ladder[1] + 2],
-    [Math.floor(AT.landE[0]), Math.floor(AT.landE[1])],
-  ]) {
-    seen[y * W + x] = 1;
-    q.push([x, y]);
-  }
-  while (q.length) {
-    const [x, y] = q.pop();
-    for (const [dx, dy] of [
-      [1, 0],
-      [-1, 0],
-      [0, 1],
-      [0, -1],
-    ]) {
-      const nx = x + dx,
-        ny = y + dy;
-      if (nx < 0 || ny < 0 || nx >= W || ny >= H || seen[ny * W + nx] || !m.foot(nx, ny)) continue;
-      seen[ny * W + nx] = 1;
-      q.push([nx, ny]);
-    }
-  }
-  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (!seen[y * W + x] && m.foot(x, y)) m.block(x, y);
+    if (m.at(x, y) === 'caveFloor') m.put1(type, x, y, { v });
 }
 
 // ---------- лодочка ----------
@@ -298,7 +265,11 @@ const deep = createTopDownScene({
   entries: { ladder: { at: [AT.ladder[0] + 0.5, AT.ladder[1] + 1.7] } },
   exits: [],
   built(sc) {
-    sealPockets(sc.map);
+    // клетки, до которых от лестницы или от восточных мостков не дойти пешком, — закрыть (уступы над водой)
+    sc.map.sealFrom([
+      [Math.floor(AT.ladder[0]), AT.ladder[1] + 2],
+      [Math.floor(AT.landE[0]), Math.floor(AT.landE[1])],
+    ]);
     // огоньки над рекой: висят над водой и тихо мерцают
     const r = seeded(99);
     sparks = Array.from({ length: 34 }, () => {

@@ -18,3 +18,4 @@ export {
 } from './kinds.js';
 export { createTopDownScene, locations, getLocation, homeLocation, currentLocation, setTargetHook, addWorldPart } from './scene.js';
 export { spotlight } from './render.js';
+export { inEll } from './map.js';

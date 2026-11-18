@@ -112,28 +112,6 @@ function build(m) {
   m.add('sandcastle', ...AT.castle);
   m.add('signpost', 10, 7, { text: '🌊 Грот', text2: '⛵ В город' });
 }
-/** Клетки, до которых от грота не дойти, — закрыть. */
-function sealPockets(m) {
-  const seen = new Uint8Array(W * H),
-    q = [[Math.floor(AT.entry[0]), Math.floor(AT.entry[1])]];
-  seen[q[0][1] * W + q[0][0]] = 1;
-  while (q.length) {
-    const [x, y] = q.pop();
-    for (const [dx, dy] of [
-      [1, 0],
-      [-1, 0],
-      [0, 1],
-      [0, -1],
-    ]) {
-      const nx = x + dx,
-        ny = y + dy;
-      if (nx < 0 || ny < 0 || nx >= W || ny >= H || seen[ny * W + nx] || !m.foot(nx, ny)) continue;
-      seen[ny * W + nx] = 1;
-      q.push([nx, ny]);
-    }
-  }
-  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (!seen[y * W + x] && m.foot(x, y)) m.block(x, y);
-}
 
 // ---------- ракушки: море выносит их на песок (находки pickups, по жребию дня) ----------
 const S = () => G.state;
@@ -512,7 +490,8 @@ const cove = createTopDownScene({
   },
   entries: { grotto: { at: AT.entry } },
   built(sc) {
-    sealPockets(sc.map);
+    // клетки, до которых от грота не дойти, — закрыть
+    sc.map.sealFrom([[Math.floor(AT.entry[0]), Math.floor(AT.entry[1])]]);
     sceneMap = sc.map;
     // вода для огоньков: клетки мелководья и глубины (с постоянным «случайным» числом)
     const r = seeded(99),

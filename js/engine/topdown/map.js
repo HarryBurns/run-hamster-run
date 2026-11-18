@@ -9,13 +9,15 @@
 //                   base — чем залита карта до правил ('g').
 //
 // В build(m) доступны: m.fill(x0, y0, x1, y1, вид), m.set(x, y, вид), m.at(x, y), m.add(предмет, x, y, поля),
-// m.clear(x, y) — убрать с клетки то, что на неё поставили раньше, m.block(x, y), m.ground / m.solid
-// (сетки [y][x]), m.objs, m.buildings, m.w, m.h.
+// m.clear(x, y) — убрать с клетки то, что на неё поставили раньше, m.put1(предмет, x, y, поля) — убрать и поставить,
+// m.block(x, y), m.stroke(ломаная, r, fn) — «кисть» вдоль ломаной (тропы, река), m.ground / m.solid (сетки [y][x]),
+// m.objs, m.buildings, m.w, m.h. inEll(x, y, эллипс) — клетка внутри эллипса (поляны, озёра).
 // Предмет сам занимает клетку, если его вид «твёрдый» (solid) или в полях передано solid: true;
 // «медленный» вид (slow) помечает клетку медленной. Здания (описание.buildings) занимают своё «пятно».
 //
 // После постройки: m.kindAt(tx, ty) — вид клетки; m.foot / m.dry — «можно ли пройти» для героя пешком и для
-// жителей (их передают в поиск пути, см. path.js); m.route(кто, x, y, точно, pass) — проложить путь.
+// жителей (их передают в поиск пути, см. path.js); m.route(кто, x, y, точно, pass) — проложить путь;
+// m.sealFrom(старты) — закрыть клетки, куда пешком не дойти от входа (в крюке built).
 import { clamp } from '../../core/util.js';
 import { T, TILES, OBJECTS, BUILDING_KINDS, tileOf, doorX } from './kinds.js';
 import { findPath, nearest } from './path.js';
@@ -66,6 +68,24 @@ export function createMap(desc) {
     block(x, y) {
       solid[y][x] = true;
     },
+    /**
+     * Провести «кистью» радиуса r (в клетках) по ломаной pts ([[x, y], …]): fn(x, y) — для каждой клетки карты, центр
+     * которой не дальше r от линии (тропы, река). Клетку могут позвать несколько раз — fn должна это выдерживать.
+     */
+    stroke(pts, r, fn) {
+      for (let i = 1; i < pts.length; i++) {
+        const [ax, ay] = pts[i - 1],
+          [bx, by] = pts[i],
+          n = Math.ceil(Math.hypot(bx - ax, by - ay) * 4);
+        for (let k = 0; k <= n; k++) {
+          const px = ax + ((bx - ax) * k) / n,
+            py = ay + ((by - ay) * k) / n;
+          for (let y = Math.floor(py - r - 1); y <= py + r + 1; y++)
+            for (let x = Math.floor(px - r - 1); x <= px + r + 1; x++)
+              if (x >= 0 && y >= 0 && x < w && y < h && Math.hypot(x + 0.5 - px, y + 0.5 - py) <= r) fn(x, y);
+        }
+      }
+    },
     /** Поставить предмет вида type на клетку (tx, ty); o — свои поля (v — вариант, solid: true…). */
     add(type, tx, ty, o = {}) {
       const kind = OBJECTS[type];
@@ -97,6 +117,12 @@ export function createMap(desc) {
         if (t >= 0) m.tappable.splice(t, 1);
         objs.splice(i, 1);
       }
+    },
+
+    /** Поставить предмет на клетку, убрав с неё то, что там было (m.clear + m.add). */
+    put1(type, tx, ty, o) {
+      m.clear(tx, ty);
+      return m.add(type, tx, ty, o);
     },
 
     /**
@@ -193,5 +219,44 @@ export function createMap(desc) {
       k = row && row[tx];
     return !!k && !k.wet && m.foot(tx, ty);
   };
+  /**
+   * Закрыть «карманы» (после постройки, в крюке built): клетки, куда пешком не дойти ни от одной из клеток starts
+   * ([[x, y], …]; обход по четырём сторонам), становятся преградой — хомячок не застрянет в недоступном углу.
+   * ok(x, y) — что ещё считать проходимым при обходе (ворота и праздничные украшения города: закрыты не навсегда);
+   * rows — сколько верхних строк карты смотреть (у города — суша без моря). Возвращает, сколько клеток закрыто.
+   */
+  m.sealFrom = (starts, { ok = null, rows = h } = {}) => {
+    const pass = (x, y) => m.foot(x, y) || (ok && ok(x, y)),
+      seen = new Uint8Array(w * rows),
+      q = [];
+    for (const [x, y] of starts) {
+      seen[y * w + x] = 1;
+      q.push([x, y]);
+    }
+    while (q.length) {
+      const [x, y] = q.pop();
+      for (const [nx, ny] of [
+        [x + 1, y],
+        [x - 1, y],
+        [x, y + 1],
+        [x, y - 1],
+      ])
+        if (nx >= 0 && ny >= 0 && nx < w && ny < rows && !seen[ny * w + nx] && pass(nx, ny)) {
+          seen[ny * w + nx] = 1;
+          q.push([nx, ny]);
+        }
+    }
+    let n = 0;
+    for (let y = 0; y < rows; y++)
+      for (let x = 0; x < w; x++)
+        if (!seen[y * w + x] && m.foot(x, y)) {
+          solid[y][x] = true;
+          n++;
+        }
+    return n;
+  };
   return m;
 }
+
+/** Клетка (x, y) внутри эллипса e = [cx, cy, rx, ry] (по центру клетки); k < 1 — эллипс меньше, k > 1 — больше. */
+export const inEll = (x, y, e, k = 1) => ((x + 0.5 - e[0]) / e[2]) ** 2 + ((y + 0.5 - e[1]) / e[3]) ** 2 < k;

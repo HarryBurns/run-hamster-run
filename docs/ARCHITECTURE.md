@@ -716,8 +716,11 @@ export default createTopDownScene({
 2. **Карта.** Маленькую удобнее рисовать строками: `rows: ['TTTT', 'T..T', …]` и `legend: { '.': 'g',
    T: ['g', 'tree'], M: ['moss', 'mushroom', { v: 1 }] }` — символ → вид клетки и, если надо, предмет на ней.
    Большую — правилами: `w, h, base: 'g'` и `build(m)`, где `m.fill(x0, y0, x1, y1, 'r')`, `m.set(x, y, 'g')`,
-   `m.add('tree', x, y, { v: 2 })`, `m.at(x, y)`, `m.clear(x, y)` (убрать с клетки то, что поставили раньше);
-   для случайной зелени бери `seeded(число)` из `core/util.js`,
+   `m.add('tree', x, y, { v: 2 })`, `m.at(x, y)`, `m.clear(x, y)` (убрать с клетки то, что поставили раньше),
+   `m.put1(вид, x, y, поля)` (убрать и поставить), `m.stroke(ломаная, r, fn)` — «кисть» вдоль ломаной (тропы, река),
+   `inEll(x, y, [cx, cy, rx, ry])` (из `engine/topdown/index.js`) — клетка в эллипсе (поляна, озеро);
+   после постройки, в крюке `built`: `sc.map.sealFrom([[x, y]])` — клетки, куда от входа пешком не дойти, станут
+   преградой (никто не застрянет в «кармане»); для случайной зелени бери `seeded(число)` из `core/util.js`,
    а не `Math.random` (образец — `build` в `town.js`). Край карты обнеси деревьями или водой.
    `bg` — цвет за краем карты.
 3. **Свои клетки** — `defineTiles({ moss: { map: '#5a8', step: 'step', z: 4.5, fill: (env) => '#5a8',
@@ -843,7 +846,7 @@ export default createTopDownScene({
 - особые места и всё, что к ним привязано, — в `PLACES` (ящик, грядки, пирс, пруд, выезды), бассейны — `POOLS`,
   забор двора — `YARD`, парк — `PARK`, ворота выездов — `GATES`; острова, буйки и стоянка кораблика —
   `WORLD_SEA` в `sea.js`. Клетки города, до которых нельзя дойти от двери виллы, после постройки карты
-  становятся непроходимыми (`sealPockets`) — так в «кармане» между деревьями никто не застрянет;
+  становятся непроходимыми (`sealPockets` → `m.sealFrom`) — так в «кармане» между деревьями никто не застрянет;
 - выезд из города открывается выходом (`exits`): пока у выхода `off: true` (или `when()` даёт «нет»), клетки под
   воротами (`gateF`, `gateD`) непроходимы, а ворота нарисованы закрытыми; открылся выход — открылись и ворота.
   Выходы в тайные места строит `landExit` из `LANDS` (раздел 13): пока у места нет сцены, выход закрыт (`off`); есть
@@ -1281,7 +1284,7 @@ dev/smoke_quests.js        автотест (node dev/smoke.js <url> step:жур
 js/locations/forest.js       описание локации: карта правилами (тропы ломаными PATHS, поляны GLADES, ручей brookX),
                              что где растёт (FRUIT), шишки и веточки (CONES, TWIGS), особые места, Шишкин, вход/выход,
                              крюки: sky (лучики в слое неба), overlay (снег зимой), things (бельчонок), paintGround
-                             (перила мостика), sound (лесная музыка, журчание ручья); sealPockets — закрыть «карманы»
+                             (перила мостика), sound (лесная музыка, журчание ручья); built — m.sealFrom: закрыть «карманы»
 js/locations/forest_art.js   клетки forestFloor, brook, logBridge; предметы spruce, birch, stump, log, mossRock, fern,
                              campfire, hive, squirrelOak, treehouse; здание cableway; дорисовка избушки hutArt
 js/locations/common/plants.js  растения леса: porcini, wildStrawberry, hazelBush, appleTree (сбор — как в городе)
@@ -1327,7 +1330,9 @@ js/locations/mountain.js      описание: карта правилами (�
                               крюки: sky (облака ниже вершины), overlay (ветер со снежинками наверху, зимой снег везде),
                               things (коровы, снеговик, пар над источником, варежка), tap / interact / update / buttons
                               (вылезти из источника), cold (мороз у вершины), sound (музыка, ветер, вода, колокольчики);
-                              startBath / endBath — хомячок в источнике (способ передвижения ride с bath: true)
+                              startBath — хомячок в источнике (bathSpot из common/bath.js: ride с bath: true)
+js/locations/common/bath.js   купание на месте (источник на горе, заводь в джунглях): bathSpot({ at, stand, extra }) →
+                              start / end / isIn / update (стрелки — вылезти) / button («🧺 Вылезти»)
 js/locations/mountain_art.js  клетки snowCap (вечный снег, z 4.6), snowPath (тропинка в снегу, свой z 5.05), skiRun,
                               hotSpring; предметы alpineFir (ель — спрайт spruce из леса, у вершины всегда в снегу),
                               mtRock, crag, alpFlowers, edelweiss, caveRock, fallRock (+ вода drawFall), flagPole
@@ -1519,8 +1524,8 @@ js/locations/jungle.js       описание: карта правилами (п
                              у причала; поля dry, season: 'summer', critters: 3, gather; крюки: sky (утренний туман),
                              overlay (тёплый дождик), paintGround (верёвочные перила моста), things (дневник Лианы),
                              over (облачка попугаев), tap / interact / update / buttons (купание под водопадом), surface
-                             (ступила на мост), cold, sound; startFallBath / endFallBath — хомячок в заводи (ride с bath:
-                             true, как источник на горе), parrotSay, talking, drizzleNow, mistNow, notebookHidden
+                             (ступила на мост), cold, sound; startFallBath — хомячок в заводи (bathSpot из common/bath.js,
+                             как источник на горе), parrotSay, talking, drizzleNow, mistNow, notebookHidden
 js/locations/jungle_art.js   клетки jfloor (основа, z 4.35), jtrail (z 5.07), jstone (z 6.4), jriver и jpool (как пруд,
                              но свои z 10.2 и блики вдоль течения), jbridge (доски, как пирс, без пляжа); предметы jtree
                              (3 варианта), bamboo, monstera, jflowers, ruinPillar, ruinHead, perch (+ попугай — рисунок
@@ -1903,7 +1908,7 @@ dev/smoke_holidays.js        автотест (step:праздники);  dev/ba
   считаются от времени (`bursts`), без состояния; хлопок — `sfx('boom')` в `update`.
 - **Клетки под украшениями.** Карта после постройки не меняется, поэтому клетка под ёлкой (вертепом, каруселью, ярмаркой)
   получает свой вид «как площадь (like), но `walk()` — нет, пока город украшен» (`blockHolidayCells`, имя вида —
-  `k~hol:newyear`). Земля та же (шва нет), `sealPockets` считает такие клетки проходимыми (поле `holiday`), предметы
+  `k~hol:newyear`). Земля та же (шва нет), `sealPockets` (`m.sealFrom` с `ok`) считает такие клетки проходимыми (поле `holiday`), предметы
   заданий туда не падают (вида нет в `zones`). Места «стоять» у мест праздника — на свободных клетках (автотест проверяет
   путь от двери виллы).
 - **Конверты** Китайского Нового года — находки дня части (`sc.setPickups`, раскладываются при смене дня — `update`),
