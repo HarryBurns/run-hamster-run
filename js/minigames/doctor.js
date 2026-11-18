@@ -119,16 +119,7 @@ export default {
   start(host) {
     const root = host.root;
     const optCount = (host.level || 0) >= 2 ? 6 : 4;
-    let stopped = false,
-      raf = 0;
-    const timers = new Set();
-    const later = (fn, ms) => {
-      const id = setTimeout(() => {
-        timers.delete(id);
-        if (!stopped) fn();
-      }, ms);
-      timers.add(id);
-    };
+    const { later } = host;
 
     const cases = shuffle(CASES).slice(0, TOTAL);
     const fallback = [{ id: 'me', name: 'Пациент', look: host.look }];
@@ -136,7 +127,8 @@ export default {
     const docLook = { ...host.look, outfit: { ...(host.look.outfit || {}), head: null } };
 
     const wrap = el('div', 'doc');
-    wrap.innerHTML = `<style>${CSS}</style>
+    host.css(CSS);
+    wrap.innerHTML = `
       <div class="doc-top"><div class="doc-count"></div><div class="doc-miss"></div></div>
       <div class="doc-main">
         <div class="doc-left">
@@ -148,7 +140,7 @@ export default {
           <div class="doc-btns${optCount === 6 ? ' six' : ''}"></div>
         </div>
       </div>`;
-    root.appendChild(wrap);
+    host.add(wrap);
     const $ = (s) => wrap.querySelector(s);
     const countEl = $('.doc-count'),
       missEl = $('.doc-miss');
@@ -217,7 +209,7 @@ export default {
 
     function choose(k, btn) {
       if (phase === 'wrong') setPhase('wait'); // во время «мотания головой» тоже можно выбирать
-      if (phase !== 'wait' || stopped) return;
+      if (phase !== 'wait') return;
       const c = cases[idx];
       if (k === c.cure) {
         btn.classList.add('good');
@@ -271,8 +263,7 @@ export default {
       wrap.style.setProperty('--cv', clamp(w, 150, 460) + 'px');
     };
     fit();
-    const ro = new ResizeObserver(fit);
-    ro.observe(root);
+    host.onResize(fit);
 
     // --- сцена
     function drawRoom() {
@@ -303,10 +294,8 @@ export default {
       ctx.fillRect(x - 7 * s, y - 83.5 * s, 14 * s, 5 * s);
     }
 
-    const t0 = performance.now();
-    const frame = (ts) => {
-      if (stopped) return;
-      now = (ts - t0) / 1000;
+    host.loop((_, time) => {
+      now = time; // время игры: на скрытой вкладке стоит вместе с таймерами
       const dt = now - phaseAt;
       const blink = now % 3.1 < 0.13;
       ctx.clearRect(0, 0, CW, CH);
@@ -354,21 +343,9 @@ export default {
         heart(ctx, 290, 70 - k * 26, 5, '#ffa8c5');
         ctx.globalAlpha = 1;
       }
-      raf = requestAnimationFrame(frame);
-    };
-    raf = requestAnimationFrame(frame);
+    });
 
     startPatient();
 
-    return {
-      stop() {
-        stopped = true;
-        cancelAnimationFrame(raf);
-        timers.forEach(clearTimeout);
-        timers.clear();
-        ro.disconnect();
-        wrap.remove();
-      },
-    };
   },
 };
