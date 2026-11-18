@@ -1,6 +1,7 @@
 // Шаги автотеста этапа 20 «Проблемы на экране» (BACKLOG, В-пункты), где меняется поведение:
 //   В12 — на планшете стоя дом движка домов виден целиком, а большой дом (вилла, отель) — камера видит хомячка;
-//   В14 — кнопка места с морским путём на карте ведёт хомячка к кораблику на пирсе.
+//   В14 — кнопка места с морским путём на карте ведёт хомячка к кораблику на пирсе;
+//   Н3 — дом из кэша (engine/side/cache.js) без полосы пикселей у пола, которой нет при рисовании линиями.
 // Подключается из dev/smoke.js. Только эти шаги:  node dev/smoke.js <url> "step:экран"
 module.exports = async function screen({ page, step, ev, wait, closeAll }) {
   const expect = (ok, msg, data) => {
@@ -155,5 +156,58 @@ module.exports = async function screen({ page, step, ev, wait, closeAll }) {
       if (!ok && r.panel) await closeAll(); // окно «долгое плавание» — подтверждение, если есть
     }
     expect(ok, 'кнопка «Удалённый остров» не довезла до острова', r);
+  });
+
+  await step('экран Н3: дом из кэша совпадает с рисунком линиями — без полосы пикселей у пола', async () => {
+    await fresh();
+    const bad = [];
+    for (const [id, f, x] of [
+      ['hotel', 0, 300],
+      ['villa', 0, 300],
+      ['home_plusha', 0, 300],
+      ['tent_barkhan', 0, 300],
+    ]) {
+      await ev(([id, f, x]) => window.__dev.go(id, { pos: { scene: id, floor: f, x } }), [id, f, x]);
+      await wait(400);
+      // один и тот же кадр (то же время) — с кэшем и линиями; сколько пикселей различается в каждой строке
+      const r = await ev(() => {
+        const d = window.__dev,
+          sc = d.scene,
+          v = d.G.view,
+          dpr = v.dpr || 1;
+        const mk = () => {
+          const c = document.createElement('canvas');
+          c.width = Math.round(v.w * dpr);
+          c.height = Math.round(v.h * dpr);
+          const x = c.getContext('2d', { willReadFrequently: true });
+          x.setTransform(dpr, 0, 0, dpr, 0, 0);
+          return [c, x];
+        };
+        const [c1, x1] = mk();
+        sc.debugCache(false);
+        sc.draw(x1);
+        const [, x2] = mk();
+        sc.debugCache(true);
+        sc.draw(x2);
+        sc.debugCache(false);
+        const W = c1.width,
+          H = c1.height,
+          a = x1.getImageData(0, 0, W, H).data,
+          b = x2.getImageData(0, 0, W, H).data;
+        let row = 0,
+          at = -1;
+        for (let y = 0; y < H; y++) {
+          let n = 0;
+          for (let x = 0; x < W; x++) {
+            const i = (y * W + x) * 4;
+            if (Math.abs(a[i] - b[i]) + Math.abs(a[i + 1] - b[i + 1]) + Math.abs(a[i + 2] - b[i + 2]) > 6) n++;
+          }
+          if (n > row) [row, at] = [n, y];
+        }
+        return { share: row / W, at, floorY: Math.round(sc.debugScreen(0, sc.geo.SLAB).y * dpr) };
+      });
+      if (r.share > 0.2) bad.push({ id, ...r });
+    }
+    expect(!bad.length, 'строка пикселей дома из кэша не как линиями', bad);
   });
 };

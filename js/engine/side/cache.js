@@ -10,12 +10,12 @@
 //                                           кэш сброшен, как и при смене k)
 //   cache.layer(key, [x0, y0, x1, y1], paint)   нарисовать кусок мира (единицы дома) из кэша; paint(ctx) рисует
 //                                           в координатах дома то, что попадает в рамку (лишнее обрежется)
-//   cache.tiles(key, [x0, y0, x1, y1], view, paint)   то же для большого куска — квадратами по TILE единиц,
+//   cache.tiles(key, [x0, y0, x1, y1], view, paint)   то же для большого куска — равными кусками не больше TILE,
 //                                           только те, что видны (view — sc.view)
 //   cache.sprite(key, [x0, y0, x1, y1], paint, x, y)   подвижная картинка (кадр жителя) вокруг точки (0, 0) —
 //                                           в точку дома (x, y)
 // Сколько пикселей можно держать — maxPixels; лишнее (давно не нужное) выбрасывается.
-const TILE = 400; // сторона квадрата кэша (единицы дома)
+const TILE = 400; // наибольшая сторона куска кэша (единицы дома)
 
 export class LayerCache {
   constructor({ maxPixels = 14e6 } = {}) {
@@ -100,15 +100,21 @@ export class LayerCache {
       return;
     }
     const [x0, y0, x1, y1] = box;
-    for (let gy = Math.floor(y0 / TILE); gy * TILE < y1; gy++)
-      for (let gx = Math.floor(x0 / TILE); gx * TILE < x1; gx++) {
-        const bx0 = Math.max(x0, gx * TILE),
-          by0 = Math.max(y0, gy * TILE),
-          bx1 = Math.min(x1, (gx + 1) * TILE),
-          by1 = Math.min(y1, (gy + 1) * TILE);
+    // Рамка делится на равные куски не больше TILE (а не по сетке от нуля): иначе у края остаётся узкая полоска —
+    // например, низ дома от пола до края рамки (y 0…30), и в такой полоске браузер сглаживает край рамки дома
+    // иначе, чем на всей канве: нижняя строка пикселей у пола выходила бледнее/темнее, чем линиями (Н3).
+    const nx = Math.max(1, Math.ceil((x1 - x0) / TILE)),
+      ny = Math.max(1, Math.ceil((y1 - y0) / TILE)),
+      at = (a0, a1, n, i) => (i >= n ? a1 : a0 + ((a1 - a0) * i) / n);
+    for (let j = 0; j < ny; j++)
+      for (let i = 0; i < nx; i++) {
+        const bx0 = at(x0, x1, nx, i),
+          by0 = at(y0, y1, ny, j),
+          bx1 = at(x0, x1, nx, i + 1),
+          by1 = at(y0, y1, ny, j + 1);
         if (view && (bx1 < view.x0 || bx0 > view.x1 || by1 < view.y0 || by0 > view.y1)) continue;
-        // края квадратов — по общей сетке пикселей (вниз), чтобы соседние сходились без щелей
-        this.layer(`${key}:${gx}:${gy}`, [bx0, by0, bx1, by1], paint, false);
+        // края кусков — по общей сетке пикселей (вниз), чтобы соседние сходились без щелей
+        this.layer(`${key}:${i}:${j}`, [bx0, by0, bx1, by1], paint, false);
       }
   }
   build(box, paint, ceil) {
