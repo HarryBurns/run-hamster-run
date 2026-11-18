@@ -2587,6 +2587,11 @@ const runParallel = () => {
       await wait(300);
     });
     await step('море: плавание и ныряние', async () => {
+      // сам встаёт в город (не опираться на прошлый шаг: в одиночку хомячок на вилле, и «Всплыть» вело домой)
+      await ev(() => {
+        if (window.__dev.sceneName !== 'world') window.__dev.go('world');
+      });
+      await closeAll();
       await ev(() => window.__dev.World.debugTeleport(40, 65));
       await wait(400);
       await hold('ArrowDown', 600);
