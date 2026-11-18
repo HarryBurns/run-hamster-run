@@ -8,6 +8,7 @@
 // Монеты по звёздам выдаёт занятие (features/holidays_summer.js).
 import { el, clamp } from '../core/util.js';
 import { ell, poly, fillRR, line } from '../core/draw.js';
+import { pic as kitPic } from './kit.js';
 
 const OUT = '#4a3728';
 /** Сколько секунд длится игра. */
@@ -24,17 +25,7 @@ const PUMP = 0.5,
   QUICK = 0.15;
 
 /** Маленькая картинка для правил (data: URL). */
-function pic(draw, w = 110, h = 70) {
-  const c = document.createElement('canvas');
-  c.width = w * 2;
-  c.height = h * 2;
-  const x = c.getContext('2d');
-  x.scale(2, 2);
-  x.lineJoin = 'round';
-  x.lineCap = 'round';
-  draw(x, w, h);
-  return `<img src="${c.toDataURL()}" width="${w}" height="${h}" alt="">`;
-}
+const pic = (draw, w = 110, h = 70) => kitPic(draw, w, h, { cap: true });
 // ---------- укрытия ----------
 /** Песочный замок: (x, y) — середина основания, s — масштаб. */
 function castle(ctx, x, y, s) {
@@ -146,8 +137,9 @@ export default {
   id: 'splash',
   title: 'Водяная битва',
   icon: '💦',
+  css: CSS,
   get howTo() {
-    return `<style>${CSS}</style>Купальская забава: кто кого обрызгает!
+    return `Купальская забава: кто кого обрызгает!
       <div class="sp-rules">
         <div class="sp-col y"><b>1 · Выглянул!</b>${pic((c, w, h) => {
           ell(c, w / 2, 36, 15, 15, '#e9c48e', OUT, 1.6);
@@ -174,22 +166,17 @@ export default {
       ${SPLASH_TIME} секунд. Не успела — друг обрызгает тебя в ответ, это тоже весело! 💦`;
   },
   start(host) {
-    const root = host.root;
-    const style = el('style', '', CSS);
     const top = el('div', 'sp-top');
     const tTime = el('div', 'sp-chip'),
       tHits = el('div', 'sp-chip'),
       tSay = el('div', 'sp-chip');
     top.append(tTime, tHits, tSay);
-    root.append(style, top);
+    host.root.append(top);
     const cv = host.canvas();
     const ctx = cv.ctx;
     const level = Math.min(1, (host.level || 0) * 0.25);
     const looks = (host.friends || []).map((f) => f.look);
     let t = 0,
-      last = performance.now(),
-      raf = 0,
-      stopped = false,
       over = false,
       hits = 0,
       pops = 0,
@@ -253,9 +240,8 @@ export default {
       if (t >= SPLASH_TIME) {
         over = true;
         const stars = hits >= SPLASH_STARS[1] ? 3 : hits >= SPLASH_STARS[0] ? 2 : 1;
-        setTimeout(
+        host.later(
           () =>
-            !stopped &&
             host.finish({
               stars,
               text: `Брызг: <b>${hits}</b>. ${stars === 3 ? 'Самая меткая на всём пляже!' : stars === 2 ? 'Отличная водяная битва!' : 'Было весело — все мокрые и смеются! В следующий раз получится ещё лучше.'}`,
@@ -409,16 +395,11 @@ export default {
       tSay.textContent = say || (t < 1 ? 'Приготовились!' : '👀 Кто выглянет?');
     }
 
-    const loop = (now) => {
-      if (stopped) return;
-      const dt = Math.min(0.05, (now - last) / 1000);
-      last = now;
+    host.loop((dt) => {
       if (!over) update(dt);
       draw();
       chips();
-      raf = requestAnimationFrame(loop);
-    };
-    raf = requestAnimationFrame(loop);
+    });
 
     const pd = (e) => {
       e.preventDefault();
@@ -431,7 +412,7 @@ export default {
       });
       if (Math.abs(x - xs[best]) < lw) shoot(best);
     };
-    cv.canvas.addEventListener('pointerdown', pd);
+    host.on(cv.canvas, 'pointerdown', pd);
     const KEYS = { ArrowLeft: 0, KeyA: 0, Digit1: 0, ArrowUp: 1, ArrowDown: 1, KeyW: 1, KeyS: 1, Space: 1, Digit2: 1, ArrowRight: 2, KeyD: 2, Digit3: 2 };
     const key = (e) => {
       if (e.code in KEYS) {
@@ -439,17 +420,9 @@ export default {
         shoot(KEYS[e.code]);
       }
     };
-    window.addEventListener('keydown', key);
+    host.on(window, 'keydown', key);
     // для автотеста: что сейчас в игре (up — кто выглянул и в него можно брызнуть)
     cv.canvas.__splash = () => ({ t, over, hits, pops, backs, cool, up: lanes.map((l) => l.on && l.up > 0.35 && !l.wet) });
     cv.canvas.classList.add('sp-canvas');
-    return {
-      stop() {
-        stopped = true;
-        cancelAnimationFrame(raf);
-        window.removeEventListener('keydown', key);
-        cv.destroy();
-      },
-    };
   },
 };
