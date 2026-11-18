@@ -1,0 +1,327 @@
+// Общие помощники шагов автотеста (этап 21): то, что раньше каждый dev/smoke_*.js заводил у себя заново
+// (expect, norm, fresh, state, toasts, watch …), — в одном месте. Подключение в файле шагов:
+//   const lib = require('./lib.js');
+//   module.exports = async function x(ctx) {
+//     const { page, step, ev, wait, expect, fresh, until, act, closeAll } = lib(ctx);
+//     ...
+//   };
+// ctx — то, что dev/smoke.js передаёт шагам ({ page, step, ev, wait, closeAll }); lib(ctx) возвращает его же
+// вместе с помощниками. closeAll из lib — быстрее старого: ждёт, только если было что закрывать.
+//
+// Ожидания вместо пауз: until(() => условие в странице) ждёт, пока условие станет истинным (опрашивает каждые
+// 40 мс), и падает с понятным текстом, если не дождалась. Готовые: untilScene, untilPanel, untilNoWindows,
+// untilIdle (хомячок дошёл), untilDialog. Паузу wait(мс) оставляй там, где неясно, чего ждать (идёт время игры).
+//
+// Нажатия по смыслу, а не по тексту: act('ok') — кнопка с меткой data-act="ok" (метки ставит игра: js/ui/panel.js,
+// dialog.js, features/title.js, intro.js, main.js, minigames/host.js). Метки:
+//   play — «Играть!» на заставке;  continue — «Продолжить»;  games — «Мои игры»;  new — «Новая игра»;
+//   skip / next — «Пропустить» / «Дальше» во вступительной сценке;  go — «Поехали!» в окне «Добро пожаловать»;
+//   ok — первая (главная) кнопка простого окна (message: «Ура!», «Хорошо», «Да», «Спать»…), no — последняя из
+//   нескольких («Нет», «Потом»);  close — ✕ окна;  start / done — «Начать!» / «Ура!» мини-игры.
+const { MG_START } = require('./selectors.js');
+
+const T = 48; // клетка локаций, px
+
+/** Сообщение без неразрывных и узких пробелов — чтобы сравнивать с обычным текстом. */
+const norm = (t) => String(t == null ? '' : t).replace(/[   ]/g, ' ');
+const expect = (ok, msg, data) => {
+  if (!ok) throw new Error(msg + (data === undefined ? '' : ': ' + JSON.stringify(data)));
+};
+const near = (a, b, r = 20) => !!a && !!b && Math.abs(a.x - b.x) < r && Math.abs(a.y - b.y) < r;
+/** Селектор кнопки с меткой data-act (внутри scope, если дан). */
+const sel = (name, scope = '') => (scope ? scope + ' ' : '') + `[data-act="${name}"]`;
+
+function lib(ctx) {
+  const { page } = ctx;
+  const ev = ctx.ev || ((fn, arg) => page.evaluate(fn, arg));
+  const wait = ctx.wait || ((ms) => page.waitForTimeout(ms));
+
+  /**
+   * Ждать, пока fn(arg) в странице не вернёт истину; вернуть это значение. o: { timeout (мс, 6000), msg, poll }.
+   * Не дождалась — ошибка «не дождалась: msg».
+   */
+  const until = async (fn, arg, o = {}) => {
+    if (typeof o === 'string') o = { msg: o };
+    try {
+      const h = await page.waitForFunction(fn, arg, { timeout: o.timeout || 6000, polling: o.poll || 40 });
+      return await h.jsonValue();
+    } catch (e) {
+      if (!/Timeout/i.test(e.message)) throw e;
+      throw new Error('не дождалась: ' + (o.msg || String(fn).slice(0, 120)));
+    }
+  };
+  /** n кадров игры (requestAnimationFrame) — «дать нарисоваться», вместо коротких пауз. */
+  const frames = (n = 2) =>
+    ev(
+      (n) =>
+        new Promise((r) => {
+          const f = () => (--n <= 0 ? r() : requestAnimationFrame(f));
+          requestAnimationFrame(f);
+        }),
+      n,
+    );
+  const untilScene = (name, timeout) =>
+    until((n) => window.__dev && window.__dev.sceneName === n, name, { timeout, msg: 'сцена ' + name });
+  /** Открыто окно, в заголовке которого есть title (строка), или любое окно (без title). */
+  const untilPanel = (title, timeout) =>
+    until(
+      (t) =>
+        [...document.querySelectorAll('.overlay .panel-head .title')].some((e) => !t || e.textContent.includes(t)),
+      title || '',
+      { timeout, msg: 'окно ' + (title || '') },
+    );
+  const untilDialog = (timeout) =>
+    until(() => !!document.querySelector('.dialog .btn'), undefined, { timeout, msg: 'диалог' });
+  const untilNoWindows = (timeout) =>
+    until(() => !document.querySelector('.overlay, .dialog, #mg, .fade'), undefined, { timeout, msg: 'все окна закрыты' });
+  /** Хомячок в локации дошёл, куда шла (путь пуст, отложенного дела нет). */
+  const untilIdle = (timeout = 8000) =>
+    until(
+      () => {
+        const d = window.__dev,
+          sc = d && d.locations[d.sceneName];
+        return !sc || !sc.p || (!(sc.p.path && sc.p.path.length) && !sc.p.pending);
+      },
+      undefined,
+      { timeout, msg: 'хомячок дошёл' },
+    );
+
+  /** Нажать кнопку с меткой data-act (по умолчанию ждёт её появления). */
+  const act = (name, scope) => page.click(sel(name, scope));
+  const hasAct = (name, scope) => ev((s) => !!document.querySelector(s), sel(name, scope));
+
+  /** Закрыть все окна и диалоги: ✕ окон и мини-игр, последний вариант диалога («Пока!»). Ждёт, только если было что закрывать. */
+  const closeAll = async () => {
+    for (let i = 0; i < 8; i++) {
+      const n = await ev(() => {
+        const els = [...document.querySelectorAll('.dialog .btn:last-child, .overlay .xbtn, #mg .xbtn, #piano .xbtn')];
+        els.forEach((x) => x.click());
+        return els.length;
+      });
+      if (!n) return;
+      await wait(i ? 120 : 60); // у диалога защита от случайного нажатия сразу после открытия — нажмём ещё раз
+    }
+  };
+
+  const state = () => ev(() => JSON.parse(JSON.stringify(window.__dev.G.state)));
+  /** Изменить состояние через действие mutate: строкой ('s.money = 5') или функцией ((s) => { … }) — она выполняется в странице. */
+  const mutate = (fn) =>
+    ev((src) => window.__dev.actions.mutate(new Function('s', src)), typeof fn === 'function' ? `(${fn})(s)` : fn);
+  const scene = () => ev(() => window.__dev.sceneName);
+  /** Где хомячок: сцена и x, y в локации (в доме x, y — null). */
+  const where = () =>
+    ev(() => {
+      const d = window.__dev,
+        sc = d.locations[d.sceneName];
+      return { scene: d.sceneName, x: sc ? sc.p.x : null, y: sc ? sc.p.y : null };
+    });
+
+  // тексты с экрана
+  const toasts = async () => norm(await ev(() => (document.querySelector('#toasts') || { textContent: '' }).textContent));
+  const clearToasts = () =>
+    ev(() => {
+      const t = document.querySelector('#toasts');
+      if (t) t.innerHTML = '';
+    });
+  const panelText = async () =>
+    norm(await ev(() => [...document.querySelectorAll('.overlay .panel')].map((p) => p.textContent).join(' | ')));
+  const panelTitles = () =>
+    ev(() => [...document.querySelectorAll('.overlay .panel-head .title')].map((e) => e.textContent).join('|'));
+  const dialogText = async () => norm(await ev(() => (document.querySelector('.dialog .say') || {}).textContent || ''));
+  const text = async (s) => norm(await page.locator(s).first().innerText());
+
+  /** Слежка «состояние меняют только действия»: watch() … await unwatch() (падает, если были записи мимо). */
+  const watch = () =>
+    ev(() => {
+      window.__libStopWatch = window.__dev.watchState();
+    });
+  const unwatch = async () => {
+    const bad = await ev(() => (window.__libStopWatch ? window.__libStopWatch() : []));
+    expect(!bad.length, `запись в состояние мимо действий (${bad.length})`, [...new Set(bad)].slice(0, 4));
+  };
+
+  /** Чистая страница: всё стёрто, заставка с кнопкой «Играть!». */
+  const blank = async () => {
+    await ev(() => {
+      if (window.__dev) window.__dev.G.state = null; // уходящая страница не перезапишет стёртое
+      localStorage.clear();
+    });
+    await page.reload();
+    await page.waitForSelector(sel('play'));
+  };
+
+  /**
+   * Новая игра. o:
+   *   start: 'june' (по умолчанию: настоящее начало — 1 июня, без вводной цепочки заданий) | 'old' (__dev.oldStart():
+   *          1 января, снег, тёплый наряд — для шагов про зиму) | 'intro' (как у ребёнка: с вводной цепочкой);
+   *   name — имя хомячка; day, minutes, weather — сразу поставить; dayFlags: true — очистить отметки дня;
+   *   money; flags — { имя: значение } в s.flags; set — ещё строка/функция для mutate; scene — перейти туда.
+   * Хомячок после этого на вилле (или в scene), окна закрыты.
+   */
+  const fresh = async (o = {}) => {
+    await blank();
+    if (o.name) await page.fill('#title input', o.name);
+    await act('play');
+    await act('skip'); // вступительная сценка новой игры (этап 10)
+    if (o.start === 'old') await ev(() => window.__dev.oldStart());
+    else if (o.start !== 'intro') await ev(() => window.__dev.actions.setFlag('intro', 0)); // вводная цепочка — в своих шагах (smoke_start.js)
+    await act('go'); // «Добро пожаловать!» — «Поехали!»
+    await untilScene('villa');
+    await closeAll();
+    const parts = [];
+    if (o.day != null) parts.push(`s.day = ${+o.day};`);
+    if (o.minutes != null) parts.push(`s.minutes = ${+o.minutes};`);
+    if (o.weather) parts.push(`s.weather = ${JSON.stringify(o.weather)};`);
+    if (o.dayFlags) parts.push('s.dayFlags = {};');
+    if (o.money != null) parts.push(`s.money = ${+o.money};`);
+    for (const [k, v] of Object.entries(o.flags || {})) parts.push(`s.flags[${JSON.stringify(k)}] = ${JSON.stringify(v)};`);
+    if (parts.length) await mutate(parts.join(' '));
+    if (o.set) await mutate(o.set);
+    if (o.scene) await go(o.scene);
+  };
+
+  /** Перейти в сцену (как __dev.go) и дождаться её. */
+  const go = async (name, params) => {
+    await ev(([n, p]) => window.__dev.go(n, p), [name, params || null]);
+    await untilScene(name);
+    await frames(2);
+  };
+  const toCity = (params) => go('world', params);
+  /** В локацию (тайное место открывается, если ещё закрыто): toPlace('forest'). */
+  const toPlace = async (name, params) => {
+    await ev((n) => {
+      const d = window.__dev;
+      if (d.QuestState.landOpen && !d.QuestState.landOpen(n) && d.actions.openLand) {
+        try {
+          d.actions.openLand(n);
+        } catch (e) {
+          /* не тайное место */
+        }
+      }
+    }, name);
+    await go(name, params);
+  };
+  /** Встать в локации на клетку (tx, ty) — debugTeleport текущей сцены. */
+  const teleport = async (tx, ty) => {
+    await ev(([tx, ty]) => {
+      const d = window.__dev;
+      (d.locations[d.sceneName] || d.World).debugTeleport(tx, ty);
+    }, [tx, ty]);
+    await frames(2);
+  };
+  /** Войти в здание города по id (enterBuilding) и дождаться сцены, если она известна. */
+  const enter = async (id, sceneName) => {
+    await ev((id) => window.__dev.enterBuilding(id), id);
+    if (sceneName) await untilScene(sceneName);
+    else await wait(300);
+  };
+  /** Выполнить действие из реестра (__dev.run). */
+  const run = (a, arg) => ev(([a, arg]) => window.__dev.run(a, arg), [a, arg]);
+
+  /** Вечер (__dev.evening): часы не раньше m (по умолчанию 19:00 — можно спать). */
+  const evening = (m) => ev((m) => window.__dev.evening(m === null ? undefined : m), m === undefined ? null : m);
+  /** Лечь спать на вилле вечером и проснуться: день сменился, окна закрыты. Возвращает новый день. */
+  const sleep = async (o = {}) => {
+    const day0 = await ev(() => window.__dev.G.state.day);
+    await ev((home) => {
+      if (home) window.__dev.go('villa');
+      window.__dev.evening();
+      window.__dev.F.askSleep();
+    }, o.home !== false);
+    await untilPanel('Пора спать');
+    await act('ok', '.overlay');
+    await until((d) => window.__dev.G.state.day === d + 1 && !document.querySelector('#fade, .fade'), day0, {
+      timeout: 8000,
+      msg: 'новый день после сна',
+    });
+    await wait(o.settle == null ? 400 : o.settle); // утренние окна (письмо, подарок) встают в очередь
+    await closeAll();
+    return day0 + 1;
+  };
+
+  // сохранения
+  /** Подложить живое сохранение и перезагрузить страницу (до заставки). */
+  const putSave = async (raw) => {
+    await ev((raw) => {
+      window.__dev.G.state = null;
+      localStorage.setItem('rhr-save-v1', raw);
+      localStorage.removeItem('rhr-save-backup');
+    }, raw);
+    await page.reload();
+    await page.waitForSelector(sel('continue') + ',' + sel('play') + ',' + sel('reload'));
+  };
+  /** На заставке — «Продолжить» и дождаться сцены игры. */
+  const cont = async () => {
+    await act('continue');
+    await until(() => window.__dev && window.__dev.G.state && !document.querySelector('#title'), undefined, 'игра открылась');
+    await frames(2);
+  };
+  /** Записать игру (как при уходе со страницы), перезагрузить и продолжить. */
+  const reload = async () => {
+    await ev(() => window.dispatchEvent(new Event('pagehide')));
+    await page.reload();
+    await page.waitForSelector(sel('continue'));
+    await cont();
+  };
+
+  /** Мини-игра: дождаться заставки и нажать «Начать!». */
+  const mgStart = async () => {
+    await page.waitForSelector(MG_START);
+    await page.click(MG_START);
+  };
+
+  return {
+    ...ctx,
+    ev,
+    wait,
+    T,
+    norm,
+    expect,
+    near,
+    sel,
+    until,
+    frames,
+    untilScene,
+    untilPanel,
+    untilDialog,
+    untilNoWindows,
+    untilIdle,
+    act,
+    hasAct,
+    closeAll,
+    state,
+    mutate,
+    scene,
+    where,
+    toasts,
+    clearToasts,
+    panelText,
+    panelTitles,
+    dialogText,
+    text,
+    watch,
+    unwatch,
+    blank,
+    fresh,
+    go,
+    toCity,
+    toPlace,
+    teleport,
+    enter,
+    run,
+    evening,
+    sleep,
+    putSave,
+    cont,
+    reload,
+    mgStart,
+    MG_START,
+  };
+}
+
+lib.T = T;
+lib.norm = norm;
+lib.expect = expect;
+lib.near = near;
+lib.sel = sel;
+module.exports = lib;
