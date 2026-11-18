@@ -21,6 +21,7 @@ export const EVENTS = {
   happy: 'хомячок радуется (вкусно поела и т. п.)',
   wake: 'наступило утро: хомячок просыпается в своей кровати',
   place: 'мебель поставили из кладовки { id }',
+  friend: 'выросли сердечки дружбы { id, before, after } (core/actions.js, addFriendPts) — награды выдаёт features/friends.js',
   estate: 'куплено жильё или заведение, сменился основной дом, изменились настройки заведения',
   health: 'хомячок простыла или выздоровела { sick, cause, how } (features/health.js)',
   // --- сюжетные задания (features/quests.js) ---

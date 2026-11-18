@@ -115,4 +115,30 @@ module.exports = async function rfix({ page, step, ev, wait, closeAll }) {
     await answerSleep('Спать', 7000);
     expect((await state()).stickers.includes('x_island_night'), 'думала 7 секунд — «Ночь на острове» не засчитана');
   });
+
+  await step('правки ревью п. 2: очки дружбы мимо разговора (скамейка, волейбол, рассказ) — рецепт на 2 ❤ и подарок на 5 ❤', async () => {
+    await fresh();
+    await ev(() => window.__dev.go('world'));
+    await wait(300);
+    await mutate('s.friends.myata.met = true; s.friends.myata.pts = 7;');
+    const r0 = (await state()).recipes.length;
+    // так прибавляют очки скамейка и волейбол (features/relax.js) и рассказ жителю (features/tales.js)
+    await ev(() => window.__dev.actions.addFriendPts('myata', 1));
+    await wait(1200);
+    expect(/Секретный рецепт/.test(await panelText()), 'нет окна «Секретный рецепт!»', await panelText());
+    await closeAll();
+    let s = await state();
+    expect(s.recipes.length === r0 + 1, 'рецепт за 2 ❤ не выдан', [r0, s.recipes.length]);
+    await mutate('s.friends.myata.pts = 19;');
+    await ev(() => window.__dev.actions.addFriendPts('myata', 1));
+    await wait(1600);
+    await closeAll();
+    s = await state();
+    expect(s.stickers.includes('x_friend'), 'наклейка «Лучший друг» за 5 ❤ не выдана', s.stickers.slice(-3));
+    // повтор без нового сердечка — наград нет
+    const r1 = s.recipes.length;
+    await ev(() => window.__dev.actions.addFriendPts('myata', 1));
+    await wait(700);
+    expect(!(await ev(() => document.querySelectorAll('.overlay').length)) && (await state()).recipes.length === r1, 'награда без нового сердечка');
+  });
 };

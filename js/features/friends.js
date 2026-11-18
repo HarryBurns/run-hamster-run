@@ -82,37 +82,37 @@ export function inviteLine(id) {
   return NPC_HOME[id].invite;
 }
 
-export function addPts(id, n) {
-  const before = friendHearts(id);
-  addFriendPts(id, n);
-  const after = friendHearts(id),
-    npc = NPC_BY_ID[id];
-  if (after > before) {
-    toast(`${npc.name}: дружба выросла! ${'❤️'.repeat(after)}`, 'good');
-    sfx('heart');
-    if (after >= 2 && before < 2) {
-      const unknown = SECRET_RECIPES.filter((r) => !S().recipes.includes(r));
-      const rec = unknown.includes(npc.fav) ? npc.fav : pick(unknown);
-      if (rec) {
-        learnRecipe(rec);
-        const d = DISH_BY_ID[rec];
-        enqueue(
-          () =>
-            message({
-              title: 'Секретный рецепт!',
-              icon: '📜',
-              html: `<div class="center big-emoji">${d.e}</div><p class="center"><b>${npc.name}</b> ${npc.fem ? 'рассказала' : 'рассказал'} тебе секретный рецепт:<br><b>${d.name}</b>!</p>`,
-            }),
-          { delay: 500 },
-        );
-      }
-    }
-    if (after >= 5 && before < 5) {
-      award('x_friend', { delay: 900 });
-      giveSurprise(`${npc.name} дарит тебе подарок в знак дружбы!`, 1200);
+/** Прибавить очки дружбы (то же, что действие addFriendPts: награды за сердечки — в подписке ниже). */
+export const addPts = (id, n) => addFriendPts(id, n);
+
+// сердечки выросли — откуда бы ни пришли очки (разговор, гость, скамейка, волейбол, рассказ, праздник)
+on('friend', ({ id, before, after }) => {
+  const npc = NPC_BY_ID[id];
+  if (!npc) return;
+  toast(`${npc.name}: дружба выросла! ${'❤️'.repeat(after)}`, 'good');
+  sfx('heart');
+  if (after >= 2 && before < 2) {
+    const unknown = SECRET_RECIPES.filter((r) => !S().recipes.includes(r));
+    const rec = unknown.includes(npc.fav) ? npc.fav : pick(unknown);
+    if (rec) {
+      learnRecipe(rec);
+      const d = DISH_BY_ID[rec];
+      enqueue(
+        () =>
+          message({
+            title: 'Секретный рецепт!',
+            icon: '📜',
+            html: `<div class="center big-emoji">${d.e}</div><p class="center"><b>${npc.name}</b> ${npc.fem ? 'рассказала' : 'рассказал'} тебе секретный рецепт:<br><b>${d.name}</b>!</p>`,
+          }),
+        { delay: 500 },
+      );
     }
   }
-}
+  if (after >= 5 && before < 5) {
+    award('x_friend', { delay: 900 });
+    giveSurprise(`${npc.name} дарит тебе подарок в знак дружбы!`, 1200);
+  }
+});
 
 function chatLine(npc) {
   const own = talkHooks.chat && talkHooks.chat(npc.id);

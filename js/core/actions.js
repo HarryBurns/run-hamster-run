@@ -10,7 +10,7 @@
 //  - окна и подсказки действия не показывают (это ui/ и features/): они слушают события;
 //  - новое изменение состояния = новая функция здесь (обёрнутая в act), а не правка G.state «по месту».
 // Автотест (dev/smoke.js, шаг «состояние меняют только действия») ловит записи в состояние мимо этого файла.
-import { G, touch, cal, hasClothes, houseItems } from './state.js';
+import { G, touch, cal, hasClothes, houseItems, friendHearts } from './state.js';
 import { emit } from './events.js';
 import {
   NPCS,
@@ -152,10 +152,16 @@ export const meetFriend = act((id) => {
   S().friends[id].met = true;
   touch();
 });
-/** Прибавить очки дружбы. */
+/**
+ * Прибавить очки дружбы. Выросли сердечки — событие friend { id, before, after }: награды за сердечки (тост,
+ * секретный рецепт, подарок) выдаёт features/friends.js, откуда бы ни пришли очки (разговор, скамейка, рассказ…).
+ */
 export const addFriendPts = act((id, n) => {
+  const before = friendHearts(id);
   S().friends[id].pts += n;
   touch();
+  const after = friendHearts(id);
+  if (after > before) emit('friend', { id, before, after });
 });
 /** Запомнить, что сегодня уже болтали / дарили / угощали (kind: chat | gift | treat). */
 export const markFriendToday = act((id, kind) => {
