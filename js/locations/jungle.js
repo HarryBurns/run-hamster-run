@@ -17,7 +17,6 @@
 // Своя музыка и птичий щебет (sound → features/soundscape.js), у водопада шумит вода.
 import { G, questNow } from '../core/state.js';
 import { emit } from '../core/events.js';
-import { keys } from '../core/input.js';
 import { sfx } from '../core/audio.js';
 import { clamp, seeded, dist } from '../core/util.js';
 import { toast, hintOnce } from '../ui/toast.js';

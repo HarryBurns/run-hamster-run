@@ -13,14 +13,14 @@
 // (в гамаке — тоже); на качелях качается выше-ниже; на скамейке болтает ногами. Посидела немного — иногда рядом
 // садится житель (на второе место того же предмета или на соседний такой же предмет), говорит реплику (RELAX_LINES)
 // и раз в день от этого чуть крепче дружба (+1). Житель на это время «занят» (n.hold, engine/topdown/actors.js).
-import { G, cal, canSwim, walkK, friendHearts, npcDress } from '../core/state.js';
+import { G, cal, walkK, friendHearts, npcDress } from '../core/state.js';
 import { award, addFriendPts, setDayFlag } from '../core/actions.js';
 import { on, emit } from '../core/events.js';
 import { register } from '../core/registry.js';
 import { scene } from '../core/loop.js';
 import { sfx } from '../core/audio.js';
 import { dist, shuffle, TAU } from '../core/util.js';
-import { ell, line, fillRR, emoji } from '../core/draw.js';
+import { line, fillRR, emoji } from '../core/draw.js';
 import { drawHamster, blinkAt } from '../art/hamster.js';
 import { NPCS, NPC_BY_ID, npcLook, RELAX, RELAX_LINES, RELAX_PRIZE } from '../data/index.js';
 import { T, PS, SP, OUT, OBJECTS, TILES } from '../engine/topdown/kinds.js';

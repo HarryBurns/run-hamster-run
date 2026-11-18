@@ -217,7 +217,6 @@ async function talkIslander(id) {
 register('islander', (p) => talkIslander(p.arg), 'островитяне удалённого острова: islander:<bum | laguna> — поболтать');
 
 // ---------- занятия острова ----------
-const islandScene = (ctx) => (ctx && ctx.scene) || (sceneName() === 'island' ? getLocation('island') : null);
 function islandAct(p, ctx) {
   const a = p.arg || '';
   if (a.startsWith('home:')) return homeTap(a.slice(5));

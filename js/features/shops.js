@@ -2,7 +2,7 @@
 import { addItem } from '../core/actions.js';
 import { sfx } from '../core/audio.js';
 import { emit } from '../core/events.js';
-import { register, run } from '../core/registry.js';
+import { register } from '../core/registry.js';
 import { G, cal, count } from '../core/state.js';
 import { el, plural } from '../core/util.js';
 import {

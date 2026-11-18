@@ -247,7 +247,6 @@ function invite(id, home = hostHome()) {
 
 export async function guestDialog(id) {
   const npc = NPC_BY_ID[id],
-    fr = S().friends[id],
     look = npcLookNow(id); // в праздник — в праздничном наряде (этап 15)
   const here = S().guestsAt;
   let text = pick(
