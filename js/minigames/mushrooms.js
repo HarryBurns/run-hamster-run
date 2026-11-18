@@ -5,6 +5,7 @@
 // 40 секунд; звёзды — по тому, сколько собрано (минус ошибки). Награду (монеты и грибы) даёт занятие по звёздам.
 import { el, clamp, plural } from '../core/util.js';
 import { ell, poly, fillRR } from '../core/draw.js';
+import { pic as kitPic } from './kit.js';
 
 const TIME = 40;
 const OUT = '#4a3728';
@@ -89,14 +90,12 @@ export function drawMushroom(ctx, kind, x, y, s) {
 }
 
 /** Маленькая картинка гриба для правил (data: URL — заставка правил собирается строкой HTML). */
-function pic(kind, size = 40) {
-  const c = document.createElement('canvas');
-  c.width = c.height = size * 2;
-  const x = c.getContext('2d');
-  x.scale(2, 2);
-  drawMushroom(x, kind, size / 2, size - 6, size / 44);
-  return `<img src="${c.toDataURL()}" width="${size}" height="${size}" alt="${MUSHROOMS[kind].name}" title="${MUSHROOMS[kind].name}">`;
-}
+const pic = (kind, size = 40) =>
+  kitPic((x) => drawMushroom(x, kind, size / 2, size - 6, size / 44), size, size, {
+    join: false,
+    alt: MUSHROOMS[kind].name,
+    title: MUSHROOMS[kind].name,
+  });
 
 const CSS = `
 .mh-rules{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin:8px 0 2px}
@@ -113,8 +112,9 @@ export default {
   id: 'mushrooms',
   title: 'Грибная охота',
   icon: '🍄',
+  css: CSS,
   get howTo() {
-    return `<style>${CSS}</style>Грибы выглядывают из-под листьев и прячутся обратно. <b>Нажимай только на съедобные</b> — они полетят в корзинку!
+    return `Грибы выглядывают из-под листьев и прячутся обратно. <b>Нажимай только на съедобные</b> — они полетят в корзинку!
       <div class="mh-rules">
         <div class="mh-col"><b>✅ Можно</b><div class="row">${GOOD.map((k) => pic(k)).join('')}</div><small>белый, подосиновик,<br>лисички</small></div>
         <div class="mh-col no"><b>⛔ Нельзя</b><div class="row">${BAD.map((k) => pic(k)).join('')}</div><small>мухомор, поганка —<br>ядовитые!</small></div>
@@ -122,26 +122,21 @@ export default {
       За 40 секунд собери побольше!`;
   },
   start(host) {
-    const root = host.root;
-    const style = el('style', '', CSS);
     const top = el('div', 'mh-top');
     const tTime = el('div', 'mh-chip'),
       tGot = el('div', 'mh-chip'),
       tBad = el('div', 'mh-chip');
     top.append(tTime, tGot, tBad);
-    root.append(style, top);
+    host.add(top);
     const cv = host.canvas();
     const ctx = cv.ctx;
     const level = host.level || 0;
     let t = 0,
-      last = performance.now(),
-      raf = 0,
-      stopped = false,
       over = false,
       got = 0,
       bad = 0,
       nextSpawn = 0.4;
-    const pops = []; // всплывающие надписи
+    const pops = host.pops(); // всплывающие надписи
     const flies = []; // гриб летит в корзинку
     // места, где прячутся грибы: 3 × 3 кучки листьев (доли экрана), чуть вразброс
     const SPOTS = [];
@@ -207,18 +202,18 @@ export default {
         got++;
         host.sfx('pop');
         flies.push({ kind: m.kind, x: g.x, y: g.y, t: 0, k: g.k });
-        pops.push({ text: '+1', col: '#2f9e44', x: g.x, y: g.y - 60 * g.k, t: 0 });
+        pops.add('+1', g.x, g.y - 60 * g.k, '#2f9e44');
         best.m = null;
       } else {
         bad++;
         host.sfx('bad');
-        pops.push({ text: 'Ой! Этот нельзя!', col: '#e03131', x: g.x, y: g.y - 60 * g.k, t: 0 });
+        pops.add('Ой! Этот нельзя!', g.x, g.y - 60 * g.k, '#e03131');
         m.shake = 0.5;
         m.hit = false;
         m.t = Math.max(m.t, m.stay - 0.4); // ядовитый прячется обратно
       }
     }
-    cv.canvas.addEventListener('pointerdown', tap);
+    host.on(cv.canvas, 'pointerdown', tap);
     // для автотеста (dev/smoke_forest.js): где сейчас какие грибы и куда нажать
     cv.canvas.__mh = () =>
       SPOTS.map((s) => {
@@ -292,25 +287,12 @@ export default {
         drawMushroom(ctx, f.kind, x, y, 1.1 * f.k * (1 - k * 0.5));
       }
       // надписи
-      ctx.textAlign = 'center';
-      ctx.font = '900 20px ui-rounded, "Trebuchet MS", sans-serif';
-      for (const p of pops) {
-        ctx.globalAlpha = Math.max(0, 1 - p.t);
-        ctx.lineWidth = 4;
-        ctx.strokeStyle = '#fff';
-        ctx.strokeText(p.text, p.x, p.y - p.t * 30);
-        ctx.fillStyle = p.col;
-        ctx.fillText(p.text, p.x, p.y - p.t * 30);
-      }
-      ctx.globalAlpha = 1;
+      pops.draw(ctx);
       // хомячок с корзинкой
       host.drawHamster(ctx, 52, H - 12, 0.75, host.look, { time: t, happy: flies.length > 0, blink: t % 3.3 < 0.12 });
     }
 
-    function frame(now) {
-      if (stopped) return;
-      const dt = Math.min(0.05, (now - last) / 1000);
-      last = now;
+    host.loop((dt) => {
       if (!over) {
         t += dt;
         nextSpawn -= dt;
@@ -328,14 +310,12 @@ export default {
       }
       for (const f of flies) f.t += dt;
       for (let i = flies.length - 1; i >= 0; i--) if (flies[i].t > 0.5) flies.splice(i, 1);
-      for (const p of pops) p.t += dt;
-      for (let i = pops.length - 1; i >= 0; i--) if (pops[i].t > 1) pops.splice(i, 1);
+      pops.step(dt);
       tTime.textContent = `⏱️ ${Math.max(0, Math.ceil(TIME - t))}`;
       tGot.textContent = `🧺 ${got}`;
       tBad.textContent = `❌ ${bad}`;
       draw();
-      raf = requestAnimationFrame(frame);
-    }
+    });
     function finish() {
       over = true;
       const score = got - bad;
@@ -346,16 +326,5 @@ export default {
         extra: { got, bad },
       });
     }
-    raf = requestAnimationFrame(frame);
-    return {
-      stop() {
-        stopped = true;
-        cancelAnimationFrame(raf);
-        cv.canvas.removeEventListener('pointerdown', tap);
-        if (cv.destroy) cv.destroy();
-        style.remove();
-        top.remove();
-      },
-    };
   },
 };
