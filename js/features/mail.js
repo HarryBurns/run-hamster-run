@@ -42,7 +42,9 @@ export function newDayMail() {
     sea = cal().season;
   let id;
   const played = s.day - (s.startDay || 0); // сколько дней идёт игра (новая начинается 1 июня)
-  if (played >= 0 && played < FIRST_TASKS.length) id = FIRST_TASKS[played];
+  const first = played >= 0 && played < FIRST_TASKS.length && TASK_BY_ID[FIRST_TASKS[played]];
+  // первые письма новой игры — по порядку; простуженной (Ф1) вместо купания — задание из общего набора
+  if (first && (!s.sick || !taskNeedsHealth(first, JOBS))) id = first.id;
   else {
     const ripe = s.garden.some((b) => b.seed && b.age >= SEED_BY_ID[b.seed].days);
     const hasWheel = s.villa.some((i) => i.id === 'wheel'),
