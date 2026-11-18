@@ -20,6 +20,7 @@ import {
   foodRule,
   JOBS,
   taskNeedsHealth,
+  coldDay,
   NPC_BY_ID,
   guestHosts,
 } from '../data/index.js';
@@ -49,6 +50,7 @@ export function newDayMail() {
     let pool = TASKS.filter(
       (t) =>
         (!t.seasons || t.seasons.includes(sea)) &&
+        (!t.warm || !coldDay(s.day)) && // в холодные месяцы не нырять в море (data/health.js)
         !s.lastTasks.includes(t.id) &&
         (!t.needsCrop || ripe) &&
         (t.type !== 'wheel' || hasWheel) &&
@@ -57,7 +59,7 @@ export function newDayMail() {
         (!s.sick || !taskNeedsHealth(t, JOBS)), // простуженной (Ф1) не приходят работа, купание и ныряние
     );
     if (!pool.length)
-      pool = TASKS.filter((t) => (!t.seasons || t.seasons.includes(sea)) && (!s.sick || !taskNeedsHealth(t, JOBS)));
+      pool = TASKS.filter((t) => (!t.seasons || t.seasons.includes(sea)) && (!t.warm || !coldDay(s.day)) && (!s.sick || !taskNeedsHealth(t, JOBS)));
     id = pick(pool).id;
   }
   setMail(id);
