@@ -372,12 +372,6 @@ function drawRider(ctx, x, y, dir, leg, t, look) {
   ctx.stroke();
   ctx.restore();
 }
-const ell2 = (ctx, x, y, rx, ry, c) => {
-  ctx.fillStyle = c;
-  ctx.beginPath();
-  ctx.ellipse(x, y, rx, ry, 0, 0, 6.2832);
-  ctx.fill();
-};
 /** Точка на верблюжьей тропе: k — доля круга (0 — внизу, у шатра). */
 function placeOnRing(p, k) {
   const [cx, cy, rx, ry] = AT.ring,

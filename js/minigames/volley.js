@@ -451,8 +451,7 @@ function start(host) {
       oy = OY();
     ctx.setTransform(cv.dpr, 0, 0, cv.dpr, 0, 0);
     // небо, море и песок — на весь экран
-    const gy = oy + G * k,
-      sea = oy + 200 * k;
+    const sea = oy + 200 * k;
     const sky = ctx.createLinearGradient(0, 0, 0, sea);
     sky.addColorStop(0, '#8fd3ff');
     sky.addColorStop(1, '#d6f1ff');

@@ -359,8 +359,6 @@ function showDolphins(sc, tx, ty, dir) {
 // ---------- Жемчужинка плавает (С3): иногда, пока хомячок далеко, соскальзывает с камня, плавает по лагуне и ныряет ----------
 const ROCK_PX = { x: (AT.rock[0] + 0.5) * T, y: (AT.rock[1] + 0.46) * T };
 const swim = { on: false, t0: 0, dur: 14, next: 0 };
-/** Плавает ли сейчас русалочка (тогда на камне её нет — житель спрятан, away). */
-export const pearlSwimming = () => swim.on;
 function updatePearl(sc) {
   const near = Math.hypot(sc.p.x - ROCK_PX.x, sc.p.y - ROCK_PX.y) < T * 3.2;
   if (swim.on) {
@@ -609,5 +607,3 @@ export const debugPearl = (go) => {
   return { on: swim.on, at: swim.on ? pearlAt(G.time) : null };
 };
 export const debugDolphins = (sc) => (showDolphins(sc, 15, 25.5, 1) ? dolph.j : null);
-/** Для тестов: места ракушек (клетки). */
-export const SHELL_SPOTS = SHELL_X.map((x) => [x, sandEnd(x) - 1]);

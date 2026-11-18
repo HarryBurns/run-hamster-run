@@ -9,7 +9,7 @@
 //  - тень на земле — мягкий эллипс SHADOW под предметом, чуть сдвинутый вправо (shadow());
 //  - тёплая палитра: дерево WOOD, камень STONE, черепица — цвет здания; зелень — LEAF по сезону.
 import { TAU } from '../../core/util.js';
-import { ell, fillRR, poly, rr, shade } from '../../core/draw.js';
+import { ell, fillRR, rr, shade } from '../../core/draw.js';
 import { OUT } from '../../engine/topdown/kinds.js';
 
 /** Цвет тени на земле. */
@@ -220,8 +220,4 @@ export function flower(ctx, x, y, r, col, mid = '#ffa94d') {
   }
   ctx.fill();
   ell(ctx, x, y, r * 0.5, r * 0.5, mid);
-}
-/** Треугольная крыша/фронтон и т. п. — многоугольник с бликом по левому скату. */
-export function shaded(ctx, pts, col, lw = 2.5) {
-  poly(ctx, pts, col, OUT, lw);
 }

@@ -9,9 +9,9 @@
 // Предметы: cliffFace (стена скалы «лицом» к нам — ставится на клетку скалы над песком; v — вариант, ends — края),
 //          grottoArch (вход в грот: тёмная арка в скале), mermaidRock (камень Жемчужинки в воде; плоский — русалочка
 //          рисуется сверху), seaRock (камни у воды).
-// Рисунки для крюков: cnest (гнездо черепашат: с яйцами / пустое), cturtle (черепашонок, шаг), cshell (ракушка
-//          на песке — вид), mapBottle (бутылка с кусочком карты — на Звёздном острове в городе), seaMarker (буёк-ракушка
-//          над входом в грот — в море города, locations/sea.js).
+// Рисунки для крюков: cnest (гнездо черепашат: с яйцами / пустое), cturtle (черепашонок, шаг), mapBottle (бутылка
+//          с кусочком карты — на Звёздном острове в городе), seaMarker (буёк-ракушка над входом в грот — в море
+//          города, locations/sea.js).
 import { TAU } from '../core/util.js';
 import { ell, fillRR, line, poly, star } from '../core/draw.js';
 import { T, OUT, SP, put, hash, defineTiles, defineObjects, defineArt } from '../engine/topdown/index.js';
@@ -401,43 +401,6 @@ function paintTurtle(ctx, frame, dir) {
   ctx.lineTo(-4, 4);
   ctx.stroke();
 }
-/** Ракушка на песке (вид — номер в SHELL_IDS): с бликом, чтобы было видно издали. */
-function paintShell(ctx, kind) {
-  const [c, d] = SHELL_COLORS[kind % 3];
-  ell(ctx, 0, 6, 11, 3.5, 'rgba(120,90,50,.22)');
-  if (kind % 3 === 1) {
-    // витая
-    ctx.beginPath();
-    for (let a = 0; a < 12; a += 0.4) {
-      const r = 1 + a * 0.75;
-      ctx.lineTo(Math.cos(a) * r, -2 + Math.sin(a) * r * 0.75);
-    }
-    ctx.strokeStyle = OUT;
-    ctx.lineWidth = 4.4;
-    ctx.stroke();
-    ctx.strokeStyle = c;
-    ctx.lineWidth = 2.6;
-    ctx.stroke();
-  } else {
-    ctx.beginPath();
-    ctx.moveTo(0, 4);
-    for (let i = 0; i <= 6; i++) {
-      const a = Math.PI + (i / 6) * Math.PI;
-      ctx.lineTo(Math.cos(a) * 9, 1 + Math.sin(a) * 9);
-    }
-    ctx.closePath();
-    ctx.fillStyle = c;
-    ctx.fill();
-    ctx.strokeStyle = OUT;
-    ctx.lineWidth = 1.3;
-    ctx.stroke();
-    for (let i = 1; i < 6; i++) {
-      const a = Math.PI + (i / 6) * Math.PI;
-      line(ctx, 0, 3, Math.cos(a) * 7, 1 + Math.sin(a) * 7, d, 1);
-    }
-  }
-  star(ctx, 8, -9, 3, '#fff');
-}
 /** Бутылка с кусочком карты (лежит на боку в песке). */
 function paintBottle(ctx) {
   ell(ctx, 0, 8, 16, 4, 'rgba(120,90,50,.25)');
@@ -475,7 +438,6 @@ function paintSeaMarker(ctx) {
 defineArt({
   cnest: [[-30, -16, 30, 20], paintNest],
   cturtle: [[-21, -16, 21, 16], paintTurtle],
-  cshell: [[-14, -14, 14, 12], paintShell],
   mapBottle: [[-22, -18, 22, 14], paintBottle],
   seaMarker: [[-22, -34, 22, 16], paintSeaMarker],
 });

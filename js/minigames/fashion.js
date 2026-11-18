@@ -1,7 +1,7 @@
 // Мини-игра «Показ мод»: оденься по теме и пройди по подиуму.
 // Шкаф, оценку наряда и темы показа игра получает снаружи — host.info.fashion (их даёт features/minigames.js):
 // { clothesPanel, scoreOutfit, themes, getLook }. Сами мини-игры занятия (features/) не импортируют.
-import { pick, el, clamp, TAU } from '../core/util.js';
+import { pick, el, clamp } from '../core/util.js';
 import { ell, fillRR, poly, star, text } from '../core/draw.js';
 import { drawPortrait } from '../art/hamster.js';
 

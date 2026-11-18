@@ -8,14 +8,13 @@
 //          в своде, сверху падает свет; deepPier — дощатые мостки над водой (v: 0 — западные, 1 — восточные).
 // drawRowboat — лодочка с фонарём на носу (герой в ней — ride.draw; пустая у причала — крюк things).
 import { TAU } from '../core/util.js';
-import { ell, fillRR, line, poly } from '../core/draw.js';
+import { ell, fillRR, line } from '../core/draw.js';
 import { drawHamster, blinkAt } from '../art/hamster.js';
 import { T, OUT, put, hash, defineTiles, defineObjects } from '../engine/topdown/index.js';
 import { shadow, WOOD, WOOD_D, WOOD_L } from './common/paint.js';
 import './caves_art.js';
 
-const WATER = '#164a5c',
-  WATER_L = '#2c7a8c';
+const WATER = '#164a5c';
 
 // ---------- клетки ----------
 /** Река: тёмная вода, у берегов светлее, редкие пузырьки и отражённые искорки кристаллов. */

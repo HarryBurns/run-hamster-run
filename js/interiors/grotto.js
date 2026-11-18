@@ -2,7 +2,7 @@
 // светящейся воды; сундучок с ракушками. Дом «тайного места»: вход — вода у арки грота на пляже
 // ('inside:grotto_cave', locations/cove.js), выход на пляж — светлый проход в скале; нырнуть в озерцо — заплыв
 // в море города, как раньше ('grotto:back', features/cove.js). Хозяина нет, тут всегда полутемно (dim).
-import { ell, fillRR, line, poly, star } from '../core/draw.js';
+import { ell, fillRR, poly, star } from '../core/draw.js';
 import { wob, glowWater } from './inside_art.js';
 
 const OUT = '#4a3728';

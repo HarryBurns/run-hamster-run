@@ -14,9 +14,9 @@
 // Здания:  stiltHut (хижина на сваях под пальмовой крышей; b.v — цвет занавески, b.sign — табличка), chiefHut (большая
 //          хижина вождя с резными столбами).
 import { TAU } from '../core/util.js';
-import { ell, fillRR, line, poly, shade, star } from '../core/draw.js';
+import { ell, fillRR, line, poly, star } from '../core/draw.js';
 import { T, OUT, SP, put, defineTiles, defineObjects, defineArt, defineBuildings } from '../engine/topdown/index.js';
-import { shadow, signBoard, WOOD, WOOD_D, WOOD_L } from './common/paint.js';
+import { shadow, signBoard, WOOD, WOOD_D } from './common/paint.js';
 import { geom, baseShadow, glow } from './common/buildings.js';
 import './jungle_art.js'; // монстеры, геликонии, факелы, хижина причала, кораблик — общие с джунглями
 import './forest_art.js'; // костёр, папоротник и замшелые камни — общие с лесом

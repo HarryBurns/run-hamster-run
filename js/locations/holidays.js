@@ -440,7 +440,7 @@ export function createHolidayDecor() {
           }
         }
         if (d.houses)
-          for (const { b, g } of houses) {
+          for (const { g } of houses) {
             if (!inView(g.cx, g.bot, v, 220)) continue;
             if (d.houses === 'hal') {
               // тыква-фонарик у крыльца
@@ -657,8 +657,6 @@ function miniFireworks(ctx, k, t) {
   }
   ctx.restore();
 }
-/** Для башни (вид сверху, interiors/tower_view.js) и мини-карты: идёт ли сейчас салют. */
-export const fireworksTonight = () => fireworksNow();
 /** Каждый залп фейерверка — с хлопком (шаг логики, пока хомячок в городе). */
 let lastBurst = -1;
 function fireworksSound() {

@@ -18,7 +18,7 @@
 import { TAU } from '../core/util.js';
 import { ell, fillRR, line, poly, shade } from '../core/draw.js';
 import { T, OUT, SP, put, hash, defineTiles, defineObjects, defineArt, defineBuildings } from '../engine/topdown/index.js';
-import { shadow, signBoard, WOOD, WOOD_D, WOOD_L, LIT } from './common/paint.js';
+import { shadow, signBoard, WOOD, WOOD_D } from './common/paint.js';
 import { crown, treeDot } from './common/objects.js';
 import { geom, baseShadow, glow } from './common/buildings.js';
 import { drawBoat } from './sea.js';
@@ -760,7 +760,7 @@ function paintCamp(ctx, b, snow, lit) {
 /** Руины храма: ступенчатая пирамидка из замшелых плит, тёмный вход с каменной маской, лианы и корни. */
 function paintTemple(ctx, b) {
   const g = geom(b),
-    { X, W, bot, cx } = g;
+    { W, bot, cx } = g;
   shadow(ctx, cx + 24, bot - 2, W * 0.6, 16);
   const steps = 4,
     sh = 26;

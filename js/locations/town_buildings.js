@@ -25,7 +25,6 @@ import {
   towerBody,
   towerBox,
   beacon,
-  houseGeom,
   facadeLights,
 } from './common/buildings.js';
 import { signBoard, awning, flower, fitText, leafTones, WOOD, WOOD_D, WOOD_L, LIT, GOLD } from './common/paint.js';
@@ -743,7 +742,7 @@ const MALL_WINDOWS = {
 };
 function mallBody(ctx, b, snow, lit, o = {}) {
   const s = shopBody(ctx, b, snow, { roofH: 62, up: 14, ...o }),
-    { X, W, bot, cx } = s;
+    { X, W } = s;
   // верхний ряд окон
   const n = 4,
     ww = 34;

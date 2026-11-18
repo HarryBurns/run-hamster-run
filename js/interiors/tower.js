@@ -562,7 +562,6 @@ function drawPlayer(ctx, t) {
 
 function drawLobby(ctx, t) {
   const { w, h } = G.view,
-    z = S.cam.zoom,
     d = darkness();
   ctx.fillStyle = '#5c7cfa';
   ctx.fillRect(0, 0, w, h);

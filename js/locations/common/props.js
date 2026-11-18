@@ -22,7 +22,6 @@ import { seat } from './seats.js';
 import {
   shadow,
   box,
-  planks,
   snowCap,
   signBoard,
   flower,

@@ -27,7 +27,7 @@ import { drawHamster, blinkAt } from '../art/hamster.js';
 import { JUNGLE, JUNGLE_GATHER, QUEST_BY_ID, PARROT_WORD_BY_ID, dayRoll } from '../data/index.js';
 import { T, PS, SP, put, label, tileOf, createTopDownScene } from '../engine/topdown/index.js';
 import { createPlants } from './common/plants.js';
-import { drawFallWater } from './jungle_art.js';
+import './jungle_art.js';
 import './common/index.js';
 
 const W = 46,
@@ -802,6 +802,5 @@ const jungle = createTopDownScene({
 export default jungle;
 /** Для отладки и тестов: сколько попугаев сейчас говорит и что. */
 export const debugParrots = () => talk.map((q, i) => ({ i, text: q.text, on: talking(i) }));
-export { isBathing as fallBathing };
 /** Для тестов: где лодочка-пирога и сидит ли в ней хомячок. */
 export const debugCanoe = (sc) => ({ x: canoe.x, y: canoe.y, on: isCanoeing(sc), fall: canoe.fall });
