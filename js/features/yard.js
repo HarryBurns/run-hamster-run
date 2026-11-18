@@ -10,7 +10,8 @@
 // предметы (map.remove) и ставит заново (map.add с пометкой yard). Режим «Обустроить двор» — sc.mode: палец идёт
 // сюда, хомячок стоит, камера идёт за точкой focus (двор листают пальцем), внизу — панель, как в доме.
 // Поставить можно на свободную клетку двора (canPlace): нужный вид земли, не дорожка, не у двери и не там, где
-// встают у почтового ящика и других мест, не под хомячка и не на предмет задания.
+// встают у почтового ящика и других мест, не под хомячка и не на предмет задания — и так, чтобы не перекрыть проход:
+// от двери дома, мест двора и хомячка можно дойти до выхода со двора (keepsWay).
 import { G } from '../core/state.js';
 import { addYardItem, placeYard, moveYard, stashYard, award } from '../core/actions.js';
 import { on, emit } from '../core/events.js';
@@ -59,6 +60,7 @@ function yardAt(sc, tx, ty) {
  */
 function canPlace(sc, y, tx, ty, skip = null, soft = false) {
   const m = sc.map;
+  wayBlocked = false;
   if (tx < y.area[0] || tx > y.area[2] || ty < y.area[1] || ty > y.area[3]) return false;
   if (!y.tiles.includes(m.at(tx, ty))) return false;
   if (m.objs.some((o) => o !== skip && o.tx === tx && o.ty === ty)) return false; // занято (и цветами, и лежаком)
@@ -73,7 +75,120 @@ function canPlace(sc, y, tx, ty, skip = null, soft = false) {
   for (const pl of sc.places) if (pl.stand && Math.floor(pl.stand[0]) === tx && Math.floor(pl.stand[1]) === ty) return false;
   for (const it of sc.taskItems()) if (!it.got && it.x === tx && it.y === ty) return false;
   for (const pk of sc.pickups) if (pk.tx === tx && pk.ty === ty) return false;
-  return true;
+  return keepsWay(sc, y, tx, ty, skip);
+}
+
+// ---------- проход через двор ----------
+// Твёрдый предмет (а во дворе твёрдые все) не должен запирать ни хомячка, ни дверь дома, ни места (почтовый ящик…):
+// всё, до чего со двора можно было дойти «снаружи», должно остаться достижимым. «Снаружи» — клетки в одну клетку
+// вокруг двора: оттуда открыт весь город (sealPockets). Ответы по клеткам запоминаются, пока двор и хомячок те же:
+// точки свободных клеток рисуются каждый кадр.
+let wayVer = 0, // растёт при каждой сверке карты с сохранением (sync)
+  wayBase = null; // что достижимо без нового предмета
+const wayMemo = new Map();
+/** Отказ последнего canPlace — из-за прохода (для подсказки при перетаскивании). */
+let wayBlocked = false;
+/** Клетки, до которых нельзя перестать доходить: двери и места во дворе, хомячок (если во дворе). */
+function wayTargets(sc, y) {
+  const m = sc.map,
+    [ax0, ay0, ax1, ay1] = y.area,
+    inArea = (x, yy) => x >= ax0 && x <= ax1 && yy >= ay0 && yy <= ay1,
+    out = [];
+  for (const b of m.buildings) {
+    const d = m.doorPx(b);
+    if (inArea(tileOf(d.x), tileOf(d.y))) out.push([tileOf(d.x), tileOf(d.y)]);
+  }
+  for (const pl of sc.places)
+    if (pl.stand && inArea(Math.floor(pl.stand[0]), Math.floor(pl.stand[1]))) out.push([Math.floor(pl.stand[0]), Math.floor(pl.stand[1])]);
+  if (inArea(tileOf(sc.p.x), tileOf(sc.p.y))) out.push([tileOf(sc.p.x), tileOf(sc.p.y)]);
+  return out;
+}
+/** Обход от клеток вокруг двора внутрь (рамка — двор и одна клетка вокруг): Uint8Array по рамке. */
+function wayReach(m, box) {
+  const [x0, y0, x1, y1] = box,
+    bw = x1 - x0 + 1,
+    seen = new Uint8Array(bw * (y1 - y0 + 1)),
+    q = [];
+  for (let yy = y0; yy <= y1; yy++)
+    for (let x = x0; x <= x1; x++)
+      if ((x === x0 || x === x1 || yy === y0 || yy === y1) && m.foot(x, yy)) {
+        seen[(yy - y0) * bw + x - x0] = 1;
+        q.push(x, yy);
+      }
+  for (let i = 0; i < q.length; i += 2) {
+    const x = q[i],
+      yy = q[i + 1];
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      const nx = x + dx,
+        ny = yy + dy;
+      if (nx < x0 || nx > x1 || ny < y0 || ny > y1) continue;
+      const k = (ny - y0) * bw + nx - x0;
+      if (seen[k] || !m.foot(nx, ny)) continue;
+      seen[k] = 1;
+      q.push(nx, ny);
+    }
+  }
+  return (x, yy) => seen[(yy - y0) * bw + x - x0] === 1;
+}
+/** 8 соседей клетки по кругу: С, СВ, В, ЮВ, Ю, ЮЗ, З, СЗ (чётные — по сторонам). */
+const RING = [[0, -1], [1, -1], [1, 0], [1, 1], [0, 1], [-1, 1], [-1, 0], [-1, -1]];
+/**
+ * Занять клетку точно безопасно, если соседи по сторонам, куда можно пройти, связаны между собой в обход неё — через
+ * углы её же квадрата 3×3 (открытая лужайка, край двора). Тогда обход не нужен.
+ */
+function ringSafe(m, tx, ty) {
+  const f = RING.map(([dx, dy]) => m.foot(tx + dx, ty + dy));
+  if (f.every(Boolean)) return true;
+  // идём по кругу от закрытой клетки: каждая цепочка открытых клеток связна; считаем цепочки с соседом по стороне
+  const start = f.indexOf(false);
+  let runs = 0,
+    side = false;
+  for (let k = 1; k <= 8; k++) {
+    const i = (start + k) % 8;
+    if (f[i]) side = side || i % 2 === 0;
+    else {
+      if (side) runs++;
+      side = false;
+    }
+  }
+  return runs <= 1;
+}
+/** Поставить твёрдый предмет на (tx, ty) (skip — переставляемый, его клетка свободна) и не перекрыть проход. */
+const wayAt = { sc: null, y: null, ver: -1, n: -1, px: -1, py: -1, skip: null };
+function keepsWay(sc, y, tx, ty, skip) {
+  const m = sc.map,
+    k = wayAt,
+    px = tileOf(sc.p.x),
+    py = tileOf(sc.p.y);
+  if (k.sc !== sc || k.y !== y || k.ver !== wayVer || k.n !== m.objs.length || k.px !== px || k.py !== py || k.skip !== skip) {
+    Object.assign(k, { sc, y, ver: wayVer, n: m.objs.length, px, py, skip });
+    wayMemo.clear();
+    wayBase = null;
+  }
+  const mk = ty * 4096 + tx;
+  let ok = wayMemo.get(mk);
+  if (ok === undefined) {
+    const box = [Math.max(0, y.area[0] - 1), Math.max(0, y.area[1] - 1), Math.min(m.w - 1, y.area[2] + 1), Math.min(m.h - 1, y.area[3] + 1)],
+      solid = m.solid,
+      skipWas = skip ? solid[skip.ty][skip.tx] : false;
+    if (skip) solid[skip.ty][skip.tx] = false;
+    if (ringSafe(m, tx, ty)) ok = true;
+    else {
+      if (!wayBase) {
+        const r = wayReach(m, box);
+        wayBase = wayTargets(sc, y).filter(([x, yy]) => r(x, yy));
+      }
+      const was = solid[ty][tx];
+      solid[ty][tx] = true;
+      const r = wayReach(m, box);
+      solid[ty][tx] = was;
+      ok = wayBase.every(([x, yy]) => r(x, yy));
+    }
+    if (skip) solid[skip.ty][skip.tx] = skipWas;
+    wayMemo.set(mk, ok);
+  }
+  wayBlocked = !ok;
+  return ok;
 }
 /** Поставить на карту предмет двора по записи сохранения. */
 function addToMap(sc, y, it) {
@@ -86,6 +201,7 @@ const objOf = (sc, it) => sc.map.objs.find((o) => o.yard && o.tx === it.x && o.t
 function sync(sc) {
   if (!sc || !sc.built || !YARDS.some((y) => y.loc === sc.name)) return;
   const m = sc.map;
+  wayVer++;
   for (const o of m.objs.filter((q) => q.yard)) m.remove(o);
   for (const y of YARDS) {
     if (y.loc !== sc.name || !owns(y)) continue;
@@ -252,6 +368,9 @@ function move(sx, sy) {
       moveYard(c.y.id, it, tx, ty);
       c.keep = false;
       c.drag.o = c.sel = objOf(sc, it);
+    } else if (wayBlocked && !c.drag.told) {
+      c.drag.told = true;
+      toast('Сюда не поставить: будет не пройти к дому или со двора 🚧');
     }
   } else if (c.pan) {
     const z = sc.cam.zoom || 1;

@@ -98,4 +98,49 @@ module.exports = async function rplaces({ page, step, ev, wait, closeAll }) {
     });
     for (const o of r) expect(o.side === o.boat, 'хомячок и лодочка на разных берегах', o);
   });
+
+  await step('места ревью п. 5: двор — предметы не перекрывают путь от двери, мест и хомячка к выходу со двора', async () => {
+    await fresh();
+    const r = await ev(() => {
+      const d = window.__dev,
+        W = d.World,
+        m = W.map,
+        out = [];
+      d.actions.mutate((s) => {
+        if (!s.homesOwned.includes('bungalow')) s.homesOwned.push('bungalow');
+      });
+      if (d.sceneName !== 'world') d.go('world');
+      d.actions.addYardItem('y_bed_pink', 60);
+      // хомячок в углу двора; ставим предметы как можно плотнее — сначала ближе к двери и к хомячку
+      for (const [yard, area, hero, exit, max] of [
+        ['villa', [5, 4, 26, 23], [5, 4], [30, 14], 40],
+        ['bungalow', [3, 53, 14, 56], [9, 55], [8, 58], 20],
+      ]) {
+        W.p.x = (hero[0] + 0.5) * 48;
+        W.p.y = (hero[1] + 0.5) * 48;
+        const door = m.buildings
+          .map((b) => m.doorPx(b))
+          .map((q) => [Math.floor(q.x / 48), Math.floor(q.y / 48)])
+          .find(([x, y]) => x >= area[0] && x <= area[2] && y >= area[1] && y <= area[3]);
+        const cells = [];
+        for (let y = area[1]; y <= area[3]; y++) for (let x = area[0]; x <= area[2]; x++) cells.push([x, y]);
+        const near = (c) => Math.min(Math.hypot(c[0] - door[0], c[1] - door[1]), Math.hypot(c[0] - hero[0], c[1] - hero[1]));
+        cells.sort((a, b) => near(a) - near(b));
+        let n = 0;
+        for (const [x, y] of cells)
+          if (n < max && d.F.yardCanPlace(yard, x, y) && d.actions.placeYard(yard, 'y_bed_pink', x, y)) n++;
+        const stands = W.places
+          .filter((pl) => pl.stand)
+          .map((pl) => [Math.floor(pl.stand[0]), Math.floor(pl.stand[1])])
+          .filter(([x, y]) => x >= area[0] && x <= area[2] && y >= area[1] && y <= area[3] && m.foot(x, y));
+        const lost = [door, hero, ...stands].filter(([x, y]) => !m.path(m.foot, x, y, exit[0], exit[1]));
+        out.push({ yard, n, door, lost, locked: !d.F.yardCanPlace(yard, hero[0] + 1, hero[1]) });
+      }
+      return out;
+    });
+    for (const o of r) {
+      expect(o.n >= 15, o.yard + ': поставилось слишком мало предметов', o);
+      expect(!o.lost.length, o.yard + ': путь к выходу со двора перекрыт', o);
+    }
+  });
 };
