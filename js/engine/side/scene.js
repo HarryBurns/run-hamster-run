@@ -54,17 +54,20 @@ import { setDecor, decorDown, decorMove, decorUp } from './decor.js';
 import { drawLight } from './light.js';
 
 /**
- * Общий рисунок для всех домов (позади всех, после art.back): [fn(ctx, sc, t)]. Пусто — ничего. Так занятия украшают
- * дом, не трогая описаний (шарики и гирлянда в основном доме на день рождения — features/holidays_bday.js).
+ * ОБЩИЕ ЧАСТИ ВСЕХ ДОМОВ — addSidePart(часть), как addWorldPart у локаций: так занятия добавляют своё во все дома, не
+ * трогая описаний (гирлянды праздника — locations/holidays_lands.js, шарики на день рождения — features/holidays_bday.js,
+ * питомец — features/pet.js). Все крюки необязательны:
+ *   back(ctx, sc, t)   позади мебели, сразу после art.back описания
+ *   front(ctx, sc, t)  перед мебелью, но за жильцами и хомячком (украшение праздника у двери)
+ *   draw(ctx, sc, t)   между жильцами и хомячком
+ *   tap(sc, w)         нажатие (w — точка в единицах дома) → true — обработано; зовётся первым, до жильцов и мебели
+ *                      (не в режиме «Обустроить»)
+ * Части зовутся в порядке добавления.
  */
-export const sideArt = [];
-/** Общий рисунок для всех домов перед мебелью, но за жильцами и хомячком: [fn(ctx, sc, t)] (украшение праздника у двери). */
-export const sideArtFront = [];
-/**
- * Общие части всех домов (питомец — features/pet.js): [{ draw(ctx, sc, t), tap(sc, w) → true — нажатие обработано }].
- * draw — между жильцами и хомячком; tap зовётся первым, до жильцов и мебели (не в режиме «Обустроить»).
- */
-export const sideParts = [];
+const SIDE_PARTS = [];
+export function addSidePart(part) {
+  SIDE_PARTS.push(part);
+}
 
 export function createSideScene(desc) {
   const geo = geometry(desc);
@@ -354,7 +357,7 @@ export function createSideScene(desc) {
       sfx('tap');
       return;
     }
-    for (const part of sideParts) if (part.tap && part.tap(sc, w)) return;
+    for (const part of SIDE_PARTS) if (part.tap && part.tap(sc, w)) return;
     const f = geo.floorAt(w.y, 12);
     const g = hitActor(sc, w.x, w.y);
     if (g) {
@@ -599,12 +602,12 @@ export function createSideScene(desc) {
     drawHouseLive(ctx, desc, geo, view);
     if (geo.lift) drawLift(ctx, geo, sc.liftY);
     if (desc.art && desc.art.back) desc.art.back(ctx, sc, t);
-    for (const fn of sideArt) fn(ctx, sc, t);
+    for (const part of SIDE_PARTS) if (part.back) part.back(ctx, sc, t);
     for (const b of drawOrder) if (b.def.back && floorSeen(b.f)) b.def.back(ctx, b.x - (b.def.ref || 0), fy(b.f), t, sc, b);
     drawItems(ctx, sc, t);
-    for (const fn of sideArtFront) fn(ctx, sc, t);
+    for (const part of SIDE_PARTS) if (part.front) part.front(ctx, sc, t);
     drawActors(ctx, sc, t);
-    for (const part of sideParts) if (part.draw) part.draw(ctx, sc, t);
+    for (const part of SIDE_PARTS) if (part.draw) part.draw(ctx, sc, t);
     if (desc.art && desc.art.mid) desc.art.mid(ctx, sc, t);
     drawPlayer(ctx, t);
     for (const b of drawOrder) if (b.def.front && floorSeen(b.f)) b.def.front(ctx, b.x - (b.def.ref || 0), fy(b.f), t, sc, b);

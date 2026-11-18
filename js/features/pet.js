@@ -10,7 +10,7 @@
 // точкам, где она прошла по суше (каждые STEP единиц), и останавливается в паре шагов. Поэтому он не застревает
 // и пути не мешает. Хомячок в воде, на кораблике или далеко (быстрый переход, вход в локацию) — питомец ждёт,
 // а потом «прибегает»: появляется рядом. Кадры — в кэше спрайтов SP.
-//   ДОМА (свои дома: вилла и купленное жильё) — часть sideParts: гуляет по этажу, где хомячок. В чужие дома,
+//   ДОМА (свои дома: вилла и купленное жильё) — общая часть домов (addSidePart): гуляет по этажу, где хомячок. В чужие дома,
 // магазины и мини-игры не заходит. «Подожди дома» — остаётся в основном доме (кнопка «Домой»).
 import { G } from '../core/state.js';
 import { adoptPet, renamePet, petCare, addPetGood, setPetStay, award } from '../core/actions.js';
@@ -25,7 +25,7 @@ import { drawPet, petIcon, PET_BOX } from '../art/pets.js';
 import { PETS, PET_BY_ID, PET, PET_GOODS, PET_LINES, vendorLook, VENDORS } from '../data/index.js';
 import { T, SP, tileOf, label, addWorldPart, locations } from '../engine/topdown/index.js';
 import { canStand } from '../engine/topdown/actors.js';
-import { sideParts } from '../engine/side/scene.js';
+import { addSidePart } from '../engine/side/scene.js';
 import { HS } from '../engine/side/rooms.js';
 import { openPanel } from '../ui/panel.js';
 import { dialog } from '../ui/dialog.js';
@@ -442,7 +442,7 @@ function updateHome(dt) {
     h.walkT += dt * 2.6;
   } else if (Math.abs(p.x - h.x) > 30) h.dir = p.x > h.x ? 1 : -1;
 }
-sideParts.push({
+addSidePart({
   draw(ctx, sc, t) {
     if (!h || h.sc !== sc || !pet()) return;
     const y = sc.geo.fy(h.f),

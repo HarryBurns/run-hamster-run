@@ -5,7 +5,7 @@
 //     с красными фонариками, чучело Масленицы, шарики и кадку с цветами, корзинку с венками, тыквы-фонарики.
 //     Места — LANDS (клетки рядом с тем, куда приходит хомячок), набор по празднику — KIT. Рисунки — из кэша спрайтов
 //     (locations/holidays_art.js), ночью светятся (крюк lights).
-//   • дома (общий рисунок домов sideArt движка домов): в каждой комнате вилла, купленного жилья, домиков жителей
+//   • дома (общая часть домов addSidePart движка домов): в каждой комнате вилла, купленного жилья, домиков жителей
 //     и отеля — гирлянда праздника под потолком и украшение у стены. Рисуется один раз на комнату в свою картинку
 //     (кэш на дом, комнату и праздник), в кадре — копия.
 // Когда — как в городе: накануне, в праздник (и утром 1 января), decorNow.
@@ -13,7 +13,7 @@ import { G } from '../core/state.js';
 import { FURN_BY_ID } from '../data/index.js';
 import { makeCanvas } from '../core/draw.js';
 import { T, put, ART, addWorldPart } from '../engine/topdown/index.js';
-import { sideArt, sideArtFront } from '../engine/side/scene.js';
+import { addSidePart } from '../engine/side/scene.js';
 import { decorNow } from './holidays.js';
 import { paintString } from './holidays_art.js';
 
@@ -180,8 +180,8 @@ function spotFor(sc, rm, door, hw) {
 }
 /** Праздник, который сейчас украшает этот дом, или ''. */
 const roomHoliday = (sc) => (!G.state || NO_DECOR.has(sc.name) ? '' : Object.keys(ROOM).find(decorNow) || '');
-// гирлянда — позади всего
-sideArt.push((ctx, sc) => {
+/** Гирлянда — позади всего. */
+function drawGarlands(ctx, sc) {
   const id = roomHoliday(sc);
   if (picsFor !== id || picsHouse !== sc.name) {
     pics.clear(); // праздник сменился (или кончился), или это другой дом — старые картинки не нужны
@@ -204,9 +204,9 @@ sideArt.push((ctx, sc) => {
     if (!pic) pics.set(key, (pic = roomPic(id, x0, x1, h)));
     ctx.drawImage(pic, x0, top, x1 - x0, h);
   });
-});
-// украшение на полу у двери — перед мебелью, но за жильцами и хомячком (В3: раньше пряталось за торшером и диваном)
-sideArtFront.push((ctx, sc) => {
+}
+/** Украшение на полу у двери — перед мебелью, но за жильцами и хомячком (В3: раньше пряталось за торшером и диваном). */
+function drawDoorDecor(ctx, sc) {
   const id = roomHoliday(sc);
   if (!id) return;
   const door = sc.desc.door || { f: 0, x: 100 },
@@ -221,6 +221,7 @@ sideArtFront.push((ctx, sc) => {
     [l, t, w, h] = pic.box;
   sc.holidayDecorAt = at; // для тестов
   ctx.drawImage(pic.canvas, at + l, y - 2 + t, w, h);
-});
+}
+addSidePart({ back: drawGarlands, front: drawDoorDecor });
 /** Для тестов: какой праздник украшает дома и сколько комнат уже нарисовано. */
 export const debugRoomDecor = () => ({ holiday: picsFor, rooms: pics.size });

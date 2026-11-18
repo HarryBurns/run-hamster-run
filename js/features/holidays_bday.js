@@ -6,7 +6,7 @@
 // в рюкзак (presents в таблице: блюдо, продукт, семена или монеты). Кто уже сидит в гостях (позвали по телефону) —
 // тоже гость праздника и тоже дарит подарок. Три гостя — «Все гости в сборе!»: торт со свечами (сценка — задуть
 // свечи), и праздник сделан (монеты, вещь года, наклейка, окно). Если окно с тортом закрыли — «🎂 Задуть свечи!»
-// есть в разговоре с гостем (talkHooks.guest). В доме — гирлянда «Год в Ореховой Гавани!» и шарики (sideArt движка
+// есть в разговоре с гостем (talkHooks.guest). В доме — гирлянда «Год в Ореховой Гавани!» и шарики (addSidePart движка
 // домов), в городе — шарики у двери дома (locations/holidays.js). Состояние — только отметки дня (ход шагов, asked).
 import { addItem, earn, meetFriend, setDayFlag, inviteGuest, MAX_GUESTS } from '../core/actions.js';
 import { sfx } from '../core/audio.js';
@@ -16,7 +16,7 @@ import { scene } from '../core/loop.js';
 import { G, playerLook } from '../core/state.js';
 import { drawHamster } from '../art/hamster.js';
 import { HOLIDAY, HOLIDAY_BY_ID, HOME_BY_ID, NPCS, NPC_BY_ID, DISH_BY_ID, ING_BY_ID, SEED_BY_ID, npcLook } from '../data/index.js';
-import { sideArt } from '../engine/side/scene.js';
+import { addSidePart } from '../engine/side/scene.js';
 import { paintBdayRoom, balloon } from '../locations/holidays_art.js';
 import { enqueue } from '../ui/modals.js';
 import { message } from '../ui/panel.js';
@@ -287,7 +287,7 @@ holidayWhere('home', (sc) => {
  * кладётся в свою картинку (на дом и размер комнаты), в кадре — одна её копия.
  */
 let roomPic = null;
-sideArt.push((ctx, sc) => {
+function drawBdayRoom(ctx, sc) {
   if (!isBday() || sc.houseKey !== (S().homeMain || 'villa')) return;
   const door = sc.desc.door || { f: 0, x: 100 },
     room = (sc.desc.rooms || []).find((r) => r.f === door.f && door.x >= r.x0 && door.x <= r.x1) || { x0: 0, x1: sc.geo.W };
@@ -305,6 +305,7 @@ sideArt.push((ctx, sc) => {
     roomPic = { key, canvas };
   }
   ctx.drawImage(roomPic.canvas, x0, top, x1 - x0, y - top + 12);
-});
+}
+addSidePart({ back: drawBdayRoom });
 
 holidayActs({ cake: () => cake() });
