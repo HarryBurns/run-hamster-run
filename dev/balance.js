@@ -649,6 +649,49 @@ const { pathToFileURL } = require('url');
   const coco = ING.coconut.sell,
     cocoMax = GATHER.coconut.n * GATHER.coconut.max; // игра начинается зимой: первые дни собирают кокосы
   const taskMax = Math.max(...taskAll);
+  // Призовые игры мест (ревью features.md, «Баланс»): монеты за первые paid игр в день (или раз в день), мимо предела
+  // оплачиваемых смен PAID_DAY. «В начале» открыты только горка отеля и волейбол на пляже, остальное — после заданий.
+  // Находки из игр (грибы, самоцветы) продаются на рынке — их предел уже кошелёк торговца.
+  const PRIZE_GAMES = [
+    ['«Горка» (отель)', D.HOTEL.slide, true],
+    ['«Пляжный волейбол»', D.RELAX_PRIZE.volley, true],
+    ['«Грибная охота» (лес)', D.FOREST.hunt],
+    ['«Спуск на санках» (гора)', D.MOUNTAIN.sled],
+    ['«Кристаллы» (пещеры)', D.CAVES.crystals],
+    ['«Раскопки» (пустыня)', D.DESERT.dig],
+    ['«Пары» (пирамида)', D.DESERT.pairs],
+    ['«Лианы» (джунгли)', D.JUNGLE.vines],
+    ['«Узор храма» (джунгли)', D.JUNGLE.glyphs],
+    ['«Замок из песка» (секретный пляж)', D.COVE.castle],
+    ['«Кокосовый боулинг» (остров)', D.ISLAND.bowling],
+  ].map(([name, q, town]) => ({ name, best: q.coins[2], n: q.paid || 1, town: !!town }));
+  for (const g of PRIZE_GAMES) if (!(g.best > 0 && g.n >= 1)) bad(`призовая игра ${g.name}: нет приза на 3★ или числа игр`);
+  const prizeSum = (list) => list.reduce((a, g) => a + g.best * g.n, 0);
+  const prizeTown = prizeSum(PRIZE_GAMES.filter((g) => g.town)),
+    prizeAll = prizeSum(PRIZE_GAMES);
+  // Потолок дня (этап 18): день больше не проматывается сном — спать можно только с SLEEP_FROM, а длина дня — как
+  // в «Дне сбора» (с 7:30 до «пора спать» в 22:00, GATHER_DAY.day). Каждая игра — смена или призовая — занимает
+  // GATHER_DAY.shift минут (40 списывает сама игра, около 20 — дорога). Потолок — самые дорогие игры на 3★, которые
+  // умещаются в день: оплачиваемые смены (не больше PAID_SHIFTS на месте и PAID_DAY всего) и призовые игры открытых мест.
+  const gamesPerDay = Math.floor(GD.day / GD.shift);
+  const ceilDay = (prizes) => {
+    const slots = [
+      ...jobs.flatMap(([, j]) => Array(PAID_SHIFTS).fill(j.pay[2])).sort((a, b) => b - a).slice(0, paidMax).map((v) => ({ v, shift: 1 })),
+      ...prizes.flatMap((g) => Array(g.n).fill({ v: g.best, shift: 0 })),
+    ].sort((a, b) => b.v - a.v);
+    const pick = slots.slice(0, gamesPerDay);
+    return { sum: pick.reduce((a, q) => a + q.v, 0), shifts: pick.filter((q) => q.shift).length, prizes: pick.filter((q) => !q.shift).length };
+  };
+  const ceilStart = ceilDay(PRIZE_GAMES.filter((g) => g.town)),
+    ceilWeek = ceilDay(PRIZE_GAMES);
+  const ceilHow = (c) => `${c.shifts} смен${c.prizes ? ` и ${c.prizes} призовых игр` : ''} на 3★ — столько игр умещается в день (${gamesPerDay} по ${GD.shift} мин), лучшее задание`;
+  // если играть всё подряд и после 22:00 (часы встают на 23:59, хомячок ложится, когда захочет): все смены и все призы
+  const everything = ceilWork + prizeAll + taskMax + MARKET.purse;
+  // кратчайший день: от подъёма (7:30) до SLEEP_FROM — столько игрового времени должно пройти, чтобы снова «раз в день»
+  const shortDay = D.SLEEP_FROM - (7 * 60 + 30);
+  if (!(D.SLEEP_FROM >= 18 * 60 && D.SLEEP_FROM <= 21 * 60)) bad(`SLEEP_FROM = ${D.SLEEP_FROM}: спать — вечером, с 18:00 до 21:00`);
+  if (D.SLEEP_FROM > 7.5 * 60 + GD.day) bad('SLEEP_FROM: лечь спать можно только после «пора спать» из дня сбора');
+  if (shortDay < 8 * GD.shift) bad(`до сна (${shortDay} мин) не умещаются 8 игр — «раз в день» снова станет «раз в несколько минут»`);
   // Три игрока. «В начале» — первые дни: грядки ещё пустые, мини-игры получаются на две звезды.
   // «Через неделю» — грядки работают, есть рыбалка и готовка, часть смен уже на три звезды.
   // Рынок в любом случае не даёт больше, чем лежит в кошельке торговца.
@@ -687,9 +730,9 @@ const { pathToFileURL } = require('url');
     },
     {
       id: 'max',
-      name: `потолок (все ${paidMax} оплачиваемых смен на 3★, весь кошелёк торговца)`,
-      start: { work: ceilWork, task: taskMax, market: MARKET.purse, how: 'всё, что можно' },
-      week: { work: ceilWork, task: taskMax, market: MARKET.purse, how: 'всё, что можно' },
+      name: `потолок (самые дорогие игры на 3★, сколько умещается в день до 22:00, весь кошелёк торговца)`,
+      start: { work: ceilStart.sum, task: taskMax, market: MARKET.purse, how: ceilHow(ceilStart) + ' (открыты горка и волейбол)' },
+      week: { work: ceilWeek.sum, task: taskMax, market: MARKET.purse, how: ceilHow(ceilWeek) + ' (открыты все места)' },
     },
   ];
   const GOAL = 25000; // первое жильё — квартира в городе (docs/DESIGN.md, раздел 3)
@@ -748,6 +791,9 @@ const { pathToFileURL } = require('url');
   line(`оплачиваемых смен в день на каждом месте / на всех вместе`, `${PAID_SHIFTS} / ${PAID_DAY}`);
   line(`все ${paidMax} оплачиваемых смен за день на 3★ (самые дорогие)`, fmt(ceilWork));
   line('задание из конверта', `${range(taskAll)} (в среднем ${fmt(taskAvg)})`);
+  line('призовые игры мест на 3★ за день: в начале (горка, волейбол) / все места', `${fmt(prizeTown)} / ${fmt(prizeAll)} (${PRIZE_GAMES.length} игр, ${PRIZE_GAMES.reduce((a, g) => a + g.n, 0)} с призом)`);
+  line('сон (этап 18): лечь спать можно с', `${Math.floor(D.SLEEP_FROM / 60)}:${String(D.SLEEP_FROM % 60).padStart(2, '0')} — кратчайший день ${shortDay} игровых мин (≈ ${Math.round((shortDay * 0.6) / 60)} мин настоящего времени без мини-игр)`);
+  line('всё оплачиваемое за день, если играть и после 22:00', `${fmt(ceilWork)} смены + ${fmt(prizeAll)} призы + ${fmt(taskMax)} задание + ${fmt(MARKET.purse)} рынок = ${fmt(everything)}`);
   line('кошелёк торговца на рынке (предел продаж в день)', fmt(MARKET.purse));
   console.log('\nРынок: что почём');
   for (const id of Object.keys(MARKET.sell))
@@ -990,6 +1036,11 @@ const { pathToFileURL } = require('url');
   if (by.keen.days < 7 || by.keen.days > 15) bad(`увлечённая игра: квартира за ${by.keen.days} дн. — вне 7–15`);
   if (by.calm.days < 10 || by.calm.days > 20) bad(`спокойная игра: квартира за ${by.calm.days} дн. — вне 10–20`);
   if (by.max.daysNoSpend < 3) bad(`потолок слишком высок: квартира за ${by.max.daysNoSpend} дн.`);
+  // и даже если играть без перерыва и после 22:00 (все смены, все призы мест, лучшее задание, весь рынок) — квартира
+  // не за один день; призы всех мест вместе — меньше трети заработка всеми сменами на 3★ (каждый приз сам по себе —
+  // меньше смены на 2★, это проверено выше)
+  if (START_MONEY + everything >= GOAL) bad(`всё оплачиваемое за день (${fmt(everything)}) с первого дня покупает квартиру`);
+  if (prizeAll >= ceilWork / 3) bad(`призовые игры всех мест за день — ${fmt(prizeAll)}, это не меньше трети всех смен на 3★ (${fmt(ceilWork / 3)})`);
 
   // ---------- 5. жильё и свой бизнес ----------
   // Заведение приносит выручку раз в день; хозяйка может поработать сама (прибавка по звёздам) и получает за смену
