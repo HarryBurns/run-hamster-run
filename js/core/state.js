@@ -47,12 +47,13 @@ import {
   HOLIDAY_DRESS,
   holidayOn,
   npcLook,
+  BUILD,
 } from '../data/index.js';
 
 // Ключ хранилища («v1» в имени — исторически; версия сохранения лежит в поле v). Здесь всегда лежит ТА ИГРА,
 // В КОТОРУЮ ИГРАЮТ СЕЙЧАС; остальные игры (профили) и их список хранит core/games.js.
 export const KEY = 'rhr-save-v1';
-export const BACKUP_KEY ='rhr-save-backup'; // копия сохранения: перед миграцией и когда его не удалось прочитать
+export const BACKUP_KEY = 'rhr-save-backup'; // копия сохранения: перед миграцией и когда его не удалось прочитать
 
 /**
  * Миграции сохранения. MIGRATIONS[n](s) переводит сохранение версии n в версию n + 1 (меняет s на месте).
@@ -150,6 +151,7 @@ export function newGame(name) {
   look.outfit = { ...START_OUTFIT };
   G.state = {
     v: saveVersion(),
+    build: BUILD, // номер сборки кода, который писал сохранение (data/build.js)
     name: name || 'Хомка',
     money: START_MONEY,
     spent: 0, // потрачено за всё время
@@ -246,14 +248,69 @@ export function flush() {
 /** Хранилище переполнено (а не просто недоступно)? Имена и коды ошибки — у разных браузеров свои. */
 const isQuota = (e) =>
   !!e && (e.name === 'QuotaExceededError' || e.name === 'NS_ERROR_DOM_QUOTA_REACHED' || e.code === 22 || e.code === 1014);
+// ---------- чьё живое сохранение: вторая вкладка и старая страница ----------
+// В ключе OWNER_KEY лежит «вкладка:сборка:время» — кто сейчас играет и пишет живое сохранение. Вкладка записывает себя,
+// когда начинает играть (claimSave), и перед каждой записью сохранения смотрит, она ли там ещё. Там другая вкладка —
+// значит, игру открыли ещё раз (или её открыла страница с более новым кодом): эта вкладка перестаёт сохраняться
+// насовсем (до перезагрузки) и шлёт событие saveLost { why: 'tab' | 'newer' } — main.js показывает окно.
+// Так две вкладки не затирают друг друга молча: пишет всегда та, что открыла игру последней.
+export const OWNER_KEY = 'rhr-owner';
+const TAB = Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+let owned = false,
+  lostWhy = null;
+/** Эта вкладка начинает играть: теперь живое сохранение пишет она. */
+export function claimSave() {
+  if (lostWhy) return false;
+  owned = true;
+  try {
+    localStorage.setItem(OWNER_KEY, `${TAB}:${BUILD}:${Date.now()}`);
+  } catch (e) {
+    /* хранилище недоступно — защищать нечего */
+  }
+  return true;
+}
+/** Почему эта вкладка больше не сохраняет: null | 'tab' (игру открыли в другой вкладке) | 'newer' (там код новее). */
+export const saveLost = () => lostWhy;
+function ownerSeen(value) {
+  if (lostWhy || !owned || !value || String(value).startsWith(TAB + ':')) return;
+  const build = +String(value).split(':')[1];
+  lostWhy = build > BUILD ? 'newer' : 'tab';
+  dirty = false;
+  console.warn('Игру открыли в другой вкладке — здесь она больше не сохраняется.');
+  emit('saveLost', { why: lostWhy });
+}
+/** Можно ли писать живое сохранение (и заодно — не увели ли его только что). */
+function mayWrite() {
+  if (lostWhy) return false;
+  let cur = null;
+  try {
+    cur = localStorage.getItem(OWNER_KEY);
+  } catch (e) {
+    return true; // хранилище недоступно: запись ниже сама скажет об этом
+  }
+  if (!owned || !cur) claimSave(); // игру начали не с заставки (тесты) или ключ стёрли
+  else ownerSeen(cur);
+  return !lostWhy;
+}
+// другая вкладка записала себя — узнаём сразу, не дожидаясь своей следующей записи
+if (typeof window !== 'undefined' && window.addEventListener)
+  window.addEventListener('storage', (e) => {
+    if (e.key === OWNER_KEY) ownerSeen(e.newValue);
+  });
+
 /**
  * Записать сохранение прямо сейчас. Возвращает true, если записалось. Первая неудача после удачной записи
- * сообщает событием saveFail { quota } — игра показывает об этом окно (main.js).
+ * сообщает событием saveFail { quota } — игра показывает об этом окно (main.js). Если игру увела другая вкладка
+ * (см. выше) — не пишет ничего и возвращает false.
  */
 export function save() {
   if (!G.state) {
     dirty = false;
     return true;
+  }
+  if (!mayWrite()) {
+    dirty = false;
+    return false;
   }
   try {
     localStorage.setItem(KEY, JSON.stringify(G.state));
@@ -270,6 +327,30 @@ export function save() {
     }
     return false;
   }
+}
+/**
+ * Проверить разобранное сохранение s (объект) и привести его к нынешнему виду: миграции и repair() — на месте.
+ * Возвращает null (всё хорошо) или причину: 'broken' — не сохранение или не чинится, 'newer' — от более новой игры.
+ * onMigrate() зовётся перед миграцией (load() откладывает копию). Хранилище не трогает — годится и для файла.
+ */
+export function checkSave(s, onMigrate) {
+  if (!s || typeof s !== 'object' || Array.isArray(s) || !Number.isInteger(s.v) || s.v < 1) return 'broken';
+  // сохранение новее кода (в кэше браузера осталась старая страница): не трогаем и не перезаписываем
+  if (s.v > saveVersion() || (Number.isFinite(s.build) && s.build > BUILD)) return 'newer';
+  try {
+    if (s.v < saveVersion()) {
+      if (onMigrate) onMigrate();
+      while (s.v < saveVersion()) {
+        MIGRATIONS[s.v](s);
+        s.v++;
+      }
+    }
+    repair(s);
+  } catch (e) {
+    console.warn('Сохранение не прочитано:', e);
+    return 'broken';
+  }
+  return null;
 }
 /** Почему не удалась последняя load(): 'broken' — сохранение не прочитать, 'newer' — оно от более новой версии игры. */
 export let loadProblem = null;
@@ -288,29 +369,9 @@ export function load() {
   } catch (e) {
     /* разберёмся ниже */
   }
-  if (!s || typeof s !== 'object' || !Number.isInteger(s.v) || s.v < 1) {
-    backup(raw);
-    loadProblem = 'broken';
-    return false;
-  }
-  // сохранение новее кода (в кэше браузера остался старый game.js): не трогаем и не перезаписываем
-  if (s.v > saveVersion()) {
-    loadProblem = 'newer';
-    return false;
-  }
-  try {
-    if (s.v < saveVersion()) {
-      backup(raw);
-      while (s.v < saveVersion()) {
-        MIGRATIONS[s.v](s);
-        s.v++;
-      }
-    }
-    repair(s);
-  } catch (e) {
-    console.warn('Сохранение не прочитано:', e);
-    backup(raw);
-    loadProblem = 'broken';
+  loadProblem = checkSave(s, () => backup(raw));
+  if (loadProblem) {
+    if (loadProblem === 'broken') backup(raw);
     return false;
   }
   G.state = s;
@@ -526,6 +587,7 @@ export function repair(s) {
   if (!okPos) s.pos = { scene: 'villa', floor: 0, x: 290 };
   // gid — чья это игра в списке игр (core/games.js); старое сохранение без него — «активная игра»
   if (s.gid !== undefined && (typeof s.gid !== 'string' || !/^[\w-]{1,24}$/.test(s.gid))) delete s.gid;
+  s.build = BUILD; // сохранение теперь пишет этот код (data/build.js); более новое сюда не доходит — см. checkSave
   return s;
 }
 /** Забыть загруженную игру (перед «Новой игрой» на заставке). */

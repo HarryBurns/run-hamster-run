@@ -1,6 +1,7 @@
 // Все таблицы игры одним импортом: import { CLOTHES, NPCS, … } from '../data/index.js'.
 // Правило: файлы в data/ — только таблицы (и крошечные чистые функции над ними в looks.js);
 // они не импортируют ничего, кроме друг друга. Имена (id) не переименовывать: на них ссылаются сохранения.
+export * from './build.js';
 export * from './calendar.js';
 export * from './icons.js';
 export * from './seasons.js';

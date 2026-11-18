@@ -17,6 +17,7 @@ import { esc, fmtMoney } from './core/util.js';
 import { START_MONEY, FLIPFLOPS_GIFT } from './data/index.js';
 import { unlockAudio } from './core/audio.js';
 import { on } from './core/events.js';
+import { migrateAllPhotos } from './core/photos.js';
 import { message } from './ui/panel.js';
 import { enqueue } from './ui/modals.js';
 import { toast } from './ui/toast.js';
@@ -177,6 +178,23 @@ on('saveFail', ({ quota }) => {
   );
 });
 
+// Игру открыли в другой вкладке (или её открыла страница с более новым кодом): эта вкладка больше не сохраняется
+// (core/state.js, «чьё живое сохранение») — говорим об этом сразу, и дальше можно только перезагрузить страницу.
+on('saveLost', ({ why }) => {
+  const newer = why === 'newer';
+  enqueue(() =>
+    message({
+      title: newer ? 'Игра обновилась' : 'Игра открыта в другой вкладке',
+      icon: newer ? '🔄' : '🪟',
+      sticky: true,
+      html: newer
+        ? '<p class="center big-emoji">🔄</p><p class="center">Игра обновилась — перезагрузи страницу, чтобы играть дальше.</p><p class="center muted">Здесь осталась старая страница: она больше не сохраняет игру, чтобы ничего не испортить.</p>'
+        : '<p class="center big-emoji">🪟🪟</p><p class="center">Эту игру открыли ещё в одной вкладке или окне — теперь она сохраняется <b>там</b>, а здесь больше не сохраняется.</p><p class="center muted">Закрой эту вкладку и играй в другой. Или нажми «Играть здесь» — тогда закрой другую.</p>',
+      buttons: [{ text: newer ? 'Обновить 🔄' : 'Играть здесь 🔄' }],
+    }).then(() => location.reload()),
+  );
+});
+
 // ---------- начало игры (заставка — features/title.js) ----------
 function startGame(fresh) {
   buildHud();
@@ -230,6 +248,7 @@ every(20, persist);
 // с ?dev в адресе; в выложенной игре их нет.
 const DEV_HOST = ['localhost', '127.0.0.1', '[::1]'].includes(location.hostname);
 if (DEV_HOST || new URLSearchParams(location.search).has('dev')) installDevHooks({ F });
+migrateAllPhotos(); // снимки альбома, оставшиеся в localStorage, — в IndexedDB (один раз; освобождает место под игры)
 // новая игра: сначала вступительная сценка — переезд в Ореховую Гавань (features/intro.js), потом сама игра
 openTitle({ start: (fresh) => (fresh ? F.playIntro({ name: G.state.name }).then(() => startGame(true)) : startGame(false)) });
 startLoop(canvas, { onBroken: showBroken, onGesture: unlockAudio });

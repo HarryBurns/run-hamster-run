@@ -391,7 +391,13 @@ h4.sect .muted { font-size: 13px; }
 .g-info b { font-size: 18px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .g-last { font-size: 11px; font-weight: 800; background: var(--yellow); border-radius: 999px; padding: 1px 8px; vertical-align: middle; }
 .g-more { min-width: 40px; padding-left: 8px; padding-right: 8px; }
-.g-extra { grid-column: 1 / -1; display: flex; justify-content: flex-end; border-top: 2px dashed var(--line); padding-top: 8px; }
+.g-extra { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 8px; justify-content: space-between; border-top: 2px dashed var(--line); padding-top: 8px; }
+/* про запас: отложенные нечитаемые сохранения и последняя удалённая игра; подсказка для взрослых про файл */
+.g-spare { display: flex; flex-direction: column; gap: 6px; margin-top: 4px; }
+.g-row { display: flex; align-items: center; gap: 8px; background: #fff7e6; border: 2px dashed var(--line); border-radius: 14px; padding: 6px 10px; font-size: 14px; text-align: left; }
+.g-row span { flex: 1; min-width: 0; }
+.g-hint { font-size: 13px; text-align: left; background: #eef7ff; border-radius: 14px; padding: 8px 12px; margin: 10px 0 0; }
+.t-import { align-self: center; }
 .g-ask { display: flex; flex-direction: column; align-items: center; gap: 8px; }
 .g-ask p { margin: 0; }
 .g-hold { position: relative; overflow: hidden; touch-action: none; color: #c92a2a; }

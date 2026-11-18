@@ -1,6 +1,6 @@
 // Заставка: название, «Продолжить», «Мои игры», «Новая игра». Сцена за кнопками — features/title_scene.js,
 // хранение нескольких игр — core/games.js. Игру запускает main.js: сюда приходит start(fresh).
-import { G, cal } from '../core/state.js';
+import { G, cal, claimSave } from '../core/state.js';
 import {
   MAX_GAMES,
   syncGames,
@@ -10,6 +10,12 @@ import {
   switchGame,
   createGame,
   deleteGame,
+  exportGame,
+  importGame,
+  trashInfo,
+  restoreTrash,
+  lostGames,
+  retryLost,
 } from '../core/games.js';
 import { el, esc, fmtMoney } from '../core/util.js';
 import { makeCanvas } from '../core/draw.js';
@@ -17,6 +23,7 @@ import { drawPortrait } from '../art/hamster.js';
 import { resolveLook, defaultLook, monthOfDay, SEASON_OF_MONTH } from '../data/index.js';
 import { sfx, unlockAudio } from '../core/audio.js';
 import { openPanel, message } from '../ui/panel.js';
+import { downloadText, pickTextFile } from '../ui/files.js';
 import { createTitleScene } from './title_scene.js';
 
 export const GAME_NAME = 'Пушистая жизнь';
@@ -99,6 +106,15 @@ export function openTitle({ start }) {
   }
 
   function close(fresh) {
+    if (!fresh) {
+      // пока заставка была открыта, игру могли сохранить в другой вкладке — берём из хранилища самое свежее
+      const r = openActive();
+      if (!r.ok) {
+        res = r;
+        return render('main');
+      }
+    }
+    claimSave(); // с этой минуты живое сохранение пишет эта вкладка (core/state.js)
     scene.destroy();
     current = null;
     t.remove();
@@ -136,6 +152,15 @@ export function openTitle({ start }) {
         if (e.key === 'Enter') b.click();
       });
       menu.append(inp, b);
+      if (!games.length) {
+        // браузер стёр данные сайта, а игра была сохранена в файл — вернуть её можно прямо отсюда
+        const imp = el('button', 'btn ghost small t-import', '📂 Загрузить игру из файла');
+        imp.onclick = () => {
+          sfx('tap');
+          askImport();
+        };
+        menu.appendChild(imp);
+      }
       if (games.length) {
         const back = el('button', 'btn ghost', '← Назад');
         back.onclick = () => {
@@ -263,6 +288,12 @@ export function openTitle({ start }) {
           card.append(portrait(g.look, 64), info, play, more);
           if (opened[g.id]) {
             const extra = el('div', 'g-extra');
+            const save = el('button', 'btn blue small g-save', '💾 Сохранить в файл');
+            save.onclick = () => {
+              sfx('tap');
+              saveToFile(g.id);
+            };
+            extra.appendChild(save);
             const rm = el('button', 'btn ghost small g-del', '🗑️ Удалить игру…');
             rm.onclick = () => {
               sfx('tap');
@@ -275,8 +306,69 @@ export function openTitle({ start }) {
         }
         body.appendChild(list);
         body.appendChild(el('p', 'center muted', `Игр: ${games.length} из ${MAX_GAMES}. Каждая сохраняется сама.`));
+        // про запас: отложенные нечитаемые сохранения и последняя удалённая игра (core/games.js)
+        const spare = el('div', 'g-spare');
+        for (const l of lostGames()) {
+          const row = el('div', 'g-row g-lost', `<span>😿 <b>${esc(l.name)}</b> — не открывается, лежит про запас</span>`);
+          row.dataset.id = l.id;
+          const again = el('button', 'btn ghost small', '🔁 Ещё раз');
+          again.onclick = () => {
+            sfx('tap');
+            if (retryLost(l.id)) {
+              panel.refresh();
+              reopen();
+            } else
+              message({
+                title: 'Пока не открывается',
+                icon: '😿',
+                html: `<p class="center">Игру «${esc(l.name)}» всё ещё не получается открыть. Она по-прежнему лежит про запас.</p><p class="center muted">Для взрослых: сохраните её в файл (💾) — так она точно не пропадёт.</p>`,
+              });
+          };
+          const file = el('button', 'btn ghost small', '💾');
+          file.setAttribute('aria-label', 'Сохранить в файл');
+          file.onclick = () => {
+            sfx('tap');
+            saveToFile(l.id);
+          };
+          row.append(again, file);
+          spare.appendChild(row);
+        }
+        const tr = trashInfo();
+        if (tr) {
+          const row = el('div', 'g-row g-trash', `<span>🗑️ Недавно удалена: <b>${esc(tr.name)}</b></span>`);
+          const back = el('button', 'btn ghost small', '↩️ Вернуть');
+          back.onclick = async () => {
+            sfx('tap');
+            const r = await restoreTrash();
+            if (r.ok) {
+              panel.refresh();
+              return reopen();
+            }
+            if (r.why === 'full') return noRoom('full');
+            message({
+              title: 'Не получилось',
+              icon: '😿',
+              html: '<p class="center">Игру не удалось вернуть — в памяти браузера нет места. Она по-прежнему лежит про запас.</p>',
+            });
+          };
+          row.appendChild(back);
+          spare.appendChild(row);
+        }
+        if (spare.children.length) body.appendChild(spare);
+        body.appendChild(
+          el(
+            'p',
+            'g-hint muted',
+            '<b>Для взрослых.</b> Игры хранятся в браузере. Safari на iPad может сам стереть данные сайта, если в игру не заходили около недели. Чтобы игра не пропала, сохраните её в файл: <b>⋯ → «Сохранить в файл»</b>. Вернуть — кнопкой «Загрузить из файла».',
+          ),
+        );
       },
       foot: [
+        {
+          text: '📂 Загрузить из файла',
+          cls: 'blue',
+          fn: (p) => askImport(p),
+        },
         {
           text: '✨ Новая игра',
           cls: 'yellow',
@@ -287,6 +379,54 @@ export function openTitle({ start }) {
         },
       ],
     });
+  }
+  // ---------- игра файлом: защита от того, что браузер сотрёт данные сайта ----------
+  /** Сохранить игру id в файл (вместе со снимками альбома). */
+  async function saveToFile(id) {
+    const f = await exportGame(id);
+    if (!f || !downloadText(f.name, f.text))
+      return message({
+        title: 'Не получилось',
+        icon: '😿',
+        html: '<p class="center">Игру не удалось сохранить в файл. Сама игра цела.</p>',
+      });
+    message({
+      title: 'Игра сохранена в файл',
+      icon: '💾',
+      html: `<p class="center big-emoji">💾</p><p class="center">Файл <b>«${esc(f.name)}»</b> — в папке загрузок (на iPad: «Файлы» → «Загрузки»).</p>
+        <p class="center muted">Для взрослых: положите файл туда, где он не потеряется. Если игра пропадёт из браузера — «Мои игры» → «Загрузить из файла».</p>`,
+      buttons: [{ text: 'Понятно' }],
+    });
+  }
+  /** Загрузить игру из файла: она добавится новой игрой, остальные не трогаются. panel — открытые «Мои игры». */
+  async function askImport(panel) {
+    const f = await pickTextFile();
+    if (!f) return;
+    const r = f.error ? { why: 'bad' } : await importGame(f.text);
+    if (r.ok) {
+      if (panel) panel.refresh();
+      reopen();
+      return message({
+        title: 'Игра загружена!',
+        icon: '📂',
+        html: `<p class="center big-emoji">🐹</p><p class="center">Игра, где живёт <b>${esc(r.name)}</b>, снова с тобой${r.photos ? ` — и снимки из альбома тоже (${r.photos})` : ''}.</p>
+          <p class="center muted">Она появилась в «Моих играх». Остальные игры на месте.</p>`,
+        buttons: [{ text: 'Ура!' }],
+      });
+    }
+    if (r.why === 'full') return noRoom('full');
+    const text = {
+      bad: `Файл <b>«${esc(f.name)}»</b> не похож на сохранённую игру или он испорчен.</p><p class="center muted">Нужен файл, который игра сохранила сама: «Пушистая жизнь - имя - дата.json».`,
+      newer: 'Этот файл сохранён в более новой игре, а страница ещё старая.</p><p class="center">Обнови страницу и попробуй ещё раз.',
+      store: 'Игру не удалось записать — в памяти браузера нет места.</p><p class="center">Можно удалить одну из игр и попробовать ещё раз.',
+    }[r.why];
+    const i = await message({
+      title: 'Не получилось загрузить',
+      icon: '😿',
+      html: `<p class="center">${text}</p><p class="center muted">Твои игры целы — ничего не изменилось.</p>`,
+      buttons: r.why === 'newer' ? [{ text: 'Обновить 🔄' }, { text: 'Потом', cls: 'ghost' }] : [{ text: 'Понятно' }],
+    });
+    if (r.why === 'newer' && i === 0) location.reload();
   }
   /** Удаление — только нарочно: отдельное окно с именем, а кнопку «Да, удалить» нужно подержать. */
   function askDelete(g, listPanel) {

@@ -16,6 +16,7 @@ export const EVENTS = {
   scene: 'сменилась сцена { name, from }',
   step: 'шаг логики, мир не на паузе { dt }',
   saveFail: 'сохранение не записалось { quota } — quota: хранилище переполнено (core/state.js, save)',
+  saveLost: 'игру увела другая вкладка { why } — why: tab | newer (там код новее); эта вкладка больше не сохраняет (core/state.js)',
   // --- дом ---
   guests: 'изменился список гостей',
   guestHappy: 'гостя угостили { id }',

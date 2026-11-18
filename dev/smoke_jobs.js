@@ -218,8 +218,8 @@ module.exports = async function jobs({ page, step, ev, wait, closeAll }) {
     await wait(500);
     const info = await ev(async () => {
       const m = await import('/js/core/photos.js');
-      const list = m.loadPhotos();
-      return { n: list.length, size: m.photosSize(), cap: list[0] && list[0].caption, save: localStorage.getItem('rhr-save-v1').length };
+      const list = await m.loadPhotos();
+      return { n: list.length, size: await m.photosSize(), cap: list[0] && list[0].caption, save: localStorage.getItem('rhr-save-v1').length };
     });
     expect(info.n === 1 && info.cap === 'Мой день у моря', 'снимок не в альбоме', info);
     expect(info.size < 60000, 'снимок слишком большой', info);
@@ -236,7 +236,7 @@ module.exports = async function jobs({ page, step, ev, wait, closeAll }) {
     await wait(300);
     await page.click('.overlay button:text-is("Удалить")');
     await wait(500);
-    expect((await ev(async () => (await import('/js/core/photos.js')).loadPhotos().length)) === 0, 'снимок не удалился');
+    expect((await ev(async () => (await (await import('/js/core/photos.js')).loadPhotos()).length)) === 0, 'снимок не удалился');
     await closeAll();
   });
 

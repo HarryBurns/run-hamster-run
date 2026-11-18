@@ -443,7 +443,7 @@ async function afterShot(photo) {
       continue;
     }
     if (i !== 0) return;
-    let r = addPhoto(photo);
+    let r = await addPhoto(photo);
     if (r === 'full') {
       const q = await message({
         title: 'Альбом полон',
@@ -452,7 +452,7 @@ async function afterShot(photo) {
         buttons: [{ text: 'Да, заменить', cls: 'green' }, { text: 'Нет', cls: 'ghost' }],
       });
       if (q !== 0) continue;
-      r = addPhoto(photo, { replaceOldest: true });
+      r = await addPhoto(photo, { replaceOldest: true });
     }
     if (r === 'fail') {
       toast('Ой, в браузере не хватило места для снимка. Удали старые снимки в альбоме или скачай этот файлом.');
@@ -466,9 +466,12 @@ async function afterShot(photo) {
 }
 
 /** Вкладка «📷 Фото» в альбоме (features/album.js). */
-export function renderPhotos(body, panel) {
+let photosAsk = 0; // номер последнего запроса снимков: ответ на устаревший (окно уже перерисовали) не показываем
+export async function renderPhotos(body, panel) {
   addStyle();
-  const list = loadPhotos();
+  const ask = ++photosAsk;
+  const list = await loadPhotos(); // снимки лежат в IndexedDB (core/photos.js) — читаются не сразу
+  if (ask !== photosAsk || !body.isConnected || (panel && panel.tab !== 'ph')) return; // окно закрыли или сменили вкладку
   body.appendChild(
     el(
       'p',
@@ -499,7 +502,7 @@ export function renderPhotos(body, panel) {
           buttons: [{ text: 'Удалить', cls: 'yellow' }, { text: 'Оставить', cls: 'ghost' }],
         });
         if (ok === 0) {
-          removePhoto(p.id);
+          await removePhoto(p.id);
           sfx('pop');
           panel.refresh();
         }
