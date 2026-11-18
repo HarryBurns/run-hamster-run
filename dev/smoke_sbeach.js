@@ -601,6 +601,7 @@ module.exports = async function sbeach({ page, step, ev, wait, closeAll }) {
   });
 
   await step('секретный пляж: сохранение и загрузка на пляже; грот обратно в город; «Домой»', async () => {
+    await fresh(); // своя новая игра: не опираться на дом и место, оставленные прошлыми шагами
     await toCove(14, 12);
     await wait(300);
     const raw = await ev(() => {

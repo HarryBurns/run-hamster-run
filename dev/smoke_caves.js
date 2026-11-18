@@ -510,6 +510,7 @@ module.exports = async function caves({ page, step, ev, wait, closeAll }) {
   });
 
   await step('пещеры: сохранение и загрузка в пещерах; выход на гору; «Домой» из пещер', async () => {
+    await fresh(); // своя новая игра: не опираться на дом и место, оставленные прошлыми шагами
     await toCaves(17, 17);
     await wait(300);
     const raw = await ev(() => {

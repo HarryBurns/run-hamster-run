@@ -653,6 +653,7 @@ module.exports = async function jungle({ page, step, ev, wait, closeAll }) {
   });
 
   await step('джунгли: сохранение и загрузка в джунглях; кораблик в город; «Домой» из джунглей', async () => {
+    await fresh(); // своя новая игра: не опираться на дом и место, оставленные прошлыми шагами
     await toJungle(24, 28);
     await wait(300);
     const raw = await ev(() => {

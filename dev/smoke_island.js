@@ -620,6 +620,7 @@ module.exports = async function island({ page, step, ev, wait, closeAll }) {
   });
 
   await step('удалённый остров: ночёвка в хижине для гостей — утро на острове, сохранение и загрузка, кораблик в город, «Домой»', async () => {
+    await fresh(); // своя новая игра: не опираться на дом и место, оставленные прошлыми шагами
     await toIsland(28, 21, 21 * 60 + 30);
     await ev(() => window.__dev.actions.mutate((s) => (s.stickers = s.stickers.filter((id) => id !== 'x_island_night'))));
     const day0 = (await state()).day;

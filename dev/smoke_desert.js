@@ -667,6 +667,7 @@ module.exports = async function desert({ page, step, ev, wait, closeAll }) {
   });
 
   await step('пустыня: сохранение и загрузка в пустыне; караван в город и за шлагбаум; «Домой» из пустыни', async () => {
+    await fresh(); // своя новая игра: не опираться на дом и место, оставленные прошлыми шагами
     await toDesert(22, 28);
     await wait(300);
     const raw = await ev(() => {

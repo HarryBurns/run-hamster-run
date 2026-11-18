@@ -569,6 +569,7 @@ module.exports = async function mountain({ page, step, ev, wait, closeAll }) {
   });
 
   await step('гора: сохранение и загрузка на горе; канатная дорога вниз; «Домой» с горы', async () => {
+    await fresh(); // своя новая игра: не опираться на дом и место, оставленные прошлыми шагами
     await toMountain(18, 720, 20, 30);
     await wait(300);
     const raw = await ev(() => {
