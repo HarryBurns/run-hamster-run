@@ -3,41 +3,12 @@
 // лодочка-пирога по реке в джунглях — и дальше по группам этапа (гора, пустыня, пляж, остров, отель).
 // Подключается из dev/smoke.js. Только эти шаги:  node dev/smoke.js <url> step:природа
 const { MG_START } = require('./selectors.js'); // кнопка «Начать!» мини-игры — по метке, а не по тексту
-module.exports = async function nature({ page, step, ev, wait, closeAll }) {
-  const T = 48;
-  const norm = (t) => t.replace(/[  ]/g, ' ');
-  const expect = (ok, msg, data) => {
-    if (!ok) throw new Error(msg + (data === undefined ? '' : ': ' + JSON.stringify(data)));
-  };
-  const toasts = async () => norm(await ev(() => (document.querySelector('#toasts') || { textContent: '' }).textContent));
-  const clearToasts = () =>
-    ev(() => {
-      const t = document.querySelector('#toasts');
-      if (t) t.innerHTML = '';
-    });
-  const fresh = async () => {
-    await ev(() => {
-      window.__dev.G.state = null;
-      localStorage.clear();
-    });
-    await page.reload();
-    await wait(400);
-    await page.click('text=Играть!');
-    await page.click('text=Пропустить'); // вступительная сценка новой игры (этап 10)
-    await page.evaluate(() => window.__dev.actions.setFlag('intro', 0)); // вводная цепочка заданий — в своих шагах (dev/smoke_start.js)
-    await wait(400);
-    await page.click('text=Поехали!');
-    await wait(500);
-    await closeAll();
-  };
-  const watch = () =>
-    ev(() => {
-      window.__stopWatchNature = window.__dev.watchState();
-    });
-  const unwatch = async () => {
-    const bad = await ev(() => window.__stopWatchNature());
-    expect(!bad.length, `запись в состояние мимо действий (${bad.length})`, [...new Set(bad)].slice(0, 4));
-  };
+const lib = require('./lib.js');
+
+module.exports = async function nature(ctx) {
+  const L = lib(ctx);
+  const { page, step, ev, wait, closeAll, until, untilScene, untilDialog, untilPanel, frames, go, sel, T, norm, expect, toasts, clearToasts, watch, unwatch } = L;
+  const fresh = () => L.fresh(); // 1 июня, без вводной цепочки
   /** Открыть места и встать в локации (полдень, лето, отметки дня чистые). */
   const toLand = async (scene, tx, ty, minutes = 12 * 60, day = 18) => {
     await closeAll();
@@ -57,13 +28,13 @@ module.exports = async function nature({ page, step, ev, wait, closeAll }) {
       },
       [scene, tx, ty, minutes, day],
     );
-    await wait(300);
+    await untilScene(scene);
+    await frames(3);
   };
 
   await step('природа: море — скалы у буйка-ракушки и плотик «Далеко на юг» настоящие, кораблик их обходит; дельфины рядом с корабликом', async () => {
     await fresh();
-    await ev(() => window.__dev.go('world'));
-    await wait(200);
+    await go('world');
     // скалы и плотик занимают свои клетки
     const r = await ev(() => {
       const d = window.__dev,
@@ -274,7 +245,7 @@ module.exports = async function nature({ page, step, ev, wait, closeAll }) {
       });
       d.run('mountain:snowman');
     });
-    await wait(400);
+    await page.waitForSelector('.overlay .snow-step');
     await page.click('.overlay .snow-step');
     await wait(300);
     await closeAll();
@@ -350,7 +321,7 @@ module.exports = async function nature({ page, step, ev, wait, closeAll }) {
     await ev(() => {
       window.__dev.run('desert:camel'); // не ждать: окно «Куда поедем?» ждёт ответа
     });
-    await wait(500);
+    await untilDialog();
     const opts = await ev(() => [...document.querySelectorAll('.dialog .btn')].map((b) => b.textContent));
     expect(opts.some((t) => /По кругу/.test(t)) && opts.some((t) => /пирамид/.test(t)) && opts.some((t) => /раскопк/.test(t)), 'нет выбора, куда ехать', opts);
     await page.click('.dialog .btn >> text=пирамиде');
@@ -515,7 +486,7 @@ module.exports = async function nature({ page, step, ev, wait, closeAll }) {
       window.__dev.events.on('hotel', ({ what }) => what === 'doorman' && (window.__doormanSaid = true));
       window.__dev.run('hotel:doorman');
     });
-    await wait(400);
+    await untilDialog();
     expect(/Швейцар/.test(await ev(() => (document.querySelector('.dialog') || { textContent: '' }).textContent)), 'нет разговора со швейцаром');
     await page.click('.dialog .btn >> text=Здравствуйте');
     await wait(400);
@@ -543,10 +514,11 @@ module.exports = async function nature({ page, step, ev, wait, closeAll }) {
     await ev(() => {
       window.__dev.run('hotel:spa'); // не ждать: окно Мастера Пенки ждёт ответа
     });
-    await wait(400);
+    await untilDialog();
     await page.click('.dialog .btn >> text=Массаж');
-    await wait(4600);
-    await closeAll();
+    // сценка спа в затемнении — до бодрости, снятого затемнения и значка (шапка обновляется раз в секунду)
+    await until(() => window.__dev.G.state.flags.spaBoost === window.__dev.G.state.day && !document.querySelector('.fade') && !document.querySelector('.chip.boost').hidden, undefined, { timeout: 8000 }).catch(() => {});
+    await L.drain(3000);
     const boost = await ev(() => ({ flag: window.__dev.G.state.flags.spaBoost, day: window.__dev.G.state.day, chip: !document.querySelector('.chip.boost').hidden }));
     expect(boost.flag === boost.day && boost.chip, 'после спа нет бодрости или значка', boost);
     await ev(async () => {
@@ -562,11 +534,9 @@ module.exports = async function nature({ page, step, ev, wait, closeAll }) {
       await ev(() => {
         window.__dev.run('minigame:teacher');
       });
-      await wait(500);
-      await page.click(MG_START);
-      await wait(500);
-      await page.click('#mg >> text=Ура!');
-      await wait(500);
+      await L.mgStart();
+      await page.click(sel('done', '#mg'));
+      await until(() => !document.querySelector('#mg'), undefined, { timeout: 3000 }).catch(() => {});
       return (await ev(() => window.__dev.G.state.money)) - m0;
     };
     const pay = await ev(async () => (await import('/js/data/index.js')).JOBS.teacher.pay[1]);
