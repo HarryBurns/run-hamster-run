@@ -41,8 +41,6 @@ import { playMinigame } from './minigames.js';
 const S = () => G.state;
 const OUT = '#4a3728';
 const HF = () => S().dayFlags.hotel || {};
-/** Снят ли сегодня номер (любой класс). */
-export const hotelRoomRented = () => !!rentedRoom();
 const ROOM_BY = Object.fromEntries(HOTEL_ROOMS.map((r) => [r.id, r]));
 /** Где номер: подсказка гостье. */
 const whereRoom = (r) =>

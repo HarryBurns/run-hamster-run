@@ -83,7 +83,6 @@ export function setJournalTop(fn) {
 export function trackQuest(id) {
   tracked = id;
 }
-export const trackedQuest = () => tracked;
 /** Куда ведёт задание сейчас: имя точки для sc.whereIs (житель, место, здание…) или null. */
 function questWhere(w) {
   if (w.status === 'ready') return w.q.npcAt || 'npc:' + w.q.npc; // лифтёр стоит в башне: звёздочка — к её двери
@@ -561,7 +560,7 @@ export function questChip() {
 }
 
 // ---------- входы в тайные места ----------
-/** Вход в место из LANDS: закрыто — кто знает дорогу; открыто — в сцену места (или «готовится», пока её нет). */
+/** Вход в место из LANDS: закрыто — кто знает дорогу; открыто — в сцену места (или своя дорога go). */
 export function openWay(id) {
   const land = LAND_BY_ID[id];
   if (!land) return;
@@ -571,28 +570,18 @@ export function openWay(id) {
       run(land.go); // своя дорога (вагончик канатной дороги)
       return;
     }
-    if (land.scene) {
-      go(land.scene, { at: land.entry });
-      return;
-    }
-    message({
-      title: land.name,
-      icon: land.icon,
-      html: `<p class="center big-emoji">${land.icon}</p><p class="center">${land.ready || `${land.name} ${land.opened || 'открыт'}! Загляни чуть позже.`}</p>`,
-      buttons: [{ text: 'Хорошо!' }],
-    });
+    go(land.scene, { at: land.entry });
     return;
   }
-  const q = land.quest && QUEST_BY_ID[land.quest],
-    w = q && questNow(q.id),
-    npc = land.npc && NPC_BY_ID[land.npc];
+  // у каждого места в LANDS есть сцена и задание-открытие (data/places.js)
+  const q = QUEST_BY_ID[land.quest],
+    w = questNow(q.id),
+    npc = NPC_BY_ID[land.npc];
   const door = land.door || 'Сюда пока не пройти.';
   let text,
     buttons = [{ text: 'Хорошо' }],
     act = null;
-  if (!w) {
-    text = `${door} Говорят, ${land.who} знает, как туда попасть… Только дорогу сюда ещё прокладывают — она откроется в одном из следующих обновлений игры.`;
-  } else if (w.status === 'locked') {
+  if (w.status === 'locked') {
     text = `${door} Говорят, ${land.who} знает дорогу… Сегодня ${npc.fem ? 'она занята' : 'он занят'} — загляни к ${toHim(land.npc)} завтра!`;
   } else if (w.status === 'ready') {
     text = `${door} ${land.who} знает дорогу — поговори с ${her(land.npc)}! Над головой у ${hisOf(land.npc)} «!».`;

@@ -121,8 +121,7 @@ export const BUILDINGS = [
 // окно риелтора. Пентхаус — из лифта Хомяк-Тауэра. Какое здание — дверь какого жилья, записано и в HOMES
 // (data/estate.js, поле building): туда ведёт кнопка «Домой».
 // Курортный отель «Морская звезда» (П.17) открыт с начала игры: дверь ведёт в его сцену (interiors/hotel.js).
-// Выезды в лес и пустыню — тайные места: у них действие 'way:<место>' (features/quests.js, см. PLACES). Заглушка
-// «Скоро открытие!» ('soon', features/soon.js) осталась для будущих мест — сейчас ею никто не пользуется.
+// Выезды в лес и пустыню — тайные места: у них действие 'way:<место>' (features/quests.js, см. PLACES).
 const ask = (vendor, text, options) => ({ do: 'ask', vendor, text, options });
 const BUILDING_ACTS = {
   villa: 'scene:villa',

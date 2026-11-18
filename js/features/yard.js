@@ -100,7 +100,6 @@ function sync(sc) {
 // ---------- режим «Обустроить двор» ----------
 /** Сейчас обустраиваем: { sc, y, mode, tray, sel (предмет карты), drag, pan } или null. */
 let cur = null;
-export const yardMode = () => !!cur;
 
 function focusClamp(c) {
   const [x0, y0, x1, y1] = c.y.area,
