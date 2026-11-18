@@ -700,8 +700,9 @@ function openAdopt() {
         cls: S().money >= PET.fee ? 'green pet-take' : 'ghost pet-take',
         fn: (panel) => {
           const nm = (name || '').trim() || PET_BY_ID[kind].names[0];
+          if (pet() || !PET_BY_ID[kind]) return; // взять можно одного: сначала проверка, потом взнос
           if (!buy(PET.fee)) return;
-          if (!adoptPet(kind, nm)) return;
+          adoptPet(kind, nm);
           panel.close();
           sfx('fanfare');
           award('x_pet', { delay: 900 });

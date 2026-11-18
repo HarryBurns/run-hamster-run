@@ -135,6 +135,7 @@ export function planCanvas(desc, w = 150, h = 96) {
 
 // ---------- покупка ----------
 async function buyHome(h, panel) {
+  if (ownsHome(h.id)) return;
   if (lacking(h.price)) {
     buy(h.price); // подскажет, сколько не хватает
     return;
@@ -145,7 +146,8 @@ async function buyHome(h, panel) {
     'Да, покупаю! 🔑',
     'Ещё подумаю',
   );
-  if (!ok || !buy(h.price)) return;
+  // пока окно было открыто, дом могли уже купить (второе нажатие) — деньги второй раз не списываем
+  if (!ok || ownsHome(h.id) || !buy(h.price)) return;
   const n = addHome(h.id);
   emit('buy', { cat: 'home', id: h.id });
   award('x_home2', { delay: 1500 });

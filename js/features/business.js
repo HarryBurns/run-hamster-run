@@ -108,6 +108,7 @@ export function workAt(id) {
 
 // ---------- покупка ----------
 async function buyBiz(b, panel) {
+  if (ownsBiz(b.id)) return;
   if (lacking(b.price)) {
     buy(b.price); // подскажет, сколько не хватает
     return;
@@ -119,7 +120,8 @@ async function buyBiz(b, panel) {
     'Да, покупаю! 🏪',
     'Ещё подумаю',
   );
-  if (!ok || !buy(b.price)) return;
+  // пока окно было открыто, заведение могли уже купить (второе нажатие) — деньги второй раз не списываем
+  if (!ok || ownsBiz(b.id) || !buy(b.price)) return;
   const n = addBiz(b.id);
   emit('buy', { cat: 'biz', id: b.id });
   award('x_biz', { delay: 1500 });
