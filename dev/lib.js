@@ -43,7 +43,19 @@ function lib(ctx) {
   const until = async (fn, arg, o = {}) => {
     if (typeof o === 'string') o = { msg: o };
     try {
-      const h = await page.waitForFunction(fn, arg, { timeout: o.timeout || 6000, polling: o.poll || 40 });
+      // ошибка внутри условия (окна ещё нет и т. п.) — «пока нет», а не исключение на странице
+      const h = await page.waitForFunction(
+        ([src, a]) => {
+          try {
+            const c = (window.__libFn = window.__libFn || {});
+            return (c[src] || (c[src] = new Function('return (' + src + ')')()))(a);
+          } catch (e) {
+            return false;
+          }
+        },
+        [String(fn), arg === undefined ? null : arg],
+        { timeout: o.timeout || 6000, polling: o.poll || 40 },
+      );
       return await h.jsonValue();
     } catch (e) {
       if (!/Timeout/i.test(e.message)) throw e;
@@ -228,23 +240,30 @@ function lib(ctx) {
 
   /** Вечер (__dev.evening): часы не раньше m (по умолчанию 19:00 — можно спать). */
   const evening = (m) => ev((m) => window.__dev.evening(m === null ? undefined : m), m === undefined ? null : m);
-  /** Лечь спать на вилле вечером и проснуться: день сменился, окна закрыты. Возвращает новый день. */
-  const sleep = async (o = {}) => {
+  /**
+   * Окно «Пора спать?» открыто (или вот-вот откроется): нажать «Спать» и дождаться утра — день сменился, затемнение
+   * снято, утренние окна закрыты. Возвращает новый день.
+   */
+  const confirmSleep = async (o = {}) => {
     const day0 = await ev(() => window.__dev.G.state.day);
+    await untilPanel('Пора спать');
+    await act('ok', '.overlay .panel-foot');
+    await until((d) => window.__dev.G.state.day === d + 1 && !document.querySelector('.fade'), day0, {
+      timeout: 8000,
+      msg: 'новый день после сна',
+    });
+    await wait(o.settle == null ? 300 : o.settle); // утренние окна (письмо, подарок) встают в очередь
+    await closeAll();
+    return day0 + 1;
+  };
+  /** Лечь спать вечером (на вилле, если не { home: false }) и проснуться. Возвращает новый день. */
+  const sleep = async (o = {}) => {
     await ev((home) => {
       if (home) window.__dev.go('villa');
       window.__dev.evening();
       window.__dev.F.askSleep();
     }, o.home !== false);
-    await untilPanel('Пора спать');
-    await act('ok', '.overlay');
-    await until((d) => window.__dev.G.state.day === d + 1 && !document.querySelector('#fade, .fade'), day0, {
-      timeout: 8000,
-      msg: 'новый день после сна',
-    });
-    await wait(o.settle == null ? 400 : o.settle); // утренние окна (письмо, подарок) встают в очередь
-    await closeAll();
-    return day0 + 1;
+    return confirmSleep(o);
   };
 
   // сохранения
@@ -320,6 +339,7 @@ function lib(ctx) {
     run,
     evening,
     sleep,
+    confirmSleep,
     putSave,
     cont,
     reload,
