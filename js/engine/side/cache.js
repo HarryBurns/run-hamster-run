@@ -14,26 +14,20 @@
 //                                           только те, что видны (view — sc.view)
 //   cache.sprite(key, [x0, y0, x1, y1], paint, x, y)   подвижная картинка (кадр жителя) вокруг точки (0, 0) —
 //                                           в точку дома (x, y)
-// Сколько пикселей можно держать — maxPixels; лишнее (давно не нужное) выбрасывается.
+// Память — общая со всеми кэшами картинок игры (core/pixcache.js): лишнее (давно не нужное) выбрасывается.
+import { PixelCache } from '../../core/pixcache.js';
+
 const TILE = 400; // наибольшая сторона куска кэша (единицы дома)
 
-export class LayerCache {
-  constructor({ maxPixels = 14e6 } = {}) {
-    this.map = new Map();
+export class LayerCache extends PixelCache {
+  constructor() {
+    super();
     this.k = 0;
     this.sig = '';
-    this.pixels = 0;
-    this.frame = 0;
-    this.built = 0;
     this.ctx = null;
     this.tx = 0;
     this.ty = 0;
     this.off = false; // для проверки: рисовать всё линиями, мимо кэша
-    this.maxPixels = maxPixels;
-  }
-  clear() {
-    this.map.clear();
-    this.pixels = 0;
   }
   begin(ctx, k, tx, ty, sig) {
     if (k !== this.k || sig !== this.sig) {
@@ -44,8 +38,7 @@ export class LayerCache {
     this.ctx = ctx;
     this.tx = tx;
     this.ty = ty;
-    this.frame++;
-    if (this.pixels > this.maxPixels && this.frame % 20 === 0) this.trim();
+    this.tick();
   }
   /** Кусок мира из кэша. ceil — правый и нижний край округлить вверх (отдельный кусок) или вниз (квадрат сетки). */
   layer(key, box, paint, ceil = true) {
@@ -54,13 +47,7 @@ export class LayerCache {
       paint(ctx);
       return;
     }
-    let s = this.map.get(key);
-    if (!s) {
-      s = this.build(box, paint, ceil);
-      this.map.set(key, s);
-      this.pixels += s.w * s.h;
-    }
-    s.used = this.frame;
+    const s = this.peek(key) || this.add(key, this.build(box, paint, ceil));
     if (!s.c) return;
     ctx.save();
     ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -80,13 +67,7 @@ export class LayerCache {
       ctx.restore();
       return;
     }
-    let s = this.map.get(key);
-    if (!s) {
-      s = this.build(box, paint, true);
-      this.map.set(key, s);
-      this.pixels += s.w * s.h;
-    }
-    s.used = this.frame;
+    const s = this.peek(key) || this.add(key, this.build(box, paint, true));
     if (!s.c) return;
     ctx.save();
     ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -134,14 +115,6 @@ export class LayerCache {
     x.lineJoin = 'round';
     paint(x); // лишнее обрежет сама канва — по целым пикселям, поэтому соседние квадраты сходятся без шва
     return { c, px, py, w, h, used: 0 };
-  }
-  trim() {
-    const list = [...this.map.entries()].sort((a, b) => a[1].used - b[1].used);
-    for (const [key, s] of list) {
-      if (this.pixels <= this.maxPixels * 0.7 || s.used >= this.frame - 1) break;
-      this.map.delete(key);
-      this.pixels -= s.w * s.h;
-    }
   }
   stats() {
     return { count: this.map.size, pixels: this.pixels, built: this.built, k: this.k };

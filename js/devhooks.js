@@ -16,6 +16,7 @@ import { createSideScene } from './engine/side/scene.js';
 import { OWN as demoOwn } from './interiors/demo_house.js';
 import town, { sea, BUILDINGS } from './locations/town.js';
 import * as topdown from './engine/topdown/index.js';
+import { pixStats } from './core/pixcache.js';
 import { PLANTS, hasFruit, plantInSeason, gather } from './locations/common/plants.js';
 import * as Tower from './interiors/tower.js';
 import { debugDecor, debugFireworks } from './locations/holidays.js';
@@ -132,6 +133,14 @@ export function installDevHooks({ F }) {
     locations: topdown.locations,
     /** Плодовые растения: Plants.PLANTS (что на чём растёт), hasFruit(o), plantInSeason(o), gather(сцена, o). */
     Plants: { PLANTS, hasFruit, plantInSeason, gather },
+    /** Память кэшей картинок (core/pixcache.js), пикселей: всего, предел, спрайты локаций, земля, остальное — дома. */
+    pix() {
+      const st = pixStats(),
+        sprites = topdown.SP.pixels,
+        ground = topdown.getLocation('world').debugGround().pixels;
+      return { ...st, sprites, ground, layers: st.total - sprites - ground };
+    },
+    pixClock: () => pixStats().clock,
     Tower,
     /** Журнал заданий (только чтение): questNow('herbarium'), questBadge('myata'), findsWanted('herb'), landOpen('forest'). */
     QuestState: { questNow, questBadge, findsWanted, landOpen },
@@ -150,7 +159,13 @@ export function installDevHooks({ F }) {
         s.startDay = 0;
         s.immuneUntil = 3;
         s.weather = 'snow';
-        s.look.outfit = { head: 'beanie_red', body: 'jw_blue', legs: 'pants_jeans', feet: 'boots_brown', acc: 'scarf_yellow' };
+        s.look.outfit = {
+          head: 'beanie_red',
+          body: 'jw_blue',
+          legs: 'pants_jeans',
+          feet: 'boots_brown',
+          acc: 'scarf_yellow',
+        };
         s.seeds = { seed_lettuce: 2 };
         s.flags.intro = 0;
       });

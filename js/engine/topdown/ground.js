@@ -23,29 +23,33 @@
 //
 // Память: держим только куски на экране и вокруг него; лишние вытесняются. Куски за краем экрана готовятся
 // заранее, по одному за кадр, чтобы при ходьбе не было рывков.
+import { PixelCache } from '../../core/pixcache.js';
 import { T, hash } from './kinds.js';
 
 /** Сторона куска в клетках. */
 export const CH = 4;
 const MARGIN = 2; // запас вокруг куска при расчёте краёв слоёв, клеток
 
-const cache = new Map(); // ключ → { c, used }
+// ключ → { c, w, h, seen }; память — общая со всеми кэшами картинок (core/pixcache.js): куски локации, из которой
+// хомячок ушёл, вытесняются, когда памяти мало
+const cache = new PixelCache();
 const pool = []; // свободные канвы нужного размера
+cache.onDrop = (e) => {
+  if (pool.length < 8) pool.push(e.c);
+};
 let cacheK = 0,
   frame = 0,
-  pixels = 0,
   built = 0,
   buildMs = 0,
   lastCam = null;
 
 /** Выбросить все куски (сменился масштаб, сезон дорисуется сам — он входит в ключ). */
 export function clearGround() {
-  for (const e of cache.values()) pool.push(e.c);
+  for (const e of cache.map.values()) pool.push(e.c);
   cache.clear();
-  pixels = 0;
 }
 /** Для тестов и отладки: сколько кусков и пикселей в кэше земли. */
-export const groundStats = () => ({ count: cache.size, pixels, built, buildMs, chunk: CH });
+export const groundStats = () => ({ count: cache.map.size, pixels: cache.pixels, built, buildMs, chunk: CH });
 
 // ---------- край слоя ----------
 /**
@@ -309,9 +313,7 @@ function buildChunk(sc, env, cx, cy, key, k) {
   g.fillStyle = sc.desc.bg || '#3fb0ea';
   g.fillRect(cx * CH * T, cy * CH * T, CH * T, CH * T);
   paintChunk(g, sc, env, cx, cy);
-  const e = { c, used: frame };
-  cache.set(key, e);
-  pixels += size * size;
+  const e = cache.add(key, { c, w: size, h: size, seen: frame });
   built++;
   buildMs += performance.now() - t0;
   return e;
@@ -334,6 +336,7 @@ export function drawGround(ctx, sc, env, k, ox, oy, cw, chh) {
     cacheK = k;
   }
   frame++;
+  cache.tick();
   const ncx = Math.ceil(m.w / CH),
     ncy = Math.ceil(m.h / CH);
   const cx0 = Math.max(0, Math.floor(ox / cp)),
@@ -346,12 +349,12 @@ export function drawGround(ctx, sc, env, k, ox, oy, cw, chh) {
   for (let cy = cy0; cy <= cy1; cy++)
     for (let cx = cx0; cx <= cx1; cx++) {
       const key = pre + cx + ':' + cy;
-      let e = cache.get(key);
+      let e = cache.peek(key);
       if (!e) {
         e = buildChunk(sc, env, cx, cy, key, k);
         fresh++;
       }
-      e.used = frame;
+      e.seen = frame;
       ctx.drawImage(e.c, cx * cp - ox, cy * cp - oy);
     }
   // заранее — один кусок из кольца вокруг экрана, сначала по ходу движения камеры
@@ -365,9 +368,9 @@ export function drawGround(ctx, sc, env, k, ox, oy, cw, chh) {
         if (cx >= cx0 && cx <= cx1 && cy >= cy0 && cy <= cy1) continue;
         if (cx < 0 || cy < 0 || cx >= ncx || cy >= ncy) continue;
         const key = pre + cx + ':' + cy,
-          e = cache.get(key);
+          e = cache.peek(key);
         if (e) {
-          e.used = frame;
+          e.seen = frame;
           continue;
         }
         // чем больше «по ходу», тем раньше
@@ -384,12 +387,11 @@ export function drawGround(ctx, sc, env, k, ox, oy, cw, chh) {
   lastCam = { ox, oy };
   // вытесняем давно не нужные куски: держим экран, кольцо вокруг и небольшой запас
   const keep = (cx1 - cx0 + 3) * (cy1 - cy0 + 3) + 6;
-  if (cache.size > keep) {
-    const old = [...cache.entries()].filter((q) => q[1].used < frame).sort((a, b) => a[1].used - b[1].used);
+  if (cache.map.size > keep) {
+    const old = [...cache.map.entries()].filter((q) => q[1].seen < frame).sort((a, b) => a[1].seen - b[1].seen);
     for (const [key, e] of old) {
-      if (cache.size <= keep) break;
-      cache.delete(key);
-      pixels -= e.c.width * e.c.height;
+      if (cache.map.size <= keep) break;
+      cache.drop(key);
       if (pool.length < 8) pool.push(e.c);
     }
   }
@@ -559,4 +561,3 @@ export function buildShore(m, land, water) {
     );
   return res;
 }
-

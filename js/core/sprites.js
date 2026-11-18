@@ -7,7 +7,8 @@
 //    на единицу мира). Сменился k (повернули телефон, изменили окно) — набор сбрасывается сам;
 //  - сдвиг камеры — целое число пикселей устройства, место спрайта тоже округляется до пикселя;
 //  - всё, от чего зависит вид спрайта (сезон, вариант, «горит свет», кадр анимации), входит в ключ.
-//    Сменился сезон — просто получаются другие ключи; старые картинки вытесняются, когда памяти мало.
+//    Сменился сезон — просто получаются другие ключи; старые картинки вытесняются, когда памяти мало
+//    (предел общий на все кэши картинок игры — core/pixcache.js).
 //
 // Как пользоваться (пример — js/engine/topdown/render.js и kinds.js):
 //   const SP = new SpriteSet();                      // один набор на сцену
@@ -21,30 +22,22 @@
 // Анимацию делают так: неподвижную часть — в спрайт, подвижную — отдельным спрайтом со сдвигом (крона дерева),
 // несколькими кадрами в ключе (листья пальмы, шаг жителя) или рисуют «вживую» поверх (струи фонтана).
 
+import { PixelCache } from './pixcache.js';
+
 const PAD = 2; // поля вокруг рамки, пиксели: сюда попадает сглаживание краёв
 let scratch = null,
   scratchCtx = null; // общий черновик: рисуем в него, читаем пиксели и вырезаем непустую часть
 
-export class SpriteSet {
-  /** maxPixels — сколько пикселей всего можно держать в наборе; лишнее (давно не рисовавшееся) выбрасывается. */
-  constructor({ maxPixels = 20e6 } = {}) {
-    this.map = new Map();
+/** Память — общая со всеми кэшами картинок (core/pixcache.js): давно не рисовавшееся выбрасывается само. */
+export class SpriteSet extends PixelCache {
+  constructor() {
+    super();
     this.k = 0;
     this.ox = 0;
     this.oy = 0;
     this.ctx = null;
     this.px = false;
-    this.maxPixels = maxPixels;
-    this.pixels = 0;
-    this.frame = 0;
-    this.built = 0;
     this.clipped = [];
-  }
-
-  /** Выбросить все картинки (они нарисуются заново, когда понадобятся). */
-  clear() {
-    this.map.clear();
-    this.pixels = 0;
   }
 
   /** Масштаб: пикселей устройства на единицу мира. При смене набор сбрасывается. */
@@ -61,8 +54,7 @@ export class SpriteSet {
     this.ctx = ctx;
     this.ox = ox;
     this.oy = oy;
-    this.frame++;
-    if (this.pixels > this.maxPixels && this.frame % 30 === 0) this.trim();
+    this.tick();
     ctx.setTransform(k, 0, 0, k, -ox, -oy);
     this.px = false;
   }
@@ -82,20 +74,11 @@ export class SpriteSet {
 
   /** Готовый спрайт по ключу или undefined (чтобы не готовить рамку и функцию рисования на каждый кадр). */
   find(key) {
-    const s = this.map.get(key);
-    if (s) s.used = this.frame;
-    return s;
+    return this.peek(key);
   }
   /** Спрайт по ключу; если его ещё нет — нарисовать: paint(ctx) рисует вокруг точки (0, 0) в единицах мира. */
   get(key, box, paint) {
-    let s = this.map.get(key);
-    if (!s) {
-      s = this.build(key, box, paint);
-      this.map.set(key, s);
-      this.pixels += s.w * s.h;
-    }
-    s.used = this.frame;
-    return s;
+    return this.peek(key) || this.add(key, this.build(key, box, paint));
   }
   /** Скопировать спрайт на экран так, чтобы его точка (0, 0) попала в точку мира (x, y). */
   draw(s, x, y) {
@@ -164,16 +147,6 @@ export class SpriteSet {
     out.height = y1 - y0 + 1;
     out.getContext('2d').drawImage(scratch, x0, y0, out.width, out.height, 0, 0, out.width, out.height);
     return { c: out, ax: ax - x0, ay: ay - y0, w: out.width, h: out.height, used: 0 };
-  }
-
-  /** Памяти занято слишком много: выбросить то, что дольше всего не рисовалось. */
-  trim() {
-    const list = [...this.map.entries()].sort((a, b) => a[1].used - b[1].used);
-    for (const [key, s] of list) {
-      if (this.pixels <= this.maxPixels * 0.7 || s.used >= this.frame - 1) break;
-      this.map.delete(key);
-      this.pixels -= s.w * s.h;
-    }
   }
 
   /** Для тестов и отладки. */

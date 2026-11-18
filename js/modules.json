@@ -19,6 +19,7 @@
 "js/core/input.js",
 "js/core/loop.js",
 "js/core/photos.js",
+"js/core/pixcache.js",
 "js/core/queries.js",
 "js/core/registry.js",
 "js/core/repair.js",
