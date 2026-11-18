@@ -1487,6 +1487,15 @@ export function createTitleScene(canvas, o) {
       const r = canvas.getBoundingClientRect();
       const P = (x, y) => ({ x: Math.round(x + r.left), y: Math.round(y + r.top) });
       const [cx, cy] = crown(palms[0]);
+      // точка не под хомячком и не под бабочкой: когда под заставкой больше кнопок (новая игра на телефоне), сцена
+      // ниже, и хомячок в шляпе достаёт до кромки воды — нажатие туда достаётся ему, а не волне
+      const clear = (x0, y) => {
+        const R = 30 * Math.max(k, 0.7);
+        const onHam = (x) => Math.abs(x - ham.x) < 34 * ham.s + 6 * k && y > hamTop() - 6 * k && y < ham.y + 8 * ham.s;
+        const onFly = (x) => near(x, y, fly.x, fly.y, R * 1.3);
+        const xs = [x0, ham.x - 34 * ham.s - R * 0.6, ham.x + 34 * ham.s + R * 0.6];
+        return xs.find((x) => !onHam(x) && !onFly(x)) ?? x0;
+      };
       return {
         env: { minutes: m, weather, season, night, rain, snow, windy, winter },
         free: F,
@@ -1509,8 +1518,8 @@ export function createTitleScene(canvas, o) {
         })(),
         ship: P(ship.x, hy - 10 * k),
         sea: P(F.x + F.w * 0.45, lerp(hy, sy, 0.6)),
-        shore: P(F.x + F.w * 0.4, sy + 6 * k),
-        sand: P(F.x + F.w * 0.36, lerp(sy, bot, 0.5)),
+        shore: P(clear(F.x + F.w * 0.4, sy + 6 * k), sy + 6 * k),
+        sand: P(clear(F.x + F.w * 0.36, lerp(sy, bot, 0.5)), lerp(sy, bot, 0.5)),
         sky: P(F.x + F.w * 0.45, F.y + (hy - F.y) * 0.3),
         kite: P(...kitePos()),
         snowman: P(snowman.x, snowman.y - 38 * k),
