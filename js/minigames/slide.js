@@ -6,6 +6,7 @@
 // Горок четыре (От5, TRACKS): после «Начать!» выбираешь трассу — у каждой свой рисунок поворотов, ширина и скорость.
 import { el, clamp, plural } from '../core/util.js';
 import { ell, fillRR, line, star } from '../core/draw.js';
+import { pic as kitPic } from './kit.js';
 
 const TIME = 40;
 const OUT = '#4a3728';
@@ -125,15 +126,7 @@ function drawStar(ctx, x, y, s, t) {
 }
 
 /** Маленькая картинка для правил. */
-function pic(draw, size = 46) {
-  const c = document.createElement('canvas');
-  c.width = c.height = size * 2;
-  const x = c.getContext('2d');
-  x.scale(2, 2);
-  x.lineJoin = 'round';
-  draw(x, size / 2, size / 2, size / 50);
-  return `<img src="${c.toDataURL()}" width="${size}" height="${size}" alt="">`;
-}
+const pic = (draw, size = 46) => kitPic((x) => draw(x, size / 2, size / 2, size / 50), size, size);
 /** Картинка «наклоняйся на повороте»: кусок трубы с поворотом и стрелка внутрь. */
 function turnPic(x, cx, cy, s) {
   x.lineCap = 'round';
@@ -185,8 +178,9 @@ export default {
   id: 'slide',
   title: 'Горка',
   icon: '🌀',
+  css: CSS,
   get howTo() {
-    return `<style>${CSS}</style>Ух! Водная горка! <b>Рули влево и вправо</b> — пальцем, мышкой или стрелками.
+    return `Ух! Водная горка! <b>Рули влево и вправо</b> — пальцем, мышкой или стрелками.
       <div class="sd-rules">
         <div class="sd-col how"><b>🛟 Рули</b><div class="row">◀ ${pic((c, x, y, s) => drawRing(c, x, y + 6, s * 1.1, 0))} ▶</div><small>пальцем, мышкой<br>или стрелками ← →</small></div>
         <div class="sd-col turn"><b>↪ Поворот</b><div class="row">${pic((c, x, y, s) => turnPic(c, x, y, s))}</div><small>на повороте рули внутрь —<br>не задевай бортик</small></div>
@@ -196,23 +190,18 @@ export default {
       Горок — ${TRACKS.length}: ${TRACKS.map((q) => `${q.icon} ${q.name}`).join(', ')}. Выбирай любую!`;
   },
   start(host) {
-    const root = host.root;
-    const style = el('style', '', CSS);
     const top = el('div', 'sd-top');
     const tTime = el('div', 'sd-chip'),
       tGot = el('div', 'sd-chip'),
       tBump = el('div', 'sd-chip');
     top.append(tTime, tGot, tBump);
-    root.append(style, top);
+    host.add(top);
     const cv = host.canvas();
     const ctx = cv.ctx;
     const level = host.level || 0;
     let track = TRACK_BY_ID[host.info && host.info.track] || null; // трасса: выбирают после «Начать!» (или задана заранее)
     const center = (u) => (track || TRACKS[1]).c(u);
     let t = 0,
-      last = performance.now(),
-      raf = 0,
-      stopped = false,
       over = false,
       got = 0,
       bumps = 0,
@@ -223,7 +212,7 @@ export default {
       end = 0; // > 0 — финиш: плюх в бассейн
     const items = []; // { kind, d (пиксели от старта), off (−1..1 поперёк трубы), hit }
     const drops = [];
-    const pops = [];
+    const pops = host.pops();
     const ring = { x: 0.5, to: 0.5, vx: 0 };
     const LW = () => Math.min(cv.w, Math.max(320, cv.h * 0.85), 640),
       X0 = () => (cv.w - LW()) / 2,
@@ -241,7 +230,6 @@ export default {
       if (pick) pick.remove();
       pick = null;
       host.sfx('splash');
-      last = performance.now();
     };
     if (!track) {
       pick = el('div', 'sd-pick', '<h3>Какую горку выберешь?</h3>');
@@ -253,7 +241,7 @@ export default {
         cards.appendChild(b);
       }
       pick.appendChild(cards);
-      root.appendChild(pick);
+      host.add(pick);
     }
 
     // ---------- управление ----------
@@ -270,9 +258,9 @@ export default {
       if (pressed || e.pointerType === 'mouse') toX(e);
     };
     const up = () => (pressed = false);
-    cv.canvas.addEventListener('pointerdown', down);
-    cv.canvas.addEventListener('pointermove', move);
-    window.addEventListener('pointerup', up);
+    host.on(cv.canvas, 'pointerdown', down);
+    host.on(cv.canvas, 'pointermove', move);
+    host.on(window, 'pointerup', up);
     const keys = new Set();
     const kd = (e) => {
       if (['ArrowLeft', 'ArrowRight', 'KeyA', 'KeyD'].includes(e.code)) {
@@ -281,8 +269,8 @@ export default {
       }
     };
     const ku = (e) => keys.delete(e.code);
-    window.addEventListener('keydown', kd);
-    window.addEventListener('keyup', ku);
+    host.on(window, 'keydown', kd);
+    host.on(window, 'keyup', ku);
     // для автотеста (dev/smoke_hotel.js): где круг, где центр трубы и что впереди (x — доля ширины, y — пиксели)
     cv.canvas.__slide = () => ({
       x: ring.x,
@@ -330,7 +318,7 @@ export default {
           splash = 0.7;
           slow = 0.5;
           host.sfx('splash');
-          pops.push({ text: 'Плюх!', col: '#1c7ed6', x: PX(ring.x), y: ringY() - 60 * S(), t: 0 });
+          pops.add('Плюх!', PX(ring.x), ringY() - 60 * S(), '#1c7ed6');
           for (let i = 0; i < 10; i++)
             drops.push({ x: PX(ring.x), y: ringY(), vx: (Math.random() - 0.5) * 200, vy: -Math.random() * 180, t: 0 });
         }
@@ -353,11 +341,10 @@ export default {
         q.hit = true;
         got += KINDS[q.kind].pts;
         host.sfx(q.kind === 'star' ? 'magic' : 'pop');
-        pops.push({ text: '+' + KINDS[q.kind].pts, col: q.kind === 'star' ? '#f59f00' : '#1c7ed6', x: PX(ring.x), y: qy - 30, t: 0 });
+        pops.add('+' + KINDS[q.kind].pts, PX(ring.x), qy - 30, q.kind === 'star' ? '#f59f00' : '#1c7ed6');
       }
       for (let i = items.length - 1; i >= 0; i--) if (ry - (items[i].d - dist) > cv.h + 40) items.splice(i, 1);
-      for (const p of pops) p.t += dt;
-      for (let i = pops.length - 1; i >= 0; i--) if (pops[i].t > 1) pops.splice(i, 1);
+      pops.step(dt);
       for (const p of drops) {
         p.t += dt;
         p.x += p.vx * dt;
@@ -483,30 +470,16 @@ export default {
         ell(ctx, p.x, p.y, 5, 6, '#a5d8ff', '#4dabf7', 1);
       }
       ctx.globalAlpha = 1;
-      ctx.textAlign = 'center';
-      ctx.font = '900 20px ui-rounded, "Trebuchet MS", sans-serif';
-      for (const p of pops) {
-        ctx.globalAlpha = Math.max(0, 1 - p.t);
-        ctx.lineWidth = 4;
-        ctx.strokeStyle = '#fff';
-        ctx.strokeText(p.text, p.x, p.y - p.t * 30);
-        ctx.fillStyle = p.col;
-        ctx.fillText(p.text, p.x, p.y - p.t * 30);
-      }
-      ctx.globalAlpha = 1;
+      pops.draw(ctx);
     }
 
-    function frame(now) {
-      if (stopped) return;
-      const dt = Math.min(0.05, (now - last) / 1000);
-      last = now;
+    host.loop((dt) => {
       if (!over) update(dt);
       tTime.textContent = `⏱️ ${Math.max(0, Math.ceil(TIME - t))}`;
       tGot.textContent = `🫧 ${got}`;
       tBump.textContent = `💦 ${bumps}`;
       draw();
-      raf = requestAnimationFrame(frame);
-    }
+    });
     function finish() {
       if (over) return;
       over = true;
@@ -517,21 +490,5 @@ export default {
         extra: { got, bumps, track: track.id },
       });
     }
-    raf = requestAnimationFrame(frame);
-    return {
-      stop() {
-        stopped = true;
-        cancelAnimationFrame(raf);
-        cv.canvas.removeEventListener('pointerdown', down);
-        cv.canvas.removeEventListener('pointermove', move);
-        window.removeEventListener('pointerup', up);
-        window.removeEventListener('keydown', kd);
-        window.removeEventListener('keyup', ku);
-        if (cv.destroy) cv.destroy();
-        style.remove();
-        top.remove();
-        if (pick) pick.remove();
-      },
-    };
   },
 };
