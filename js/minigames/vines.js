@@ -6,6 +6,7 @@
 // Проигрыша нет. Монеты по звёздам выдаёт занятие (features/jungle.js).
 import { el, clamp } from '../core/util.js';
 import { ell, poly, fillRR, line, emoji } from '../core/draw.js';
+import { pic as kitPic } from './kit.js';
 
 const OUT = '#4a3728';
 const JUMPS = 9;
@@ -18,17 +19,7 @@ const D = 180, // расстояние между лианами (единицы
 const FRUITS = ['🍌', '🥭', '🍍', '🍌', '🥥', '🥭', '🍍', '🍌', '🥭'];
 
 /** Маленькая картинка для правил (data: URL). */
-function pic(draw, w = 110, h = 64) {
-  const c = document.createElement('canvas');
-  c.width = w * 2;
-  c.height = h * 2;
-  const x = c.getContext('2d');
-  x.scale(2, 2);
-  x.lineJoin = 'round';
-  x.lineCap = 'round';
-  draw(x, w, h);
-  return `<img src="${c.toDataURL()}" width="${w}" height="${h}" alt="">`;
-}
+const pic = (draw, w = 110, h = 64) => kitPic(draw, w, h, { cap: true });
 /** Лиана от (x, y0) длиной len под углом a; листики по длине. */
 function vine(ctx, x, y0, len, a, s = 1) {
   const ex = x + Math.sin(a) * len,
@@ -71,8 +62,9 @@ export default {
   id: 'vines',
   title: 'Лианы',
   icon: '🐒',
+  css: CSS,
   get howTo() {
-    return `<style>${CSS}</style>Хомячок висит на лиане, лиана качается. <b>Нажми, когда она летит вперёд!</b>
+    return `Хомячок висит на лиане, лиана качается. <b>Нажми, когда она летит вперёд!</b>
       <div class="vn-rules">
         <div class="vn-col"><b>✅ Вперёд</b>${pic((c, w, h) => {
           vine(c, 40, 4, 44, 0.45, 0.6);
@@ -91,21 +83,16 @@ export default {
       Палец, мышка, пробел или Enter. ${JUMPS} прыжков до Лианы — лови фрукты по пути!`;
   },
   start(host) {
-    const root = host.root;
-    const style = el('style', '', CSS);
     const top = el('div', 'vn-top');
     const tJump = el('div', 'vn-chip'),
       tFruit = el('div', 'vn-chip'),
       tFly = el('div', 'vn-chip');
     top.append(tJump, tFruit, tFly);
-    root.append(style, top);
+    host.add(top);
     const cv = host.canvas();
     const ctx = cv.ctx;
     const level = host.level || 0;
     let t = 0,
-      last = performance.now(),
-      raf = 0,
-      stopped = false,
       over = false,
       at = 0, // на какой лиане висим
       score = 0,
@@ -115,7 +102,7 @@ export default {
       miss = 0,
       fly = null, // прыжок: { t, from: {x, y}, to: i, q }
       camX = 0;
-    const pops = [];
+    const pops = host.pops({ life: 1.1, fade: 1, line: 5 });
     // у каждой лианы своя фаза — чтобы качались не в лад
     const phase = Array.from({ length: JUMPS + 1 }, (_, i) => i * 1.9);
     const period = () => clamp(1.9 - at * 0.05 - level * 0.06, 1.3, 2); // секунд на «туда и обратно»
@@ -139,7 +126,7 @@ export default {
         miss++;
         host.sfx('thud');
         const e = endOf(at);
-        pops.push({ text: 'Подожди!', col: '#e03131', x: e.x, y: e.y - 70, t: 0 });
+        pops.add('Подожди!', e.x, e.y - 70, '#e03131');
         return;
       }
       const best = q > 0.72;
@@ -158,8 +145,8 @@ export default {
       }
       host.sfx(f.best ? 'win' : 'ok');
       const e = endOf(at);
-      pops.push({ text: f.best ? `Отлично! ${FRUITS[at - 1]}🦋` : `Хоп! ${FRUITS[at - 1]}`, col: f.best ? '#f08c00' : '#2b8a3e', x: e.x, y: e.y - 80, t: 0 });
-      if (at >= JUMPS) setTimeout(finish, 900);
+      pops.add(f.best ? `Отлично! ${FRUITS[at - 1]}🦋` : `Хоп! ${FRUITS[at - 1]}`, e.x, e.y - 80, f.best ? '#f08c00' : '#2b8a3e');
+      if (at >= JUMPS) host.later(finish, 900);
     }
 
     // ---------- управление ----------
@@ -167,14 +154,14 @@ export default {
       e.preventDefault();
       jump();
     };
-    cv.canvas.addEventListener('pointerdown', down);
+    host.on(cv.canvas, 'pointerdown', down);
     const kd = (e) => {
       if (['Space', 'Enter', 'NumpadEnter', 'ArrowRight', 'ArrowUp', 'KeyE'].includes(e.code)) {
         e.preventDefault();
         if (!e.repeat) jump();
       }
     };
-    window.addEventListener('keydown', kd);
+    host.on(window, 'keydown', kd);
     // для автотеста (dev/smoke_jungle.js): на какой лиане, летит ли вперёд, насколько далеко качнулась (−1..1)
     cv.canvas.__vines = () => ({ at, n: JUMPS, forward: vel(at) > 0, q: ang(at) / A, flying: !!fly, score, miss, over });
 
@@ -231,8 +218,7 @@ export default {
         fly.t += dt / 0.62;
         if (fly.t >= 1) land();
       }
-      for (const p of pops) p.t += dt;
-      for (let i = pops.length - 1; i >= 0; i--) if (pops[i].t > 1.1) pops.splice(i, 1);
+      pops.step(dt);
     }
     function heroPos() {
       if (fly) {
@@ -304,17 +290,7 @@ export default {
       host.drawHamster(ctx, 0, 70, 0.72, host.look, { time: t, dir: 1, grip: true, happy: !!fly || at >= JUMPS, blink: t % 3.1 < 0.12, shadow: false });
       ctx.restore();
       // надписи
-      ctx.textAlign = 'center';
-      ctx.font = '900 22px ui-rounded, "Trebuchet MS", sans-serif';
-      for (const p of pops) {
-        ctx.globalAlpha = Math.max(0, 1 - p.t);
-        ctx.lineWidth = 5;
-        ctx.strokeStyle = '#fff';
-        ctx.strokeText(p.text, p.x, p.y - p.t * 30);
-        ctx.fillStyle = p.col;
-        ctx.fillText(p.text, p.x, p.y - p.t * 30);
-      }
-      ctx.globalAlpha = 1;
+      pops.draw(ctx, 22);
       // стрелка-подсказка у лианы: зелёная — можно прыгать
       if (!fly && at < JUMPS) {
         const e = endOf(at),
@@ -326,19 +302,15 @@ export default {
       ctx.restore();
     }
 
-    function frame(now) {
-      if (stopped) return;
-      const dt = Math.min(0.05, (now - last) / 1000);
-      last = now;
+    host.loop((dt) => {
       if (!over) update(dt);
       tJump.textContent = `🐒 ${at} из ${JUMPS}`;
       tFruit.textContent = `🍌 ${fruits}`;
       tFly.textContent = `🦋 ${flies}`;
       draw();
-      raf = requestAnimationFrame(frame);
-    }
+    });
     function finish() {
-      if (over || stopped) return;
+      if (over) return;
       over = true;
       const stars = score >= VINE_STARS[1] ? 3 : score >= VINE_STARS[0] ? 2 : 1;
       host.finish({
@@ -347,17 +319,5 @@ export default {
         extra: { score, fruits, flies, perfect, miss },
       });
     }
-    raf = requestAnimationFrame(frame);
-    return {
-      stop() {
-        stopped = true;
-        cancelAnimationFrame(raf);
-        cv.canvas.removeEventListener('pointerdown', down);
-        window.removeEventListener('keydown', kd);
-        if (cv.destroy) cv.destroy();
-        style.remove();
-        top.remove();
-      },
-    };
   },
 };
