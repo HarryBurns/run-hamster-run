@@ -42,6 +42,7 @@ import {
   HOME_SCENE,
 } from '../data/index.js';
 import { currentLocation } from '../engine/topdown/index.js';
+import { celebrate } from '../ui/celebrate.js';
 import { enqueue } from '../ui/modals.js';
 import { message, openPanel } from '../ui/panel.js';
 import { toast } from '../ui/toast.js';
@@ -208,13 +209,9 @@ function finishHoliday(h) {
   if (tracking) tracking = false;
   emit('holiday', { id: h.id, what: 'done' });
   emit('hud');
-  celebrate(h, got, isNew);
+  holidayDone(h, got, isNew);
 }
-function celebrate(h, got, isNew) {
-  const bits = Array.from({ length: 28 }, (_, i) => {
-    const col = ['#ff6b9d', '#ffd43b', '#69db7c', '#74c0fc', '#b197fc', '#ffa94d'][i % 6];
-    return `<i style="left:${(i * 37) % 100}%;background:${col};animation-delay:${((i * 0.13) % 1.4).toFixed(2)}s;animation-duration:${(2.2 + ((i * 0.31) % 1.2)).toFixed(2)}s"></i>`;
-  }).join('');
+function holidayDone(h, got, isNew) {
   const st = STICKER[h.sticker];
   const g = got.g || {};
   const where = g.clothes ? 'уже в шкафу!' : g.recipe ? 'готовь на кухне!' : g.furn ? 'лежит в кладовке — поставь дома через 🔨!' : '';
@@ -226,18 +223,8 @@ function celebrate(h, got, isNew) {
     got.coins ? `<p class="reward">🪙 +${fmtMoney(got.coins)} монет</p>` : '',
     `<p class="muted">Этот праздник будет снова через год${got.left ? ' — с новым подарком!' : '!'}</p>`,
   ].join('');
-  enqueue(
-    () => {
-      sfx('fanfare');
-      message({
-        title: `${h.name}!`,
-        icon: h.icon,
-        html: `<div class="quest-done center"><div class="confetti">${bits}</div>${st ? `<div class="sticker got">${st.sticker}</div>` : ''}<p><b>${h.icon} Все праздничные занятия сделаны!</b></p>${lines}</div>`,
-        buttons: [{ text: 'Ура!' }],
-      });
-    },
-    { delay: 600 },
-  );
+  const head = `${h.icon} Все праздничные занятия сделаны!`;
+  celebrate({ title: `${h.name}!`, icon: h.icon, sticker: st && st.sticker, head, lines, delay: 600 });
 }
 
 // ---------- объявление утром ----------

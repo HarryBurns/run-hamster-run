@@ -44,6 +44,7 @@ import {
   ING_BY_ID,
 } from '../data/index.js';
 import { homeLocation, currentLocation, getLocation, setTargetHook } from '../engine/topdown/index.js';
+import { celebrate } from '../ui/celebrate.js';
 import { dialog } from '../ui/dialog.js';
 import { enqueue } from '../ui/modals.js';
 import { message } from '../ui/panel.js';
@@ -359,7 +360,7 @@ async function talkStep(q, w) {
   if (i !== 0) return { text: 'Хорошо, я подожду!' };
   const got = complete(q);
   await say(npc, q.lines.done, [{ text: 'Спасибо! 💖', cls: 'green' }], true);
-  celebrate(q, got);
+  questDone(q, got);
   return { end: true };
 }
 
@@ -417,11 +418,7 @@ function complete(q) {
 }
 
 /** Праздничное окно «Задание выполнено!»: конфетти, наклейка, подарок, открытое место. */
-function celebrate(q, got) {
-  const bits = Array.from({ length: 28 }, (_, i) => {
-    const col = ['#ff6b9d', '#ffd43b', '#69db7c', '#74c0fc', '#b197fc', '#ffa94d'][i % 6];
-    return `<i style="left:${(i * 37) % 100}%;background:${col};animation-delay:${((i * 0.13) % 1.4).toFixed(2)}s;animation-duration:${(2.2 + ((i * 0.31) % 1.2)).toFixed(2)}s"></i>`;
-  }).join('');
+function questDone(q, got) {
   const st = got.sticker;
   const lines = [
     got.land ? `<p class="land-open">${got.land.icon} <b>${got.land.name} ${got.land.opened || 'открыт'}!</b><br>${got.land.at ? `Вход — ${got.land.at}.` : ''}</p>` : '',
@@ -432,18 +429,8 @@ function celebrate(q, got) {
     got.coins ? `<p class="reward">🪙 +${fmtMoney(got.coins)} монет</p>` : '',
     got.hint ? `<p class="muted">${got.hint}</p>` : '',
   ].join('');
-  enqueue(
-    () => {
-      sfx('fanfare');
-      message({
-        title: 'Задание выполнено!',
-        icon: '🎉',
-        html: `<div class="quest-done center"><div class="confetti">${bits}</div>${st ? `<div class="sticker got">${st.sticker}</div>` : ''}<p><b>${q.icon} ${q.title}</b></p>${lines}</div>`,
-        buttons: [{ text: 'Ура!' }],
-      });
-    },
-    { delay: 500 },
-  );
+  const head = `${q.icon} ${q.title}`;
+  celebrate({ title: 'Задание выполнено!', icon: '🎉', sticker: st && st.sticker, head, lines, delay: 500 });
 }
 
 // ---------- журнал (вкладка альбома) ----------

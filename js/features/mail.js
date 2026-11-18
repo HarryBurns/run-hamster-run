@@ -25,7 +25,7 @@ import {
   guestHosts,
 } from '../data/index.js';
 import { getLocation, homeLocation } from '../engine/topdown/index.js';
-import { enqueue } from '../ui/modals.js';
+import { celebrate } from '../ui/celebrate.js';
 import { message } from '../ui/panel.js';
 import { toast } from '../ui/toast.js';
 import { grantSurprise, showSurprise } from './gifts.js';
@@ -213,20 +213,17 @@ function completeTask() {
   const surprise = done <= 2 || Math.random() < 0.5;
   const gift = surprise ? grantSurprise() : null; // подарок выдаём сразу, окно — когда освободится экран
   emit('hud');
-  enqueue(
-    () => {
-      sfx('fanfare');
-      message({
-        title: 'Задание выполнено!',
-        icon: '🎉',
-        html: `<div class="center"><div class="sticker got">${t.sticker}</div><p><b>${t.title}</b></p><p class="reward">🪙 +${fmtMoney(coins)} монет</p><p>${isNew ? 'Новая наклейка в альбоме!' : 'Такая наклейка у тебя уже есть — молодец!'}</p>${surprise ? '<p>И это ещё не всё… 🎁</p>' : ''}</div>`,
-        buttons: [{ text: surprise ? 'Открыть сюрприз!' : 'Ура!' }],
-      }).then(() => {
-        if (gift) showSurprise(null, gift);
-      });
-    },
-    { delay: 700 },
-  );
+  celebrate({
+    title: 'Задание выполнено!',
+    icon: '🎉',
+    sticker: t.sticker,
+    head: t.title,
+    lines: `<p class="reward">🪙 +${fmtMoney(coins)} монет</p><p>${isNew ? 'Новая наклейка в альбоме!' : 'Такая наклейка у тебя уже есть — молодец!'}</p>${surprise ? '<p>И это ещё не всё… 🎁</p>' : ''}`,
+    button: surprise ? 'Открыть сюрприз!' : 'Ура!',
+    delay: 700,
+    party: false,
+    after: () => gift && showSurprise(null, gift),
+  });
 }
 
 function onEvent(type, d = {}) {

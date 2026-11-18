@@ -85,6 +85,37 @@ export function inviteLine(id) {
 /** Прибавить очки дружбы (то же, что действие addFriendPts: награды за сердечки — в подписке ниже). */
 export const addPts = (id, n) => addFriendPts(id, n);
 
+// ---------- угостить, поболтать, познакомиться (на улице, в гостях у друга, друг в гостях у тебя) ----------
+/** Поболтали: первый разговор за день — дружба +1. Событие talk — всегда. */
+export function chatToday(id) {
+  if (S().friends[id].chat !== S().day) {
+    markFriendToday(id, 'chat');
+    addPts(id, 1);
+  }
+  emit('talk', { id });
+}
+/**
+ * Угостили блюдом dish: оно уходит из рюкзака; первое угощение за день (отметка дня kind: gift — на улице и в гостях
+ * у друга, treat — друг в гостях у тебя) — дружба pts[0], любимым блюдом — pts[1]. true — блюдо любимое.
+ */
+export function treatFriend(id, dish, kind = 'gift', pts = [2, 4]) {
+  addItem('dishes', dish, -1);
+  sfx('eat');
+  const fav = dish === NPC_BY_ID[id].fav;
+  if (S().friends[id][kind] !== S().day) {
+    markFriendToday(id, kind);
+    addPts(id, fav ? pts[1] : pts[0]);
+  }
+  return fav;
+}
+/** Познакомились: отметка, дружба +1, это и первый разговор за день. */
+export function meetNow(id) {
+  meetFriend(id);
+  markFriendToday(id, 'chat');
+  addPts(id, 1);
+  emit('talk', { id });
+}
+
 // сердечки выросли — откуда бы ни пришли очки (разговор, гость, скамейка, волейбол, рассказ, праздник)
 on('friend', ({ id, before, after }) => {
   const npc = NPC_BY_ID[id];
@@ -142,11 +173,8 @@ export async function npcDialog(id) {
     look = npcLookNow(id); // в праздник — в праздничном наряде (этап 15)
   let text;
   if (!fr.met) {
-    meetFriend(id);
+    meetNow(id);
     text = `Привет! Я ${npc.name}. А ты, наверное, ${esc(S().name)} с большой виллы? Будем дружить!`;
-    addPts(id, 1);
-    markFriendToday(id, 'chat');
-    emit('talk', { id });
   } else
     text =
       (talkHooks.greet && talkHooks.greet(id)) ||
@@ -173,13 +201,9 @@ export async function npcDialog(id) {
     });
     if (i === 0) {
       text = chatLine(npc);
-      if (fr.chat !== S().day) {
-        markFriendToday(id, 'chat');
-        addPts(id, 1);
-        // первый разговор за день: иногда друг зовёт к себе в гости
-        if (Math.random() < INVITE_CHANCE) text = inviteLine(id) || text;
-      }
-      emit('talk', { id });
+      // первый разговор за день: иногда друг зовёт к себе в гости
+      if (fr.chat !== S().day && Math.random() < INVITE_CHANCE) text = inviteLine(id) || text;
+      chatToday(id);
     } else if (i === 1) {
       if (S().guests.length >= MAX_GUESTS) text = 'У тебя уже полный дом гостей! Позови меня в другой раз.';
       else {
@@ -202,13 +226,7 @@ export async function npcDialog(id) {
         text = 'Ничего страшного, в другой раз!';
         continue;
       }
-      addItem('dishes', dish, -1);
-      sfx('eat');
-      const fav = dish === npc.fav;
-      if (fr.gift !== S().day) {
-        markFriendToday(id, 'gift');
-        addPts(id, fav ? 4 : 2);
-      }
+      const fav = treatFriend(id, dish);
       emit('gift', { id, dish });
       text = fav
         ? `${DISH_BY_ID[dish].e} Это же моё любимое блюдо! Спасибо-спасибо-спасибо!`
@@ -273,13 +291,7 @@ export async function guestDialog(id) {
         text = 'Я подожду, не торопись!';
         continue;
       }
-      addItem('dishes', dish, -1);
-      sfx('eat');
-      const fav = dish === npc.fav;
-      if (fr.treat !== S().day) {
-        markFriendToday(id, 'treat');
-        addPts(id, fav ? 5 : 3);
-      }
+      const fav = treatFriend(id, dish, 'treat', [3, 5]);
       emit('guestHappy', { id });
       emit('treat', { id });
       text = fav
@@ -287,11 +299,7 @@ export async function guestDialog(id) {
         : `${DISH_BY_ID[dish].e} М-м-м, объедение! Спасибо за угощение!`;
     } else if (i === 1) {
       text = placeLine(id) || pick(npc.lines);
-      if (fr.chat !== S().day) {
-        markFriendToday(id, 'chat');
-        addPts(id, 1);
-      }
-      emit('talk', { id });
+      chatToday(id);
     } else if (i === 2) {
       removeGuest(id);
       toast(`${npc.name}: «Спасибо, было здорово! Пока!»`);

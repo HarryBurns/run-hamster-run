@@ -22,7 +22,7 @@ import { dialog } from '../ui/dialog.js';
 import { openPanel, message } from '../ui/panel.js';
 import { toast } from '../ui/toast.js';
 import { pickDish } from './cooking.js';
-import { addPts } from './friends.js';
+import { addPts, chatToday, meetNow, treatFriend } from './friends.js';
 import { questTalk } from './quests.js';
 import { placeLine } from './tales.js';
 
@@ -69,10 +69,7 @@ export async function visitHome(id, ctx = {}) {
   // хозяин дома. Незнакомые сначала знакомятся — прямо на пороге
   sfx('bell');
   if (!fr.met) {
-    meetFriend(id);
-    markFriendToday(id, 'chat');
-    addPts(id, 1);
-    emit('talk', { id });
+    meetNow(id);
     await dialog({
       look: npcLook(id),
       name: npc.name,
@@ -210,11 +207,7 @@ export async function hostDialog(id, ctx = {}) {
     });
     if (i === 0) {
       text = placeLine(id) || pick(home.lines);
-      if (fr.chat !== S().day) {
-        markFriendToday(id, 'chat');
-        addPts(id, 1);
-      }
-      emit('talk', { id });
+      chatToday(id);
     } else if (i === 1) {
       if (hadTea) {
         text = 'Мы сегодня уже чаёвничали! Приходи завтра — заварю свежий.';
@@ -240,13 +233,7 @@ export async function hostDialog(id, ctx = {}) {
         text = 'Ничего страшного, в другой раз!';
         continue;
       }
-      addItem('dishes', dish, -1);
-      sfx('eat');
-      const fav = dish === npc.fav;
-      if (fr.gift !== S().day) {
-        markFriendToday(id, 'gift');
-        addPts(id, fav ? 4 : 2);
-      }
+      const fav = treatFriend(id, dish);
       emit('gift', { id, dish });
       emit('guestHappy', { id });
       text = fav
