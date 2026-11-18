@@ -16,108 +16,66 @@
 // подсказка про солнце (крюк hot локации, раз в день); окаменелости продаются на рынке (features/market.js, цены —
 // DESERT.fossils). Числа — DESERT в data/economy.js. Каждое занятие шлёт событие desert { what } — по нему считают
 // задания. Состояние меняют только действия (core/actions.js); «раз в день» — отметки дня (dayFlags.desert).
-import { setFlag, setDayFlag, addItem, award } from '../core/actions.js';
+// Разговор, коллекция, «нашлось», действие места, подсказка входа, караван — набор тайных мест (features/land_kit.js).
+import { setDayFlag, addItem, award } from '../core/actions.js';
 import { sfx } from '../core/audio.js';
 import { makeCanvas } from '../core/draw.js';
 import { on, emit } from '../core/events.js';
 import { go, scene, sceneName } from '../core/loop.js';
-import { register } from '../core/registry.js';
-import { G, cal, darkness, count, playerLook } from '../core/state.js';
-import { el, esc, pick, fmtMoney } from '../core/util.js';
-import { NPC_BY_ID, FIND_BY_ID, FOSSIL_IDS, DESERT, LAND_BY_ID, CLOTHES_BY_ID, npcLook, isSunHat } from '../data/index.js';
+import { G, darkness, playerLook } from '../core/state.js';
+import { el, esc, fmtMoney } from '../core/util.js';
+import { FIND_BY_ID, FOSSIL_IDS, DESERT, LAND_BY_ID, CLOTHES_BY_ID, isSunHat } from '../data/index.js';
 import { getLocation } from '../engine/topdown/index.js';
 import { startCamelRide, CAMEL_GOALS, inShade } from '../locations/desert.js';
-import { dialog } from '../ui/dialog.js';
-import { fadeScene, smooth } from '../ui/fade.js';
-import { message, openPanel } from '../ui/panel.js';
-import { toast, hintOnce, hintToday } from '../ui/toast.js';
+import { smooth } from '../ui/fade.js';
+import { openPanel } from '../ui/panel.js';
+import { toast, hintToday } from '../ui/toast.js';
 import { prizeGame, prizeLeft } from './minigames.js';
-import { questTalk } from './quests.js';
-import { placeLine } from './tales.js';
 import { paintStarSky } from './pictures_art.js';
 import { paintCaravan } from './trips_art.js';
+import { dayFlags, npcLine, landNpc, craftSet, sellTalk, landFind, landActs, landHint, landRide } from './land_kit.js';
 
 const S = () => G.state;
-const SD = () => S().dayFlags.desert || {};
+const SD = dayFlags('desert');
 
 // ---------- кочевник Бархан ----------
-const BARKHAN = 'barkhan';
 /** Что сказать под настроение: ночью — про звёзды, вечером — про закат, днём — про сезон. */
-export function barkhanLine() {
-  const place = placeLine(BARKHAN); // вспомнить соседнее место, которое хомячок открыла (data/tales.js)
-  if (place) return place;
-  const L = NPC_BY_ID[BARKHAN].lines,
-    m = S().minutes;
-  if (darkness() > 0.6 || m >= 22 * 60 || m < 5 * 60) return pick(L.night);
-  if (m >= 18 * 60) return pick(L.evening);
-  return pick(L[cal().season]);
-}
-const sayB = (text, options, happy = false) =>
-  dialog({ look: npcLook(BARKHAN), name: NPC_BY_ID[BARKHAN].name, text, options, happy });
-/** Сколько разных окаменелостей в рюкзаке (для коллекции нужен каждый вид). */
-export const fossilKinds = () => FOSSIL_IDS.filter((id) => count('finds', id) > 0).length;
-const fossilsLine = () => FOSSIL_IDS.map((id) => `${FIND_BY_ID[id].e} ${count('finds', id) ? '✓' : '—'}`).join(' ');
-
+export const barkhanLine = npcLine('barkhan');
 /** Разговор с кочевником: сначала задание из журнала, потом — раскопки, верблюд, коллекция и болтовня. */
-export async function talkBarkhan() {
-  const s = S();
-  let text;
-  if (!s.flags.metBarkhan) {
-    setFlag('metBarkhan');
-    text = `Добро пожаловать в пески, ${esc(s.name)}! Я кочевник Бархан, а это мой верблюд Финик. Буся писала, что приедет звезда подиума! Здесь есть оазис, пирамида с загадкой, раскопки древних окаменелостей, а ночью — звездопад. Только днём надевай шляпу: солнце у нас горячее!`;
-  } else text = pick([`Привет, ${esc(s.name)}!`, 'О, гостья из города! Садись, выпей чаю с финиками.', 'Здравствуй-здравствуй! Финик тебе рад — слышишь, фыркает?']);
-  emit('talk', { id: BARKHAN });
-  sfx('tap');
-  const qt = await questTalk(BARKHAN);
-  if (qt && qt.end) return;
-  if (qt && qt.text) text = qt.text;
-  for (;;) {
-    const opts = [
-      { text: '🦴 Раскопки', cls: 'yellow', fn: async () => (await digGame(), null) },
-      { text: '🐫 Покататься на Финике', cls: 'yellow', fn: async () => (rideCamel(), null) },
-    ];
-    for (const o of MORE_TALK) {
-      const x = o(S());
-      if (x) opts.push(x);
-    }
-    opts.push({ text: '💬 Поболтать', cls: 'blue', go: 'chat' }, { text: 'Пока!', go: 'bye' });
-    const i = await sayB(text, opts);
-    const o = opts[i] || {};
-    if (o.go === 'chat') text = barkhanLine();
-    else if (o.fn) {
-      const r = await o.fn();
-      if (!r) return;
-      text = r;
-    } else return;
-  }
-}
-/** Дополнительные ответы: (s) → { text, cls, fn: async () => следующая реплика | null } или ничего. */
-const MORE_TALK = [
-  // коллекция окаменелостей — по одной каждого вида
-  () =>
-    FOSSIL_IDS.some((id) => count('finds', id) > 0) && {
-      text: `🦴 Коллекция окаменелостей (${fossilKinds()} из ${FOSSIL_IDS.length})`,
-      cls: 'green',
-      fn: async () => {
-        if (fossilKinds() < FOSSIL_IDS.length)
-          return `Для коллекции нужна одна окаменелость каждого вида: ${fossilsLine()}. Копай на раскопе — каждый раз попадается что-то новое!`;
-        for (const id of FOSSIL_IDS) addItem('finds', id, -1);
-        addItem('storage', 'fossil_box', 1);
-        sfx('win');
-        award('x_fossils', { delay: 1200 });
-        emit('desert', { what: 'fossils' });
-        return 'Готово: аммонит, отпечаток листа, зуб ящера и косточка динозавра — в витрине под стеклом! Настоящий музей 🦴 Коллекция уже в кладовке: дома нажми 🔨.';
-      },
-    },
-  // куда деть окаменелости
-  () =>
-    FOSSIL_IDS.some((id) => count('finds', id) > 0) && {
-      text: '🪙 А окаменелости можно продать?',
-      fn: async () =>
+const barkhan = landNpc({
+  id: 'barkhan',
+  act: 'nomad',
+  desc: 'кочевник Бархан: разговор (житель пустыни у шатра в оазисе)',
+  met: 'metBarkhan',
+  hello: (name) =>
+    `Добро пожаловать в пески, ${name}! Я кочевник Бархан, а это мой верблюд Финик. Буся писала, что приедет звезда подиума! Здесь есть оазис, пирамида с загадкой, раскопки древних окаменелостей, а ночью — звездопад. Только днём надевай шляпу: солнце у нас горячее!`,
+  greet: (name) => [`Привет, ${name}!`, 'О, гостья из города! Садись, выпей чаю с финиками.', 'Здравствуй-здравствуй! Финик тебе рад — слышишь, фыркает?'],
+  line: barkhanLine,
+  top: [
+    { text: '🦴 Раскопки', cls: 'yellow', fn: async () => (await digGame(), null) },
+    { text: '🐫 Покататься на Финике', cls: 'yellow', fn: async () => (rideCamel(), null) },
+  ],
+  more: [
+    // коллекция окаменелостей — по одной каждого вида
+    craftSet({
+      ids: FOSSIL_IDS,
+      title: '🦴 Коллекция окаменелостей',
+      lack: (have) => `Для коллекции нужна одна окаменелость каждого вида: ${have}. Копай на раскопе — каждый раз попадается что-то новое!`,
+      give: ['storage', 'fossil_box'],
+      sticker: 'x_fossils',
+      event: ['desert', 'fossils'],
+      done: 'Готово: аммонит, отпечаток листа, зуб ящера и косточка динозавра — в витрине под стеклом! Настоящий музей 🦴 Коллекция уже в кладовке: дома нажми 🔨.',
+    }),
+    // куда деть окаменелости
+    sellTalk({
+      ids: FOSSIL_IDS,
+      ask: 'окаменелости',
+      say: () =>
         `Конечно! Торговец Грошик на рынке в городе берёт окаменелости: аммонит — ${DESERT.fossils.fossil_shell}, отпечаток листа — ${DESERT.fossils.fossil_leaf}, зуб — ${DESERT.fossils.fossil_tooth}, косточка — ${DESERT.fossils.fossil_bone} монет. А можно собрать по одной каждого вида — я сделаю витрину-коллекцию!`,
-    },
-];
-register('nomad', () => talkBarkhan(), 'кочевник Бархан: разговор (житель пустыни у шатра в оазисе)');
+    }),
+  ],
+});
+export const talkBarkhan = barkhan.talk;
 
 // ---------- «Раскопки» ----------
 /** Покопать: за первые игры дня — монеты по звёздам и окаменелость (виды — по кругу, от номера дня: за два дня — все). */
@@ -173,7 +131,7 @@ export async function rideCamel(ctx, p = {}) {
   let to = p.to;
   if (!to) {
     const opts = [{ text: '🔄 По кругу, по верблюжьей тропе', cls: 'yellow', to: 'ring' }, ...CAMEL_GOALS.map((g) => ({ text: `${g.icon} ${g.name[0].toUpperCase()}${g.name.slice(1)}`, cls: 'blue', to: g.id })), { text: 'Не сейчас' }];
-    const i = await sayB('Куда поедем? Финик знает в пустыне все тропинки — скажи, куда, и он довезёт!', opts);
+    const i = await barkhan.say('Куда поедем? Финик знает в пустыне все тропинки — скажи, куда, и он довезёт!', opts);
     to = (opts[i] || {}).to;
     if (!to) return false;
   }
@@ -281,29 +239,24 @@ export function lookWell() {
   return true;
 }
 /** Нашли бубенчик Финика (место bell видно, пока задание на первом шаге). */
-export async function findBell() {
-  emit('desert', { what: 'bell' });
-  sfx('win');
-  await message({
-    title: 'Бубенчик нашёлся!',
-    icon: '🔔',
-    html: '<p class="center big-emoji">🔔✨</p><p class="center">Дзынь-дзынь! Вот он — золотой, на красной ленточке, у самого колодца. Теперь отнеси его Финику и прокатись на нём — пусть звенит!</p>',
-    buttons: [{ text: 'Ура!' }],
-  });
-}
+export const findBell = landFind('desert', 'bell', {
+  title: 'Бубенчик нашёлся!',
+  icon: '🔔',
+  pic: '🔔✨',
+  text: 'Дзынь-дзынь! Вот он — золотой, на красной ленточке, у самого колодца. Теперь отнеси его Финику и прокатись на нём — пусть звенит!',
+});
 
-const DESERT_ACTS = {
-  dig: digGame,
-  pairs: pairsGame,
-  camel: rideCamel,
-  stars: makeWish,
-  oasis: drinkOasis,
-  well: lookWell,
-  bell: findBell,
-};
-register(
+landActs(
   'desert',
-  (p, ctx) => DESERT_ACTS[p.arg] && DESERT_ACTS[p.arg](ctx, p),
+  {
+    dig: digGame,
+    pairs: pairsGame,
+    camel: rideCamel,
+    stars: makeWish,
+    oasis: drinkOasis,
+    well: lookWell,
+    bell: findBell,
+  },
   'пустыня: desert:dig | pairs | camel | stars | oasis | well | bell',
 );
 
@@ -331,28 +284,21 @@ on('step', ({ dt }) => {
   setDayFlag('heat', 1, 'desert');
   toast('☀️ Ух, как печёт солнышко! Надень шляпу от солнца или панамку — в пустыне без неё жарко. И попей водички в оазисе 🌴');
 });
-on('scene', ({ name }) => {
-  if (name === 'desert') hintOnce('desertHint', '🐫 Вот она — пустыня! Барханы, пальмы и жаркое солнце. Кочевник Бархан — у шатра в оазисе, прямо по тропе на север.', 'good');
-});
+landHint('desert', 'desertHint', '🐫 Вот она — пустыня! Барханы, пальмы и жаркое солнце. Кочевник Бархан — у шатра в оазисе, прямо по тропе на север.');
 
 // ---------- караван-автобус ----------
-let riding = false;
 /** Проехать на караван-автобусе: toDesert — из города в пустыню, иначе — обратно в город. */
-export function rideCaravan(toDesert) {
-  if (riding) return false;
-  const land = LAND_BY_ID.desert;
-  riding = true;
-  sfx('door');
-  fadeScene({
-    cls: 'caravan-ride',
-    text: toDesert ? '🚌 Едем в пустыню!' : '🚌 Едем домой, в город!',
-    ms: 2400,
-    paint: (ctx, w, h, p, look, t) => paintCaravan(ctx, w, h, smooth(p), toDesert, look, t),
-    go: () => (toDesert ? go(land.scene, { at: land.entry }) : go(land.from, { at: 'bus' })),
-  }).then(() => {
-    riding = false;
-    sfx('ding');
-  });
-  return true;
-}
-register('caravan', (p) => rideCaravan(p.arg !== 'back'), 'караван-автобус: caravan:go (из города в пустыню) | caravan:back');
+export const rideCaravan = landRide({
+  act: 'caravan',
+  desc: 'караван-автобус: caravan:go (из города в пустыню) | caravan:back',
+  sound: 'door',
+  cls: 'caravan-ride',
+  text: ['🚌 Едем в пустыню!', '🚌 Едем домой, в город!'],
+  ms: 2400,
+  paint: (toDesert) => (ctx, w, h, p, look, t) => paintCaravan(ctx, w, h, smooth(p), toDesert, look, t),
+  to: (toDesert) => {
+    const land = LAND_BY_ID.desert;
+    if (toDesert) go(land.scene, { at: land.entry });
+    else go(land.from, { at: 'bus' });
+  },
+});
