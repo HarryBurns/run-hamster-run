@@ -2,52 +2,25 @@
 // или транспорту в нужную сторону (граф ROUTES в data/places.js), окно «Карта» показывает, в каком месте цель, и
 // ведёт туда по кнопке; жители вспоминают открытые места — только после открытия; Профессор слушает про древние
 // рисунки; попугай запоминает слово. Подключается из dev/smoke.js. Только эти шаги:  node dev/smoke.js <url> step:мир:
-module.exports = async function worldmap({ page, step, ev, wait, closeAll }) {
-  const norm = (t) => t.replace(/[  ]/g, ' ');
-  const expect = (ok, msg, data) => {
-    if (!ok) throw new Error(msg + (data === undefined ? '' : ': ' + JSON.stringify(data)));
-  };
-  const state = () => ev(() => JSON.parse(JSON.stringify(window.__dev.G.state)));
-  const dialogText = async () => norm(await ev(() => (document.querySelector('.dialog .say') || {}).textContent || ''));
+const lib = require('./lib.js');
+
+module.exports = async function worldmap(ctx) {
+  const L = lib(ctx);
+  const { page, step, ev, wait, closeAll, norm, expect, state, toasts, clearToasts, dialogText, watch, unwatch, until, untilPanel, untilScene, untilDialog, frames } = L;
   const dialogOpts = () => ev(() => [...document.querySelectorAll('.dialog .opts button, .dialog button')].map((b) => b.textContent));
+  /** Нажать вариант разговора и дождаться ответа: реплика сменилась (или разговор закрылся), кнопки снова принимают нажатия. */
   const pressOpt = async (text) => {
+    const said0 = await ev(() => (document.querySelector('.dialog .say') || {}).textContent || '');
     const ok = await ev((text) => {
       const b = [...document.querySelectorAll('.dialog button')].find((q) => q.textContent.includes(text));
       if (b) b.click();
       return !!b;
     }, text);
     expect(ok, `в разговоре нет кнопки «${text}»`, await dialogOpts());
-    await wait(450);
+    await until((b) => !document.querySelector('.dialog .btn') || document.querySelector('.dialog .say').textContent !== b, said0, { timeout: 2000 }).catch(() => {});
+    if (await ev(() => !!document.querySelector('.dialog .btn'))) await wait(380);
   };
-  const toasts = async () => norm(await ev(() => (document.querySelector('#toasts') || { textContent: '' }).textContent));
-  const clearToasts = () =>
-    ev(() => {
-      const t = document.querySelector('#toasts');
-      if (t) t.innerHTML = '';
-    });
-  const fresh = async () => {
-    await ev(() => {
-      window.__dev.G.state = null;
-      localStorage.clear();
-    });
-    await page.reload();
-    await wait(400);
-    await page.click('text=Играть!');
-    await page.click('text=Пропустить'); // вступительная сценка новой игры (этап 10)
-    await page.evaluate(() => window.__dev.oldStart()); // как до этапа 10: 1 января, без вводной цепочки (начало игры — dev/smoke_start.js)
-    await wait(400);
-    await page.click('text=Поехали!');
-    await wait(500);
-    await closeAll();
-  };
-  const watch = () =>
-    ev(() => {
-      window.__stopWatchWorld = window.__dev.watchState();
-    });
-  const unwatch = async () => {
-    const bad = await ev(() => window.__stopWatchWorld());
-    expect(!bad.length, `запись в состояние мимо действий (${bad.length})`, [...new Set(bad)].slice(0, 4));
-  };
+  const fresh = () => L.fresh(); // 1 июня; день и погоду ставит setup
   /** Полдень тёплого дня, солнце; открыть места ids. */
   const setup = (ids = [], day = 18) =>
     ev(
@@ -161,7 +134,7 @@ module.exports = async function worldmap({ page, step, ev, wait, closeAll }) {
     await closeAll();
     await clearToasts();
     await ev(() => window.__dev.F.showHolidayOnMap());
-    await wait(500);
+    await untilPanel();
     expect(/Праздник — в городе.*по тропе в город/.test(await toasts()), 'нет подсказки с дорогой в город', await toasts());
     let row = await ev(() => [...document.querySelectorAll('.overlay .lands-row button')].map((b) => [b.textContent, b.className]));
     // мест восемь и больше (этап 17в добавил «Подземную реку»)
@@ -177,7 +150,7 @@ module.exports = async function worldmap({ page, step, ev, wait, closeAll }) {
     });
     await clearToasts();
     await ev(() => window.__dev.F.showQuestOnMap('lost_mitten'));
-    await wait(500);
+    await untilPanel();
     expect(/в горах.*по канатной дороге/.test(await toasts()), 'нет подсказки с дорогой на гору', await toasts());
     row = await ev(() => [...document.querySelectorAll('.overlay .lands-row button')].map((b) => [b.textContent, b.className]));
     expect(row.some((b) => /Гора.*⭐/.test(b[0]) && b[1].includes('goal')), 'у горы на карте мира нет ⭐', row);
@@ -197,10 +170,11 @@ module.exports = async function worldmap({ page, step, ev, wait, closeAll }) {
       p.pending = null;
       d.go('world', { at: 'villa' });
     });
-    await wait(900);
+    await untilScene('world');
+    await frames(3);
     await clearToasts();
     await ev(() => window.__dev.F.openMap());
-    await wait(500);
+    await untilPanel();
     row = await ev(() => [...document.querySelectorAll('.overlay .land')].map((b) => [b.textContent, b.className]));
     expect(row.length >= 7 && /Гора.*⭐/.test(row[2][0]) && !row.some((b, i) => i !== 2 && /⭐/.test(b[0])), 'в городе у горы нет ⭐', row);
     await ev(() => [...document.querySelectorAll('.overlay .land')].find((b) => b.textContent.includes('Гора')).click());
@@ -241,7 +215,7 @@ module.exports = async function worldmap({ page, step, ev, wait, closeAll }) {
     await ev(() => {
       window.__dev.F.npcDialog('busya');
     });
-    await wait(500);
+    await untilDialog();
     await pressOpt('Поболтать');
     let t = await dialogText();
     expect(t.length > 5 && !desert.includes(t) && !/пустын|бархан|караван/i.test(t), 'Буся говорит про закрытую пустыню', t);
@@ -268,7 +242,7 @@ module.exports = async function worldmap({ page, step, ev, wait, closeAll }) {
     await ev(() => {
       window.__dev.F.npcDialog('prof');
     });
-    await wait(500);
+    await untilDialog();
     expect(!/рисунк/.test(await dialogText()), 'Профессор расспрашивает про рисунки заранее', await dialogText());
     await pressOpt('Пока!');
     // увидела рисунки (наклейка) — Профессор расспрашивает; «потом» — сегодня больше не спрашивает
@@ -280,7 +254,7 @@ module.exports = async function worldmap({ page, step, ev, wait, closeAll }) {
     await ev(() => {
       window.__dev.F.npcDialog('prof');
     });
-    await wait(500);
+    await untilDialog();
     expect(/древние рисунки/.test(await dialogText()) && (await dialogOpts()).length === 4, 'Профессор не расспрашивает про рисунки', [await dialogText(), await dialogOpts()]);
     await pressOpt('Расскажу потом');
     expect(/любопытства/.test(await dialogText()), 'нет ответа на «потом»', await dialogText());
@@ -288,7 +262,7 @@ module.exports = async function worldmap({ page, step, ev, wait, closeAll }) {
     await ev(() => {
       window.__dev.F.npcDialog('prof');
     });
-    await wait(500);
+    await untilDialog();
     expect(!/что там нарисовано/.test(await dialogText()), 'Профессор переспрашивает в тот же день', await dialogText());
     await pressOpt('Пока!');
     // на другой день — рассказываем всё, в любом порядке
@@ -296,7 +270,7 @@ module.exports = async function worldmap({ page, step, ev, wait, closeAll }) {
     await ev(() => {
       window.__dev.F.npcDialog('prof');
     });
-    await wait(500);
+    await untilDialog();
     expect(/что там нарисовано/.test(await dialogText()), 'на другой день Профессор не расспрашивает', await dialogText());
     await pressOpt('колесе');
     expect(/Колесо\?!/.test(await dialogText()) && (await dialogOpts()).length === 2, 'ответ на «хомячок в колесе»', [await dialogText(), await dialogOpts()]);
@@ -313,7 +287,7 @@ module.exports = async function worldmap({ page, step, ev, wait, closeAll }) {
     await ev(() => {
       window.__dev.F.npcDialog('prof');
     });
-    await wait(500);
+    await untilDialog();
     expect(!/что там нарисовано/.test(await dialogText()), 'Профессор расспрашивает второй раз', await dialogText());
     await pressOpt('Пока!');
     await unwatch();
@@ -328,7 +302,8 @@ module.exports = async function worldmap({ page, step, ev, wait, closeAll }) {
       d.go('jungle');
       d.locations.jungle.debugTeleport(24, 28);
     });
-    await wait(400);
+    await untilScene('jungle');
+    await frames(3);
     await closeAll();
     await watch();
     const J = () => ev(async () => (await import('/js/locations/jungle.js')).debugParrots());
@@ -340,14 +315,14 @@ module.exports = async function worldmap({ page, step, ev, wait, closeAll }) {
       await ev((i) => {
         window.__dev.run({ do: 'jungle', arg: 'parrot', i });
       }, i);
-      await wait(500);
+      await untilPanel();
       const ok = await ev(() => {
         const b = [...document.querySelectorAll('.overlay .panel button')].find((q) => q.textContent.includes('Научить слову'));
         if (b) b.click();
         return !!b;
       });
       expect(ok, 'в разговоре с попугаем нет кнопки «Научить слову»');
-      await wait(500);
+      await page.waitForSelector('.overlay .parrot-words button');
       const n = await ev(() => document.querySelectorAll('.overlay .parrot-words button').length);
       expect(n === words.length, 'в окне не все фразы', n);
       await ev((t) => [...document.querySelectorAll('.overlay .parrot-words button')].find((b) => b.textContent.includes(t)).click(), text(id));
@@ -390,9 +365,8 @@ module.exports = async function worldmap({ page, step, ev, wait, closeAll }) {
       localStorage.setItem('rhr-save-v1', raw);
     }, JSON.stringify(sv));
     await page.reload();
-    await wait(500);
-    await page.click('text=Продолжить');
-    await wait(800);
+    await page.waitForSelector(L.sel('continue'));
+    await L.cont();
     await closeAll();
     s = await state();
     expect(JSON.stringify(s.parrots) === '{"0":["good","tickle","song"],"1":["friend"],"2":["seed"]}', 'слова после загрузки', s.parrots);
@@ -403,9 +377,8 @@ module.exports = async function worldmap({ page, step, ev, wait, closeAll }) {
       localStorage.setItem('rhr-save-v1', raw);
     }, JSON.stringify(sv));
     await page.reload();
-    await wait(500);
-    await page.click('text=Продолжить');
-    await wait(800);
+    await page.waitForSelector(L.sel('continue'));
+    await L.cont();
     await closeAll();
     expect(JSON.stringify((await state()).parrots) === '{}', 'старое сохранение без слов попугаев', (await state()).parrots);
   });
