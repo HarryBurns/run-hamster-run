@@ -13,11 +13,11 @@
 // Находки грота — один раз за игру (pickups once): пещерная жемчужина и светящийся камушек (data/finds.js, вид deep).
 // Сохранение не менялось: лодочка стоит там, где хомячок (определяется при входе), подсказка — flags.deepHint.
 import { G } from '../core/state.js';
-import { award, setFlag } from '../core/actions.js';
+import { award } from '../core/actions.js';
 import { go } from '../core/loop.js';
 import { sfx } from '../core/audio.js';
 import { emit } from '../core/events.js';
-import { toast } from '../ui/toast.js';
+import { toast, hintOnce } from '../ui/toast.js';
 import { clamp, seeded } from '../core/util.js';
 import { ell } from '../core/draw.js';
 import { T, createTopDownScene } from '../engine/topdown/index.js';
@@ -208,10 +208,7 @@ function endRide(sc) {
   emit('deep', { what: down ? 'ride' : 'back' });
   if (down) {
     award('x_river');
-    if (!G.state.flags.deepRide) {
-      setFlag('deepRide');
-      toast('Приплыли! Здесь — кристальный грот. Поищи, что блестит! ✨');
-    }
+    hintOnce('deepRide', 'Приплыли! Здесь — кристальный грот. Поищи, что блестит! ✨');
   }
   emit('hud');
 }
@@ -322,10 +319,7 @@ const deep = createTopDownScene({
       sc.p.x = lx * T;
       sc.p.y = ly * T;
     }
-    if (!G.state.flags.deepHint) {
-      setFlag('deepHint');
-      setTimeout(() => toast('🛶 Подземная река! Садись в лодочку у мостков — течение само понесёт её мимо светящихся грибов.'), 700);
-    }
+    hintOnce('deepHint', '🛶 Подземная река! Садись в лодочку у мостков — течение само понесёт её мимо светящихся грибов.', '', 700);
   },
   /** Пока плывёшь — нажатия на экран не уводят хомячка из лодочки. */
   tap: () => !!ride,

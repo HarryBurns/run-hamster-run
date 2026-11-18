@@ -36,7 +36,7 @@ import { sea } from '../locations/town.js';
 import { dialog } from '../ui/dialog.js';
 import { fadeScene, smooth } from '../ui/fade.js';
 import { message } from '../ui/panel.js';
-import { toast } from '../ui/toast.js';
+import { toast, hintOnce } from '../ui/toast.js';
 import { playMinigame, prizeGame } from './minigames.js';
 import { questTalk } from './quests.js';
 import { placeLine } from './tales.js';
@@ -259,10 +259,7 @@ function takeObsidian() {
 /** Подобрали цветок для леи (pickups). */
 function flowerFound() {
   emit('island', { what: 'flower' });
-  if (!S().flags.leiHint) {
-    setFlag('leiHint');
-    setTimeout(() => toast('🌺 Каждое утро на острове распускается новый цветок. Из трёх разных Вождь Кокос сплетёт лею!', 'good'), 900);
-  }
+  hintOnce('leiHint', '🌺 Каждое утро на острове распускается новый цветок. Из трёх разных Вождь Кокос сплетёт лею!', 'good', 900);
   return true;
 }
 /** Костёр: на празднике — потанцевать; днём — когда праздник. */
@@ -319,10 +316,7 @@ let nightOnIsland = false;
 /** Переночевать в хижине для гостей: обычный сон (features/sleep.js), утро — тоже на острове, у хижины. */
 function sleepHut() {
   nightOnIsland = true;
-  if (!S().flags.hutHint) {
-    setFlag('hutHint');
-    toast('🛏️ В хижине для гостей постелена мягкая циновка. Вечером, после 19:00, можно переночевать — утро тоже будет на острове!');
-  }
+  hintOnce('hutHint', '🛏️ В хижине для гостей постелена мягкая циновка. Вечером, после 19:00, можно переночевать — утро тоже будет на острове!');
   // передумала спать («Ещё погуляю») — ночёвку не считаем; уснула — флаг снимет утро (wake)
   Promise.resolve(run('sleep')).then((slept) => {
     if (!slept) nightOnIsland = false;
@@ -362,9 +356,7 @@ const ACTS = {
 
 // ---------- подсказки ----------
 on('scene', ({ name }) => {
-  if (name !== 'island' || !S() || S().flags.islandHint) return;
-  setFlag('islandHint');
-  toast('🌋 Вот он — удалённый остров! Деревня островитян — прямо по тропинке на север. Вождь Кокос ждёт у костра!', 'good');
+  if (name === 'island') hintOnce('islandHint', '🌋 Вот он — удалённый остров! Деревня островитян — прямо по тропинке на север. Вождь Кокос ждёт у костра!', 'good');
 });
 
 // ---------- кораблик: долгое плавание на юг и обратно ----------

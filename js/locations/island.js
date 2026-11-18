@@ -19,10 +19,10 @@
 // Атмосфера: всегда лето (season), снега и холодного дождя не бывает (dry), бабочки днём, светлячки ночью; своя
 // музыка с барабанами (sound → features/soundscape.js), у моря шумит прибой.
 import { G, darkness } from '../core/state.js';
-import { setFlag, setDayFlag } from '../core/actions.js';
+import { setDayFlag } from '../core/actions.js';
 import { emit } from '../core/events.js';
 import { sfx } from '../core/audio.js';
-import { toast } from '../ui/toast.js';
+import { toast, hintOnce } from '../ui/toast.js';
 import { clamp, seeded } from '../core/util.js';
 import { ell } from '../core/draw.js';
 import { drawHamster } from '../art/hamster.js';
@@ -730,10 +730,7 @@ const island = createTopDownScene({
   surface(sc, kind, was) {
     if ((kind === 'clag' || kind === 'cdeep') && was !== 'clag' && was !== 'cdeep') {
       emit('island', { what: 'lagoon' });
-      if (!S().flags.lagoonHint) {
-        setFlag('lagoonHint');
-        toast('🐠 Тёплая лагуна! Здесь мелко и тихо, плавают пёстрые рыбки. Купайся сколько хочешь!', 'good');
-      }
+      hintOnce('lagoonHint', '🐠 Тёплая лагуна! Здесь мелко и тихо, плавают пёстрые рыбки. Купайся сколько хочешь!', 'good');
     }
   },
   cold: () => false, // на острове всегда тепло

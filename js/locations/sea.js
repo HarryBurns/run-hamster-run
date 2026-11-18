@@ -22,11 +22,11 @@ import { clamp, rnd, seeded, TAU, dist } from '../core/util.js';
 import { ell, fillRR, line, poly, emoji } from '../core/draw.js';
 import { drawHamster, blinkAt } from '../art/hamster.js';
 import { G, canSwim, landOpen } from '../core/state.js';
-import { award, setFlag, setDayFlag, patchState, touchState, markVisited } from '../core/actions.js';
+import { award, setFlag, patchState, touchState, markVisited } from '../core/actions.js';
 import { emit } from '../core/events.js';
 import { run } from '../core/registry.js';
 import { go, scene } from '../core/loop.js';
-import { toast } from '../ui/toast.js';
+import { toast, hintOnce, hintToday } from '../ui/toast.js';
 import { sfx } from '../core/audio.js';
 import { T, OUT, PS, SP, put, tileOf, defineObjects, defineArt } from '../engine/topdown/kinds.js';
 import { signBoard } from './common/paint.js';
@@ -546,10 +546,7 @@ export function createSea(cfg) {
     sfx('splash');
     sfx('ok');
     award('x_boat');
-    if (!G.state.flags.boatHint) {
-      setFlag('boatHint');
-      toast('Ты на кораблике! Нажимай на воду — поплывём. Теперь можно и за буйки! ⛵');
-    }
+    hintOnce('boatHint', 'Ты на кораблике! Нажимай на воду — поплывём. Теперь можно и за буйки! ⛵');
     emit('boat');
     emit('hud');
     touchState();
@@ -866,10 +863,7 @@ export function createSea(cfg) {
       if (c.up > 0) {
         c.up -= dt;
         if (c.kind === 'whale' && dist(c.x, c.y, p.x, p.y) < T * 6.5) award('x_whale');
-        if (c.kind === 'shark' && dist(c.x, c.y, p.x, p.y) < T * 3 && !G.state.dayFlags.shark) {
-          setDayFlag('shark');
-          toast('Акула улыбнулась тебе и поплыла дальше 🦈');
-        }
+        if (c.kind === 'shark' && dist(c.x, c.y, p.x, p.y) < T * 3) hintToday('shark', 'Акула улыбнулась тебе и поплыла дальше 🦈', '', null);
         continue;
       }
       c.timer -= dt;
@@ -901,10 +895,7 @@ export function createSea(cfg) {
     for (const dx of [-80, 0, 80, 80 + v * 1.6]) if (!isDeep(ch(tileOf(x + dir * dx), tileOf(y)))) return false;
     dolph = { x, y, dir, v, t0: G.time };
     if (scene() === sc) sfx('splash');
-    if (!G.state.dayFlags.dolphins) {
-      setDayFlag('dolphins');
-      toast('Дельфины! Плывут рядом с корабликом и прыгают из воды 🐬', 'good');
-    }
+    hintToday('dolphins', 'Дельфины! Плывут рядом с корабликом и прыгают из воды 🐬', 'good', null);
     return true;
   }
 

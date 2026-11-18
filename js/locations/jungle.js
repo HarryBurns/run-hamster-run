@@ -20,8 +20,7 @@ import { emit } from '../core/events.js';
 import { keys } from '../core/input.js';
 import { sfx } from '../core/audio.js';
 import { clamp, seeded, dist } from '../core/util.js';
-import { toast } from '../ui/toast.js';
-import { setFlag } from '../core/actions.js';
+import { toast, hintOnce } from '../ui/toast.js';
 import { emoji } from '../core/draw.js';
 import { drawHamster, blinkAt } from '../art/hamster.js';
 import { JUNGLE, JUNGLE_GATHER, QUEST_BY_ID, PARROT_WORD_BY_ID, dayRoll } from '../data/index.js';
@@ -535,10 +534,7 @@ export function startCanoe(sc) {
     drop: (s) => endCanoe(s),
   };
   sfx('splash');
-  if (!G.state.flags.canoeHint) {
-    toast('🛶 Ты в лодочке! Нажимай на воду — поплывём вверх по реке, к водопаду. На берег рядом — сойти.');
-    setFlag('canoeHint');
-  }
+  hintOnce('canoeHint', '🛶 Ты в лодочке! Нажимай на воду — поплывём вверх по реке, к водопаду. На берег рядом — сойти.');
   return true;
 }
 /** Сойти с пироги на ближайший берег (у точки w, если она рядом, иначе — у хомячка). false — хомячок не в лодке. */

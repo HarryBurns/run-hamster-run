@@ -31,7 +31,7 @@ import { sea } from '../locations/town.js';
 import { dialog } from '../ui/dialog.js';
 import { fadeScene, smooth } from '../ui/fade.js';
 import { message, openPanel } from '../ui/panel.js';
-import { toast } from '../ui/toast.js';
+import { toast, hintOnce } from '../ui/toast.js';
 import { prizeGame } from './minigames.js';
 import { questTalk } from './quests.js';
 import { placeLine } from './tales.js';
@@ -270,9 +270,7 @@ on('jungle', ({ what }) => {
   else if (what === 'bridge' && award('x_bridge', { delay: 900 })) toast('🌉 Подвесной мост качается — ух! Внизу шумит река. Держись за верёвочные перила!', 'good');
 });
 on('scene', ({ name }) => {
-  if (name !== 'jungle' || !S() || S().flags.jungleHint) return;
-  setFlag('jungleHint');
-  toast('🦜 Вот они — джунгли! Лиана — у палатки, прямо по тропе на север. Слышишь попугаев?', 'good');
+  if (name === 'jungle') hintOnce('jungleHint', '🦜 Вот они — джунгли! Лиана — у палатки, прямо по тропе на север. Слышишь попугаев?', 'good');
 });
 
 // ---------- кораблик: из моря города к причалу в джунглях и обратно ----------

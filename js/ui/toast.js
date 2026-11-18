@@ -2,8 +2,10 @@
 // Пока открыто окно (класс win-open у body ставит ui/panel.js), подсказки встают на нижний край шапки (и вкладок)
 // верхнего окна, компактнее и не больше двух — заголовок и ✕ окна остаются на виду, кнопки внизу окна тоже (Ф2),
 // и первая строка окна не прячется.
+import { setFlag, setDayFlag } from '../core/actions.js';
 import { el } from '../core/util.js';
 import { sfx } from '../core/audio.js';
+import { G } from '../core/state.js';
 
 let toastBox = null;
 export function toast(msg, kind = '') {
@@ -19,6 +21,27 @@ export function toast(msg, kind = '') {
   placeToasts();
   setTimeout(() => t.classList.add('out'), 2600);
   setTimeout(() => t.remove(), 3100);
+}
+
+/**
+ * Подсказка один раз за игру: если отметки flag ещё нет — поставить её и показать toast(text, kind) (через delay мс,
+ * если delay задан). true — подсказку показали.
+ */
+export function hintOnce(flag, text, kind = '', delay = 0) {
+  const s = G.state;
+  if (!s || s.flags[flag]) return false;
+  setFlag(flag);
+  if (delay) setTimeout(() => toast(text, kind), delay);
+  else toast(text, kind);
+  return true;
+}
+/** Подсказка один раз в день: отметка дня flag в группе group (по умолчанию warn; null — без группы). true — показали. */
+export function hintToday(flag, text, kind = '', group = 'warn') {
+  const s = G.state;
+  if (!s || ((group ? s.dayFlags[group] : s.dayFlags) || {})[flag]) return false;
+  setDayFlag(flag, 1, group);
+  toast(text, kind);
+  return true;
 }
 
 /** Поставить подсказки под шапку верхнего открытого окна (или на обычное место, если окон нет). */

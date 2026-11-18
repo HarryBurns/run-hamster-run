@@ -24,7 +24,7 @@ import { NPC_BY_ID, FIND_BY_ID, GEM_IDS, CAVES, npcLook } from '../data/index.js
 import { ART } from '../engine/topdown/index.js';
 import { dialog } from '../ui/dialog.js';
 import { message, openPanel } from '../ui/panel.js';
-import { toast } from '../ui/toast.js';
+import { toast, hintOnce } from '../ui/toast.js';
 import { prizeGame } from './minigames.js';
 import { questTalk } from './quests.js';
 import { placeLine } from './tales.js';
@@ -264,9 +264,9 @@ on('caves', ({ what }) => {
     toast('🦇 Летучие мыши! Днём они спят вниз головой, а ты их разбудила. Не бойся — они добрые и сейчас снова уснут.', 'good');
 });
 on('scene', ({ name }) => {
-  if (name !== 'caves' || !S() || S().flags.cavesHint) return;
-  setFlag('cavesHint');
-  toast(
+  if (name !== 'caves' || !S()) return;
+  hintOnce(
+    'cavesHint',
     S().finds.flashlight
       ? '🔦 Как темно! Хорошо, что у тебя есть фонарик. Кнопкой 🔦 его можно выключить — тогда видно, как светятся грибы.'
       : '🌑 Как темно! Без фонарика видно совсем чуть-чуть. Фонарик продают в ТЦ «Уютный дом».',

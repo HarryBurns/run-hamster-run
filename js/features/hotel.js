@@ -34,7 +34,7 @@ import { go } from '../core/loop.js';
 import { dialog } from '../ui/dialog.js';
 import { fadeScene } from '../ui/fade.js';
 import { openPanel } from '../ui/panel.js';
-import { toast } from '../ui/toast.js';
+import { toast, hintOnce } from '../ui/toast.js';
 import { buy, priceTag, buyBtn } from './purchase.js';
 import { playMinigame, prizeGame } from './minigames.js';
 
@@ -491,8 +491,6 @@ register(
 
 // первый вход в отель: наклейка и подсказка, куда идти
 on('scene', ({ name }) => {
-  if (name !== 'hotel' || !S() || S().flags.hotelHint) return;
-  setFlag('hotelHint');
-  award('x_hotel', { delay: 900 });
-  toast('🏨 Добро пожаловать в отель «Морская звезда»! Ресепшен — прямо по курсу. Лифт справа: 2-й этаж — номера, 3-й — бассейн с горками.', 'good');
+  if (name === 'hotel' && hintOnce('hotelHint', '🏨 Добро пожаловать в отель «Морская звезда»! Ресепшен — прямо по курсу. Лифт справа: 2-й этаж — номера, 3-й — бассейн с горками.', 'good'))
+    award('x_hotel', { delay: 900 });
 });

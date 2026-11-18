@@ -32,7 +32,7 @@ import { paintBus, paintCamel } from '../locations/desert_art.js';
 import { dialog } from '../ui/dialog.js';
 import { fadeScene, smooth } from '../ui/fade.js';
 import { message, openPanel } from '../ui/panel.js';
-import { toast } from '../ui/toast.js';
+import { toast, hintOnce, hintToday } from '../ui/toast.js';
 import { prizeGame, prizeLeft } from './minigames.js';
 import { questTalk } from './quests.js';
 import { placeLine } from './tales.js';
@@ -357,10 +357,7 @@ on('step', ({ dt }) => {
   // в тени пальм и в траве у оазиса прохладно (Д7): жара не копится, а первый раз за день — подсказка
   if (inShade(sc)) {
     heatMin = Math.max(0, heatMin - dt / 0.3);
-    if (!SD().shade) {
-      setDayFlag('shade', 1, 'desert');
-      toast('🌴 В тени пальм прохладно — хорошо! Здесь можно передохнуть от солнышка.', 'good');
-    }
+    hintToday('shade', '🌴 В тени пальм прохладно — хорошо! Здесь можно передохнуть от солнышка.', 'good', 'desert');
     return;
   }
   if (SD().heat) return;
@@ -372,9 +369,7 @@ on('step', ({ dt }) => {
   toast('☀️ Ух, как печёт солнышко! Надень шляпу от солнца или панамку — в пустыне без неё жарко. И попей водички в оазисе 🌴');
 });
 on('scene', ({ name }) => {
-  if (name !== 'desert' || !S() || S().flags.desertHint) return;
-  setFlag('desertHint');
-  toast('🐫 Вот она — пустыня! Барханы, пальмы и жаркое солнце. Кочевник Бархан — у шатра в оазисе, прямо по тропе на север.', 'good');
+  if (name === 'desert') hintOnce('desertHint', '🐫 Вот она — пустыня! Барханы, пальмы и жаркое солнце. Кочевник Бархан — у шатра в оазисе, прямо по тропе на север.', 'good');
 });
 
 // ---------- караван-автобус ----------

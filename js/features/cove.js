@@ -32,7 +32,7 @@ import { sea } from '../locations/town.js';
 import { dialog } from '../ui/dialog.js';
 import { fadeScene, smooth } from '../ui/fade.js';
 import { message } from '../ui/panel.js';
-import { toast } from '../ui/toast.js';
+import { toast, hintOnce } from '../ui/toast.js';
 import { prizeGame } from './minigames.js';
 import { questTalk } from './quests.js';
 import { placeLine } from './tales.js';
@@ -349,15 +349,10 @@ on('cove', ({ what }) => {
     else toast('🐢 Черепашата уплыли в море — счастливого пути!', 'good');
   } else if (what === 'glow' && award('x_glow', { delay: 900 }))
     toast('✨ Ого, вода светится! Это крошечные морские огоньки — они загораются, когда плывёшь.', 'good');
-  else if (what === 'shell' && !S().flags.shellHint) {
-    setFlag('shellHint');
-    setTimeout(() => toast('🐚 Редкая ракушка! Собери все три вида — Жемчужинка сделает рамку. А ещё их берёт рынок.', 'good'), 900);
-  }
+  else if (what === 'shell') hintOnce('shellHint', '🐚 Редкая ракушка! Собери все три вида — Жемчужинка сделает рамку. А ещё их берёт рынок.', 'good', 900);
 });
 on('scene', ({ name }) => {
-  if (name !== 'cove' || !S() || S().flags.coveHint) return;
-  setFlag('coveHint');
-  toast('🐢 Секретный пляж! Жемчужинка сидит на камне у воды — поздоровайся. А крестик с карты — где-то на песке!', 'good');
+  if (name === 'cove') hintOnce('coveHint', '🐢 Секретный пляж! Жемчужинка сидит на камне у воды — поздоровайся. А крестик с карты — где-то на песке!', 'good');
 });
 
 // ---------- заплыв через подводный грот ----------

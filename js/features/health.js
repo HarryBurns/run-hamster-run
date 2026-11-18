@@ -35,7 +35,7 @@ import {
 import { dialog } from '../ui/dialog.js';
 import { enqueue } from '../ui/modals.js';
 import { openPanel, message } from '../ui/panel.js';
-import { toast } from '../ui/toast.js';
+import { toast, hintToday } from '../ui/toast.js';
 
 const S = () => G.state;
 const careless = () => S().dayFlags.careless || {};
@@ -164,12 +164,6 @@ let outDay = -1,
   coldMin = 0,
   wetMin = 0,
   nextSneeze = 0;
-/** Добрая подсказка один раз в день (отметка дня warn:<id>). */
-function warnOnce(id, text) {
-  if ((S().dayFlags.warn || {})[id]) return;
-  setDayFlag(id, 1, 'warn');
-  toast(text);
-}
 function markCareless(id) {
   if (!careless()[id]) setDayFlag(id, 1, 'careless');
 }
@@ -203,7 +197,7 @@ function tick({ dt }) {
   if ((here === null ? coldDay(s.day) : here) && !dressedWarm(o) && !cf.cold) {
     coldMin += min;
     if (coldMin >= HEALTH.warnMin)
-      warnOnce(
+      hintToday(
         'cold',
         'Брр! 🥶 На улице холодно, а ты без тёплых вещей. Надень шапку, куртку или шарф — а то можно простыть!',
       );
@@ -213,7 +207,7 @@ function tick({ dt }) {
   if (s.weather === 'rain' && !(sc.dry && sc.dry()) && !dressedForRain(o) && !cf.rain) {
     wetMin += min;
     if (wetMin >= HEALTH.warnMin)
-      warnOnce(
+      hintToday(
         'rain',
         'Кап-кап! ☔ Ты промокаешь под дождём. Надень куртку или резиновые сапожки — а то можно простыть!',
       );
@@ -238,7 +232,7 @@ function icySea() {
     here = sc && sc.cold ? sc.cold() : null;
   if (!s || s.sick || !(here === null ? coldDay(s.day) : here)) return;
   markCareless('sea');
-  warnOnce('sea', 'Ух, вода ледяная! 🥶 В холод в море лучше не купаться — можно простыть. Летом будет тёплая!');
+  hintToday('sea', 'Ух, вода ледяная! 🥶 В холод в море лучше не купаться — можно простыть. Летом будет тёплая!');
 }
 on('swim', ({ where }) => {
   if (where === 'sea') icySea();
