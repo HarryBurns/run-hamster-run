@@ -3,6 +3,7 @@ import { el } from '../core/util.js';
 import { makeCanvas } from '../core/draw.js';
 import { drawPortrait, blinkAt } from '../art/hamster.js';
 import { sfx } from '../core/audio.js';
+import { defaultLook } from '../data/index.js';
 import { openLayer, TAP_GUARD } from './modals.js';
 
 /**
@@ -11,7 +12,7 @@ import { openLayer, TAP_GUARD } from './modals.js';
  */
 export function dialog({ look, name, text, options = [{ text: 'Пока!' }], happy = false }) {
   return new Promise((resolve) => {
-    const closeLayer = openLayer();
+    // Сначала собираем окно и только потом берём слой паузы: ошибка при сборке не оставит игру на паузе без окна.
     const shade = el('div', 'dialog-shade');
     const d = el('div', 'dialog');
     const who = el('div', 'who');
@@ -28,13 +29,22 @@ export function dialog({ look, name, text, options = [{ text: 'Пока!' }], ha
       closed = false;
     const t0 = performance.now(),
       ready = () => performance.now() - t0 > TAP_GUARD;
+    // Портрет не нарисовался (испорченная внешность) — рисуем хомячка по умолчанию, а если и он не вышел —
+    // оставляем пустую рамку: диалог важнее картинки.
+    let face = look;
     const loop = () => {
       const t = (performance.now() - t0) / 1000;
       ctx.clearRect(0, 0, 72, 72);
-      drawPortrait(ctx, 36, 36, 72, look, { time: t, talk: t < 1.6, happy, blink: blinkAt(t) });
+      try {
+        drawPortrait(ctx, 36, 36, 72, face, { time: t, talk: t < 1.6, happy, blink: blinkAt(t) });
+      } catch (e) {
+        if (face === look) {
+          console.error(e);
+          face = defaultLook();
+        } else return; // и хомячок по умолчанию не нарисовался — дальше без анимации
+      }
       raf = requestAnimationFrame(loop);
     };
-    loop();
     const fin = (i) => {
       if (closed) return;
       closed = true;
@@ -57,7 +67,9 @@ export function dialog({ look, name, text, options = [{ text: 'Пока!' }], ha
     shade.addEventListener('pointerdown', () => {
       if (options.length <= 1 && ready()) fin(-1);
     });
+    const closeLayer = openLayer();
     document.body.append(shade, d);
+    loop();
     // у каждого хомячка свой голосок
     let hsh = 0;
     for (const ch of String(name)) hsh = (hsh * 31 + ch.charCodeAt(0)) % 997;

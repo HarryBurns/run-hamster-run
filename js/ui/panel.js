@@ -28,7 +28,11 @@ export function openPanel(o) {
   if (o.portrait) {
     const { canvas, ctx } = makeCanvas(44, 44);
     canvas.style.cssText += ';border-radius:50%;background:#fff;flex:none';
-    drawPortrait(ctx, 22, 22, 44, o.portrait);
+    try {
+      drawPortrait(ctx, 22, 22, 44, o.portrait);
+    } catch (e) {
+      console.error(e); // без портрета окно всё равно откроется
+    }
     head.appendChild(canvas);
   } else if (o.icon) head.appendChild(el('span', '', o.icon));
   head.appendChild(el('span', 'title', o.title || ''));
@@ -87,7 +91,13 @@ export function openPanel(o) {
       }
       const st = body.scrollTop;
       body.innerHTML = '';
-      o.render(body, api.tab, api);
+      try {
+        o.render(body, api.tab, api);
+      } catch (e) {
+        // окно остаётся на экране и закрывается ✕ — игра не застревает
+        console.error(e);
+        body.innerHTML = '<p class="center">Ой, это окно не получилось показать. Закрой его и попробуй ещё раз.</p>';
+      }
       body.scrollTop = st;
       if (foot) {
         foot.innerHTML = '';
@@ -117,8 +127,8 @@ export function openPanel(o) {
   ov.addEventListener('pointerdown', (e) => {
     if (e.target === ov && !o.sticky && performance.now() - born > TAP_GUARD) api.close();
   });
+  markOpen(1); // до refresh(): закрытие окна всегда снимает ровно одну отметку «открыто»
   api.refresh();
-  markOpen(1);
   return api;
 }
 
