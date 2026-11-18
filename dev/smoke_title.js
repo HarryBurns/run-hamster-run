@@ -8,10 +8,11 @@ const fs = require('fs');
 const path = require('path');
 const SAVE_V5 = fs.readFileSync(path.join(__dirname, 'saves', 'v5.json'), 'utf8');
 
-module.exports = async function title({ page, step, ev, wait, closeAll }) {
-  const expect = (ok, msg, data) => {
-    if (!ok) throw new Error(msg + (data === undefined ? '' : ': ' + JSON.stringify(data)));
-  };
+const lib = require('./lib.js');
+
+module.exports = async function title(ctx) {
+  const { page, step, ev, wait, closeAll, expect, act, sel, until, untilPanel, untilScene, cont } = lib(ctx);
+  const menuReady = () => page.waitForSelector('#title .t-menu button');
   const errors = [];
   const onErr = (e) => errors.push(String(e));
   const onCon = (m) => {
@@ -27,7 +28,7 @@ module.exports = async function title({ page, step, ev, wait, closeAll }) {
   const reload = async (keep) => {
     if (!keep) await ev(() => (window.__dev.G.state = null));
     await page.reload();
-    await wait(500);
+    await menuReady();
   };
   const put = async (raw) => {
     await ev((raw) => {
@@ -36,7 +37,7 @@ module.exports = async function title({ page, step, ev, wait, closeAll }) {
       if (raw) localStorage.setItem('rhr-save-v1', raw);
     }, raw);
     await page.reload();
-    await wait(500);
+    await menuReady();
   };
   const store = () =>
     ev(() => {
@@ -74,8 +75,7 @@ module.exports = async function title({ page, step, ev, wait, closeAll }) {
         'карточка игры',
         idx.games[0],
       );
-      await page.click('text=Продолжить');
-      await wait(600);
+      await cont();
       const s = await ev(() => ({
         name: window.__dev.G.state.name,
         gid: window.__dev.G.state.gid,
@@ -94,15 +94,13 @@ module.exports = async function title({ page, step, ev, wait, closeAll }) {
   await step('заставка и игры: вторая игра создаётся рядом, первая цела; «Продолжить» — последняя', async () => {
     const raw = sample();
     await put(raw);
-    await page.click('text=Новая игра');
-    await wait(300);
+    await act('new');
     await page.fill('#title input', 'Булочка');
-    await page.click('text=Играть!');
-    await page.click('text=Пропустить'); // вступительная сценка новой игры (этап 10)
+    await act('play');
+    await act('skip'); // вступительная сценка новой игры (этап 10)
     await page.evaluate(() => window.__dev.actions.setFlag('intro', 0)); // вводная цепочка заданий — в своих шагах (dev/smoke_start.js)
-    await wait(400);
-    await page.click('text=Поехали!');
-    await wait(400);
+    await act('go');
+    await untilScene('villa');
     await closeAll();
     const idx = await index(),
       st = await store();
@@ -118,21 +116,21 @@ module.exports = async function title({ page, step, ev, wait, closeAll }) {
     await saveNow();
     await reload(true);
     expect((await page.locator('#title .t-menu').innerText()).includes('Булочка'), 'заставка зовёт не последнюю игру');
-    await page.click('text=Продолжить');
-    await wait(600);
+    await cont();
     const s = await ev(() => ({ name: window.__dev.G.state.name, money: window.__dev.G.state.money }));
     expect(s.name === 'Булочка' && s.money === 3077, '«Продолжить» открыло не последнюю игру', s);
     await closeAll();
     // «Мои игры» → открыть первую: она как была, а новая ложится на полку с последними изменениями
     await saveNow();
     await reload(true);
-    await page.click('text=Мои игры');
-    await wait(350);
+    await act('games');
+    await page.waitForSelector('.g-card');
     expect((await page.locator('.g-card').count()) === 2, 'в «Моих играх» не две карточки');
     const cardText = await page.locator(`.g-card[data-id="${first.id}"]`).innerText();
     expect(cardText.includes(first.name) && /год/.test(cardText) && cardText.includes('🪙'), 'карточка игры', cardText);
     await page.click(`.g-card[data-id="${first.id}"] .g-play`);
-    await wait(700);
+    await until(() => !document.querySelector('#title') && window.__dev.G.state, undefined, 'первая игра открылась');
+    await wait(100);
     const s2 = await ev(() => ({
       name: window.__dev.G.state.name,
       money: window.__dev.G.state.money,
@@ -158,17 +156,23 @@ module.exports = async function title({ page, step, ev, wait, closeAll }) {
   await step(
     'заставка и игры: удалить игру можно только нарочно — ⋯, окно с именем, кнопку нужно подержать',
     async () => {
-      await saveNow();
-      await reload(true);
-      await page.click('text=Мои игры');
-      await wait(350);
+      // две игры: «Ириска» (из образца, в неё играли последней) и «Булочка» — без опоры на прошлые шаги
+      await put(sample());
+      await ev(() => {
+        const g = window.__dev.games,
+          first = g.activeGame();
+        g.createGame('Булочка');
+        g.switchGame(first);
+      });
+      await reload();
+      await act('games');
+      await page.waitForSelector('.g-card');
       expect(!(await page.locator('.g-del').count()), 'кнопка удаления видна сразу');
       const idx = await index();
       const victim = idx.games.find((g) => g.name === 'Булочка');
       await page.click(`.g-card[data-id="${victim.id}"] .g-more`);
-      await wait(200);
       await page.click('.g-del');
-      await wait(350);
+      await page.waitForSelector('.g-hold');
       const ask = await page.locator('.overlay').last().innerText();
       expect(ask.includes('Булочка') && ask.includes('Нет, оставить'), 'окно подтверждения без имени', ask);
       // короткое нажатие не удаляет
@@ -177,28 +181,28 @@ module.exports = async function title({ page, step, ev, wait, closeAll }) {
       expect((await index()).games.length === 2, 'игра удалилась от короткого нажатия');
       // «Нет, оставить» — игра цела
       await page.click('text=Нет, оставить');
-      await wait(300);
+      await until(() => !document.querySelector('.g-hold'), undefined, { timeout: 2000 }).catch(() => {});
       expect(
         (await index()).games.length === 2 && (await page.locator('.g-card').count()) === 2,
         'игра пропала после «Нет»',
       );
       // подержать — удаляется именно эта игра, вторая цела
       await page.click('.g-del');
-      await wait(350);
+      await page.waitForSelector('.g-hold');
+      await wait(350); // окно ещё «выезжает» — кнопку держим, когда встала на место
       const box = await page.locator('.g-hold').boundingBox();
       await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
       await page.mouse.down();
       await wait(1700);
       await page.mouse.up();
-      await wait(400);
+      await until(() => JSON.parse(localStorage.getItem('rhr-games')).games.length === 1, undefined, { timeout: 3000 }).catch(() => {});
       const idx2 = await index(),
         st = await store();
       expect(idx2.games.length === 1 && idx2.games[0].name !== 'Булочка', 'удалилась не та игра', idx2);
       expect(!st['rhr-game-' + victim.id], 'полка удалённой игры осталась');
       expect(JSON.parse(st['rhr-game-trash']).meta.name === 'Булочка', 'удалённая игра не отложена про запас');
       await closeAll();
-      await page.click('text=Продолжить');
-      await wait(600);
+      await cont();
       expect((await ev(() => window.__dev.G.state.name)) === idx2.games[0].name, 'оставшаяся игра не открылась');
       await closeAll();
       // удалили активную игру — «Продолжить» ведёт в ту, в которую играли перед ней
@@ -235,8 +239,8 @@ module.exports = async function title({ page, step, ev, wait, closeAll }) {
       );
       await reload();
       expect((await index()).games.length === max, 'игр не ровно предел');
-      await page.click('text=Новая игра');
-      await wait(350);
+      await act('new');
+      await untilPanel().catch(() => {});
       const box = await page.locator('.overlay').last().innerText();
       expect(/удали/i.test(box) && box.includes(String(max)), 'нет объяснения, что мест нет', box);
       expect(!(await page.locator('#title input').count()), 'форма новой игры открылась, хотя мест нет');
@@ -252,7 +256,7 @@ module.exports = async function title({ page, step, ev, wait, closeAll }) {
         sample((s) => (s.name = 'Подложили')),
       );
       await page.reload();
-      await wait(500);
+      await menuReady();
       const idx = await index();
       expect(
         idx.games.length === before && idx.games.find((g) => g.id === idx.active).name === 'Подложили',
@@ -281,7 +285,7 @@ module.exports = async function title({ page, step, ev, wait, closeAll }) {
         localStorage.removeItem('rhr-save-v1');
       });
       await page.reload();
-      await wait(500);
+      await menuReady();
       const idx2 = await index();
       expect(idx2.games.length === 1 && idx2.active === first.id, 'игра с полки не стала активной', idx2);
       expect(JSON.parse((await store())['rhr-save-v1']).name === 'Ириска', 'живое сохранение не восстановлено с полки');
@@ -297,7 +301,7 @@ module.exports = async function title({ page, step, ev, wait, closeAll }) {
         localStorage.setItem('rhr-save-v1', JSON.stringify(s));
       }, first.id);
       await page.reload();
-      await wait(500);
+      await menuReady();
       const idx4 = await index();
       expect(
         idx4.active === first.id && idx4.games.length === idx3.games.length,
@@ -312,20 +316,18 @@ module.exports = async function title({ page, step, ev, wait, closeAll }) {
 
   await step('заставка и игры: в меню игры нет «Начать заново», есть «Выйти на заставку» — игра цела', async () => {
     await put(sample());
-    await page.click('text=Продолжить');
-    await wait(600);
+    await cont();
     await closeAll();
     await ev(() => window.__dev.actions.earn(5, 'gift'));
     await ev(() => window.__dev.F.openSettings());
-    await wait(350);
+    await untilPanel();
     const menu = await page.locator('.overlay').last().innerText();
     expect(!/заново|стереть/i.test(menu), 'в меню остался лёгкий путь стереть игру', menu);
     await page.click('text=Выйти на заставку');
-    await wait(900);
+    await menuReady();
     expect(await page.locator('#title').count(), 'заставка не открылась');
     expect((await index()).games.length === 1, 'после выхода игр не одна');
-    await page.click('text=Продолжить');
-    await wait(600);
+    await cont();
     expect(
       (await ev(() => window.__dev.G.state.money)) === JSON.parse(SAVE_V5).money + 5,
       'после выхода на заставку игра не сохранилась',
