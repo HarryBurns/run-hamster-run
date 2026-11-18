@@ -136,9 +136,10 @@ export default {
   id: 'glyphs',
   title: 'Узор храма',
   icon: '🗿',
+  css: CSS,
   get howTo() {
     const im = (id, lit) => `<img src="${stoneImg(id, lit)}" alt="">`;
-    return `<style>${CSS}</style>Каменная маска покажет узор — камни загорятся по очереди. <b>Повтори узор!</b>
+    return `Каменная маска покажет узор — камни загорятся по очереди. <b>Повтори узор!</b>
       <div class="gl-rules">
         <div class="gl-col"><b>👀 Смотри</b><img class="mk" src="${maskImg(true)}" alt="">${im('sun', true)}<small>какой камень горит</small></div>
         <div class="gl-col ok"><b>👆 Повтори</b>${im('sun', true)}${im('wave', true)}<small>нажми в том же порядке</small></div>
@@ -147,8 +148,6 @@ export default {
       Три узора: из 3, 4 и 5 знаков. Меньше ошибок — больше звёзд!`;
   },
   start(host) {
-    const root = host.root;
-    const style = el('style', '', CSS);
     const wrap = el('div', 'gl-wrap');
     const mask = el('img', 'gl-mask');
     mask.src = maskImg(false);
@@ -159,15 +158,13 @@ export default {
     const tRound = el('div', 'gl-chip'),
       tMiss = el('div', 'gl-chip');
     top.append(tRound, tMiss);
-    root.append(style, wrap, top);
+    host.add(wrap, top);
     let round = 0,
       seq = [],
       input = 0,
       miss = 0,
-      phase = 'show', // show — маска показывает; input — повторяем; done — всё
-      stopped = false;
-    const timers = [];
-    const later = (fn, ms) => timers.push(setTimeout(() => !stopped && fn(), ms));
+      phase = 'show'; // show — маска показывает; input — повторяем; done — всё
+    const later = host.later;
     const btns = GLYPHS.map((g, i) => {
       const b = el('button', 'gl-stone', `<img src="${stoneImg(g.id, false)}" alt="${g.name}">`);
       b.onclick = () => press(i);
@@ -260,14 +257,5 @@ export default {
         extra: { miss },
       });
     }
-    return {
-      stop() {
-        stopped = true;
-        for (const tm of timers) clearTimeout(tm);
-        style.remove();
-        wrap.remove();
-        top.remove();
-      },
-    };
   },
 };
