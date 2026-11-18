@@ -3,7 +3,7 @@ import { award, earn, setMail, readMail, mailCount, mailGot, finishTask } from '
 import { sfx } from '../core/audio.js';
 import { on, emit } from '../core/events.js';
 import { register } from '../core/registry.js';
-import { G, cal, hasClothes } from '../core/state.js';
+import { G, cal, hasClothes, ownedHomes, houseItems } from '../core/state.js';
 import { esc, fmtMoney, pick } from '../core/util.js';
 import {
   CLOTHES_BY_ID,
@@ -37,31 +37,37 @@ const FIRST_TASKS = ['buy_clothes', 'swim', 'treat', 'market'];
 /** Сколько монет дают за задание (в дополнение к наклейке). */
 export const taskCoins = (id) => TASK_COINS[id] || TASK_COINS_DEFAULT;
 
+/** Есть ли вещь (колесо, пианино) в каком-нибудь из своих домов — не в кладовке. */
+const atHome = (id) => ownedHomes().some((h) => houseItems(h).some((i) => i.id === id));
+
 export function newDayMail() {
   const s = S(),
     sea = cal().season;
+  const ripe = s.garden.some((b) => b.seed && b.age >= SEED_BY_ID[b.seed].days);
+  const hasWheel = atHome('wheel'),
+    hasPiano = atHome('piano');
+  // задание выполнимо сегодня: сезон, тепло, урожай, колесо и пианино дома, здоровье (простуженной — Ф1 — не
+  // приходят работа, купание и ныряние)
+  const fits = (t) =>
+    (!t.seasons || t.seasons.includes(sea)) &&
+    (!t.warm || !coldDay(s.day)) &&
+    (!t.needsCrop || ripe) &&
+    (t.type !== 'wheel' || hasWheel) &&
+    (t.type !== 'piano' || hasPiano) &&
+    (!s.sick || !taskNeedsHealth(t, JOBS));
   let id;
   const played = s.day - (s.startDay || 0); // сколько дней идёт игра (новая начинается 1 июня)
   const first = played >= 0 && played < FIRST_TASKS.length && TASK_BY_ID[FIRST_TASKS[played]];
   // первые письма новой игры — по порядку; простуженной (Ф1) вместо купания — задание из общего набора
   if (first && (!s.sick || !taskNeedsHealth(first, JOBS))) id = first.id;
   else {
-    const ripe = s.garden.some((b) => b.seed && b.age >= SEED_BY_ID[b.seed].days);
-    const hasWheel = s.villa.some((i) => i.id === 'wheel'),
-      hasPiano = s.villa.some((i) => i.id === 'piano');
     let pool = TASKS.filter(
       (t) =>
-        (!t.seasons || t.seasons.includes(sea)) &&
-        (!t.warm || !coldDay(s.day)) && // в холодные месяцы не нырять в море (data/health.js)
+        fits(t) &&
         !s.lastTasks.includes(t.id) &&
-        (!t.needsCrop || ripe) &&
-        (t.type !== 'wheel' || hasWheel) &&
-        (t.type !== 'piano' || hasPiano) &&
-        (t.id !== 'buy_clothes' || newClothesToday().length > 0) && // «Обновка» — только когда на витринах есть что купить
-        (!s.sick || !taskNeedsHealth(t, JOBS)), // простуженной (Ф1) не приходят работа, купание и ныряние
+        (t.id !== 'buy_clothes' || newClothesToday().length > 0), // «Обновка» — только когда на витринах есть что купить
     );
-    if (!pool.length)
-      pool = TASKS.filter((t) => (!t.seasons || t.seasons.includes(sea)) && (!t.warm || !coldDay(s.day)) && (!s.sick || !taskNeedsHealth(t, JOBS)));
+    if (!pool.length) pool = TASKS.filter(fits);
     id = pick(pool).id;
   }
   setMail(id);
