@@ -179,9 +179,10 @@ export default {
   id: 'pairs',
   title: 'Загадка пирамиды',
   icon: '🔺',
+  css: CSS,
   get howTo() {
     const im = (id) => `<img class="${id === 'back' ? 'bk' : ''}" src="${faceImg(id)}" alt="">`;
-    return `<style>${CSS}</style>На стене пирамиды — каменные таблички. <b>Найди пары одинаковых картинок!</b>
+    return `На стене пирамиды — каменные таблички. <b>Найди пары одинаковых картинок!</b>
       <div class="pr-rules">
         <div class="pr-col"><b>👆 Открой две</b>${im('back')}${im('back')}<small>нажми на таблички</small></div>
         <div class="pr-col ok"><b>✅ Одинаковые</b>${im('camel')}${im('camel')}<small>остаются открытыми</small></div>
@@ -190,8 +191,6 @@ export default {
       Открой все ${PAIRS} пар. Меньше промахов — больше звёзд!`;
   },
   start(host) {
-    const root = host.root;
-    const style = el('style', '', CSS);
     const wrap = el('div', 'pr-wrap');
     wrap.appendChild(el('div', 'pr-wall'));
     const top = el('div', 'pr-top');
@@ -200,17 +199,15 @@ export default {
     top.append(tPairs, tMiss);
     const grid = el('div', 'pr-grid');
     wrap.appendChild(grid);
-    root.append(style, wrap, top);
+    host.add(wrap, top);
     const ids = shuffle(SYMBOLS).slice(0, PAIRS);
     const deck = shuffle([...ids, ...ids]);
     const open = [],
       done = new Set();
     let miss = 0,
       busy = false,
-      over = false,
-      stopped = false;
-    const timers = [];
-    const later = (fn, ms) => timers.push(setTimeout(() => !stopped && fn(), ms));
+      over = false;
+    const later = host.later;
     const show = () => {
       tPairs.textContent = `🔺 Пары: ${done.size / 2} из ${PAIRS}`;
       tMiss.textContent = `🔄 Промахи: ${miss}`;
@@ -270,14 +267,5 @@ export default {
         extra: { miss },
       });
     }
-    return {
-      stop() {
-        stopped = true;
-        for (const tm of timers) clearTimeout(tm);
-        style.remove();
-        wrap.remove();
-        top.remove();
-      },
-    };
   },
 };
