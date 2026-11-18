@@ -283,8 +283,25 @@ function lib(ctx) {
   /** Вечер (__dev.evening): часы не раньше m (по умолчанию 19:00 — можно спать). */
   const evening = (m) => ev((m) => window.__dev.evening(m === null ? undefined : m), m === undefined ? null : m);
   /**
+   * Закрывать окна, пока они идут из очереди (ui/modals.js: подарок, письмо, праздник, наклейка), — до тишины:
+   * ничего не открыто, очередь пуста, затемнения нет. Не дольше timeout мс.
+   */
+  const drain = async (timeout = 6000) => {
+    const t0 = Date.now();
+    while (Date.now() - t0 < timeout) {
+      const st = await ev(() => ({
+        m: window.__dev.G.modal,
+        q: window.__dev.ui.queued(),
+        f: !!document.querySelector('.fade'),
+      }));
+      if (!st.m && !st.q && !st.f) return;
+      if (st.m && !st.f) await closeAll();
+      else await wait(80);
+    }
+  };
+  /**
    * Окно «Пора спать?» открыто (или вот-вот откроется): нажать «Спать» и дождаться утра — день сменился, затемнение
-   * снято, утренние окна закрыты. Возвращает новый день.
+   * снято, утренние окна закрыты (o.keep — не закрывать). Возвращает новый день.
    */
   const confirmSleep = async (o = {}) => {
     const day0 = await ev(() => window.__dev.G.state.day);
@@ -294,8 +311,7 @@ function lib(ctx) {
       timeout: 8000,
       msg: 'новый день после сна',
     });
-    await wait(o.settle == null ? 300 : o.settle); // утренние окна (письмо, подарок) встают в очередь
-    await closeAll();
+    if (!o.keep) await drain();
     return day0 + 1;
   };
   /** Лечь спать вечером (на вилле, если не { home: false }) и проснуться. Возвращает новый день. */
@@ -363,6 +379,7 @@ function lib(ctx) {
     act,
     hasAct,
     closeAll,
+    drain,
     state,
     mutate,
     scene,

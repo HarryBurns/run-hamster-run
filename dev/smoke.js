@@ -1633,7 +1633,12 @@ const runParallel = () => {
         await fn();
         await alive();
       } catch (e) {
-        errors.push(`[${tag}] ${name}: ${e.message.split('\n')[0]}`);
+        // строка шага в dev/*.js, где упало (с SMOKE_VERBOSE) — чтобы не перезапускать ради неё
+        const lines = (e.stack || '').split('\n');
+        const at = process.env.SMOKE_VERBOSE
+          ? ([/dev[\\/]smoke_\w+\.js:\d+/, /dev[\\/]lib\.js:\d+/, /dev[\\/]smoke\.js:\d+/].map((re) => lines.find((l) => re.test(l))).find(Boolean) || '').trim()
+          : '';
+        errors.push(`[${tag}] ${name}: ${e.message.split('\n')[0]}${at ? ' — ' + at.replace(/^at\s+/, '') : ''}`);
       }
       if (o.expectErrors)
         errors.splice(
