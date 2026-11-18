@@ -4,45 +4,12 @@
 // самоцветов и грибной ночник, самоцветы на рынке; «Кристаллы» до конца с добычей; задание Камушкина
 // «Счастливая кирка»; сохранение и загрузка в пещерах, выход на гору, «Домой». Состояние меняют только действия.
 // Подключается из dev/smoke.js. Только эти шаги:  node dev/smoke.js <url> step:пещеры
-const { MG_START } = require('./selectors.js'); // кнопка «Начать!» мини-игры — по метке, а не по тексту
-module.exports = async function caves({ page, step, ev, wait, closeAll }) {
-  const T = 48;
-  const norm = (t) => t.replace(/[  ]/g, ' ');
-  const expect = (ok, msg, data) => {
-    if (!ok) throw new Error(msg + (data === undefined ? '' : ': ' + JSON.stringify(data)));
-  };
-  const state = () => ev(() => JSON.parse(JSON.stringify(window.__dev.G.state)));
-  const panelText = async () =>
-    norm(await ev(() => [...document.querySelectorAll('.overlay .panel')].map((p) => p.textContent).join(' | ')));
-  const dialogText = async () => norm(await ev(() => (document.querySelector('.dialog .say') || {}).textContent || ''));
-  const toasts = async () => norm(await ev(() => (document.querySelector('#toasts') || { textContent: '' }).textContent));
-  const clearToasts = () =>
-    ev(() => {
-      const t = document.querySelector('#toasts');
-      if (t) t.innerHTML = '';
-    });
-  const where = () =>
-    ev(() => {
-      const d = window.__dev,
-        sc = d.locations[d.sceneName];
-      return { scene: d.sceneName, x: sc ? sc.p.x : null, y: sc ? sc.p.y : null };
-    });
-  const near = (a, b, r = 20) => Math.abs(a.x - b.x) < r && Math.abs(a.y - b.y) < r;
-  const fresh = async () => {
-    await ev(() => {
-      window.__dev.G.state = null;
-      localStorage.clear();
-    });
-    await page.reload();
-    await wait(400);
-    await page.click('text=Играть!');
-    await page.click('text=Пропустить'); // вступительная сценка новой игры (этап 10)
-    await page.evaluate(() => window.__dev.oldStart()); // как до этапа 10: 1 января, без вводной цепочки (начало игры — dev/smoke_start.js)
-    await wait(400);
-    await page.click('text=Поехали!');
-    await wait(500);
-    await closeAll();
-  };
+const lib = require('./lib.js');
+
+module.exports = async function caves(ctx) {
+  const L = lib(ctx);
+  const { page, step, ev, wait, closeAll, until, untilScene, untilPanel, frames, go, sel, T, norm, expect, near, state, dialogText, panelText, toasts, clearToasts, where, watch, unwatch, MG_START, tap, mgGo, mgDone, mgClose } = L;
+  const fresh = () => L.fresh(); // 1 июня, без вводной цепочки
   /** В пещеры (открыв лес, гору и пещеры действием openLand), с фонариком; полдень. */
   const toCaves = async (tx = 17, ty = 20, lamp = true) => {
     await closeAll();
@@ -64,28 +31,16 @@ module.exports = async function caves({ page, step, ev, wait, closeAll }) {
       },
       [tx, ty, lamp],
     );
-    await wait(300);
+    await untilScene('caves');
+    await frames(2);
   };
   /** Поговорить с Камушкиным; если он предлагает задание — «Потом». */
   const talkK = async () => {
-    await ev(() => {
-      window.__dev.run('miner');
-    });
-    await wait(500);
+    await L.run('miner', 500);
     if (await ev(() => !!document.querySelector('.dialog') && /Помогу/.test(document.querySelector('.dialog').textContent))) {
-      await page.click('.dialog .btn >> text=Потом');
-      await wait(450);
+      await tap('.dialog .btn >> text=Потом', 450);
     }
   };
-  const watch = () =>
-    ev(() => {
-      window.__stopWatchCaves = window.__dev.watchState();
-    });
-  const unwatch = async () => {
-    const bad = await ev(() => window.__stopWatchCaves());
-    expect(!bad.length, `запись в состояние мимо действий (${bad.length})`, [...new Set(bad)].slice(0, 4));
-  };
-
   await step('пещеры: задание Профессора Орешкина «Свет под горой» — вход закрыт, урок, фонарик, сдача, пещеры открыты', async () => {
     await fresh();
     // гора открыта, пещеры — нет: на горе вход с досками, окно — про Профессора
@@ -102,30 +57,20 @@ module.exports = async function caves({ page, step, ev, wait, closeAll }) {
       d.go('mountain');
       d.locations.mountain.debugTeleport(29, 7);
     });
-    await wait(300);
-    await ev(() => {
-      window.__dev.run('way:caves');
-    });
-    await wait(500);
+    await untilScene('mountain');
+    await frames(2);
+    await L.run('way:caves', 500);
     expect(/Пещеры/.test(await panelText()) && /Орешкин/.test(await panelText()), 'окно у закрытого входа', await panelText());
     await closeAll();
     expect((await where()).scene === 'mountain', 'закрытый вход пустил в пещеры');
     await watch();
-    await ev(() => {
-      window.__dev.go('world');
-    });
-    await wait(300);
+    await go('world');
     const now = () => ev(() => window.__dev.QuestState.questNow('cave_light'));
     expect((await ev(() => window.__dev.QuestState.questBadge('prof'))) === '!', 'над Профессором нет «!»');
-    await ev(() => {
-      window.__dev.run('npc:prof');
-    });
-    await wait(500);
+    await L.run('npc:prof', 500);
     expect(/пещеры/.test(await dialogText()) && /фонарик/.test(await dialogText()), 'Профессор не предлагает задание', await dialogText());
-    await page.click('.dialog .btn.green');
-    await wait(400);
-    await page.click('.dialog .btn.green');
-    await wait(400);
+    await tap('.dialog .btn.green', 400);
+    await tap('.dialog .btn.green', 400);
     let w = await now();
     expect(w.status === 'active' && w.i === 0, 'задание не взято', w);
     // звёздочка — к школе
@@ -136,20 +81,15 @@ module.exports = async function caves({ page, step, ev, wait, closeAll }) {
     expect(tg.t && Math.abs(tg.t.x - tg.door.x) < 3, 'звёздочка не у школы', tg);
     // урок в школе (событие мини-игры — как после настоящего урока)
     await ev(() => window.__dev.emit('minigame', { id: 'teacher', stars: 2 }));
-    await wait(300);
+    await frames(2);
     w = await now();
     expect(w.i === 1, 'урок не засчитан', w);
     // фонарик — в ТЦ «Уютный дом», вкладка «Для походов»
     const m0 = (await state()).money;
-    await ev(() => {
-      window.__dev.run('home-mall');
-    });
-    await wait(500);
-    await page.click('.overlay .tabs >> text=Для походов');
-    await wait(300);
+    await L.run('home-mall', 500);
+    await tap('.overlay .tabs >> text=Для походов', 300);
     expect(/Фонарик/.test(await panelText()), 'нет фонарика на вкладке', await panelText());
-    await page.click('.overlay .card.tool-flashlight .btn');
-    await wait(400);
+    await tap('.overlay .card.tool-flashlight .btn', 400);
     let s = await state();
     expect(s.finds.flashlight === 1 && s.money === m0 - 300, 'фонарик не куплен', [s.finds, m0 - s.money]);
     expect(/Уже в рюкзаке/.test(await panelText()) && !(await ev(() => !!document.querySelector('.overlay .card.tool-flashlight .btn'))), 'второй фонарик продают');
@@ -157,14 +97,9 @@ module.exports = async function caves({ page, step, ev, wait, closeAll }) {
     w = await now();
     expect(w.i === 2 && (await ev(() => window.__dev.QuestState.questBadge('prof'))) === '?', 'после фонарика — к Профессору «?»', w);
     const s0 = await state();
-    await ev(() => {
-      window.__dev.run('npc:prof');
-    });
-    await wait(500);
-    await page.click('.dialog .btn.green');
-    await wait(500);
-    await page.click('.dialog .btn.green');
-    await wait(1500);
+    await L.run('npc:prof', 500);
+    await tap('.dialog .btn.green', 500);
+    await tap('.dialog .btn.green', 1500);
     const t = await panelText();
     expect(/Задание выполнено/.test(t) && /Юный спелеолог/.test(t) && /Пещеры открыты/.test(t), 'праздничное окно', t);
     await closeAll();
@@ -182,12 +117,8 @@ module.exports = async function caves({ page, step, ev, wait, closeAll }) {
         st.plays.teacher = 1;
       }),
     );
-    await ev(() => {
-      window.__dev.run('npc:prof');
-    });
-    await wait(500);
-    await page.click('.dialog .btn.green');
-    await wait(400);
+    await L.run('npc:prof', 500);
+    await tap('.dialog .btn.green', 400);
     await closeAll();
     expect((await now()).i === 2, 'урок и фонарик «уже были» — не засчитаны сразу', await now());
     // вход на горе открыт: досок нет, way:caves ведёт в пещеры, ко входу gate
@@ -196,12 +127,10 @@ module.exports = async function caves({ page, step, ev, wait, closeAll }) {
       d.go('mountain');
       d.locations.mountain.debugTeleport(29, 7);
     });
-    await wait(300);
+    await untilScene('mountain');
+    await frames(2);
     expect(await ev(() => window.__dev.locations.mountain.map.objs.find((o) => o.type === 'caveRock').open()), 'скала у входа нарисована с досками');
-    await ev(() => {
-      window.__dev.run('way:caves');
-    });
-    await wait(600);
+    await L.run('way:caves', 600);
     const r = await where();
     expect(r.scene === 'caves' && near(r, { x: 17.5 * T, y: 27.6 * T }, 30), 'вошли не ко входу пещер', r);
     const saved = await ev(() => JSON.parse(localStorage.getItem('rhr-save-v1')).pos);
@@ -247,15 +176,14 @@ module.exports = async function caves({ page, step, ev, wait, closeAll }) {
     await ev(() => {
       window.__dev.F.openMap();
     });
-    await wait(500);
+    await untilPanel();
     const t = await panelText();
     expect(
       /Карта пещер/.test(t) && /Древние рисунки/.test(t) && /Кристальная жила/.test(t) && /Подземное озеро/.test(t) && /светящихся грибов/.test(t),
       'карта пещер',
       t,
     );
-    await page.click('.overlay .opt >> text=Подземное озеро');
-    await wait(400);
+    await tap('.overlay .opt >> text=Подземное озеро', 400);
     expect(await ev(() => window.__dev.locations.caves.p.path.length > 0), 'по кнопке карты не пошли');
     await closeAll();
     for (const [x, y] of [
@@ -277,7 +205,7 @@ module.exports = async function caves({ page, step, ev, wait, closeAll }) {
     expect(g.count > 0 && g.pixels < 12e6, 'кэш земли', g);
     // темнота: слой виден; с фонариком круг большой, выключили — маленький; кнопка 🔦 в HUD
     await ev(() => window.__dev.locations.caves.debugTeleport(17, 20));
-    await wait(200);
+    await frames(3);
     const lit = await ev(() => {
       const sc = window.__dev.locations.caves,
         sky = document.getElementById('sky');
@@ -286,7 +214,7 @@ module.exports = async function caves({ page, step, ev, wait, closeAll }) {
     expect(lit.sky && lit.r > 200, 'темнота и большой круг света с фонариком', lit);
     expect(/Фонарик/.test(await ev(() => document.querySelector('#hud').textContent)), 'нет кнопки фонарика');
     await page.click('.hud-btns.left .rbtn >> text=Фонарик');
-    await wait(300);
+    await until(() => /Включить/.test(document.querySelector('#hud').textContent), undefined, { timeout: 2000 }).catch(() => {});
     const off = await ev(() => {
       const sc = window.__dev.locations.caves;
       return { r: sc.desc.gloom(sc).hero[0], hud: document.querySelector('#hud').textContent };
@@ -302,10 +230,7 @@ module.exports = async function caves({ page, step, ev, wait, closeAll }) {
     });
     expect(no.r < 150 && !/Фонарик/.test(no.hud), 'без фонарика', no);
     // вышли из пещер — слоя темноты нет
-    await ev(() => {
-      window.__dev.go('world');
-    });
-    await wait(300);
+    await go('world');
     // в городе днём слой неба может быть (тени облаков), но не тёмный
     const a = await ev(() => {
       const c = document.getElementById('sky');
@@ -334,22 +259,16 @@ module.exports = async function caves({ page, step, ev, wait, closeAll }) {
       'сорванный гриб всё ещё виден',
     );
     // древние рисунки: окно с картинкой, наклейка
-    await ev(() => {
-      window.__dev.run('caves:paint');
-    });
-    await wait(500);
+    await L.run('caves:paint', 500);
     expect(/Древние рисунки/.test(await panelText()) && (await ev(() => !!document.querySelector('.overlay canvas'))), 'окно рисунков');
     await closeAll();
     // озеро
     await clearToasts();
-    await ev(() => {
-      window.__dev.run('caves:lake');
-    });
-    await wait(200);
+    await L.run('caves:lake', 200);
     expect(/Подземное озеро/.test(await toasts()), 'озеро', await toasts());
     // летучие мыши: подошли под свод галереи — вспорхнули, наклейка
     await ev(() => window.__dev.locations.caves.debugTeleport(19, 4));
-    await wait(1600);
+    await frames(3);
     s = await state();
     expect(s.stickers.includes('x_cavepaint') && s.stickers.includes('x_bats'), 'наклейки рисунков и летучих мышей', s.stickers);
     // шкатулка самоцветов: один каждого вида; ночник — из трёх грибов
@@ -361,10 +280,8 @@ module.exports = async function caves({ page, step, ev, wait, closeAll }) {
       window.__dev.locations.caves.debugTeleport(28, 19);
     });
     await talkK();
-    await page.click('.dialog .btn >> text=Шкатулка самоцветов');
-    await wait(400);
-    await page.click('.dialog .btn >> text=Грибной ночник');
-    await wait(400);
+    await tap('.dialog .btn >> text=Шкатулка самоцветов', 400);
+    await tap('.dialog .btn >> text=Грибной ночник', 400);
     await closeAll();
     s = await state();
     expect(
@@ -391,16 +308,14 @@ module.exports = async function caves({ page, step, ev, wait, closeAll }) {
     await ev(() => window.__dev.actions.mutate((s) => (s.quests.lucky_pick = { day: s.day, n: {}, got: {}, done: s.day })));
     const s0 = await state();
     await talkK();
-    await page.click('.dialog .btn >> text=Добывать кристаллы');
-    await wait(1200);
+    await tap('.dialog .btn >> text=Добывать кристаллы', 1200);
     const intro = norm(await ev(() => document.querySelector('#mg').textContent));
     expect(
       /Зелёное/.test(intro) && /Серединка/.test(intro) && (await ev(() => document.querySelectorAll('#mg .cr-col img').length)) === 3 && /Добыча Камушкина/.test(intro),
       'правило картинкой',
       intro,
     );
-    await page.click(MG_START);
-    await wait(300);
+    await mgGo();
     // «стучать в ритм»: бот на странице жмёт пробел, когда кирка над золотой серединкой
     await ev(() => {
       const loop = () => {
@@ -417,8 +332,7 @@ module.exports = async function caves({ page, step, ev, wait, closeAll }) {
     await page.waitForSelector('#mg >> text=Ура!', { timeout: 60000 });
     const end = norm(await ev(() => document.querySelector('#mg').textContent));
     expect(/Добыто кристаллов/.test(end) && /⭐/.test(end), 'итог игры', end);
-    await page.click('#mg >> text=Ура!');
-    await wait(500);
+    await mgDone();
     const s1 = await state();
     const gems = ['gem_crystal', 'gem_topaz', 'gem_sapphire', 'gem_ruby'].reduce((a, id) => a + (s1.finds[id] || 0) - (s0.finds[id] || 0), 0);
     expect(
@@ -430,20 +344,18 @@ module.exports = async function caves({ page, step, ev, wait, closeAll }) {
     await ev(() => {
       window.__dev.F.crystalDig();
     });
-    await wait(900);
+    await page.waitForSelector(MG_START);
     expect(/ещё 1 игра/.test(norm(await ev(() => document.querySelector('#mg').textContent))), 'на заставке — сколько игр с добычей');
-    await page.click('#mg .xbtn');
-    await wait(400);
+    await mgClose();
     expect((await state()).money === s1.money, 'закрыли игру — а добыча пришла');
     // две игры уже были — третья для удовольствия
     await ev(() => window.__dev.actions.setDayFlag('digs', 2, 'caves'));
     await ev(() => {
       window.__dev.F.crystalDig();
     });
-    await wait(900);
+    await page.waitForSelector(MG_START);
     expect(/для удовольствия/.test(norm(await ev(() => document.querySelector('#mg').textContent))), 'третья игра — без добычи');
-    await page.click('#mg .xbtn');
-    await wait(300);
+    await mgClose();
     await closeAll();
   });
 
@@ -458,22 +370,17 @@ module.exports = async function caves({ page, step, ev, wait, closeAll }) {
     await watch();
     const now = () => ev(() => window.__dev.QuestState.questNow('lucky_pick'));
     expect((await ev(() => window.__dev.QuestState.questBadge('kamushkin'))) === '!', 'над Камушкиным нет «!»');
-    await ev(() => {
-      window.__dev.run('miner');
-    });
-    await wait(500);
+    await L.run('miner', 500);
     expect(/кирка/.test(await dialogText()), 'Камушкин не предлагает задание', await dialogText());
-    await page.click('.dialog .btn.green');
-    await wait(400);
-    await page.click('.dialog .btn.green');
-    await wait(400);
+    await tap('.dialog .btn.green', 400);
+    await tap('.dialog .btn.green', 400);
     let w = await now();
     expect(w.status === 'active' && w.i === 0, 'задание не взято', w);
     const tg = await ev(() => window.__dev.locations.caves.target());
     expect(tg && Math.abs(tg.x - 4.5 * 48) < 30, 'звёздочка не ведёт к кирке', tg);
     // нажатие на кирку у озера
     await ev(() => window.__dev.locations.caves.debugTeleport(5, 15));
-    await wait(500);
+    await frames(3);
     const k = await ev(() => window.__dev.locations.caves.debugScreen(4.5 * 48, 14.5 * 48));
     await page.mouse.click(k.x, k.y);
     await page.waitForSelector('text=Кирка нашлась', { timeout: 6000 });
@@ -482,7 +389,7 @@ module.exports = async function caves({ page, step, ev, wait, closeAll }) {
     expect(w.i === 1, 'кирка не найдена', w);
     // добыть кристаллы (событие мини-игры — сама игра проверена шагом выше)
     await ev(() => window.__dev.emit('minigame', { id: 'crystals', stars: 1 }));
-    await wait(300);
+    await frames(2);
     w = await now();
     expect(w.i === 2 && (await ev(() => window.__dev.QuestState.questBadge('kamushkin'))) === '?', 'после «Кристаллов» — к Камушкину «?»', w);
     const s0 = await state();
@@ -490,11 +397,9 @@ module.exports = async function caves({ page, step, ev, wait, closeAll }) {
       window.__dev.locations.caves.debugTeleport(28, 19);
       window.__dev.run('miner');
     });
-    await wait(500);
-    await page.click('.dialog .btn.green');
-    await wait(500);
-    await page.click('.dialog .btn.green');
-    await wait(1500);
+    await L.untilDialog();
+    await tap('.dialog .btn.green', 500);
+    await tap('.dialog .btn.green', 1500);
     const t = await panelText();
     expect(/Задание выполнено/.test(t) && /Друг шахтёра/.test(t) && /Каска с фонариком/.test(t), 'праздничное окно', t);
     await closeAll();
@@ -512,7 +417,6 @@ module.exports = async function caves({ page, step, ev, wait, closeAll }) {
   await step('пещеры: сохранение и загрузка в пещерах; выход на гору; «Домой» из пещер', async () => {
     await fresh(); // своя новая игра: не опираться на дом и место, оставленные прошлыми шагами
     await toCaves(17, 17);
-    await wait(300);
     const raw = await ev(() => {
       window.dispatchEvent(new Event('pagehide'));
       return localStorage.getItem('rhr-save-v1');
@@ -524,25 +428,23 @@ module.exports = async function caves({ page, step, ev, wait, closeAll }) {
       localStorage.setItem('rhr-save-v1', raw);
     }, raw);
     await page.reload();
-    await wait(500);
-    await page.click('text=Продолжить');
-    await wait(800);
+    await page.waitForSelector(sel('continue'));
+    await L.cont();
     await closeAll();
     let r = await where();
     expect(r.scene === 'caves' && near(r, pos, 30), 'после загрузки — в пещерах на том же месте', [r, pos]);
     expect(await ev(() => document.getElementById('sky').style.display === 'block'), 'после загрузки нет темноты');
     // к свету: выход внизу — на гору, к скале со входом
     await ev(() => window.__dev.locations.caves.walkTo(17.5 * 48, 29.6 * 48, true));
-    await wait(5000);
+    await L.untilArrive('mountain', 8000).catch(() => {});
+    await frames(2);
     r = await where();
     expect(r.scene === 'mountain' && near(r, { x: 29.5 * 48, y: 7.3 * 48 }, 40), 'вышли не на гору к пещерам', r);
     // «Домой» — на виллу
-    await ev(() => window.__dev.go('caves'));
-    await wait(400);
+    await go('caves');
     await page.click('.hud-btns.left .rbtn:last-child');
-    await wait(450);
     await page.click('.panel-foot .btn.green');
-    await wait(800);
+    await untilScene('villa').catch(() => {});
     expect((await ev(() => window.__dev.sceneName)) === 'villa', 'кнопка «Домой» из пещер', await ev(() => window.__dev.sceneName));
   });
 };
