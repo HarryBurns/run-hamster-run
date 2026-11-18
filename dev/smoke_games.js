@@ -5,36 +5,22 @@
 //   «Нарядим ёлку» — сама выбираешь игрушку и место, звезда на макушку (Пр8);  «Танец у костра» — ритм под барабан
 //   Бума (О8);  «Повтори движение» — аниматор Хлопушка в отеле (От9).
 // Подключается из dev/smoke.js. Только эти шаги:  node dev/smoke.js <url> "step:игры 14:"
-module.exports = async function games({ page, step, ev, wait, closeAll }) {
-  const norm = (t) => t.replace(/[  ]/g, ' ');
-  const expect = (ok, msg, data) => {
-    if (!ok) throw new Error(msg + (data === undefined ? '' : ': ' + JSON.stringify(data)));
-  };
-  const state = () => ev(() => JSON.parse(JSON.stringify(window.__dev.G.state)));
-  const mutate = (fn) => ev((src) => window.__dev.actions.mutate(new Function('s', src)), fn);
-  const mgText = async () => norm(await ev(() => (document.querySelector('#mg') || { textContent: '' }).textContent));
-  const toasts = async () => norm(await ev(() => (document.querySelector('#toasts') || { textContent: '' }).textContent));
-  const clearToasts = () =>
-    ev(() => {
-      const t = document.querySelector('#toasts');
-      if (t) t.innerHTML = '';
-    });
-  const fresh = async () => {
-    await ev(() => {
-      window.__dev.G.state = null;
-      localStorage.clear();
-    });
-    await page.reload();
-    await wait(400);
-    await page.click('text=Играть!');
-    await page.click('text=Пропустить'); // вступительная сценка новой игры (этап 10)
-    await page.evaluate(() => window.__dev.actions.setFlag('intro', 0)); // вводная цепочка заданий — в своих шагах (dev/smoke_start.js)
-    await wait(400);
-    await page.click('text=Поехали!');
-    await wait(500);
+const lib = require('./lib.js');
+
+module.exports = async function games(ctx) {
+  const L = lib(ctx);
+  const { page, step, ev, wait, closeAll, norm, expect, state, mutate, toasts, clearToasts, sel, frames } = L;
+  /** Заставка мини-игры на экране (её кнопка «Начать!»). */
+  const card = () => page.waitForSelector(L.MG_START);
+  /** Закрыть мини-игру ✕ и дождаться, что её нет. */
+  const closeMg = async () => {
+    await page.click('#mg .xbtn');
+    await L.until(() => !document.querySelector('#mg'), undefined, { timeout: 3000 }).catch(() => {});
     await closeAll();
-    await mutate('s.minutes = 12 * 60; s.day = 18; s.weather = "sun"; s.flags.hotelHint = 1;');
   };
+  const mgText = async () => norm(await ev(() => (document.querySelector('#mg') || { textContent: '' }).textContent));
+  // июль, полдень, солнце
+  const fresh = () => L.fresh({ day: 18, minutes: 12 * 60, weather: 'sun', flags: { hotelHint: 1 } });
   /** Состояние игры из dev-хука канвы (name — имя хука: __slide, __porter…). */
   const hook = (name) =>
     ev((name) => {
@@ -53,15 +39,15 @@ module.exports = async function games({ page, step, ev, wait, closeAll }) {
     await page.mouse.click(r.x + x * (r.w / w), r.y + y * (r.h / h));
   };
   const start = async () => {
-    await page.click('#mg .btn.green');
-    await wait(300);
+    await L.mgStart();
+    await frames(3);
   };
   const ura = async () => {
-    await page.waitForSelector('#mg >> text=Ура!', { timeout: 15000 });
+    await page.waitForSelector(sel('done', '#mg'), { timeout: 15000 });
     const t = await mgText();
-    await page.click('#mg >> text=Ура!');
-    await wait(500);
-    await closeAll();
+    await page.click(sel('done', '#mg'));
+    await L.until(() => !document.querySelector('#mg'), undefined, { timeout: 3000 }).catch(() => {});
+    await L.drain(3000); // окна приза и наклеек из очереди
     return t;
   };
 
@@ -83,7 +69,7 @@ module.exports = async function games({ page, step, ev, wait, closeAll }) {
     await ev(() => {
       window.__dev.run('hotel:slide');
     });
-    await wait(800);
+    await card();
     expect(/Детская/.test(await mgText()) && /Тайфун/.test(await mgText()), 'на заставке не названы горки', await mgText());
     await start();
     let st = await hook('__slide');
@@ -111,20 +97,18 @@ module.exports = async function games({ page, step, ev, wait, closeAll }) {
     await ev(() => {
       window.__dev.F.playMinigame('porter');
     });
-    await wait(700);
+    await card();
     await start();
     let st = await hook('__porter');
     expect(st && !st.lift && !st.buttons.length, 'у новичка кнопки лифта', st);
-    await page.click('#mg .xbtn');
-    await wait(400);
-    await closeAll();
+    await closeMg();
     // опытная смена (сыграно 4 → уровень 2): этаж — кнопкой
     const s0 = await state();
     await mutate('s.plays.porter = 4;');
     await ev(() => {
       window.__dev.F.playMinigame('porter');
     });
-    await wait(700);
+    await card();
     expect(/Лифт/.test(await mgText()), 'на заставке нет правила про лифт', await mgText());
     await start();
     st = await hook('__porter');
@@ -166,7 +150,7 @@ module.exports = async function games({ page, step, ev, wait, closeAll }) {
     await ev(() => {
       window.__dev.F.sledRide();
     });
-    await wait(800);
+    await card();
     expect(/лыжах/.test(await mgText()), 'на заставке нет лыж', await mgText());
     await start();
     let st = await hook('__sled');
@@ -226,7 +210,7 @@ module.exports = async function games({ page, step, ev, wait, closeAll }) {
     await ev(() => {
       window.__dev.run('holiday:tug');
     });
-    await wait(800);
+    await card();
     let t = await mgText();
     expect(/В твоей команде/.test(t) && /Подружись/.test(t), 'на заставке нет команды', t);
     await start();
@@ -234,15 +218,13 @@ module.exports = async function games({ page, step, ev, wait, closeAll }) {
     let g = await hook('__tug');
     expect(g.help === 0 && g.team.length === 3 && g.team.every((h) => h === 0), 'без дружбы — помощь', g);
     const d0 = await tugPull();
-    await page.click('#mg .xbtn');
-    await wait(400);
-    await closeAll();
+    await closeMg();
     // лучшие друзья: по 5 сердечек у троих — рывок заметно сильнее (+35%), на заставке — сердечки
     await mutate("for (const id of ['plusha', 'ponchik', 'bob']) { s.friends[id].met = true; s.friends[id].pts = 20; }");
     await ev(() => {
       window.__dev.run('holiday:tug');
     });
-    await wait(800);
+    await card();
     t = await mgText();
     expect(/Плюша/.test(t) && /❤️❤️❤️❤️❤️/.test(t) && /35%/.test(t), 'на заставке нет друзей с сердечками', t);
     await start();
@@ -258,9 +240,7 @@ module.exports = async function games({ page, step, ev, wait, closeAll }) {
       await wait(500);
     }
     expect(g.lost === 1 && g.wins === 0, 'без нажатий раунд выигран', g);
-    await page.click('#mg .xbtn');
-    await wait(400);
-    await closeAll();
+    await closeMg();
   });
 
   await step('игры 14: «Нарядим ёлку» — сама выбираешь игрушку и место, звезда после шести, ⭐⭐⭐ за разнообразие, наклейка', async () => {
@@ -269,7 +249,7 @@ module.exports = async function games({ page, step, ev, wait, closeAll }) {
     await ev(() => {
       window.__dev.run('holiday:tree');
     });
-    await wait(800);
+    await card();
     expect(/Нарядим ёлку/.test(await mgText()) && (await ev(() => document.querySelectorAll('#mg .tr-rules img').length)) === 7, 'заставка ёлки', await mgText());
     await start();
     let st = await hook('__tree');
@@ -329,7 +309,7 @@ module.exports = async function games({ page, step, ev, wait, closeAll }) {
     await mutate("s.minutes = 20 * 60; s.flags['land:island'] = 1;");
     // занятие острова: танец у костра (на празднике огней)
     await ev(async () => (await import('/js/features/island.js')).dance());
-    await wait(800);
+    await card();
     expect(/Танец у костра/.test(await mgText()) && /кокос/.test(await mgText()), 'заставка танца', await mgText());
     await start();
     let st = await hook('__drum');
@@ -366,15 +346,15 @@ module.exports = async function games({ page, step, ev, wait, closeAll }) {
         if (d.sceneName !== 'world') d.go('world');
         d.enterBuilding('hotel');
       });
-      await wait(300);
+      await L.untilScene('hotel');
     };
     await toHotelPool(19.5 * 60);
     await ev(() => {
       window.__dev.run('hotel:animator');
     });
-    await wait(450);
+    await L.untilDialog(); // и защита кнопок от случайного нажатия
     await page.click('.dialog .btn:has-text("Танцевать")');
-    await wait(800);
+    await card();
     expect(/Повтори движение/.test(await mgText()), 'нет заставки', await mgText());
     await start();
     expect((await ev(() => document.querySelectorAll('#mg .mm-pad button').length)) === 6, 'нет шести кнопок движений');
