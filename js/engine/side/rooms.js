@@ -465,7 +465,7 @@ function greenery(ctx, kind, WTOT, season) {
 const GROUND = { desert: '#f2d49b', snow: '#f4f9fd', jungle: '#37b24d', rock: '#7a7d8a', lagoon: '#3bc9db' };
 function lagoon(ctx, WTOT, d) {
   ctx.fillStyle = mix('#22b8cf', '#14365a', d * 0.8);
-  ctx.fillRect(-3000, 6, 8000, 600);
+  ctx.fillRect(-3000, 6, 8000, 1600); // до низа экрана и на планшете стоя (дом там мельче)
   ctx.strokeStyle = 'rgba(255,255,255,.55)';
   ctx.lineWidth = 3;
   ctx.beginPath();
@@ -643,7 +643,7 @@ export function drawHouseGround(ctx, desc, geo) {
           ? '#f6efe0'
           : '#ffe8a1'
         : GROUND[sh.ground] || { winter: '#f4f9fd', spring: '#9be36d', summer: '#7ed957', autumn: '#d9b65c' }[c.season];
-    ctx.fillRect(-3000, 6, 8000, 600);
+    ctx.fillRect(-3000, 6, 8000, 1600); // до низа экрана и на планшете стоя (дом там мельче)
     if (sh.ground === 'lagoon') lagoon(ctx, WTOT, d);
     if (sh.bushes) greenery(ctx, sh.trees || 'bush', WTOT, c.season);
   }
