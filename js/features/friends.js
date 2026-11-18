@@ -184,15 +184,17 @@ export async function npcDialog(id) {
       if (S().guests.length >= MAX_GUESTS) text = 'У тебя уже полный дом гостей! Позови меня в другой раз.';
       else {
         const home = hostHome();
-        invite(id, home);
-        await dialog({
-          look,
-          name: npc.name,
-          happy: true,
-          text: `Ура! Уже бегу к тебе ${homeTo(home)}. Встретимся там!`,
-          options: [{ text: 'До встречи!', cls: 'green' }],
-        });
-        return;
+        if (!invite(id, home)) text = 'Я уже у тебя в гостях! Беги домой, встретимся там.';
+        else {
+          await dialog({
+            look,
+            name: npc.name,
+            happy: true,
+            text: `Ура! Уже бегу к тебе ${homeTo(home)}. Встретимся там!`,
+            options: [{ text: 'До встречи!', cls: 'green' }],
+          });
+          return;
+        }
       }
     } else if (i === 2) {
       const dish = await pickDish(`Чем угостить? (${npc.name})`);
@@ -218,8 +220,11 @@ export async function npcDialog(id) {
   }
 }
 
+/** Позвать в гости (в разговоре или по телефону); позвали — событие invite (шаг вводного задания). */
 function invite(id, home = hostHome()) {
-  return inviteGuest(id, home);
+  const ok = inviteGuest(id, home);
+  if (ok) emit('invite', { id });
+  return ok;
 }
 
 export async function guestDialog(id) {
@@ -344,7 +349,6 @@ export function openPhone() {
           b.disabled = here || night || S().guests.length >= MAX_GUESTS;
           b.onclick = () => {
             if (invite(n.id, where)) {
-              emit('invite', { id: n.id });
               sfx('bell');
               toast(`${n.name} уже бежит к тебе ${homeTo(where)}! ${HOME_BY_ID[where].icon}`, 'good');
               panel.refresh();

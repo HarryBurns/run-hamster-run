@@ -141,4 +141,28 @@ module.exports = async function rfix({ page, step, ev, wait, closeAll }) {
     await wait(700);
     expect(!(await ev(() => document.querySelectorAll('.overlay').length)) && (await state()).recipes.length === r1, 'награда без нового сердечка');
   });
+
+  await step('правки ревью п. 4: «Позвать в гости» в разговоре на улице — событие invite (шаг вводного задания), гость дома', async () => {
+    await fresh();
+    await mutate('s.minutes = 12 * 60;');
+    await ev(() => {
+      const d = window.__dev;
+      d.__ev = [];
+      d.events.on('invite', (e) => d.__ev.push(e.id));
+      d.actions.meetFriend('senya');
+      d.go('world');
+    });
+    await wait(400);
+    await ev(() => {
+      window.__dev.run('npc:senya');
+    });
+    await wait(700);
+    await page.click('.dialog .btn:has-text("Позвать в гости")');
+    await wait(500);
+    const said = norm(await ev(() => (document.querySelector('.dialog .say') || {}).textContent || ''));
+    expect(/Уже бегу к тебе/.test(said), 'ответ на приглашение', said);
+    await closeAll();
+    const r = await ev(() => ({ ev: window.__dev.__ev.join(), guests: window.__dev.G.state.guests.join() }));
+    expect(r.ev === 'senya' && r.guests === 'senya', 'приглашение в разговоре не засчитано событием invite', r);
+  });
 };
