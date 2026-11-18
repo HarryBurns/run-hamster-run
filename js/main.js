@@ -226,7 +226,10 @@ function startGame(fresh) {
 every(0.25, F.updateSound, { needScene: false });
 every(1, updateHud);
 every(20, persist);
-installDevHooks({ F });
+// Отладочные хуки window.__dev (dev/smoke.js, dev/bench.js, консоль) — только на своём компьютере (localhost) или
+// с ?dev в адресе; в выложенной игре их нет.
+const DEV_HOST = ['localhost', '127.0.0.1', '[::1]'].includes(location.hostname);
+if (DEV_HOST || new URLSearchParams(location.search).has('dev')) installDevHooks({ F });
 // новая игра: сначала вступительная сценка — переезд в Ореховую Гавань (features/intro.js), потом сама игра
 openTitle({ start: (fresh) => (fresh ? F.playIntro({ name: G.state.name }).then(() => startGame(true)) : startGame(false)) });
 startLoop(canvas, { onBroken: showBroken, onGesture: unlockAudio });
