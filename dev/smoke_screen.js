@@ -77,4 +77,83 @@ module.exports = async function screen({ page, step, ev, wait, closeAll }) {
       await wait(300);
     }
   });
+
+  await step('экран В14: кнопка места с морским путём на карте ведёт к кораблику, сажает в него и везёт к причалу, буйку или отметке', async () => {
+    await fresh();
+    await ev(() => {
+      const d = window.__dev;
+      for (const id of ['jungle', 'cove', 'island']) if (!d.QuestState.landOpen(id)) d.actions.openLand(id);
+      d.go('world');
+    });
+    await wait(300);
+    await closeAll();
+    // нажать кнопку места в «карте мира» под картой города
+    const press = async (name) => {
+      await page.click('#hud button:has-text("Карта")');
+      await page.waitForSelector('.overlay .lands-row button', { timeout: 4000 });
+      await wait(250);
+      const ok = await ev((name) => {
+        const b = [...document.querySelectorAll('.overlay .lands-row button')].find((q) => q.textContent.includes(name));
+        if (b) b.click();
+        return !!b;
+      }, name);
+      expect(ok, `нет кнопки «${name}» на карте`);
+      await wait(150);
+    };
+    const pos = () =>
+      ev(() => {
+        const d = window.__dev,
+          W = d.World,
+          p = W.p;
+        return { scene: d.sceneName, x: p.x, y: p.y, path: p.path.length, boat: W.isBoating(), panel: !!document.querySelector('.overlay') };
+      });
+    // джунгли: хомячок у пирса пешком — идёт к кораблику, садится и плывёт к причалу, а там — в джунгли
+    await ev(() => window.__dev.World.debugTeleport(63, 55));
+    await wait(200);
+    await press('Джунгли');
+    let r = await pos();
+    expect(!r.panel && r.path > 0 && !r.boat, 'хомячок не пошёл к кораблику (было только словами?)', r);
+    let ok = false;
+    for (let i = 0; i < 60 && !ok; i++) {
+      await wait(250);
+      r = await pos();
+      ok = r.scene === 'jungle';
+    }
+    expect(ok, 'кнопка «Джунгли» не довезла до джунглей', r);
+    // секретный пляж: уже на кораблике — сразу к буйку над гротом (быстрый переход: у кораблика уже была)
+    await ev(() => {
+      const d = window.__dev;
+      d.actions.patchState('boat', { x: 66 * 48, y: 64 * 48, on: true });
+      d.go('world', { pos: { scene: 'world', x: 66 * 48, y: 64 * 48 } });
+    });
+    await wait(300);
+    await closeAll();
+    expect(await ev(() => window.__dev.World.isBoating()), 'хомячок не на кораблике (проверка не годится)');
+    await press('Секретный пляж');
+    ok = false;
+    for (let i = 0; i < 40 && !ok; i++) {
+      await wait(250);
+      r = await pos();
+      ok = r.scene === 'cove';
+    }
+    expect(ok, 'кнопка «Секретный пляж» не довезла через грот', r);
+    // удалённый остров: с пирса — к кораблику и на юг к отметке
+    await ev(() => {
+      const d = window.__dev;
+      d.actions.patchState('boat', { x: 65.5 * 48, y: 61.5 * 48, on: false });
+      d.go('world');
+      d.World.debugTeleport(64, 58);
+    });
+    await wait(300);
+    await closeAll();
+    await press('Удалённый остров');
+    ok = false;
+    for (let i = 0; i < 80 && !ok; i++) {
+      await wait(250);
+      r = await pos();
+      ok = r.scene === 'island';
+      if (!ok && r.panel) await closeAll(); // окно «долгое плавание» — подтверждение, если есть
+    }
+    expect(ok, 'кнопка «Удалённый остров» не довезла до острова', r);
+  });
 };

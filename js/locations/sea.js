@@ -22,7 +22,7 @@ import { clamp, rnd, seeded, TAU, dist } from '../core/util.js';
 import { ell, fillRR, line, poly, emoji } from '../core/draw.js';
 import { drawHamster, blinkAt } from '../art/hamster.js';
 import { G, canSwim, landOpen } from '../core/state.js';
-import { award, setFlag, setDayFlag, patchState, touchState } from '../core/actions.js';
+import { award, setFlag, setDayFlag, patchState, touchState, markVisited } from '../core/actions.js';
 import { emit } from '../core/events.js';
 import { run } from '../core/registry.js';
 import { go, scene } from '../core/loop.js';
@@ -542,6 +542,7 @@ export function createSea(cfg) {
     p.y = bt.y;
     p.path = [];
     p.surf = ch(tileOf(p.x), tileOf(p.y));
+    markVisited(sc.name, 'boat'); // была у кораблика — кнопка места с морским путём потом ведёт к нему быстро (⚡, В14)
     sfx('splash');
     sfx('ok');
     award('x_boat');
@@ -739,6 +740,24 @@ export function createSea(cfg) {
       return;
     } // берег: подплыть и сойти
     sc.walkTo(w.x, w.y, false);
+  }
+
+  /** Плыть по морскому пути в место land (кнопка «карты мира», В14): к причалу, буйку над гротом или отметке. */
+  function sailTo(land) {
+    const p = sc.p;
+    if (PORT && PORT.land === land) {
+      if (sc.walkTo(PORT_PX.x, PORT_PX.y, false)) p.pending = { fn: dock };
+      else dock();
+    } else if (GROT && GROT.land === land) {
+      if (atGrotto()) grottoDive();
+      else if (sc.walkTo(GROT_PX.x - 20, GROT_PX.y + 30, true)) p.pending = { fn: grottoDive };
+      else return false;
+    } else if (FAR && FAR.land === land) {
+      if (sc.walkTo(FAR_PX.x, FAR_PX.y + T * 0.6, false)) p.pending = { fn: farGo };
+      else farGo();
+    } else return false;
+    sfx('paddle');
+    return true;
   }
 
   // ---------- корм для рыбок ----------
@@ -946,6 +965,26 @@ export function createSea(cfg) {
       if (goal === GROT_PX && atGrotto(6)) return { x: goal.x, y: goal.y + 30 };
       const bt = boatState();
       return { x: bt.x, y: bt.y + 20 };
+    },
+    /**
+     * Кнопка места на «карте мира» (В14): морской путь 'sea:<место>'. Пешком — дойти до кораблика, сесть в него и
+     * плыть дальше; на кораблике — сразу плыть к причалу, буйку над гротом или отметке дальнего пути, а там — как
+     * обычно (окно места). Вплавь у самого буйка над гротом — нырнуть без кораблика. false — путь не морской.
+     */
+    goTo(s, name) {
+      if (!name.startsWith('sea:')) return false;
+      const land = name.slice(4);
+      if (!((PORT && PORT.land === land) || (GROT && GROT.land === land) || (FAR && FAR.land === land))) return false;
+      if (isBoating() || (GROT && GROT.land === land && atGrotto(6))) return sailTo(land);
+      const bt = boatState();
+      s.goNear(bt.x, bt.y, {
+        fn: () => {
+          boardBoat();
+          if (isBoating()) sailTo(land);
+          else toast('До кораблика отсюда не достать — подойди к нему поближе ⛵');
+        },
+      });
+      return true;
     },
     /** Буёк над подводным гротом (единицы мира) — для тестов. */
     grottoAt: () => GROT_PX,

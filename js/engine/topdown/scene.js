@@ -71,6 +71,8 @@
 //   target(sc)                   куда показывать звёздочку задания: { x, y, icon } или null
 //   where(sc, имя)               точка по имени, которую знает только эта часть (места для гербария: 'herb') — для
 //                                sc.whereIs; { x, y } или null
+//   goTo(sc, имя)                дойти по имени, которое знает эта часть, по-своему (морской путь 'sea:<место>' —
+//                                к кораблику, сесть и плыть; sea.js) — для sc.walkToPlace; true — пошли
 //   buttons(sc)                  кнопки HUD: [{ id, icon, label, on, fn }]
 // ОБЩИЕ ЧАСТИ — addWorldPart(часть): те же крюки сразу во всех локациях (питомец, транспорт, двор — этап 17б).
 // РЕЖИМ — sc.mode = { down, move, up, end, focus: { x, y }, cls }: пока задан, указатель идёт ему, хомячок стоит,
@@ -324,6 +326,8 @@ export function createTopDownScene(desc) {
       }
       const b = map.bById[id];
       if (!b) {
+        // своя дорога части (крюк goTo: морской путь — к кораблику и дальше по морю)
+        if (id.includes(':') && sc.first('goTo', sc, id)) return true;
         // выход из локации ('exit:<id>') или точка, которую знает крюк where: просто дойти туда
         const w = id.includes(':') ? sc.whereIs(id) : null;
         return !!w && sc.walkTo(w.x, w.y, true);
