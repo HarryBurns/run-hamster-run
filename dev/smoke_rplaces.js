@@ -4,26 +4,11 @@
 //   п. 2 — сохранились посреди поездки по подземной реке: хомячок и лодочка после загрузки на одном берегу;
 //   п. 5 — во дворе нельзя поставить предмет, который перекрывает путь от двери дома к выходу со двора.
 // Подключается из dev/smoke.js. Только эти шаги:  node dev/smoke.js <url> "step:места ревью"
-module.exports = async function rplaces({ page, step, ev, wait, closeAll }) {
-  const T = 48;
-  const expect = (ok, msg, data) => {
-    if (!ok) throw new Error(msg + (data === undefined ? '' : ': ' + JSON.stringify(data)));
-  };
-  const fresh = async () => {
-    await ev(() => {
-      window.__dev.G.state = null;
-      localStorage.clear();
-    });
-    await page.reload();
-    await wait(400);
-    await page.click('text=Играть!');
-    await page.click('text=Пропустить');
-    await page.evaluate(() => window.__dev.oldStart()); // 1 января, без вводной цепочки
-    await wait(400);
-    await page.click('text=Поехали!');
-    await wait(500);
-    await closeAll();
-  };
+const lib = require('./lib.js');
+
+module.exports = async function rplaces(ctx) {
+  const { page, step, ev, T, expect, fresh: newGame } = lib(ctx);
+  const fresh = () => newGame(); // 1 июня, без вводной цепочки
 
   await step('места ревью п. 1: «Домой» с кораблика — из квартиры, пентхауса и бунгало выходишь у своей двери', async () => {
     await fresh();
