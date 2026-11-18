@@ -6,6 +6,7 @@
 // Звёзды — по доле очков (STARS). Наклейку и шаг задания Вождя даёт занятие.
 import { el, clamp, TAU } from '../core/util.js';
 import { ell, fillRR, line, poly, star } from '../core/draw.js';
+import { pic as kitPic } from './kit.js';
 
 const OUT = '#4a3728';
 /** Такты песни: восьмые доли (1 — кокос-«шаг»). */
@@ -49,24 +50,15 @@ function drum(ctx, x, y, s, hit) {
   ell(ctx, x, y - 52 * s, 28 * s, 8 * s, '#fff4e6', OUT, 2);
   if (hit > 0) ell(ctx, x, y - 52 * s, 28 * s * (1 + hit * 0.4), 8 * s * (1 + hit * 0.4), null, `rgba(255,212,59,${hit.toFixed(2)})`, 3);
 }
-function pic(draw, w = 120, h = 64) {
-  const c = document.createElement('canvas');
-  c.width = w * 2;
-  c.height = h * 2;
-  const x = c.getContext('2d');
-  x.scale(2, 2);
-  x.lineJoin = 'round';
-  x.lineCap = 'round';
-  draw(x, w, h);
-  return `<img src="${c.toDataURL()}" width="${w}" height="${h}" alt="">`;
-}
+const pic = (draw, w = 120, h = 64) => kitPic(draw, w, h, { cap: true });
 
 export default {
   id: 'drum',
   title: 'Танец у костра',
   icon: '🥁',
+  css: CSS,
   get howTo() {
-    return `<style>${CSS}</style>Бум стучит в барабан — танцуй в ритм! К кругу у барабана летят кокосы.
+    return `Бум стучит в барабан — танцуй в ритм! К кругу у барабана летят кокосы.
       <div class="dr-rules">
         <div class="dr-col"><b>🥥 Летят</b>${pic((c, w, h) => {
           line(c, 10, h / 2, w - 6, h / 2, 'rgba(74,55,40,.25)', 10);
@@ -86,13 +78,11 @@ export default {
       Нажимай пальцем, мышкой, пробелом или стрелкой. Не успела — ничего страшного, будет следующий!`;
   },
   start(host) {
-    const root = host.root;
-    const style = el('style', '', CSS);
     const top = el('div', 'dr-top');
     const tScore = el('div', 'dr-chip'),
       tCombo = el('div', 'dr-chip');
     top.append(tScore, tCombo);
-    root.append(style, top);
+    host.add(top);
     const cv = host.canvas();
     cv.canvas.classList.add('dr-canvas');
     const ctx = cv.ctx;
@@ -111,9 +101,6 @@ export default {
     const looks = (host.info && host.info.dancers) || (host.friends || []).slice(0, 2).map((f) => f.look),
       bum = (host.info && host.info.drummer) || (host.friends[2] && host.friends[2].look) || host.look;
     let t = -0.6,
-      last = performance.now(),
-      raf = 0,
-      stopped = false,
       over = false,
       pts = 0,
       combo = 0,
@@ -124,7 +111,7 @@ export default {
       bumHit = 0,
       move = 0, // анимация танцевального движения 0..1
       moveN = 0;
-    const pops = [];
+    const pops = host.pops({ life: 0.9 });
     const sparks = [];
 
     const L = () => {
@@ -166,22 +153,22 @@ export default {
       move = 1;
       moveN++;
       host.sfx(ok ? 'clink' : 'pop');
-      pops.push({ text: ok ? 'Отлично!' : 'Хорошо!', col: ok ? '#f59f00' : '#40c057', x: g.tx + g.r * 0.6, y: g.laneY - g.r * 2.4, t: 0 });
+      pops.add(ok ? 'Отлично!' : 'Хорошо!', g.tx + g.r * 0.6, g.laneY - g.r * 2.4, ok ? '#f59f00' : '#40c057');
       for (let i = 0; i < (ok ? 10 : 5); i++) sparks.push({ x: g.tx, y: g.laneY, vx: (Math.random() - 0.5) * 220, vy: -60 - Math.random() * 160, t: 0 });
-      if (combo && combo % 8 === 0) pops.push({ text: `🔥 ${combo} подряд!`, col: '#e8590c', x: g.W / 2, y: g.H * 0.25, t: 0 });
+      if (combo && combo % 8 === 0) pops.add(`🔥 ${combo} подряд!`, g.W / 2, g.H * 0.25, '#e8590c');
     }
     const pd = (e) => {
       e.preventDefault();
       tap();
     };
-    cv.canvas.addEventListener('pointerdown', pd);
+    host.on(cv.canvas, 'pointerdown', pd);
     const kd = (e) => {
       if (['Space', 'Enter', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.code)) {
         e.preventDefault();
         if (!e.repeat) tap();
       }
     };
-    window.addEventListener('keydown', kd);
+    host.on(window, 'keydown', kd);
     // для автотеста (dev/smoke_games.js): время песни, сколько до ближайшего кокоса, очки
     cv.canvas.__drum = () => {
       const n = notes.find((q) => !q.res && q.at > t - GOOD);
@@ -208,8 +195,7 @@ export default {
           q.res = 'miss';
           combo = 0;
         }
-      for (const p of pops) p.t += dt;
-      for (let i = pops.length - 1; i >= 0; i--) if (pops[i].t > 0.9) pops.splice(i, 1);
+      pops.step(dt);
       for (const p of sparks) {
         p.t += dt;
         p.x += p.vx * dt;
@@ -323,17 +309,7 @@ export default {
         star(ctx, p.x, p.y, 4 * s, '#ffd43b');
       }
       ctx.globalAlpha = 1;
-      ctx.textAlign = 'center';
-      ctx.font = `900 ${Math.round(18 * s + 4)}px ui-rounded, "Trebuchet MS", sans-serif`;
-      for (const p of pops) {
-        ctx.globalAlpha = Math.max(0, 1 - p.t / 0.9);
-        ctx.lineWidth = 4;
-        ctx.strokeStyle = '#fff';
-        ctx.strokeText(p.text, p.x, p.y - p.t * 30);
-        ctx.fillStyle = p.col;
-        ctx.fillText(p.text, p.x, p.y - p.t * 30);
-      }
-      ctx.globalAlpha = 1;
+      pops.draw(ctx, Math.round(18 * s + 4));
       // мигающие огоньки вокруг круга на «серии»
       if (combo >= 4)
         for (let i = 0; i < 6; i++) {
@@ -341,17 +317,12 @@ export default {
           ell(ctx, g.tx + Math.cos(a) * g.r * 1.5, g.laneY + Math.sin(a) * g.r * 1.5, 2.5, 2.5, '#fff3bf');
         }
     }
-    const frame = (now) => {
-      if (stopped) return;
-      const dt = Math.min(0.05, (now - last) / 1000);
-      last = now;
+    host.loop((dt) => {
       if (!over) update(dt);
       tScore.textContent = `🥁 ${pts}`;
       tCombo.textContent = combo >= 2 ? `🔥 ${combo} подряд` : `🥥 ${notes.filter((q) => q.res).length} из ${notes.length}`;
       draw();
-      raf = requestAnimationFrame(frame);
-    };
-    raf = requestAnimationFrame(frame);
+    });
     function finish() {
       if (over) return;
       over = true;
@@ -365,16 +336,5 @@ export default {
         extra: { pts, perfect, good, best },
       });
     }
-    return {
-      stop() {
-        stopped = true;
-        cancelAnimationFrame(raf);
-        cv.canvas.removeEventListener('pointerdown', pd);
-        window.removeEventListener('keydown', kd);
-        if (cv.destroy) cv.destroy();
-        style.remove();
-        top.remove();
-      },
-    };
   },
 };
