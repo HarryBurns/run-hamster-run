@@ -3,9 +3,13 @@
 // Каждая мини-игра — модуль с `export default { id, title, icon, howTo, start(host) }`.
 // start(host) строит игру внутри host.root и возвращает { stop() } — остановить таймеры/анимации.
 // Когда игра закончена, она вызывает host.finish({ stars: 1..3, text: 'итог', extra: {...} }).
+// Поле `css` модуля — стиль игры: хост ставит его один раз (для правил и для игры) и убирает при закрытии.
+// Общий набор (kit.js): host.later / cancel, host.loop, host.on, host.add, host.css, host.pops — всё это хост
+// снимает сам, когда игра закончена или закрыта; stop() нужен только для своего, особого.
 import { drawHamster } from '../art/hamster.js';
 import { sfx } from '../core/audio.js';
 import { el } from '../core/util.js';
+import { makeKit, makePops } from './kit.js';
 
 const LOADERS = {
   swim: () => import('./swim.js'),
@@ -71,6 +75,8 @@ export async function runMinigame(id, info) {
     let game = null,
       ended = false,
       result = null; // итог игры: есть с момента, когда показан экран со звёздами
+    // кадр игры падает снова и снова — закрываем её (без награды), а не оставляем замёрзшую картинку
+    const kit = makeKit(() => end(null));
     const cleanup = () => {
       try {
         game && game.stop && game.stop();
@@ -78,6 +84,7 @@ export async function runMinigame(id, info) {
         console.error(e);
       }
       game = null;
+      kit.dispose();
     };
     const end = (res) => {
       if (ended) return;
@@ -119,6 +126,19 @@ export async function runMinigame(id, info) {
       info,
       drawHamster,
       sfx,
+      /** Таймер, который хост снимет сам; на скрытой вкладке стоит. Возвращает id для host.cancel. */
+      later: kit.later,
+      cancel: kit.cancel,
+      /** Цикл кадра: fn(dt, time, ts) — шаг (с, ≤ 0,05), время игры (с, без скрытой вкладки), метка rAF. */
+      loop: kit.loop,
+      /** Слушатель события, который хост снимет сам. */
+      on: kit.on,
+      /** Положить элементы в root; при закрытии игры уберутся сами. Возвращает первый. */
+      add: (...els) => kit.add(root, ...els),
+      /** Стиль на время игры (один раз на текст). */
+      css: (text) => kit.css(wrap, text),
+      /** Всплывающие надписи (kit.js, makePops). */
+      pops: makePops,
       /** Canvas на весь root, сам подстраивается под размер. draw-код работает в CSS-пикселях: cv.w × cv.h */
       canvas() {
         const canvas = document.createElement('canvas');
@@ -138,6 +158,7 @@ export async function runMinigame(id, info) {
         const ro = new ResizeObserver(fit);
         ro.observe(root);
         cv.destroy = () => ro.disconnect();
+        kit.onDispose(cv.destroy);
         return cv;
       },
       finish(res) {
@@ -158,6 +179,7 @@ export async function runMinigame(id, info) {
       },
     };
 
+    if (mod.css) kit.css(wrap, mod.css);
     card(
       `<div class="big-emoji mg-icon">${mod.icon || '🎮'}</div><h2 class="mg-icon" style="margin:4px 0">${mod.title}</h2><p>${mod.howTo || ''}</p>${info.introNote || ''}`,
       'Начать!',
