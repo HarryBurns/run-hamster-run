@@ -16,16 +16,25 @@
 // Разговор, поделки, «нашлось», действие места и подсказка входа — общий набор тайных мест (features/land_kit.js).
 import { setDayFlag, addItem, award } from '../core/actions.js';
 import { sfx } from '../core/audio.js';
-import { makeCanvas } from '../core/draw.js';
 import { on, emit } from '../core/events.js';
 import { G, count } from '../core/state.js';
-import { el, fmtMoney } from '../core/util.js';
+import { fmtMoney } from '../core/util.js';
 import { FIND_BY_ID, GEM_IDS, CAVES } from '../data/index.js';
-import { openPanel } from '../ui/panel.js';
 import { toast } from '../ui/toast.js';
 import { prizeGame } from './minigames.js';
 import { paintWallPic } from './pictures_art.js';
-import { dayFlags, npcLine, landNpc, craftSet, craftCount, sellTalk, landFind, landActs, landHint } from './land_kit.js';
+import {
+  dayFlags,
+  npcLine,
+  landNpc,
+  craftSet,
+  craftCount,
+  sellTalk,
+  landFind,
+  landView,
+  landActs,
+  landHint,
+} from './land_kit.js';
 
 const S = () => G.state;
 const S3 = dayFlags('caves');
@@ -113,26 +122,13 @@ export function seePaintings() {
   sfx('magic');
   emit('caves', { what: 'paint' });
   award('x_cavepaint', { delay: 1400 });
-  return openPanel({
+  return landView({
     title: 'Древние рисунки',
     icon: '🎨',
-    cls: 'wide',
-    render(body) {
-      const W = Math.min(560, window.innerWidth - 60),
-        H = Math.round(W * 0.42);
-      const { canvas, ctx } = makeCanvas(W, H);
-      canvas.style.cssText += ';display:block;margin:0 auto;border-radius:14px;max-width:100%;height:auto';
-      paintWallPic(ctx, W, H);
-      body.appendChild(canvas);
-      body.appendChild(
-        el(
-          'p',
-          'center',
-          'Ух ты! Древние хомяки рисовали охрой и угольком: солнце, хомячок бежит за огромной семечкой, трое танцуют у костра… А вот — хомячок в колесе! Значит, и тысячу лет назад хомяки любили бегать 🐹 Расскажи об этом Профессору Орешкину!',
-        ),
-      );
-    },
-    foot: [{ text: 'Здорово! 🎨', cls: 'green', fn: (api) => api.close() }],
+    ratio: 0.42,
+    paint: paintWallPic,
+    text: 'Ух ты! Древние хомяки рисовали охрой и угольком: солнце, хомячок бежит за огромной семечкой, трое танцуют у костра… А вот — хомячок в колесе! Значит, и тысячу лет назад хомяки любили бегать 🐹 Расскажи об этом Профессору Орешкину!',
+    btn: 'Здорово! 🎨',
   });
 }
 

@@ -8,6 +8,7 @@
 //   craftCount({ … })    кнопка разговора «принеси n одинаковых находок → вещь» (ночник, венок, тотем…)
 //   sellTalk({ … })      кнопка «🪙 А … можно продать?» — пока в рюкзаке есть такие находки
 //   landFind(…)          окно «нашлось!» (вещь из задания: кирка, варежка, бубенчик…) и событие места
+//   landView({ … })      окно-картинка с подписью (вид с домика на дереве, с вершины, древние рисунки)
 //   landActs(…)          действие места group:<что>[:<ещё>] → функция из таблицы
 //   landHint(…)          подсказка при первом входе в сцену места
 //   landRide(…)          поездка туда и обратно картинкой-переездом (ui/fade.js) и её действие
@@ -18,11 +19,12 @@ import { sfx } from '../core/audio.js';
 import { on, emit } from '../core/events.js';
 import { register } from '../core/registry.js';
 import { G, cal, darkness, count } from '../core/state.js';
-import { esc, pick } from '../core/util.js';
+import { makeCanvas } from '../core/draw.js';
+import { el, esc, pick } from '../core/util.js';
 import { NPC_BY_ID, FIND_BY_ID, npcLook } from '../data/index.js';
 import { dialog } from '../ui/dialog.js';
 import { fadeScene } from '../ui/fade.js';
-import { message } from '../ui/panel.js';
+import { message, openPanel } from '../ui/panel.js';
 import { hintOnce } from '../ui/toast.js';
 import { questTalk } from './quests.js';
 import { placeLine } from './tales.js';
@@ -204,6 +206,26 @@ export const landFind =
       buttons: [{ text: btn }],
     });
   };
+
+/**
+ * Окно-картинка: рисунок paint(ctx, W, H) шириной до 560 (высота — W × ratio), под ним подпись text, внизу кнопка btn.
+ */
+export const landView = ({ title, icon, ratio, paint, text, btn }) =>
+  openPanel({
+    title,
+    icon,
+    cls: 'wide',
+    render(body) {
+      const W = Math.min(560, window.innerWidth - 60),
+        H = Math.round(W * ratio);
+      const { canvas, ctx } = makeCanvas(W, H);
+      canvas.style.cssText += ';display:block;margin:0 auto;border-radius:14px;max-width:100%;height:auto';
+      paint(ctx, W, H);
+      body.appendChild(canvas);
+      body.appendChild(el('p', 'center', text));
+    },
+    foot: [{ text: btn, cls: 'green', fn: (api) => api.close() }],
+  });
 
 /**
  * Действие места group:<что>[:<ещё>]: acts[что](ctx, p, ещё) — ctx реестра (сцена), p — параметры действия

@@ -16,14 +16,13 @@ import { sfx } from '../core/audio.js';
 import { emit } from '../core/events.js';
 import { G, cal, darkness, count, questNow } from '../core/state.js';
 import { fmtMoney } from '../core/util.js';
-import { makeCanvas } from '../core/draw.js';
 import { FOREST, ING_BY_ID, DISH_BY_ID, FIND_BY_ID, QUEST_BY_ID, wildIn, DAYS_PER_MONTH } from '../data/index.js';
-import { message, openPanel } from '../ui/panel.js';
+import { message } from '../ui/panel.js';
 import { toast } from '../ui/toast.js';
 import { eat } from './cooking.js';
 import { prizeGame } from './minigames.js';
 import { paintTreeView } from './pictures_art.js';
-import { dayFlags, npcLine, landNpc, craftCount, landFind, landActs } from './land_kit.js';
+import { dayFlags, npcLine, landNpc, craftCount, landFind, landView, landActs } from './land_kit.js';
 
 const S = () => G.state;
 
@@ -209,24 +208,13 @@ export function climbTreehouse() {
   award('x_treehouse', { delay: 1400 });
   const season = cal().season,
     dark = darkness();
-  return openPanel({
+  return landView({
     title: 'Домик на дереве',
     icon: '🏡',
-    cls: 'wide',
-    render(body) {
-      const W = Math.min(560, window.innerWidth - 60),
-        H = Math.round(W * 0.56);
-      const { canvas, ctx } = makeCanvas(W, H);
-      canvas.style.cssText += ';display:block;margin:0 auto;border-radius:14px;max-width:100%;height:auto';
-      paintTreeView(ctx, W, H, season, dark);
-      body.appendChild(canvas);
-      const p = document.createElement('p');
-      p.className = 'center';
-      p.textContent =
-        'Ты забралась в домик на дереве! Отсюда виден весь лес, ручей и далёкая гора. К горе тянется канатная дорога — но она пока закрыта 🔒';
-      body.appendChild(p);
-    },
-    foot: [{ text: 'Спуститься 🪜', cls: 'green', fn: (api) => api.close() }],
+    ratio: 0.56,
+    paint: (ctx, W, H) => paintTreeView(ctx, W, H, season, dark),
+    text: 'Ты забралась в домик на дереве! Отсюда виден весь лес, ручей и далёкая гора. К горе тянется канатная дорога — но она пока закрыта 🔒',
+    btn: 'Спуститься 🪜',
   });
 }
 

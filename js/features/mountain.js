@@ -32,7 +32,7 @@ import { prizeGame } from './minigames.js';
 import { setWaitHook } from './quests.js';
 import { paintSummitView, paintSnowmanPic } from './pictures_art.js';
 import { paintRide } from './trips_art.js';
-import { dayFlags, npcLine, landNpc, craftCount, landFind, landActs, landRide } from './land_kit.js';
+import { dayFlags, npcLine, landNpc, craftCount, landFind, landView, landActs, landRide } from './land_kit.js';
 
 const S = () => G.state;
 
@@ -159,26 +159,13 @@ export function climbLookout() {
   award('x_summit', { delay: 1400 });
   const season = cal().season,
     dark = darkness();
-  return openPanel({
+  return landView({
     title: 'Смотровая площадка',
     icon: '🔭',
-    cls: 'wide',
-    render(body) {
-      const W = Math.min(560, window.innerWidth - 60),
-        H = Math.round(W * 0.62);
-      const { canvas, ctx } = makeCanvas(W, H);
-      canvas.style.cssText += ';display:block;margin:0 auto;border-radius:14px;max-width:100%;height:auto';
-      paintSummitView(ctx, W, H, season, dark);
-      body.appendChild(canvas);
-      body.appendChild(
-        el(
-          'p',
-          'center',
-          'Ты на самой вершине! Облака — внизу, под ними шумит лес, дальше — город с Хомяк-Тауэром, а на горизонте блестит море. Флаг на вершине машет тебе: «Ура, покорительница вершин!» 🚩',
-        ),
-      );
-    },
-    foot: [{ text: 'Красота! 🏔️', cls: 'green', fn: (api) => api.close() }],
+    ratio: 0.62,
+    paint: (ctx, W, H) => paintSummitView(ctx, W, H, season, dark),
+    text: 'Ты на самой вершине! Облака — внизу, под ними шумит лес, дальше — город с Хомяк-Тауэром, а на горизонте блестит море. Флаг на вершине машет тебе: «Ура, покорительница вершин!» 🚩',
+    btn: 'Красота! 🏔️',
   });
 }
 
