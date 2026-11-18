@@ -141,9 +141,6 @@ export default {
     const ice = spot === 'pond' && winter;
     const kinds = spot === 'pond' ? FISH : SEA_FISH;
     const biteWin = Math.max(0.6, 1.0 - (host.level || 0) * 0.08);
-    let raf = 0,
-      stopped = false,
-      endTimer = 0;
 
     let castNo = 0,
       caught = 0,
@@ -184,7 +181,7 @@ export default {
     const btn = el('button', 'btn big yellow', '🎣 Подсекай!');
     btn.style.cssText = 'pointer-events:auto;touch-action:none;width:min(100%,360px)';
     bar.appendChild(btn);
-    host.root.appendChild(bar);
+    host.add(bar);
 
     function newCast() {
       castNo++;
@@ -231,9 +228,9 @@ export default {
       e.stopPropagation();
       hook();
     };
-    btn.addEventListener('pointerdown', onBtn);
+    host.on(btn, 'pointerdown', onBtn);
     const onCanvas = () => hook();
-    cv.canvas.addEventListener('pointerdown', onCanvas);
+    host.on(cv.canvas, 'pointerdown', onCanvas);
     const onKey = (e) => {
       if (e.repeat) return;
       if (e.code === 'Space' || e.code === 'Enter') {
@@ -241,7 +238,7 @@ export default {
         hook();
       }
     };
-    window.addEventListener('keydown', onKey);
+    host.on(window, 'keydown', onKey);
 
     function nextOrEnd() {
       if (castNo >= CASTS) {
@@ -252,7 +249,7 @@ export default {
           caught === 0
             ? 'Сегодня рыбки оказались хитрее. Ничего, в следующий раз точно клюнет!'
             : `Улов: ${caught} ${plural(caught, 'рыбка', 'рыбки', 'рыбок')}! ${stars === 3 ? 'Настоящая рыбачка!' : 'Отличная рыбалка!'}`;
-        endTimer = setTimeout(() => host.finish({ stars, text: t, extra: { fish: caught } }), 500);
+        host.later(() => host.finish({ stars, text: t, extra: { fish: caught } }), 500);
       } else newCast();
     }
 
@@ -667,29 +664,14 @@ export default {
       }
     }
 
-    let prev = performance.now();
-    function loop(now) {
-      if (stopped) return;
-      const dt = Math.min(0.05, (now - prev) / 1000);
-      prev = now;
+    setState('idle');
+    host.loop((dt) => {
       update(dt);
       draw();
-      raf = requestAnimationFrame(loop);
-    }
-    setState('idle');
-    raf = requestAnimationFrame(loop);
-
+    });
     return {
       stop() {
-        stopped = true;
-        cancelAnimationFrame(raf);
-        clearTimeout(endTimer);
-        window.removeEventListener('keydown', onKey);
-        cv.canvas.removeEventListener('pointerdown', onCanvas);
-        btn.removeEventListener('pointerdown', onBtn);
-        bar.remove();
-        delete host.root.dataset.state;
-        cv.destroy();
+        delete host.root.dataset.state; // метка для автотеста (что сейчас: ждём, клюёт, тянем)
       },
     };
   },
