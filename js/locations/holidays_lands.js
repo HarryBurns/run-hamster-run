@@ -111,16 +111,20 @@ const ROOM = {
 };
 /** Дома, где праздник не украшают: подводный грот, древние пирамида и храм. */
 const NO_DECOR = new Set(['grotto_cave', 'pyramid_hall', 'temple_hall']);
+// Картинки гирлянд — только для дома, где хомячок сейчас (на iPad картинка комнаты — до 2,5 МБ: «День гостей» в праздник
+// обходит 8 домов), и только пока праздник: кончился или вышли в другой дом — кэш чистится.
 const pics = new Map();
-let picsFor = '';
-/** Картинка комнаты: гирлянда от x0 до x1 на высоте top + 18. */
-function roomPic(id, x0, x1, y, top) {
+let picsFor = '', // праздник, для которого нарисованы картинки
+  picsHouse = ''; // дом, для которого нарисованы картинки
+/** Высота картинки гирлянды: нижний край подвесок — не ниже 76 (фонарики «cny», флажки и шарики «may»), и запас. */
+const STRING_H = 96;
+/** Картинка комнаты: гирлянда от x0 до x1 на высоте top + 16, высотой h. */
+function roomPic(id, x0, x1, h) {
   const r = ROOM[id],
-    { canvas, ctx } = makeCanvas(x1 - x0, y - top + 12);
-  ctx.translate(-x0, -top);
+    { canvas, ctx } = makeCanvas(x1 - x0, h);
   ctx.lineJoin = 'round';
   ctx.lineCap = 'round';
-  ctx.translate(x0 + 14, top + 16);
+  ctx.translate(14, 16);
   paintString(ctx, r.str, x1 - x0 - 28, 0, 0);
   return canvas;
 }
@@ -164,11 +168,12 @@ const roomHoliday = (sc) => (!G.state || NO_DECOR.has(sc.name) ? '' : Object.key
 // гирлянда — позади всего
 sideArt.push((ctx, sc) => {
   const id = roomHoliday(sc);
-  if (!id) return;
-  if (picsFor !== id) {
-    pics.clear(); // праздник сменился — старые картинки не нужны
+  if (picsFor !== id || picsHouse !== sc.name) {
+    pics.clear(); // праздник сменился (или кончился), или это другой дом — старые картинки не нужны
     picsFor = id;
+    picsHouse = sc.name;
   }
+  if (!id) return;
   const rooms = sc.desc.rooms || [],
     view = sc.view;
   rooms.forEach((rm, i) => {
@@ -180,8 +185,9 @@ sideArt.push((ctx, sc) => {
     if (x1 - x0 < 160) return;
     const key = `${sc.name}:${i}`;
     let pic = pics.get(key);
-    if (!pic) pics.set(key, (pic = roomPic(id, x0, x1, y, top)));
-    ctx.drawImage(pic, x0, top, x1 - x0, y - top + 12);
+    const h = Math.min(STRING_H, y - top + 12);
+    if (!pic) pics.set(key, (pic = roomPic(id, x0, x1, h)));
+    ctx.drawImage(pic, x0, top, x1 - x0, h);
   });
 });
 // украшение на полу у двери — перед мебелью, но за жильцами и хомячком (В3: раньше пряталось за торшером и диваном)
