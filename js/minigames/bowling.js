@@ -7,6 +7,7 @@
 // Монеты по звёздам выдаёт занятие (features/island.js).
 import { el, clamp } from '../core/util.js';
 import { ell, poly, fillRR, line } from '../core/draw.js';
+import { pic as kitPic } from './kit.js';
 
 const OUT = '#4a3728';
 const ROUNDS = 3,
@@ -30,17 +31,7 @@ const LW = 360,
   ];
 
 /** Маленькая картинка для правил (data: URL). */
-function pic(draw, w = 110, h = 70) {
-  const c = document.createElement('canvas');
-  c.width = w * 2;
-  c.height = h * 2;
-  const x = c.getContext('2d');
-  x.scale(2, 2);
-  x.lineJoin = 'round';
-  x.lineCap = 'round';
-  draw(x, w, h);
-  return `<img src="${c.toDataURL()}" width="${w}" height="${h}" alt="">`;
-}
+const pic = (draw, w = 110, h = 70) => kitPic(draw, w, h, { cap: true });
 function coconut(ctx, x, y, r, rot = 0) {
   ctx.save();
   ctx.translate(x, y);
@@ -96,8 +87,9 @@ export default {
   id: 'bowling',
   title: 'Кокосовый боулинг',
   icon: '🥥',
+  css: CSS,
   get howTo() {
-    return `<style>${CSS}</style>Скати кокос по дорожке и сбей кегли-тотемчики!
+    return `Скати кокос по дорожке и сбей кегли-тотемчики!
       <div class="bw-rules">
         <div class="bw-col"><b>1 · Куда</b>${pic((c, w, h) => {
           pin(c, w / 2, 22, 0.7);
@@ -122,20 +114,15 @@ export default {
       ${ROUNDS} раунда, в каждом — ${THROWS} кокоса. Пробел или Enter — тоже нажатие. Сбей все шесть — «Страйк!» 🗿`;
   },
   start(host) {
-    const root = host.root;
-    const style = el('style', '', CSS);
     const top = el('div', 'bw-top');
     const tRound = el('div', 'bw-chip'),
       tPins = el('div', 'bw-chip'),
       tSay = el('div', 'bw-chip');
     top.append(tRound, tPins, tSay);
-    root.append(style, top);
+    host.root.append(top);
     const cv = host.canvas();
     const ctx = cv.ctx;
     let t = 0,
-      last = performance.now(),
-      raf = 0,
-      stopped = false,
       over = false,
       phase = 'aim', // aim → power → roll → (wait) → aim …
       round = 0,
@@ -229,9 +216,8 @@ export default {
       over = true;
       phase = 'done';
       const stars = score >= BOWL_STARS[1] || strikes >= 2 ? 3 : score >= BOWL_STARS[0] ? 2 : 1;
-      setTimeout(
+      host.later(
         () =>
-          !stopped &&
           host.finish({
             stars,
             text: `Сбито кеглей: <b>${score}</b> из ${ROUNDS * 6}${strikes ? ` · страйков: <b>${strikes}</b>` : ''}. ${stars === 3 ? 'Настоящая чемпионка острова!' : stars === 2 ? 'Отличная игра!' : 'Хорошая игра — в следующий раз будет ещё больше!'}`,
@@ -357,17 +343,12 @@ export default {
       }
     }
 
-    const loop = (now) => {
-      if (stopped) return;
-      const dt = Math.min(0.05, (now - last) / 1000);
-      last = now;
+    host.loop((dt) => {
       if (!over) update(dt);
       else for (const p of pins) p.fall = Math.min(1, p.fall + dt * 3);
       drawScene();
       chips();
-      raf = requestAnimationFrame(loop);
-    };
-    raf = requestAnimationFrame(loop);
+    });
 
     // ввод: нажатие — шаг прицела; жест вверх от кокоса — сразу бросок
     let down = null;
@@ -394,25 +375,17 @@ export default {
       }
       tap();
     };
-    cv.canvas.addEventListener('pointerdown', pd);
-    cv.canvas.addEventListener('pointerup', pu);
+    host.on(cv.canvas, 'pointerdown', pd);
+    host.on(cv.canvas, 'pointerup', pu);
     const key = (e) => {
       if (e.code === 'Space' || e.code === 'Enter') {
         e.preventDefault();
         tap();
       }
     };
-    window.addEventListener('keydown', key);
+    host.on(window, 'keydown', key);
     // для автотеста: что сейчас в игре
     cv.canvas.__bowling = () => ({ phase, round, throwN, score, strikes, angle, power, standing: standing(), over, ball: { x: ball.x, y: ball.y } });
     cv.canvas.classList.add('bw-canvas');
-    return {
-      stop() {
-        stopped = true;
-        cancelAnimationFrame(raf);
-        window.removeEventListener('keydown', key);
-        cv.destroy();
-      },
-    };
   },
 };
