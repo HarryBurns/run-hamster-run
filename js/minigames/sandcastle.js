@@ -242,9 +242,10 @@ export default {
   id: 'sandcastle',
   title: 'Замок из песка',
   icon: '🏰',
+  css: CSS,
   get howTo() {
     const im = (id) => `<img src="${pieceImg(id)}" alt="">`;
-    return `<style>${CSS}</style>Построй замок, как на образце Жемчужинки!
+    return `Построй замок, как на образце Жемчужинки!
       <div class="sc-rules">
         <div class="sc-col"><b>👀 Образец</b><img class="big" src="${ruleImg()}" alt=""><small>посмотри, что где стоит</small></div>
         <div class="sc-col ok"><b>👆 Выбери и поставь</b>${im('tower')}${im('flag')}<small>деталь — потом место</small></div>
@@ -253,8 +254,6 @@ export default {
       Два замка — по образцу, третий — какой хочешь! Меньше ошибок — больше звёзд.`;
   },
   start(host) {
-    const root = host.root;
-    const style = el('style', '', CSS);
     const wrap = el('div', 'sc-wrap');
     const top = el('div', 'sc-top');
     const sample = el('div', 'sc-sample', 'Образец');
@@ -276,17 +275,15 @@ export default {
     const tRound = el('div', 'sc-chip'),
       tMiss = el('div', 'sc-chip');
     chips.append(tRound, tMiss);
-    root.append(style, wrap, chips);
+    host.add(wrap, chips);
     let round = 0,
       cells = Array(10).fill(null),
       pattern = null,
       sel = 'tower',
       miss = 0,
       bad = [],
-      phase = 'play', // play — строим; wait — Жемчужинка смотрит; done — всё
-      stopped = false;
-    const timers = [];
-    const later = (fn, ms) => timers.push(setTimeout(() => !stopped && fn(), ms));
+      phase = 'play'; // play — строим; wait — Жемчужинка смотрит; done — всё
+    const later = host.later;
     const btns = PIECES.map((p) => {
       const b = el('button', 'sc-piece', `<img src="${pieceImg(p.id)}" alt="">${p.name}`);
       b.onclick = () => {
@@ -425,14 +422,5 @@ export default {
         extra: { miss, cells: [...cells] }, // cells — свой замок: он останется на пляже (С7)
       });
     }
-    return {
-      stop() {
-        stopped = true;
-        for (const tm of timers) clearTimeout(tm);
-        style.remove();
-        wrap.remove();
-        chips.remove();
-      },
-    };
   },
 };
