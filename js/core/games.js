@@ -157,32 +157,58 @@ function park() {
 }
 
 /**
- * Открыть активную игру (ту, что в живом сохранении). Если сохранение не читается, load() уже отложил его копию
- * в rhr-save-backup: такую игру убираем из списка и пробуем следующую.
- * Возвращает { ok: G.state готово, problem: null | 'broken' | 'newer' }.
+ * Открыть активную игру (ту, что в живом сохранении). Если сохранение не читается (load() уже отложил его копию
+ * в rhr-save-backup), пробуем копию этой игры с полки (она с последнего переключения игр — постарше, но может быть
+ * целой). Не открылась и она — нечитаемую строку оставляем на полке этой игры (rhr-game-<id>, вне списка: про запас,
+ * её можно достать вручную), игру убираем из списка и пробуем следующую.
+ * Возвращает { ok: G.state готово, problem: null | 'broken' | 'newer', lost: [имена игр, которые не открылись],
+ * restored: имя игры, открытой из копии с полки, или null }.
  */
 export function openActive() {
-  let problem = null;
-  for (let i = 0; i <= MAX_GAMES; i++) {
+  let problem = null,
+    restored = null,
+    brokenRaw = null; // самое новое нечитаемое сохранение игры, для которой пробуем копию с полки
+  const lost = [];
+  const done = (ok, why = problem) => ({ ok, problem: why, lost, restored });
+  for (let i = 0; i <= 2 * MAX_GAMES; i++) {
     syncGames();
-    if (!idx.active) return { ok: false, problem };
+    if (!idx.active) return done(false);
+    const id = idx.active;
     if (load()) {
-      if (G.state.gid !== idx.active) G.state.gid = idx.active; // запишется с первым же сохранением
-      fillMeta(find(idx.active), G.state);
+      if (G.state.gid !== id) G.state.gid = id; // запишется с первым же сохранением
+      fillMeta(find(id), G.state);
       writeIndex();
-      return { ok: true, problem };
+      if (brokenRaw) {
+        restored = find(id).name || 'Хомка';
+        put(BACKUP_KEY, brokenRaw); // в запасе — самое новое, нечитаемое (копия с полки так и лежит на полке)
+      }
+      return done(true);
     }
-    if (loadProblem !== 'broken') return { ok: false, problem: loadProblem };
+    if (loadProblem !== 'broken') return done(false, loadProblem);
     problem = 'broken';
-    const raw = get(KEY);
-    if (raw && get(BACKUP_KEY) !== raw) return { ok: false, problem }; // копии нет — ничего не трогаем
+    const raw = get(KEY),
+      shelf = get(slot(id));
+    if (!brokenRaw) {
+      if (raw && get(BACKUP_KEY) !== raw) return done(false); // копии нет (хранилище переполнено) — ничего не трогаем
+      if (shelf && shelf !== raw && put(KEY, stamp(shelf, id))) {
+        brokenRaw = raw; // пробуем открыть копию с полки
+        continue;
+      }
+    }
+    // не открылась ни живая игра, ни её копия: самое новое откладываем на полку этой игры (вне списка)
+    const keep = brokenRaw || raw;
+    if (keep) {
+      put(slot(id), keep);
+      put(BACKUP_KEY, keep);
+    }
+    lost.push(find(id).name || 'Хомка');
+    brokenRaw = null;
     del(KEY);
-    del(slot(idx.active));
-    idx.games = idx.games.filter((g) => g.id !== idx.active);
+    idx.games = idx.games.filter((g) => g.id !== id);
     idx.active = null;
     writeIndex();
   }
-  return { ok: false, problem };
+  return done(false);
 }
 
 /** Открыть другую игру из списка. true — G.state готово. Игра, в которую играли, остаётся на полке. */

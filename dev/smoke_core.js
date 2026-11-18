@@ -274,4 +274,45 @@ module.exports = async function core({ page, step, ev, wait, closeAll }) {
     },
     { expectErrors: 'Нет сцены' },
   );
+
+  await step('основа: нечитаемая игра — открывается копия с полки; нет копии — открывается другая, и заставка говорит о пропаже', async () => {
+    const sub = () => ev(() => [...document.querySelectorAll('.sub')].map((e) => e.textContent).join(' | '));
+    // две игры: «Аня» (последняя) и «Боря»; у «Ани» на полке целая копия с последнего переключения
+    const ids = await ev(() => {
+      const g = window.__dev.games;
+      window.__dev.G.state = null;
+      localStorage.clear();
+      g.syncGames();
+      g.createGame('Аня');
+      const a = g.activeGame();
+      g.createGame('Боря');
+      const b = g.activeGame();
+      g.switchGame(a);
+      window.__dev.G.state = null; // уходящая страница не перезапишет сохранение
+      localStorage.setItem('rhr-save-v1', '{"v":5,"name":"Аня",');
+      return { a, b };
+    });
+    await page.reload();
+    await wait(600);
+    let t = await sub();
+    expect(/С возвращением, Аня/.test(t) && /запасной копии/.test(t), 'игра не открылась из копии с полки', t);
+    let st = await ev((a) => ({ shelf: !!localStorage.getItem('rhr-game-' + a), backup: localStorage.getItem('rhr-save-backup') }), ids.a);
+    expect(st.shelf && st.backup === '{"v":5,"name":"Аня",', 'копия с полки пропала или в запасе не то', st);
+    // копии нет: открывается «Боря», а заставка говорит, что «Аню» открыть не получилось; её строка — на полке
+    await ev((a) => {
+      window.__dev.G.state = null;
+      localStorage.removeItem('rhr-game-' + a);
+      localStorage.setItem('rhr-save-v1', '{"v":5,"name":"Аня",');
+    }, ids.a);
+    await page.reload();
+    await wait(600);
+    t = await sub();
+    expect(/С возвращением, Боря/.test(t) && /Аня.*не получилось открыть/.test(t), 'заставка молчит о нечитаемой игре', t);
+    st = await ev((a) => ({ shelf: localStorage.getItem('rhr-game-' + a), list: window.__dev.games.listGames().map((g) => g.name) }), ids.a);
+    expect(st.shelf === '{"v":5,"name":"Аня",' && st.list.join() === 'Боря', 'нечитаемая игра не отложена на полку', st);
+    await ev(() => {
+      window.__dev.G.state = null;
+      localStorage.clear();
+    });
+  });
 };

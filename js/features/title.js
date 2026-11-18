@@ -70,7 +70,7 @@ export function openTitle({ start }) {
   document.body.appendChild(t);
   t.addEventListener('pointerdown', unlockAudio, { passive: true });
 
-  let res = openActive(); // { ok, problem }: G.state — последняя игра (если она есть и читается)
+  let res = openActive(); // { ok, problem, lost, restored }: G.state — последняя игра (если она есть и читается)
   let scene = null,
     sceneKey = '';
   /** Свободное место для сцены: всё, что не под заголовком и не под кнопками. */
@@ -148,6 +148,20 @@ export function openTitle({ start }) {
       menu.dataset.mode = 'main';
       if (res.ok) {
         menu.appendChild(el('div', 'sub', `С возвращением, ${esc(G.state.name)}!`));
+        // открылась другая игра или копия — всё равно честно сказать, что с последней что-то не так
+        const lost = res.lost || [];
+        if (lost.length)
+          menu.appendChild(
+            el(
+              'div',
+              'sub',
+              `<small>${lost.length > 1 ? 'Игры' : 'Игру'} «${lost.map(esc).join('», «')}» не получилось открыть 😿<br>Мы ${lost.length > 1 ? 'их' : 'её'} не выбросили, а отложили про запас.</small>`,
+            ),
+          );
+        if (res.restored)
+          menu.appendChild(
+            el('div', 'sub', '<small>Игра открылась из запасной копии 💾 — что-то из последнего могло не сохраниться.</small>'),
+          );
         const b1 = el('button', 'btn big green', 'Продолжить ▶');
         b1.onclick = () => close(false);
         menu.appendChild(b1);
