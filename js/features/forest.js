@@ -9,98 +9,55 @@
 //                       FOREST.hunt.paid игр в день он платит монетами и даёт корзинку грибов по звёздам
 // Числа — FOREST в data/economy.js, сезоны — WILD_MONTHS в data/seasons.js. Каждое занятие шлёт событие forest
 // { what } — по нему считают задания. Состояние меняют только действия (core/actions.js); «раз в день» — отметки
-// дня (dayFlags.forest), утром сбрасываются сами.
-import { setFlag, setDayFlag, addItem, award } from '../core/actions.js';
+// дня (dayFlags.forest), утром сбрасываются сами. Разговор, венок, «нашлось» и действие места — набор тайных мест
+// (features/land_kit.js).
+import { setDayFlag, addItem, award } from '../core/actions.js';
 import { sfx } from '../core/audio.js';
 import { emit } from '../core/events.js';
-import { register } from '../core/registry.js';
 import { G, cal, darkness, count, questNow } from '../core/state.js';
-import { esc, pick, fmtMoney } from '../core/util.js';
+import { fmtMoney } from '../core/util.js';
 import { makeCanvas } from '../core/draw.js';
-import {
-  NPC_BY_ID,
-  npcLook,
-  FOREST,
-  ING_BY_ID,
-  DISH_BY_ID,
-  FIND_BY_ID,
-  QUEST_BY_ID,
-  wildIn,
-  DAYS_PER_MONTH,
-} from '../data/index.js';
-import { dialog } from '../ui/dialog.js';
+import { FOREST, ING_BY_ID, DISH_BY_ID, FIND_BY_ID, QUEST_BY_ID, wildIn, DAYS_PER_MONTH } from '../data/index.js';
 import { message, openPanel } from '../ui/panel.js';
 import { toast } from '../ui/toast.js';
-import { placeLine } from './tales.js';
-import { questTalk } from './quests.js';
 import { eat } from './cooking.js';
 import { prizeGame } from './minigames.js';
 import { paintTreeView } from './pictures_art.js';
+import { dayFlags, npcLine, landNpc, craftCount, landFind, landActs } from './land_kit.js';
 
 const S = () => G.state;
-const SHISHKIN = 'shishkin';
 
 /** Что сказать лесу под настроение: ночью — про ночь, вечером — про костёр, днём — про сезон. */
-export function shishkinLine() {
-  const place = placeLine(SHISHKIN); // вспомнить соседнее место, которое хомячок открыла (data/tales.js)
-  if (place) return place;
-  const L = NPC_BY_ID[SHISHKIN].lines,
-    m = S().minutes;
-  if (darkness() > 0.6 || m >= 22 * 60 || m < 5 * 60) return pick(L.night);
-  if (m >= 18 * 60) return pick(L.evening);
-  return pick(L[cal().season]);
-}
-
-const say = (text, options, happy = false) =>
-  dialog({ look: npcLook(SHISHKIN), name: NPC_BY_ID[SHISHKIN].name, text, options, happy });
+export const shishkinLine = npcLine('shishkin');
 
 /** Разговор с лесником: сначала задание из журнала (взять, как дела, сдать), потом — болтовня. */
-export async function talkShishkin() {
-  const s = S();
-  let text;
-  if (!s.flags.metShishkin) {
-    setFlag('metShishkin');
-    text = `Здравствуй, ${esc(s.name)}! Я лесник Шишкин. Мята писала, что ты придёшь! В лесу растут грибы и ягоды, у ручья — улей, на старом дубе живёт белка, а вечером у костра можно пожарить зефир. Будь как дома!`;
-  } else text = pick([`Привет, ${esc(s.name)}!`, 'А, это ты! Здравствуй!', 'Доброго дня, путешественница!']);
-  emit('talk', { id: SHISHKIN });
-  sfx('tap');
-  const qt = await questTalk(SHISHKIN);
-  if (qt && qt.end) return;
-  if (qt && qt.text) text = qt.text;
-  for (;;) {
-    const twigs = count('finds', 'fir_twig');
-    const opts = [
-      { text: '🍄 Грибная охота', cls: 'yellow', go: 'hunt' },
-      { text: '💬 Поболтать', cls: 'blue', go: 'chat' },
-    ];
-    if (twigs)
-      opts.push({ text: `🎄 Сплести венок (веточек ${twigs} из ${FOREST.wreath})`, cls: 'green', go: 'wreath' });
-    opts.push({ text: 'Пока!', go: 'bye' });
-    const i = await say(text, opts);
-    const go = (opts[i] || {}).go;
-    if (go === 'hunt') {
-      await mushroomHunt();
-      return;
-    }
-    if (go === 'chat') text = shishkinLine();
-    else if (go === 'wreath') {
-      if (twigs < FOREST.wreath) {
-        text = `Для венка нужно ${FOREST.wreath} еловые веточки, а у тебя ${twigs}. Поищи ещё под ёлками — зимой они там лежат!`;
-        continue;
-      }
-      addItem('finds', 'fir_twig', -FOREST.wreath);
-      addItem('storage', 'fir_wreath', 1);
-      sfx('win');
-      emit('forest', { what: 'wreath' });
-      text =
-        'Вот, держи еловый венок! Повесь дома на стену — будет пахнуть лесом и Новым годом 🎄 Он уже в кладовке: дома нажми 🔨.';
-    } else return;
-  }
-}
-register('forester', () => talkShishkin(), 'лесник Шишкин: разговор (житель леса и дверь его избушки)');
+export const { talk: talkShishkin } = landNpc({
+  id: 'shishkin',
+  act: 'forester',
+  desc: 'лесник Шишкин: разговор (житель леса и дверь его избушки)',
+  met: 'metShishkin',
+  hello: (name) =>
+    `Здравствуй, ${name}! Я лесник Шишкин. Мята писала, что ты придёшь! В лесу растут грибы и ягоды, у ручья — улей, на старом дубе живёт белка, а вечером у костра можно пожарить зефир. Будь как дома!`,
+  greet: (name) => [`Привет, ${name}!`, 'А, это ты! Здравствуй!', 'Доброго дня, путешественница!'],
+  line: shishkinLine,
+  top: [{ text: '🍄 Грибная охота', cls: 'yellow', fn: async () => (await mushroomHunt(), null) }],
+  after: [
+    // еловый венок из веточек
+    craftCount({
+      id: 'fir_twig',
+      need: FOREST.wreath,
+      title: '🎄 Сплести венок',
+      unit: 'веточек ',
+      lack: (n) => `Для венка нужно ${FOREST.wreath} еловые веточки, а у тебя ${n}. Поищи ещё под ёлками — зимой они там лежат!`,
+      give: ['storage', 'fir_wreath'],
+      event: ['forest', 'wreath'],
+      done: 'Вот, держи еловый венок! Повесь дома на стену — будет пахнуть лесом и Новым годом 🎄 Он уже в кладовке: дома нажми 🔨.',
+    }),
+  ],
+});
 
 // ---------- улей ----------
-const S2 = () => S().dayFlags.forest || {};
+const S2 = dayFlags('forest');
 const monthNow = () => Math.floor(S().day / DAYS_PER_MONTH) % 12;
 const done = (what) => !!S2()[what];
 /** Улей: раз в день баночка мёда — летом и осенью и только днём. */
@@ -131,12 +88,6 @@ export function visitHive() {
   emit('gather', { id: 'honey', n: FOREST.honey });
   return true;
 }
-register(
-  'forest',
-  (p) => FOREST_ACTS[p.arg] && FOREST_ACTS[p.arg](),
-  'лес: forest:hive | squirrel | fire | treehouse | kit',
-);
-
 // ---------- белка ----------
 /** Бельчонок из задания Шишкина найден и ещё не дома. */
 const kitCarried = () => {
@@ -312,22 +263,23 @@ export const mushroomHunt = () =>
 
 // ---------- бельчонок (задание «Потерянный бельчонок», data/quests.js) ----------
 /** Нашли бельчонка на грибной поляне (место kit видно, пока задание на первом шаге). */
-export async function findKit() {
-  emit('forest', { what: 'kit' });
-  sfx('win');
-  await message({
-    title: 'Бельчонок нашёлся!',
-    icon: '🐿️',
-    html: '<p class="center big-emoji">🐿️🍄</p><p class="center">Вот он, малыш! Сидит под грибом и пищит. Бельчонок запрыгнул к тебе в корзинку — неси его маме на старый дуб за мостиком!</p>',
-    buttons: [{ text: 'Идём к маме!' }],
-  });
-}
+export const findKit = landFind('forest', 'kit', {
+  title: 'Бельчонок нашёлся!',
+  icon: '🐿️',
+  pic: '🐿️🍄',
+  text: 'Вот он, малыш! Сидит под грибом и пищит. Бельчонок запрыгнул к тебе в корзинку — неси его маме на старый дуб за мостиком!',
+  btn: 'Идём к маме!',
+});
 
-const FOREST_ACTS = {
-  kit: findKit,
-  hunt: mushroomHunt,
-  hive: visitHive,
-  squirrel: visitSquirrel,
-  fire: visitFire,
-  treehouse: climbTreehouse,
-};
+landActs(
+  'forest',
+  {
+    kit: findKit,
+    hunt: mushroomHunt,
+    hive: visitHive,
+    squirrel: visitSquirrel,
+    fire: visitFire,
+    treehouse: climbTreehouse,
+  },
+  'лес: forest:hive | squirrel | fire | treehouse | kit',
+);
