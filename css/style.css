@@ -304,6 +304,10 @@ h4.sect .muted { font-size: 13px; }
   .mg-card p { margin: 4px 0; }
   .mg-card .panel.narrow { width: min(100%, 780px); } /* лёжа места вширь больше, чем ввысь */
 }
+/* маленький телефон стоя (iPhone SE): значок и название игры и так в шапке — место правилам и «Начать!» */
+@media (max-width: 520px) and (max-height: 700px) {
+  .mg-card .mg-icon { display: none; }
+}
 .stars { font-size: 46px; letter-spacing: 4px; }
 .stars .off { filter: grayscale(1); opacity: .3; }
 

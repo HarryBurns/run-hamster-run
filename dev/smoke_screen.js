@@ -1,6 +1,7 @@
 // Шаги автотеста этапа 20 «Проблемы на экране» (BACKLOG, В-пункты), где меняется поведение:
 //   В12 — на планшете стоя дом движка домов виден целиком, а большой дом (вилла, отель) — камера видит хомячка;
 //   В14 — кнопка места с морским путём на карте ведёт хомячка к кораблику на пирсе;
+//   В21, П7 — правила «Носильщицы» и «Кристаллов» на телефоне без прокрутки, карточки в ряд;
 //   Н3 — дом из кэша (engine/side/cache.js) без полосы пикселей у пола, которой нет при рисовании линиями.
 // Подключается из dev/smoke.js. Только эти шаги:  node dev/smoke.js <url> "step:экран"
 module.exports = async function screen({ page, step, ev, wait, closeAll }) {
@@ -209,5 +210,40 @@ module.exports = async function screen({ page, step, ev, wait, closeAll }) {
       if (r.share > 0.2) bad.push({ id, ...r });
     }
     expect(!bad.length, 'строка пикселей дома из кэша не как линиями', bad);
+  });
+
+  await step('экран В21, П7: правила «Носильщицы» и «Кристаллов» на телефоне стоя и лёжа — без прокрутки, «Начать!» на экране', async () => {
+    const size = page.viewportSize();
+    await fresh();
+    const bad = [];
+    try {
+      for (const [w, h] of [
+        [390, 844],
+        [844, 390],
+      ]) {
+        await page.setViewportSize({ width: w, height: h });
+        await wait(250);
+        for (const id of ['porter', 'crystals']) {
+          await ev((id) => {
+            window.__dev.F.playMinigame(id);
+          }, id);
+          await page.waitForSelector('.mg-card [data-act=start]', { timeout: 5000 });
+          await wait(300);
+          const r = await ev(() => {
+            const t = document.querySelector('.mg-card .mg-text'),
+              b = document.querySelector('.mg-card [data-act=start]').getBoundingClientRect(),
+              cols = [...document.querySelectorAll('.mg-card .pt-col, .mg-card .cr-col')].map((c) => Math.round(c.getBoundingClientRect().top));
+            return { scroll: t.scrollHeight - t.clientHeight, btn: Math.round(b.bottom), vh: innerHeight, row: new Set(cols).size === 1 };
+          });
+          if (r.scroll > 4 || r.btn > r.vh || !r.row) bad.push({ id, w, h, ...r });
+          await ev(() => document.querySelector('#mg .xbtn, #mg .mg-head button').click());
+          await wait(300);
+        }
+      }
+    } finally {
+      await page.setViewportSize(size);
+      await wait(300);
+    }
+    expect(!bad.length, 'правила мини-игры на телефоне не помещаются (или карточки не в ряд)', bad);
   });
 };

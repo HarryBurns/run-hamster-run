@@ -65,6 +65,25 @@ const CSS = `
 .pt-col small{display:block;font-size:12px;opacity:.75;line-height:1.2}
 .pt-top{position:absolute;left:0;right:0;top:0;display:flex;gap:8px;justify-content:center;padding:8px;pointer-events:none;z-index:2}
 .pt-chip{background:rgba(255,255,255,.92);border-radius:12px;padding:4px 12px;font-weight:900;font-size:16px;box-shadow:0 2px 0 rgba(74,55,40,.15)}
+.pt-col img{max-width:100%;height:auto}
+/* телефон стоя (П7, В21): три карточки в ряд, поуже, — а не столбиком на три экрана */
+@media (max-width:520px){
+.pt-rules{flex-wrap:nowrap;gap:6px}
+.pt-col{flex:1 1 0;min-width:0;padding:4px 4px;border-width:2.5px}
+.pt-col b{font-size:13px;line-height:1.2}
+.pt-col small{font-size:11px}
+.pt-col small br{display:none}
+}
+/* телефон лёжа (В21): картинка слева от подписи — карточки вдвое ниже, «Начать!» видно без прокрутки */
+@media (max-height:520px){
+.pt-rules{flex-wrap:nowrap;margin:2px 0 0;gap:8px}
+.pt-col{flex:1 1 0;min-width:0;max-width:250px;display:grid;grid-template-columns:auto 1fr;column-gap:6px;align-items:center;text-align:left;padding:3px 8px}
+.pt-col .row{grid-column:1;grid-row:1 / span 2}
+.pt-col .row img{width:42px;height:42px}
+.pt-col b{grid-column:2;font-size:14px;line-height:1.15}
+.pt-col small{grid-column:2;font-size:11.5px}
+.pt-col small br{display:none}
+}
 `;
 
 /** Кнопка лифта: круглая латунная с номером этажа (on — горит). */
@@ -87,14 +106,14 @@ export default {
   get howTo() {
     return `<style>${CSS}</style>Гости приехали! Развези чемоданы по номерам.
       <div class="pt-rules">
-        <div class="pt-col"><b>🏷️ Смотри на бирку</b><div class="row">${pic((c, size) => suitcase(c, size * 0.4, size * 0.9, size * 0.5, size * 0.55, '#ff8fab', '203'))}</div><small>на бирке — номер<br>комнаты</small></div>
+        <div class="pt-col"><b>🏷️ Смотри на бирку</b><div class="row">${pic((c, size) => suitcase(c, size * 0.4, size * 0.9, size * 0.5, size * 0.55, '#ff8fab', '203'))}</div><small>на бирке — номер <br>комнаты</small></div>
         <div class="pt-col lift"><b>🛗 Лифт</b><div class="row">${pic((c, size) => {
           fillRR(c, size * 0.3, size * 0.06, size * 0.4, size * 0.88, 8, '#adb5bd', OUT, 1.6);
           liftButton(c, size / 2, size * 0.28, size * 0.13, '3', false);
           liftButton(c, size / 2, size * 0.56, size * 0.13, '2', true, true);
           liftButton(c, size / 2, size * 0.82, size * 0.11, '1', false);
-        })}</div><small>на опытных сменах<br>этаж нажимаешь сама:<br>2 — второй этаж</small></div>
-        <div class="pt-col ok"><b>👆 Нажми на дверь</b><div class="row">${pic((c, size, s) => doorPic(c, size, s, '203', '#d0bfff'))}</div><small>с тем же номером:<br>2 — этаж, 03 — дверь</small></div>
+        })}</div><small>на опытных сменах <br>этаж нажимаешь сама: <br>2 — второй этаж</small></div>
+        <div class="pt-col ok"><b>👆 Нажми на дверь</b><div class="row">${pic((c, size, s) => doorPic(c, size, s, '203', '#d0bfff'))}</div><small>с тем же номером: <br>2 — этаж, 03 — дверь</small></div>
       </div>
       Чем меньше ошибок и чем быстрее — тем больше звёзд. Ошиблась — ничего страшного, подскажем!`;
   },

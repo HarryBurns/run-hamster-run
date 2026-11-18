@@ -84,6 +84,15 @@ const CSS = `
 .cr-col small{display:block;font-size:12px;opacity:.75;line-height:1.2}
 .cr-top{position:absolute;left:0;right:0;top:0;display:flex;gap:8px;justify-content:center;padding:8px;pointer-events:none;z-index:2}
 .cr-chip{background:rgba(255,255,255,.92);border-radius:12px;padding:4px 12px;font-weight:900;font-size:16px;box-shadow:0 2px 0 rgba(74,55,40,.15)}
+.cr-col img{display:block;margin:0 auto;max-width:100%;height:auto}
+/* телефон стоя (П7): три карточки в ряд, поуже, — а не столбиком */
+@media (max-width:520px){
+.cr-rules{flex-wrap:nowrap;gap:6px}
+.cr-col{flex:1 1 0;min-width:0;padding:4px 4px;border-width:2.5px}
+.cr-col b{font-size:13px;line-height:1.2}
+.cr-col small{font-size:11px}
+.cr-col small br{display:none}
+}
 `;
 
 export default {
@@ -100,7 +109,7 @@ export default {
           pickaxe(c, 30, 30, -0.5, 0.55);
           crystal(c, 86, 46, 34, 0.1, GEMS[0]);
           crystal(c, 100, 46, 24, 0.4, GEMS[1]);
-        })}<small>пальцем, мышкой,<br>пробелом или Enter</small></div>
+        })}<small>пальцем, мышкой, <br>пробелом или Enter</small></div>
       </div>
       Мимо — не страшно, просто «тук». ${STRIKES} ударов — добудь побольше!`;
   },
