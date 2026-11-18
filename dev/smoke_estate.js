@@ -6,35 +6,13 @@ const path = require('path');
 const SAVE_V2 = fs.readFileSync(path.join(__dirname, 'saves', 'v2.json'), 'utf8'); // до жилья и бизнеса (этап 3)
 const SAVE_V3 = fs.readFileSync(path.join(__dirname, 'saves', 'v3.json'), 'utf8'); // с домами и заведениями (этап 4)
 
-module.exports = async function estate({ page, step, ev, wait, closeAll }) {
-  const state = () => ev(() => JSON.parse(JSON.stringify(window.__dev.G.state)));
-  const norm = (t) => t.replace(/[  ]/g, ' ');
-  const text = async (sel) => norm(await page.locator(sel).first().innerText());
-  const toasts = async () =>
-    norm(await ev(() => (document.querySelector('#toasts') || { textContent: '' }).textContent));
-  const expect = (ok, msg, data) => {
-    if (!ok) throw new Error(msg + (data === undefined ? '' : ': ' + JSON.stringify(data)));
-  };
-  const scene = () => ev(() => window.__dev.sceneName);
+const lib = require('./lib.js');
+
+module.exports = async function estate(ctx) {
+  const L = lib(ctx);
+  const { page, step, ev, wait, closeAll, norm, expect, state, toasts, clearToasts, text, scene, enter, run, press, putSave, until, untilScene, untilPanel, frames, cont, sel } = L;
   const setTime = (h) => ev((m) => window.__dev.actions.mutate((s) => (s.minutes = m)), Math.round(h * 60));
   const setMoney = (n) => ev((n) => window.__dev.actions.mutate((s) => (s.money = n)), n);
-  const clearToasts = () =>
-    ev(() => {
-      const t = document.querySelector('#toasts');
-      if (t) t.innerHTML = '';
-    });
-  const enter = async (id) => {
-    await ev((id) => {
-      window.__dev.enterBuilding(id);
-    }, id);
-    await wait(450);
-  };
-  const run = async (act) => {
-    await ev((act) => {
-      window.__dev.run(act);
-    }, act);
-    await wait(450);
-  };
   const lastOv = () => page.locator('.overlay').last();
   /** Место у двери здания в городе (туда выводит дверь дома, в который вошли через это здание). */
   const doorOf = (id) => ev((id) => window.__dev.World.doorOf(id), id);
@@ -49,7 +27,7 @@ module.exports = async function estate({ page, step, ev, wait, closeAll }) {
       d.World.p.x = p.x;
       d.World.p.y = p.y + 30;
     }, id);
-    await wait(250);
+    await frames(2);
   };
   /** Выйти из дома через его дверь (хозяина, если он есть, отодвинуть). */
   const leaveByDoor = async () => {
@@ -65,46 +43,31 @@ module.exports = async function estate({ page, step, ev, wait, closeAll }) {
       sc.p.f = door.f;
       sc.p.x = door.x;
     });
-    await page.keyboard.press('KeyE');
-    await wait(450);
+    await press('KeyE');
   };
   const outAt = async (id, msg) => {
     const at = await doorOf(id),
       out = await ev(() => ({ scene: window.__dev.sceneName, ...window.__dev.World.playerPos() }));
     expect(out.scene === 'world' && Math.abs(out.x - at.x) < 2 && Math.abs(out.y - at.y) < 2, msg, [out, at]);
   };
-  const putSave = async (raw) => {
-    await ev((raw) => {
-      window.__dev.G.state = null;
-      localStorage.removeItem('rhr-save-backup');
-      localStorage.setItem('rhr-save-v1', raw);
-    }, raw);
-    await page.reload();
-    await wait(500);
-  };
-  const newGame = async () => {
-    await ev(() => {
-      window.__dev.G.state = null;
-      localStorage.clear();
-    });
-    await page.reload();
-    await wait(400);
-    await page.click('text=Играть!');
-    await page.click('text=Пропустить'); // вступительная сценка новой игры (этап 10)
-    await page.evaluate(() => window.__dev.oldStart()); // как до этапа 10: 1 января, без вводной цепочки (начало игры — dev/smoke_start.js)
-    await wait(400);
-    await page.click('text=Поехали!');
-    await wait(500);
-  };
+  // новая игра — 1 июня, без вводной цепочки заданий
+  const newGame = () => L.fresh();
   /** Лечь спать по-настоящему (кровать → вопрос → ночь → утро). */
   const sleep = async () => {
     await ev(() => {
       window.__dev.evening(); // спать можно только вечером, с 19:00 (этап 18)
       window.__dev.F.askSleep();
     });
-    await wait(400);
-    await page.click('.panel-foot .btn.green');
-    await wait(3600);
+    await L.confirmSleep();
+  };
+  /** Своя игра с пятью заведениями (кафе — «Кафе «Пуговка»») — для шагов бизнеса, без опоры на прошлые шаги. */
+  const bizGame = async () => {
+    await newGame();
+    await ev(() => {
+      const d = window.__dev;
+      for (const id of ['cafe', 'beachcafe', 'salon', 'boutique', 'rest']) d.actions.addBiz(id);
+      d.actions.setBizOpt('cafe', 'title', 'Кафе «Пуговка»');
+    });
   };
   /** Поставить хомячка в доме (этаж, x), хозяина отодвинуть в угол и нажать E — «потрогать то, что рядом». */
   const touch = async (itemId, n = 0) => {
@@ -126,8 +89,7 @@ module.exports = async function estate({ page, step, ev, wait, closeAll }) {
       [itemId, n],
     );
     if (!ok) throw new Error('в доме нет предмета ' + itemId);
-    await page.keyboard.press('KeyE');
-    await wait(350);
+    await press('KeyE');
   };
 
   const NPC = [
@@ -771,6 +733,9 @@ module.exports = async function estate({ page, step, ev, wait, closeAll }) {
     expect(s.villa.length > 20 && Object.keys(s.homes).length === 4, 'мебель домов', Object.keys(s.homes));
   });
   await step('жильё: «Мои дома», основной дом, «Домой», пентхаус из лифта башни, гости, перезагрузка', async () => {
+    // своя игра со всеми четырьмя домами (не опираться на покупки прошлого шага)
+    await newGame();
+    await ev((ids) => ids.forEach((id) => window.__dev.actions.addHome(id)), HOMES.map((h) => h[0]));
     // «Мои дома» — из меню
     await ev(() => {
       window.__dev.F.openSettings();
@@ -855,8 +820,7 @@ module.exports = async function estate({ page, step, ev, wait, closeAll }) {
     await ev(() => window.dispatchEvent(new Event('pagehide')));
     await page.reload();
     await wait(500);
-    await page.click('text=Продолжить');
-    await wait(700);
+    await cont();
     expect((await scene()) === 'bungalow', 'после перезагрузки не в своём доме', await scene());
     await ev(() => {
       window.__dev.scene.p.x = 100;
@@ -1096,6 +1060,7 @@ module.exports = async function estate({ page, step, ev, wait, closeAll }) {
     await ev(() => window.__dev.actions.setBizOpt('cafe', 'title', 'Кафе «Пуговка»'));
   });
   await step('бизнес: выручка на следующий день, утреннее напоминание, касса, «Мои заведения», банк', async () => {
+    await bizGame();
     await ev(() => window.__dev.go('villa'));
     const day = (await state()).day;
     await clearToasts();
@@ -1165,6 +1130,8 @@ module.exports = async function estate({ page, step, ev, wait, closeAll }) {
     await closeAll();
   });
   await step('бизнес: работа хозяйки — шеф-повар в своём ресторане, блюдо дня, выручка больше', async () => {
+    await bizGame(); // своя игра с заведениями (новая игра перезагружает страницу — подмену игры ставим после)
+    await ev(() => window.__dev.actions.mutate((s) => (s.biz.rest.till = 3500))); // в кассе ресторана — выручка за день
     // «Шеф-повар» заканчивается сам на три звезды (подменяем только ход игры)
     await ev(async () => {
       const mod = (await import('./js/minigames/chef.js')).default;
@@ -1455,8 +1422,7 @@ module.exports = async function estate({ page, step, ev, wait, closeAll }) {
   await step('перенос сохранения v2 → v3: новые поля, деньги и вещи на месте, копия', async () => {
     const old = JSON.parse(SAVE_V2);
     await putSave(SAVE_V2);
-    await page.click('text=Продолжить');
-    await wait(900);
+    await cont();
     const s = await state();
     expect(s.v === 5 && s.money === old.money && s.earned === old.earned, 'версия и деньги', [s.v, s.money]);
     expect(
@@ -1502,8 +1468,7 @@ module.exports = async function estate({ page, step, ev, wait, closeAll }) {
   await step('образец: сохранение v3', async () => {
     const want = JSON.parse(SAVE_V3);
     await putSave(SAVE_V3);
-    await page.click('text=Продолжить');
-    await wait(900);
+    await cont();
     const s = await state();
     expect(s.v === 5 && s.name === want.name && s.money === want.money, 'образец v3', [s.v, s.money]);
     for (const k of ['homesOwned', 'homeMain', 'guestsAt', 'biz', 'visits', 'homes'])
@@ -1541,8 +1506,7 @@ module.exports = async function estate({ page, step, ev, wait, closeAll }) {
     bad.biz.cafe.till = 'много';
     bad.visits.nobody = 3;
     await putSave(JSON.stringify(bad));
-    await page.click('text=Продолжить');
-    await wait(900);
+    await cont();
     const q = await state();
     expect(
       !q.homesOwned.includes('castle') &&
