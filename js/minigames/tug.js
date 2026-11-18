@@ -12,6 +12,7 @@
 // тянуть в ритм всё равно надо — без нажатий не выиграть даже с лучшими друзьями.
 import { el, clamp } from '../core/util.js';
 import { ell, poly, fillRR, line, star } from '../core/draw.js';
+import { pic as kitPic } from './kit.js';
 
 const OUT = '#4a3728';
 const ROUNDS = 3;
@@ -29,17 +30,7 @@ export const HELP = { per: 0.025, max: 0.35 };
 export const teamHelp = (team) => Math.min(HELP.max, (team || []).reduce((a, f) => a + (f.hearts || 0), 0) * HELP.per);
 
 /** Маленькая картинка для правил (data: URL). */
-function pic(draw, w = 110, h = 70) {
-  const c = document.createElement('canvas');
-  c.width = w * 2;
-  c.height = h * 2;
-  const x = c.getContext('2d');
-  x.scale(2, 2);
-  x.lineJoin = 'round';
-  x.lineCap = 'round';
-  draw(x, w, h);
-  return `<img src="${c.toDataURL()}" width="${w}" height="${h}" alt="">`;
-}
+const pic = (draw, w = 110, h = 70) => kitPic(draw, w, h, { cap: true });
 /** Кружок ритма: k — насколько наполнен (0..1), full — «Тяни!». */
 function meter(ctx, x, y, r, k, full) {
   ell(ctx, x, y, r, r, '#fff', OUT, 2.4);
@@ -77,8 +68,9 @@ export default {
   id: 'tug',
   title: 'Перетягивание каната',
   icon: '🪢',
+  css: CSS,
   get howTo() {
-    return `<style>${CSS}</style>Масленичная забава! Перетяни ленточку на свою сторону.
+    return `Масленичная забава! Перетяни ленточку на свою сторону.
       <div class="tg-rules">
         <div class="tg-col"><b>1 · Жди</b>${pic((c, w, h) => {
           meter(c, w / 2, h / 2, 24, 0.55, false);
@@ -100,22 +92,17 @@ export default {
       ${ROUNDS} раунда. Нажимай пальцем, мышкой, пробелом или стрелкой ⬅️. Проиграть не страшно — все просто упадут в снег! ⛄`;
   },
   start(host) {
-    const root = host.root;
-    const style = el('style', '', CSS);
     const top = el('div', 'tg-top');
     const tRound = el('div', 'tg-chip'),
       tScore = el('div', 'tg-chip'),
       tHelp = el('div', 'tg-chip'),
       tSay = el('div', 'tg-chip');
     top.append(tRound, tScore, tHelp, tSay);
-    root.append(style, top);
+    host.root.append(top);
     const cv = host.canvas();
     const ctx = cv.ctx;
     const level = Math.min(1, (host.level || 0) * 0.25);
     let t = 0,
-      last = performance.now(),
-      raf = 0,
-      stopped = false,
       over = false,
       round = 0,
       phase = 'go', // go → fall (раунд окончен: кто-то в снегу) → go …
@@ -190,9 +177,8 @@ export default {
       if (round >= ROUNDS) {
         over = true;
         const stars = wins >= 3 ? 3 : wins >= 2 ? 2 : 1;
-        setTimeout(
+        host.later(
           () =>
-            !stopped &&
             host.finish({
               stars,
               text: `Выиграно раундов: <b>${wins}</b> из ${ROUNDS}.${help > 0 ? ` 💞 Друзья помогали: рывок сильнее на ${Math.round(help * 100)}%.` : ''} ${stars === 3 ? 'Самая сильная команда на ярмарке!' : stars === 2 ? 'Отличная команда!' : 'Было весело — и все в снегу! В следующий раз получится ещё лучше.'}`,
@@ -354,40 +340,27 @@ export default {
       }
     }
 
-    const loop = (now) => {
-      if (stopped) return;
-      const dt = Math.min(0.05, (now - last) / 1000);
-      last = now;
+    host.loop((dt) => {
       if (!over) update(dt);
       else phaseT += dt;
       draw();
       chips();
-      raf = requestAnimationFrame(loop);
-    };
-    raf = requestAnimationFrame(loop);
+    });
 
     const pd = (e) => {
       e.preventDefault();
       tap();
     };
-    cv.canvas.addEventListener('pointerdown', pd);
+    host.on(cv.canvas, 'pointerdown', pd);
     const key = (e) => {
       if (e.code === 'Space' || e.code === 'Enter' || e.code === 'ArrowLeft') {
         e.preventDefault();
         tap();
       }
     };
-    window.addEventListener('keydown', key);
+    host.on(window, 'keydown', key);
     // для автотеста: что сейчас в игре
     cv.canvas.__tug = () => ({ round, phase, p, fill, full: fill >= FULL, wins, lost, over, strong, taps, help, team: crew.map((f) => f.hearts || 0) });
     cv.canvas.classList.add('tg-canvas');
-    return {
-      stop() {
-        stopped = true;
-        cancelAnimationFrame(raf);
-        window.removeEventListener('keydown', key);
-        cv.destroy();
-      },
-    };
   },
 };
