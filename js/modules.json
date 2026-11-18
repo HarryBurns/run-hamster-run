@@ -97,6 +97,7 @@
 "js/features/intro.js",
 "js/features/island.js",
 "js/features/jungle.js",
+"js/features/land_kit.js",
 "js/features/mail.js",
 "js/features/map.js",
 "js/features/market.js",
