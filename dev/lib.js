@@ -106,6 +106,44 @@ function lib(ctx) {
       { timeout, msg: 'хомячок дошёл' },
     );
 
+  /** Снимок «что на экране»: сцена, число окон/диалогов/мини-игр, число подсказок — для settle. */
+  const snapshot = () =>
+    ev(() => ({
+      scene: window.__dev.sceneName,
+      ui: document.querySelectorAll('.overlay, .dialog, #mg').length,
+      t: (document.querySelector('#toasts') || { children: [] }).children.length,
+    }));
+  /**
+   * Дождаться отклика игры после снимка b: сменилась сцена, открылось или закрылось окно (диалог, мини-игра),
+   * появилась подсказка — или прошло timeout мс (тогда молча дальше). Если на экране диалог — ещё 380 мс:
+   * раньше его кнопки нажатий не принимают.
+   */
+  const settle = async (b, timeout = 1500) => {
+    await until(
+      (b) =>
+        window.__dev.sceneName !== b.scene ||
+        document.querySelectorAll('.overlay, .dialog, #mg').length !== b.ui ||
+        (document.querySelector('#toasts') || { children: [] }).children.length > b.t,
+      b,
+      { timeout },
+    ).catch(() => {});
+    await frames(2);
+    if (await ev(() => !!document.querySelector('.dialog'))) await wait(380);
+  };
+  /** Выполнить fn(arg) в странице и дождаться отклика (settle). Возвращает то, что вернула fn. */
+  const react = async (fn, arg, timeout) => {
+    const b = await snapshot();
+    const r = await ev(fn, arg);
+    await settle(b, timeout);
+    return r;
+  };
+  /** Нажать клавишу (по умолчанию E) и дождаться отклика. */
+  const press = async (key = 'KeyE', timeout) => {
+    const b = await snapshot();
+    await page.keyboard.press(key);
+    await settle(b, timeout);
+  };
+
   /** Нажать кнопку с меткой data-act (по умолчанию ждёт её появления). */
   const act = (name, scope) => page.click(sel(name, scope));
   const hasAct = (name, scope) => ev((s) => !!document.querySelector(s), sel(name, scope));
@@ -229,14 +267,18 @@ function lib(ctx) {
     }, [tx, ty]);
     await frames(2);
   };
-  /** Войти в здание города по id (enterBuilding) и дождаться сцены, если она известна. */
-  const enter = async (id, sceneName) => {
-    await ev((id) => window.__dev.enterBuilding(id), id);
-    if (sceneName) await untilScene(sceneName);
-    else await wait(300);
-  };
-  /** Выполнить действие из реестра (__dev.run). */
-  const run = (a, arg) => ev(([a, arg]) => window.__dev.run(a, arg), [a, arg]);
+  /** Войти в здание города по id (enterBuilding) и дождаться отклика: сцена дома, окно, диалог или подсказка. */
+  const enter = (id, timeout) => react((id) => window.__dev.enterBuilding(id), id, timeout);
+  /** Выполнить действие из реестра (__dev.run) и дождаться отклика. Само действие не ждём (окно ждёт ответа). */
+  const run = (a, timeout) =>
+    react(
+      (a) => {
+        window.__runRes = 'ждём';
+        Promise.resolve(window.__dev.run(a)).then((r) => (window.__runRes = r));
+      },
+      a,
+      timeout,
+    );
 
   /** Вечер (__dev.evening): часы не раньше m (по умолчанию 19:00 — можно спать). */
   const evening = (m) => ev((m) => window.__dev.evening(m === null ? undefined : m), m === undefined ? null : m);
@@ -314,6 +356,10 @@ function lib(ctx) {
     answer,
     untilNoWindows,
     untilIdle,
+    snapshot,
+    settle,
+    react,
+    press,
     act,
     hasAct,
     closeAll,
