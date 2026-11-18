@@ -373,6 +373,7 @@ export function createSideScene(desc) {
   }
   /** Клавиша E: потрогать то, что ближе всего на этом этаже. */
   function interact() {
+    if (sc.decor.on) return; // в режиме «Обустроить» мебелью не пользуемся
     const p = sc.p;
     let best = null,
       bd = 90;

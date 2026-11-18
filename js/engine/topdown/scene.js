@@ -601,7 +601,7 @@ export function createTopDownScene(desc) {
       for (const part of parts)
         if (part.near) {
           const c = part.near(sc);
-          if (c) {
+          if (c && c.d < bd) {
             bd = c.d;
             best = c.pending;
           }
