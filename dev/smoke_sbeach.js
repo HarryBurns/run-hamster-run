@@ -5,45 +5,12 @@
 // вечером, клад; «Замок из песка» до конца с призом; задание Жемчужинки «Замок для русалочки»; сохранение и загрузка
 // на пляже, «Домой». Состояние меняют только действия.
 // Подключается из dev/smoke.js. Только эти шаги:  node dev/smoke.js <url> "step:секретный пляж"
-const { MG_START } = require('./selectors.js'); // кнопка «Начать!» мини-игры — по метке, а не по тексту
-module.exports = async function sbeach({ page, step, ev, wait, closeAll }) {
-  const T = 48;
-  const norm = (t) => t.replace(/[  ]/g, ' ');
-  const expect = (ok, msg, data) => {
-    if (!ok) throw new Error(msg + (data === undefined ? '' : ': ' + JSON.stringify(data)));
-  };
-  const state = () => ev(() => JSON.parse(JSON.stringify(window.__dev.G.state)));
-  const panelText = async () =>
-    norm(await ev(() => [...document.querySelectorAll('.overlay .panel')].map((p) => p.textContent).join(' | ')));
-  const dialogText = async () => norm(await ev(() => (document.querySelector('.dialog .say') || {}).textContent || ''));
-  const toasts = async () => norm(await ev(() => (document.querySelector('#toasts') || { textContent: '' }).textContent));
-  const clearToasts = () =>
-    ev(() => {
-      const t = document.querySelector('#toasts');
-      if (t) t.innerHTML = '';
-    });
-  const where = () =>
-    ev(() => {
-      const d = window.__dev,
-        sc = d.locations[d.sceneName];
-      return { scene: d.sceneName, x: sc ? sc.p.x : null, y: sc ? sc.p.y : null };
-    });
-  const near = (a, b, r = 20) => Math.abs(a.x - b.x) < r && Math.abs(a.y - b.y) < r;
-  const fresh = async () => {
-    await ev(() => {
-      window.__dev.G.state = null;
-      localStorage.clear();
-    });
-    await page.reload();
-    await wait(400);
-    await page.click('text=Играть!');
-    await page.click('text=Пропустить'); // вступительная сценка новой игры (этап 10)
-    await page.evaluate(() => window.__dev.oldStart()); // как до этапа 10: 1 января, без вводной цепочки (начало игры — dev/smoke_start.js)
-    await wait(400);
-    await page.click('text=Поехали!');
-    await wait(500);
-    await closeAll();
-  };
+const lib = require('./lib.js');
+
+module.exports = async function sbeach(ctx) {
+  const L = lib(ctx);
+  const { page, step, ev, wait, closeAll, until, untilScene, untilPanel, frames, sel, T, norm, expect, near, state, dialogText, panelText, toasts, clearToasts, where, watch, unwatch, MG_START, tap, mgGo, mgDone, mgClose } = L;
+  const fresh = () => L.fresh(); // 1 июня, без вводной цепочки
   /** На секретный пляж (открыв лес и пляж действием openLand); день 18 — лето. */
   const toCove = async (tx = 14, ty = 12, minutes = 12 * 60, day = 18) => {
     await closeAll();
@@ -63,26 +30,15 @@ module.exports = async function sbeach({ page, step, ev, wait, closeAll }) {
       },
       [tx, ty, minutes, day],
     );
-    await wait(300);
+    await untilScene('cove');
+    await frames(2);
   };
   /** Поговорить с Жемчужинкой; если она предлагает задание — «Потом». */
   const talkP = async () => {
-    await ev(() => {
-      window.__dev.run('mermaid');
-    });
-    await wait(500);
+    await L.run('mermaid', 500);
     if (await ev(() => !!document.querySelector('.dialog') && /Помогу/.test(document.querySelector('.dialog').textContent))) {
-      await page.click('.dialog .btn >> text=Потом');
-      await wait(450);
+      await tap('.dialog .btn >> text=Потом', 450);
     }
-  };
-  const watch = () =>
-    ev(() => {
-      window.__stopWatchCove = window.__dev.watchState();
-    });
-  const unwatch = async () => {
-    const bad = await ev(() => window.__stopWatchCove());
-    expect(!bad.length, `запись в состояние мимо действий (${bad.length})`, [...new Set(bad)].slice(0, 4));
   };
   const now = (id) => ev((id) => window.__dev.QuestState.questNow(id), id);
 
@@ -99,26 +55,22 @@ module.exports = async function sbeach({ page, step, ev, wait, closeAll }) {
       d.go('world');
       d.World.debugTeleport(89, 76);
     });
-    await wait(400);
+    await until(() => /Зефирка/.test(document.querySelector('#toasts').textContent), undefined, { timeout: 3000 }).catch(() => {});
     // буёк-ракушка: нырнуть — окно с замочком про Зефирку; хомячок остался в городе
     expect(/Зефирка/.test(await toasts()), 'у буйка нет подсказки', await toasts());
-    await ev(() => window.__dev.World.dive());
-    await wait(500);
+    await L.react(() => {
+      window.__dev.World.dive();
+    }, undefined, 1000);
     let t = await panelText();
     expect(/Секретный пляж/.test(t) && /Зефирк/.test(t), 'окно у закрытого грота', t);
     await closeAll();
     expect((await where()).scene === 'world', 'закрытый грот увёл с моря');
     await watch();
     expect((await ev(() => window.__dev.QuestState.questBadge('zefirka'))) === '!', 'над Зефиркой нет «!»');
-    await ev(() => {
-      window.__dev.run('npc:zefirka');
-    });
-    await wait(500);
+    await L.run('npc:zefirka', 500);
     expect(/карт/.test(await dialogText()), 'Зефирка не предлагает задание', await dialogText());
-    await page.click('.dialog .btn.green');
-    await wait(400);
-    await page.click('.dialog .btn.green');
-    await wait(400);
+    await tap('.dialog .btn.green', 400);
+    await tap('.dialog .btn.green', 400);
     let w = await now('treasure_map');
     expect(w.status === 'active' && w.i === 0, 'задание не взято', w);
     // звёздочка — к Хомяк-Тауэру
@@ -130,7 +82,8 @@ module.exports = async function sbeach({ page, step, ev, wait, closeAll }) {
       window.__dev.go('tower');
       window.__dev.Tower.openSeaScope();
     });
-    await wait(600);
+    await untilPanel();
+    await frames(2);
     expect(/чайка/.test(await panelText()), 'в трубе нет чайки', await panelText());
     const gull = await ev(() => {
       const c = document.querySelector('.overlay .panel canvas'),
@@ -139,7 +92,8 @@ module.exports = async function sbeach({ page, step, ev, wait, closeAll }) {
       return { x: r.left + ((G[0] + 6) / 320) * r.width, y: r.top + ((G[1] - 10) / 320) * r.height };
     });
     await page.mouse.click(gull.x, gull.y);
-    await wait(700);
+    await until(() => window.__dev.QuestState.questNow('treasure_map').steps[0].ok, undefined, { timeout: 3000 }).catch(() => {});
+    await frames(2);
     t = await panelText();
     expect(/Кусочек карты/.test(t) && /1 из 3/.test(t) && (await ev(() => !!document.querySelector('img.treasure-map'))), 'кусочек у чайки', t);
     await closeAll();
@@ -147,7 +101,8 @@ module.exports = async function sbeach({ page, step, ev, wait, closeAll }) {
     expect(w.steps[0].ok, 'кусочек у чайки не засчитан', w);
     // в трубе чайки больше нет
     await ev(() => window.__dev.Tower.openSeaScope());
-    await wait(400);
+    await untilPanel();
+    await frames(2);
     expect(!/чайка/.test(await panelText()), 'чайка не улетела');
     await closeAll();
     // (б) нырнуть — сундучок у затонувшего корабля
@@ -157,11 +112,12 @@ module.exports = async function sbeach({ page, step, ev, wait, closeAll }) {
       d.World.debugTeleport(29, 63);
       d.World.dive();
     });
-    await wait(600);
+    await L.untilArrive('dive', 4000).catch(() => {});
+    await frames(2);
     const chest = await ev(() => window.__dev.scenes.dive.debugMapChest());
     expect((await ev(() => window.__dev.sceneName)) === 'dive' && chest.on, 'на дне нет сундучка', chest);
     await ev((c) => window.__dev.scenes.dive.debugSwim(c.x + 30, c.y - 30), chest);
-    await wait(800);
+    await until(() => /Кусочек карты/.test([...document.querySelectorAll('.overlay .panel')].map((p) => p.textContent).join(' ')), undefined, { timeout: 4000 }).catch(() => {});
     t = await panelText();
     expect(/Кусочек карты/.test(t) && /2 из 3/.test(t), 'кусочек в сундучке', t);
     await closeAll();
@@ -172,7 +128,8 @@ module.exports = async function sbeach({ page, step, ev, wait, closeAll }) {
       d.go('world');
       d.World.debugTeleport(12, 80);
     });
-    await wait(500);
+    await L.untilArrive('world', 4000).catch(() => {});
+    await frames(3);
     const k = await ev(() => window.__dev.World.debugScreen(11.5 * 48, 78.5 * 48));
     await page.mouse.click(k.x, k.y);
     await page.waitForSelector('text=Карта сложилась', { timeout: 6000 });
@@ -183,14 +140,9 @@ module.exports = async function sbeach({ page, step, ev, wait, closeAll }) {
     expect(w.i === 3 && (await ev(() => window.__dev.QuestState.questBadge('zefirka'))) === '?', 'после трёх кусочков — к Зефирке «?»', w);
     // сдать
     const s0 = await state();
-    await ev(() => {
-      window.__dev.run('npc:zefirka');
-    });
-    await wait(500);
-    await page.click('.dialog .btn.green');
-    await wait(500);
-    await page.click('.dialog .btn.green');
-    await wait(1500);
+    await L.run('npc:zefirka', 500);
+    await tap('.dialog .btn.green', 500);
+    await tap('.dialog .btn.green', 1500);
     t = await panelText();
     expect(/Задание выполнено/.test(t) && /Охотница за сокровищами/.test(t) && /Секретный пляж открыт/.test(t), 'праздничное окно', t);
     await closeAll();
@@ -208,12 +160,13 @@ module.exports = async function sbeach({ page, step, ev, wait, closeAll }) {
       d.actions.patchState('boat', { x: g.x - 30, y: g.y + 20, on: true });
       d.go('world', { pos: { scene: 'world', x: g.x - 30, y: g.y + 20 } });
     });
-    await wait(400);
+    await until(() => window.__dev.sceneName === 'world' && window.__dev.World.isBoating(), undefined, { timeout: 3000 }).catch(() => {});
     expect(await ev(() => window.__dev.World.isBoating()), 'не на кораблике');
     await ev(() => window.__dev.World.dive());
-    await wait(1200);
+    await until(() => !!document.querySelector('.grotto-ride canvas'), undefined, { timeout: 4000 }).catch(() => {});
     expect(await ev(() => !!document.querySelector('.grotto-ride canvas')), 'нет картинки заплыва');
-    await wait(2600);
+    await L.untilArrive('cove').catch(() => {});
+    await frames(2);
     const r = await where();
     expect(r.scene === 'cove' && near(r, { x: 6.5 * T, y: 5.7 * T }, 30), 'приплыли не к гроту на пляже', r);
     s = await state();
@@ -253,21 +206,20 @@ module.exports = async function sbeach({ page, step, ev, wait, closeAll }) {
       return { out, pearl: [n.x, n.y] };
     });
     expect(!r.out.length, 'на пляже не всё достижимо', r.out);
-    await wait(3000);
+    await wait(1500); // житель на камне не гуляет — проверяем, что не ушла
     const p2 = await ev(() => [window.__dev.locations.cove.npcs[0].x, window.__dev.locations.cove.npcs[0].y]);
     expect(p2[0] === r.pearl[0] && p2[1] === r.pearl[1], 'Жемчужинка ушла с камня', [r.pearl, p2]);
     await ev(() => {
       window.__dev.F.openMap();
     });
-    await wait(500);
+    await untilPanel();
     const t = await panelText();
     expect(
       /Карта секретного пляжа/.test(t) && /Грот/.test(t) && /Замок из песка/.test(t) && /Гнездо черепашат/.test(t) && /Клад/.test(t) && /Камень Жемчужинки/.test(t),
       'карта пляжа',
       t,
     );
-    await page.click('.overlay .opt >> text=Замок из песка');
-    await wait(400);
+    await tap('.overlay .opt >> text=Замок из песка', 400);
     expect(await ev(() => window.__dev.locations.cove.p.path.length > 0), 'по кнопке карты не пошли');
     await closeAll();
     for (const minutes of [12 * 60, 6 * 60, 23 * 60])
@@ -308,14 +260,15 @@ module.exports = async function sbeach({ page, step, ev, wait, closeAll }) {
       });
       return { dry: sc.dry(), cold: sc.cold(), layer: (sc.weather || []).length };
     });
-    await wait(800);
-    await closeAll(); // новый сезон — окно «Пришла зима»
+    // новый сезон — окно «Пришла зима»
+    await until(() => window.__dev.G.modal, undefined, { timeout: 1500 }).catch(() => {});
+    await L.drain();
     await ev(() => {
       const sc = window.__dev.locations.cove;
       sc.debugTeleport(9, 15);
       sc.walkTo(9.5 * 48, 19.5 * 48, true);
     });
-    await wait(2500);
+    await until(() => ['clag', 'cdeep'].includes(window.__dev.locations.cove.p.surf), undefined, { timeout: 5000 }).catch(() => {});
     let s = await state();
     expect(await ev(() => ['clag', 'cdeep'].includes(window.__dev.locations.cove.p.surf)), 'зимой не зашли в воду');
     expect(wx.dry && wx.cold === false && !wx.layer && !(s.dayFlags.careless && s.dayFlags.careless.sea), 'тёплая вода и погода в бухте', [wx, s.dayFlags]);
@@ -326,8 +279,9 @@ module.exports = async function sbeach({ page, step, ev, wait, closeAll }) {
         st.minutes = 23 * 60;
       }),
     );
-    await wait(800);
-    await closeAll(); // снова лето — окно смены сезона
+    // снова лето — окно смены сезона
+    await until(() => window.__dev.G.modal, undefined, { timeout: 1500 }).catch(() => {});
+    await L.drain();
     await ev(() => {
       const d = window.__dev,
         sc = d.locations.cove;
@@ -340,7 +294,7 @@ module.exports = async function sbeach({ page, step, ev, wait, closeAll }) {
       sc.debugTeleport(14, 15);
       window.__glowWalk = [sc.walkTo(14.5 * 48, 19.5 * 48, true), d.G.modal];
     });
-    await wait(3500);
+    await until(() => window.__dev.G.state.stickers.includes('x_glow') && /Светящееся море|светится/.test(document.querySelector('#toasts').textContent), undefined, { timeout: 6000 }).catch(() => {});
     s = await state();
     const dbg = await ev(async () => {
       const sc = window.__dev.locations.cove,
@@ -376,7 +330,7 @@ module.exports = async function sbeach({ page, step, ev, wait, closeAll }) {
     const got = per.here.map((q) => q[2]);
     expect(got.every((id) => s.finds[id] >= 1) && Object.keys(s.dayFlags.finds || {}).length === 2, 'ракушки не подобраны', [s.finds, s.dayFlags.finds]);
     await ev(() => window.__dev.locations.cove.debugTeleport(14, 12));
-    await wait(200);
+    await frames(3);
     await ev(([x, y]) => window.__dev.locations.cove.debugTeleport(x, y), per.here[0]);
     await wait(350);
     const s2 = await state();
@@ -389,8 +343,7 @@ module.exports = async function sbeach({ page, step, ev, wait, closeAll }) {
       window.__dev.locations.cove.debugTeleport(19, 15);
     });
     await talkP();
-    await page.click('.dialog .btn >> text=Ракушки в рамке');
-    await wait(400);
+    await tap('.dialog .btn >> text=Ракушки в рамке', 400);
     await closeAll();
     s = await state();
     expect(s.storage.shell_frame === 1 && s.stickers.includes('x_shells') && s.finds.shell_sun >= 1, 'ракушки в рамке', [s.storage, s.finds]);
@@ -424,13 +377,15 @@ module.exports = async function sbeach({ page, step, ev, wait, closeAll }) {
     const tu = await ev(async () => (await import('/js/locations/cove.js')).debugTurtles());
     expect(tu.on && tu.list.length === 5, 'черепашата не вылупились', tu);
     await ev(() => window.__dev.locations.cove.walkTo(9.5 * 48, 19.5 * 48, true));
-    await wait(9000);
+    // черепашата доплыли до моря: наклейка
+    await until(() => (window.__dev.G.state.dayFlags.cove || {}).turtles === 1 && window.__dev.G.state.stickers.includes('x_turtles'), undefined, { timeout: 14000 }).catch(() => {});
+    await ev(async () => (window.__coveMod = await import('/js/locations/cove.js')));
+    await until(() => !window.__coveMod.debugTurtles().on, undefined, { timeout: 3000 }).catch(() => {});
     s = await state();
     const tu2 = await ev(async () => (await import('/js/locations/cove.js')).debugTurtles());
     expect(!tu2.on && s.dayFlags.cove.turtles === 1 && s.stickers.includes('x_turtles'), 'черепашата не доплыли', [tu2, s.dayFlags.cove]);
     await clearToasts();
-    await ev(() => window.__dev.run('cove:nest'));
-    await wait(300);
+    await L.run('cove:nest', 300);
     expect(/уже плавают/.test(await toasts()), 'второй раз за день', await toasts());
     // клад под крестиком — раз за игру
     const s0 = await state();
@@ -446,8 +401,7 @@ module.exports = async function sbeach({ page, step, ev, wait, closeAll }) {
       'клад',
       [s.flags.coveTreasure, s.storage.treasure_chest, s.money - s0.money],
     );
-    await ev(() => window.__dev.run('cove:dig'));
-    await wait(400);
+    await L.run('cove:dig', 400);
     expect((await state()).money === s.money && !(await ev(() => window.__dev.locations.cove.places.find((p) => p.id === 'treasure').when())), 'клад выкопали дважды');
     await unwatch();
   });
@@ -457,12 +411,10 @@ module.exports = async function sbeach({ page, step, ev, wait, closeAll }) {
     await ev(() => window.__dev.actions.mutate((s) => (s.quests.pearl_castle = { day: s.day, n: {}, got: {}, done: s.day })));
     const s0 = await state();
     await talkP();
-    await page.click('.dialog .btn >> text=Построить замок');
-    await wait(1200);
+    await tap('.dialog .btn >> text=Построить замок', 1200);
     const intro = norm(await ev(() => document.querySelector('#mg').textContent));
     expect(/образц/.test(intro) && (await ev(() => document.querySelectorAll('#mg .sc-col').length)) === 3 && /Приз Жемчужинки/.test(intro), 'правило картинкой', intro);
-    await page.click(MG_START);
-    await wait(400);
+    await mgGo();
     const NAMES = { tower: 'Башня', wall: 'Стена', gate: 'Ворота', flag: 'Флажок', shell: 'Ракушка', star: 'Звёздочка' };
     // бот: ставит детали как на образце (свой замок — башни и флажки), сначала нижние, потом верхние
     for (let k = 0; k < 40; k++) {
@@ -482,14 +434,23 @@ module.exports = async function sbeach({ page, step, ev, wait, closeAll }) {
           await wait(60);
         }
       }
+      const r0 = await ev(() => document.querySelector('#mg canvas.sc-castle').__castle().round);
       await page.click('#mg .sc-done');
-      await wait(1500);
+      // следующий замок (или итог)
+      await until(
+        (r0) => {
+          const c = document.querySelector('#mg canvas.sc-castle'),
+            q = c && c.__castle();
+          return !q || q.round !== r0 || q.phase === 'done' || /Ура!/.test(document.querySelector('#mg').textContent);
+        },
+        r0,
+        { timeout: 4000 },
+      ).catch(() => {});
     }
     await page.waitForSelector('#mg >> text=Ура!', { timeout: 15000 });
     const end = norm(await ev(() => document.querySelector('#mg').textContent));
     expect(/Три замка готовы/.test(end) && /как на образце/.test(end), 'итог игры', end);
-    await page.click('#mg >> text=Ура!');
-    await wait(1500);
+    await mgDone();
     const s1 = await state();
     expect(
       s1.plays.sandcastle === 1 && s1.best.sandcastle === 3 && s1.dayFlags.cove.castles === 1 && s1.stickers.includes('x_castle') && s1.money === s0.money + 120,
@@ -500,10 +461,9 @@ module.exports = async function sbeach({ page, step, ev, wait, closeAll }) {
     await ev(() => {
       window.__dev.F.castleGame();
     });
-    await wait(900);
+    await page.waitForSelector(MG_START);
     expect(/ещё 1 замок/.test(norm(await ev(() => document.querySelector('#mg').textContent))), 'на заставке — сколько замков с призом');
-    await page.click(MG_START);
-    await wait(300);
+    await mgGo();
     let c = await ev(() => document.querySelector('#mg canvas.sc-castle').__castle());
     for (const { j } of c.slots) {
       c = await ev(() => document.querySelector('#mg canvas.sc-castle').__castle()); // верхние места — над тем, что внизу
@@ -521,17 +481,15 @@ module.exports = async function sbeach({ page, step, ev, wait, closeAll }) {
     await wait(400);
     const q = await ev(() => document.querySelector('#mg canvas.sc-castle').__castle());
     expect(q.miss === c.slots.length && q.round === 0 && q.phase === 'play', 'ошибки не засчитаны', q);
-    await page.click('#mg .xbtn');
-    await wait(400);
+    await mgClose();
     expect((await state()).money === s1.money, 'закрыли игру — а приз пришёл');
     await ev(() => window.__dev.actions.setDayFlag('castles', 2, 'cove'));
     await ev(() => {
       window.__dev.F.castleGame();
     });
-    await wait(900);
+    await page.waitForSelector(MG_START);
     expect(/для удовольствия/.test(norm(await ev(() => document.querySelector('#mg').textContent))), 'третья игра — без приза');
-    await page.click('#mg .xbtn');
-    await wait(300);
+    await mgClose();
     await closeAll();
   });
 
@@ -546,36 +504,26 @@ module.exports = async function sbeach({ page, step, ev, wait, closeAll }) {
     );
     await watch();
     expect((await ev(() => window.__dev.QuestState.questBadge('pearl'))) === '!', 'над Жемчужинкой нет «!»');
-    await ev(() => {
-      window.__dev.run('mermaid');
-    });
-    await wait(500);
+    await L.run('mermaid', 500);
     expect(/черепаш/.test(await dialogText()), 'Жемчужинка не предлагает задание', await dialogText());
-    await page.click('.dialog .btn.green');
-    await wait(400);
-    await page.click('.dialog .btn.green');
-    await wait(400);
+    await tap('.dialog .btn.green', 400);
+    await tap('.dialog .btn.green', 400);
     let w = await now('pearl_castle');
     expect(w.status === 'active' && w.i === 0, 'задание не взято', w);
     const tg = await ev(() => window.__dev.locations.cove.target());
     expect(tg && Math.abs(tg.x - 9.5 * 48) < 40, 'звёздочка не ведёт к гнезду', tg);
     await ev(() => window.__dev.emit('cove', { what: 'turtles' }));
-    await wait(300);
+    await frames(2);
     w = await now('pearl_castle');
     expect(w.i === 1, 'черепашата не засчитаны', w);
     await ev(() => window.__dev.emit('minigame', { id: 'sandcastle', stars: 2 }));
-    await wait(300);
+    await frames(2);
     w = await now('pearl_castle');
     expect(w.i === 2 && (await ev(() => window.__dev.QuestState.questBadge('pearl'))) === '?', 'после замка — к Жемчужинке «?»', w);
     const s0 = await state();
-    await ev(() => {
-      window.__dev.run('mermaid');
-    });
-    await wait(500);
-    await page.click('.dialog .btn.green');
-    await wait(500);
-    await page.click('.dialog .btn.green');
-    await wait(1500);
+    await L.run('mermaid', 500);
+    await tap('.dialog .btn.green', 500);
+    await tap('.dialog .btn.green', 1500);
     const t = await panelText();
     expect(/Задание выполнено/.test(t) && /Подружка русалочки/.test(t) && /Заколка-ракушка/.test(t), 'праздничное окно', t);
     await closeAll();
@@ -590,12 +538,8 @@ module.exports = async function sbeach({ page, step, ev, wait, closeAll }) {
     expect((await state()).look.outfit.head === 'clip_shell', 'заколка не надевается');
     // уже провожала черепашат — шаг засчитан сразу
     await ev(() => window.__dev.actions.mutate((st) => delete st.quests.pearl_castle));
-    await ev(() => {
-      window.__dev.run('mermaid');
-    });
-    await wait(500);
-    await page.click('.dialog .btn.green');
-    await wait(400);
+    await L.run('mermaid', 500);
+    await tap('.dialog .btn.green', 400);
     await closeAll();
     expect((await now('pearl_castle')).i === 1, 'черепашата «уже были» — не засчитаны сразу', await now('pearl_castle'));
   });
@@ -615,32 +559,30 @@ module.exports = async function sbeach({ page, step, ev, wait, closeAll }) {
       localStorage.setItem('rhr-save-v1', raw);
     }, raw);
     await page.reload();
-    await wait(500);
-    await page.click('text=Продолжить');
-    await wait(800);
+    await page.waitForSelector(sel('continue'));
+    await L.cont();
     await closeAll();
     let r = await where();
     expect(r.scene === 'cove' && near(r, pos, 30), 'после загрузки — на пляже на том же месте', [r, pos]);
     // в город — войти в грот (нажатие на воду у арки, этап 13) и нырнуть в озерцо внутри
     await ev(() => window.__dev.locations.cove.debugTeleport(6, 6));
-    await wait(400);
+    await frames(3);
     const k = await ev(() => window.__dev.locations.cove.debugScreen(6.5 * 48, 4.5 * 48));
     await page.mouse.click(k.x, k.y);
-    await wait(1800);
+    await L.untilArrive('grotto_cave', 5000).catch(() => {});
     expect((await ev(() => window.__dev.sceneName)) === 'grotto_cave', 'вода у арки не ведёт в грот', await ev(() => window.__dev.sceneName));
-    await ev(() => window.__dev.run('grotto:back'));
-    await wait(1200);
+    await L.run('grotto:back', 1200);
     expect(await ev(() => !!document.querySelector('.grotto-ride')), 'нет картинки заплыва в город');
-    await wait(2600);
+    await L.untilArrive('world').catch(() => {});
+    await frames(2);
     r = await where();
     const g = await ev(() => window.__dev.World.grottoAt());
     expect(r.scene === 'world' && near(r, { x: g.x - 0.6 * T, y: g.y + 1.4 * T }, 40), 'грот вывел не к буйку', [r, g]);
     // «Домой» с пляжа — на виллу
     await toCove(14, 12);
     await page.click('.hud-btns.left .rbtn:last-child');
-    await wait(450);
     await page.click('.panel-foot .btn.green');
-    await wait(800);
+    await untilScene('villa').catch(() => {});
     expect((await ev(() => window.__dev.sceneName)) === 'villa', 'кнопка «Домой» с пляжа', await ev(() => window.__dev.sceneName));
   });
 };
