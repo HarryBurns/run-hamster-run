@@ -8,6 +8,7 @@
 // кувырка. Ёлок и камней на лыжне меньше. Звёзды на лыжах — по очкам (SKI_STARS), как и на санках.
 import { el, clamp, plural } from '../core/util.js';
 import { ell, poly, fillRR, line } from '../core/draw.js';
+import { pic as kitPic } from './kit.js';
 
 const TIME = 45;
 const OUT = '#4a3728';
@@ -117,15 +118,7 @@ function drawGate(ctx, x, y, gw, s, col, t, passed) {
 }
 
 /** Маленькая картинка для правил (data: URL — заставка правил собирается строкой HTML). */
-function pic(draw, size = 46) {
-  const c = document.createElement('canvas');
-  c.width = c.height = size * 2;
-  const x = c.getContext('2d');
-  x.scale(2, 2);
-  x.lineJoin = 'round';
-  draw(x, size / 2, size - 8, size / 50);
-  return `<img src="${c.toDataURL()}" width="${size}" height="${size}" alt="">`;
-}
+const pic = (draw, size = 46) => kitPic((x) => draw(x, size / 2, size - 8, size / 50), size, size);
 
 const CSS = `
 .sl-rules{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin:8px 0 2px}
@@ -153,8 +146,9 @@ export default {
   id: 'sled',
   title: 'Спуск с горы',
   icon: '🛷',
+  css: CSS,
   get howTo() {
-    return `<style>${CSS}</style>Санки несутся с горы! <b>Рули влево и вправо</b> — пальцем, мышкой или стрелками.
+    return `Санки несутся с горы! <b>Рули влево и вправо</b> — пальцем, мышкой или стрелками.
       <div class="sl-rules">
         <div class="sl-col how"><b>🛷 Рули</b><div class="row">◀ ${pic((c, x, y, s) => drawSled(c, x, y - 4, s * 0.9))} ▶</div><small>пальцем, мышкой<br>или стрелками ← →</small></div>
         <div class="sl-col"><b>✅ Собирай</b><div class="row">${pic((c, x, y, s) => drawFlake(c, x, y - 6, s * 1.4, 0))}${pic((c, x, y, s) => drawFlag(c, x - 6, y, s * 1.1, 0))}</div><small>снежинки и флажки<br>(флажок — за два!)</small></div>
@@ -164,22 +158,17 @@ export default {
       За ${TIME} секунд собери побольше! Санки или лыжи — выберешь после «Начать!».`;
   },
   start(host) {
-    const root = host.root;
-    const style = el('style', '', CSS);
     const top = el('div', 'sl-top');
     const tTitle = el('div', 'sl-chip', '🛷'),
       tTime = el('div', 'sl-chip'),
       tGot = el('div', 'sl-chip'),
       tBump = el('div', 'sl-chip');
     top.append(tTitle, tTime, tGot, tBump);
-    root.append(style, top);
+    host.add(top);
     const cv = host.canvas();
     const ctx = cv.ctx;
     const level = host.level || 0;
     let t = 0,
-      last = performance.now(),
-      raf = 0,
-      stopped = false,
       over = false,
       got = 0,
       bumps = 0,
@@ -189,7 +178,7 @@ export default {
       tumble = 0, // > 0 — кувыркаемся (секунды)
       slow = 1; // множитель скорости после кувырка (поднимается обратно до 1)
     const items = []; // { kind, x (0..1), y (px), hit }
-    const pops = [];
+    const pops = host.pops();
     const puffs = []; // снежная пыль
     const sled = { x: 0.5, to: 0.5 };
     // на чём едем (Г4): санки или лыжи — выбор после «Начать!» (info.ride — задать заранее)
@@ -206,7 +195,6 @@ export default {
       if (pick) pick.remove();
       pick = null;
       host.sfx('skate');
-      last = performance.now();
     };
     const ridePic = (id) => {
       const c = document.createElement('canvas');
@@ -241,7 +229,7 @@ export default {
         cards.appendChild(b);
       }
       pick.appendChild(cards);
-      root.appendChild(pick);
+      host.add(pick);
     }
     // трасса — полоса посередине (на широком экране по бокам — ельник): LW — её ширина, X0 — левый край
     const LW = () => Math.min(cv.w, Math.max(320, cv.h * 0.85), 640),
@@ -265,9 +253,9 @@ export default {
       if (pressed || e.pointerType === 'mouse') toX(e);
     };
     const up = () => (pressed = false);
-    cv.canvas.addEventListener('pointerdown', down);
-    cv.canvas.addEventListener('pointermove', move);
-    window.addEventListener('pointerup', up);
+    host.on(cv.canvas, 'pointerdown', down);
+    host.on(cv.canvas, 'pointermove', move);
+    host.on(window, 'pointerup', up);
     const keys = new Set();
     const kd = (e) => {
       if (['ArrowLeft', 'ArrowRight', 'KeyA', 'KeyD'].includes(e.code)) {
@@ -276,8 +264,8 @@ export default {
       }
     };
     const ku = (e) => keys.delete(e.code);
-    window.addEventListener('keydown', kd);
-    window.addEventListener('keyup', ku);
+    host.on(window, 'keydown', kd);
+    host.on(window, 'keyup', ku);
     // для автотеста (dev/smoke_mountain.js): где санки и что впереди (x — доля ширины, y — пиксели)
     cv.canvas.__sled = () => ({
       x: sled.x,
@@ -359,13 +347,13 @@ export default {
         if (KINDS[q.kind].good) {
           got += KINDS[q.kind].pts;
           host.sfx('pop');
-          pops.push({ text: '+' + KINDS[q.kind].pts, col: '#1c7ed6', x: PX(q.x), y: q.y - 30, t: 0 });
+          pops.add('+' + KINDS[q.kind].pts, PX(q.x), q.y - 30, '#1c7ed6');
         } else {
           bumps++;
           tumble = 0.9;
           slow = 0.35;
           host.sfx('bad');
-          pops.push({ text: 'Ой! Кувырок!', col: '#e03131', x: PX(sled.x), y: sy - 70 * s, t: 0 });
+          pops.add('Ой! Кувырок!', PX(sled.x), sy - 70 * s, '#e03131');
           for (let i = 0; i < 10; i++)
             puffs.push({ x: PX(sled.x), y: sy - 10, vx: (Math.random() - 0.5) * 160, vy: -Math.random() * 140, t: 0 });
         }
@@ -380,15 +368,14 @@ export default {
           gatesOk++;
           got += GATE;
           host.sfx('ding');
-          pops.push({ text: `Ворота! +${GATE}`, col: '#2f9e44', x: PX(g.x), y: sy - 60 * s, t: 0 });
+          pops.add(`Ворота! +${GATE}`, PX(g.x), sy - 60 * s, '#2f9e44');
         } else {
           g.done = -1;
-          pops.push({ text: 'Мимо ворот', col: '#868e96', x: PX(g.x), y: sy - 50 * s, t: 0 });
+          pops.add('Мимо ворот', PX(g.x), sy - 50 * s, '#868e96');
         }
       }
       for (let i = gates.length - 1; i >= 0; i--) if (gates[i].y > cv.h + 60) gates.splice(i, 1);
-      for (const p of pops) p.t += dt;
-      for (let i = pops.length - 1; i >= 0; i--) if (pops[i].t > 1) pops.splice(i, 1);
+      pops.step(dt);
       for (const p of puffs) {
         p.t += dt;
         p.x += p.vx * dt;
@@ -471,30 +458,16 @@ export default {
       }
       ctx.globalAlpha = 1;
       // надписи
-      ctx.textAlign = 'center';
-      ctx.font = '900 20px ui-rounded, "Trebuchet MS", sans-serif';
-      for (const p of pops) {
-        ctx.globalAlpha = Math.max(0, 1 - p.t);
-        ctx.lineWidth = 4;
-        ctx.strokeStyle = '#fff';
-        ctx.strokeText(p.text, p.x, p.y - p.t * 30);
-        ctx.fillStyle = p.col;
-        ctx.fillText(p.text, p.x, p.y - p.t * 30);
-      }
-      ctx.globalAlpha = 1;
+      pops.draw(ctx);
     }
 
-    function frame(now) {
-      if (stopped) return;
-      const dt = Math.min(0.05, (now - last) / 1000);
-      last = now;
+    host.loop((dt) => {
       if (!over) update(dt);
       tTime.textContent = `⏱️ ${Math.max(0, Math.ceil(TIME - t))}`;
       tGot.textContent = `❄️ ${got}`;
       tBump.textContent = `💥 ${bumps}`;
       draw();
-      raf = requestAnimationFrame(frame);
-    }
+    });
     function finish() {
       over = true;
       const ski = ride === 'ski',
@@ -508,21 +481,5 @@ export default {
         extra: { got, bumps, ride, gatesOk, gatesAll },
       });
     }
-    raf = requestAnimationFrame(frame);
-    return {
-      stop() {
-        stopped = true;
-        cancelAnimationFrame(raf);
-        cv.canvas.removeEventListener('pointerdown', down);
-        cv.canvas.removeEventListener('pointermove', move);
-        window.removeEventListener('pointerup', up);
-        window.removeEventListener('keydown', kd);
-        window.removeEventListener('keyup', ku);
-        if (cv.destroy) cv.destroy();
-        style.remove();
-        top.remove();
-        if (pick) pick.remove();
-      },
-    };
   },
 };
