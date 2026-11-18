@@ -380,6 +380,58 @@ function lib(ctx) {
     await page.waitForSelector(MG_START);
     await page.click(MG_START);
   };
+  /** Мини-игра: «Начать!» и дождаться, пока заставка уйдёт (игра пошла). */
+  const mgGo = async () => {
+    await mgStart();
+    await until((s) => !document.querySelector(s), MG_START, { timeout: 3000 }).catch(() => {});
+    await frames(2);
+  };
+  /** Мини-игра кончилась: «Ура!» (метка done) — и дождаться, пока окно игры закроется. */
+  const mgDone = async () => {
+    await page.click(sel('done', '#mg'));
+    await until(() => !document.querySelector('#mg'), undefined, { timeout: 3000 }).catch(() => {});
+    await frames(2);
+  };
+  /** Закрыть мини-игру крестиком и дождаться, пока окно закроется. */
+  const mgClose = async () => {
+    await page.click('#mg .xbtn');
+    await until(() => !document.querySelector('#mg'), undefined, { timeout: 3000 }).catch(() => {});
+    await frames(2);
+  };
+  /**
+   * Нажать на s (кнопка диалога — когда диалог уже принимает нажатия) и дождаться нового отклика игры: другой диалог,
+   * больше окон, мини-игра, сменилась сцена, новая подсказка — но не дольше ms (тогда молча дальше: нажатие просто
+   * закрыло окно). Замена связке «page.click(s); wait(ms)».
+   */
+  const tap = async (s, ms = 1500) => {
+    if (/\.dialog/.test(s)) await until(dialogReady, '', { timeout: 6000, msg: 'диалог для ' + s });
+    const b = await ev(() => {
+      window.__tapDlg = document.querySelector('.dialog');
+      return {
+        scene: window.__dev.sceneName,
+        ov: document.querySelectorAll('.overlay').length,
+        mg: !!document.querySelector('#mg'),
+        t: (document.querySelector('#toasts') || { children: [] }).children.length,
+      };
+    });
+    await page.click(s);
+    await until(
+      (b) => {
+        const d = document.querySelector('.dialog');
+        return (
+          window.__dev.sceneName !== b.scene ||
+          (!!d && d !== window.__tapDlg) ||
+          document.querySelectorAll('.overlay').length > b.ov ||
+          (!b.mg && !!document.querySelector('#mg')) ||
+          (document.querySelector('#toasts') || { children: [] }).children.length > b.t
+        );
+      },
+      b,
+      { timeout: ms },
+    ).catch(() => {});
+    await frames(2);
+    if (await ev(() => !!document.querySelector('.dialog .btn'))) await untilDialog(1500).catch(() => {});
+  };
 
   return {
     ...ctx,
@@ -434,6 +486,10 @@ function lib(ctx) {
     cont,
     reload,
     mgStart,
+    mgGo,
+    mgDone,
+    mgClose,
+    tap,
     MG_START,
   };
 }
