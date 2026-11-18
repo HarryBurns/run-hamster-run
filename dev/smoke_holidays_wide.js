@@ -4,40 +4,13 @@
 // в других местах и в домах, салют с башни, праздничная полка в ТЦ «Уютный дом», клумбы субботника на следующий день
 // и до конца лета, игрушки на большой ёлке. Состояние меняют только действия.
 // Подключается из dev/smoke.js. Только эти шаги:  node dev/smoke.js <url> "step:праздники 15"
-module.exports = async function holidaysWide({ page, step, ev, wait, closeAll }) {
-  const norm = (t) => t.replace(/[  ]/g, ' ');
-  const expect = (ok, msg, data) => {
-    if (!ok) throw new Error(msg + (data === undefined ? '' : ': ' + JSON.stringify(data)));
-  };
-  const state = () => ev(() => JSON.parse(JSON.stringify(window.__dev.G.state)));
+const lib = require('./lib.js');
+
+module.exports = async function holidaysWide(ctx) {
+  const { page, step, ev, wait, closeAll, norm, expect, state, panelText, watch, unwatch, fresh: newGame, go, untilPanel } = lib(ctx);
   const hol = () => ev(() => window.__dev.holiday.state());
   const decor = () => ev(() => window.__dev.holiday.decor());
-  const panelText = async () => norm(await ev(() => [...document.querySelectorAll('.overlay .panel')].map((p) => p.textContent).join(' | ')));
-  const watch = () =>
-    ev(() => {
-      window.__stopWatchHol15 = window.__dev.watchState();
-    });
-  const unwatch = async () => {
-    const bad = await ev(() => window.__stopWatchHol15());
-    expect(!bad.length, `запись в состояние мимо действий (${bad.length})`, [...new Set(bad)].slice(0, 4));
-  };
-  const fresh = async () => {
-    await ev(() => {
-      window.__dev.G.state = null;
-      localStorage.clear();
-    });
-    await page.reload();
-    await wait(400);
-    await page.click('text=Играть!');
-    await wait(400);
-    await page.click('text=Пропустить');
-    await page.evaluate(() => window.__dev.actions.setFlag('intro', 0));
-    await wait(500);
-    await page.click('text=Поехали!');
-    await wait(500);
-    await closeAll();
-    await ev(() => window.__dev.actions.mutate((s) => ((s.money = 20000), (s.flags.questsEarly = 0))));
-  };
+  const fresh = () => newGame({ money: 20000, flags: { questsEarly: 0 } }); // 1 июня
   /** К празднику (when: eve | day | after), в сцену scene (по умолчанию город), время — минуты. */
   const toHoliday = async (id, when = 'day', minutes = 600, scene = 'world') => {
     await closeAll();
@@ -99,7 +72,7 @@ module.exports = async function holidaysWide({ page, step, ev, wait, closeAll })
       window.__dev.run('npc:plusha');
     });
     await page.waitForSelector('.dialog .btn:has-text("Сладость")', { timeout: 4000 });
-    await wait(500); // кнопки диалога появляются не сразу
+    await wait(380); // кнопки диалога принимают нажатия не сразу (ui/dialog.js, TAP_GUARD)
     await page.click('.dialog .btn:has-text("Сладость")');
     // сценка у двери, потом хозяйка угощает — она ждала у двери, а не «забежала домой за угощением»
     const said = await page
@@ -112,8 +85,7 @@ module.exports = async function holidaysWide({ page, step, ev, wait, closeAll })
     expect(h.steps[1] === 'treats:1/3', '«сладость или гадость» из разговора засчитана', h);
     await unwatch();
     // в доме жителя — тоже в костюме
-    await ev(() => window.__dev.go('home_plusha'));
-    await wait(600);
+    await go('home_plusha');
     expect((await ev(() => window.__dev.holiday.dress('plusha'))).acc === 'cape_violet', 'Плюша в мантии и дома');
     // наутро после праздника — обычная одежда, никто никуда не собирается
     await toHoliday('halloween', 'after', 17 * 60);
@@ -154,8 +126,7 @@ module.exports = async function holidaysWide({ page, step, ev, wait, closeAll })
     expect(PARK(t), 'звёздочка парада — в парке', t);
     expect(norm(await ev(() => window.__dev.G.state && JSON.stringify(window.__dev.holiday.state().steps))).includes('parade:0/1'), 'шаг парада');
     // из леса звёздочка ведёт к дороге в город («карта мира»)
-    await ev(() => window.__dev.go('forest'));
-    await wait(600);
+    await go('forest');
     const ft = await ev(() => window.__dev.topdown.getLocation('forest').target());
     expect(!!ft, 'из леса — звёздочка к дороге в город', ft);
   });
@@ -197,7 +168,7 @@ module.exports = async function holidaysWide({ page, step, ev, wait, closeAll })
     await ev(() => {
       window.__dev.run('home-mall');
     });
-    await wait(500);
+    await untilPanel();
     expect(!(await panelText()).includes('К празднику'), '1 июня полки «К празднику» нет');
     await closeAll();
     await toHoliday('newyear', 'eve');
@@ -205,7 +176,7 @@ module.exports = async function holidaysWide({ page, step, ev, wait, closeAll })
     await ev(() => {
       window.__dev.run('home-mall');
     });
-    await wait(500);
+    await untilPanel();
     expect((await panelText()).includes('Скоро Новый год') && (await ev(() => !!document.querySelector('.card.fest-fest_fir'))), 'полка к Новому году — ёлочка');
     await page.click('.card.fest-fest_fir .btn');
     await wait(300);
@@ -216,7 +187,7 @@ module.exports = async function holidaysWide({ page, step, ev, wait, closeAll })
     await ev(() => {
       window.__dev.run('home-mall');
     });
-    await wait(500);
+    await untilPanel();
     expect(await ev(() => !!document.querySelector('.card.fest-fest_jack')), 'полка к Хеллоуину — тыква-фонарик');
     await closeAll();
     // клумбы субботника: посадила на 1 Мая — цветут и назавтра (поле mayBeds), клетка занята; осенью — нет
@@ -225,7 +196,7 @@ module.exports = async function holidaysWide({ page, step, ev, wait, closeAll })
     await ev(() => {
       window.__dev.run({ do: 'holiday', arg: 'plant', bed: 0 });
     });
-    await wait(400);
+    await page.waitForSelector('.hol-scene-panel .panel-body .btn');
     for (let i = 0; i < 3; i++) {
       await page.click('.hol-scene-panel .panel-body .btn');
       await wait(160);
