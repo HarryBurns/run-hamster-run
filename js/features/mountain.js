@@ -14,35 +14,25 @@
 //                        LANDS.mountain.go) и обратно в лес (станция на горе); короткая картинка-переезд
 // Числа — MOUNTAIN в data/economy.js. Каждое занятие шлёт событие mountain { what } — по нему считают задания.
 // Состояние меняют только действия (core/actions.js); «раз в день» — отметки дня (dayFlags.mountain).
+// Разговор, рамка, «нашлось», действие места, канатная дорога — набор тайных мест (features/land_kit.js).
 import { setFlag, setDayFlag, addClothes, addItem, award } from '../core/actions.js';
 import { sfx } from '../core/audio.js';
 import { makeCanvas } from '../core/draw.js';
 import { go } from '../core/loop.js';
-import { register } from '../core/registry.js';
 import { emit } from '../core/events.js';
 import { G, cal, darkness, hasClothes, isSick, count } from '../core/state.js';
-import { el, esc, pick, fmtMoney } from '../core/util.js';
-import {
-  CLOTHES,
-  CLOTHES_BY_ID,
-  LAND_BY_ID,
-  NPC_BY_ID,
-  FIND_BY_ID,
-  MOUNTAIN,
-  npcLook,
-  isWarmItem,
-} from '../data/index.js';
+import { el, fmtMoney } from '../core/util.js';
+import { CLOTHES, CLOTHES_BY_ID, LAND_BY_ID, FIND_BY_ID, MOUNTAIN, isWarmItem } from '../data/index.js';
 import { startBath, snowmanNow } from '../locations/mountain.js';
-import { dialog } from '../ui/dialog.js';
-import { fadeScene, smooth } from '../ui/fade.js';
-import { message, openPanel } from '../ui/panel.js';
+import { smooth } from '../ui/fade.js';
+import { openPanel } from '../ui/panel.js';
 import { toast } from '../ui/toast.js';
 import { frostToday } from './health.js';
 import { prizeGame } from './minigames.js';
-import { setWaitHook, questTalk } from './quests.js';
-import { placeLine } from './tales.js';
+import { setWaitHook } from './quests.js';
 import { paintSummitView, paintSnowmanPic } from './pictures_art.js';
 import { paintRide } from './trips_art.js';
+import { dayFlags, npcLine, landNpc, craftCount, landFind, landActs, landRide } from './land_kit.js';
 
 const S = () => G.state;
 
@@ -73,87 +63,50 @@ export function hintWarm(w) {
 setWaitHook('summit', hintWarm);
 
 // ---------- инструктор Вершинкин ----------
-const VERSHINKIN = 'vershinkin';
 /** Что сказать под настроение: ночью — про звёзды, вечером — про закат, днём — про сезон. */
-export function vershinkinLine() {
-  const place = placeLine(VERSHINKIN); // вспомнить соседнее место, которое хомячок открыла (data/tales.js)
-  if (place) return place;
-  const L = NPC_BY_ID[VERSHINKIN].lines,
-    m = S().minutes;
-  if (darkness() > 0.6 || m >= 22 * 60 || m < 5 * 60) return pick(L.night);
-  if (m >= 18 * 60) return pick(L.evening);
-  return pick(L[cal().season]);
-}
-const sayV = (text, options, happy = false) =>
-  dialog({ look: npcLook(VERSHINKIN), name: NPC_BY_ID[VERSHINKIN].name, text, options, happy });
+export const vershinkinLine = npcLine('vershinkin');
 /** Разговор с инструктором: сначала задание из журнала (взять, как дела, сдать), потом — санки и болтовня. */
-export async function talkVershinkin() {
-  const s = S();
-  let text;
-  if (!s.flags.metVershinkin) {
-    setFlag('metVershinkin');
-    text = `Привет-привет, ${esc(s.name)}! Я инструктор Вершинкин. Сеня написал, что к нам поднимается чемпионка! На горе есть трасса для санок, горячий источник, а на самой вершине — смотровая площадка с флагом. Добро пожаловать!`;
-  } else text = pick([`Привет, ${esc(s.name)}!`, 'О, снова ты! Здорово!', 'Привет, покорительница вершин!']);
-  emit('talk', { id: VERSHINKIN });
-  sfx('tap');
-  const qt = await questTalk(VERSHINKIN);
-  if (qt && qt.end) return;
-  if (qt && qt.text) text = qt.text;
-  for (;;) {
-    const opts = [];
-    for (const o of MORE_TALK) {
-      const x = o(S());
-      if (x) opts.push(x);
-    }
-    opts.unshift({ text: '🛷 Спуск с горы', cls: 'yellow', fn: async () => (await sledRide(), null) });
-    opts.push({ text: '💬 Поболтать', cls: 'blue', go: 'chat' }, { text: 'Пока!', go: 'bye' });
-    const i = await sayV(text, opts);
-    const o = opts[i] || {};
-    if (o.go === 'chat') text = vershinkinLine();
-    else if (o.fn) {
-      const r = await o.fn();
-      if (!r) return;
-      text = r;
-    } else return;
-  }
-}
-/** Дополнительные ответы в разговоре с инструктором: (s) → { text, cls, fn: async () => следующая реплика | null }. */
-const MORE_TALK = [
-  // эдельвейсы в рамке (украшение для дома) из MOUNTAIN.frame эдельвейсов
-  (s) =>
-    (s.finds.edelweiss || 0) > 0 && {
-      text: `🖼️ Эдельвейсы в рамке (${s.finds.edelweiss} из ${MOUNTAIN.frame})`,
-      cls: 'green',
-      fn: async () => {
-        if (count('finds', 'edelweiss') < MOUNTAIN.frame)
-          return `Для рамки нужно ${MOUNTAIN.frame} эдельвейса, а у тебя ${count('finds', 'edelweiss')}. Летом ищи их на лугах — по одному в день!`;
-        addItem('finds', 'edelweiss', -MOUNTAIN.frame);
-        addItem('storage', 'edelweiss_frame', 1);
-        sfx('win');
-        award('x_edelweiss', { delay: 1200 });
-        emit('mountain', { what: 'frame' });
-        return 'Вот, держи: эдельвейсы под стеклом в рамке! Повесь дома на стену — будет напоминать о горах 🏔️ Рамка уже в кладовке: дома нажми 🔨.';
+export const { talk: talkVershinkin } = landNpc({
+  id: 'vershinkin',
+  act: 'instructor',
+  desc: 'инструктор Вершинкин: разговор (житель горы у шале)',
+  met: 'metVershinkin',
+  hello: (name) =>
+    `Привет-привет, ${name}! Я инструктор Вершинкин. Сеня написал, что к нам поднимается чемпионка! На горе есть трасса для санок, горячий источник, а на самой вершине — смотровая площадка с флагом. Добро пожаловать!`,
+  greet: (name) => [`Привет, ${name}!`, 'О, снова ты! Здорово!', 'Привет, покорительница вершин!'],
+  line: vershinkinLine,
+  top: [{ text: '🛷 Спуск с горы', cls: 'yellow', fn: async () => (await sledRide(), null) }],
+  more: [
+    // эдельвейсы в рамке (украшение для дома) из MOUNTAIN.frame эдельвейсов
+    craftCount({
+      id: 'edelweiss',
+      need: MOUNTAIN.frame,
+      title: '🖼️ Эдельвейсы в рамке',
+      lack: (n) => `Для рамки нужно ${MOUNTAIN.frame} эдельвейса, а у тебя ${n}. Летом ищи их на лугах — по одному в день!`,
+      give: ['storage', 'edelweiss_frame'],
+      sticker: 'x_edelweiss',
+      event: ['mountain', 'frame'],
+      done: 'Вот, держи: эдельвейсы под стеклом в рамке! Повесь дома на стену — будет напоминать о горах 🏔️ Рамка уже в кладовке: дома нажми 🔨.',
+    }),
+    // морковка для снеговика: снеговик ждёт носик, а в рюкзаке морковки нет — раз в день
+    (s) =>
+      snowmanNow().stage === 4 &&
+      !count('ing', 'carrot') &&
+      !(s.dayFlags.mountain || {}).carrot && {
+        text: '🥕 Морковку для снеговика',
+        cls: 'yellow',
+        fn: async () => {
+          setDayFlag('carrot', 1, 'mountain');
+          addItem('ing', 'carrot', 1);
+          sfx('coin');
+          return `Держи! Я всегда храню морковку для снеговиков 🥕 Беги на снежную поляну — пусть у него будет нос!`;
+        },
       },
-    },
-  // морковка для снеговика: снеговик ждёт носик, а в рюкзаке морковки нет — раз в день
-  (s) =>
-    snowmanNow().stage === 4 &&
-    !count('ing', 'carrot') &&
-    !(s.dayFlags.mountain || {}).carrot && {
-      text: '🥕 Морковку для снеговика',
-      cls: 'yellow',
-      fn: async () => {
-        setDayFlag('carrot', 1, 'mountain');
-        addItem('ing', 'carrot', 1);
-        sfx('coin');
-        return `Держи! Я всегда храню морковку для снеговиков 🥕 Беги на снежную поляну — пусть у него будет нос!`;
-      },
-    },
-];
-register('instructor', () => talkVershinkin(), 'инструктор Вершинкин: разговор (житель горы у шале)');
+  ],
+});
 
 // ---------- горячий источник ----------
-const S2 = () => S().dayFlags.mountain || {};
+const S2 = dayFlags('mountain');
 /** Окунуться в горячий источник: хомячок садится в воду (сцена горы); снимает «мороз» за день. */
 export function visitSpring(sc) {
   if (sc && sc.name === 'mountain') startBath(sc);
@@ -329,54 +282,47 @@ export const sledRide = () =>
 
 // ---------- варежка Вершинкина (задание «Потерянная варежка», data/quests.js) ----------
 /** Нашли варежку на вершине (место mitten видно, пока задание на первом шаге). */
-export async function findMitten() {
-  emit('mountain', { what: 'mitten' });
-  sfx('win');
-  await message({
-    title: 'Варежка нашлась!',
-    icon: '🧤',
-    html: '<p class="center big-emoji">🧤❄️</p><p class="center">Вот она — синяя, со снежинкой! Зацепилась за сугроб у смотровой площадки. Теперь — скатиться на санках и отнести варежку Вершинкину!</p>',
-    buttons: [{ text: 'Ура!' }],
-  });
-}
+export const findMitten = landFind('mountain', 'mitten', {
+  title: 'Варежка нашлась!',
+  icon: '🧤',
+  pic: '🧤❄️',
+  text: 'Вот она — синяя, со снежинкой! Зацепилась за сугроб у смотровой площадки. Теперь — скатиться на санках и отнести варежку Вершинкину!',
+});
 
 // ---------- действия на горе ----------
-const MOUNTAIN_ACTS = {
-  spring: (ctx) => visitSpring(ctx && ctx.scene),
-  edelweiss: pickEdelweiss,
-  view: climbLookout,
-  snowman: buildSnowman,
-  sled: sledRide,
-  mitten: findMitten,
-};
-register(
+landActs(
   'mountain',
-  (p, ctx) => MOUNTAIN_ACTS[p.arg] && MOUNTAIN_ACTS[p.arg](ctx),
+  {
+    spring: (ctx) => visitSpring(ctx && ctx.scene),
+    edelweiss: pickEdelweiss,
+    view: climbLookout,
+    snowman: buildSnowman,
+    sled: sledRide,
+    mitten: findMitten,
+  },
   'гора: mountain:spring | edelweiss | view | snowman | sled | mitten',
 );
 
 // ---------- канатная дорога ----------
-let riding = false;
 /** Проехать на канатной дороге: up — из леса на гору, иначе — с горы в лес. */
-export function rideCableway(up) {
-  if (riding) return false;
-  const land = LAND_BY_ID.mountain,
-    season = cal().season;
-  riding = true;
-  sfx('lift');
-  fadeScene({
-    text: up ? '🚡 Едем на гору!' : '🚡 Едем вниз, в лес!',
-    ratio: 0.62,
-    ms: 2300,
-    paint: (ctx, w, h, p, look, t) => {
+export const rideCableway = landRide({
+  act: 'cableway',
+  back: 'down',
+  desc: 'канатная дорога: cableway:up (из леса на гору) | cableway:down',
+  sound: 'lift',
+  text: ['🚡 Едем на гору!', '🚡 Едем вниз, в лес!'],
+  ratio: 0.62,
+  ms: 2300,
+  paint: (up) => {
+    const season = cal().season;
+    return (ctx, w, h, p, look, t) => {
       const e = smooth(p);
       paintRide(ctx, w, h, up ? 0.08 + e * 0.84 : 0.92 - e * 0.84, season, look, t);
-    },
-    go: () => (up ? go(land.scene, { at: land.entry }) : go(land.from, { at: 'station' })),
-  }).then(() => {
-    riding = false;
-    sfx('ding');
-  });
-  return true;
-}
-register('cableway', (p) => rideCableway(p.arg !== 'down'), 'канатная дорога: cableway:up (из леса на гору) | cableway:down');
+    };
+  },
+  to: (up) => {
+    const land = LAND_BY_ID.mountain;
+    if (up) go(land.scene, { at: land.entry });
+    else go(land.from, { at: 'station' });
+  },
+});
