@@ -9,11 +9,11 @@
 import { addItem, meetFriend, spendMinutes } from '../core/actions.js';
 import { sfx } from '../core/audio.js';
 import { makeCanvas, ell } from '../core/draw.js';
-import { G, playerLook, npcLookNow } from '../core/state.js';
+import { G, npcLookNow } from '../core/state.js';
 import { el } from '../core/util.js';
 import { NPC_BY_ID, DISH_BY_ID, HOLIDAY } from '../data/index.js';
 import { dialog } from '../ui/dialog.js';
-import { openLayer } from '../ui/modals.js';
+import { fadeScene } from '../ui/fade.js';
 import { openPanel, message } from '../ui/panel.js';
 import { toast } from '../ui/toast.js';
 import { addPts } from './friends.js';
@@ -99,37 +99,7 @@ export function tapScene({ title, icon, steps, btn, btns, lastBtn, hint, hints, 
 }
 
 /** Короткая сценка без нажатий (колядки, карусель, парад): затемнение с картинкой на ms миллисекунд. */
-export function playScene(text, paint, ms = 2600) {
-  return new Promise((resolve) => {
-    const W = Math.min(520, window.innerWidth - 32),
-      H = Math.round(W * 0.58);
-    const f = el('div', 'fade cable-ride hol-fade', `<div class="msg"><div><div class="ride-pic"></div><p>${text}</p></div></div>`);
-    const { canvas, ctx } = makeCanvas(W, H);
-    canvas.style.borderRadius = '18px';
-    f.querySelector('.ride-pic').appendChild(canvas);
-    document.body.appendChild(f);
-    const closeLayer = openLayer();
-    const t0 = performance.now(),
-      look = playerLook();
-    let raf = 0;
-    const loop = (now) => {
-      const t = (now - t0) / 1000;
-      paint(ctx, W, H, Math.min(1, (now - t0) / ms), look, t);
-      raf = requestAnimationFrame(loop);
-    };
-    raf = requestAnimationFrame(loop);
-    requestAnimationFrame(() => f.classList.add('on'));
-    setTimeout(() => {
-      cancelAnimationFrame(raf);
-      f.classList.remove('on');
-      setTimeout(() => {
-        f.remove();
-        closeLayer();
-        resolve();
-      }, 380);
-    }, ms);
-  });
-}
+export const playScene = (text, paint, ms = 2600) => fadeScene({ cls: 'hol-fade', text, paint, ms, w: 520, ratio: 0.58 });
 
 /** Ночное небо со снежинками или звёздами (фон сценок). snow: false — мерцающие звёзды. */
 export function nightSky(ctx, w, h, t, top = '#1b2a5a', bot = '#4a5a9a', snow = true) {

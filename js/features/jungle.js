@@ -16,11 +16,11 @@
 // «раз в день» — отметки дня (dayFlags.jungle).
 import { setFlag, setDayFlag, addItem, award, teachParrot } from '../core/actions.js';
 import { sfx } from '../core/audio.js';
-import { makeCanvas, ell, fillRR, line, poly } from '../core/draw.js';
+import { ell, fillRR, line, poly } from '../core/draw.js';
 import { on, emit } from '../core/events.js';
 import { go, sceneName } from '../core/loop.js';
 import { register } from '../core/registry.js';
-import { G, cal, darkness, count, playerLook } from '../core/state.js';
+import { G, cal, darkness, count } from '../core/state.js';
 import { el, esc, pick, fmtMoney } from '../core/util.js';
 import { NPC_BY_ID, FIND_BY_ID, FEATHER_IDS, JUNGLE, LAND_BY_ID, PARROT_WORDS, PARROT_MEMORY, npcLook } from '../data/index.js';
 import { getLocation } from '../engine/topdown/index.js';
@@ -29,7 +29,7 @@ import { paintParrot } from '../locations/jungle_art.js';
 import { drawBoat } from '../locations/sea.js';
 import { sea } from '../locations/town.js';
 import { dialog } from '../ui/dialog.js';
-import { openLayer } from '../ui/modals.js';
+import { fadeScene, smooth } from '../ui/fade.js';
 import { message, openPanel } from '../ui/panel.js';
 import { toast } from '../ui/toast.js';
 import { prizeGame } from './minigames.js';
@@ -471,51 +471,20 @@ export function rideVoyage(toJungle) {
   const land = LAND_BY_ID.jungle;
   voyaging = true;
   sfx('splash');
-  const W = Math.min(560, window.innerWidth - 32),
-    H = Math.round(W * 0.56);
-  const f = el(
-    'div',
-    'fade cable-ride voyage-ride',
-    `<div class="msg"><div><div class="ride-pic"></div><p>${toJungle ? '⛵ Плывём в джунгли!' : '⛵ Плывём домой, в город!'}</p></div></div>`,
-  );
-  const { canvas, ctx } = makeCanvas(W, H);
-  canvas.style.borderRadius = '18px';
-  f.querySelector('.ride-pic').appendChild(canvas);
-  document.body.appendChild(f);
-  const closeLayer = openLayer();
-  let cover = null,
-    raf = 0;
-  const t0 = performance.now(),
-    look = playerLook(),
-    DUR = 2600;
-  const loop = (now) => {
-    const t = (now - t0) / 1000,
-      p = Math.min(1, (now - t0) / DUR),
-      e = p * p * (3 - 2 * p);
-    paintVoyage(ctx, W, H, e, toJungle, look, t);
-    if (p < 1) raf = requestAnimationFrame(loop);
-  };
-  raf = requestAnimationFrame(loop);
-  requestAnimationFrame(() => f.classList.add('on'));
-  setTimeout(() => {
-    cover = openLayer({ pause: false, cover: true }); // экран уже тёмный — сцену под ним не рисуем
-  }, 400);
-  setTimeout(() => {
-    sea.boatHome(); // кораблик ждёт у пирса города (в джунглях — свой, у причала)
-    if (toJungle) go(land.scene, { at: land.entry });
-    else go('world', { at: 'pier' });
-  }, DUR - 300);
-  setTimeout(() => {
-    cancelAnimationFrame(raf);
-    if (cover) cover();
-    f.classList.remove('on');
-    setTimeout(() => {
-      f.remove();
-      closeLayer();
-      voyaging = false;
-      sfx('ding');
-    }, 380);
-  }, DUR + 150);
+  fadeScene({
+    cls: 'voyage-ride',
+    text: toJungle ? '⛵ Плывём в джунгли!' : '⛵ Плывём домой, в город!',
+    ms: 2600,
+    paint: (ctx, w, h, p, look, t) => paintVoyage(ctx, w, h, smooth(p), toJungle, look, t),
+    go: () => {
+      sea.boatHome(); // кораблик ждёт у пирса города (в джунглях — свой, у причала)
+      if (toJungle) go(land.scene, { at: land.entry });
+      else go('world', { at: 'pier' });
+    },
+  }).then(() => {
+    voyaging = false;
+    sfx('ding');
+  });
   return true;
 }
 register('voyage', (p) => rideVoyage(p.arg !== 'back'), 'кораблик в джунгли: voyage:go (из моря города к причалу в джунглях) | voyage:back');

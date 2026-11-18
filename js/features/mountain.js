@@ -20,7 +20,7 @@ import { makeCanvas, ell, fillRR, line, poly } from '../core/draw.js';
 import { go } from '../core/loop.js';
 import { register } from '../core/registry.js';
 import { emit } from '../core/events.js';
-import { G, cal, darkness, hasClothes, playerLook, isSick, count } from '../core/state.js';
+import { G, cal, darkness, hasClothes, isSick, count } from '../core/state.js';
 import { el, esc, pick, fmtMoney } from '../core/util.js';
 import { drawHamster } from '../art/hamster.js';
 import {
@@ -38,7 +38,7 @@ import { ART } from '../engine/topdown/index.js';
 import { VIEW_LAYERS, viewEnv, renderViewLayer } from '../interiors/tower_view.js';
 import { startBath, snowmanNow } from '../locations/mountain.js';
 import { dialog } from '../ui/dialog.js';
-import { openLayer } from '../ui/modals.js';
+import { fadeScene, smooth } from '../ui/fade.js';
 import { message, openPanel } from '../ui/panel.js';
 import { toast } from '../ui/toast.js';
 import { frostToday } from './health.js';
@@ -510,50 +510,23 @@ let riding = false;
 /** Проехать на канатной дороге: up — из леса на гору, иначе — с горы в лес. */
 export function rideCableway(up) {
   if (riding) return false;
-  const land = LAND_BY_ID.mountain;
+  const land = LAND_BY_ID.mountain,
+    season = cal().season;
   riding = true;
   sfx('lift');
-  const W = Math.min(560, window.innerWidth - 32),
-    H = Math.round(W * 0.62);
-  const f = el('div', 'fade cable-ride', `<div class="msg"><div><div class="ride-pic"></div><p>${up ? '🚡 Едем на гору!' : '🚡 Едем вниз, в лес!'}</p></div></div>`);
-  const { canvas, ctx } = makeCanvas(W, H);
-  canvas.style.borderRadius = '18px';
-  f.querySelector('.ride-pic').appendChild(canvas);
-  document.body.appendChild(f);
-  const closeLayer = openLayer();
-  let cover = null,
-    raf = 0;
-  const t0 = performance.now(),
-    look = playerLook(),
-    season = cal().season,
-    DUR = 2300;
-  const loop = (now) => {
-    const t = (now - t0) / 1000,
-      p = Math.min(1, (now - t0) / DUR),
-      e = p * p * (3 - 2 * p);
-    paintRide(ctx, W, H, up ? 0.08 + e * 0.84 : 0.92 - e * 0.84, season, look, t);
-    if (p < 1) raf = requestAnimationFrame(loop);
-  };
-  raf = requestAnimationFrame(loop);
-  requestAnimationFrame(() => f.classList.add('on'));
-  setTimeout(() => {
-    cover = openLayer({ pause: false, cover: true }); // экран уже тёмный — сцену под ним не рисуем
-  }, 400);
-  setTimeout(() => {
-    if (up) go(land.scene, { at: land.entry });
-    else go(land.from, { at: 'station' });
-  }, DUR - 300);
-  setTimeout(() => {
-    cancelAnimationFrame(raf);
-    if (cover) cover();
-    f.classList.remove('on');
-    setTimeout(() => {
-      f.remove();
-      closeLayer();
-      riding = false;
-      sfx('ding');
-    }, 380);
-  }, DUR + 150);
+  fadeScene({
+    text: up ? '🚡 Едем на гору!' : '🚡 Едем вниз, в лес!',
+    ratio: 0.62,
+    ms: 2300,
+    paint: (ctx, w, h, p, look, t) => {
+      const e = smooth(p);
+      paintRide(ctx, w, h, up ? 0.08 + e * 0.84 : 0.92 - e * 0.84, season, look, t);
+    },
+    go: () => (up ? go(land.scene, { at: land.entry }) : go(land.from, { at: 'station' })),
+  }).then(() => {
+    riding = false;
+    sfx('ding');
+  });
   return true;
 }
 register('cableway', (p) => rideCableway(p.arg !== 'down'), 'канатная дорога: cableway:up (из леса на гору) | cableway:down');

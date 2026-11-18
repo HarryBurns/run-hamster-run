@@ -30,7 +30,7 @@ import { getLocation } from '../engine/topdown/index.js';
 import { startCamelRide, CAMEL_GOALS, inShade } from '../locations/desert.js';
 import { paintBus, paintCamel } from '../locations/desert_art.js';
 import { dialog } from '../ui/dialog.js';
-import { openLayer } from '../ui/modals.js';
+import { fadeScene, smooth } from '../ui/fade.js';
 import { message, openPanel } from '../ui/panel.js';
 import { toast } from '../ui/toast.js';
 import { prizeGame, prizeLeft } from './minigames.js';
@@ -446,50 +446,16 @@ export function rideCaravan(toDesert) {
   const land = LAND_BY_ID.desert;
   riding = true;
   sfx('door');
-  const W = Math.min(560, window.innerWidth - 32),
-    H = Math.round(W * 0.56);
-  const f = el(
-    'div',
-    'fade cable-ride caravan-ride',
-    `<div class="msg"><div><div class="ride-pic"></div><p>${toDesert ? '🚌 Едем в пустыню!' : '🚌 Едем домой, в город!'}</p></div></div>`,
-  );
-  const { canvas, ctx } = makeCanvas(W, H);
-  canvas.style.borderRadius = '18px';
-  f.querySelector('.ride-pic').appendChild(canvas);
-  document.body.appendChild(f);
-  const closeLayer = openLayer();
-  let cover = null,
-    raf = 0;
-  const t0 = performance.now(),
-    look = playerLook(),
-    DUR = 2400;
-  const loop = (now) => {
-    const t = (now - t0) / 1000,
-      p = Math.min(1, (now - t0) / DUR),
-      e = p * p * (3 - 2 * p);
-    paintCaravan(ctx, W, H, e, toDesert, look, t);
-    if (p < 1) raf = requestAnimationFrame(loop);
-  };
-  raf = requestAnimationFrame(loop);
-  requestAnimationFrame(() => f.classList.add('on'));
-  setTimeout(() => {
-    cover = openLayer({ pause: false, cover: true }); // экран уже тёмный — сцену под ним не рисуем
-  }, 400);
-  setTimeout(() => {
-    if (toDesert) go(land.scene, { at: land.entry });
-    else go(land.from, { at: 'bus' });
-  }, DUR - 300);
-  setTimeout(() => {
-    cancelAnimationFrame(raf);
-    if (cover) cover();
-    f.classList.remove('on');
-    setTimeout(() => {
-      f.remove();
-      closeLayer();
-      riding = false;
-      sfx('ding');
-    }, 380);
-  }, DUR + 150);
+  fadeScene({
+    cls: 'caravan-ride',
+    text: toDesert ? '🚌 Едем в пустыню!' : '🚌 Едем домой, в город!',
+    ms: 2400,
+    paint: (ctx, w, h, p, look, t) => paintCaravan(ctx, w, h, smooth(p), toDesert, look, t),
+    go: () => (toDesert ? go(land.scene, { at: land.entry }) : go(land.from, { at: 'bus' })),
+  }).then(() => {
+    riding = false;
+    sfx('ding');
+  });
   return true;
 }
 register('caravan', (p) => rideCaravan(p.arg !== 'back'), 'караван-автобус: caravan:go (из города в пустыню) | caravan:back');

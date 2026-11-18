@@ -22,15 +22,15 @@ import { makeCanvas, ell, fillRR, line, poly, star } from '../core/draw.js';
 import { on, emit } from '../core/events.js';
 import { go } from '../core/loop.js';
 import { register } from '../core/registry.js';
-import { G, cal, darkness, count, playerLook, questNow, canSwim } from '../core/state.js';
-import { el, esc, pick, fmtMoney } from '../core/util.js';
+import { G, cal, darkness, count, questNow, canSwim } from '../core/state.js';
+import { esc, pick, fmtMoney } from '../core/util.js';
 import { drawHamster } from '../art/hamster.js';
 import { NPC_BY_ID, FIND_BY_ID, SHELL_IDS, COVE, LAND_BY_ID, SICK_TEXT, npcLook } from '../data/index.js';
 import { startHatch, turtlesOut, hatchTime, turtlesToday, treasureDug } from '../locations/cove.js';
 import { SHELL_COLORS } from '../locations/cove_art.js';
 import { sea } from '../locations/town.js';
 import { dialog } from '../ui/dialog.js';
-import { openLayer } from '../ui/modals.js';
+import { fadeScene, smooth } from '../ui/fade.js';
 import { message } from '../ui/panel.js';
 import { toast } from '../ui/toast.js';
 import { prizeGame } from './minigames.js';
@@ -451,53 +451,22 @@ export function rideGrotto(toCove) {
   swimming = true;
   sfx('splash');
   if (!toCove && !canSwim()) toast('🐬 Жемчужинка позвала дельфина — он довезёт тебя через грот, чтобы не мёрзнуть!');
-  const W = Math.min(560, window.innerWidth - 32),
-    H = Math.round(W * 0.56);
-  const f = el(
-    'div',
-    'fade cable-ride grotto-ride',
-    `<div class="msg"><div><div class="ride-pic"></div><p>${toCove ? '🤿 Плывём через подводный грот!' : '🤿 Плывём обратно, в море города!'}</p></div></div>`,
-  );
-  const { canvas, ctx } = makeCanvas(W, H);
-  canvas.style.borderRadius = '18px';
-  f.querySelector('.ride-pic').appendChild(canvas);
-  document.body.appendChild(f);
-  const closeLayer = openLayer();
-  let cover = null,
-    raf = 0;
-  const t0 = performance.now(),
-    look = playerLook(),
-    DUR = 2600;
-  const loop = (now) => {
-    const t = (now - t0) / 1000,
-      p = Math.min(1, (now - t0) / DUR),
-      e = p * p * (3 - 2 * p);
-    paintGrotto(ctx, W, H, e, toCove, look, t);
-    if (p < 1) raf = requestAnimationFrame(loop);
-  };
-  raf = requestAnimationFrame(loop);
-  requestAnimationFrame(() => f.classList.add('on'));
-  setTimeout(() => {
-    cover = openLayer({ pause: false, cover: true }); // экран уже тёмный — сцену под ним не рисуем
-  }, 400);
-  setTimeout(() => {
-    if (toCove) {
-      sea.parkBoat(); // приплыла на кораблике — он ждёт у буйка
-      go(land.scene, { at: land.entry });
-    } else go('world', { at: 'grotto' });
-  }, DUR - 300);
-  setTimeout(() => {
-    cancelAnimationFrame(raf);
-    if (cover) cover();
-    f.classList.remove('on');
-    setTimeout(() => {
-      f.remove();
-      closeLayer();
-      swimming = false;
-      sfx('ding');
-      if (toCove) award('x_grotto', { delay: 600 });
-    }, 380);
-  }, DUR + 150);
+  fadeScene({
+    cls: 'grotto-ride',
+    text: toCove ? '🤿 Плывём через подводный грот!' : '🤿 Плывём обратно, в море города!',
+    ms: 2600,
+    paint: (ctx, w, h, p, look, t) => paintGrotto(ctx, w, h, smooth(p), toCove, look, t),
+    go: () => {
+      if (toCove) {
+        sea.parkBoat(); // приплыла на кораблике — он ждёт у буйка
+        go(land.scene, { at: land.entry });
+      } else go('world', { at: 'grotto' });
+    },
+  }).then(() => {
+    swimming = false;
+    sfx('ding');
+    if (toCove) award('x_grotto', { delay: 600 });
+  });
   return true;
 }
 register('grotto', (p) => rideGrotto(p.arg !== 'back'), 'подводный грот: grotto:go (из моря города на секретный пляж) | grotto:back');

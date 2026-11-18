@@ -20,12 +20,12 @@
 // «раз в день» — отметки дня (dayFlags.island).
 import { setFlag, setDayFlag, addItem, addClothes, award } from '../core/actions.js';
 import { sfx } from '../core/audio.js';
-import { makeCanvas, ell, poly } from '../core/draw.js';
+import { ell, poly } from '../core/draw.js';
 import { on, emit } from '../core/events.js';
 import { go, sceneName } from '../core/loop.js';
 import { register, run } from '../core/registry.js';
-import { G, darkness, count, playerLook, hasClothes } from '../core/state.js';
-import { el, esc, pick } from '../core/util.js';
+import { G, darkness, count, hasClothes } from '../core/state.js';
+import { esc, pick } from '../core/util.js';
 import { NPC_BY_ID, FIND_BY_ID, LEI_IDS, ISLAND, LAND_BY_ID, npcLook } from '../data/index.js';
 import { getLocation } from '../engine/topdown/index.js';
 import { festNow, placeFlowers, AT } from '../locations/island.js';
@@ -34,7 +34,7 @@ import { paintCoconut } from '../locations/island_art.js';
 import { drawBoat } from '../locations/sea.js';
 import { sea } from '../locations/town.js';
 import { dialog } from '../ui/dialog.js';
-import { openLayer } from '../ui/modals.js';
+import { fadeScene, smooth } from '../ui/fade.js';
 import { message } from '../ui/panel.js';
 import { toast } from '../ui/toast.js';
 import { playMinigame, prizeGame } from './minigames.js';
@@ -461,52 +461,21 @@ export function rideFaraway(toIsland) {
   const land = LAND_BY_ID.island;
   sailing = true;
   sfx('splash');
-  const W = Math.min(560, window.innerWidth - 32),
-    H = Math.round(W * 0.56);
-  const f = el(
-    'div',
-    'fade cable-ride faraway-ride',
-    `<div class="msg"><div><div class="ride-pic"></div><p>${toIsland ? '🧭 Плывём далеко на юг, к острову с вулканом!' : '⛵ Плывём домой, в город!'}</p></div></div>`,
-  );
-  const { canvas, ctx } = makeCanvas(W, H);
-  canvas.style.borderRadius = '18px';
-  f.querySelector('.ride-pic').appendChild(canvas);
-  document.body.appendChild(f);
-  const closeLayer = openLayer();
-  let cover = null,
-    raf = 0;
-  const t0 = performance.now(),
-    look = playerLook(),
-    DUR = 5200;
-  const loop = (now) => {
-    const t = (now - t0) / 1000,
-      p = Math.min(1, (now - t0) / DUR),
-      e = p * p * (3 - 2 * p);
-    paintFaraway(ctx, W, H, e, toIsland, look, t);
-    if (p < 1) raf = requestAnimationFrame(loop);
-  };
-  raf = requestAnimationFrame(loop);
-  requestAnimationFrame(() => f.classList.add('on'));
-  setTimeout(() => {
-    cover = openLayer({ pause: false, cover: true }); // экран уже тёмный — сцену под ним не рисуем
-  }, 400);
-  setTimeout(() => {
-    sea.boatHome(); // кораблик ждёт у пирса города (на острове — свой, у причала)
-    if (toIsland) go(land.scene, { at: land.entry });
-    else go('world', { at: 'pier' });
-  }, DUR - 300);
-  setTimeout(() => {
-    cancelAnimationFrame(raf);
-    if (cover) cover();
-    f.classList.remove('on');
-    setTimeout(() => {
-      f.remove();
-      closeLayer();
-      sailing = false;
-      sfx('ding');
-      if (toIsland) award('x_far_voyage', { delay: 600 });
-    }, 380);
-  }, DUR + 150);
+  fadeScene({
+    cls: 'faraway-ride',
+    text: toIsland ? '🧭 Плывём далеко на юг, к острову с вулканом!' : '⛵ Плывём домой, в город!',
+    ms: 5200,
+    paint: (ctx, w, h, p, look, t) => paintFaraway(ctx, w, h, smooth(p), toIsland, look, t),
+    go: () => {
+      sea.boatHome(); // кораблик ждёт у пирса города (на острове — свой, у причала)
+      if (toIsland) go(land.scene, { at: land.entry });
+      else go('world', { at: 'pier' });
+    },
+  }).then(() => {
+    sailing = false;
+    sfx('ding');
+    if (toIsland) award('x_far_voyage', { delay: 600 });
+  });
   return true;
 }
 register('faraway', (p) => rideFaraway(p.arg !== 'back'), 'кораблик на удалённый остров: faraway:go (от отметки «Далеко на юг») | faraway:back');

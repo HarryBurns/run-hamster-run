@@ -20,11 +20,11 @@
 // в «Горку» с призом). Сохранение не менялось.
 import { setFlag, setDayFlag, award, spendMinutes } from '../core/actions.js';
 import { sfx } from '../core/audio.js';
-import { makeCanvas, ell, fillRR, line, poly, star } from '../core/draw.js';
+import { ell, fillRR, line, poly, star } from '../core/draw.js';
 import { on, emit } from '../core/events.js';
 import { sceneName } from '../core/loop.js';
 import { register, run } from '../core/registry.js';
-import { G, darkness, playerLook, ownsHome, canSwim, isSick, hotelRoomGuest } from '../core/state.js';
+import { G, darkness, ownsHome, canSwim, isSick, hotelRoomGuest } from '../core/state.js';
 import { el, esc, pick, fmtMoney } from '../core/util.js';
 import { drawHamster } from '../art/hamster.js';
 import { NPC_BY_ID, DISH_BY_ID, HOTEL, HOTEL_ROOM, HOTEL_ROOMS, GUEST_ROOM, BUFFET, HOME_BY_ID, SICK_TEXT, animatorNow, npcLook } from '../data/index.js';
@@ -32,7 +32,7 @@ import { HX, rentedRoom } from '../interiors/hotel.js';
 import { DOORMAN } from '../locations/town_buildings.js';
 import { go } from '../core/loop.js';
 import { dialog } from '../ui/dialog.js';
-import { openLayer } from '../ui/modals.js';
+import { fadeScene } from '../ui/fade.js';
 import { openPanel } from '../ui/panel.js';
 import { toast } from '../ui/toast.js';
 import { buy, priceTag, buyBtn } from './purchase.js';
@@ -236,40 +236,6 @@ export function openBuffet() {
 }
 
 // ---------- сценки: спа и танцы ----------
-/** Сценка в окне поверх игры (как танец на острове): painter(ctx, w, h, k, look, t), dur — мс. */
-function playScene(cls, caption, painter, dur) {
-  return new Promise((resolve) => {
-    const W = Math.min(560, window.innerWidth - 32),
-      H = Math.round(W * 0.58);
-    const f = el('div', 'fade cable-ride ' + cls, `<div class="msg"><div><div class="ride-pic"></div><p>${caption}</p></div></div>`);
-    const { canvas, ctx } = makeCanvas(W, H);
-    canvas.style.borderRadius = '18px';
-    f.querySelector('.ride-pic').appendChild(canvas);
-    document.body.appendChild(f);
-    const closeLayer = openLayer();
-    let raf = 0;
-    const t0 = performance.now(),
-      look = playerLook();
-    const loop = (now) => {
-      const t = (now - t0) / 1000,
-        k = Math.min(1, (now - t0) / dur);
-      painter(ctx, W, H, k, look, t);
-      ctx.globalAlpha = 1;
-      if (k < 1) raf = requestAnimationFrame(loop);
-    };
-    raf = requestAnimationFrame(loop);
-    requestAnimationFrame(() => f.classList.add('on'));
-    setTimeout(() => {
-      cancelAnimationFrame(raf);
-      f.classList.remove('on');
-      setTimeout(() => {
-        f.remove();
-        closeLayer();
-        resolve();
-      }, 380);
-    }, dur);
-  });
-}
 /** Спа: хомячок лежит на массажном столе; маска — кружочки огурцов и пена, массаж — лапки Пенки. */
 function paintSpa(what) {
   return (ctx, w, h, k, look, t) => {
@@ -345,7 +311,13 @@ async function spa() {
   if (!o.what || !buy(HOTEL.spa)) return;
   busy = true;
   sfx('bubble');
-  await playScene('spa-scene', o.what === 'mask' ? '🥒 Маска из огурчиков…' : '💆 Массаж лапок…', paintSpa(o.what), 3600);
+  await fadeScene({
+    cls: 'spa-scene',
+    text: o.what === 'mask' ? '🥒 Маска из огурчиков…' : '💆 Массаж лапок…',
+    paint: paintSpa(o.what),
+    ms: 3600,
+    ratio: 0.58,
+  });
   busy = false;
   spendMinutes(30);
   emit('spa', { what: o.what });

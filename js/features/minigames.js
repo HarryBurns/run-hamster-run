@@ -285,11 +285,13 @@ export async function prizeGame(id, o) {
     left = prizeLeft(o.group, o.flag, o.paid),
     words = o.words || ['игра', 'игры'],
     note = (html) => `<div class="pay-note${left ? '' : ' off'}">${html}</div>`,
-    tail = o.tail || `${o.more || '.'} Сегодня ещё ${left} ${left === 1 ? words[0] : words[1]} ${o.what || 'с призом'}.`;
+    tail =
+      o.tail || `${o.more || '.'} Сегодня ещё ${left} ${left === 1 ? words[0] : words[1]} ${o.what || 'с призом'}.`,
+    won = (stars) => `🪙 +${fmtMoney(c[stars - 1])}`;
   const res = await playMinigame(id, {
     ...(o.info || {}),
     introNote: (o.intro || '') + (left ? note(`${o.label} ${o.scale || prizeScale(c)}${tail}`) : note(o.done)),
-    resultNote: (stars) => (left ? note(`<span class="sum">${o.sum ? o.sum(stars) : `🪙 +${fmtMoney(c[stars - 1])}`}</span>`) : note(o.fun)),
+    resultNote: (stars) => (left ? note(`<span class="sum">${o.sum ? o.sum(stars) : won(stars)}</span>`) : note(o.fun)),
   });
   if (!res) return res;
   if (o.after) o.after(res);
@@ -299,7 +301,7 @@ export async function prizeGame(id, o) {
   setDayFlag(o.flag, ((S().dayFlags[o.group] || {})[o.flag] || 0) + 1, o.group);
   earn(c[res.stars - 1], o.source || 'work');
   sfx('coin');
-  if (o.thanks) toast(typeof o.thanks === 'function' ? o.thanks(res.stars, got) : `${o.thanks} 🪙 +${fmtMoney(c[res.stars - 1])}`, 'good');
+  if (o.thanks) toast(typeof o.thanks === 'function' ? o.thanks(res.stars, got) : `${o.thanks} ${won(res.stars)}`, 'good');
   return res;
 }
 
