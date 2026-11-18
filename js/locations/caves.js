@@ -164,7 +164,9 @@ function build(m) {
   put1('caveLantern', ...AT.lantern);
   put1('ropeHole', ...AT.hole, { open: () => landOpen('deep') });
   put1('minecart', ...AT.minecart);
-  for (let x = 24; x <= 33; x++) if (m.at(x, 22) === 'caveFloor' && !(x === AT.minecart[0])) put1('rails', x, 22, { v: 0 });
+  // рельсы — от вагонетки (она у стены) вправо по полу её ряда
+  const [cx, cy] = AT.minecart;
+  for (let x = cx + 1; x <= cx + 7 && m.at(x, cy) === 'caveFloor'; x++) put1('rails', x, cy, { v: 0 });
   put1('column', 14, 15, { v: 0 });
   put1('column', 21, 15, { v: 1 });
   put1('signpost', 20, 24, { text: '⛏️ Шахта', text2: '🌊 Озеро' });
