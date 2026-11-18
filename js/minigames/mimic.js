@@ -44,22 +44,21 @@ export default {
   id: 'mimic',
   title: 'Повтори движение',
   icon: '🤸',
+  css: CSS,
   get howTo() {
-    return `<style>${CSS}</style>Аниматор Хлопушка показывает танец — <b>смотри внимательно</b>, какие кнопки загораются!
+    return `Аниматор Хлопушка показывает танец — <b>смотри внимательно</b>, какие кнопки загораются!
       Потом <b>нажми их в том же порядке</b> — и хомячок повторит.
       <div class="mm-rules">${MOVES.map((m) => `<span title="${m.name}">${m.e}</span>`).join('')}</div>
       Каждый раунд танец длиннее на одно движение. Ошиблась — Хлопушка покажет ещё раз!`;
   },
   start(host) {
-    const root = host.root;
     const morning = host.info && host.info.kind === 'morning';
-    const style = el('style', '', CSS);
     const top = el('div', 'mm-top');
     const tRound = el('div', 'mm-chip'),
       tSay = el('div', 'mm-chip');
     top.append(tRound, tSay);
     const pad = el('div', 'mm-pad');
-    root.append(style, top, pad);
+    host.add(top, pad);
     const cv = host.canvas();
     cv.canvas.classList.add('mm-canvas');
     const ctx = cv.ctx;
@@ -67,9 +66,6 @@ export default {
       showT = SHOW - Math.min(4, level) * 0.06;
     const anim = (host.info && host.info.animator) || (host.friends[0] && host.friends[0].look) || host.look;
     let t = 0,
-      last = performance.now(),
-      raf = 0,
-      stopped = false,
       over = false,
       round = 0,
       wins = 0,
@@ -90,7 +86,7 @@ export default {
     // текущие движения: аниматора и хомячка — { id, t }
     let aMove = null,
       hMove = null;
-    const pops = [];
+    const pops = host.pops({ life: 1.2, rise: 24, line: 5 });
 
     // ---------- кнопки ----------
     const btns = {};
@@ -116,7 +112,7 @@ export default {
       if (phase !== 'input' || over) return;
       const b = btns[id];
       b.classList.add('press');
-      setTimeout(() => b.classList.remove('press'), 140);
+      host.later(() => b.classList.remove('press'), 140);
       hMove = { id, t: 0 };
       if (id === seq[pos]) {
         pos++;
@@ -125,7 +121,7 @@ export default {
           wins++;
           longest = Math.max(longest, seq.length);
           host.sfx('win');
-          pops.push({ text: pick(['Супер!', 'Ура!', 'Здорово!', 'Точь-в-точь!']), col: '#2f9e44', t: 0 });
+          pops.add(pick(['Супер!', 'Ура!', 'Здорово!', 'Точь-в-точь!']), 0, 0, '#2f9e44');
           lock(true);
           setPhase('good', '🎉 Получилось!');
         }
@@ -133,7 +129,7 @@ export default {
         mistakes++;
         host.sfx('bad');
         lock(true);
-        pops.push({ text: `Ой! Было: ${BY_ID[seq[pos]].e}`, col: '#e8590c', t: 0 });
+        pops.add(`Ой! Было: ${BY_ID[seq[pos]].e}`, 0, 0, '#e8590c');
         setPhase('oops', retry ? '🙂 Ничего! Дальше — новый танец' : '🙂 Ой! Хлопушка покажет ещё раз');
       }
     }
@@ -143,7 +139,7 @@ export default {
       e.preventDefault();
       press(MOVES[+n[2] - 1].id);
     };
-    window.addEventListener('keydown', kd);
+    host.on(window, 'keydown', kd);
     // для автотеста (dev/smoke_games.js)
     cv.canvas.__mimic = () => ({ phase, seq: seq.slice(), pos, round, wins, mistakes, over });
     cv.canvas.__mimicSkip = () => (round = ROUNDS - 1); // автотест: сразу последний раунд
@@ -164,8 +160,7 @@ export default {
       phaseT += dt;
       if (aMove) aMove.t += dt;
       if (hMove) hMove.t += dt;
-      for (const p of pops) p.t += dt;
-      for (let i = pops.length - 1; i >= 0; i--) if (pops[i].t > 1.2) pops.splice(i, 1);
+      pops.step(dt);
       if (phase === 'intro' && phaseT > 1) startShow();
       else if (phase === 'show') {
         // пауза 0.5 с, потом движения по одному
@@ -302,28 +297,14 @@ export default {
           ctx.textBaseline = 'alphabetic';
         }
       }
-      ctx.font = `900 ${Math.round(18 * s + 6)}px ui-rounded, "Trebuchet MS", sans-serif`;
-      for (const p of pops) {
-        ctx.globalAlpha = Math.max(0, 1 - p.t / 1.2);
-        ctx.lineWidth = 5;
-        ctx.strokeStyle = '#fff';
-        ctx.strokeText(p.text, W / 2, by - 30 * s - p.t * 24);
-        ctx.fillStyle = p.col;
-        ctx.fillText(p.text, W / 2, by - 30 * s - p.t * 24);
-      }
-      ctx.globalAlpha = 1;
+      pops.draw(ctx, Math.round(18 * s + 6), () => [W / 2, by - 30 * s]); // надписи — над Хлопушкой
     }
-    const frame = (now) => {
-      if (stopped) return;
-      const dt = Math.min(0.05, (now - last) / 1000);
-      last = now;
+    host.loop((dt) => {
       if (!over) update(dt);
       tRound.textContent = `${morning ? '🤸' : '🪩'} Раунд ${Math.min(round + 1, ROUNDS)}/${ROUNDS} · ⭐ ${wins}`;
       tSay.textContent = say || '👀 Смотри на Хлопушку!';
       draw();
-      raf = requestAnimationFrame(frame);
-    };
-    raf = requestAnimationFrame(frame);
+    });
     function finish() {
       if (over) return;
       over = true;
@@ -337,16 +318,5 @@ export default {
         extra: { wins, mistakes, longest },
       });
     }
-    return {
-      stop() {
-        stopped = true;
-        cancelAnimationFrame(raf);
-        window.removeEventListener('keydown', kd);
-        if (cv.destroy) cv.destroy();
-        style.remove();
-        top.remove();
-        pad.remove();
-      },
-    };
   },
 };
