@@ -4,27 +4,11 @@
 //   В21, П7 — правила «Носильщицы» и «Кристаллов» на телефоне без прокрутки, карточки в ряд;
 //   Н3 — дом из кэша (engine/side/cache.js) без полосы пикселей у пола, которой нет при рисовании линиями.
 // Подключается из dev/smoke.js. Только эти шаги:  node dev/smoke.js <url> "step:экран"
-module.exports = async function screen({ page, step, ev, wait, closeAll }) {
-  const expect = (ok, msg, data) => {
-    if (!ok) throw new Error(msg + (data === undefined ? '' : ': ' + JSON.stringify(data)));
-  };
-  const mutate = (fn) => ev((src) => window.__dev.actions.mutate(new Function('s', src)), fn);
-  const fresh = async () => {
-    await ev(() => {
-      window.__dev.G.state = null;
-      localStorage.clear();
-    });
-    await page.reload();
-    await wait(400);
-    await page.click('text=Играть!');
-    await page.click('text=Пропустить'); // вступительная сценка новой игры (этап 10)
-    await page.evaluate(() => window.__dev.actions.setFlag('intro', 0));
-    await wait(400);
-    await page.click('text=Поехали!');
-    await wait(500);
-    await closeAll();
-    await mutate('s.minutes = 12 * 60; s.day = 18; s.weather = "sun"; s.dayFlags = {};');
-  };
+const lib = require('./lib.js');
+
+module.exports = async function screen(ctx) {
+  const { page, step, ev, wait, closeAll, expect, fresh: newGame, until, frames, go, teleport } = lib(ctx);
+  const fresh = () => newGame({ day: 18, minutes: 12 * 60, weather: 'sun', dayFlags: true }); // июль, полдень
 
   await step('экран В12: на iPad стоя одноэтажный дом виден целиком, в вилле и отеле камера видит хомячка', async () => {
     const size = page.viewportSize();
@@ -43,7 +27,7 @@ module.exports = async function screen({ page, step, ev, wait, closeAll }) {
       const cut = [];
       for (const id of ids) {
         await ev((id) => window.__dev.go(id), id);
-        await wait(120);
+        await frames(3);
         const r = await ev(() => {
           const s = window.__dev.scene,
             v = s.cam.visible(0);
@@ -87,13 +71,12 @@ module.exports = async function screen({ page, step, ev, wait, closeAll }) {
       for (const id of ['jungle', 'cove', 'island']) if (!d.QuestState.landOpen(id)) d.actions.openLand(id);
       d.go('world');
     });
-    await wait(300);
+    await frames(3);
     await closeAll();
     // нажать кнопку места в «карте мира» под картой города
     const press = async (name) => {
       await page.click('#hud button:has-text("Карта")');
       await page.waitForSelector('.overlay .lands-row button', { timeout: 4000 });
-      await wait(250);
       const ok = await ev((name) => {
         const b = [...document.querySelectorAll('.overlay .lands-row button')].find((q) => q.textContent.includes(name));
         if (b) b.click();
@@ -110,8 +93,7 @@ module.exports = async function screen({ page, step, ev, wait, closeAll }) {
         return { scene: d.sceneName, x: p.x, y: p.y, path: p.path.length, boat: W.isBoating(), panel: !!document.querySelector('.overlay') };
       });
     // джунгли: хомячок у пирса пешком — идёт к кораблику, садится и плывёт к причалу, а там — в джунгли
-    await ev(() => window.__dev.World.debugTeleport(63, 55));
-    await wait(200);
+    await teleport(63, 55);
     await press('Джунгли');
     let r = await pos();
     expect(!r.panel && r.path > 0 && !r.boat, 'хомячок не пошёл к кораблику (было только словами?)', r);
@@ -128,7 +110,7 @@ module.exports = async function screen({ page, step, ev, wait, closeAll }) {
       d.actions.patchState('boat', { x: 66 * 48, y: 64 * 48, on: true });
       d.go('world', { pos: { scene: 'world', x: 66 * 48, y: 64 * 48 } });
     });
-    await wait(300);
+    await frames(3);
     await closeAll();
     expect(await ev(() => window.__dev.World.isBoating()), 'хомячок не на кораблике (проверка не годится)');
     await press('Секретный пляж');
@@ -146,7 +128,7 @@ module.exports = async function screen({ page, step, ev, wait, closeAll }) {
       d.go('world');
       d.World.debugTeleport(64, 58);
     });
-    await wait(300);
+    await frames(3);
     await closeAll();
     await press('Удалённый остров');
     ok = false;
@@ -222,13 +204,13 @@ module.exports = async function screen({ page, step, ev, wait, closeAll }) {
         [844, 390],
       ]) {
         await page.setViewportSize({ width: w, height: h });
-        await wait(250);
+        await frames(2);
         for (const id of ['porter', 'crystals']) {
           await ev((id) => {
             window.__dev.F.playMinigame(id);
           }, id);
           await page.waitForSelector('.mg-card [data-act=start]', { timeout: 5000 });
-          await wait(300);
+          await frames(2);
           const r = await ev(() => {
             const t = document.querySelector('.mg-card .mg-text'),
               b = document.querySelector('.mg-card [data-act=start]').getBoundingClientRect(),
@@ -237,7 +219,7 @@ module.exports = async function screen({ page, step, ev, wait, closeAll }) {
           });
           if (r.scroll > 4 || r.btn > r.vh || !r.row) bad.push({ id, w, h, ...r });
           await ev(() => document.querySelector('#mg .xbtn, #mg .mg-head button').click());
-          await wait(300);
+          await until(() => !document.querySelector('#mg'), undefined, { timeout: 3000 }).catch(() => {});
         }
       }
     } finally {
