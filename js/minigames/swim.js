@@ -19,9 +19,7 @@ export default {
     const cv = host.canvas();
     const { ctx } = cv;
     const sfx = host.sfx;
-    let raf = 0,
-      stopped = false,
-      endTimer = 0;
+
 
     // ---------- участники ----------
     const rivals = shuffle(host.friends || []).slice(0, 3);
@@ -64,7 +62,7 @@ export default {
       b.style.cssText = 'flex:1;pointer-events:auto;touch-action:none;white-space:nowrap';
       bar.appendChild(b);
     }
-    host.root.appendChild(bar);
+    host.add(bar);
     const fitButtons = () => {
       const small = cv.h < 430;
       for (const b of [bL, bR]) {
@@ -100,13 +98,13 @@ export default {
       e.preventDefault();
       paddle('R');
     };
-    bL.addEventListener('pointerdown', onL);
-    bR.addEventListener('pointerdown', onR);
+    host.on(bL, 'pointerdown', onL);
+    host.on(bR, 'pointerdown', onR);
     const onCanvas = (e) => {
       const r = cv.canvas.getBoundingClientRect();
       paddle(e.clientX - r.left < r.width / 2 ? 'L' : 'R');
     };
-    cv.canvas.addEventListener('pointerdown', onCanvas);
+    host.on(cv.canvas, 'pointerdown', onCanvas);
     const onKey = (e) => {
       if (e.repeat) return;
       if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
@@ -117,7 +115,7 @@ export default {
         paddle('R');
       }
     };
-    window.addEventListener('keydown', onKey);
+    host.on(window, 'keydown', onKey);
 
     // ---------- логика ----------
     function placeOf() {
@@ -160,7 +158,7 @@ export default {
       };
       if (me.fin === Infinity)
         texts[4] = `Соперники уже на финише! Первое место — ${wn}. Попробуй ещё раз и греби быстрее: левая-правая, левая-правая!`;
-      endTimer = setTimeout(() => {
+      host.later(() => {
         host.finish({ stars: place === 1 ? 3 : place === 2 ? 2 : 1, text: texts[place], extra: { place } });
       }, 1700);
     }
@@ -502,30 +500,10 @@ export default {
       }
     }
 
-    let prev = performance.now();
-    function loop(now) {
-      if (stopped) return;
-      const dt = Math.min(0.05, (now - prev) / 1000);
-      prev = now;
+    markNext();
+    host.loop((dt) => {
       update(dt);
       draw();
-      raf = requestAnimationFrame(loop);
-    }
-    markNext();
-    raf = requestAnimationFrame(loop);
-
-    return {
-      stop() {
-        stopped = true;
-        cancelAnimationFrame(raf);
-        clearTimeout(endTimer);
-        window.removeEventListener('keydown', onKey);
-        cv.canvas.removeEventListener('pointerdown', onCanvas);
-        bL.removeEventListener('pointerdown', onL);
-        bR.removeEventListener('pointerdown', onR);
-        bar.remove();
-        cv.destroy();
-      },
-    };
+    });
   },
 };
