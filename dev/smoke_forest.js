@@ -3,47 +3,13 @@
 // костёр, домик на дереве, венок; «Грибная охота» до конца с наградой; задание Шишкина «Потерянный бельчонок»
 // от взятия до сдачи; сохранение и загрузка в лесу; «Домой» из леса. Состояние меняют только действия.
 // Подключается из dev/smoke.js. Только эти шаги:  node dev/smoke.js <url> step:лес
-const { MG_START } = require('./selectors.js'); // кнопка «Начать!» мини-игры — по метке, а не по тексту
-module.exports = async function forest({ page, step, ev, wait, closeAll }) {
-  const T = 48;
-  const norm = (t) => t.replace(/[  ]/g, ' ');
-  const expect = (ok, msg, data) => {
-    if (!ok) throw new Error(msg + (data === undefined ? '' : ': ' + JSON.stringify(data)));
-  };
-  const state = () => ev(() => JSON.parse(JSON.stringify(window.__dev.G.state)));
-  const panelText = async () =>
-    norm(await ev(() => [...document.querySelectorAll('.overlay .panel')].map((p) => p.textContent).join(' | ')));
-  const dialogText = async () => norm(await ev(() => (document.querySelector('.dialog .say') || {}).textContent || ''));
-  const toasts = async () =>
-    norm(await ev(() => (document.querySelector('#toasts') || { textContent: '' }).textContent));
-  const clearToasts = () =>
-    ev(() => {
-      const t = document.querySelector('#toasts');
-      if (t) t.innerHTML = '';
-    });
-  const where = () =>
-    ev(() => {
-      const d = window.__dev,
-        sc = d.locations[d.sceneName];
-      return { scene: d.sceneName, x: sc ? sc.p.x : null, y: sc ? sc.p.y : null };
-    });
-  const near = (a, b, r = 20) => Math.abs(a.x - b.x) < r && Math.abs(a.y - b.y) < r;
+const lib = require('./lib.js');
+
+module.exports = async function forest(ctx) {
+  const L = lib(ctx);
+  const { page, step, ev, wait, closeAll, until, untilScene, untilPanel, frames, go, sel, T, norm, expect, near, state, dialogText, panelText, toasts, clearToasts, where, watch, unwatch, MG_START, tap, mgDone, mgClose } = L;
   /** Новая игра с чистого листа. */
-  const fresh = async () => {
-    await ev(() => {
-      window.__dev.G.state = null;
-      localStorage.clear();
-    });
-    await page.reload();
-    await wait(400);
-    await page.click('text=Играть!');
-    await page.click('text=Пропустить'); // вступительная сценка новой игры (этап 10)
-    await page.evaluate(() => window.__dev.oldStart()); // как до этапа 10: 1 января, без вводной цепочки (начало игры — dev/smoke_start.js)
-    await wait(400);
-    await page.click('text=Поехали!');
-    await wait(500);
-    await closeAll();
-  };
+  const fresh = () => L.fresh(); // 1 июня, без вводной цепочки
   /** День (номер — месяц × 3), полдень, солнце; в лес (открыв его действием openLand). */
   const toForest = (day = 18, minutes = 12 * 60, tx = 10, ty = 36) =>
     ev(
@@ -63,28 +29,15 @@ module.exports = async function forest({ page, step, ev, wait, closeAll }) {
     );
   /** Поговорить с Шишкиным; если он предлагает задание — «Потом» (дальше обычный разговор). */
   const talkShishkin = async () => {
-    await ev(() => {
-      window.__dev.run('forester');
-    });
-    await wait(500);
+    await L.run('forester', 500);
     if (
       await ev(
         () => !!document.querySelector('.dialog') && /Помогу/.test(document.querySelector('.dialog').textContent),
       )
     ) {
-      await page.click('.dialog >> text=Потом');
-      await wait(500);
+      await tap('.dialog >> text=Потом', 500);
     }
   };
-  const watch = () =>
-    ev(() => {
-      window.__stopWatchForest = window.__dev.watchState();
-    });
-  const unwatch = async () => {
-    const bad = await ev(() => window.__stopWatchForest());
-    expect(!bad.length, `запись в состояние мимо действий (${bad.length})`, [...new Set(bad)].slice(0, 4));
-  };
-
   await step('лес: закрыт — окно Мяты; открыт — через ворота в лес и по тропе обратно в город', async () => {
     await fresh();
     await ev(() => {
@@ -93,14 +46,11 @@ module.exports = async function forest({ page, step, ev, wait, closeAll }) {
       d.World.debugTeleport(2, 4);
       d.World.walkTo(1.5 * 48, 0.5 * 48, true);
     });
-    await wait(1200);
+    await L.untilIdle(4000).catch(() => {}); // дошла до ворот (закрыты — стоит у них)
     let r = await where();
     expect(r.scene === 'world' && r.y > 3 * T, 'закрытый лес: прошли за ворота', r);
     // окно у ворот (нажатие на сами ворота проверяет шаг «переход между локациями»; на телефоне их закрывает HUD)
-    await ev(() => {
-      window.__dev.run('way:forest');
-    });
-    await wait(900);
+    await L.run('way:forest', 900);
     expect(
       /Тропа в лес заросла/.test(await panelText()) && /Мята/.test(await panelText()),
       'окно у закрытых ворот',
@@ -114,22 +64,20 @@ module.exports = async function forest({ page, step, ev, wait, closeAll }) {
       d.World.debugTeleport(2, 4);
       d.World.walkTo(1.5 * 48, 0.5 * 48, true);
     });
-    await wait(1500);
+    await L.untilArrive('forest', 5000).catch(() => {});
+    await frames(2);
     r = await where();
     expect(r.scene === 'forest' && near(r, { x: 10.5 * T, y: 37.5 * T }), 'вход в лес через ворота', r);
     const saved = await ev(() => JSON.parse(localStorage.getItem('rhr-save-v1')).pos);
     expect(saved.scene === 'forest', 'позиция в сохранении после входа', saved);
     // нажатие на ворота (действие way:forest) — тоже в лес
-    await ev(() => window.__dev.go('world'));
-    await wait(200);
-    await ev(() => {
-      window.__dev.run('way:forest');
-    });
-    await wait(400);
+    await go('world');
+    await L.run('way:forest', 400);
     expect((await where()).scene === 'forest', 'way:forest у открытого леса');
     // на клетке выхода в момент входа выход не срабатывает
     await ev(() => window.__dev.go('forest', { at: [10.5, 39.5] }));
-    await wait(400);
+    await untilScene('forest');
+    await wait(300); // выход не сработал — проверяем, что сцена не сменилась
     expect((await where()).scene === 'forest', 'выход сработал сразу при входе на его клетку');
     // обратно — по тропе к южной кромке: в город, за ворота виллы
     await ev(() => {
@@ -137,16 +85,17 @@ module.exports = async function forest({ page, step, ev, wait, closeAll }) {
       sc.debugTeleport(10, 36);
       sc.walkTo(10.5 * 48, 39.5 * 48, true);
     });
-    await wait(1600);
+    await L.untilArrive('world', 5000).catch(() => {});
+    await frames(2);
     r = await where();
     expect(r.scene === 'world' && near(r, { x: 2 * T, y: 1.5 * T }), 'выход из леса в город', r);
-    await wait(400);
+    await wait(300); // не затянуло обратно — проверяем, что сцена не сменилась
     expect((await where()).scene === 'world', 'после возвращения затянуло обратно в лес');
     // карта города: лес без замочка; кнопка ведёт к тропе
     await ev(() => {
       window.__dev.F.openMap();
     });
-    await wait(500);
+    await untilPanel();
     const lands = await ev(() =>
       [...document.querySelectorAll('.overlay .land')].map((b) => [b.textContent, b.classList.contains('open')]),
     );
@@ -220,7 +169,7 @@ module.exports = async function forest({ page, step, ev, wait, closeAll }) {
       await ev(() => {
         window.__dev.F.openMap();
       });
-      await wait(500);
+      await untilPanel();
       const t = await panelText();
       expect(
         /Карта леса/.test(t) &&
@@ -231,8 +180,7 @@ module.exports = async function forest({ page, step, ev, wait, closeAll }) {
         'карта леса',
         t,
       );
-      await page.click('.overlay .opt >> text=Костёр');
-      await wait(400);
+      await tap('.overlay .opt >> text=Костёр', 400);
       expect(await ev(() => window.__dev.locations.forest.p.path.length > 0), 'по кнопке карты не пошли');
       // спрайты во все сезоны, днём и ночью: всё помещается в рамки
       for (const day of [0, 9, 18, 27])
@@ -329,7 +277,7 @@ module.exports = async function forest({ page, step, ev, wait, closeAll }) {
     // шишки: подбираются на ходу, раз в день; зимой — ещё еловые веточки
     await toForest(18, 720, 13, 31);
     await ev(() => window.__dev.locations.forest.walkTo(13.5 * 48, 30.5 * 48, true));
-    await wait(900);
+    await until(() => window.__dev.G.state.finds.cone === 1, undefined, { timeout: 3000 }).catch(() => {});
     let s = await state();
     expect(s.finds.cone === 1, 'шишка не подобралась', s.finds);
     await ev(() => {
@@ -337,7 +285,7 @@ module.exports = async function forest({ page, step, ev, wait, closeAll }) {
       sc.debugTeleport(13, 31);
       sc.walkTo(13.5 * 48, 30.5 * 48, true);
     });
-    await wait(900);
+    await L.untilIdle(3000).catch(() => {}); // прошла по месту шишки ещё раз
     expect((await state()).finds.cone === 1, 'шишка дважды за день');
     await toForest(0, 720, 16, 31);
     const tw = await ev(() => window.__dev.locations.forest.pickups.map((p) => p.id));
@@ -354,20 +302,11 @@ module.exports = async function forest({ page, step, ev, wait, closeAll }) {
     await watch();
     await clearToasts();
     const h0 = (await state()).ing.honey || 0;
-    await ev(() => {
-      window.__dev.run('forest:hive');
-    });
-    await wait(300);
+    await L.run('forest:hive', 300);
     expect(/спят/.test(await toasts()) && ((await state()).ing.honey || 0) === h0, 'улей зимой', await toasts());
     await toForest(18, 720, 42, 16); // лето
-    await ev(() => {
-      window.__dev.run('forest:hive');
-    });
-    await wait(300);
-    await ev(() => {
-      window.__dev.run('forest:hive');
-    });
-    await wait(300);
+    await L.run('forest:hive', 300);
+    await L.run('forest:hive', 300);
     let s = await state();
     expect(s.ing.honey === h0 + 1 && /уже собран/.test(await toasts()), 'улей летом — баночка раз в день', [
       s.ing.honey,
@@ -382,14 +321,11 @@ module.exports = async function forest({ page, step, ev, wait, closeAll }) {
       window.__dev.locations.forest.debugTeleport(43, 28);
       window.__dev.run('forest:squirrel');
     });
-    await wait(500);
+    await untilPanel();
     expect(/Рыжик/.test(await panelText()), 'окно белки', await panelText());
-    await page.click('.overlay .panel-foot .btn >> text=Золотая шишка');
-    await wait(500);
-    await page.click('.overlay .panel-foot .btn >> text=Золотая шишка');
-    await wait(500);
-    await page.click('.overlay .panel-foot .btn >> text=Орешек');
-    await wait(500);
+    await tap('.overlay .panel-foot .btn >> text=Золотая шишка', 500);
+    await tap('.overlay .panel-foot .btn >> text=Золотая шишка', 500);
+    await tap('.overlay .panel-foot .btn >> text=Орешек', 500);
     s = await state();
     expect(
       (s.storage.golden_cone || 0) === (b0.storage.golden_cone || 0) + 1 &&
@@ -406,19 +342,12 @@ module.exports = async function forest({ page, step, ev, wait, closeAll }) {
       window.__dev.locations.forest.debugTeleport(24, 23);
     });
     await clearToasts();
-    await ev(() => {
-      window.__dev.run('forest:fire');
-    });
-    await wait(300);
+    await L.run('forest:fire', 300);
     const m0 = (await state()).ing.marshmallow;
     expect(/вечером/.test(await toasts()) && m0 >= 2, 'костёр днём', await toasts());
     await ev(() => window.__dev.actions.mutate((st) => (st.minutes = 20 * 60)));
-    await ev(() => {
-      window.__dev.run('forest:fire');
-    });
-    await wait(500);
-    await page.click('.overlay .panel-foot .btn >> text=В рюкзак');
-    await wait(300);
+    await L.run('forest:fire', 500);
+    await tap('.overlay .panel-foot .btn >> text=В рюкзак', 300);
     s = await state();
     expect(
       s.ing.marshmallow === m0 - 1 && s.dishes.toasted_marshmallow >= 1 && s.stickers.includes('x_marshmallow'),
@@ -426,10 +355,7 @@ module.exports = async function forest({ page, step, ev, wait, closeAll }) {
       [s.ing, s.dishes],
     );
     // домик на дереве: окно с видом (нарисован холст)
-    await ev(() => {
-      window.__dev.run('forest:treehouse');
-    });
-    await wait(500);
+    await L.run('forest:treehouse', 500);
     expect(
       /Домик на дереве/.test(await panelText()) && (await ev(() => !!document.querySelector('.overlay canvas'))),
       'домик на дереве',
@@ -442,19 +368,18 @@ module.exports = async function forest({ page, step, ev, wait, closeAll }) {
       d.actions.mutate((st) => (st.minutes = 12 * 60));
       d.locations.forest.debugTeleport(40, 16);
     });
-    await wait(300);
+    await frames(3);
     await clearToasts();
     const h = await ev(() => window.__dev.locations.forest.debugScreen(42.5 * 48, 14.5 * 48 - 20));
     await page.mouse.click(h.x, h.y);
-    await wait(1800);
+    await until(() => /мёд уже собран/.test(document.querySelector('#toasts').textContent), undefined, { timeout: 5000 }).catch(() => {});
     expect(/мёд уже собран/.test(await toasts()), 'нажатие на улей', await toasts());
     // венок у Шишкина из 4 еловых веточек
     await ev(() => {
       window.__dev.actions.addItem('finds', 'fir_twig', 4);
     });
     await talkShishkin();
-    await page.click('.dialog >> text=Сплести венок');
-    await wait(400);
+    await tap('.dialog >> text=Сплести венок', 400);
     s = await state();
     expect(s.storage.fir_wreath >= 1 && (s.finds.fir_twig || 0) < 4, 'венок', [s.storage, s.finds]);
     await closeAll();
@@ -465,8 +390,7 @@ module.exports = async function forest({ page, step, ev, wait, closeAll }) {
     await toForest(18, 720, 9, 33);
     const s0 = await state();
     await talkShishkin();
-    await page.click('.dialog >> text=Грибная охота');
-    await wait(1200);
+    await tap('.dialog >> text=Грибная охота', 1200);
     const intro = norm(await ev(() => document.querySelector('#mg').textContent));
     expect(
       /Можно/.test(intro) &&
@@ -499,8 +423,7 @@ module.exports = async function forest({ page, step, ev, wait, closeAll }) {
     await page.waitForSelector('#mg >> text=Ура!', { timeout: 8000 });
     const end = norm(await ev(() => document.querySelector('#mg').textContent));
     expect(/В корзинке/.test(end) && /Награда/.test(end), 'итог охоты', end);
-    await page.click('#mg >> text=Ура!');
-    await wait(500);
+    await mgDone();
     const s1 = await state();
     expect(clicks > 5 && s1.plays.mushrooms === 1 && s1.dayFlags.forest.hunts === 1, 'охота записана', [
       clicks,
@@ -518,13 +441,12 @@ module.exports = async function forest({ page, step, ev, wait, closeAll }) {
     await ev(() => {
       window.__dev.F.mushroomHunt();
     });
-    await wait(900);
+    await page.waitForSelector(MG_START);
     expect(
       /ещё 1 охота/.test(norm(await ev(() => document.querySelector('#mg').textContent))),
       'на заставке — сколько охот с наградой осталось',
     );
-    await page.click('#mg .xbtn');
-    await wait(400);
+    await mgClose();
     expect((await state()).money === s1.money, 'закрыли игру — а награда пришла');
     await closeAll();
   });
@@ -535,15 +457,10 @@ module.exports = async function forest({ page, step, ev, wait, closeAll }) {
     await watch();
     const now = () => ev(() => window.__dev.QuestState.questNow('squirrel_kit'));
     expect((await ev(() => window.__dev.QuestState.questBadge('shishkin'))) === '!', 'над Шишкиным нет «!»');
-    await ev(() => {
-      window.__dev.run('forester');
-    });
-    await wait(500);
+    await L.run('forester', 500);
     expect(/бельчонок/.test(await dialogText()), 'Шишкин не предлагает задание', await dialogText());
-    await page.click('.dialog .btn.green');
-    await wait(400);
-    await page.click('.dialog .btn.green');
-    await wait(400);
+    await tap('.dialog .btn.green', 400);
+    await tap('.dialog .btn.green', 400);
     let w = await now();
     expect(w.status === 'active' && w.i === 0, 'задание не взято', w);
     // журнал: «найди его в лесу» не нужно (взято), шаги видны; звёздочка — к бельчонку
@@ -551,7 +468,7 @@ module.exports = async function forest({ page, step, ev, wait, closeAll }) {
     expect(tg && Math.abs(tg.x - 29.5 * 48) < 30, 'звёздочка не ведёт к бельчонку', tg);
     // нашли бельчонка: нажатие на него в траве
     await ev(() => window.__dev.locations.forest.debugTeleport(29, 8));
-    await wait(500);
+    await frames(3);
     const k = await ev(() => window.__dev.locations.forest.debugScreen(29.5 * 48, 5.5 * 48));
     await page.mouse.click(k.x, k.y);
     await page.waitForSelector('text=Бельчонок нашёлся', { timeout: 6000 });
@@ -563,9 +480,8 @@ module.exports = async function forest({ page, step, ev, wait, closeAll }) {
       window.__dev.locations.forest.debugTeleport(43, 28);
       window.__dev.run('forest:squirrel');
     });
-    await wait(500);
-    await page.click('.overlay .panel-foot .btn >> text=Вернуть бельчонка');
-    await wait(500);
+    await untilPanel();
+    await tap('.overlay .panel-foot .btn >> text=Вернуть бельчонка', 500);
     await closeAll();
     w = await now();
     expect(w.i === 2, 'бельчонок не дома', w);
@@ -575,7 +491,7 @@ module.exports = async function forest({ page, step, ev, wait, closeAll }) {
         sc = d.locations.forest;
       for (const o of sc.map.objs.filter((q) => q.type === 'hazelBush').slice(0, 2)) d.Plants.gather(sc, o);
     });
-    await wait(300);
+    await frames(2);
     w = await now();
     expect(
       w.i === 3 && (await ev(() => window.__dev.QuestState.questBadge('shishkin'))) === '?',
@@ -587,11 +503,9 @@ module.exports = async function forest({ page, step, ev, wait, closeAll }) {
       window.__dev.locations.forest.debugTeleport(9, 33);
       window.__dev.run('forester');
     });
-    await wait(500);
-    await page.click('.dialog .btn.green');
-    await wait(500);
-    await page.click('.dialog .btn.green');
-    await wait(1500);
+    await L.untilDialog();
+    await tap('.dialog .btn.green', 500);
+    await tap('.dialog .btn.green', 1500);
     const t = await panelText();
     expect(
       /Задание выполнено/.test(t) && /Друг леса/.test(t) && /Лесной пирог/.test(t) && /Сени/.test(t),
@@ -611,10 +525,7 @@ module.exports = async function forest({ page, step, ev, wait, closeAll }) {
       [s.quests.squirrel_kit, s.money - s0.money, s.ing.nuts],
     );
     // станция канатной дороги — окно горы с замочком и подсказкой про Сеню
-    await ev(() => {
-      window.__dev.run('way:mountain');
-    });
-    await wait(400);
+    await L.run('way:mountain', 400);
     expect(
       /Канатная дорога/.test(await panelText()) && /Сеня/.test(await panelText()),
       'станция канатной дороги',
@@ -626,7 +537,8 @@ module.exports = async function forest({ page, step, ev, wait, closeAll }) {
   await step('лес: сохранение и загрузка в лесу; «Домой» из леса', async () => {
     await fresh(); // своя новая игра: не опираться на дом и место, оставленные прошлыми шагами
     await toForest(18, 720, 24, 24);
-    await wait(300);
+    await untilScene('forest');
+    await frames(2);
     // уходим со страницы — игра записывает позицию (как при закрытии вкладки)
     const raw = await ev(() => {
       window.dispatchEvent(new Event('pagehide'));
@@ -639,9 +551,8 @@ module.exports = async function forest({ page, step, ev, wait, closeAll }) {
       localStorage.setItem('rhr-save-v1', raw);
     }, raw);
     await page.reload();
-    await wait(500);
-    await page.click('text=Продолжить');
-    await wait(800);
+    await page.waitForSelector(sel('continue'));
+    await L.cont();
     await closeAll();
     const r = await where();
     expect(
@@ -651,9 +562,8 @@ module.exports = async function forest({ page, step, ev, wait, closeAll }) {
     );
     // «Домой» — на виллу
     await page.click('.hud-btns.left .rbtn:last-child');
-    await wait(450);
     await page.click('.panel-foot .btn.green');
-    await wait(800);
+    await untilScene('villa').catch(() => {});
     expect(
       (await ev(() => window.__dev.sceneName)) === 'villa',
       'кнопка «Домой» из леса',
