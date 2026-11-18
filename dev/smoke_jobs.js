@@ -3,31 +3,14 @@
 //   «Садовник» (садовая тележка Мяты в парке): работа открывается там, где сказано, играется через dev-хук канвы
 //   до звёзд, платит зарплату по JOBS; общий предел оплачиваемых смен за день — PAID_DAY.
 // Подключается из dev/smoke.js. Только эти шаги:  node dev/smoke.js <url> "step:17в:"
-module.exports = async function jobs({ page, step, ev, wait, closeAll }) {
-  const norm = (t) => t.replace(/[  ]/g, ' ');
-  const expect = (ok, msg, data) => {
-    if (!ok) throw new Error(msg + (data === undefined ? '' : ': ' + JSON.stringify(data)));
-  };
-  const state = () => ev(() => JSON.parse(JSON.stringify(window.__dev.G.state)));
-  const mutate = (fn) => ev((src) => window.__dev.actions.mutate(new Function('s', src)), fn);
+const lib = require('./lib.js');
+
+module.exports = async function jobs(ctx) {
+  const { page, step, ev, wait, closeAll, norm, expect, state, mutate, fresh: newGame, until, untilScene, untilIdle, go, teleport, frames, drain, mgStart, sel } = lib(ctx);
   const mgText = async () => norm(await ev(() => (document.querySelector('#mg') || { textContent: '' }).textContent));
   const dialogText = async () => norm(await ev(() => (document.querySelector('.dialog') || {}).textContent || ''));
-  const fresh = async () => {
-    await ev(() => {
-      window.__dev.G.state = null;
-      localStorage.clear();
-    });
-    await page.reload();
-    await wait(400);
-    await page.click('text=Играть!');
-    await page.click('text=Пропустить'); // вступительная сценка новой игры (этап 10)
-    await page.evaluate(() => window.__dev.actions.setFlag('intro', 0));
-    await wait(400);
-    await page.click('text=Поехали!');
-    await wait(500);
-    await closeAll();
-    await mutate('s.minutes = 12 * 60; s.day = 18; s.weather = "sun"; s.flags.hotelHint = 1; s.dayFlags = {};');
-  };
+  // июль, полдень, солнце
+  const fresh = () => newGame({ day: 18, minutes: 12 * 60, weather: 'sun', dayFlags: true, flags: { hotelHint: 1 } });
   const hook = (name, ...a) =>
     ev(
       ([name, a]) => {
@@ -36,25 +19,23 @@ module.exports = async function jobs({ page, step, ev, wait, closeAll }) {
       },
       [name, a],
     );
-  const start = async () => {
-    await page.waitForSelector('#mg .btn.green', { timeout: 8000 });
-    await page.click('#mg .btn.green');
-    await wait(900);
+  /** «Начать!» и дождаться, пока у холста игры появится тестовый крюк hookName. */
+  const start = async (hookName) => {
+    await mgStart();
+    await until((n) => [...document.querySelectorAll('#mg canvas')].some((q) => q[n]), hookName, { timeout: 4000 }).catch(() => {});
   };
   const ura = async () => {
-    await page.waitForSelector('#mg >> text=Ура!', { timeout: 30000 });
+    await page.waitForSelector(sel('done', '#mg'), { timeout: 30000 });
     const t = await mgText();
-    await page.click('#mg >> text=Ура!');
-    await wait(500);
-    await closeAll();
+    await page.click(sel('done', '#mg'));
+    await until(() => !document.querySelector('#mg'), undefined, { timeout: 3000 }).catch(() => {});
+    await drain(3000); // окна зарплаты и наклеек из очереди
     return t;
   };
   /** Подойти к месту города и нажать на него (точка мира в клетках). */
   const tapTown = async (stand, at) => {
-    await ev(() => window.__dev.go('world'));
-    await wait(500);
-    await ev(([x, y]) => window.__dev.World.debugTeleport(x, y), stand);
-    await wait(500);
+    await go('world');
+    await teleport(...stand);
     const k = await ev(([x, y]) => window.__dev.World.debugScreen(x * 48, y * 48), at);
     await page.mouse.click(k.x, k.y);
   };
@@ -85,7 +66,7 @@ module.exports = async function jobs({ page, step, ev, wait, closeAll }) {
     await page.waitForSelector('#mg', { timeout: 6000 });
     const intro = await mgText();
     expect(/Парикмахер/.test(intro) && /Зарплата/.test(intro), 'заставка без зарплаты', intro);
-    await start();
+    await start('__hair');
     let hinted = false;
     for (let i = 0; i < 60; i++) {
       const s = await hook('__hair');
@@ -119,9 +100,9 @@ module.exports = async function jobs({ page, step, ev, wait, closeAll }) {
     }
     const d = await dialogText();
     expect(/Волна/.test(d) && /Зарплата/.test(d) && !/Купить заведение/.test(d), 'диалог у вышки', d);
-    await wait(500);
+    await wait(380); // кнопки диалога принимают нажатия не сразу (TAP_GUARD)
     await page.click('.dialog >> text=На вышку');
-    await start();
+    await start('__guard');
     const kinds = new Set();
     for (let i = 0; i < 300; i++) {
       const s = await hook('__guard');
@@ -142,17 +123,15 @@ module.exports = async function jobs({ page, step, ev, wait, closeAll }) {
     await fresh();
     const spot = await ev(async () => (await import('/js/locations/town.js')).JOB_SPOTS.garden);
     // дойти до тележки (нажатием можно попасть в Мяту — она гуляет рядом)
-    await ev(() => window.__dev.go('world'));
-    await wait(500);
-    await ev(([x, y]) => window.__dev.World.debugTeleport(x, y), [spot[0] - 1, spot[1] + 1]);
-    await wait(300);
+    await go('world');
+    await teleport(spot[0] - 1, spot[1] + 1);
     await ev(() => window.__dev.World.walkToPlace('gardencart'));
     await waitDialog('Помочь в парке');
     const d = await dialogText();
     expect(/Мята/.test(d) && /Зарплата/.test(d), 'диалог у тележки', d);
-    await wait(500); // кнопки диалога оживают не сразу
+    await wait(380); // кнопки диалога оживают не сразу (TAP_GUARD)
     await page.click('.dialog >> text=Помочь в парке');
-    await start();
+    await start('__garden');
     const stages = new Set();
     // одна ошибка — уже политый цветок: подсказка, не наказание
     for (let i = 0; i < 400; i++) {
@@ -181,17 +160,15 @@ module.exports = async function jobs({ page, step, ev, wait, closeAll }) {
     const intro = await mgText();
     expect(new RegExp(`уже отработала ${lim} смен`).test(intro), 'нет слов про общий предел', intro);
     await page.click('#mg .xbtn');
-    await wait(400);
+    await until(() => !document.querySelector('#mg'), undefined, { timeout: 3000 }).catch(() => {});
     await closeAll();
     expect((await state()).money === m0, 'монеты изменились без игры');
   });
 
   await step('17в: фото-режим — кнопка 📷, интерфейс спрятан, кадр двигается, рамка, наклейки, подпись, снимок в фотоальбом', async () => {
     await fresh();
-    await ev(() => window.__dev.go('world'));
-    await wait(500);
-    await ev(() => window.__dev.World.debugTeleport(40, 52));
-    await wait(500);
+    await go('world');
+    await teleport(40, 52);
     await closeAll();
     await page.click('#hud button:has-text("Фото")');
     await page.waitForSelector('#photo', { timeout: 4000 });
@@ -215,7 +192,7 @@ module.exports = async function jobs({ page, step, ev, wait, closeAll }) {
     await page.click('#photo >> text=Снять');
     await page.waitForSelector('.overlay >> text=В фотоальбом', { timeout: 4000 });
     await page.click('.overlay >> text=В фотоальбом');
-    await wait(500);
+    await until(async () => (await (await import('/js/core/photos.js')).loadPhotos()).length > 0, undefined, { timeout: 3000 }).catch(() => {});
     const info = await ev(async () => {
       const m = await import('/js/core/photos.js');
       const list = await m.loadPhotos();
@@ -226,7 +203,7 @@ module.exports = async function jobs({ page, step, ev, wait, closeAll }) {
     expect(!/data:image/.test(await ev(() => localStorage.getItem('rhr-save-v1'))), 'снимок попал в сохранение');
     expect((await state()).stickers.includes('x_photo'), 'нет наклейки «Первый снимок»');
     await page.click('#photo .ph-x >> nth=-1');
-    await wait(400);
+    await until(() => !document.getElementById('photo'), undefined, { timeout: 3000 }).catch(() => {});
     expect(await ev(() => !document.getElementById('photo') && getComputedStyle(document.getElementById('hud')).visibility !== 'hidden'), 'фото-режим не закрылся');
     // фотоальбом: вкладка альбома, удалить снимок
     await ev(() => window.__dev.F.openAlbum('ph'));
@@ -251,7 +228,7 @@ module.exports = async function jobs({ page, step, ev, wait, closeAll }) {
       });
       d.go('caves');
     });
-    await wait(700);
+    await untilScene('caves');
     // старое сохранение: «Счастливая кирка» сдана раньше — нижний ярус открывается сам (repair)
     const mig = await ev(async () => {
       const st = await import('/js/core/state.js');
@@ -264,7 +241,7 @@ module.exports = async function jobs({ page, step, ev, wait, closeAll }) {
     expect(mig === 5, 'сданная «Счастливая кирка» не открыла нижний ярус', mig);
     const hole = await ev(async () => (await import('/js/locations/caves.js')).AT.hole);
     await ev(([x, y]) => window.__dev.locations.caves.debugTeleport(x - 2, y), hole);
-    await wait(500);
+    await frames(3);
     let k;
     await ev(() => window.__dev.locations.caves.walkToPlace('ladder'));
     await page.waitForSelector('.overlay >> text=Подземная река', { timeout: 6000 });
@@ -272,7 +249,7 @@ module.exports = async function jobs({ page, step, ev, wait, closeAll }) {
     await closeAll();
     await ev(() => window.__dev.actions.openLand('deep'));
     await ev(([x, y]) => window.__dev.locations.caves.debugTeleport(x - 3, y), hole);
-    await wait(300);
+    await frames(3);
     await ev(() => window.__dev.locations.caves.walkToPlace('ladder'));
     await page.waitForFunction(() => window.__dev.sceneName === 'deep', null, { timeout: 8000 });
     await wait(800);
@@ -281,7 +258,7 @@ module.exports = async function jobs({ page, step, ev, wait, closeAll }) {
     expect(r && r.next === 'caves', 'звёздочка из подземной реки не ведёт к лестнице', r);
     // лодочка
     await ev(() => window.__dev.locations.deep.debugTeleport(6, 10));
-    await wait(500);
+    await frames(3);
     k = await ev(() => window.__dev.locations.deep.debugScreen(5.2 * 48, 13 * 48));
     await page.mouse.click(k.x, k.y);
     const deepMod = () => ev(async () => (await import('/js/locations/deep.js')).boatWhere());
@@ -295,14 +272,15 @@ module.exports = async function jobs({ page, step, ev, wait, closeAll }) {
       [33.5, 22.5],
     ]) {
       await ev(([x, y]) => window.__dev.locations.deep.walkTo(x * 48, y * 48, true), [x, y]);
-      await wait(2500);
+      await untilIdle();
+      await wait(300);
     }
     const f = (await state()).finds;
     expect(f.cave_pearl === 1 && f.glow_pebble === 1, 'находки грота', f);
     expect(!(await ev(() => window.__dev.locations.deep.debugSprites().clipped.length)), 'спрайты не помещаются');
     // обратно на лодочке и наверх по лестнице
     await ev(() => window.__dev.locations.deep.debugTeleport(32, 15));
-    await wait(500);
+    await frames(3);
     k = await ev(() => window.__dev.locations.deep.debugScreen(33 * 48, 13 * 48));
     await page.mouse.click(k.x, k.y);
     for (let i = 0; i < 20 && (await deepMod()) !== 'ride'; i++) await wait(400); // дошла до мостков и села
