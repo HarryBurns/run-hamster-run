@@ -212,4 +212,66 @@ module.exports = async function core({ page, step, ev, wait, closeAll }) {
     const r = { mem: await ev(() => window.__dev.G.state.money), saved: await saved() };
     expect(r.mem === r.saved && r.saved === before + 1000001, 'после освобождения места сохранение не записалось', r);
   });
+
+  await step('основа: первый жест просит браузер не стирать сохранения — тихо, и там, где этого не умеют', async () => {
+    for (const mode of ['есть', 'нет']) {
+      await ev(() => {
+        window.__dev.G.state = null;
+        localStorage.clear();
+      });
+      await page.reload();
+      await wait(400);
+      await ev((mode) => {
+        window.__persistAsked = 0;
+        if (mode === 'есть')
+          navigator.storage.persist = () => {
+            window.__persistAsked++;
+            return Promise.resolve(true);
+          };
+        else Object.defineProperty(navigator, 'storage', { value: undefined, configurable: true });
+      }, mode);
+      await page.click('text=Играть!');
+      await page.click('text=Пропустить');
+      await wait(300);
+      const asked = await ev(() => window.__persistAsked);
+      if (mode === 'есть') expect(asked === 1, 'persist() не позвали ровно один раз', asked);
+    }
+    await page.reload(); // вернуть настоящий navigator.storage
+    await wait(400);
+  });
+
+  await step(
+    'основа: ошибки вне кадра из наших файлов — окно «Что-то сломалось», чужие ошибки — нет',
+    async () => {
+      await fresh();
+      const err = () => ev(() => /Что-то сломалось/.test([...document.querySelectorAll('.overlay .title')].map((e) => e.textContent).join()));
+      // три чужие ошибки (как от расширения браузера) — окна нет
+      await ev(() => {
+        for (let i = 0; i < 3; i++)
+          setTimeout(() => {
+            throw new Error('Нет сцены «чужая»');
+          }, i * 20);
+      });
+      await wait(500);
+      expect(!(await err()), 'окно «Что-то сломалось» от чужих ошибок');
+      // две ошибки в нашем коде (go в несуществующую сцену из таймера) — ещё не повод
+      await ev(() => {
+        setTimeout(() => window.__dev.go('нет-такой'), 0);
+        setTimeout(() => window.__dev.go('нет-такой'), 30);
+      });
+      await wait(400);
+      expect(!(await err()), 'окно «Что-то сломалось» после двух ошибок');
+      // третья — необработанный отказ промиса с ошибкой из нашего кода
+      await ev(() => {
+        Promise.resolve().then(() => window.__dev.go('нет-такой'));
+      });
+      await wait(500);
+      expect(await err(), 'после трёх ошибок в нашем коде нет окна «Что-то сломалось»');
+      await page.click('.overlay .panel-foot .btn >> nth=0'); // «Домой»
+      await wait(800);
+      const r = await ev(() => ({ modal: window.__dev.G.modal, scene: window.__dev.sceneName }));
+      expect(r.modal === 0 && r.scene === 'villa', 'после «Домой» игра не дома или на паузе', r);
+    },
+    { expectErrors: 'Нет сцены' },
+  );
 };

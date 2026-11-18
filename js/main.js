@@ -92,8 +92,11 @@ initHud(hud, {
   boost: { fn: F.showBoostHelp }, // 💆 бодрость после спа (От7)
 });
 
-/** Игра спотыкается в каждом кадре: честно сказать об этом и предложить выход. */
+/** Игра спотыкается в каждом кадре (или ошибки сыплются вне кадра): честно сказать об этом и предложить выход. */
+let brokenOpen = false;
 function showBroken() {
+  if (brokenOpen) return; // окно уже на экране
+  brokenOpen = true;
   message({
     title: 'Ой! Что-то сломалось',
     icon: '🛠️',
@@ -101,6 +104,7 @@ function showBroken() {
     html: '<p class="center big-emoji">🙈</p><p class="center">Игра споткнулась. Давай вернёмся домой — там всё починится. Твои вещи и друзья на месте!</p>',
     buttons: [{ text: 'Домой 🏡' }, { text: 'Перезапустить игру', cls: 'ghost' }],
   }).then((i) => {
+    brokenOpen = false;
     if (i === 1) {
       location.reload();
       return;
@@ -118,6 +122,41 @@ function showBroken() {
     });
   });
 }
+
+// Ошибки вне кадра (кнопки окон, занятия в async-функциях, таймеры) цикл игры не видит. Считаем их здесь: несколько
+// подряд за короткое время — то же окно «Что-то сломалось». Только ошибки из наших файлов (js/): расширения браузера
+// и чужие скрипты сыплют своими, ребёнку о них знать незачем.
+const OUR_JS = new URL('./', import.meta.url).href;
+const ERR_LIMIT = 3,
+  ERR_WINDOW = 20000; // мс
+let errTimes = [];
+function countError(where) {
+  if (!where || !String(where).includes(OUR_JS)) return;
+  const now = performance.now();
+  errTimes = errTimes.filter((t) => now - t < ERR_WINDOW);
+  errTimes.push(now);
+  if (errTimes.length >= ERR_LIMIT && G.state) {
+    errTimes = [];
+    showBroken();
+  }
+}
+window.addEventListener('error', (e) => countError(e.filename || (e.error && e.error.stack)));
+window.addEventListener('unhandledrejection', (e) => countError(e.reason && e.reason.stack));
+
+// Попросить браузер не стирать сохранения сам (Safari чистит данные сайта, где давно не были), — после первого
+// нажатия: так браузер охотнее соглашается. Тихо: не умеет или отказал — играем как раньше.
+const askKeep = () => {
+  document.removeEventListener('pointerdown', askKeep, true);
+  document.removeEventListener('keydown', askKeep, true);
+  try {
+    const st = navigator.storage;
+    if (st && st.persist) Promise.resolve(st.persist()).catch(() => {});
+  } catch (e) {
+    /* не поддерживается */
+  }
+};
+document.addEventListener('pointerdown', askKeep, true);
+document.addEventListener('keydown', askKeep, true);
 
 // Сохранение не записалось (core/state.js, save): игра идёт дальше и повторяет запись сама, а взрослому один раз
 // за сеанс объясняем, что делать. Окно — из очереди, чтобы не лечь поверх диалога или мини-игры.
