@@ -8,6 +8,7 @@
 // этаж с бирки (первая цифра), приедешь — нажми дверь. Не тот этаж — добрая подсказка, считается как ошибка.
 import { el, clamp, shuffle } from '../core/util.js';
 import { ell, fillRR, line, star } from '../core/draw.js';
+import { pic as kitPic } from './kit.js';
 
 const N = 8; // чемоданов за смену
 const OUT = '#4a3728';
@@ -35,15 +36,7 @@ function suitcase(ctx, x, y, w, h, col, tag) {
   }
 }
 /** Картинка для правил. */
-function pic(draw, size = 64) {
-  const c = document.createElement('canvas');
-  c.width = c.height = size * 2;
-  const x = c.getContext('2d');
-  x.scale(2, 2);
-  x.lineJoin = 'round';
-  draw(x, size, size / 50);
-  return `<img src="${c.toDataURL()}" width="${size}" height="${size}" alt="">`;
-}
+const pic = (draw, size = 64) => kitPic((x) => draw(x, size, size / 50), size, size);
 function doorPic(ctx, size, s, n, col) {
   fillRR(ctx, size * 0.22, size * 0.12, size * 0.56, size * 0.84, 4, '#8d5524', OUT, 1.5);
   fillRR(ctx, size * 0.27, size * 0.17, size * 0.46, size * 0.79, 3, col, OUT, 1.2);
@@ -103,8 +96,9 @@ export default {
   id: 'porter',
   title: 'Носильщица',
   icon: '🧳',
+  css: CSS,
   get howTo() {
-    return `<style>${CSS}</style>Гости приехали! Развези чемоданы по номерам.
+    return `Гости приехали! Развези чемоданы по номерам.
       <div class="pt-rules">
         <div class="pt-col"><b>🏷️ Смотри на бирку</b><div class="row">${pic((c, size) => suitcase(c, size * 0.4, size * 0.9, size * 0.5, size * 0.55, '#ff8fab', '203'))}</div><small>на бирке — номер <br>комнаты</small></div>
         <div class="pt-col lift"><b>🛗 Лифт</b><div class="row">${pic((c, size) => {
@@ -118,13 +112,11 @@ export default {
       Чем меньше ошибок и чем быстрее — тем больше звёзд. Ошиблась — ничего страшного, подскажем!`;
   },
   start(host) {
-    const root = host.root;
-    const style = el('style', '', CSS);
     const top = el('div', 'pt-top');
     const tLeft = el('div', 'pt-chip'),
       tPts = el('div', 'pt-chip');
     top.append(tLeft, tPts);
-    root.append(style, top);
+    host.add(top);
     const cv = host.canvas();
     const ctx = cv.ctx;
     const level = host.level || 0;
@@ -138,9 +130,6 @@ export default {
     const bags = order.slice(0, N).map((n, i) => ({ n, col: COLORS[i % COLORS.length] }));
     const fast = lift ? FAST + 3 : FAST;
     let t = 0,
-      last = performance.now(),
-      raf = 0,
-      stopped = false,
       over = false,
       i = 0, // какой чемодан везём
       pts = 0,
@@ -155,7 +144,7 @@ export default {
       back = false, // с лифтом: едем в холл за следующим чемоданом (тележка пустая)
       hint = null; // { text, t }
     const hero = { x: 0, y: 0 };
-    const pops = [];
+    const pops = host.pops({ life: 1.2, rise: 26 });
 
     // ---------- раскладка ----------
     const L = () => {
@@ -271,7 +260,7 @@ export default {
       const r = cv.canvas.getBoundingClientRect();
       tapAt(((e.clientX - r.left) / r.width) * cv.w, ((e.clientY - r.top) / r.height) * cv.h);
     };
-    cv.canvas.addEventListener('pointerdown', down);
+    host.on(cv.canvas, 'pointerdown', down);
     // клавиатура: стрелки — выбрать дверь (↑↓ — этаж), Enter — к выбранной двери; с лифтом цифры 1–4 — кнопки этажей
     let sel = { k: 0, d: 0 };
     const kd = (e) => {
@@ -292,7 +281,7 @@ export default {
       } else return;
       e.preventDefault();
     };
-    window.addEventListener('keydown', kd);
+    host.on(window, 'keydown', kd);
     // для автотеста (dev/smoke_hotel.js, dev/smoke_games.js): номер на бирке, двери и кнопки лифта (CSS-пиксели
     // канвы), где хомячок (at: 1 — холл, иначе номер этажа), сколько довезено и ошибок
     cv.canvas.__porter = () => ({
@@ -317,7 +306,7 @@ export default {
         pts += got;
         host.sfx('win');
         opened = { door: d, t: 0, ok: true };
-        pops.push({ text: got ? `+${got} ⭐ Спасибо!` : 'Спасибо!', col: '#2f9e44', x: d.x, y: d.y - d.h - 10, t: 0 });
+        pops.add(got ? `+${got} ⭐ Спасибо!` : 'Спасибо!', d.x, d.y - d.h - 10, '#2f9e44');
       } else {
         mistakes++;
         tries++;
@@ -368,8 +357,7 @@ export default {
         }
       }
       if (hint) hint.t += dt;
-      for (const p of pops) p.t += dt;
-      for (let q = pops.length - 1; q >= 0; q--) if (pops[q].t > 1.2) pops.splice(q, 1);
+      pops.step(dt);
     }
 
     function draw() {
@@ -505,30 +493,16 @@ export default {
         ctx.fillStyle = OUT;
         ctx.fillText(hint.text, W / 2, g.head + 9 + fs / 2, W - 40);
       }
-      for (const p of pops) {
-        ctx.globalAlpha = Math.max(0, 1 - p.t / 1.2);
-        ctx.font = '900 18px ui-rounded, "Trebuchet MS", sans-serif';
-        ctx.textAlign = 'center';
-        ctx.lineWidth = 4;
-        ctx.strokeStyle = '#fff';
-        ctx.strokeText(p.text, p.x, p.y - p.t * 26);
-        ctx.fillStyle = p.col;
-        ctx.fillText(p.text, p.x, p.y - p.t * 26);
-      }
-      ctx.globalAlpha = 1;
+      pops.draw(ctx, 18);
       if (i >= N) star(ctx, W / 2, H / 2, 40, '#ffd43b', OUT, 3);
     }
 
-    function frame(now) {
-      if (stopped) return;
-      const dt = Math.min(0.05, (now - last) / 1000);
-      last = now;
+    host.loop((dt) => {
       if (!over) update(dt);
       tLeft.textContent = `🧳 ${Math.min(i + 1, N)} из ${N}`;
       tPts.textContent = `⭐ ${pts}`;
       draw();
-      raf = requestAnimationFrame(frame);
-    }
+    });
     function finish() {
       over = true;
       const stars = pts >= PORTER_STARS[1] ? 3 : pts >= PORTER_STARS[0] ? 2 : 1;
@@ -545,17 +519,5 @@ export default {
         extra: { pts, mistakes, floorMiss, lift },
       });
     }
-    raf = requestAnimationFrame(frame);
-    return {
-      stop() {
-        stopped = true;
-        cancelAnimationFrame(raf);
-        cv.canvas.removeEventListener('pointerdown', down);
-        window.removeEventListener('keydown', kd);
-        if (cv.destroy) cv.destroy();
-        style.remove();
-        top.remove();
-      },
-    };
   },
 };
