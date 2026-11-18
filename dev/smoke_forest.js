@@ -3,6 +3,7 @@
 // костёр, домик на дереве, венок; «Грибная охота» до конца с наградой; задание Шишкина «Потерянный бельчонок»
 // от взятия до сдачи; сохранение и загрузка в лесу; «Домой» из леса. Состояние меняют только действия.
 // Подключается из dev/smoke.js. Только эти шаги:  node dev/smoke.js <url> step:лес
+const { MG_START } = require('./selectors.js'); // кнопка «Начать!» мини-игры — по метке, а не по тексту
 module.exports = async function forest({ page, step, ev, wait, closeAll }) {
   const T = 48;
   const norm = (t) => t.replace(/[  ]/g, ' ');
@@ -474,7 +475,7 @@ module.exports = async function forest({ page, step, ev, wait, closeAll }) {
       'правило «можно / нельзя»',
       intro,
     );
-    await page.click('#mg >> text=Начать!');
+    await page.click(MG_START);
     const t0 = Date.now();
     let clicks = 0;
     while (Date.now() - t0 < 44000) {

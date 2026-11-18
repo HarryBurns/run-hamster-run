@@ -9,6 +9,7 @@
 //   node dev/compare.js /tmp/shots-before /tmp/shots-after /tmp/shots-diff
 // Ключи:  --only=villa,decor,guests,tower,dive,city,windows,minigames,sleep,title,demo,meadow   --sizes=desktop,phone
 // Группы независимы: каждая начинает новую игру в своём окне браузера.
+const { MG_START } = require('./selectors.js'); // кнопка «Начать!» мини-игры — по метке, а не по тексту
 const { chromium } = require('playwright');
 const fs = require('fs');
 const path = require('path');
@@ -696,7 +697,7 @@ const HOOKS = `window.__T = () => window.__dev;`;
         await real(300);
         await run(900);
         await shot('mg_' + g + '_card');
-        await click('text=Начать!');
+        await click(MG_START);
         await run(1500);
         await shot('mg_' + g + '_play');
         await run(1500);

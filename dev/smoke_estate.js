@@ -1,5 +1,6 @@
 // Шаги автотеста про этап 4: в гости к жителям, покупное жильё, свой бизнес, мини-игра «Бариста»,
 // перенос сохранения v2 → v3. Подключается из dev/smoke.js (там же — запуск и общие помощники).
+const { MG_START } = require('./selectors.js'); // кнопка «Начать!» мини-игры — по метке, а не по тексту
 const fs = require('fs');
 const path = require('path');
 const SAVE_V2 = fs.readFileSync(path.join(__dirname, 'saves', 'v2.json'), 'utf8'); // до жилья и бизнеса (этап 3)
@@ -1191,7 +1192,7 @@ module.exports = async function estate({ page, step, ev, wait, closeAll }) {
     await page.click('.dialog .btn.green');
     await wait(600);
     expect((await text('#mg .mg-card')).includes('Ты здесь хозяйка'), 'заставка мини-игры для хозяйки');
-    await page.click('#mg >> text=Начать!');
+    await page.click(MG_START);
     await wait(450);
     const res = await text('#mg .mg-card');
     expect(res.includes('+975') && res.includes('+50%'), 'результат смены хозяйки', res);
@@ -1229,7 +1230,7 @@ module.exports = async function estate({ page, step, ev, wait, closeAll }) {
   await step('«Бариста»: за стойкой чужого кафе и своего, игра до конца', async () => {
     /** Пройти «Бариста» по-настоящему: читать заказ и нажимать нужное на полках. wrong — ошибиться в первом заказе. */
     const play = async (wrong) => {
-      await page.click('#mg >> text=Начать!');
+      await page.click(MG_START);
       await wait(500);
       for (let order = 0; order < 6; order++) {
         await page.waitForFunction(
@@ -1293,7 +1294,7 @@ module.exports = async function estate({ page, step, ev, wait, closeAll }) {
     await wait(450);
     await page.click('.overlay .panel-foot >> text=Помочь за стойкой');
     await wait(700);
-    await page.click('#mg >> text=Начать!');
+    await page.click(MG_START);
     await wait(500);
     expect((await text('#mg .brs-shelves')).includes('Лимонад'), 'пляжное меню');
     await page.click('#mg .xbtn');
@@ -1347,7 +1348,7 @@ module.exports = async function estate({ page, step, ev, wait, closeAll }) {
       await wait(700);
       const intro = await text('#mg .mg-card');
       expect(intro.includes('Ты здесь хозяйка') && !intro.includes('Зарплата'), 'заставка работы хозяйки', intro);
-      await page.click('#mg >> text=Начать!');
+      await page.click(MG_START);
       await wait(500);
       expect((await page.locator('#mg canvas.brs-pic').count()) === 2, 'нет картинок «как надо» и «что получается»', b);
       for (let order = 0; order < 6; order++) {
@@ -1427,7 +1428,7 @@ module.exports = async function estate({ page, step, ev, wait, closeAll }) {
     await enter('rest');
     await page.click('.dialog .btn.green');
     await wait(600);
-    await page.click('#mg >> text=Начать!');
+    await page.click(MG_START);
     await wait(450);
     await page.click('#mg >> text=Ура!');
     await wait(450);

@@ -4,6 +4,7 @@
 // площадка, снеговик, рамка с эдельвейсами, вход в пещеры; «Спуск на санках» до конца с призом; задание
 // Вершинкина «Потерянная варежка»; сохранение и загрузка на горе, «Домой». Состояние меняют только действия.
 // Подключается из dev/smoke.js. Только эти шаги:  node dev/smoke.js <url> step:гора
+const { MG_START } = require('./selectors.js'); // кнопка «Начать!» мини-игры — по метке, а не по тексту
 module.exports = async function mountain({ page, step, ev, wait, closeAll }) {
   const T = 48;
   const norm = (t) => t.replace(/[  ]/g, ' ');
@@ -455,7 +456,7 @@ module.exports = async function mountain({ page, step, ev, wait, closeAll }) {
       'правило картинкой',
       intro,
     );
-    await page.click('#mg button:has-text("Начать!")'); // кнопка, а не строка правил «…выберешь после «Начать!»»
+    await page.click(MG_START); // кнопка, а не строка правил «…выберешь после «Начать!»»
     await wait(300);
     await page.click('#mg .sl-pick button[data-ride="sled"]'); // санки или лыжи (Г4) — санки
     const t0 = Date.now();

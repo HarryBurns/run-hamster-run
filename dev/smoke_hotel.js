@@ -5,6 +5,7 @@
 // («Носильщица» до конца, зарплата, задание из письма), номер-люкс (покупка, золотая дверь, «Домой»), житель у бассейна
 // отеля (в городе его в это время нет). Состояние меняют только действия.
 // Подключается из dev/smoke.js. Только эти шаги:  node dev/smoke.js <url> step:отель
+const { MG_START } = require('./selectors.js'); // кнопка «Начать!» мини-игры — по метке, а не по тексту
 module.exports = async function hotel({ page, step, ev, wait, closeAll }) {
   const T = 48;
   const norm = (t) => t.replace(/[  ]/g, ' ');
@@ -262,7 +263,7 @@ module.exports = async function hotel({ page, step, ev, wait, closeAll }) {
       await answer(btn, 800);
       // «Повтори движение» (этап 14, От9): Хлопушка показывает, хомячок повторяет — до конца, ошибаясь (без проигрыша)
       expect(await ev(() => /Повтори движение/.test((document.querySelector('#mg') || {}).textContent || '')), 'нет игры «Повтори движение»');
-      await page.click('#mg >> text=Начать!');
+      await page.click(MG_START);
       await ev(() => document.querySelector('#mg .mm-canvas').__mimicSkip()); // сразу последний раунд
       for (let k = 0; k < 200; k++) {
         const g = await ev(() => {

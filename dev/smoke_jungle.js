@@ -5,6 +5,7 @@
 // «Лианы» и «Узор храма» до конца с призом; задание Лианы «Дневник исследовательницы»; сохранение и загрузка
 // в джунглях, кораблик обратно в город, «Домой». Состояние меняют только действия.
 // Подключается из dev/smoke.js. Только эти шаги:  node dev/smoke.js <url> step:джунгли
+const { MG_START } = require('./selectors.js'); // кнопка «Начать!» мини-игры — по метке, а не по тексту
 module.exports = async function jungle({ page, step, ev, wait, closeAll }) {
   const T = 48;
   const norm = (t) => t.replace(/[  ]/g, ' ');
@@ -473,7 +474,7 @@ module.exports = async function jungle({ page, step, ev, wait, closeAll }) {
       'правило картинкой',
       intro,
     );
-    await page.click('#mg >> text=Начать!');
+    await page.click(MG_START);
     await wait(400);
     // бот нажимает, когда лиана летит вперёд и почти на самом дальнем качу
     const box = await ev(() => {
@@ -505,7 +506,7 @@ module.exports = async function jungle({ page, step, ev, wait, closeAll }) {
     });
     await wait(900);
     expect(/ещё 1 полёт/.test(norm(await ev(() => document.querySelector('#mg').textContent))), 'на заставке — сколько полётов с призом');
-    await page.click('#mg >> text=Начать!');
+    await page.click(MG_START);
     await wait(300);
     for (let k = 0; k < 200; k++) {
       const q = await ev(() => document.querySelector('#mg canvas').__vines());
@@ -542,7 +543,7 @@ module.exports = async function jungle({ page, step, ev, wait, closeAll }) {
     await wait(1200);
     const intro = norm(await ev(() => document.querySelector('#mg').textContent));
     expect(/Повтори/.test(intro) && (await ev(() => document.querySelectorAll('#mg .gl-col').length)) === 3 && /Сокровище храма/.test(intro), 'правило картинкой', intro);
-    await page.click('#mg >> text=Начать!');
+    await page.click(MG_START);
     // бот смотрит узор и повторяет его
     for (let k = 0; k < 300; k++) {
       const g = await ev(() => document.querySelector('#mg .gl-grid') && document.querySelector('#mg .gl-grid').__glyphs());
@@ -572,7 +573,7 @@ module.exports = async function jungle({ page, step, ev, wait, closeAll }) {
     });
     await wait(900);
     expect(/для удовольствия/.test(norm(await ev(() => document.querySelector('#mg').textContent))), 'второй раз за день — без сокровища');
-    await page.click('#mg >> text=Начать!');
+    await page.click(MG_START);
     for (let k = 0; k < 60; k++) {
       if ((await ev(() => document.querySelector('#mg .gl-grid').__glyphs().phase)) === 'input') break;
       await wait(100);

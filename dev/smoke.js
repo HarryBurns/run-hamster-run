@@ -32,6 +32,7 @@
 //  быстрые исправления по ревью основы — dev/smoke_core.js:  node dev/smoke.js <url> "step:основа:";
 //  быстрые исправления по ревью мест и мини-игр — dev/smoke_rplaces.js:  node dev/smoke.js <url> "step:места ревью")
 // Скорость проверяется отдельно:  node dev/bench.js [url] --spots=forest --sizes=desktop --max-forest=45
+const { MG_START } = require('./selectors.js'); // кнопка «Начать!» мини-игры — по метке, а не по тексту
 const { chromium } = require('playwright');
 const fs = require('fs');
 const path = require('path');
@@ -1144,7 +1145,7 @@ async function economy({ page, step, ev, wait, closeAll }) {
     // пройти игру от заставки до экрана результата; вернуть текст заставки и результата
     const play = async (close) => {
       const intro = await text('#mg .mg-card');
-      await page.click('#mg >> text=Начать!');
+      await page.click(MG_START);
       await wait(450);
       const result = await text('#mg .mg-card');
       await page.click(close === 'x' ? '#mg .xbtn' : '#mg >> text=Ура!');
@@ -1440,7 +1441,7 @@ async function economy({ page, step, ev, wait, closeAll }) {
     await wait(450);
     await page.click('.dialog .btn.green');
     await wait(600);
-    await page.click('#mg >> text=Начать!');
+    await page.click(MG_START);
     await wait(450);
     await page.click('#mg >> text=Ура!');
     await wait(450);
@@ -2455,7 +2456,7 @@ const runParallel = () => {
           window.__dev.F.playMinigame(g, { spot: 'pier' });
         }, g);
         await wait(700);
-        await page.click('#mg >> text=Начать!');
+        await page.click(MG_START);
         await wait(1500);
         await page.click('#mg .xbtn');
         await wait(400);

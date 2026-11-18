@@ -2,6 +2,7 @@
 // (кораблик их обходит), дельфины рядом с корабликом и за бухтой, тёплая лагуна у острова, «доброе извержение»,
 // лодочка-пирога по реке в джунглях — и дальше по группам этапа (гора, пустыня, пляж, остров, отель).
 // Подключается из dev/smoke.js. Только эти шаги:  node dev/smoke.js <url> step:природа
+const { MG_START } = require('./selectors.js'); // кнопка «Начать!» мини-игры — по метке, а не по тексту
 module.exports = async function nature({ page, step, ev, wait, closeAll }) {
   const T = 48;
   const norm = (t) => t.replace(/[  ]/g, ' ');
@@ -562,7 +563,7 @@ module.exports = async function nature({ page, step, ev, wait, closeAll }) {
         window.__dev.run('minigame:teacher');
       });
       await wait(500);
-      await page.click('#mg >> text=Начать!');
+      await page.click(MG_START);
       await wait(500);
       await page.click('#mg >> text=Ура!');
       await wait(500);

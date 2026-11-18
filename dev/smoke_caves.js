@@ -4,6 +4,7 @@
 // самоцветов и грибной ночник, самоцветы на рынке; «Кристаллы» до конца с добычей; задание Камушкина
 // «Счастливая кирка»; сохранение и загрузка в пещерах, выход на гору, «Домой». Состояние меняют только действия.
 // Подключается из dev/smoke.js. Только эти шаги:  node dev/smoke.js <url> step:пещеры
+const { MG_START } = require('./selectors.js'); // кнопка «Начать!» мини-игры — по метке, а не по тексту
 module.exports = async function caves({ page, step, ev, wait, closeAll }) {
   const T = 48;
   const norm = (t) => t.replace(/[  ]/g, ' ');
@@ -398,7 +399,7 @@ module.exports = async function caves({ page, step, ev, wait, closeAll }) {
       'правило картинкой',
       intro,
     );
-    await page.click('#mg >> text=Начать!');
+    await page.click(MG_START);
     await wait(300);
     // «стучать в ритм»: бот на странице жмёт пробел, когда кирка над золотой серединкой
     await ev(() => {

@@ -6,6 +6,7 @@
 // сохранение и загрузка на острове, кораблик обратно в город, «Домой». Состояние меняют только действия.
 // Подключается из dev/smoke.js. Только эти шаги:  node dev/smoke.js <url> "step:удалённый остров"
 // (просто «остров» не годится: так называется и шаг секретного пляжа про кусочек карты на Звёздном острове).
+const { MG_START } = require('./selectors.js'); // кнопка «Начать!» мини-игры — по метке, а не по тексту
 module.exports = async function island({ page, step, ev, wait, closeAll }) {
   const T = 48;
   const norm = (t) => t.replace(/[  ]/g, ' ');
@@ -458,7 +459,7 @@ module.exports = async function island({ page, step, ev, wait, closeAll }) {
     await wait(900);
     // танец — ритм-игра «Танец у костра» под барабан Бума (этап 14, О8): до конца через dev-хук
     expect(await ev(() => /Танец у костра/.test((document.querySelector('#mg') || {}).textContent || '')), 'нет игры «Танец у костра»');
-    await page.click('#mg >> text=Начать!');
+    await page.click(MG_START);
     await wait(400);
     await ev(() => document.querySelector('#mg .dr-canvas').__drumSkip());
     await page.waitForSelector('#mg >> text=Ура!', { timeout: 6000 });
@@ -485,7 +486,7 @@ module.exports = async function island({ page, step, ev, wait, closeAll }) {
     await wait(1200);
     const intro = norm(await ev(() => document.querySelector('#mg').textContent));
     expect((await ev(() => document.querySelectorAll('#mg .bw-col img').length)) === 3 && /Приз Вождя/.test(intro) && /кегли/.test(intro), 'правило картинкой', intro);
-    await page.click('#mg >> text=Начать!');
+    await page.click(MG_START);
     await wait(400);
     const box = await ev(() => {
       const r = document.querySelector('#mg canvas').getBoundingClientRect();
@@ -514,7 +515,7 @@ module.exports = async function island({ page, step, ev, wait, closeAll }) {
     });
     await wait(900);
     expect(/ещё 1 игра/.test(norm(await ev(() => document.querySelector('#mg').textContent))), 'на заставке — сколько игр с призом');
-    await page.click('#mg >> text=Начать!');
+    await page.click(MG_START);
     await wait(400);
     const ball = await ev(() => {
       const c = document.querySelector('#mg canvas.bw-canvas'),

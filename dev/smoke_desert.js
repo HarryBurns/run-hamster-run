@@ -5,6 +5,7 @@
 // «Пары» до конца с призом; катание на верблюде; задание Бархана «Бубенчик верблюда»; сохранение и загрузка
 // в пустыне, караван обратно в город и за шлагбаум, «Домой». Состояние меняют только действия.
 // Подключается из dev/smoke.js. Только эти шаги:  node dev/smoke.js <url> step:пустыня
+const { MG_START } = require('./selectors.js'); // кнопка «Начать!» мини-игры — по метке, а не по тексту
 module.exports = async function desert({ page, step, ev, wait, closeAll }) {
   const T = 48;
   const norm = (t) => t.replace(/[  ]/g, ' ');
@@ -445,7 +446,7 @@ module.exports = async function desert({ page, step, ev, wait, closeAll }) {
       'правило картинкой',
       intro,
     );
-    await page.click('#mg >> text=Начать!');
+    await page.click(MG_START);
     await wait(400);
     // бот водит «мышкой» с зажатой кнопкой по клеткам окаменелости
     const info = await ev(() => {
@@ -515,7 +516,7 @@ module.exports = async function desert({ page, step, ev, wait, closeAll }) {
     await wait(1200);
     const intro = norm(await ev(() => document.querySelector('#mg').textContent));
     expect(/пары/.test(intro) && (await ev(() => document.querySelectorAll('#mg .pr-col').length)) === 3 && /Сокровище пирамиды/.test(intro), 'правило картинкой', intro);
-    await page.click('#mg >> text=Начать!');
+    await page.click(MG_START);
     await wait(400);
     // бот знает, где какая табличка, и открывает пары без промахов
     const deck = await ev(() => document.querySelector('#mg .pr-grid').__pairs().deck);
@@ -548,7 +549,7 @@ module.exports = async function desert({ page, step, ev, wait, closeAll }) {
     });
     await wait(900);
     expect(/для удовольствия/.test(norm(await ev(() => document.querySelector('#mg').textContent))), 'второй раз за день — без сокровища');
-    await page.click('#mg >> text=Начать!');
+    await page.click(MG_START);
     await wait(300);
     const d2 = await ev(() => document.querySelector('#mg .pr-grid').__pairs().deck);
     const j = d2.findIndex((v) => v !== d2[0]);

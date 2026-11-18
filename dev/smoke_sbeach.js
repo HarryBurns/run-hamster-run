@@ -5,6 +5,7 @@
 // вечером, клад; «Замок из песка» до конца с призом; задание Жемчужинки «Замок для русалочки»; сохранение и загрузка
 // на пляже, «Домой». Состояние меняют только действия.
 // Подключается из dev/smoke.js. Только эти шаги:  node dev/smoke.js <url> "step:секретный пляж"
+const { MG_START } = require('./selectors.js'); // кнопка «Начать!» мини-игры — по метке, а не по тексту
 module.exports = async function sbeach({ page, step, ev, wait, closeAll }) {
   const T = 48;
   const norm = (t) => t.replace(/[  ]/g, ' ');
@@ -460,7 +461,7 @@ module.exports = async function sbeach({ page, step, ev, wait, closeAll }) {
     await wait(1200);
     const intro = norm(await ev(() => document.querySelector('#mg').textContent));
     expect(/образц/.test(intro) && (await ev(() => document.querySelectorAll('#mg .sc-col').length)) === 3 && /Приз Жемчужинки/.test(intro), 'правило картинкой', intro);
-    await page.click('#mg >> text=Начать!');
+    await page.click(MG_START);
     await wait(400);
     const NAMES = { tower: 'Башня', wall: 'Стена', gate: 'Ворота', flag: 'Флажок', shell: 'Ракушка', star: 'Звёздочка' };
     // бот: ставит детали как на образце (свой замок — башни и флажки), сначала нижние, потом верхние
@@ -501,7 +502,7 @@ module.exports = async function sbeach({ page, step, ev, wait, closeAll }) {
     });
     await wait(900);
     expect(/ещё 1 замок/.test(norm(await ev(() => document.querySelector('#mg').textContent))), 'на заставке — сколько замков с призом');
-    await page.click('#mg >> text=Начать!');
+    await page.click(MG_START);
     await wait(300);
     let c = await ev(() => document.querySelector('#mg canvas.sc-castle').__castle());
     for (const { j } of c.slots) {

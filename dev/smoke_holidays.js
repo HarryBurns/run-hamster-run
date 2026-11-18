@@ -6,6 +6,7 @@
 // колядки, фонарики, конверты, блины, «Перетягивание каната»), подарок раз в год (и снова на следующий год),
 // сохранение и загрузка посреди праздника, реплики жителей. Состояние меняют только действия.
 // Подключается из dev/smoke.js. Только эти шаги:  node dev/smoke.js <url> step:праздники
+const { MG_START } = require('./selectors.js'); // кнопка «Начать!» мини-игры — по метке, а не по тексту
 module.exports = async function holidays({ page, step, ev, wait, closeAll }) {
   const norm = (t) => t.replace(/[  ]/g, ' ');
   const expect = (ok, msg, data) => {
@@ -80,8 +81,8 @@ module.exports = async function holidays({ page, step, ev, wait, closeAll }) {
   };
   /** Нарядить ёлку (мини-игра «Нарядим ёлку!», этап 14): шесть игрушек на ветки, звезда, «Ура!». */
   const trim = async () => {
-    await page.waitForSelector('#mg >> text=Начать!', { timeout: 5000 });
-    await page.click('#mg >> text=Начать!');
+    await page.waitForSelector(MG_START, { timeout: 5000 });
+    await page.click(MG_START);
     await wait(300);
     const st = await ev(() => document.querySelector('#mg .tr-canvas').__tree());
     const r = await ev(() => {
@@ -459,7 +460,7 @@ module.exports = async function holidays({ page, step, ev, wait, closeAll }) {
     await wait(800);
     const intro = norm(await ev(() => document.querySelector('#mg').textContent));
     expect(intro.includes('Тяни') && intro.includes('Приз ярмарки') && (await ev(() => document.querySelectorAll('#mg .tg-col img').length)) === 3, 'правило картинками', intro.slice(0, 200));
-    await page.click('#mg >> text=Начать!');
+    await page.click(MG_START);
     await wait(300);
     for (let i = 0; i < 1400; i++) {
       const g = await ev(() => {
@@ -484,7 +485,7 @@ module.exports = async function holidays({ page, step, ev, wait, closeAll }) {
     // без нажатий проиграть нельзя: игра доходит до конца, одна звезда
     await ev(() => { window.__dev.run('holiday:tug'); });
     await wait(800);
-    await page.click('#mg >> text=Начать!');
+    await page.click(MG_START);
     for (let i = 0; i < 80; i++) {
       const over = await ev(() => {
         const c = document.querySelector('#mg .tg-canvas');
@@ -734,7 +735,7 @@ module.exports = async function holidays({ page, step, ev, wait, closeAll }) {
 
   /** Сыграть в «Водяную битву»: aim — брызгать в того, кто выглянул; иначе — без нажатий. */
   const splashGame = async (aim) => {
-    await page.click('#mg >> text=Начать!');
+    await page.click(MG_START);
     await wait(200);
     const KEYS = ['ArrowLeft', 'ArrowUp', 'ArrowRight'];
     for (let i = 0; i < 2000; i++) {

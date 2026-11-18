@@ -91,12 +91,14 @@ export async function runMinigame(id, info) {
       end(result); // крестик на экране со звёздами — то же, что «Ура!»: результат (и зарплата) не пропадают
     };
 
-    const card = (html, btnText, onBtn) => {
+    // act — метка кнопки для автотеста (data-act: start — «Начать!», done — «Ура!»): текст кнопок меняют ради ребёнка
+    const card = (html, btnText, onBtn, act) => {
       const c = el('div', 'mg-card');
       // текст — в своей прокрутке, кнопка — под ним, а не поверх (на низком экране текст не прячется под «Начать!»)
       const p = el('div', 'panel narrow');
       p.appendChild(el('div', 'mg-text', html));
       const b = el('button', 'btn big green', btnText);
+      b.dataset.act = act;
       b.onclick = () => {
         sfx('tap');
         c.remove();
@@ -151,6 +153,7 @@ export async function runMinigame(id, info) {
           `<div class="stars">${st}</div><h2 style="margin:4px 0">${head2}</h2><p>${res.text || ''}</p>${note}`,
           'Ура!',
           () => end(result),
+          'done',
         );
       },
     };
@@ -166,6 +169,7 @@ export async function runMinigame(id, info) {
           end(null);
         }
       },
+      'start',
     );
   });
 }
