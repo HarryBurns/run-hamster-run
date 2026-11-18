@@ -429,7 +429,7 @@ const eq = (a, b, msg) => ok(JSON.stringify(a) === JSON.stringify(b), msg, { got
   console.log('Вторая вкладка и старая страница');
   await test('игру открыли во второй вкладке: первая перестаёт сохранять и говорит об этом, вторая пишет дальше', async () => {
     play('Ириска', 100);
-    const tab2 = await import(url('core/state.js') + '?tab2'); // вторая вкладка: свой модуль, то же хранилище
+    const tab2 = await import(url('core/save.js') + '?tab2'); // вторая вкладка: свой модуль, то же хранилище
     ok(tab2.load() && tab2.G.state.money === 100, 'вторая вкладка не открыла игру');
     let lost = [];
     const off = E.on('saveLost', (e) => lost.push(e.why));
@@ -448,7 +448,7 @@ const eq = (a, b, msg) => ok(JSON.stringify(a) === JSON.stringify(b), msg, { got
     off();
   });
   await test('игру открыла страница с более новым кодом: старая не перезаписывает и просит обновиться', async () => {
-    const tab3 = await import(url('core/state.js') + '?tab3');
+    const tab3 = await import(url('core/save.js') + '?tab3');
     ls.setItem(KEY, sample(5));
     ok(tab3.load(), 'не открылось');
     tab3.claimSave();
@@ -465,7 +465,7 @@ const eq = (a, b, msg) => ok(JSON.stringify(a) === JSON.stringify(b), msg, { got
     off();
   });
   await test('ключ хозяина стёрли (очистили хранилище) — игра сохраняется дальше', async () => {
-    const tab4 = await import(url('core/state.js') + '?tab4');
+    const tab4 = await import(url('core/save.js') + '?tab4');
     ls.setItem(KEY, sample(5));
     ok(tab4.load() && tab4.claimSave(), 'не открылось');
     ls.clear();
