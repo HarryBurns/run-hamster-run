@@ -30,6 +30,22 @@ const expect = (ok, msg, data) => {
 const near = (a, b, r = 20) => !!a && !!b && Math.abs(a.x - b.x) < r && Math.abs(a.y - b.y) < r;
 /** Селектор кнопки с меткой data-act (внутри scope, если дан). */
 const sel = (name, scope = '') => (scope ? scope + ' ' : '') + `[data-act="${name}"]`;
+/**
+ * Условие в странице (для until): открыт диалог с кнопками (с кнопкой txt, если дан), и с его появления прошло больше
+ * TAP_GUARD. Время появления диалогов отмечает MutationObserver, который условие само ставит при первом вызове.
+ */
+function dialogReady(txt) {
+  if (!window.__dlgBorn) {
+    const born = (window.__dlgBorn = new WeakMap());
+    const mark = () => document.querySelectorAll('.dialog').forEach((d) => born.has(d) || born.set(d, performance.now()));
+    new MutationObserver(mark).observe(document, { childList: true, subtree: true });
+    mark();
+  }
+  const d = document.querySelector('.dialog');
+  if (!d || ![...d.querySelectorAll('.btn')].some((b) => !txt || b.textContent.includes(txt))) return false;
+  if (!window.__dlgBorn.has(d)) window.__dlgBorn.set(d, performance.now());
+  return performance.now() - window.__dlgBorn.get(d) > 370;
+}
 
 function lib(ctx) {
   const { page } = ctx;
@@ -82,15 +98,25 @@ function lib(ctx) {
       title || '',
       { timeout, msg: 'окно ' + (title || '') },
     );
-  /** Открыт диалог с кнопками; ждёт ещё TAP_GUARD (350 мс): раньше кнопки диалога нажатия не принимают (ui/dialog.js). */
-  const untilDialog = async (timeout) => {
-    await until(() => !!document.querySelector('.dialog .btn'), undefined, { timeout, msg: 'диалог' });
-    await wait(380);
-  };
+  /**
+   * Открыт диалог с кнопками (с текстом txt, если дан), и он уже принимает нажатия: первые TAP_GUARD (350 мс) кнопки
+   * диалога нажатий не принимают (ui/dialog.js). Когда появился диалог, запоминает сама страница (MutationObserver,
+   * ставится при первой проверке; диалог, что был открыт ещё до неё, считается появившимся сейчас).
+   */
+  const untilDialog = (timeout, txt) =>
+    until(dialogReady, txt || '', { timeout, msg: 'диалог' + (txt ? ' с кнопкой ' + txt : '') });
   /** Ответить в диалоге кнопкой с этим текстом (дождавшись, пока диалог примет нажатие). */
   const answer = async (txt, timeout) => {
-    await untilDialog(timeout);
+    await untilDialog(timeout, txt);
     await page.click(`.dialog .btn:has-text("${txt}")`);
+  };
+  /**
+   * Ответить кнопкой txt (как answer) и дождаться отклика: следующий диалог готов к нажатию, открылось окно, сменилась
+   * сцена или появилась подсказка — но не дольше ms (тогда молча дальше).
+   */
+  const reply = async (txt, ms = 1500) => {
+    await answer(txt);
+    await settle(await snapshot(), ms);
   };
   const untilNoWindows = (timeout) =>
     until(() => !document.querySelector('.overlay, .dialog, #mg, .fade'), undefined, { timeout, msg: 'все окна закрыты' });
@@ -115,8 +141,8 @@ function lib(ctx) {
     }));
   /**
    * Дождаться отклика игры после снимка b: сменилась сцена, открылось или закрылось окно (диалог, мини-игра),
-   * появилась подсказка — или прошло timeout мс (тогда молча дальше). Если на экране диалог — ещё 380 мс:
-   * раньше его кнопки нажатий не принимают.
+   * появилась подсказка — или прошло timeout мс (тогда молча дальше). Если на экране диалог — ещё ждёт, пока он
+   * начнёт принимать нажатия (untilDialog).
    */
   const settle = async (b, timeout = 1500) => {
     await until(
@@ -128,7 +154,7 @@ function lib(ctx) {
       { timeout },
     ).catch(() => {});
     await frames(2);
-    if (await ev(() => !!document.querySelector('.dialog'))) await wait(380);
+    if (await ev(() => !!document.querySelector('.dialog .btn'))) await untilDialog(1500).catch(() => {});
   };
   /** Выполнить fn(arg) в странице и дождаться отклика (settle). Возвращает то, что вернула fn. */
   const react = async (fn, arg, timeout) => {
@@ -369,6 +395,7 @@ function lib(ctx) {
     untilScene,
     untilPanel,
     untilDialog,
+    reply,
     answer,
     untilNoWindows,
     untilIdle,
