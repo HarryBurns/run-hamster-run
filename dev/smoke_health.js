@@ -83,6 +83,7 @@ module.exports = async function health({ page, step, ev, wait, closeAll }) {
   const sleep = async () => {
     await ev(() => {
       window.__dev.go('villa');
+      window.__dev.evening(); // спать можно только вечером, с 19:00 (этап 18)
       window.__dev.F.askSleep();
     });
     await wait(400);

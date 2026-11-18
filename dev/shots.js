@@ -746,6 +746,11 @@ const HOOKS = `window.__T = () => window.__dev;`;
     await group('sleep', async () => {
       await start();
       await villaAt(1, 270);
+      await F('askSleep'); // днём — «Ещё рано спать» (этап 18)
+      await run(400);
+      await shot('sleep_early');
+      await closeAll();
+      await ev(() => window.__T().evening()); // спать можно с 19:00
       await F('askSleep');
       await run(400);
       await shot('sleep_ask');

@@ -21,7 +21,7 @@ import * as Tower from './interiors/tower.js';
 import { debugDecor, debugFireworks } from './locations/holidays.js';
 import { debugLandDecor, debugRoomDecor } from './locations/holidays_lands.js';
 import { viewFireworks } from './interiors/tower_view.js';
-import { HOLIDAY_BY_ID, holidayDoy, YEAR_DAYS, SEASON_OF_MONTH } from './data/index.js';
+import { HOLIDAY_BY_ID, holidayDoy, YEAR_DAYS, SEASON_OF_MONTH, SLEEP_FROM } from './data/index.js';
 
 /**
  * Следить, что состояние меняют только действия из core/actions.js: подменяет G.state «прозрачной обёрткой»,
@@ -155,6 +155,17 @@ export function installDevHooks({ F }) {
       });
       events.emit('look');
       events.emit('hud');
+    },
+    /**
+     * Вечер: часы не раньше m (по умолчанию SLEEP_FROM — 19:00, с этого часа можно лечь спать; этап 18).
+     * Шаги автотеста, которые спят через окно «Пора спать?», зовут это перед сном. Возвращает минуты.
+     */
+    evening(m = SLEEP_FROM) {
+      actions.mutate((s) => {
+        if (s.minutes < m) s.minutes = m;
+      });
+      events.emit('hud');
+      return G.state.minutes;
     },
     /** Войти в здание города по его id — так же, как если бы хомячок дошёл до двери. */
     enterBuilding: (id) => town.enterBuilding(BUILDINGS.find((b) => b.id === id)),

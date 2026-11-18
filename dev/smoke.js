@@ -30,7 +30,8 @@
 //  профессии, фото-режим, нижний ярус пещер, этап 17в — dev/smoke_jobs.js:  node dev/smoke.js <url> "step:17в:";
 //  правки по ревью игровой логики — dev/smoke_rfix.js:  node dev/smoke.js <url> "step:правки ревью";
 //  быстрые исправления по ревью основы — dev/smoke_core.js:  node dev/smoke.js <url> "step:основа:";
-//  быстрые исправления по ревью мест и мини-игр — dev/smoke_rplaces.js:  node dev/smoke.js <url> "step:места ревью")
+//  быстрые исправления по ревью мест и мини-игр — dev/smoke_rplaces.js:  node dev/smoke.js <url> "step:места ревью";
+//  сон только вечером, этап 18 — dev/smoke_sleep.js:  node dev/smoke.js <url> "step:сон вечером")
 // Скорость проверяется отдельно:  node dev/bench.js [url] --spots=forest --sizes=desktop --max-forest=45
 const { MG_START } = require('./selectors.js'); // кнопка «Начать!» мини-игры — по метке, а не по тексту
 const { chromium } = require('playwright');
@@ -64,6 +65,7 @@ const buddy = require('./smoke_buddy.js'); // этап 17б: питомец из
 const jobs = require('./smoke_jobs.js'); // этап 17в: профессии (парикмахер, спасатель, садовник), фото-режим, нижний ярус пещер
 const rfix = require('./smoke_rfix.js'); // правки по ревью игровой логики: ночь в отеле/на острове, награды дружбы, «Позвать в гости»
 const rplaces = require('./smoke_rplaces.js'); // правки по ревью мест: кораблик и «Домой», подземная река, проход во дворе
+const sleepSteps = require('./smoke_sleep.js'); // этап 18: сон только вечером — днём «Ещё рано спать», отель и хижина
 const core = require('./smoke_core.js'); // ревью основы: клавиша E, окна и сон при ошибке, сохранение при нехватке места, нечитаемая игра
 const saves = require('./smoke_saves.js'); // этап 19: фото в IndexedDB, игра файлом, вторая вкладка и старая сборка
 const fixes = require('./smoke_fixes.js'); // В-пункты BACKLOG: стрелка к цели в фото-режиме, транспорт у воды, тёплая вода у острова
@@ -742,6 +744,7 @@ async function extra({ page, step, ev, wait, closeAll, hold }) {
     });
     // сон
     await ev(() => {
+      window.__dev.evening(); // спать можно только вечером, с 19:00 (этап 18)
       window.__dev.F.askSleep();
     });
     await wait(400);
@@ -1729,6 +1732,7 @@ const runParallel = () => {
         [0, 1120, 'Плита'],
         [1, 270, 'Пора спать?'],
       ]) {
+        if (title === 'Пора спать?') await ev(() => window.__dev.evening()); // спать можно только вечером (этап 18)
         await ev(([floor, x]) => window.__dev.villaAt(floor, x), [floor, x]);
         await wait(250);
         await page.keyboard.press('KeyE');
@@ -2824,6 +2828,7 @@ const runParallel = () => {
       if (!r.guests.includes('bob')) throw new Error('гость не пришёл: ' + JSON.stringify(r.guests));
       // сон: просыпаемся здесь же, у своей кровати
       await ev(() => {
+        window.__dev.evening(); // спать можно только вечером, с 19:00 (этап 18)
         window.__dev.F.askSleep();
       });
       await wait(400);
@@ -2845,6 +2850,7 @@ const runParallel = () => {
       const day0 = await ev(() => window.__dev.G.state.day);
       await ev(() => {
         window.__dev.go('villa');
+        window.__dev.evening(); // спать можно только вечером, с 19:00 (этап 18)
         window.__dev.F.askSleep();
       });
       await wait(400);
@@ -2892,6 +2898,7 @@ const runParallel = () => {
     await rfix({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
     await core({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
     await saves({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
+    await sleepSteps({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
     await rplaces({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
     await screen({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
     await estate({ page, step: (n, f, o) => step(n, f, { ...o, extra: true, estate: true }), ev, wait, closeAll });

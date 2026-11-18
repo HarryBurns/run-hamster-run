@@ -27,6 +27,7 @@ module.exports = async function core({ page, step, ev, wait, closeAll }) {
 
   await step('основа: клавиша E в режиме «Обустроить» мебелью не пользуется, без него — пользуется', async () => {
     await fresh();
+    await ev(() => window.__dev.evening()); // спать можно только вечером (этап 18)
     await ev(() => window.__dev.villaAt(1, 270)); // у кровати
     await wait(300);
     await ev(() => window.__dev.Villa.setDecor(true));
@@ -129,6 +130,7 @@ module.exports = async function core({ page, step, ev, wait, closeAll }) {
     'основа: ошибка в новом дне не оставляет чёрный экран сна',
     async () => {
       await fresh();
+      await ev(() => window.__dev.evening()); // спать можно только вечером (этап 18)
       const day = await ev(() => window.__dev.G.state.day);
       await ev(() => {
         window.__sleepDone = 'ждём';
@@ -160,6 +162,7 @@ module.exports = async function core({ page, step, ev, wait, closeAll }) {
       expect(r.modal === 0 && r.cover === 0 && !r.fade, 'после ошибки в новом дне остался чёрный экран или пауза', r);
       // игра живёт: можно снова лечь спать, и день сменится
       await ev(() => {
+        window.__dev.evening();
         window.__dev.run('sleep'); // не ждём: askSleep ждёт ответа в окне
       });
       await wait(500);

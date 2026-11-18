@@ -185,7 +185,8 @@ module.exports = async function hotel({ page, step, ev, wait, closeAll }) {
     expect(/ключ/.test(await dialogText()) && (await ev(() => document.querySelector('.dialog').textContent)).includes('Мой номер'), 'ответ про ключ', await dialogText());
     await answer('Пока');
     await unwatch();
-    // ложимся: обычное окно «Пора спать?», утро — в номере, у кровати
+    // ложимся: обычное окно «Пора спать?», утро — в номере, у кровати (номер сняли днём, спать — вечером: этап 18)
+    await ev(() => window.__dev.evening());
     await toHotel(1, 1500);
     await run('hotel:bed', 500);
     expect(/Пора спать/.test(await panelText()), 'окно сна', await panelText());

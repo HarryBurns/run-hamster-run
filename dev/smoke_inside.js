@@ -284,7 +284,8 @@ module.exports = async function inside({ page, step, ev, wait, closeAll }) {
       }, no);
       await wait(700);
       expect((await sceneName()) === 'hotel_' + no, `дверь ${no} не ведёт в номер`, await sceneName());
-      // кровать номера — сон, утро здесь же
+      // кровать номера — сон, утро здесь же (номер сняли днём, спать — вечером, с 19:00: этап 18)
+      await ev(() => window.__dev.evening());
       const day0 = await ev(() => window.__dev.G.state.day);
       await tapZone('bed');
       await wait(2600);

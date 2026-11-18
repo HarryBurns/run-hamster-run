@@ -3,8 +3,9 @@ import { award, passTime, nextDay, setDayFlag } from '../core/actions.js';
 import { sfx } from '../core/audio.js';
 import { on, emit } from '../core/events.js';
 import { register } from '../core/registry.js';
-import { G, cal } from '../core/state.js';
+import { G, cal, isSick } from '../core/state.js';
 import { fmtMoney } from '../core/util.js';
+import { SLEEP_FROM } from '../data/index.js';
 import { fadeTo } from '../ui/fade.js';
 import { enqueue } from '../ui/modals.js';
 import { message, confirmBox } from '../ui/panel.js';
@@ -14,12 +15,36 @@ import { planNight, applyNight, morningNews } from './health.js';
 
 const S = () => G.state;
 
-/** Окно «Пора спать?» и новый день. Возвращает true, если уснула, false — если передумала. */
+const hhmm = (m) => `${Math.floor(m / 60)}:${String(m % 60).padStart(2, '0')}`;
+
+/** Можно ли сейчас лечь спать: только вечером, с SLEEP_FROM (data/calendar.js; этап 18). */
+export const canSleepNow = () => S().minutes >= SLEEP_FROM;
+
+/** Рано спать: доброе окно вместо сна (день не меняется, ничего не тратится). */
+function tooEarly() {
+  const s = S(),
+    c = cal(),
+    sunset = s.minutes >= 17 * 60;
+  setDayFlag('early', 1); // в 19:00 подскажем, что уже можно (tickClock)
+  sfx('tap');
+  return message({
+    title: 'Ещё рано спать',
+    icon: '🌞',
+    html: `<div class="center big-emoji">${sunset ? '🌇' : '🌞'}</div><p class="center">${sunset ? 'Солнышко уже садится, но спать ещё рано!' : 'Ещё рано спать — солнышко высоко!'} Ложись после ${hhmm(SLEEP_FROM)} 🌙</p><p class="center muted">Сейчас ${c.time}. Время идёт само — а пока можно погулять, поиграть и заглянуть к друзьям.</p>${isSick() ? '<p class="center">🤒 Нос красный? Доктор в больнице вылечит сразу — а если монет нет, то бесплатно, «за улыбку».</p>' : ''}`,
+    buttons: [{ text: 'Хорошо, погуляю! 🐹' }],
+  });
+}
+
+/** Окно «Пора спать?» и новый день (только вечером, с SLEEP_FROM; раньше — «Ещё рано спать»).
+ *  Возвращает true, если уснула, false — если передумала или ещё рано. */
 export async function askSleep() {
-  const early = S().minutes < 18 * 60;
+  if (!canSleepNow()) {
+    await tooEarly();
+    return false;
+  }
   const ok = await confirmBox(
     'Пора спать?',
-    `<div class="center big-emoji">🛏️</div><p class="center">${early ? 'Ещё светло, но можно и вздремнуть до завтра.' : 'День был длинный!'} Лечь спать? Наступит следующий день.</p>`,
+    `<div class="center big-emoji">🛏️</div><p class="center">День был длинный! Лечь спать? Наступит следующий день.</p>`,
     'Спать 😴',
     'Ещё погуляю',
   );
@@ -64,10 +89,15 @@ export async function askSleep() {
 
 register('sleep', () => askSleep(), 'кровать: лечь спать');
 
-// Игровое время идёт, пока мир не на паузе; поздно вечером — напоминание, что пора спать.
+// Игровое время идёт, пока мир не на паузе; вечером — «теперь можно спать» (если днём пробовала лечь),
+// поздно вечером — напоминание, что пора спать.
 function tickClock({ dt }) {
   const s = S();
   passTime(dt);
+  if (s.minutes >= SLEEP_FROM && s.dayFlags.early && !s.dayFlags.eve) {
+    setDayFlag('eve', 1);
+    toast('🌙 Вот и вечер! Теперь можно лечь спать, когда захочешь.');
+  }
   if (s.minutes >= 22 * 60 && !s.dayFlags.late) {
     setDayFlag('late', true);
     toast('Уже поздно. Пора в кроватку 😴');
