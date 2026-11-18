@@ -109,21 +109,7 @@ export default {
   start(host) {
     const root = host.root;
     const level = host.level || 0;
-    let stopped = false,
-      raf = 0;
-    const timers = new Set();
-    const later = (fn, ms) => {
-      const id = setTimeout(() => {
-        timers.delete(id);
-        if (!stopped) fn();
-      }, ms);
-      timers.add(id);
-      return id;
-    };
-    const cancel = (id) => {
-      clearTimeout(id);
-      timers.delete(id);
-    };
+    const { later, cancel } = host;
 
     const fallback = [{ id: 'me', name: 'Гость', look: host.look }];
     const guests = shuffle(host.friends && host.friends.length ? host.friends : fallback);
@@ -131,7 +117,8 @@ export default {
     const chefLook = { ...host.look, outfit: { ...(host.look.outfit || {}), head: null } };
 
     const wrap = el('div', 'chf');
-    wrap.innerHTML = `<style>${CSS}</style>
+    host.css(CSS);
+    wrap.innerHTML = `
       <div class="chf-top"><div class="chf-count"></div><div class="chf-marks"></div></div>
       <div class="chf-main">
         <div class="chf-left">
@@ -148,7 +135,7 @@ export default {
           <div class="chf-shelf"></div>
         </div>
       </div>`;
-    root.appendChild(wrap);
+    host.add(wrap);
     const $ = (s) => wrap.querySelector(s);
     const countEl = $('.chf-count'),
       marksEl = $('.chf-marks');
@@ -189,7 +176,9 @@ export default {
     let phase = 'show'; // show | build | peek | yum
     let enterAt = 0,
       hideTimer = 0,
-      yumAt = 0;
+      yumAt = 0,
+      barFrom = 0, // полоска времени: когда пошла и сколько секунд
+      barLen = 0;
 
     const setMsg = (t, cls = '') => {
       msgEl.textContent = t;
@@ -221,13 +210,11 @@ export default {
         seqEl.appendChild(c);
       });
     }
+    // полоска убывает в кадре (по времени игры), а не CSS-переходом: на скрытой вкладке стоит вместе с таймером
     function runTimer(ms) {
       timerEl.style.visibility = 'visible';
-      timerBar.style.transition = 'none';
-      timerBar.style.width = '100%';
-      void timerBar.offsetWidth;
-      timerBar.style.transition = `width ${ms}ms linear`;
-      timerBar.style.width = '0%';
+      barFrom = now;
+      barLen = ms / 1000;
     }
 
     function startOrder() {
@@ -274,7 +261,7 @@ export default {
     }
 
     function tap(k, btn) {
-      if (phase !== 'build' || stopped) return;
+      if (phase !== 'build') return;
       if (k === seq[pos]) {
         pos++;
         host.sfx('pop');
@@ -346,8 +333,7 @@ export default {
       wrap.style.setProperty('--u', u.toFixed(3));
     };
     fit();
-    const ro = new ResizeObserver(fit);
-    ro.observe(root);
+    host.onResize(fit);
 
     // --- хомячки
     function drawToque(ctx, x, y, s) {
@@ -355,10 +341,9 @@ export default {
       for (const dx of [-13, 0, 13]) ell(ctx, x + dx * s, y - 92 * s, 10 * s, 10 * s, '#fff', '#4a3728', 2);
       ell(ctx, x, y - 90 * s, 14 * s, 7 * s, '#fff');
     }
-    const t0 = performance.now();
-    const frame = (ts) => {
-      if (stopped) return;
-      now = (ts - t0) / 1000;
+    host.loop((_, time) => {
+      now = time; // время игры: на скрытой вкладке стоит вместе с таймерами
+      if (barLen) timerBar.style.width = `${clamp(1 - (now - barFrom) / barLen, 0, 1) * 100}%`;
       const blink = now % 3.3 < 0.13;
       const yum = phase === 'yum';
       // гость
@@ -382,21 +367,9 @@ export default {
       const bob = Math.sin(now * 2.2) * 0.7 * 1.1;
       host.drawHamster(c2, 60, 134, 1.1, chefLook, { time: now, blink, happy: yum });
       drawToque(c2, 60, 134 - bob, 1.1);
-      raf = requestAnimationFrame(frame);
-    };
-    raf = requestAnimationFrame(frame);
+    });
 
     startOrder();
 
-    return {
-      stop() {
-        stopped = true;
-        cancelAnimationFrame(raf);
-        timers.forEach(clearTimeout);
-        timers.clear();
-        ro.disconnect();
-        wrap.remove();
-      },
-    };
   },
 };
