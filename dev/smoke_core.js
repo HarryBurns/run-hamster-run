@@ -121,4 +121,51 @@ module.exports = async function core({ page, step, ev, wait, closeAll }) {
     },
     { expectErrors: 'проба' },
   );
+
+  await step(
+    'основа: ошибка в новом дне не оставляет чёрный экран сна',
+    async () => {
+      await fresh();
+      const day = await ev(() => window.__dev.G.state.day);
+      await ev(() => {
+        window.__sleepDone = 'ждём';
+        Promise.resolve(window.__dev.run('sleep')).then(
+          () => (window.__sleepDone = 'ок'),
+          (e) => (window.__sleepDone = 'ошибка: ' + e.message),
+        );
+      });
+      await wait(500);
+      await page.click('.overlay .panel-foot .btn >> nth=0'); // «Спать 😴»
+      // пока экран темнеет — подкладываем поломку: первое же чтение отметки дня бросит исключение (и уберёт себя)
+      await ev(() =>
+        Object.defineProperty(window.__dev.G.state.dayFlags, 'careless', {
+          configurable: true,
+          get() {
+            delete this.careless;
+            throw new Error('проба: новый день не наступил');
+          },
+        }),
+      );
+      await wait(2600);
+      const r = await ev(() => ({
+        done: window.__sleepDone,
+        modal: window.__dev.G.modal,
+        cover: window.__dev.G.cover,
+        fade: !!document.querySelector('.fade'),
+      }));
+      expect(/проба/.test(r.done), 'сон с ошибкой не сообщил об ошибке (проверка не годится)', r);
+      expect(r.modal === 0 && r.cover === 0 && !r.fade, 'после ошибки в новом дне остался чёрный экран или пауза', r);
+      // игра живёт: можно снова лечь спать, и день сменится
+      await ev(() => {
+        window.__dev.run('sleep'); // не ждём: askSleep ждёт ответа в окне
+      });
+      await wait(500);
+      await page.click('.overlay .panel-foot .btn >> nth=0');
+      await wait(2800);
+      await closeAll();
+      const d2 = await ev(() => window.__dev.G.state.day);
+      expect(d2 > day, 'после неудачной ночи следующая не сменила день', { day, d2 });
+    },
+    { expectErrors: 'проба' },
+  );
 };

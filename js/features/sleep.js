@@ -28,16 +28,21 @@ export async function askSleep() {
   sfx('sleep');
   const release = await fadeTo('Спокойной ночи… 💤', 1700);
   const s = S();
-  const night = planNight(); // болезнь (Ф1): решается по прошедшему дню, применяется к новому — до письма дня
-  nextDay();
-  applyNight(night);
-  newDayMail();
-  const c = cal();
-  const played = s.day - (s.startDay || 0); // год игры — от дня, когда она началась (новая — 1 июня)
-  if (played > 0 && played % 36 === 0) award('x_year', { delay: 2500 });
-  emit('wake'); // сцена-дом ставит хомячка у кровати
-  emit('hud');
-  release();
+  let night, c;
+  // затемнение снимается всегда: ошибка в новом дне не оставит чёрный экран «Спокойной ночи…» до перезагрузки
+  try {
+    night = planNight(); // болезнь (Ф1): решается по прошедшему дню, применяется к новому — до письма дня
+    nextDay();
+    applyNight(night);
+    newDayMail();
+    c = cal();
+    const played = s.day - (s.startDay || 0); // год игры — от дня, когда она началась (новая — 1 июня)
+    if (played > 0 && played % 36 === 0) award('x_year', { delay: 2500 });
+    emit('wake'); // сцена-дом ставит хомячка у кровати
+    emit('hud');
+  } finally {
+    release();
+  }
   setTimeout(() => {
     sfx(c.season !== before.season ? 'fanfare' : 'morning');
     if (c.season !== before.season)
