@@ -805,9 +805,13 @@ const NUT_CLIFFS_MAP = [
   [2.1, 55.2, false],
   [93.9, 56.2, true],
 ];
-/** Значок ореховой скалы на карте: два рыжих уступа с травкой на макушке, k — пикселей карты в клетке. */
+/**
+ * Значок ореховой скалы на карте: два рыжих уступа с травкой на макушке, k — пикселей карты в клетке. На самом мелком
+ * виде карты (телефон, k = 4) значок не мельче, чем при k = 6, — иначе его не разглядеть рядом со значками мест (В19).
+ */
+const nutCliffScale = (k) => Math.max(k, 6) / 10;
 function mapNutCliff(ctx, x, y, k, flip) {
-  const s = Math.max(k, 4) / 10;
+  const s = nutCliffScale(k);
   ctx.save();
   ctx.translate(x, y);
   ctx.scale(flip ? -s : s, s);
@@ -1599,7 +1603,9 @@ const town = createTopDownScene({
   },
   /** На мини-карте: забор двора виллы; ореховые скалы — значком-скалой (В13: раньше — россыпь коричневых точек). */
   miniMap(ctx, sc, k) {
-    for (const [x, y, flip] of NUT_CLIFFS_MAP) mapNutCliff(ctx, x * k, y * k, k, flip);
+    // у самого края карты — целиком на карте (значок шире скалы)
+    const half = 20 * nutCliffScale(k);
+    for (const [x, y, flip] of NUT_CLIFFS_MAP) mapNutCliff(ctx, clamp(x * k, half, sc.w * k - half), y * k, k, flip);
     ctx.strokeStyle = '#fff';
     ctx.lineWidth = Math.max(1.5, k * 0.22);
     ctx.setLineDash([k * 0.5, k * 0.35]);
