@@ -313,6 +313,15 @@ const deep = createTopDownScene({
     ride = null;
     sc.p.ride = null;
     boatAt = sc.p.x > 20 * T ? 'east' : 'west';
+    // сохранились посреди поездки (стоим на реке): выходим на тот берег, где ждёт лодочка, — иначе движок поставил
+    // бы на ближайшую сушу, и хомячок с лодочкой могли оказаться на разных берегах
+    const tx = Math.floor(sc.p.x / T),
+      ty = Math.floor(sc.p.y / T);
+    if (sc.map.inside(sc.p.x, sc.p.y) && isWater(tx, ty) && !sc.map.foot(tx, ty)) {
+      const [lx, ly] = boatAt === 'east' ? AT.landE : AT.landW;
+      sc.p.x = lx * T;
+      sc.p.y = ly * T;
+    }
     if (!G.state.flags.deepHint) {
       setFlag('deepHint');
       setTimeout(() => toast('🛶 Подземная река! Садись в лодочку у мостков — течение само понесёт её мимо светящихся грибов.'), 700);

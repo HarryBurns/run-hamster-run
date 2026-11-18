@@ -963,7 +963,11 @@ export function createSea(cfg) {
         else setBoat({ x: BOAT_HOME.x, y: BOAT_HOME.y, on: false });
         bt = boatState();
       }
-      p.ride = bt.on ? BOAT : null;
+      // в кораблик сажаем, только если стоим на воде: «Домой» с кораблика, а потом выход из своего дома
+      // (квартира, бунгало, лесной домик) ставит у двери на суше — там кораблика нет, он ждёт, где оставили
+      const onSea = isSea(ch(tileOf(p.x), tileOf(p.y)));
+      if (bt.on && !onSea) setBoat({ on: false });
+      p.ride = bt.on && onSea ? BOAT : null;
       // всплыли после ныряния: рядом с тем местом, куда доплыли под водой (а с кораблика — к нему же)
       if (params.surface && !p.ride) {
         const sf = surfaceAt(params.surface.x, params.surface.y);

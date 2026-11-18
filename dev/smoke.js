@@ -29,7 +29,8 @@
 //  отдых в городе, этап 17а — dev/smoke_relax.js:  node dev/smoke.js <url> "step:отдых 17а:";
 //  профессии, фото-режим, нижний ярус пещер, этап 17в — dev/smoke_jobs.js:  node dev/smoke.js <url> "step:17в:";
 //  правки по ревью игровой логики — dev/smoke_rfix.js:  node dev/smoke.js <url> "step:правки ревью";
-//  быстрые исправления по ревью основы — dev/smoke_core.js:  node dev/smoke.js <url> "step:основа:")
+//  быстрые исправления по ревью основы — dev/smoke_core.js:  node dev/smoke.js <url> "step:основа:";
+//  быстрые исправления по ревью мест и мини-игр — dev/smoke_rplaces.js:  node dev/smoke.js <url> "step:места ревью")
 // Скорость проверяется отдельно:  node dev/bench.js [url] --spots=forest --sizes=desktop --max-forest=45
 const { chromium } = require('playwright');
 const fs = require('fs');
@@ -61,6 +62,7 @@ const relax = require('./smoke_relax.js'); // этап 17а: отдых в го�
 const buddy = require('./smoke_buddy.js'); // этап 17б: питомец из приюта, самокат / велосипед / кабриолет, двор у дома
 const jobs = require('./smoke_jobs.js'); // этап 17в: профессии (парикмахер, спасатель, садовник), фото-режим, нижний ярус пещер
 const rfix = require('./smoke_rfix.js'); // правки по ревью игровой логики: ночь в отеле/на острове, награды дружбы, «Позвать в гости»
+const rplaces = require('./smoke_rplaces.js'); // правки по ревью мест: кораблик и «Домой», подземная река, проход во дворе
 const core = require('./smoke_core.js'); // ревью основы: клавиша E, окна и сон при ошибке, сохранение при нехватке места, нечитаемая игра
 const fixes = require('./smoke_fixes.js'); // В-пункты BACKLOG: стрелка к цели в фото-режиме, транспорт у воды, тёплая вода у острова
 const holidaysWide = require('./smoke_holidays_wide.js'); // этап 15: праздники шире площади — наряды жителей, празднуют вместе, места, украшения за городом и в домах, полка в ТЦ, клумбы
@@ -2886,6 +2888,7 @@ const runParallel = () => {
     await fixes({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
     await rfix({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
     await core({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
+    await rplaces({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
     await estate({ page, step: (n, f, o) => step(n, f, { ...o, extra: true, estate: true }), ev, wait, closeAll });
     if (tag === 'desktop')
       await extra({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll, hold });
