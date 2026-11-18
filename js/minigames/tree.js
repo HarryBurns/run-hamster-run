@@ -169,28 +169,24 @@ export default {
   id: 'tree',
   title: 'Нарядим ёлку!',
   icon: '🎄',
+  css: CSS,
   get howTo() {
-    return `<style>${CSS}</style>Ёлку наряжаешь ты сама! <b>Выбери игрушку</b> в коробке и <b>нажми на ветку</b> — туда, где
+    return `Ёлку наряжаешь ты сама! <b>Выбери игрушку</b> в коробке и <b>нажми на ветку</b> — туда, где
       светится кружочек (или перетащи игрушку пальцем).
       <div class="tr-rules">${KINDS.map((k) => toyPic(k.id, 40)).join('')}</div>
       Повесь хотя бы ${MIN} игрушек — и надень <b>звезду на макушку</b>! Чем больше разных игрушек, тем наряднее ёлка ✨`;
   },
   start(host) {
-    const root = host.root;
-    const style = el('style', '', CSS);
     const top = el('div', 'tr-top');
     const tCount = el('div', 'tr-chip'),
       tSay = el('div', 'tr-chip');
     top.append(tCount, tSay);
     const tray = el('div', 'tr-tray');
-    root.append(style, top, tray);
+    host.add(top, tray);
     const cv = host.canvas();
     cv.canvas.classList.add('tr-canvas');
     const ctx = cv.ctx;
     let t = 0,
-      last = performance.now(),
-      raf = 0,
-      stopped = false,
       over = false,
       sel = 'ball',
       cursor = 3, // выбор места клавиатурой
@@ -199,7 +195,7 @@ export default {
       drag = null, // { kind, x, y, moved } — тащим игрушку из коробки
       flash = null; // { i, t } — только что повешено
     const placed = SPOTS.map(() => null); // { kind, col, t }
-    const pops = [];
+    const pops = host.pops({ line: 0 }); // искорки-эмодзи — без обводки
 
     // ---------- коробка ----------
     const btns = {};
@@ -260,7 +256,7 @@ export default {
       flash = { i, t: 0 };
       host.sfx(kind === 'bell' ? 'bell' : kind === 'garland' ? 'magic' : 'pop');
       const p = spotXY(i);
-      pops.push({ text: was ? '🔄' : ['✨', '💫', '🌟'][count() % 3], x: p.x, y: p.y - 10, t: 0 });
+      pops.add(was ? '🔄' : ['✨', '💫', '🌟'][count() % 3], p.x, p.y - 10);
       if (count() === MIN) host.sfx('ding');
     }
     function putTop() {
@@ -272,7 +268,7 @@ export default {
       }
       topOn = 0.001;
       host.sfx('fanfare');
-      setTimeout(finish, 1700);
+      host.later(finish, 1700);
     }
     let say = '',
       sayT = 0;
@@ -312,7 +308,7 @@ export default {
       const [x, y] = local(e);
       tapAt(x, y);
     };
-    cv.canvas.addEventListener('pointerdown', down);
+    host.on(cv.canvas, 'pointerdown', down);
     const pmove = (e) => {
       if (!drag) return;
       drag.x = e.clientX;
@@ -328,9 +324,9 @@ export default {
       const i = spotAt(x, y);
       if (i >= 0) place(i, d.kind);
     };
-    window.addEventListener('pointermove', pmove);
-    window.addEventListener('pointerup', pup);
-    window.addEventListener('pointercancel', pup);
+    host.on(window, 'pointermove', pmove);
+    host.on(window, 'pointerup', pup);
+    host.on(window, 'pointercancel', pup);
     // клавиатура
     const nearest = (dx, dy) => {
       const g = L(),
@@ -363,7 +359,7 @@ export default {
       else return;
       e.preventDefault();
     };
-    window.addEventListener('keydown', kd);
+    host.on(window, 'keydown', kd);
     // для автотеста (dev/smoke_games.js): места (CSS-пиксели канвы), что где висит, можно ли звезду
     cv.canvas.__tree = () => {
       const g = L();
@@ -524,13 +520,7 @@ export default {
         const r = cv.canvas.getBoundingClientRect();
         toyArt(ctx, drag.kind, ((drag.x - r.left) / r.width) * cv.w, ((drag.y - r.top) / r.height) * cv.h - 12, s * 1.1, BALLS[balls % BALLS.length], t);
       }
-      ctx.textAlign = 'center';
-      ctx.font = '900 20px ui-rounded, "Trebuchet MS", sans-serif';
-      for (const p of pops) {
-        ctx.globalAlpha = Math.max(0, 1 - p.t);
-        ctx.fillText(p.text, p.x, p.y - p.t * 30);
-      }
-      ctx.globalAlpha = 1;
+      pops.draw(ctx);
     }
     function update(dt) {
       t += dt;
@@ -540,8 +530,7 @@ export default {
         sayT -= dt;
         if (sayT <= 0) say = '';
       }
-      for (const p of pops) p.t += dt;
-      for (let i = pops.length - 1; i >= 0; i--) if (pops[i].t > 1) pops.splice(i, 1);
+      pops.step(dt);
       const n = count();
       tCount.textContent = `🎁 ${n} из ${SPOTS.length} · разных ${kindsUsed()} из ${KINDS.length}`;
       tSay.textContent =
@@ -550,17 +539,12 @@ export default {
       topBtn.disabled = !starReady();
       topBtn.classList.toggle('ready', starReady());
     }
-    const frame = (now) => {
-      if (stopped) return;
-      const dt = Math.min(0.05, (now - last) / 1000);
-      last = now;
+    host.loop((dt) => {
       update(dt);
       draw();
-      raf = requestAnimationFrame(frame);
-    };
-    raf = requestAnimationFrame(frame);
+    });
     function finish() {
-      if (over || stopped) return;
+      if (over) return;
       over = true;
       const n = count(),
         kinds = kindsUsed();
@@ -577,20 +561,5 @@ export default {
         extra: { n, kinds, layout: treeLayout(placed) },
       });
     }
-    return {
-      stop() {
-        stopped = true;
-        cancelAnimationFrame(raf);
-        cv.canvas.removeEventListener('pointerdown', down);
-        window.removeEventListener('pointermove', pmove);
-        window.removeEventListener('pointerup', pup);
-        window.removeEventListener('pointercancel', pup);
-        window.removeEventListener('keydown', kd);
-        if (cv.destroy) cv.destroy();
-        style.remove();
-        top.remove();
-        tray.remove();
-      },
-    };
   },
 };
