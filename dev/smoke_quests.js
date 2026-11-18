@@ -8,22 +8,11 @@ const path = require('path');
 const SAVE_V4 = fs.readFileSync(path.join(__dirname, 'saves', 'v4.json'), 'utf8'); // простуженная Ириска (Ф1)
 const SAVE_V5 = fs.readFileSync(path.join(__dirname, 'saves', 'v5.json'), 'utf8'); // Ириска собирает гербарий
 
-module.exports = async function quests({ page, step, ev, wait, closeAll }) {
-  const state = () => ev(() => JSON.parse(JSON.stringify(window.__dev.G.state)));
-  const norm = (t) => t.replace(/[   ]/g, ' ');
-  const expect = (ok, msg, data) => {
-    if (!ok) throw new Error(msg + (data === undefined ? '' : ': ' + JSON.stringify(data)));
-  };
-  const toasts = async () =>
-    norm(await ev(() => (document.querySelector('#toasts') || { textContent: '' }).textContent));
-  const clearToasts = () =>
-    ev(() => {
-      const t = document.querySelector('#toasts');
-      if (t) t.innerHTML = '';
-    });
-  const dialogText = async () => norm(await ev(() => (document.querySelector('.dialog .say') || {}).textContent || ''));
-  const panelText = async () =>
-    norm(await ev(() => [...document.querySelectorAll('.overlay .panel')].map((p) => p.textContent).join(' | ')));
+const lib = require('./lib.js');
+
+module.exports = async function quests(ctx) {
+  const L = lib(ctx);
+  const { page, step, ev, wait, closeAll, untilPanel, untilScene, frames, norm, expect, state, toasts, clearToasts, panelText, dialogText } = L;
   const badge = (id) => ev((id) => window.__dev.state && window.__dev.QuestState.questBadge(id), id);
   const now = () => ev(() => window.__dev.QuestState.questNow('herbarium'));
   const status = async () => (await now()).status;
@@ -35,33 +24,14 @@ module.exports = async function quests({ page, step, ev, wait, closeAll }) {
       return { text: c.textContent, right: r.right, bottom: r.bottom, vw: innerWidth };
     });
   /** Новая игра с чистого листа. */
-  const fresh = async () => {
-    await ev(() => {
-      window.__dev.G.state = null;
-      localStorage.clear();
-    });
-    await page.reload();
-    await wait(400);
-    await page.click('text=Играть!');
-    await page.click('text=Пропустить'); // вступительная сценка новой игры (этап 10)
-    await page.evaluate(() => window.__dev.actions.setFlag('intro', 0)); // вводная цепочка заданий — в своих шагах (dev/smoke_start.js)
-    await wait(400);
-    await page.click('text=Поехали!');
-    await wait(500);
-    await closeAll();
-  };
+  const fresh = () => L.fresh(); // 1 июня, без вводной цепочки
   const putSave = async (raw) => {
-    await ev((raw) => {
-      window.__dev.G.state = null;
-      localStorage.removeItem('rhr-save-backup');
-      localStorage.setItem('rhr-save-v1', raw);
-    }, raw);
-    await page.reload();
-    await wait(500);
-    await page.click('text=Продолжить');
-    await wait(800);
+    await L.putSave(raw);
+    await L.cont();
     await closeAll();
   };
+  /** Следующий диалог (если будет) — с защитой кнопок от случайного нажатия. */
+  const nextDialog = () => L.untilDialog(1500).catch(() => {});
   /** Полдень в городе (Мята гуляет в парке). */
   const noon = () =>
     ev(() => {
@@ -71,13 +41,13 @@ module.exports = async function quests({ page, step, ev, wait, closeAll }) {
         s.weather = 'sun';
       });
       d.go('world');
-    });
+    }).then(() => untilScene('world'));
   /** Поговорить с Мятой в городе (как будто подошли) — диалог открыт. */
   const talkMyata = async () => {
     await ev(() => {
       window.__dev.run('npc:myata');
     });
-    await wait(500);
+    await L.untilDialog();
   };
   /** Места для гербария в городе и что с них сорвать. */
   const herbs = () =>
@@ -115,7 +85,7 @@ module.exports = async function quests({ page, step, ev, wait, closeAll }) {
   await step('журнал: в первый день задания нет, со второго — «!» у Мяты, плашка и подсказка', async () => {
     await fresh();
     await noon();
-    await wait(300);
+    await frames(2);
     expect((await status()) === 'locked', 'в первый день задание уже можно взять', await status());
     expect((await badge('myata')) === null, 'в первый день над Мятой значок', await badge('myata'));
     expect((await chip()) === null, 'в первый день плашка задания', await chip());
@@ -130,13 +100,13 @@ module.exports = async function quests({ page, step, ev, wait, closeAll }) {
     await ev(() => {
       window.__dev.run('way:forest');
     });
-    await wait(400);
+    await untilPanel();
     expect(/Тропа в лес заросла/.test(await panelText()) && /завтра/.test(await panelText()), 'ворота в первый день', await panelText());
     await closeAll();
     // второй день: можно взять
     await nextDay();
     await noon();
-    await wait(300);
+    await frames(2);
     expect((await status()) === 'ready', 'со второго дня задание не появилось', await status());
     expect((await badge('myata')) === '!', 'нет «!» над Мятой', await badge('myata'));
     expect((await badge('plusha')) === null, '«!» над другим жителем');
@@ -145,7 +115,7 @@ module.exports = async function quests({ page, step, ev, wait, closeAll }) {
     expect(c.right <= c.vw + 1, 'плашка задания вылезла за экран', c);
     // журнал: «Новое задание!»
     await ev(() => document.querySelector('.chip.quest').click()); // плашка покачивается — жмём из страницы
-    await wait(500);
+    await untilPanel();
     expect(/Новое задание/.test(await panelText()) && /Мята/.test(await panelText()), 'журнал: новое задание', await panelText());
     await closeAll();
     // значок нарисован из кэша спрайтов и помещается в свою рамку
@@ -166,7 +136,7 @@ module.exports = async function quests({ page, step, ev, wait, closeAll }) {
     await fresh();
     await nextDay();
     await noon();
-    await wait(300);
+    await frames(2);
     await ev(() => {
       window.__stopWatchQuests = window.__dev.watchState();
     });
@@ -174,9 +144,9 @@ module.exports = async function quests({ page, step, ev, wait, closeAll }) {
     await talkMyata();
     expect(/гербарий/.test(await dialogText()), 'Мята не предлагает задание', await dialogText());
     await page.click('.dialog .btn.green');
-    await wait(400);
+    await nextDialog();
     await page.click('.dialog .btn.green'); // «Хорошо!»
-    await wait(400);
+    await L.until(() => !document.querySelector('.dialog'), undefined, { timeout: 2000 }).catch(() => {});
     let w = await now();
     expect(w.status === 'active' && w.i === 0, 'задание не взято', w);
     expect((await badge('myata')) === null, 'после взятия над Мятой остался значок', await badge('myata'));
@@ -210,7 +180,7 @@ module.exports = async function quests({ page, step, ev, wait, closeAll }) {
       s.finds,
     ]);
     await noon();
-    await wait(300);
+    await frames(2);
     expect(/3\/5/.test((await chip()).text), 'плашка после перезагрузки: 3/5', await chip());
     expect(!(await pick(33, 33)), 'после перезагрузки снова сорвали с того же места');
     await ev(() => {
@@ -227,7 +197,7 @@ module.exports = async function quests({ page, step, ev, wait, closeAll }) {
     expect(!(await ev(() => window.__dev.QuestState.findsWanted('herb'))), 'находки нужны и после 5 из 5');
     // журнал: шаг 1 сделан, текущий — урожай
     await ev(() => window.__dev.F.openAlbum('quests'));
-    await wait(400);
+    await untilPanel();
     expect(
       (await ev(() => document.querySelectorAll('.q-steps li.ok').length)) === 1 &&
         /урожай/.test(await ev(() => document.querySelector('.q-steps li.cur').textContent)),
@@ -248,14 +218,14 @@ module.exports = async function quests({ page, step, ev, wait, closeAll }) {
     expect(/Мят/.test((await chip()).text), 'плашка «Отнеси находки Мяте»', await chip());
     // сдать
     await noon();
-    await wait(300);
+    await frames(2);
     const money = (await state()).money;
     await talkMyata();
     await page.click('.dialog .btn.green'); // «Отдать находки»
-    await wait(400);
+    await nextDialog();
     expect(/открыта/.test(await dialogText()), 'Мята не благодарит', await dialogText());
     await page.click('.dialog .btn.green');
-    await wait(1300);
+    await untilPanel('Задание выполнено', 4000).catch(() => {});
     const text = await panelText();
     expect(/Задание выполнено/.test(text) && /Лес открыт/.test(text) && /Юный ботаник/.test(text), 'праздничное окно', text);
     expect((await ev(() => document.querySelectorAll('.overlay .confetti i').length)) > 10, 'нет конфетти');
@@ -272,22 +242,22 @@ module.exports = async function quests({ page, step, ev, wait, closeAll }) {
     expect((await badge('myata')) === null && (!ch || /Шишкин/.test(ch.text)), 'после задания — значок или плашка', ch);
     // журнал: выполнено; тропа в лес — «Лес открыт!»
     await ev(() => window.__dev.F.openAlbum('quests'));
-    await wait(400);
+    await untilPanel();
     expect(/Выполнено/.test(await panelText()) && /Лес/.test(await panelText()), 'журнал: выполнено', await panelText());
     await closeAll();
     await ev(() => {
       window.__dev.run('way:forest');
     });
-    await wait(600);
+    await untilScene('forest').catch(() => {});
     // лес готов (П.9): тропа ведёт в сцену леса, а там — лесник Шишкин с заданием «!»
     expect((await ev(() => window.__dev.sceneName)) === 'forest', 'тропа в лес после задания ведёт не в лес', await ev(() => window.__dev.sceneName));
     expect((await badge('shishkin')) === '!', 'в лесу у Шишкина нет задания «!»', await badge('shishkin'));
     await closeAll();
     await noon();
-    await wait(300);
+    await frames(2);
     // карта: лес без замочка, остальные — с замочком
     await ev(() => window.__dev.F.openMap());
-    await wait(500);
+    await untilPanel();
     const lands = await ev(() => [...document.querySelectorAll('.overlay .land')].map((b) => [b.textContent, b.classList.contains('open')]));
     expect(lands.length > 1 && lands[0][1] && lands.slice(1).every((l) => !l[1] && l[0].includes('🔒')), 'тайные места на карте', lands);
     await closeAll();
