@@ -163,6 +163,21 @@ function freeSpot(sc, rm, door, hw, x0, x1) {
   }
   return Math.min(x1 - hw, door.x + 90);
 }
+/**
+ * freeSpot с памятью: место меняется, только когда переставили мебель, — считать его каждый кадр незачем.
+ * Ключ — дом, комната, ширина украшения и мебель этажа (что и где стоит).
+ */
+let spotKey = '',
+  spotX = 0;
+function spotFor(sc, rm, door, hw) {
+  let key = `${sc.name}|${rm.f}|${rm.x0}|${door.x}|${hw}`;
+  for (const it of sc.items() || []) if (it.floor === rm.f) key += `|${it.id}@${Math.round(it.x)}`;
+  if (key !== spotKey) {
+    spotKey = key;
+    spotX = freeSpot(sc, rm, door, hw, rm.x0 + 12, rm.x1 - 12);
+  }
+  return spotX;
+}
 /** Праздник, который сейчас украшает этот дом, или ''. */
 const roomHoliday = (sc) => (!G.state || NO_DECOR.has(sc.name) ? '' : Object.keys(ROOM).find(decorNow) || '');
 // гирлянда — позади всего
@@ -202,7 +217,7 @@ sideArtFront.push((ctx, sc) => {
   const y = sc.geo.fy(rm.f),
     view = sc.view;
   if (view && (y < view.y0 - 20 || y - sc.geo.RH > view.y1 + 20)) return;
-  const at = freeSpot(sc, rm, door, pic.hw, rm.x0 + 12, rm.x1 - 12),
+  const at = spotFor(sc, rm, door, pic.hw),
     [l, t, w, h] = pic.box;
   sc.holidayDecorAt = at; // для тестов
   ctx.drawImage(pic.canvas, at + l, y - 2 + t, w, h);
