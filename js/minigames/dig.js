@@ -6,6 +6,7 @@
 // Бархан помогает докопать (находка всё равно твоя). Проигрыша нет. Монеты и находку выдаёт занятие.
 import { el, clamp } from '../core/util.js';
 import { ell, poly, fillRR, line } from '../core/draw.js';
+import { pic as kitPic } from './kit.js';
 
 const OUT = '#4a3728';
 const TIME = 30; // секунд на раскопку, потом Бархан помогает
@@ -165,16 +166,7 @@ function brush(ctx, x, y, s, a = -0.7) {
 }
 
 /** Маленькая картинка для правил (data: URL). */
-function pic(draw, w = 120, h = 56) {
-  const c = document.createElement('canvas');
-  c.width = w * 2;
-  c.height = h * 2;
-  const x = c.getContext('2d');
-  x.scale(2, 2);
-  x.lineJoin = 'round';
-  draw(x, w, h);
-  return `<img src="${c.toDataURL()}" width="${w}" height="${h}" alt="">`;
-}
+const pic = (draw, w = 120, h = 56) => kitPic(draw, w, h);
 
 const CSS = `
 .dg-rules{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin:8px 0 2px}
@@ -192,8 +184,9 @@ export default {
   id: 'dig',
   title: 'Раскопки',
   icon: '🦴',
+  css: CSS,
   get howTo() {
-    return `<style>${CSS}</style>Под песком спряталась древняя окаменелость. <b>Води пальцем — счищай песок кисточкой!</b>
+    return `Под песком спряталась древняя окаменелость. <b>Води пальцем — счищай песок кисточкой!</b>
       <div class="dg-rules">
         <div class="dg-col"><b>👆 Води</b>${pic((c, w, h) => {
           sandArt(c, w, h);
@@ -222,22 +215,17 @@ export default {
       Торопиться не страшно: если не успеешь, Бархан поможет докопать!`;
   },
   start(host) {
-    const root = host.root;
-    const style = el('style', '', CSS);
     const top = el('div', 'dg-top');
     const tTime = el('div', 'dg-chip'),
       tGot = el('div', 'dg-chip');
     top.append(tTime, tGot);
-    root.append(style, top);
+    host.add(top);
     const cv = host.canvas();
     const ctx = cv.ctx;
     const id = FOSSIL_NAMES[host.info.fossil] ? host.info.fossil : 'fossil_shell';
     // на раскопе хомячок в шлеме исследователя (только на время игры — наряд не меняется)
     const look = { ...host.look, outfit: { ...host.look.outfit, head: { kind: 'pith', c: '#f1e0c5', c2: '#d9a066' } } };
     let t = 0,
-      last = performance.now(),
-      raf = 0,
-      stopped = false,
       over = false,
       found = 0, // > 0 — нашла: время находки
       foundT = 0,
@@ -375,10 +363,10 @@ export default {
       hover = false;
       drawing = false;
     };
-    cv.canvas.addEventListener('pointerdown', down);
-    cv.canvas.addEventListener('pointermove', move);
-    window.addEventListener('pointerup', up);
-    cv.canvas.addEventListener('pointerleave', leave);
+    host.on(cv.canvas, 'pointerdown', down);
+    host.on(cv.canvas, 'pointermove', move);
+    host.on(window, 'pointerup', up);
+    host.on(cv.canvas, 'pointerleave', leave);
     // для автотеста (dev/smoke_desert.js): где плита (CSS-пиксели канвы), где окаменелость, сколько расчищено
     cv.canvas.__dig = () => ({
       box: { ...box },
@@ -396,7 +384,7 @@ export default {
         found = t;
         foundT = 0;
         host.sfx('win');
-        setTimeout(finish, 1500);
+        host.later(finish, 1500);
       }
       if (found) foundT += dt;
     }
@@ -463,18 +451,14 @@ export default {
       }
     }
 
-    function frame(now) {
-      if (stopped) return;
-      const dt = Math.min(0.05, (now - last) / 1000);
-      last = now;
+    host.loop((dt) => {
       if (!over) update(dt);
       tTime.textContent = `⏱ ${Math.ceil(Math.max(0, TIME - (found || t)))}`;
       tGot.textContent = `🦴 ${Math.round(progress() * 100)}%`;
       draw();
-      raf = requestAnimationFrame(frame);
-    }
+    });
     function finish() {
-      if (over || stopped) return;
+      if (over) return;
       over = true;
       const sec = found,
         stars = helped ? 1 : sec <= DIG_STARS[0] ? 3 : sec <= DIG_STARS[1] ? 2 : 1;
@@ -486,19 +470,5 @@ export default {
         extra: { fossil: id, sec: Math.round(sec), helped },
       });
     }
-    raf = requestAnimationFrame(frame);
-    return {
-      stop() {
-        stopped = true;
-        cancelAnimationFrame(raf);
-        cv.canvas.removeEventListener('pointerdown', down);
-        cv.canvas.removeEventListener('pointermove', move);
-        cv.canvas.removeEventListener('pointerleave', leave);
-        window.removeEventListener('pointerup', up);
-        if (cv.destroy) cv.destroy();
-        style.remove();
-        top.remove();
-      },
-    };
   },
 };
