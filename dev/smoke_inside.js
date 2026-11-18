@@ -3,22 +3,30 @@
 // предметы можно потрогать (реплика), особые входы изнутри (загадки «Пары» и «Узор храма», сон в хижине для гостей,
 // заплыв из грота в город), дверь изнутри возвращает к двери снаружи; наклейка за все дома; ночью внутри темнеет и
 // горят лампы. Подключается из dev/smoke.js. Только эти шаги:  node dev/smoke.js <url> step:внутри
-module.exports = async function inside({ page, step, ev, wait, closeAll }) {
-  const T = 48;
-  const norm = (t) => t.replace(/[  ]/g, ' ');
-  const expect = (ok, msg, data) => {
-    if (!ok) throw new Error(msg + (data === undefined ? '' : ': ' + JSON.stringify(data)));
+const lib = require('./lib.js');
+
+module.exports = async function inside(ctx) {
+  const L = lib(ctx);
+  const { page, step, ev, closeAll, until, untilScene, untilPanel, frames, T, norm, expect, toasts, clearToasts, panelText } = L;
+  const sceneName = L.scene;
+  /** Подсказка с текстом re (RegExp) появилась. */
+  const untilToast = (re, timeout = 6000) =>
+    until((src) => new RegExp(src).test((document.querySelector('#toasts') || { textContent: '' }).textContent.replace(/[   ]/g, ' ')), re.source, { timeout, msg: 'подсказка ' + re });
+  /** Хомячок дошёл до двери и вышел: сцена сменилась с from (на to, если дана). */
+  const untilOut = (from, to) =>
+    until(([f, t]) => window.__dev.sceneName !== f && (!t || window.__dev.sceneName === t) && !document.querySelector('.fade'), [from, to || null], { timeout: 8000, msg: 'вышла из ' + from });
+  /** Войти в дом b локации loc (как через дверь) и дождаться сцены дома id. */
+  const enterHouse = async (loc, b, id) => {
+    await ev(([loc, b]) => {
+      const sc = window.__dev.locations[loc];
+      sc.enterBuilding(sc.map.bById[b]);
+    }, [loc, b]);
+    await untilScene(id);
+    await frames(2);
   };
-  const toasts = async () => norm(await ev(() => (document.querySelector('#toasts') || { textContent: '' }).textContent));
-  const clearToasts = () =>
-    ev(() => {
-      const t = document.querySelector('#toasts');
-      if (t) t.innerHTML = '';
-    });
-  const sceneName = () => ev(() => window.__dev.sceneName);
   /** В локацию loc (открыв место land), днём (или в minutes), к клетке [tx, ty]. */
-  const toLoc = (loc, land, tx, ty, minutes = 12 * 60) =>
-    ev(
+  const toLoc = async (loc, land, tx, ty, minutes = 12 * 60) => {
+    await ev(
       ([loc, land, tx, ty, minutes]) => {
         const d = window.__dev;
         for (const id of ['forest', 'mountain', land]) if (id && !d.QuestState.landOpen(id)) d.actions.openLand(id);
@@ -34,18 +42,32 @@ module.exports = async function inside({ page, step, ev, wait, closeAll }) {
       },
       [loc, land, tx, ty, minutes],
     );
+    await untilScene(loc);
+    await frames(2);
+  };
   /** Нажать на точку дома (единицы дома) — настоящим нажатием по экрану. */
   const tapHouse = async (wx, wy) => {
-    let k = await ev(([wx, wy]) => window.__dev.scene.debugScreen(wx, wy), [wx, wy]);
     const vw = page.viewportSize();
+    let k = await ev(([wx, wy]) => window.__dev.scene.debugScreen(wx, wy), [wx, wy]);
     if (k.x < 70 || k.x > vw.width - 70 || k.y < 60 || k.y > vw.height - 60) {
       // на телефоне дом крупно и камера идёт за хомячком: точка за краем — сначала подойти поближе
       await ev((wx) => {
         const sc = window.__dev.scene;
         sc.p.x = Math.max(60, wx - 120);
         sc.p.path = [];
+        window.__libCam = null;
       }, wx);
-      await wait(1200);
+      // камера догоняет: ждём, пока точка на экране и камера встала
+      await until(
+        ([wx, wy, w, h]) => {
+          const k = window.__dev.scene.debugScreen(wx, wy),
+            prev = window.__libCam;
+          window.__libCam = k;
+          return k.x >= 70 && k.x <= w - 70 && k.y >= 60 && k.y <= h - 60 && !!prev && Math.abs(prev.x - k.x) < 0.5 && Math.abs(prev.y - k.y) < 0.5;
+        },
+        [wx, wy, vw.width, vw.height],
+        { timeout: 3000, poll: 80 },
+      ).catch(() => {});
       k = await ev(([wx, wy]) => window.__dev.scene.debugScreen(wx, wy), [wx, wy]);
     }
     await page.mouse.click(k.x, k.y);
@@ -80,14 +102,10 @@ module.exports = async function inside({ page, step, ev, wait, closeAll }) {
 
   for (const H of HOUSES)
     await step(`внутри: ${H.name} — вход, хозяин, потрогать, выход к двери`, async () => {
+      if (H === HOUSES[0]) await L.fresh(); // 1 июня; места открывает toLoc
       await closeAll();
       await toLoc(H.loc, H.land, H.at[0], H.at[1]);
-      await wait(300);
-      await ev((H) => {
-        const sc = window.__dev.locations[H.loc];
-        sc.enterBuilding(sc.map.bById[H.b]);
-      }, H);
-      await wait(900);
+      await enterHouse(H.loc, H.b, H.id);
       expect((await sceneName()) === H.id, 'дверь не ведёт внутрь', await sceneName());
       const flag = await ev((id) => window.__dev.G.state.flags['in:' + id], H.id);
       expect(flag === 1, 'нет отметки «был внутри»', flag);
@@ -101,7 +119,7 @@ module.exports = async function inside({ page, step, ev, wait, closeAll }) {
         }, H.host);
         expect(!!a, 'хозяина нет внутри', H.host);
         await tapHouse(a.x, a.y);
-        await wait(2600);
+        await until(() => !!document.querySelector('.dialog'), undefined, { timeout: 6000 }).catch(() => {});
         const dlg = norm(await ev(() => (document.querySelector('.dialog') || { textContent: '' }).textContent));
         expect(dlg.length > 0, 'нажатие на хозяина не открыло разговор', dlg);
         await closeAll();
@@ -109,17 +127,25 @@ module.exports = async function inside({ page, step, ev, wait, closeAll }) {
       // потрогать предмет: реплика
       await clearToasts();
       await tapZone(H.prop);
-      await wait(2600);
       const say = await ev(
         ([id, prop]) => [].concat(window.__dev.scene.desc.built.find((q) => q.id === prop).say).map((x) => x.slice(0, 18)),
         [H.id, H.prop],
       );
+      await until(
+        (say) => {
+          const n = (t) => t.replace(/[   ]/g, ' ');
+          const t = n((document.querySelector('#toasts') || { textContent: '' }).textContent);
+          return say.some((x) => t.includes(n(x)));
+        },
+        say,
+        { timeout: 6000 },
+      ).catch(() => {});
       const tt = await toasts();
       expect(say.some((x) => tt.includes(norm(x))), 'предмет не ответил репликой', [tt, say]);
       // выйти: дверь — к двери снаружи (хомячок идёт к двери через весь дом — ждём, пока выйдет)
       await tapZone('door');
-      for (let i = 0; i < 25 && (await sceneName()) === H.id; i++) await wait(250);
-      await wait(300);
+      await untilOut(H.id, H.loc).catch(() => {});
+      await frames(2);
       const r = await ev((H) => {
         const d = window.__dev,
           sc = d.locations[H.loc];
@@ -135,18 +161,12 @@ module.exports = async function inside({ page, step, ev, wait, closeAll }) {
     ]) {
       await closeAll();
       await toLoc(loc, land, at[0], at[1]);
-      await wait(300);
-      await ev(([loc, b]) => {
-        const sc = window.__dev.locations[loc];
-        sc.enterBuilding(sc.map.bById[b]);
-      }, [loc, b]);
-      await wait(900);
+      await enterHouse(loc, b, b === 'pyramid' ? 'pyramid_hall' : 'temple_hall');
       await tapZone(zone);
-      await wait(3600);
-      const mg = await ev(() => !!document.querySelector('#mg'));
+      const mg = await until(() => !!document.querySelector('#mg'), undefined, { timeout: 6000 }).catch(() => false);
       expect(mg, `${zone}: мини-игра не открылась`);
       await closeAll();
-      await wait(400);
+      await L.untilNoWindows().catch(() => {});
       await closeAll();
     }
   });
@@ -156,18 +176,12 @@ module.exports = async function inside({ page, step, ev, wait, closeAll }) {
     await toLoc('island', 'island', 20, 22, 21 * 60 + 30);
     await ev(() => window.__dev.actions.mutate((s) => (s.stickers = s.stickers.filter((id) => id !== 'x_island_night'))));
     const day0 = await ev(() => window.__dev.G.state.day);
-    await ev(() => {
-      const sc = window.__dev.locations.island;
-      sc.enterBuilding(sc.map.bById.guest);
-    });
-    await wait(900);
+    await enterHouse('island', 'guest', 'hut_guest');
     await tapZone('bed');
-    await wait(2600);
-    const pt = norm(await ev(() => [...document.querySelectorAll('.overlay .panel')].map((p) => p.textContent).join(' | ')));
+    await untilPanel('Пора спать').catch(() => {});
+    const pt = await panelText();
     expect(/Пора спать/.test(pt), 'циновка не предлагает поспать', pt);
-    await page.click('.panel-foot .btn >> text=Спать');
-    await wait(4500);
-    await closeAll();
+    await L.confirmSleep(); // «Спать» — и до утра, окна утра закрыты
     const s = await ev(() => ({ day: window.__dev.G.state.day, min: window.__dev.G.state.minutes, st: window.__dev.G.state.stickers }));
     expect(s.day === day0 + 1 && s.min < 9 * 60 && (await sceneName()) === 'hut_guest', 'утро не в хижине', [s.day, day0, s.min, await sceneName()]);
     expect(s.st.includes('x_island_night'), 'нет наклейки «Ночь на острове»', s.st.slice(-4));
@@ -176,35 +190,37 @@ module.exports = async function inside({ page, step, ev, wait, closeAll }) {
     expect(pos.scene === 'island', 'сохранение не у двери хижины', pos);
     await closeAll();
     await tapZone('door');
-    for (let i = 0; i < 25 && (await sceneName()) === 'hut_guest'; i++) await wait(250);
+    await untilOut('hut_guest').catch(() => {});
     expect((await sceneName()) === 'island', 'из хижины не вышли на остров', await sceneName());
   });
 
   await step('внутри: подводный грот — вход с воды у арки, сундучок, выход на пляж и заплыв из озерца в город', async () => {
     await closeAll();
     await toLoc('cove', 'cove', 6, 6);
-    await wait(400);
     let k = await ev(() => window.__dev.locations.cove.debugScreen(6.5 * 48, 4.5 * 48));
     await page.mouse.click(k.x, k.y);
-    await wait(2200);
+    await untilScene('grotto_cave').catch(() => {});
     expect((await sceneName()) === 'grotto_cave', 'вода у арки не ведёт в грот', await sceneName());
+    await frames(2);
     await clearToasts();
     await tapZone('chest');
-    await wait(2400);
+    await untilToast(/Жемчужинк/).catch(() => {});
     expect(/Жемчужинк/.test(await toasts()), 'сундучок молчит', await toasts());
     // выход на пляж
     await tapZone('door');
-    for (let i = 0; i < 25 && (await sceneName()) === 'grotto_cave'; i++) await wait(250);
+    await untilOut('grotto_cave', 'cove').catch(() => {});
+    await frames(2);
     expect((await sceneName()) === 'cove', 'из грота не вышли на пляж', await sceneName());
     // снова в грот — и нырнуть в озерцо: заплыв в город, как раньше
     k = await ev(() => window.__dev.locations.cove.debugScreen(6.5 * 48, 4.5 * 48));
     await page.mouse.click(k.x, k.y);
-    await wait(2200);
+    await untilScene('grotto_cave').catch(() => {});
     expect((await sceneName()) === 'grotto_cave', 'второй раз в грот не вошли', await sceneName());
+    await frames(2);
     await tapZone('pool');
-    await wait(2600);
-    expect(await ev(() => !!document.querySelector('.grotto-ride')), 'нет картинки заплыва в город');
-    await wait(2600);
+    const ride = await until(() => !!document.querySelector('.grotto-ride'), undefined, { timeout: 6000 }).catch(() => false);
+    expect(ride, 'нет картинки заплыва в город');
+    await until(() => window.__dev.sceneName === 'world' && !document.querySelector('.grotto-ride'), undefined, { timeout: 8000 }).catch(() => {});
     const r = await ev(() => {
       const d = window.__dev,
         sc = d.locations.world;
@@ -236,13 +252,14 @@ module.exports = async function inside({ page, step, ev, wait, closeAll }) {
       },
       [f, x, minutes, day],
     );
-    await wait(500);
+    await untilScene('hotel');
+    await frames(2);
   };
   const dlgText = async () => norm(await ev(() => (document.querySelector('.dialog') || { textContent: '' }).textContent));
-  const answer = async (text, ms = 450) => {
-    await page.click(`.dialog .btn:has-text("${text}")`);
-    await wait(ms);
-  };
+  const answer = L.answer; // дождаться диалога (и защиты его кнопок) и ответить
+  /** Текст диалога подходит под re. */
+  const untilDlg = (re) =>
+    until((src) => new RegExp(src).test((document.querySelector('.dialog') || { textContent: '' }).textContent.replace(/[   ]/g, ' ')), re.source, { msg: 'диалог ' + re }).catch(() => {});
 
   await step('внутри: отель — номера трёх классов (эконом, стандарт, с балконом): цена, дверь открывается, кровать, утро в номере', async () => {
     for (const [cls, no, btn, flag] of [
@@ -257,16 +274,17 @@ module.exports = async function inside({ page, step, ev, wait, closeAll }) {
       await ev((no) => {
         window.__dev.run('hotel:knock:' + no);
       }, no);
-      await wait(300);
+      await untilToast(/Тук-тук/).catch(() => {});
       expect((await sceneName()) === 'hotel' && /Тук-тук/.test(await toasts()), `${no}: дверь до аренды`, [await sceneName(), await toasts()]);
       const m0 = await ev(() => window.__dev.G.state.money);
       await ev(() => {
-      window.__dev.run('hotel:reception');
-    });
-      await wait(500);
+        window.__dev.run('hotel:reception');
+      });
       await answer('Снять номер');
+      await untilDlg(/Эконом/);
       expect(/Эконом/.test(await dlgText()) && /балкон/.test(await dlgText()), 'выбор номера', await dlgText());
       await answer(btn);
+      await untilDlg(new RegExp('Мой номер ' + no));
       const s = await ev(() => ({ money: window.__dev.G.state.money, room: (window.__dev.G.state.dayFlags.hotel || {}).room }));
       expect(s.room === flag && s.money === m0 - price, `${btn}: цена и отметка`, [s, m0, price]);
       expect((await dlgText()).includes('Мой номер ' + no), 'ресепшен помнит номер', await dlgText());
@@ -274,31 +292,30 @@ module.exports = async function inside({ page, step, ev, wait, closeAll }) {
       // кровать стандарта 207 — не наша
       await clearToasts();
       await ev(() => {
-      window.__dev.run('hotel:bed');
-    });
-      await wait(300);
+        window.__dev.run('hotel:bed');
+      });
+      await untilToast(/Твой номер сегодня/).catch(() => {});
       expect(new RegExp('Твой номер сегодня — ' + no).test(await toasts()), 'кровать 207 при другом номере', await toasts());
       // дверь номера — внутрь
       await ev((no) => {
         window.__dev.run('hotel:knock:' + no);
       }, no);
-      await wait(700);
+      await untilScene('hotel_' + no).catch(() => {});
+      await frames(2);
       expect((await sceneName()) === 'hotel_' + no, `дверь ${no} не ведёт в номер`, await sceneName());
       // кровать номера — сон, утро здесь же (номер сняли днём, спать — вечером, с 19:00: этап 18)
       await ev(() => window.__dev.evening());
       const day0 = await ev(() => window.__dev.G.state.day);
       await tapZone('bed');
-      await wait(2600);
-      const pt = norm(await ev(() => [...document.querySelectorAll('.overlay .panel')].map((p) => p.textContent).join(' | ')));
+      await untilPanel('Пора спать').catch(() => {});
+      const pt = await panelText();
       expect(/Пора спать/.test(pt), `${no}: кровать не предлагает поспать`, pt);
-      await page.click('.panel-foot .btn.green');
-      await wait(3900);
-      await closeAll();
+      await L.confirmSleep();
       const r = await ev(() => ({ scene: window.__dev.sceneName, day: window.__dev.G.state.day, slept: (window.__dev.G.state.dayFlags.hotel || {}).slept }));
       expect(r.scene === 'hotel_' + no && r.day === day0 + 1 && r.slept === 1, `${no}: утро не в номере`, r);
       // дверь номера — в коридор, к своей двери
       await tapZone('door');
-      for (let i = 0; i < 20 && (await sceneName()) !== 'hotel'; i++) await wait(250);
+      await untilOut('hotel_' + no, 'hotel').catch(() => {});
       const p = await ev(() => ({ scene: window.__dev.sceneName, f: window.__dev.scene.p.f, x: window.__dev.scene.p.x }));
       expect(p.scene === 'hotel' && p.f === 1 && Math.abs(p.x - (150 + (no - 201) * 210)) < 2, `${no}: дверь номера не вывела в коридор`, p);
     }
@@ -328,7 +345,8 @@ module.exports = async function inside({ page, step, ev, wait, closeAll }) {
     await ev(() => {
       window.__dev.run('hotel:knock:203');
     });
-    await wait(700);
+    await untilScene('hotel_203').catch(() => {});
+    await untilToast(/Заходи/).catch(() => {});
     const here = await ev(() => {
       const sc = window.__dev.scene;
       return { scene: window.__dev.sceneName, guests: sc.actors.filter((a) => !a.when || a.when()).map((a) => a.id) };
@@ -340,10 +358,10 @@ module.exports = async function inside({ page, step, ev, wait, closeAll }) {
     expect(away, 'житель не считается гостем отеля');
     await clearToasts();
     await tapZone('suitcase');
-    await wait(2200);
+    await untilToast(/чемодан|Чемодан|шляпа/).catch(() => {});
     expect(/чемодан|Чемодан|шляпа/.test(await toasts()), 'чемодан молчит', await toasts());
     await tapZone('door');
-    for (let i = 0; i < 20 && (await sceneName()) !== 'hotel'; i++) await wait(250);
+    await untilOut('hotel_203', 'hotel').catch(() => {});
     expect((await sceneName()) === 'hotel', 'из 203 не вышли в коридор', await sceneName());
     // вечером гость уехал — опять стук
     await ev(() => window.__dev.actions.mutate((s) => (s.minutes = 20 * 60)));
@@ -351,7 +369,7 @@ module.exports = async function inside({ page, step, ev, wait, closeAll }) {
     await ev(() => {
       window.__dev.run('hotel:knock:203');
     });
-    await wait(400);
+    await untilToast(/Тук-тук/).catch(() => {});
     expect((await sceneName()) === 'hotel' && /Тук-тук/.test(await toasts()), '203 без гостя — стук', [await sceneName(), await toasts()]);
   });
 
@@ -367,7 +385,7 @@ module.exports = async function inside({ page, step, ev, wait, closeAll }) {
       });
     const day = await lum();
     await ev(() => window.__dev.actions.mutate((s) => (s.minutes = 23 * 60)));
-    await wait(500);
+    await frames(4);
     const night = await lum();
     expect(night < day - 25, 'ночью в отеле не темнее', [day, night]);
     await ev(() => window.__dev.actions.mutate((s) => (s.minutes = 12 * 60)));
@@ -388,13 +406,10 @@ module.exports = async function inside({ page, step, ev, wait, closeAll }) {
       });
     }, ids);
     await toLoc('forest', null, 10, 36);
-    await wait(300);
-    await ev(() => {
-      const sc = window.__dev.locations.forest;
-      sc.enterBuilding(sc.map.bById.hut);
-    });
-    await wait(3200);
-    await closeAll();
+    await enterHouse('forest', 'hut', 'hut_shishkin');
+    // наклейка — окном из очереди
+    await until(() => window.__dev.G.state.stickers.includes('x_inside'), undefined, { timeout: 4000 }).catch(() => {});
+    await L.drain();
     expect(await ev(() => window.__dev.G.state.stickers.includes('x_inside')), 'нет наклейки за все дома');
     // ночь: средняя яркость кадра в избушке ниже, чем днём, а у печки (лампа) — светлее, чем в тёмном углу
     const lum = () =>
@@ -407,10 +422,10 @@ module.exports = async function inside({ page, step, ev, wait, closeAll }) {
         return s / (d.length / 40) / 3;
       });
     await ev(() => window.__dev.actions.mutate((s) => (s.minutes = 12 * 60)));
-    await wait(500);
+    await frames(4);
     const day = await lum();
     await ev(() => window.__dev.actions.mutate((s) => (s.minutes = 23 * 60)));
-    await wait(500);
+    await frames(4);
     const night = await lum();
     expect(night < day - 25, 'ночью в избушке не темнее', [day, night]);
     const dk = await ev(async () => {

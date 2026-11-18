@@ -1630,6 +1630,7 @@ const runParallel = () => {
       if (ONLY_ESTATE && !o.estate && name !== 'новая игра') return;
       if (ONLY_STEP && !name.includes(ONLY_STEP) && name !== 'новая игра') return;
       const before = errors.length;
+      const ts = Date.now();
       try {
         await fn();
         await alive();
@@ -1647,7 +1648,9 @@ const runParallel = () => {
           errors.length - before,
           ...errors.slice(before).filter((q) => !q.includes(o.expectErrors)),
         );
-      console.log(`${errors.length === before ? 'ok  ' : 'FAIL'} [${tag}] ${name}`);
+      // с SMOKE_VERBOSE — сколько шёл шаг (замеры этапа 21)
+      const sec = process.env.SMOKE_VERBOSE ? ` (${((Date.now() - ts) / 1000).toFixed(1)} с)` : '';
+      console.log(`${errors.length === before ? 'ok  ' : 'FAIL'} [${tag}] ${name}${sec}`);
       if (errors.length > before && process.env.SMOKE_VERBOSE) console.log('     ' + errors.slice(before).join('\n     '));
     };
     // закрыть все окна и диалоги
