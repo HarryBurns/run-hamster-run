@@ -72,4 +72,13 @@ module.exports = async function draw(ctx) {
     expect(r.bed.includes(12) && !r.bed.includes(10), 'под грядкой лежит вода пруда', r);
     expect(r.pier.includes(2), 'под пирсом пропал песок пляжа', r);
   });
+
+  await step('рисунок: у сахара рисованный значок «мешочек»', async () => {
+    const r = await ev(async () => {
+      const { ING_BY_ID } = await import('/js/data/index.js');
+      const { iconName } = await import('/js/data/icons.js');
+      return iconName(ING_BY_ID.sugar.e) || ING_BY_ID.sugar.e;
+    });
+    expect(r === 'sugar', 'у сахара не рисованный значок', r);
+  });
 };

@@ -23,7 +23,7 @@ const ING_LIST = [
   { id: 'milk', name: 'Молоко', e: '🥛', src: 'shop' },
   { id: 'cheese', name: 'Сыр', e: '🧀', src: 'shop' },
   { id: 'butter', name: 'Масло', e: '🧈', src: 'shop' },
-  { id: 'sugar', name: 'Сахар', e: '🍬', src: 'shop' },
+  { id: 'sugar', name: 'Сахар', e: ICON.sugar, src: 'shop' },
   { id: 'choco', name: 'Шоколад', e: '🍫', src: 'shop' },
   { id: 'rice', name: 'Рис', e: '🍚', src: 'shop' },
   { id: 'nuts', name: 'Орешки', e: '🥜', src: 'shop' },
