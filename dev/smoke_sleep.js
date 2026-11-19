@@ -1,5 +1,5 @@
 // Шаги автотеста «Сон только вечером» (этап 18): лечь спать можно с 19:00 (SLEEP_FROM в data/calendar.js).
-// Днём кровать виллы, номер в отеле и хижина на острове показывают доброе окно «Ещё рано спать» — день не меняется,
+// Днём кровать виллы, номер в отеле и хижина на острове показывают доброе окно «Ещё светло» (рано спать) — день не меняется,
 // монеты не тратятся; номер, снятый днём, ждёт до вечера, и ночь в нём засчитывается; в 19:00 — подсказка
 // «Вот и вечер», если днём пробовала лечь. Подключается из dev/smoke.js. Только эти шаги:
 //   node dev/smoke.js <url> "step:сон вечером"
@@ -16,12 +16,12 @@ module.exports = async function sleepSteps(ctx) {
       window.__sleepRes = 'ждём';
       Promise.resolve(window.__dev.run(act)).then((r) => (window.__sleepRes = r));
     }, act);
-    await untilPanel('спать').catch(() => {}); // «Ещё рано спать» или «Пора спать?»
+    await untilPanel().catch(() => {}); // «Ещё светло» или «Пора спать?»
   };
-  /** Днём: окно «Ещё рано спать» (с 19:00 в тексте), кнопка «Хорошо», сон не наступил. */
+  /** Днём: окно «Ещё светло» (рано спать, с 19:00 в тексте), кнопка «Хорошо», сон не наступил. */
   const expectEarly = async (where) => {
     const pt = await panelText();
-    expect(/Ещё рано спать/.test(pt) && /19:00/.test(pt) && !/Пора спать/.test(pt), `${where}: днём нет окна «Ещё рано спать»`, pt);
+    expect(/Ещё светло/.test(pt) && /рано/.test(pt) && /19:00/.test(pt) && !/Пора спать/.test(pt), `${where}: днём нет окна «Ещё светло»`, pt);
     await act('ok', '.overlay .panel-foot');
     await until(() => !document.querySelector('.overlay'), undefined, { timeout: 2000 }).catch(() => {});
     // askSleep (действие sleep) отвечает «не уснула»; кровать номера и циновка отвечают «нажатие принято» (true)
@@ -52,9 +52,9 @@ module.exports = async function sleepSteps(ctx) {
     // клавиша E у кровати — как играют на компьютере
     await ev(() => (window.__sleepRes = 'ждём'));
     await page.keyboard.press('KeyE');
-    await untilPanel('спать').catch(() => {});
+    await untilPanel().catch(() => {});
     const pt = await panelText();
-    expect(/Ещё рано спать/.test(pt) && /солнышко высоко/.test(pt), 'днём E у кровати — нет доброго окна', pt);
+    expect(/Ещё светло/.test(pt) && /Ещё рано спать — солнышко высоко/.test(pt) && (pt.match(/рано спать/g) || []).length === 1, 'днём E у кровати — нет доброго окна (или «рано спать» дважды)', pt);
     await closeAll();
     // через askSleep (так спят «Домой» → кровать, свой дом, вилла): днём не уснуть
     await tryBed('sleep');
@@ -142,7 +142,7 @@ module.exports = async function sleepSteps(ctx) {
     await go('villa');
     await tryBed('sleep');
     const pt = await panelText();
-    expect(/Ещё рано спать/.test(pt) && /Доктор/.test(pt), 'больной днём — нет подсказки про доктора', pt);
+    expect(/Ещё светло/.test(pt) && /Доктор/.test(pt), 'больной днём — нет подсказки про доктора', pt);
     await closeAll();
     await ev(() => window.__dev.actions.recoverSick('self'));
   });
