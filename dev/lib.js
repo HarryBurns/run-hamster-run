@@ -414,8 +414,11 @@ function lib(ctx) {
    * Нажать на s (кнопка диалога — когда диалог уже принимает нажатия) и дождаться нового отклика игры: другой диалог,
    * больше окон, мини-игра, сменилась сцена, новая подсказка — но не дольше ms (тогда молча дальше: нажатие просто
    * закрыло окно). Замена связке «page.click(s); wait(ms)».
+   * want — ждать только этот отклик (подсказка, что пришла раньше, не считается): 'panel' — новое окно, 'dialog' —
+   * другой диалог, 'mg' — мини-игра, 'scene' — другая сцена, 'toast' — подсказка; можно несколько через «|»
+   * ('panel|dialog'). С want не дождалась за ms — ошибка (а не молча дальше): tap(s, 1500, 'panel').
    */
-  const tap = async (s, ms = 1500) => {
+  const tap = async (s, ms = 1500, want) => {
     if (/\.dialog/.test(s)) await until(dialogReady, '', { timeout: 6000, msg: 'диалог для ' + s });
     const b = await ev(() => {
       window.__tapDlg = document.querySelector('.dialog');
@@ -426,21 +429,25 @@ function lib(ctx) {
         t: (document.querySelector('#toasts') || { children: [] }).children.length,
       };
     });
+    b.want = want ? String(want).split('|') : null;
     await page.click(s);
-    await until(
+    const got = until(
       (b) => {
         const d = document.querySelector('.dialog');
-        return (
-          window.__dev.sceneName !== b.scene ||
-          (!!d && d !== window.__tapDlg) ||
-          document.querySelectorAll('.overlay').length > b.ov ||
-          (!b.mg && !!document.querySelector('#mg')) ||
-          (document.querySelector('#toasts') || { children: [] }).children.length > b.t
-        );
+        const has = {
+          scene: window.__dev.sceneName !== b.scene,
+          dialog: !!d && d !== window.__tapDlg,
+          panel: document.querySelectorAll('.overlay').length > b.ov,
+          mg: !b.mg && !!document.querySelector('#mg'),
+          toast: (document.querySelector('#toasts') || { children: [] }).children.length > b.t,
+        };
+        return (b.want || Object.keys(has)).some((k) => has[k]);
       },
       b,
-      { timeout: ms },
-    ).catch(() => {});
+      { timeout: ms, msg: 'после нажатия ' + s + ' — ' + (want || 'отклик') },
+    );
+    if (want) await got;
+    else await got.catch(() => {});
     await frames(2);
     if (await ev(() => !!document.querySelector('.dialog .btn'))) await untilDialog(1500).catch(() => {});
   };

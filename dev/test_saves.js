@@ -10,7 +10,7 @@ const fs = require('fs');
 const path = require('path');
 const { pathToFileURL } = require('url');
 
-const JS = path.join(__dirname, '..', 'js');
+const JS = path.join(require('./root.js'), 'js');
 const url = (f) => pathToFileURL(path.join(JS, f)).href;
 const sample = (v) => fs.readFileSync(path.join(__dirname, 'saves', `v${v}.json`), 'utf8');
 

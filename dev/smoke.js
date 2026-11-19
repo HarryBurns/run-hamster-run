@@ -1569,11 +1569,14 @@ const runParallel = () => {
     page.on('pageerror', (e) => errors.push(`[${tag}] exception: ${e.message}`));
     const ev = (fn, arg) => page.evaluate(fn, arg);
     const wait = (ms) => page.waitForTimeout(ms);
-    // главный цикл жив: время игры идёт
+    // главный цикл жив: время игры идёт. Ждём, пока часы сдвинутся (обычно — один кадр), но не дольше 3 с: под
+    // нагрузкой (SMOKE_SIZE=parallel) тяжёлый первый кадр окна (альбом, рюкзак) идёт дольше прежних 150 мс (Т9)
     const alive = async () => {
       const t0 = await ev(() => window.__dev && window.__dev.G.time);
-      await wait(150);
-      if (!((await ev(() => window.__dev && window.__dev.G.time)) > t0)) throw new Error('главный цикл остановился');
+      const ok = await page
+        .waitForFunction((t0) => window.__dev && window.__dev.G.time > t0, t0, { timeout: 3000, polling: 30 })
+        .then(() => true, () => false);
+      if (!ok) throw new Error('главный цикл остановился');
     };
     const step = async (name, fn, o = {}) => {
       if (ONLY_EXTRA && !o.extra && name !== 'новая игра') return;

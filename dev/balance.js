@@ -7,7 +7,7 @@ const path = require('path');
 const { pathToFileURL } = require('url');
 
 (async () => {
-  const D = await import(pathToFileURL(path.join(__dirname, '..', 'js', 'data', 'index.js')).href);
+  const D = await import(pathToFileURL(path.join(require('./root.js'), 'js', 'data', 'index.js')).href);
   const { JOBS, PAID_SHIFTS, PAID_DAY, MARKET, PRICES, TASK_COINS, TASK_COINS_DEFAULT, START_MONEY } = D;
   const { HOMES, BUSINESSES, BIZ_RULES, HOME_PRICES, BIZ } = D;
   const { GATHER, HARVEST_MONTHS, SEASONS, SEASON_OF_MONTH, MONTHS, SEASONAL, STOCK, TREATS, DAYS_PER_MONTH } = D;

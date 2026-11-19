@@ -8,7 +8,7 @@ const path = require('path');
 const URL = (process.argv[2] || 'http://localhost:8765').replace(/\/(index\.html)?$/, '');
 const ids = (process.argv[3] || '').split(',').filter(Boolean);
 if (!ids.length) {
-  const host = fs.readFileSync(path.join(__dirname, '../js/minigames/host.js'), 'utf8');
+  const host = fs.readFileSync(path.join(require('./root.js'), 'js/minigames/host.js'), 'utf8');
   const loaders = host.slice(host.indexOf('const LOADERS'), host.indexOf('};', host.indexOf('const LOADERS')));
   for (const m of loaders.matchAll(/^\s+(\w+): \(\) => import/gm)) ids.push(m[1]);
 }

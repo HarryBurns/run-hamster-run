@@ -14,7 +14,7 @@
 const fs = require('fs');
 const path = require('path');
 
-const ROOT = path.join(__dirname, '..');
+const ROOT = require('./root.js'); // папка над dev/ или текущая (копия dev/ от корня репозитория)
 const LAYERS = [
   ['js/data/', 0],
   ['js/core/', 1],

@@ -4,6 +4,7 @@
 const fs = require('fs');
 const path = require('path');
 const lib = require('./lib.js');
+const ROOT = require('./root.js'); // папка над dev/ или текущая — шаг работает и из копии dev/
 
 module.exports = async function build(ctx) {
   const { page, step, ev, expect, fresh, go, closeAll, frames } = lib(ctx);
@@ -22,7 +23,7 @@ module.exports = async function build(ctx) {
         page.off('request', onReq);
       }
       const BUILD = Number(
-        /BUILD\s*=\s*(\d+)/.exec(fs.readFileSync(path.join(__dirname, '..', 'js/data/build.js'), 'utf8'))[1],
+        /BUILD\s*=\s*(\d+)/.exec(fs.readFileSync(path.join(ROOT, 'js/data/build.js'), 'utf8'))[1],
       );
       const js = urls.filter((u) => /\/js\/.*\.js(\?|$)/.test(u));
       const plain = js.filter((u) => !u.endsWith('?v=' + BUILD) && !u.includes('/js/data/build.js?t=')); // build.js читает запуск
@@ -42,7 +43,7 @@ module.exports = async function build(ctx) {
       const map = await ev(() =>
         Object.keys(JSON.parse(document.querySelector('script[type=importmap]').textContent).imports),
       );
-      const files = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'js/modules.json'), 'utf8'));
+      const files = JSON.parse(fs.readFileSync(path.join(ROOT, 'js/modules.json'), 'utf8'));
       expect(
         map.length === files.length && files.every((f) => map.some((u) => u.endsWith('/' + f))),
         'карта импортов не совпадает с js/modules.json',
