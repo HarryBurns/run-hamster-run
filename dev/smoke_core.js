@@ -193,7 +193,8 @@ module.exports = async function core(ctx) {
     'основа: хранилище переполнено — окно для взрослых один раз, изменения не теряются и записываются потом',
     async () => {
       await fresh();
-      // забиваем хранилище до отказа (как снимками в альбоме)
+      // забиваем хранилище до отказа (как снимками в альбоме): сначала новыми ключами, потом доращиваем последний —
+      // новый ключ стоит ещё и своего имени, и после одних новых ключей остаётся до ~20 байт свободными
       const n = await ev(() => {
         let n = 0;
         for (let size = 1 << 20; size >= 1; size >>= 1) {
@@ -206,12 +207,29 @@ module.exports = async function core(ctx) {
               break;
             }
         }
+        if (!n) return 0;
+        const last = '__fill' + (n - 1);
+        for (let size = 1 << 10; size >= 1; size >>= 1)
+          for (;;)
+            try {
+              localStorage.setItem(last, localStorage.getItem(last) + 'ж'.repeat(size));
+            } catch (e) {
+              break;
+            }
         return n;
       });
       expect(n > 0, 'не получилось забить хранилище');
       const saved = () => ev(() => JSON.parse(localStorage.getItem('rhr-save-v1')).money);
       const before = await saved();
-      await ev(() => window.__dev.actions.mutate((s) => (s.money += 1000000)));
+      // Сохранение само по себе гуляет на ±десяток символов (время, места хомяков — числа разной длины), и запись,
+      // ставшая короче, честно проходит и в полном хранилище. Поэтому изменение заведомо длиннее этих колебаний:
+      // кроме денег — лишнее поле на 300 символов (сохранение после шага не загружается: следующий шаг начнёт заново).
+      await ev(() =>
+        window.__dev.actions.mutate((s) => {
+          s.money += 1000000;
+          s.__fillProbe = 'ж'.repeat(300);
+        }),
+      );
       await untilPanel('не может сохраниться', 4000).catch(() => {});
       expect((await saved()) === before, 'сохранение записалось в переполненное хранилище (проверка не годится)');
       const t = await panelTitles();
@@ -219,7 +237,7 @@ module.exports = async function core(ctx) {
       const body = await ev(() => document.querySelector('.overlay .panel-body').textContent);
       expect(/фото/.test(body) && /игры/.test(body), 'в окне не сказано, что удалить', body);
       await closeAll();
-      // ещё изменение — второго окна за сеанс нет (+1 к 1 003 000 — длина та же, но запись и так в отказе)
+      // ещё изменение — второго окна за сеанс нет
       await ev(() => window.__dev.actions.mutate((s) => (s.money += 1)));
       await wait(1200);
       expect(!/не может сохраниться/.test(await panelTitles()), 'окно о сохранении показалось второй раз');
@@ -233,8 +251,16 @@ module.exports = async function core(ctx) {
         undefined,
         { timeout: 9000 },
       ).catch(() => {});
-      const r = { mem: await ev(() => window.__dev.G.state.money), saved: await saved() };
-      expect(r.mem === r.saved && r.saved === before + 1000001, 'после освобождения места сохранение не записалось', r);
+      const r = {
+        mem: await ev(() => window.__dev.G.state.money),
+        saved: await saved(),
+        probe: await ev(() => (JSON.parse(localStorage.getItem('rhr-save-v1')).__fillProbe || '').length),
+      };
+      expect(
+        r.mem === r.saved && r.saved === before + 1000001 && r.probe === 300,
+        'после освобождения места сохранение не записалось',
+        r,
+      );
     },
   );
 
