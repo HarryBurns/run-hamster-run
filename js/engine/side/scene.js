@@ -196,7 +196,8 @@ export function createSideScene(desc) {
       cache.clear();
     },
     savePos() {
-      const here = { scene: sc.name, floor: sc.p.f, x: sc.p.x };
+      // посреди поездки в лифте — как будто уже приехали: после загрузки хомячок стоит у лифта на полу этажа
+      const here = { scene: sc.name, floor: sc.p.lift ? sc.p.lift.to : sc.p.f, x: sc.p.x };
       // свой дом без постоянного выхода помнит, куда ведёт дверь, и после перезагрузки страницы
       if (desc.persist && sc.back && sc.back.scene !== sc.name) here.out = sc.back;
       return desc.persist ? here : sc.back || here;
@@ -327,14 +328,24 @@ export function createSideScene(desc) {
   }
 
   // ---------- движение и действия ----------
-  /** Идти в точку x на этаже f (если этаж другой — через лифт); pending — что сделать, когда дойдём. */
+  /**
+   * Идти в точку x на этаже f (если этаж другой — через лифт); pending — что сделать, когда дойдём.
+   * Хомячок уже едет в лифте — из кабины не выходит: лифт поворачивает к этажу новой цели (хоть и обратно, откуда
+   * поехал), там хомячок выходит и идёт к цели. Раньше путь начинался с «идти по этажу» прямо из кабины —
+   * хомячок шагал по воздуху между этажами, а лифт так и висел.
+   */
   function goTo(x, f, pending) {
     const p = sc.p;
     sc.standUp();
     if (!geo.lift) f = p.f;
     p.pending = pending || null;
-    x = clamp(x, 34, f === p.f ? WTOT - 40 : W - 34);
     p.path = [];
+    if (p.lift) {
+      p.lift.to = f;
+      p.path.push({ t: 'lift', f }, { t: 'walk', x: clamp(x, 34, WTOT - 40) });
+      return;
+    }
+    x = clamp(x, 34, f === p.f ? WTOT - 40 : W - 34);
     if (f !== p.f) p.path.push({ t: 'walk', x: EX }, { t: 'lift', f });
     p.path.push({ t: 'walk', x });
   }
@@ -405,6 +416,7 @@ export function createSideScene(desc) {
   function interact() {
     if (sc.decor.on) return; // в режиме «Обустроить» мебелью не пользуемся
     const p = sc.p;
+    if (p.lift) return; // едем в лифте — трогать нечего, сначала доедем
     let best = null,
       bd = 90;
     for (const it of sc.items()) {
@@ -461,6 +473,9 @@ export function createSideScene(desc) {
           goTo(p.x > W ? EX : p.x, p.f - 1);
       }
     }
+    // Лифт никогда не застревает между этажами: если путь сбросили посреди поездки (режим «Обустроить», чужое
+    // занятие), кабина сама доезжает туда, куда ехала, и хомячок выходит на пол этажа.
+    if (p.lift && (!p.path.length || p.path[0].t !== 'lift')) p.path.unshift({ t: 'lift', f: p.lift.to });
     // путь: идём по этажу или едем в лифте
     if (p.path.length) {
       const st = p.path[0];
@@ -483,6 +498,7 @@ export function createSideScene(desc) {
       } else if (st.t === 'lift') {
         p.moving = false;
         if (!p.lift) {
+          p.x = EX; // в кабину заходят посередине шахты
           p.lift = { to: st.f };
           sfx('door');
           sfx('lift');

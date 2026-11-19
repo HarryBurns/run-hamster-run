@@ -31,7 +31,8 @@
 //  правки по ревью игровой логики — dev/smoke_rfix.js:  node dev/smoke.js <url> "step:правки ревью";
 //  быстрые исправления по ревью основы — dev/smoke_core.js:  node dev/smoke.js <url> "step:основа:";
 //  быстрые исправления по ревью мест и мини-игр — dev/smoke_rplaces.js:  node dev/smoke.js <url> "step:места ревью";
-//  сон только вечером, этап 18 — dev/smoke_sleep.js:  node dev/smoke.js <url> "step:сон вечером")
+//  сон только вечером, этап 18 — dev/smoke_sleep.js:  node dev/smoke.js <url> "step:сон вечером";
+//  движок домов: лифт и порядок рисования — dev/smoke_side.js:  node dev/smoke.js <url> "step:движок домов")
 // Скорость проверяется отдельно:  node dev/bench.js [url] --spots=forest --sizes=desktop --max-forest=45
 const { MG_START } = require('./selectors.js'); // кнопка «Начать!» мини-игры — по метке, а не по тексту
 const lib = require('./lib.js'); // общие помощники шагов (этап 21): ожидания условий вместо пауз, метки data-act
@@ -74,6 +75,7 @@ const zfix = require('./smoke_zfix.js'); // баги от заказчика: н
 const holidaysWide = require('./smoke_holidays_wide.js'); // этап 15: праздники шире площади — наряды жителей, празднуют вместе, места, украшения за городом и в домах, полка в ТЦ, клумбы
 const buildSteps = require('./smoke_build.js'); // этап 25: метки версий модулей (карта импортов ?v=BUILD)
 const tfix = require('./smoke_tfix.js'); // Т-пункты BACKLOG и мелкие правки: звёздочка к колесу, дом на iPad лёжа, холл башни, repair имён, подсказки, двор, вагонетка
+const side = require('./smoke_side.js'); // движок домов: лифт не застревает между этажами, кто ходит мимо ванны — перед ней
 const screen = require('./smoke_screen.js'); // этап 20: проблемы на экране — дом на iPad стоя (В12), кнопка места с морским путём (В14)
 const holidays = require('./smoke_holidays.js'); // П.13: праздники — Новый год, Рождество, Китайский Новый год, Масленица
 
@@ -2887,6 +2889,7 @@ const runParallel = () => {
     await rplaces({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
     await screen({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
     await tfix({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
+    await side({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
     await buildSteps({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
     await estate({ page, step: (n, f, o) => step(n, f, { ...o, extra: true, estate: true }), ev, wait, closeAll });
     if (tag === 'desktop')
