@@ -22,7 +22,7 @@ import { openPanel, message } from '../ui/panel.js';
 import { toast } from '../ui/toast.js';
 import { pickDish } from './cooking.js';
 import { addPts, chatToday, meetNow, treatFriend } from './friends.js';
-import { questTalk } from './quests.js';
+import { npcAwayWords, questTalk } from './quests.js';
 import { placeLine } from './tales.js';
 import { paintTea, paintStars } from './visits_art.js';
 
@@ -45,7 +45,7 @@ export async function visitHome(id, ctx = {}) {
     fr = S().friends[id],
     where = npcWhere(id);
   if (where === 'guest') {
-    toast(`Здесь живёт ${npc.name}. А сейчас ${pron(npc)} у тебя в гостях! 🏡`);
+    toast(`Здесь живёт ${npc.name}. А сейчас ${pron(npc)} ${npcAwayWords(id)}!`);
     return;
   }
   if (where === 'asleep') {
@@ -58,10 +58,12 @@ export async function visitHome(id, ctx = {}) {
     sfx('pop');
     // «день гостей»: подсказать, кто сегодня ждёт дома (письмо назвало их по именам)
     const wait = guestsWaiting().map((q) => NPC_BY_ID[q].name);
+    // где он днём: на своём месте в городе (home.away) или в отеле — у бассейна, в номере 203 (npcAwayWords)
+    const now = npcAwayWords(id) || home.away;
     toast(
       (fr.met
-        ? `Дверь закрыта: ${npc.name} сейчас ${home.away}. Дома ${pron(npc)} утром до ${hhmm(VISIT.morningEnd)} и вечером после ${hhmm(VISIT.eveningStart)} 🚪`
-        : `Здесь живёт ${npc.name}. Сейчас ${pron(npc)} ${home.away} — там и познакомитесь! Дома бывает утром и вечером 🚪`) +
+        ? `Дверь закрыта: ${npc.name} сейчас ${now}. Дома ${pron(npc)} утром до ${hhmm(VISIT.morningEnd)} и вечером после ${hhmm(VISIT.eveningStart)} 🚪`
+        : `Здесь живёт ${npc.name}. Сейчас ${pron(npc)} ${now} — там и познакомитесь! Дома бывает утром и вечером 🚪`) +
         (wait.length ? ` А в гости сегодня ждут: ${wait.join(', ')}.` : ''),
     );
     return;

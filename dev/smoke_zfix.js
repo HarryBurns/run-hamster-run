@@ -314,4 +314,48 @@ module.exports = async function zfix(ctx) {
       );
     },
   );
+
+  await step('заказчик: где житель — дверь домика, когда житель в отеле: у бассейна и в номере 203', async () => {
+    await fresh({ day: 18, minutes: 12 * 60, weather: 'sun', dayFlags: true });
+    const pick = await ev(async () => {
+      const D = await import('/js/data/index.js');
+      let pool = null,
+        room = null;
+      for (let d = 1; d < 120 && !(pool && room); d++) {
+        if (!pool && D.poolGuestOn(d, 15 * 60)) pool = { day: d, min: 15 * 60, id: D.poolGuestOn(d, 15 * 60) };
+        if (!room && D.roomGuestOn(d, 12 * 60) && !D.poolGuestsOn(d, 12 * 60).length)
+          room = { day: d, min: 12 * 60, id: D.roomGuestOn(d, 12 * 60) };
+      }
+      return { pool, room, home: D.NPC_HOME };
+    });
+    expect(pick.pool && pick.room, 'не нашлось дня, когда житель в отеле (проверка не годится)', pick);
+    for (const [k, re] of [
+      ['pool', /сейчас (она |он )?в отеле «Морская звезда» у бассейна/],
+      ['room', /сейчас (она |он )?в отеле «Морская звезда», в номере 203/],
+    ]) {
+      const p = pick[k];
+      await ev((p) => {
+        const a = window.__dev.actions;
+        a.mutate((s) => {
+          s.day = p.day;
+          s.minutes = p.min;
+          s.mail = null;
+          s.guests = [];
+          s.dayFlags = {};
+          for (const id of Object.keys(s.friends)) s.friends[id].met = true;
+        });
+        window.__dev.go('world');
+      }, p);
+      await until(() => window.__dev.sceneName === 'world');
+      await frames(2);
+      await clearToasts();
+      await enter(pick.home[p.id].building);
+      const t = await toasts();
+      expect(
+        re.test(t) && !t.includes(pick.home[p.id].away),
+        `житель ${p.id} в отеле (${k}), а дверь домика говорит другое`,
+        [p, t],
+      );
+    }
+  });
 };
