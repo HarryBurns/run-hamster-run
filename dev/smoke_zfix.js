@@ -71,4 +71,136 @@ module.exports = async function zfix(ctx) {
     await closeAll();
     expect((await outfit()) === before, 'после перезагрузки посреди показа наряд хомячки потерялся', await outfit());
   });
+
+  // ---------- звёздочка к жителю — там, где он сейчас ----------
+  /** Задание qid взято, все шаги до «поговори с …» сделаны, звёздочка показывает его; часы — min. */
+  const talkStep = (qid, min, set) =>
+    ev(
+      ([qid, min, set]) => {
+        const d = window.__dev,
+          a = d.actions;
+        a.mutate((s) => {
+          s.minutes = min;
+          s.dayFlags = {};
+          s.guests = [];
+          s.guestsAt = 'villa';
+          if (set) new Function('s', set)(s);
+        });
+        a.takeQuest(qid);
+        const w = d.QuestState.questNow(qid);
+        w.q.steps.forEach((st, i) => {
+          if (!st.talk && i < w.q.steps.length - 1) a.questCount(qid, i);
+        });
+        d.F.trackQuest(qid);
+        return d.QuestState.questNow(qid).i;
+      },
+      [qid, min, set || ''],
+    );
+  /** Звёздочка в локации scene (город по умолчанию) и где житель id: { t, npc, door: дверь здания b }. */
+  const star = async (id, b, scene = 'world') => {
+    await ev((sc) => window.__dev.go(sc), scene);
+    await until((sc) => window.__dev.sceneName === sc, scene);
+    await frames(3);
+    return ev(
+      ([id, b, scene]) => {
+        const sc = window.__dev.locations[scene],
+          n = sc.npcs.find((q) => q.id === id);
+        return {
+          t: sc.target(),
+          npc: n ? { x: n.x, y: n.y, hidden: n.hidden } : null,
+          door: b ? sc.doorOf(b) : null,
+        };
+      },
+      [id, b, scene],
+    );
+  };
+  const atDoor = (r) => !!r.t && !!r.door && Math.abs(r.t.x - r.door.x) < 30 && Math.abs(r.t.y - r.door.y) < 100;
+  const atNpc = (r) =>
+    !!r.t && !!r.npc && !r.npc.hidden && Math.abs(r.t.x - r.npc.x) < 4 && Math.abs(r.t.y + 62 - r.npc.y) < 4;
+
+  await step(
+    'заказчик: звёздочка «покажись Плюше» — Плюша в гостях на вилле: звёздочка у виллы, а не у её дома',
+    async () => {
+      await fresh({ day: 18, minutes: 12 * 60, weather: 'sun', dayFlags: true });
+      const i = await talkStep('intro_home', 12 * 60);
+      expect(i === 3, 'задание не на шаге «покажись Плюше» (проверка не годится)', i);
+      await ev(() => window.__dev.actions.inviteGuest('plusha', 'villa'));
+      const r = await star('plusha', 'villa');
+      expect(atDoor(r), 'Плюша в гостях на вилле, а звёздочка не у виллы', r);
+      const own = await ev(() => window.__dev.World.doorOf('house0'));
+      expect(Math.hypot(r.t.x - own.x, r.t.y - own.y) > 200, 'звёздочка у домика Плюши, хотя она у нас в гостях', [
+        r.t,
+        own,
+      ]);
+      // журнал говорит, где она сейчас
+      await ev(() => window.__dev.F.openAlbum('quests'));
+      await untilPanel();
+      const j = await ev(() => document.querySelector('.overlay').textContent);
+      expect(/Плюша у тебя в гостях/.test(j), 'журнал не говорит, что Плюша в гостях', j.slice(0, 400));
+      await closeAll();
+    },
+  );
+
+  await step(
+    'заказчик: звёздочка к жителю — проводили домой днём и вечером, ночью спит: туда, где он сейчас',
+    async () => {
+      await fresh({ day: 18, minutes: 12 * 60, weather: 'sun', dayFlags: true });
+      await talkStep('intro_home', 12 * 60);
+      await ev(() => window.__dev.actions.inviteGuest('plusha', 'villa'));
+      await star('plusha', 'villa');
+      // проводили домой днём — Плюша снова на улице: звёздочка над ней
+      await ev(() => window.__dev.actions.removeGuest('plusha'));
+      await frames(3);
+      let r = await star('plusha', 'house0');
+      expect(atNpc(r), 'проводили Плюшу днём — звёздочка не над ней', r);
+      // вечером — идёт к своему домику: звёздочка над ней
+      await ev(() => {
+        const a = window.__dev.actions;
+        a.mutate((s) => (s.minutes = 20 * 60));
+        a.inviteGuest('plusha', 'villa');
+      });
+      await frames(2);
+      await ev(() => window.__dev.actions.removeGuest('plusha'));
+      await frames(3);
+      r = await star('plusha', 'house0');
+      expect(atNpc(r), 'вечером проводили Плюшу — звёздочка не над ней', r);
+      // ночью спит дома — звёздочка у её домика
+      await ev(() => window.__dev.actions.mutate((s) => (s.minutes = 23 * 60)));
+      await frames(3);
+      r = await star('plusha', 'house0');
+      expect(r.npc.hidden && atDoor(r), 'ночью звёздочка не у домика Плюши', r);
+    },
+  );
+
+  await step(
+    'заказчик: звёздочка к жителю — гостит в квартире, в лесном домике; Мята в гостях — тоже к вилле',
+    async () => {
+      await fresh({ day: 18, minutes: 12 * 60, weather: 'sun', dayFlags: true });
+      await talkStep('intro_home', 12 * 60);
+      await ev(() => {
+        const a = window.__dev.actions;
+        a.addHome('flat');
+        a.addHome('cabin');
+        a.openLand('forest');
+        a.inviteGuest('plusha', 'flat');
+      });
+      let r = await star('plusha', 'home_apartment');
+      expect(atDoor(r), 'Плюша гостит в квартире, а звёздочка не у её подъезда', r);
+      // гостит в лесном домике: в городе — к дороге в лес, в лесу — у домика
+      await ev(() => {
+        const a = window.__dev.actions;
+        a.removeGuest('plusha');
+        a.inviteGuest('plusha', 'cabin');
+      });
+      r = await star('plusha', null);
+      expect(r.t && r.t.next === 'forest', 'Плюша в лесном домике, а звёздочка в городе ведёт не в лес', r);
+      r = await star('plusha', 'cabin', 'forest');
+      expect(atDoor(r), 'в лесу звёздочка не у лесного домика', r);
+      // другое задание, другой житель: «расскажи Мяте», Мята в гостях на вилле
+      await talkStep('intro_garden', 12 * 60, 's.quests.intro_home = { day: s.day, n: {}, got: {}, done: s.day };');
+      await ev(() => window.__dev.actions.inviteGuest('myata', 'villa'));
+      r = await star('myata', 'villa');
+      expect(atDoor(r), 'Мята в гостях на вилле, а звёздочка не у виллы', r);
+    },
+  );
 };

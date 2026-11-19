@@ -18,6 +18,8 @@ import {
   HOLIDAY_DRESS,
   holidayOn,
   npcLook,
+  HOME_BY_ID,
+  HOME_SCENE,
 } from '../data/index.js';
 
 // ---------- внешность игрока ----------
@@ -122,6 +124,29 @@ export function npcWhere(id) {
   if (m >= VISIT.sleep) return 'asleep';
   if (invitedToday(id)) return 'home';
   return m < VISIT.morningEnd || m >= VISIT.eveningStart ? 'home' : 'out';
+}
+
+/**
+ * Где житель города на самом деле — куда вести звёздочку задания «поговори с …» (features/quests.js) и что сказать
+ * в журнале. { at, scene, where, home }:
+ *   at    — 'guest' (в гостях у хомячка — в доме state.guestsAt), 'pool' (у бассейна отеля), 'room' (в номере 203),
+ *           иначе npcWhere: 'home' / 'asleep' / 'out';
+ *   scene — локация, где его искать (имя сцены: город или место, где стоит дом, — лесной домик в лесу);
+ *   where — точка для sc.whereIs в этой локации: здание дома, где он в гостях (вилла, квартира, бунгало…), отель или
+ *           сам житель 'npc:<id>' (на улице — где он сейчас идёт; зашёл к себе — у двери его домика);
+ *   home  — id своего дома, где он в гостях (HOME_BY_ID), иначе null.
+ * null — не житель города (жители тайных мест всегда в своей локации).
+ */
+export function npcSpot(id) {
+  const s = G.state;
+  if (!s || !s.friends[id]) return null;
+  if (s.guests.includes(id)) {
+    const h = HOME_BY_ID[s.guestsAt] || HOME_BY_ID.villa;
+    return { at: 'guest', scene: h.loc || HOME_SCENE, where: h.building, home: h.id };
+  }
+  if (hotelPoolGuests().includes(id)) return { at: 'pool', scene: HOME_SCENE, where: 'hotel', home: null };
+  if (hotelRoomGuest() === id) return { at: 'room', scene: HOME_SCENE, where: 'hotel', home: null };
+  return { at: npcWhere(id), scene: HOME_SCENE, where: 'npc:' + id, home: null };
 }
 
 /**

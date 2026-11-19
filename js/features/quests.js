@@ -26,7 +26,7 @@ import { sfx } from '../core/audio.js';
 import { on, emit } from '../core/events.js';
 import { go } from '../core/loop.js';
 import { register, run } from '../core/registry.js';
-import { G, questNow, landOpen } from '../core/state.js';
+import { G, questNow, landOpen, npcSpot } from '../core/state.js';
 import { el, esc, fmtMoney } from '../core/util.js';
 import {
   QUESTS,
@@ -40,6 +40,7 @@ import {
   QUEST_GIFT_COINS,
   DISH_BY_ID,
   HOME_SCENE,
+  HOME_BY_ID,
   SEED_BY_ID,
   ING_BY_ID,
 } from '../data/index.js';
@@ -84,19 +85,28 @@ export function setJournalTop(fn) {
 export function trackQuest(id) {
   tracked = id;
 }
-/** Куда ведёт задание сейчас: имя точки для sc.whereIs (житель, место, здание…) или null. */
-function questWhere(w) {
+/** Куда ведёт задание по описанию: имя точки для sc.whereIs (житель, место, здание…) или null. */
+function questPoint(w) {
   if (w.status === 'ready') return w.q.npcAt || 'npc:' + w.q.npc; // лифтёр стоит в башне: звёздочка — к её двери
   if (w.status !== 'active') return null;
   const step = w.q.steps[w.i];
   return step ? step.where || (step.talk ? 'npc:' + step.talk : null) : null;
 }
-/** В каком месте (имя сцены) задание идёт сейчас: поле loc шага или задания, без них — город. */
-function questScene(w) {
-  const step = w.status === 'active' ? w.q.steps[w.i] : null;
-  return (step && step.loc) || w.q.loc || HOME_SCENE;
+/**
+ * Куда ведёт задание сейчас: { where — точка для sc.whereIs или null, scene — в каком месте (имя сцены) }.
+ * Место — поле loc шага или задания, без них — город. Цель — житель города ('npc:<id>': «покажись Плюше», кто дал
+ * задание) — звёздочка ведёт туда, где он на самом деле (npcSpot, core/queries.js): в гостях у хомячка — к двери
+ * дома, где он гостит (вилла, квартира, лесной домик…), у бассейна или в номере 203 — к отелю, иначе — к нему самому
+ * на улице или к его домику.
+ */
+function questGoal(w) {
+  const step = w.status === 'active' ? w.q.steps[w.i] : null,
+    where = questPoint(w),
+    spot = where && where.startsWith('npc:') ? npcSpot(where.slice(4)) : null;
+  if (spot) return { where: spot.where, scene: spot.scene, spot };
+  return { where, scene: (step && step.loc) || w.q.loc || HOME_SCENE, spot: null };
 }
-/** Задание, которое показывает звёздочка, — { w, where } или null (сделано — звёздочка снова свободна). */
+/** Задание, которое показывает звёздочка, — { w, where, scene } или null (сделано — звёздочка снова свободна). */
 function trackedNow() {
   if (!tracked) return null;
   const w = questNow(tracked);
@@ -104,7 +114,7 @@ function trackedNow() {
     tracked = null;
     return null;
   }
-  return { w, where: questWhere(w) };
+  return { w, ...questGoal(w) };
 }
 setTargetHook((sc) => {
   if (!S()) return null;
@@ -115,7 +125,7 @@ setTargetHook((sc) => {
     return at && at !== sc.name ? sc.wayTo(at) : extraTarget(sc);
   }
   if (!tr.where) return null;
-  const at = questScene(tr.w);
+  const at = tr.scene;
   if (at !== sc.name) return sc.wayTo(at); // цель в другом месте — к выходу или транспорту в ту сторону
   const p = sc.whereIs(tr.where);
   if (!p) return null;
@@ -126,7 +136,7 @@ setTargetHook((sc) => {
 export function starScene() {
   if (!S()) return null;
   const tr = trackedNow();
-  if (tr) return tr.where ? questScene(tr.w) : null;
+  if (tr) return tr.where ? tr.scene : null;
   const ex = extraScene && extraScene();
   if (ex) return ex;
   const m = S().mail,
@@ -146,14 +156,29 @@ const LOC_WORDS = {
   cove: 'на секретном пляже',
   island: 'на удалённом острове',
 };
+/**
+ * Подсказка в журнале «где житель сейчас», когда он не там, где обычно (не на улице и не у своего домика): в гостях у
+ * хомячка, у бассейна или в номере отеля. null — обычная подсказка шага (hint).
+ */
+function spotHint(id) {
+  const sp = npcSpot(id),
+    npc = NPC_BY_ID[id];
+  if (!sp) return null;
+  if (sp.at === 'guest') {
+    const h = HOME_BY_ID[sp.home];
+    return `Сейчас ${npc.name} у тебя в гостях: ${h.icon} ${h.name}`;
+  }
+  if (sp.at === 'pool') return `Сейчас ${npc.name} отдыхает у бассейна в отеле «Морская звезда» 🏨`;
+  if (sp.at === 'room') return `Сейчас ${npc.name} гостит в отеле «Морская звезда», в номере 203 🏨`;
+  return null;
+}
 /** Показать задание на карте (звёздочкой). false — сейчас показать нечего (сегодня всё собрано и т. п.). */
 export function showQuestOnMap(id) {
   const w = questNow(id),
-    where = questWhere(w),
+    { where, scene: at } = questGoal(w),
     q = QUEST_BY_ID[id];
   // задание в другом месте, чем хомячок («карта мира»): звёздочка ведёт к дороге туда — подсказать, как идти
-  const at = questScene(w),
-    here = currentLocation().name;
+  const here = currentLocation().name;
   if (where && at !== here && getLocation(at)) {
     const way = routeText(here, at);
     trackQuest(id);
@@ -507,10 +532,11 @@ export function renderJournal(body, panel) {
       const x = w.steps[i],
         cur = i === w.i;
       const prog = x.need > 1 ? ` <b>${x.have}/${x.need}</b>` : '';
+      const hint = cur && ((step.talk && spotHint(step.talk)) || step.hint);
       const li = el(
         'li',
         x.ok ? 'ok' : cur ? 'cur' : 'todo',
-        `${x.ok ? '✅' : cur ? '👉' : '▫️'} ${step.text}${prog}${cur && step.hint ? `<div class="q-hint">📍 ${step.hint}</div>` : ''}`,
+        `${x.ok ? '✅' : cur ? '👉' : '▫️'} ${step.text}${prog}${hint ? `<div class="q-hint">📍 ${hint}</div>` : ''}`,
       );
       if (cur && step.bring && step.bring.kind) li.appendChild(findsRow(step.bring.kind));
       ol.appendChild(li);
