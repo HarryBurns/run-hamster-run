@@ -6,10 +6,10 @@
 // После «Начать!» выбираешь, на чём ехать (Г4): 🛷 санки — как раньше, или 🎿 лыжи — слалом: на склоне ворота из
 // двух флажков (красные и синие по очереди), проедь между флажками — +2 и «Ворота!»; мимо — просто «мимо», без
 // кувырка. Ёлок и камней на лыжне меньше. Звёзды на лыжах — по очкам (SKI_STARS), как и на санках.
-import { el, clamp, plural } from '../core/util.js';
+// Общее с «Горкой» (выбор карточками, руль, полоса, табло, звёзды) — runner.js; здесь — склон: что на нём и как едет.
+import { clamp, plural } from '../core/util.js';
 import { ell, poly, fillRR, line } from '../core/draw.js';
-import { pic as kitPic } from './kit.js';
-import { DEV } from '../core/dev.js';
+import { runnerGame, runnerCss, rulePic, cardPic } from './runner.js';
 
 const TIME = 45;
 const OUT = '#4a3728';
@@ -118,29 +118,21 @@ function drawGate(ctx, x, y, gw, s, col, t, passed) {
   }
 }
 
-/** Маленькая картинка для правил (data: URL — заставка правил собирается строкой HTML). */
-const pic = (draw, size = 46) => kitPic((x) => draw(x, size / 2, size - 8, size / 50), size, size);
+/** Маленькая картинка для правил. */
+const pic = (draw) => rulePic(draw, 8);
 
-const CSS = `
-.sl-rules{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin:8px 0 2px}
-.sl-col{background:#fff;border-radius:14px;padding:4px 10px;border:3px solid #8ce99a;text-align:center}
+const CSS =
+  runnerCss('sl') +
+  `
 .sl-col.no{border-color:#ffa8a8}
-.sl-col.how{border-color:#74c0fc}
-.sl-col b{display:block;font-size:16px}
-.sl-col .row{display:flex;gap:4px;justify-content:center;align-items:center;font-size:26px;font-weight:900}
-.sl-col small{display:block;font-size:12px;opacity:.75;line-height:1.2}
 .sl-col.ski{border-color:#ffd43b}
-.sl-pick{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:12px;z-index:3;background:rgba(231,245,255,.9)}
-.sl-pick h3{margin:0;font-size:20px}
-.sl-pick .cards{display:flex;gap:12px;flex-wrap:wrap;justify-content:center}
-.sl-pick button{background:#fff;border:3px solid #74c0fc;border-radius:18px;padding:8px 10px;font:inherit;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px;width:170px;touch-action:manipulation}
-.sl-pick button:hover,.sl-pick button:focus-visible{border-color:#ff6b9d;transform:translateY(-2px)}
+.sl-pick{gap:12px;background:rgba(231,245,255,.9)}
+.sl-pick .cards{gap:12px}
+.sl-pick button{border-radius:18px;padding:8px 10px;gap:4px;width:170px}
 .sl-pick button b{font-size:18px}
 .sl-pick button small{font-size:13px;opacity:.75;line-height:1.25}
 @media (max-width:420px){.sl-pick button{width:150px}}
 @media (max-height:460px){.sl-pick img{height:64px;width:auto}}
-.sl-top{position:absolute;left:0;right:0;top:0;display:flex;gap:8px;justify-content:center;padding:8px;pointer-events:none;z-index:2}
-.sl-chip{background:rgba(255,255,255,.92);border-radius:12px;padding:4px 12px;font-weight:900;font-size:16px;box-shadow:0 2px 0 rgba(74,55,40,.15)}
 `;
 
 export default {
@@ -159,131 +151,35 @@ export default {
       За ${TIME} секунд собери побольше! Санки или лыжи — выберешь после «Начать!».`;
   },
   start(host) {
-    const top = el('div', 'sl-top');
-    const tTitle = el('div', 'sl-chip', '🛷'),
-      tTime = el('div', 'sl-chip'),
-      tGot = el('div', 'sl-chip'),
-      tBump = el('div', 'sl-chip');
-    top.append(tTitle, tTime, tGot, tBump);
-    host.add(top);
-    const cv = host.canvas();
-    const ctx = cv.ctx;
-    const level = host.level || 0;
-    let t = 0,
-      over = false,
-      got = 0,
-      bumps = 0,
-      dist = 0,
+    let dist = 0,
       spawnGood = 0.3,
       spawnBad = 1.2,
       tumble = 0, // > 0 — кувыркаемся (секунды)
       slow = 1; // множитель скорости после кувырка (поднимается обратно до 1)
     const items = []; // { kind, x (0..1), y (px), hit }
-    const pops = host.pops();
     const puffs = []; // снежная пыль
-    const sled = { x: 0.5, to: 0.5 };
     // на чём едем (Г4): санки или лыжи — выбор после «Начать!» (info.ride — задать заранее)
     let ride = host.info && ['sled', 'ski'].includes(host.info.ride) ? host.info.ride : null;
     const gates = []; // лыжи: { x (центр), gw (ширина, доля), y, col, done: 0 | 1 (прошла) | -1 (мимо) }
     let gatesOk = 0,
       gatesAll = 0,
       spawnGate = 1.4;
-    let pick = null;
-    const choose = (id) => {
-      if (ride && !pick) return;
-      ride = id === 'ski' ? 'ski' : 'sled';
-      tTitle.textContent = ride === 'ski' ? '🎿' : '🛷';
-      if (pick) pick.remove();
-      pick = null;
-      host.sfx('skate');
-    };
-    const ridePic = (id) => {
-      const c = document.createElement('canvas');
-      c.width = 220;
-      c.height = 150;
-      const x = c.getContext('2d');
-      x.scale(2, 2);
-      x.lineJoin = 'round';
-      x.lineCap = 'round';
-      x.fillStyle = '#eef5fc';
-      x.fillRect(0, 0, 110, 75);
-      if (id === 'ski') {
-        drawGate(x, 55, 26, 70, 0.75, '#e03131', 0, false);
-        drawSkis(x, 55, 70, 0.85);
-        host.drawHamster(x, 55, 56, 0.5, host.look, { time: 0, clipBelow: -20, happy: true });
-      } else {
-        drawSled(x, 55, 66, 0.95);
-        host.drawHamster(x, 55, 59, 0.6, host.look, { time: 0, clipBelow: -20, happy: true });
-      }
-      return `<img src="${c.toDataURL()}" width="110" height="75" alt="">`;
-    };
-    if (!ride) {
-      pick = el('div', 'sl-pick', '<h3>На чём поедешь?</h3>');
-      const cards = el('div', 'cards');
-      for (const [id, name, say] of [
-        ['sled', '🛷 Санки', 'собирай снежинки и флажки'],
-        ['ski', '🎿 Лыжи', 'слалом: проезжай между флажками ворот'],
-      ]) {
-        const b = el('button', '', `<b>${name}</b>${ridePic(id)}<small>${say}</small>`);
-        b.dataset.ride = id;
-        b.onclick = () => choose(id);
-        cards.appendChild(b);
-      }
-      pick.appendChild(cards);
-      host.add(pick);
-    }
-    // трасса — полоса посередине (на широком экране по бокам — ельник): LW — её ширина, X0 — левый край
-    const LW = () => Math.min(cv.w, Math.max(320, cv.h * 0.85), 640),
-      X0 = () => (cv.w - LW()) / 2,
-      PX = (fx) => X0() + fx * LW(); // доля ширины трассы → пиксели
-    const S = () => clamp(LW() / 400, 0.85, 1.45); // масштаб рисунков
-    const sledY = () => cv.h * 0.72;
-    const speed = () => cv.h * (0.42 + Math.min(t / TIME, 1) * 0.28 + level * 0.02) * slow; // px/с
-
-    // ---------- управление ----------
-    const toX = (e) => {
-      const r = cv.canvas.getBoundingClientRect();
-      sled.to = clamp((((e.clientX - r.left) / r.width) * cv.w - X0()) / LW(), 0.08, 0.92);
-    };
-    let pressed = false;
-    const down = (e) => {
-      pressed = true;
-      toX(e);
-    };
-    const move = (e) => {
-      if (pressed || e.pointerType === 'mouse') toX(e);
-    };
-    const up = () => (pressed = false);
-    host.on(cv.canvas, 'pointerdown', down);
-    host.on(cv.canvas, 'pointermove', move);
-    host.on(window, 'pointerup', up);
-    const keys = new Set();
-    const kd = (e) => {
-      if (['ArrowLeft', 'ArrowRight', 'KeyA', 'KeyD'].includes(e.code)) {
-        keys.add(e.code);
-        e.preventDefault();
-      }
-    };
-    const ku = (e) => keys.delete(e.code);
-    host.on(window, 'keydown', kd);
-    host.on(window, 'keyup', ku);
-    // для автотеста (dev/smoke_mountain.js): где санки и что впереди (x — доля ширины, y — пиксели)
-    if (DEV) cv.canvas.__sled = () => ({
-      x: sled.x,
-      y: sledY(),
-      w: cv.w,
-      x0: X0(),
-      lw: LW(),
-      items: items.filter((q) => !q.hit).map((q) => ({ good: KINDS[q.kind].good, x: q.x, y: q.y })),
-      ride,
-      picking: !!pick,
-      t,
-      got,
-      gates: gates.filter((g) => !g.done).map((g) => ({ x: g.x, gw: g.gw, y: g.y })),
-      gatesOk,
-      gatesAll,
-    });
-    if (DEV) cv.canvas.__sledSkip = (sec) => (t = Math.max(t, TIME - sec)); // автотест: «до финиша осталось sec секунд»
+    const ridePic = (id) =>
+      cardPic(
+        (x) => {
+          if (id === 'ski') {
+            drawGate(x, 55, 26, 70, 0.75, '#e03131', 0, false);
+            drawSkis(x, 55, 70, 0.85);
+            host.drawHamster(x, 55, 56, 0.5, host.look, { time: 0, clipBelow: -20, happy: true });
+          } else {
+            drawSled(x, 55, 66, 0.95);
+            host.drawHamster(x, 55, 59, 0.6, host.look, { time: 0, clipBelow: -20, happy: true });
+          }
+        },
+        110,
+        75,
+        '#eef5fc',
+      );
 
     function spawn(good) {
       // на лыжах флажков-находок нет — флажки там только у ворот
@@ -294,14 +190,12 @@ export default {
       items.push({ kind: list, x, y: -40, hit: false });
     }
 
-    function update(dt) {
-      if (!ride || pick) return; // ждём выбора: санки или лыжи
-      t += dt;
-      // руль: стрелки двигают цель, санки плавно едут к ней
-      const kx = (keys.has('ArrowRight') || keys.has('KeyD') ? 1 : 0) - (keys.has('ArrowLeft') || keys.has('KeyA') ? 1 : 0);
-      if (kx) sled.to = clamp(sled.to + kx * dt * 0.9, 0.08, 0.92);
+    // шаг: время и руль (куда едем) уже сдвинул runner.js
+    function update(dt, r) {
+      const { cv, pops, PX, LW, t, level } = r,
+        sled = r.pos;
       if (tumble <= 0) sled.x += (sled.to - sled.x) * Math.min(1, dt * 7);
-      const v = speed();
+      const v = cv.h * (0.42 + Math.min(t / TIME, 1) * 0.28 + level * 0.02) * slow; // скорость склона, px/с
       dist += v * dt;
       if (tumble > 0) tumble -= dt;
       slow = Math.min(1, slow + dt * 0.5);
@@ -335,22 +229,22 @@ export default {
               q.x = q.x < x ? clamp(x - gw / 2 - 0.12, 0.06, 0.94) : clamp(x + gw / 2 + 0.12, 0.06, 0.94);
         }
       }
-      const sy = sledY(),
-        s = S();
+      const sy = r.Y(),
+        s = r.S();
       for (const q of items) {
         q.y += v * dt;
         if (q.hit || tumble > 0) continue;
         const dx = (q.x - sled.x) * LW(),
           dy = q.y - (sy - 12 * s),
-          r = (KINDS[q.kind].r + 16) * s;
-        if (dx * dx + dy * dy > r * r) continue;
+          rad = (KINDS[q.kind].r + 16) * s;
+        if (dx * dx + dy * dy > rad * rad) continue;
         q.hit = true;
         if (KINDS[q.kind].good) {
-          got += KINDS[q.kind].pts;
+          r.got += KINDS[q.kind].pts;
           host.sfx('pop');
           pops.add('+' + KINDS[q.kind].pts, PX(q.x), q.y - 30, '#1c7ed6');
         } else {
-          bumps++;
+          r.bumps++;
           tumble = 0.9;
           slow = 0.35;
           host.sfx('bad');
@@ -367,7 +261,7 @@ export default {
         if (Math.abs(sled.x - g.x) < g.gw / 2 && tumble <= 0) {
           g.done = 1;
           gatesOk++;
-          got += GATE;
+          r.got += GATE;
           host.sfx('ding');
           pops.add(`Ворота! +${GATE}`, PX(g.x), sy - 60 * s, '#2f9e44');
         } else {
@@ -384,13 +278,15 @@ export default {
         p.vy += 260 * dt;
       }
       for (let i = puffs.length - 1; i >= 0; i--) if (puffs[i].t > 0.8) puffs.splice(i, 1);
-      if (t >= TIME) finish();
+      if (t >= TIME) finish(r);
     }
 
-    function draw() {
-      const W = cv.w,
+    function draw(r) {
+      const { cv, ctx, PX, t } = r,
+        sled = r.pos,
+        W = cv.w,
         H = cv.h,
-        s = S();
+        s = r.S();
       // склон: снег, тени-волны и следы, бегут навстречу
       const g = ctx.createLinearGradient(0, 0, 0, H);
       g.addColorStop(0, '#e7f1fa');
@@ -407,13 +303,13 @@ export default {
       ctx.lineWidth = 3;
       for (const dx of ride === 'ski' ? [-9, 9] : [-16, 16]) {
         ctx.beginPath();
-        ctx.moveTo(PX(sled.x) + dx * s, sledY());
+        ctx.moveTo(PX(sled.x) + dx * s, r.Y());
         ctx.lineTo(PX(sled.to * 0.3 + sled.x * 0.7) + dx * s, H + 10);
         ctx.stroke();
       }
       // ельник по краям трассы (на широком экране — гуще, во всю ширину обочины)
-      const x0 = X0(),
-        lw = LW();
+      const x0 = r.X0(),
+        lw = r.LW();
       for (let side = 0; side < 2; side++) {
         const cols = Math.max(1, Math.ceil(x0 / (34 * s)));
         for (let c = 0; c < cols; c++)
@@ -424,7 +320,7 @@ export default {
           }
       }
       // ворота слалома (лыжи)
-      for (const g of gates) drawGate(ctx, PX(g.x), g.y, g.gw * LW(), s, g.col, t, g.done === 1);
+      for (const g of gates) drawGate(ctx, PX(g.x), g.y, g.gw * lw, s, g.col, t, g.done === 1);
       // всё на склоне — от дальнего к ближнему
       for (const q of items) {
         if (q.hit && KINDS[q.kind].good) continue;
@@ -438,7 +334,7 @@ export default {
       }
       // санки с хомячком (кувырок — крутится)
       const x = PX(sled.x),
-        y = sledY();
+        y = r.Y();
       ctx.save();
       ctx.translate(x, y);
       if (tumble > 0) ctx.rotate((0.9 - tumble) * Math.PI * 2.2);
@@ -459,22 +355,14 @@ export default {
       }
       ctx.globalAlpha = 1;
       // надписи
-      pops.draw(ctx);
+      r.pops.draw(ctx);
     }
 
-    host.loop((dt) => {
-      if (!over) update(dt);
-      tTime.textContent = `⏱️ ${Math.max(0, Math.ceil(TIME - t))}`;
-      tGot.textContent = `❄️ ${got}`;
-      tBump.textContent = `💥 ${bumps}`;
-      draw();
-    });
-    function finish() {
-      over = true;
+    function finish(r) {
       const ski = ride === 'ski',
-        th = ski ? SKI_STARS : SLED_STARS;
-      const stars = got >= th[1] ? 3 : got >= th[0] ? 2 : 1;
-      host.finish({
+        { got, bumps } = r,
+        stars = r.stars(ski ? SKI_STARS : SLED_STARS);
+      r.finish({
         stars,
         text: ski
           ? `🎿 На лыжах: ворот пройдено — <b>${gatesOk}</b> из ${gatesAll}, на счету ${got} ${plural(got, 'очко', 'очка', 'очков')}${bumps ? `, кувырков — ${bumps}.` : ', и ни одного кувырка!'}${stars === 3 ? ' Настоящая слаломистка!' : ''}`
@@ -482,5 +370,35 @@ export default {
         extra: { got, bumps, ride, gatesOk, gatesAll },
       });
     }
+
+    runnerGame(host, {
+      p: 'sl',
+      id: 'sled', // автотест (dev/smoke_mountain.js, dev/smoke_games.js): canvas.__sled(), canvas.__sledSkip(сек)
+      time: TIME,
+      lim: [0.08, 0.92],
+      keySpeed: 0.9,
+      icons: ['❄️', '💥'],
+      lead: () => (ride === 'ski' ? '🎿' : '🛷'),
+      pick: {
+        title: 'На чём поедешь?',
+        attr: 'ride',
+        preset: ride,
+        sfx: 'skate',
+        cards: [
+          { id: 'sled', name: '🛷 Санки', say: 'собирай снежинки и флажки', img: () => ridePic('sled') },
+          { id: 'ski', name: '🎿 Лыжи', say: 'слалом: проезжай между флажками ворот', img: () => ridePic('ski') },
+        ],
+        on: (id) => (ride = id),
+      },
+      update,
+      draw,
+      debug: () => ({
+        items: items.filter((q) => !q.hit).map((q) => ({ good: KINDS[q.kind].good, x: q.x, y: q.y })),
+        ride,
+        gates: gates.filter((g) => !g.done).map((g) => ({ x: g.x, gw: g.gw, y: g.y })),
+        gatesOk,
+        gatesAll,
+      }),
+    });
   },
 };

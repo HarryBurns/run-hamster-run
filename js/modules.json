@@ -224,6 +224,7 @@
 "js/minigames/orders.js",
 "js/minigames/pairs.js",
 "js/minigames/porter.js",
+"js/minigames/runner.js",
 "js/minigames/sandcastle.js",
 "js/minigames/sled.js",
 "js/minigames/slide.js",
