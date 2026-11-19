@@ -8,6 +8,7 @@ import { clamp, el } from '../../core/util.js';
 import { sfx } from '../../core/audio.js';
 import { FURN_BY_ID } from '../../data/index.js';
 import { furnIcon } from '../../ui/icons.js';
+import { furnRect } from '../../art/furniture.js';
 import { toast } from '../../ui/toast.js';
 import { hitItem } from './items.js';
 
@@ -80,8 +81,9 @@ function placeFromStorage(sc, id) {
   const c = sc.cam.toWorld(G.view.w / 2, G.view.h / 2);
   const f = sc.geo.floorAt(c.y, 40);
   const x = clamp(c.x, d.w / 2 + 6, W - d.w / 2 - 6);
-  // настенный предмет посередине экрана мог попасть на окно — тогда рядом, на стене без окна
-  sc.decor.sel = placeFurn(sc.houseKey, id, f, d.wall ? freeWallX(sc, d, x, f, 160) : x, d.wall ? 160 : 0);
+  // настенный предмет посередине экрана мог попасть на окно — тогда рядом, на стене без окна; и не за пальмой или
+  // шкафом: спрятанный за ними, он почти не виден, а палец берёт то, что впереди (раньше часы вставали за пальму)
+  sc.decor.sel = placeFurn(sc.houseKey, id, f, d.wall ? freeWallX(sc, d, x, f, 160, true) : x, d.wall ? 160 : 0);
   buildTray(sc);
 }
 
@@ -99,12 +101,37 @@ export function onWindow(sc, d, x, floor, y) {
   }
   return false;
 }
-/** Ближайший к x центр настенного предмета на этом этаже, где он не на окне (не нашлось — сам x). */
-function freeWallX(sc, d, x, floor, y) {
+/**
+ * Закрывает ли настенный предмет d (центр x, высота y над полом этажа floor) другая мебель этажа: напольная повыше
+ * (рисуется впереди) или другое настенное (налезают друг на друга). Коврики не в счёт.
+ */
+function hidden(sc, d, x, floor, y) {
+  const fy = sc.geo.fy(floor),
+    a = furnRect(d, x, fy, y);
+  for (const it of sc.items()) {
+    const q = FURN_BY_ID[it.id];
+    if (it.floor !== floor || !q || q.layer === 0) continue;
+    const b = furnRect(q, it.x, fy, it.y);
+    if (a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h) return true;
+  }
+  return false;
+}
+/**
+ * Ближайший к x центр настенного предмета на этом этаже, где он не на окне; seen — ещё и не закрыт другой мебелью,
+ * если такое место есть (не нашлось — сам x).
+ */
+function freeWallX(sc, d, x, floor, y, seen) {
   const W = sc.geo.W;
-  for (let k = 0; k <= W; k += 8)
-    for (const nx of [x - k, x + k])
-      if (nx >= d.w / 2 + 6 && nx <= W - d.w / 2 - 6 && !onWindow(sc, d, nx, floor, y)) return nx;
+  for (const look of seen ? [true, false] : [false])
+    for (let k = 0; k <= W; k += 8)
+      for (const nx of [x - k, x + k])
+        if (
+          nx >= d.w / 2 + 6 &&
+          nx <= W - d.w / 2 - 6 &&
+          !onWindow(sc, d, nx, floor, y) &&
+          !(look && hidden(sc, d, nx, floor, y))
+        )
+          return nx;
   return x;
 }
 function stash(sc, it) {

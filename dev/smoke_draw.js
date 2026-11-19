@@ -102,6 +102,9 @@ module.exports = async function draw(ctx) {
       await ev(() => window.__dev.actions.mutate((s) => (s.storage = { clock: 1 })));
       await ev(() => window.__dev.scene.setDecor(true));
       await until(() => document.querySelector('.decor-tray .tray-item'), undefined, { msg: id + ': кладовка' });
+      // камеру ставим после кадра: в режиме обустройства layout() меняет масштаб и границы (а он — в update), иначе
+      // камера, поставленная до этого кадра, съезжала, и часы из кладовки вставали то на одном этаже, то на другом
+      await frames(2);
       // камера — на окне первого попавшегося этажа с окном; часы из кладовки встают посередине экрана
       const win = await ev(() => {
         const sc = window.__dev.scene,
@@ -132,8 +135,18 @@ module.exports = async function draw(ctx) {
         },
         [c, win],
       );
+      const vw = page.viewportSize(),
+        tray = await ev(() => document.querySelector('.decor-tray').getBoundingClientRect().top);
+      for (const q of [pt.a, pt.b])
+        expect(q.x > 0 && q.x < vw.width && q.y > 0 && q.y < tray, id + ': часы или окно за краем экрана', { pt, tray });
       await page.mouse.move(pt.a.x, pt.a.y);
       await page.mouse.down();
+      // палец берёт то, что впереди: часы из кладовки не должны встать за пальму или шкаф (тогда берётся пальма)
+      const grab = await ev(() => {
+        const g = window.__dev.scene.decor.drag;
+        return g && g.it.id;
+      });
+      expect(grab === 'clock', id + ': палец на часах взял не часы — они встали за другой мебелью', { grab, c });
       await page.mouse.move(pt.b.x, pt.b.y, { steps: 6 });
       const drag = await ev(() => {
         const g = window.__dev.scene.decor.drag;
