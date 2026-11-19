@@ -488,6 +488,35 @@ module.exports = async function title(ctx) {
   );
 
   await step(
+    'заставка: облака и кораблик плывут каждый своим ходом; ветер гонит облака, а кораблик — нет',
+    async () => {
+      // скорость за 2 с в пикселях в секунду (облако, которое ушло за край и вернулось слева, не считаем)
+      const speeds = async () => {
+        const a = await dbg();
+        await wait(2000);
+        const b = await dbg();
+        const v = (x0, x1) => (x1 >= x0 ? (x1 - x0) / 2 : null);
+        return { clouds: a.clouds.map((x, i) => v(x, b.clouds[i])), ship: v(a.shipX, b.shipX), k: a.k };
+      };
+      await put(null);
+      const calm = await speeds();
+      const cs = calm.clouds.filter((v) => v !== null);
+      expect(calm.ship > 0 && cs.length >= 2, 'облака или кораблик стоят', calm);
+      expect(Math.min(...cs) > calm.ship * 1.5, 'кораблик плывёт почти как облака', calm);
+      expect(Math.max(...cs) > Math.min(...cs) * 1.3, 'все облака плывут одинаково', calm);
+      expect(Math.max(...cs) < 16 * calm.k, 'облака несутся слишком быстро', calm);
+      await put(sample((s) => Object.assign(s, { weather: 'leaves', minutes: 12 * 60 })));
+      const wind = await speeds();
+      expect((await dbg()).env.windy, 'нет ветра', (await dbg()).env);
+      const ws = wind.clouds.filter((v) => v !== null);
+      expect(Math.min(...ws) > Math.max(...cs) * (wind.k / calm.k) * 0.9, 'ветер не гонит облака', { calm, wind });
+      expect(Math.abs(wind.ship / wind.k - calm.ship / calm.k) < 0.6, 'ветер гонит кораблик', { calm, wind });
+      await put(null);
+      noErrors();
+    },
+  );
+
+  await step(
     'заставка: быстрый росчерк по песку — сплошная линия мышью и пальцем; с воды обрывается, на песке продолжается',
     async () => {
       await put(null);

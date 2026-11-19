@@ -59,7 +59,10 @@ export function createTitleScene(canvas, o) {
   const gull = { x: 0, y: 0, hx: 0, hy: 0, st: 'stand', t: 0 };
   const feathers = [];
   const shell = { x: 0, y: 0, st: 'sand', t: 0 };
-  const clouds = [0, 1, 2].map((i) => ({ fx: 0.12 + i * 0.36, fy: [0.3, 0.75, 0.45][i], size: [1, 0.75, 0.9][i], shape: 0, from: 0, t: 1, x: 0, y: 0 })); // prettier-ignore
+  // облака плывут каждое своим ходом: маленькое (дальнее) — медленнее, sp — пикселей в секунду на экране компьютера.
+  // Кораблик на горизонте — сам по себе, ещё медленнее облаков, чтобы глаз видел: они не связаны
+  const clouds = [0, 1, 2].map((i) => ({ fx: 0.12 + i * 0.36, fy: [0.3, 0.75, 0.45][i], size: [1, 0.75, 0.9][i], sp: [9, 4.6, 6.6][i], shape: 0, from: 0, t: 1, x: 0, y: 0 })); // prettier-ignore
+  const SHIP_SP = 2.6;
   const ship = { x: -1, honk: -9, puffs: [] };
   const dolphin = { next: rnd(10, 22), t: -1, x: 0, hi: -9 };
   const jumps = []; // рыбки в прыжке: { x, y, t, dir, big }
@@ -577,11 +580,11 @@ export function createTitleScene(canvas, o) {
     }
     // облака и кораблик плывут
     for (const c of clouds) {
-      c.x += (windy ? 16 : 6) * k * dt * c.size;
+      c.x += c.sp * (windy ? 2.3 : 1) * k * dt; // ветер (лепестки, листья) гонит облака, а кораблик — нет
       if (c.x > W + 120 * k) c.x = -120 * k;
       c.t = Math.min(1, c.t + dt / 0.8);
     }
-    ship.x += 5 * k * dt;
+    ship.x += SHIP_SP * k * dt;
     if (ship.x > W + 60 * k) ship.x = -60 * k;
     if (T - ship.honk < 1.2 && Math.random() < dt * 9) ship.puffs.push({ x: ship.x - 2 * k, y: hy - 30 * k, t: 0 });
     for (let i = ship.puffs.length - 1; i >= 0; i--) if ((ship.puffs[i].t += dt) > 2) ship.puffs.splice(i, 1);
@@ -892,6 +895,8 @@ export function createTitleScene(canvas, o) {
           return { ...P(c.x, c.y), shape: CLOUD_ORDER[c.shape] };
         })(),
         ship: P(ship.x, hy - 10 * k),
+        clouds: clouds.map((c) => Math.round(c.x * 10) / 10),
+        shipX: Math.round(ship.x * 10) / 10,
         sea: P(F.x + F.w * 0.45, lerp(hy, sy, 0.6)),
         shore: P(clear(F.x + F.w * 0.4, sy + 6 * k), sy + 6 * k),
         sand: P(clear(F.x + F.w * 0.36, lerp(sy, bot, 0.5)), lerp(sy, bot, 0.5)),
