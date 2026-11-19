@@ -237,8 +237,8 @@ function build(m) {
   m.put1('safariBus', 24, 35);
   for (const x of [25, 26]) m.clear(x, 35);
   // указатели
-  m.put1('signpost', 23, 29, { text: '🌴 Оазис', text2: '🪣 Колодец' });
-  m.put1('signpost', 20, 13, { text: '🌠 Бархан', text2: '🔺 Пирамида' });
+  m.put1('signpost', 23, 29, { text: '🌴 Оазис', dir: 'u', text2: '🪣 Колодец' });
+  m.put1('signpost', 20, 13, { text: '🌠 Бархан', dir: 'u', text2: '🔺 Пирамида' });
   m.put1('signpost', 30, 12, { text: '🦴 Раскопки' });
   // перед зданиями — свободно (там двери)
   for (const b of [AT.stop, AT.tent, AT.pyramid])

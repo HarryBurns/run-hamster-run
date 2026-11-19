@@ -258,9 +258,9 @@ function build(m) {
   // кораблик у причала; указатели
   m.put1('mooredBoat', 21, 33);
   m.clear(22, 33);
-  m.put1('signpost', 21, 24, { text: '🔥 Деревня', text2: '🌋 Вулкан' });
-  m.put1('signpost', 29, 21, { text: '🥥 Боулинг', text2: '🛖 Хижина' });
-  m.put1('signpost', 26, 2, { text: '🌋 Смотровая', text2: 'у кратера' });
+  m.put1('signpost', 21, 24, { text: '🔥 Деревня', dir: 'u', text2: '🌋 Вулкан', dir2: 'u' });
+  m.put1('signpost', 32, 21, { text: '🛖 Хижина', dir: 'l', text2: '🥥 Боулинг', dir2: 'd' }); // над дорожкой боулинга (у тотема доски не видно)
+  m.put1('signpost', 26, 2, { text: '🌋 Смотровая', text2: 'у кратера', here: true }); // табличка «здесь»
   // перед зданиями — свободно (там двери)
   for (const b of [AT.dock, AT.chief, AT.laguna, AT.guest, AT.bum])
     for (let x = b.x - 1; x <= b.x + b.w; x++)

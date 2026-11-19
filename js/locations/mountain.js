@@ -258,8 +258,8 @@ function build(m) {
   }
   // скамейка у водопада, указатели
   m.put1('bench', 32, 16);
-  m.put1('signpost', 23, 40, { text: '🔭 Вершина', text2: '♨️ Источник' });
-  m.put1('signpost', 22, 13, { text: '⛄ Поляна', text2: '💎 Пещеры' });
+  m.put1('signpost', 23, 40, { text: '🔭 Вершина', dir: 'u', text2: '♨️ Источник' });
+  m.put1('signpost', 22, 13, { text: '💎 Пещеры', text2: '⛄ Поляна' });
   // под указателем — ни ёлок, ни камней: на телефоне ёлка закрывала доску «Пещеры»
   for (let y = 14; y <= 15; y++)
     for (let x = 19; x <= 23; x++) if (!['y', 'snowPath'].includes(m.at(x, y))) m.clear(x, y);

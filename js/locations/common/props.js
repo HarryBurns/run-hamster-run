@@ -53,6 +53,116 @@ const simple = (name, o = {}) => ({
   },
 });
 
+// ---------- указатели: доски «куда» и таблички «здесь» ----------
+// Доска «куда» — всегда без текстовых стрелок, направление показывает сама доска:
+//   'l', 'r' — доска-стрелка со срезом на конце, в ту сторону от столба;
+//   'u', 'd' — «дальше по дороге» / «ближе к нам»: прямоугольная доска посередине столба и нарисованные краской
+//              треугольники по обоим краям — остриём вверх или вниз;
+//   ''       — простая доска без стрелки (пояснение к верхней: «🔒 Спроси Бусю»).
+// Табличка «здесь» (поле here) — название места, где стоишь: прямоугольная доска на двух столбиках, без стрелок.
+/** Буквы-стрелки, которых не должно быть на табличках (направление рисует доска). */
+export const TEXT_ARROWS = /[←→↑↓↖↗↘↙⇐⇒⇑⇓⬅➡⬆⬇]/u;
+const SIGN_FONT = 'ui-rounded, "Trebuchet MS", sans-serif',
+  SIGN_INK = '#5b3413';
+/**
+ * Контур доски указателя: dir — куда показывает, x0 — левый край прямоугольной части, w — её ширина, y — середина.
+ * Плоский список точек для poly; у доски-стрелки 5 точек (срез на конце), у прямоугольной — 4.
+ */
+export function signOutline(dir, x0, w, y) {
+  if (dir === 'r') return [x0, y - 9, x0 + w, y - 9, x0 + w + 9, y, x0 + w, y + 9, x0, y + 9];
+  if (dir === 'l') return [x0 + w, y - 9, x0, y - 9, x0 - 9, y, x0, y + 9, x0 + w, y + 9];
+  return [x0, y - 9, x0 + w, y - 9, x0 + w, y + 9, x0, y + 9];
+}
+/** Треугольник-указатель краской: остриём вверх (up) или вниз, середина (cx, cy). */
+function inkTriangle(ctx, cx, cy, up) {
+  const k = up ? 1 : -1;
+  poly(ctx, [cx, cy - 4.5 * k, cx + 5.5, cy + 3.5 * k, cx - 5.5, cy + 3.5 * k], SIGN_INK, SIGN_INK, 1.4);
+}
+/** Надпись на доске: ужать, если не влезает в maxW. */
+function signText(ctx, str, cx, cy, maxW, size = 12) {
+  ctx.font = `900 ${size}px ${SIGN_FONT}`;
+  const tw = ctx.measureText(str).width;
+  if (tw > maxW) ctx.font = `900 ${(size * maxW) / tw}px ${SIGN_FONT}`;
+  ctx.fillStyle = SIGN_INK;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(str, cx, cy + 1);
+}
+/**
+ * Как ляжет доска указателя: spec — «куда|надпись» ('r|🏨 Отель'). { dir, str, x0, w — прямоугольная часть доски,
+ * cx — середина надписи, maxW — место под надпись, fit — во сколько раз ужмётся надпись (1 — не ужмётся) }.
+ */
+export function signBoardLayout(ctx, spec) {
+  const cut = spec.indexOf('|'),
+    dir = cut < 0 ? 'r' : spec.slice(0, cut),
+    str = cut < 0 ? spec : spec.slice(cut + 1);
+  ctx.font = `900 12px ${SIGN_FONT}`;
+  const tw = ctx.measureText(str).width;
+  let w, x0, cx, maxW;
+  if (dir === 'l' || dir === 'r') {
+    // доска-стрелка в сторону от столба
+    w = Math.min(104, Math.max(46, tw + 22));
+    x0 = dir === 'r' ? -12 : 12 - w;
+    cx = x0 + w / 2;
+    maxW = w - 12;
+  } else {
+    // прямоугольная доска посередине столба; «вверх/вниз» — с местом под треугольники по краям
+    const pad = dir === 'u' || dir === 'd' ? 15 : 0;
+    w = Math.min(116, Math.max(46, tw + 22 + pad * 2));
+    x0 = -w / 2;
+    cx = 0;
+    maxW = w - 12 - pad * 2;
+  }
+  return { dir, str, x0, w, cx, maxW, fit: Math.min(1, maxW / tw) };
+}
+/** Одна доска указателя: spec — «куда|надпись», y — середина доски. */
+function signBoard1(ctx, spec, y) {
+  const { dir, str, x0, w, cx, maxW } = signBoardLayout(ctx, spec);
+  poly(ctx, signOutline(dir, x0, w, y), WOOD_L, OUT, 1.8);
+  if (dir === 'u' || dir === 'd') for (const tx of [x0 + 10, x0 + w - 10]) inkTriangle(ctx, tx, y, dir === 'u');
+  signText(ctx, str, cx, y, maxW);
+}
+/** Указатель: столб и до двух досок (a — верхняя, b — нижняя; «куда|надпись»). */
+export function paintSignpost(ctx, a, b) {
+  shadow(ctx, 0, 13, 10, 3.5);
+  fillRR(ctx, -3, -70, 6, 84, 2, WOOD_D, OUT, 1.8);
+  ell(ctx, 0, -72, 4, 3, WOOD, OUT, 1.5);
+  if (a) signBoard1(ctx, a, -58);
+  if (b) signBoard1(ctx, b, -36);
+}
+/** Ширина таблички «здесь» w и во сколько раз ужмётся самая широкая строка (fit, 1 — не ужмётся). */
+export function nameplateLayout(ctx, name, sub) {
+  ctx.font = `900 13px ${SIGN_FONT}`;
+  let tw = ctx.measureText(name).width;
+  if (sub) {
+    ctx.font = `900 10.5px ${SIGN_FONT}`;
+    tw = Math.max(tw, ctx.measureText(sub).width);
+  }
+  const w = Math.min(136, Math.max(64, tw + 26));
+  return { w, fit: Math.min(1, (w - 16) / tw) };
+}
+/** Табличка «здесь» — название места на прямоугольной доске на двух столбиках: name и (мельче) вторая строка sub. */
+export function paintNameplate(ctx, name, sub) {
+  const { w } = nameplateLayout(ctx, name, sub),
+    h = sub ? 36 : 24,
+    top = -30 - h,
+    px = w / 2 - 12;
+  shadow(ctx, 0, 12, w / 2 - 4, 3.5);
+  for (const x of [-px, px]) {
+    shadow(ctx, x, 12, 5, 2);
+    fillRR(ctx, x - 3, top + 6, 6, 18 - top - 6, 2, WOOD_D, OUT, 1.7);
+  }
+  fillRR(ctx, -w / 2, top + 2, w, h, 5, 'rgba(0,0,0,.16)');
+  fillRR(ctx, -w / 2, top, w, h, 5, WOOD_L, OUT, 2);
+  ctx.fillStyle = 'rgba(120,70,30,.18)';
+  ctx.fillRect(-w / 2 + 4, top + h - 6, w - 8, 1.5);
+  for (const x of [-w / 2 + 5, w / 2 - 5]) ell(ctx, x, top + 5, 1.6, 1.6, '#7a4a22');
+  if (sub) {
+    signText(ctx, name, 0, top + 12, w - 16, 13);
+    signText(ctx, sub, 0, top + 25.5, w - 16, 10.5);
+  } else signText(ctx, name, 0, top + h / 2, w - 16, 13);
+}
+
 defineObjects({
   lamp: {
     solid: true,
@@ -218,47 +328,20 @@ defineObjects({
   signpost: {
     solid: true,
     art: {
-      signpost: [
-        [-110, -88, 110, 20],
-        (ctx, text, text2) => {
-          shadow(ctx, 0, 13, 10, 3.5);
-          fillRR(ctx, -3, -70, 6, 84, 2, WOOD_D, OUT, 1.8);
-          ell(ctx, 0, -72, 4, 3, WOOD, OUT, 1.5);
-          const board = (str, y, dir) => {
-            ctx.font = '900 12px ui-rounded, "Trebuchet MS", sans-serif';
-            const w = Math.min(104, Math.max(46, ctx.measureText(str).width + 22)),
-              x0 = dir > 0 ? -12 : 12 - w;
-            // доска-стрелка
-            const tip = dir > 0 ? x0 + w + 9 : x0 - 9;
-            poly(
-              ctx,
-              dir > 0
-                ? [x0, y - 9, x0 + w, y - 9, tip, y, x0 + w, y + 9, x0, y + 9]
-                : [x0 + w, y - 9, x0, y - 9, tip, y, x0, y + 9, x0 + w, y + 9],
-              WOOD_L,
-              OUT,
-              1.8,
-            );
-            ctx.fillStyle = '#5b3413';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            let size = 12;
-            const tw = ctx.measureText(str).width;
-            if (tw > w - 12) {
-              size *= (w - 12) / tw;
-              ctx.font = `900 ${size}px ui-rounded, "Trebuchet MS", sans-serif`;
-            }
-            ctx.fillText(str, x0 + w / 2, y + 1);
-          };
-          if (text) board(text, -58, 1);
-          if (text2) board(text2, -36, -1);
-        },
-      ],
+      signpost: [[-110, -88, 110, 20], (ctx, a, b) => paintSignpost(ctx, a, b)],
+      signHere: [[-72, -92, 72, 20], (ctx, a, b) => paintNameplate(ctx, a, b)],
     },
-    // text, text2 — строка или функция () => строка (табличка, которая меняется в игре: «🔒 Спроси Бусю» → «🚌 Караван»)
+    // text, text2 — строка или функция () => строка (табличка, которая меняется в игре: «🔒 Спроси Бусю» → «🚌 Караван»);
+    // dir, dir2 — куда показывает доска ('l', 'r', 'u', 'd'; по умолчанию верхняя — 'r', нижняя — 'l'; '' — простая
+    // доска без стрелки, пояснение к верхней); here — табличка-название места, где стоишь (две строки на одной доске)
     draw(ctx, o) {
       const tx = (v) => (typeof v === 'function' ? v() : v) || '';
-      put('signpost', o.x, o.y, tx(o.text), tx(o.text2));
+      if (o.here) put('signHere', o.x, o.y, tx(o.text), tx(o.text2));
+      else {
+        const t1 = tx(o.text),
+          t2 = tx(o.text2);
+        put('signpost', o.x, o.y, t1 && `${o.dir ?? 'r'}|${t1}`, t2 && `${o.dir2 ?? 'l'}|${t2}`);
+      }
     },
   },
   postbox: {

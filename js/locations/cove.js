@@ -111,7 +111,7 @@ function build(m) {
   ])
     m.add(type, x, y);
   m.add('sandcastle', ...AT.castle);
-  m.add('signpost', 10, 7, { text: '🌊 Грот', text2: '⛵ В город' });
+  m.add('signpost', 10, 7, { text: '🌊 Грот', dir: 'l', text2: '⛵ В город' }); // грот и есть дорога в город
 }
 
 // ---------- ракушки: море выносит их на песок (находки pickups, по жребию дня) ----------

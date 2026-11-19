@@ -519,6 +519,7 @@ export function createSea(cfg) {
       g.add('signpost', ...PORT.sign, {
         text: `${land.icon} ${land.name}`,
         text2: () => (landOpen(PORT.land) ? '⛵ Причал' : '🔒 Спроси Боба'),
+        here: true, // табличка «здесь»: название острова причала
       });
     }
   }

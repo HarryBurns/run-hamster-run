@@ -280,8 +280,8 @@ function build(m) {
   // кораблик у причала; указатели
   m.put1('mooredBoat', 24, 39);
   m.clear(25, 39);
-  m.put1('signpost', 24, 30, { text: '⛺ Лагерь', text2: '🌴 Роща' });
-  m.put1('signpost', 23, 18, { text: '🌉 Мост', text2: '🌊 Река' });
+  m.put1('signpost', 21, 31, { text: '⛺ Лагерь', dir: 'u', text2: '🌴 Роща' }); // у развилки, левее тропы: правее дерево заслоняло доски
+  m.put1('signpost', 23, 18, { text: '🌉 Мост', dir: 'u', text2: '🌊 Река', dir2: 'r' });
   m.put1('signpost', 23, 10, { text: '💦 Водопад', text2: '🗿 Храм' });
   // перед зданиями — свободно (там двери)
   for (const b of [AT.dock, AT.camp, AT.temple])

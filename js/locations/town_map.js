@@ -217,11 +217,12 @@ function gates(k, gateOpen) {
   const { keep, put1 } = k;
   // ---- выезды из города ----
   put1('gate', 1, 2, { open: () => gateOpen('forest'), text: '🌲 ЛЕС' });
-  put1('signpost', 3, 4, { text: '🌲 В лес', solid: true });
+  put1('signpost', 3, 4, { text: '🌲 В лес', dir: 'u', solid: true });
   put1('busstop', 89, 25);
   // табличка остановки: пока пустыня закрыта — замочек и подсказка, кто знает дорогу (Буся)
   put1('signpost', 92, 25, {
     text: '🐪 В пустыню',
+    dir2: '', // под стрелкой — простая доска: открыт ли караван
     text2: () => (landOpen('desert') ? '🚌 Караван' : '🔒 Спроси Бусю'),
   });
   put1('barrier', 94, 26, { open: () => gateOpen('desert') });
@@ -249,7 +250,7 @@ function northStreet(k) {
     put1('planter', x, 12, { v });
   for (const x of [41, 61, 65, 85]) put1('bench', x, 12);
   put1('bin', 62, 12);
-  put1('signpost', 31, 16, { text: 'Площадь →', text2: '← Вилла' });
+  put1('signpost', 31, 16, { text: '⛲ Площадь', text2: '🏡 Вилла' });
   // скверик у небоскрёбов
   put1('statue', 63, 9);
   for (const [x, y, v] of [
@@ -300,7 +301,7 @@ function market(k) {
   put1('flowerbed', 43, 23, { v: 2 });
   put1('flowerbed', 60, 25, { v: 0 });
   put1('bin', 53, 20);
-  put1('signpost', 62, 25, { text: 'Пирс ↓', text2: '← Рынок', solid: true });
+  put1('signpost', 62, 25, { text: '🎣 Пирс', dir: 'd', text2: '🧺 Рынок', solid: true });
   // у ТЦ «Вкусный», больницы и школы
   put1('planter', 32, 24, { v: 1 });
   put1('planter', 40, 24, { v: 1 });
@@ -377,7 +378,7 @@ function westYards(k) {
   put1('lamp', 18, 38);
   put1('lamp', 27, 37);
   put1('bench', 14, 38);
-  put1('signpost', 28, 35, { text: '← Садовая улочка' });
+  put1('signpost', 28, 35, { text: 'Садовая улочка', dir: 'l' });
   put1('hedge', 13, 39);
   put1('hedge', 14, 39);
   keep(5, 34, 6, 35);
@@ -389,7 +390,7 @@ function westYards(k) {
 function park(k) {
   const { keep, put1 } = k;
   // ---- парк ----
-  put1('signpost', 41, 29, { text: '🌳 Парк' });
+  put1('signpost', 41, 29, { text: '🌳 Парк', here: true }); // табличка «здесь»: вход в парк
   put1('lamp', 39, 30);
   put1('lamp', 33, 37);
   put1('lamp', 47, 39);
@@ -476,7 +477,7 @@ function eastQuarter(k) {
   put1('lamp', 84, 38);
   put1('planter', 67, 35, { v: 2 });
   put1('planter', 71, 35, { v: 2 });
-  put1('signpost', 65, 36, { text: 'Бассейн →' });
+  put1('signpost', 65, 36, { text: '🏊 Бассейн' });
   // Сеня: спортплощадка
   fence([85, 29, 93, 36], 'tlr', undefined, 1);
   put1('hoop', 92, 34);
@@ -506,8 +507,8 @@ function eastQuarter(k) {
   // отель: пальмы в кадках, фонари, указатели (ещё один — на Морском проспекте, у Главной улицы)
   for (const x of [84, 86, 91, 93]) put1('planter', x, 47, { v: 2 });
   put1('lamp', 82, 47);
-  put1('signpost', 81, 47, { text: '🏨 Отель →', text2: '🌀 Горки' });
-  put1('signpost', 65, 28, { text: '🏨 Отель ↘', text2: 'на набережной' });
+  put1('signpost', 81, 47, { text: '🏨 Отель', text2: '🌀 Горки', dir2: 'r' });
+  put1('signpost', 65, 28, { text: '🏨 Отель', dir: 'd' }); // вниз по улице к набережной, там направо
 }
 
 /** Набережная и ореховые скалы по краям пляжа, камни в воде у берега. */
@@ -519,7 +520,7 @@ function seafront(k) {
   for (let x = 4; x < MW; x += 8) if (g[47][x] === 'g' && !solid[47][x] && !taken.has(x + ',47')) put1('lamp', x, 47);
   for (const x of [25, 34, 45, 62, 81])
     if (g[47][x] === 'g' && !solid[47][x] && !taken.has(x + ',47')) put1('bench', x, 47);
-  put1('signpost', 65, 47, { text: 'Пирс ↓', text2: '← Пляж', solid: true });
+  put1('signpost', 65, 47, { text: '🎣 Пирс', dir: 'd', text2: '🏖️ Пляж', solid: true });
   // ---- ореховые скалы по краям пляжа и камни в воде у берега (этап 10: по их цвету назван городок) ----
   put1('nutcliff', 0, 53, { v: 0 });
   put1('nutcliff', 0, 55, { v: 1 });

@@ -266,7 +266,7 @@ function build(m) {
   for (const x of [AT.treehouse[0], AT.treehouse[0] + 1]) m.clear(x, AT.treehouse[1]);
   m.add('treehouse', ...AT.treehouse);
   // указатель у ворот
-  m.put1('signpost', 12, 36, { text: '🏙️ Город', text2: '🔥 Костёр' });
+  m.put1('signpost', 12, 36, { text: '🔥 Костёр', dir: 'u', text2: '🏙️ Город', dir2: 'd' });
   // перед зданиями — свободно (там двери)
   for (const b of [AT.hut, AT.station, AT.cabin])
     for (let x = b.x - 1; x <= b.x + b.w; x++) for (let y = b.y; y <= b.y + b.h + 1; y++) m.clear(x, y);
