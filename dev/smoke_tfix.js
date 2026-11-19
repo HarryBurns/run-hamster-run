@@ -3,12 +3,13 @@
 //   Т2 — холл Хомяк-Тауэра вечером темнеет (свет ламп), к празднику украшен;
 //   repair (ревью Б4) — имя хомячка, питомца и название заведения обрезаются до длины поля ввода на любом пути;
 //   подсказки не ложатся на окно «Игра открыта дважды» (оно важнее);
+//   кораблик, который плывёт сам (кнопка места на карте), не подсказывает «Нажимай на воду»;
 //   Т8 — на iPad лёжа вилла видна целиком, отель — все этажи по высоте (а не масштаб 1,05, как на телефоне).
 // Подключается из dev/smoke.js. Только эти шаги:  node dev/smoke.js <url> "step:исправления"
 const lib = require('./lib.js');
 
 module.exports = async function tfix(ctx) {
-  const { page, step, ev, wait, closeAll, expect, fresh: newGame, frames, go, until } = lib(ctx);
+  const { page, step, ev, wait, closeAll, expect, fresh: newGame, frames, go, until, teleport, toasts } = lib(ctx);
   const fresh = () => newGame({ day: 18, minutes: 12 * 60, weather: 'sun', dayFlags: true }); // июль, полдень
 
   await step('исправления Т7: колесо и пианино в квартире — письмо и звёздочка ведут в квартиру, а не к вилле', async () => {
@@ -196,5 +197,24 @@ module.exports = async function tfix(ctx) {
     });
     expect(await seen(), 'над обычным окном подсказок не видно');
     await closeAll();
+  });
+
+  await step('исправления: кнопка «Джунгли» на карте сажает в кораблик без подсказки «Нажимай на воду»', async () => {
+    await fresh();
+    await ev(() => {
+      const d = window.__dev;
+      if (!d.QuestState.landOpen('jungle')) d.actions.openLand('jungle');
+    });
+    await go('world');
+    await closeAll();
+    await teleport(63, 55);
+    await page.click('#hud button:has-text("Карта")');
+    await page.waitForSelector('.overlay .lands-row button', { timeout: 4000 });
+    await ev(() => [...document.querySelectorAll('.overlay .lands-row button')].find((q) => q.textContent.includes('Джунгли')).click());
+    await until(() => window.__dev.World.isBoating(), undefined, { timeout: 15000, msg: 'не села в кораблик' });
+    await wait(300);
+    const r = await ev(() => ({ flag: !!window.__dev.G.state.flags.boatHint }));
+    const t = await toasts();
+    expect(!/Нажимай на воду/.test(t) && !r.flag, 'кораблик плывёт сам, а подсказка «Нажимай на воду» есть', { t, r });
   });
 };

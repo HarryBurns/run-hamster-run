@@ -532,7 +532,9 @@ export function createSea(cfg) {
   // Одно расстояние (в клетках) на «сойти на берег» и «сесть обратно»: откуда сошла — оттуда и сядет, даже простуженная,
   // которой в воду нельзя (Б1 ревью мест: было 2,6 и 2,4 — сойдя «с дальней клетки», на кораблик было не сесть).
   const BOARD_R = 2.6;
-  function boardBoat() {
+  /** Сесть в кораблик. auto — кораблик сейчас поплывёт сам (кнопка места на «карте мира»): подсказка «нажимай на
+   * воду» ни к чему — она покажется, когда хомячок сядет сама. Из pending движок зовёт fn(сцена) — это не auto. */
+  function boardBoat(auto) {
     const p = sc.p,
       bt = boatState();
     if (dist(p.x, p.y, bt.x, bt.y) > T * BOARD_R) return;
@@ -546,7 +548,7 @@ export function createSea(cfg) {
     sfx('splash');
     sfx('ok');
     award('x_boat');
-    hintOnce('boatHint', 'Ты на кораблике! Нажимай на воду — поплывём. Теперь можно и за буйки! ⛵');
+    if (auto !== true) hintOnce('boatHint', 'Ты на кораблике! Нажимай на воду — поплывём. Теперь можно и за буйки! ⛵');
     emit('boat');
     emit('hud');
     touchState();
@@ -970,7 +972,7 @@ export function createSea(cfg) {
       const bt = boatState();
       s.goNear(bt.x, bt.y, {
         fn: () => {
-          boardBoat();
+          boardBoat(true);
           if (isBoating()) sailTo(land);
           else toast('До кораблика отсюда не достать — подойди к нему поближе ⛵');
         },
