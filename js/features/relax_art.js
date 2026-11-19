@@ -50,7 +50,14 @@ export function drawSitter(ctx, how, look, lk, x, y, t, ph, o, spot, dir, ct) {
     const s = SP.get(`rx:${lk}:lie:${cov}:${doze}:${br}:${doze ? 1 : shut}`, HB, (c) => {
       c.save();
       c.scale(1, 0.84);
-      drawHamster(c, 0, 0, PS * 0.74, look, { sit: true, shadow: false, sleep: !!doze, happy: !doze, blink: doze ? 1 : shut, time: br * 0.3 });
+      drawHamster(c, 0, 0, PS * 0.74, look, {
+        sit: true,
+        shadow: false,
+        sleep: !!doze,
+        happy: !doze,
+        blink: doze ? 1 : shut,
+        time: br * 0.3,
+      });
       c.restore();
       const top = -15 - br * 0.4;
       fillRR(c, -13, top, 26, 17 + br * 0.4, 4, '#fff8ec', OUT, 1.6);
@@ -113,7 +120,12 @@ export function drawSitter(ctx, how, look, lk, x, y, t, ph, o, spot, dir, ct) {
     const u = Math.min(1, ct / RELAX.slide),
       q = u * u * (3 - 2 * u),
       b = bez(q, [-10, -50], [14, -44], [24, -2], [38, 10]);
-    const s = frame(`rx:${lk}:slide:${q > 0.15 && q < 0.95 ? 1 : 0}`, look, { sit: true, shadow: false, happy: true, armsUp: q > 0.15 && q < 0.95 });
+    const s = frame(`rx:${lk}:slide:${q > 0.15 && q < 0.95 ? 1 : 0}`, look, {
+      sit: true,
+      shadow: false,
+      happy: true,
+      armsUp: q > 0.15 && q < 0.95,
+    });
     SP.draw(s, o.x + b[0], o.y + b[1]);
   }
 }
@@ -155,7 +167,8 @@ export function bubble(ctx, text, x, y) {
     const words = text.split(' ');
     let a = '',
       i = 0;
-    while (i < words.length && ctx.measureText(a + words[i]).width < Math.max(90, ctx.measureText(text).width / 2)) a += words[i++] + ' ';
+    while (i < words.length && ctx.measureText(a + words[i]).width < Math.max(90, ctx.measureText(text).width / 2))
+      a += words[i++] + ' ';
     lines = [a.trim(), words.slice(i).join(' ')];
   }
   const w = Math.max(...lines.map((l) => ctx.measureText(l).width)) + 18,

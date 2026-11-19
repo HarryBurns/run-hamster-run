@@ -239,7 +239,10 @@ function startGame(fresh) {
         <p>🪙 Монеты можно <b>заработать</b>: поработай в школе, больнице или ресторане, выполняй задания из писем, продавай на рынке урожай и рыбу.</p>
         <p>✉️ У входной двери висит <b>почтовый ящик</b> — в нём уже лежит первое письмо. Выходи через дверь на первом этаже!</p>
         <p>🚪 А скоро заглянут <b>соседи</b> — они всё покажут и расскажут.</p>`,
-      buttons: [{ text: 'Поехали!', act: 'go' }, { text: '❓ Как играть', cls: 'yellow', act: 'help' }],
+      buttons: [
+        { text: 'Поехали!', act: 'go' },
+        { text: '❓ Как играть', cls: 'yellow', act: 'help' },
+      ],
     }).then((i) => {
       if (i === 1) F.showHelp();
     });
@@ -253,5 +256,7 @@ every(20, persist);
 if (DEV) installDevHooks({ F: F.devAll() });
 migrateAllPhotos(); // снимки альбома, оставшиеся в localStorage, — в IndexedDB (один раз; освобождает место под игры)
 // новая игра: сначала вступительная сценка — переезд в Ореховую Гавань (features/intro.js), потом сама игра
-openTitle({ start: (fresh) => (fresh ? F.playIntro({ name: G.state.name }).then(() => startGame(true)) : startGame(false)) });
+openTitle({
+  start: (fresh) => (fresh ? F.playIntro({ name: G.state.name }).then(() => startGame(true)) : startGame(false)),
+});
 startLoop(canvas, { onBroken: showBroken, onGesture: unlockAudio });

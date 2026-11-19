@@ -410,7 +410,8 @@ module.exports = async function wares(ctx) {
         for (let i = 0; i < tabs.length; i++) {
           // семена, инструменты, предметы двора и транспорт (этап 17б) — не «вещи» витрины дня, продаются всегда;
           // праздничная полка (этап 15) — свои дни около праздника
-          if (['Семена', 'Для походов', 'Для двора', 'Колёса', 'К празднику'].some((t) => tabs[i].includes(t))) continue;
+          if (['Семена', 'Для походов', 'Для двора', 'Колёса', 'К празднику'].some((t) => tabs[i].includes(t)))
+            continue;
           await page.locator('.overlay .tab').nth(i).click();
           await frames(2);
           const n = await ev(() => ({
@@ -780,7 +781,9 @@ module.exports = async function wares(ctx) {
       await page.reload();
       await page.waitForSelector(L.sel('continue'));
       await L.cont();
-      await until(() => /шлёпанцы/.test(document.querySelector('#toasts').textContent), undefined, { timeout: 7000 }).catch(() => {}); // подарок — через 3,5 с
+      await until(() => /шлёпанцы/.test(document.querySelector('#toasts').textContent), undefined, {
+        timeout: 7000,
+      }).catch(() => {}); // подарок — через 3,5 с
       const toast = () => ev(() => (document.querySelector('#toasts') || {}).textContent || '');
       let t = await toast();
       s = await state();

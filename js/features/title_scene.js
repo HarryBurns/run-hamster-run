@@ -145,7 +145,6 @@ export function createTitleScene(canvas, o) {
     return d;
   }
 
-
   // ---------- кромка воды ----------
   const surge = () => {
     const t = T - wave.t;
@@ -607,8 +606,6 @@ export function createTitleScene(canvas, o) {
     for (let i = texts.length - 1; i >= 0; i--) if ((texts[i].t += dt) > texts[i].life) texts.splice(i, 1);
   }
 
-
-
   // рисование — в title_art.js; S — что ему видно отсюда (let — через геттеры: значения меняются)
   const S = {
     canvas,
@@ -676,7 +673,26 @@ export function createTitleScene(canvas, o) {
       return sy;
     },
   };
-  const { paintBg, label, drawSea, drawFish, drawShip, drawCloud, drawPalm, drawNut, drawCrab, drawGull, drawShell, drawSnowman, drawKite, drawStrokes, drawHam, drawFly, drawWeather, drawNightSky } = createTitleArt(S);
+  const {
+    paintBg,
+    label,
+    drawSea,
+    drawFish,
+    drawShip,
+    drawCloud,
+    drawPalm,
+    drawNut,
+    drawCrab,
+    drawGull,
+    drawShell,
+    drawSnowman,
+    drawKite,
+    drawStrokes,
+    drawHam,
+    drawFly,
+    drawWeather,
+    drawNightSky,
+  } = createTitleArt(S);
   function frame(now) {
     if (dead) return;
     raf = requestAnimationFrame(frame);

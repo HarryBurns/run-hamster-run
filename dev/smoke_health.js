@@ -11,7 +11,28 @@ const lib = require('./lib.js');
 
 module.exports = async function health(ctx) {
   const L = lib(ctx);
-  const { page, step, ev, wait, closeAll, until, untilScene, untilPanel, frames, go, T, expect, state, dialogText, panelText, toasts, clearToasts, scene, tap, mgClose } = L;
+  const {
+    page,
+    step,
+    ev,
+    wait,
+    closeAll,
+    until,
+    untilScene,
+    untilPanel,
+    frames,
+    go,
+    T,
+    expect,
+    state,
+    dialogText,
+    panelText,
+    toasts,
+    clearToasts,
+    scene,
+    tap,
+    mgClose,
+  } = L;
   const dialogBtns = () => ev(() => [...document.querySelectorAll('.dialog .btn')].map((b) => b.textContent));
   /** Войти в здание города; ждём отклика (диалог, окно, сцена), но не дольше 500 мс. */
   const enter = (id) => L.enter(id, 500);
@@ -19,7 +40,8 @@ module.exports = async function health(ctx) {
    * Новая игра с чистого листа. Шаги про болезнь написаны для игры, которая началась 1 января (холод, ледяное море,
    * первые дни 0–2): january — перевести календарь на 1 января, как у игр до этапа 10 (новая игра начинается 1 июня).
    */
-  const fresh = (january = true) => L.fresh(january ? { set: 's.day = 0; s.startDay = 0; s.immuneUntil = 3; s.weather = "snow";' } : {});
+  const fresh = (january = true) =>
+    L.fresh(january ? { set: 's.day = 0; s.startDay = 0; s.immuneUntil = 3; s.weather = "snow";' } : {});
   /** Подложить сохранение и открыть его («Продолжить»). */
   const openSave = async (raw) => {
     await L.putSave(raw);
@@ -58,7 +80,12 @@ module.exports = async function health(ctx) {
   await step('болезнь: в первые 3 дня новой игры не болеет', async () => {
     await fresh(false); // как у игрока: игра началась 1 июня (день 15)
     const s = await state();
-    expect(s.v === 5 && s.sick === null && s.day === 15 && s.immuneUntil === 18, 'новая игра', [s.v, s.sick, s.day, s.immuneUntil]);
+    expect(s.v === 5 && s.sick === null && s.day === 15 && s.immuneUntil === 18, 'новая игра', [
+      s.v,
+      s.sick,
+      s.day,
+      s.immuneUntil,
+    ]);
     // со всеми неосторожностями в ночи на 1-й и 2-й день — ничего; по-настоящему спим две ночи
     for (const d of [15, 16]) {
       await setDay(d, ALL);
@@ -303,7 +330,9 @@ module.exports = async function health(ctx) {
     expect(deep, 'нет глубокой воды');
     await clearToasts();
     await ev(() => window.__dev.World.dive());
-    await until(() => /купаться нельзя/.test(document.querySelector('#toasts').textContent), undefined, { timeout: 2000 }).catch(() => {});
+    await until(() => /купаться нельзя/.test(document.querySelector('#toasts').textContent), undefined, {
+      timeout: 2000,
+    }).catch(() => {});
     expect((await scene()) === 'world' && /купаться нельзя/.test(await toasts()), 'нырнула простуженной');
     // домашний бассейн на вилле — нельзя, ванна — можно
     await go('villa');
@@ -322,7 +351,11 @@ module.exports = async function health(ctx) {
       d.actions.addItem('dishes', 'honey_tea', 1);
       d.F.eat('honey_tea');
     });
-    await until(() => window.__dev.G.state.dayFlags.sickTea && /полегче/.test(document.querySelector('#toasts').textContent), undefined, { timeout: 3000 }).catch(() => {});
+    await until(
+      () => window.__dev.G.state.dayFlags.sickTea && /полегче/.test(document.querySelector('#toasts').textContent),
+      undefined,
+      { timeout: 3000 },
+    ).catch(() => {});
     const s = await state();
     const k2 = await ev(async () => (await import('./js/core/state.js')).walkK());
     expect(s.sick && s.dayFlags.sickTea && k2 === 1, 'чай не помог', [s.sick, s.dayFlags, k2]);
@@ -384,7 +417,9 @@ module.exports = async function health(ctx) {
     expect(s.sick && s.day === 21, 'выздоровела слишком рано', [s.day, s.sick]);
     await clearToasts();
     await sleep(); // день 22 — здорова сама
-    await until(() => /выздоровела/.test(document.querySelector('#toasts').textContent), undefined, { timeout: 3000 }).catch(() => {});
+    await until(() => /выздоровела/.test(document.querySelector('#toasts').textContent), undefined, {
+      timeout: 3000,
+    }).catch(() => {});
     s = await state();
     expect(!s.sick && s.day === 22 && s.immuneUntil === 26, 'не выздоровела сама', [s.day, s.sick, s.immuneUntil]);
     expect(/выздоровела/.test(await toasts()), 'нет подсказки о выздоровлении', await toasts());

@@ -53,11 +53,16 @@ export const halfW = (v) => 0.07 + 0.4 * v;
  * Наряд ёлки строкой (этап 15: игрушки остаются на большой ёлке на площади до конца праздника — locations/holidays.js):
  * по два знака на место — номер игрушки в KINDS и номер цвета шара в BALLS, «--» — место пустое.
  */
-export const treeLayout = (placed) => placed.map((q) => (q ? `${KINDS.findIndex((k) => k.id === q.kind)}${Math.max(0, BALLS.indexOf(q.col))}` : '--')).join('');
+export const treeLayout = (placed) =>
+  placed
+    .map((q) => (q ? `${KINDS.findIndex((k) => k.id === q.kind)}${Math.max(0, BALLS.indexOf(q.col))}` : '--'))
+    .join('');
 /** Обратно: [{ i — место, kind, col }] из строки treeLayout. */
 export const readLayout = (str) =>
   SPOTS.map((_, i) => str.slice(i * 2, i * 2 + 2))
-    .map((q, i) => (q && q[0] !== '-' && KINDS[+q[0]] ? { i, kind: KINDS[+q[0]].id, col: BALLS[+q[1]] || BALLS[0] } : null))
+    .map((q, i) =>
+      q && q[0] !== '-' && KINDS[+q[0]] ? { i, kind: KINDS[+q[0]].id, col: BALLS[+q[1]] || BALLS[0] } : null,
+    )
     .filter(Boolean);
 
 /** Игрушка kind в точке (x, y) — точка подвеса; s — масштаб; col — цвет шара; t — время (гирлянда мигает). */
@@ -76,7 +81,13 @@ export function toyArt(ctx, kind, x, y, s, col = BALLS[0], t = 0) {
     star(ctx, x - 1.5 * s, y + 9.5 * s, 3.5 * s, '#fff3bf');
   } else if (kind === 'icicle') {
     line(ctx, x, y - 4 * s, x, y + 1 * s, OUT, 1.2);
-    poly(ctx, [x - 6 * s, y + 1 * s, x + 6 * s, y + 1 * s, x + 1 * s, y + 26 * s, x - 1 * s, y + 26 * s], '#d0ebff', OUT, 1.4);
+    poly(
+      ctx,
+      [x - 6 * s, y + 1 * s, x + 6 * s, y + 1 * s, x + 1 * s, y + 26 * s, x - 1 * s, y + 26 * s],
+      '#d0ebff',
+      OUT,
+      1.4,
+    );
     line(ctx, x - 2 * s, y + 4 * s, x - 0.5 * s, y + 18 * s, 'rgba(255,255,255,.9)', 1.6 * s);
   } else if (kind === 'bow') {
     ell(ctx, x - 7 * s, y + 4 * s, 7 * s, 5 * s, '#e03131', OUT, 1.4, -0.35);
@@ -145,7 +156,15 @@ function toyPic(kind, size = 44) {
   const x = c.getContext('2d');
   x.scale(2, 2);
   const s = size / 46;
-  toyArt(x, kind, size / 2 + (kind === 'candy' ? 1 : 0), kind === 'garland' ? size * 0.35 : size * 0.18, kind === 'garland' ? s * 0.78 : s * 1.15, BALLS[0], 0);
+  toyArt(
+    x,
+    kind,
+    size / 2 + (kind === 'candy' ? 1 : 0),
+    kind === 'garland' ? size * 0.35 : size * 0.18,
+    kind === 'garland' ? s * 0.78 : s * 1.15,
+    BALLS[0],
+    0,
+  );
   return `<img src="${c.toDataURL()}" width="${size}" height="${size}" alt="">`;
 }
 
@@ -339,7 +358,13 @@ export default {
         const p = spotXY(i, g),
           ex = p.x - a.x,
           ey = p.y - a.y;
-        if ((dx && Math.sign(ex) !== dx) || (dy && Math.sign(ey) !== dy) || (dx && Math.abs(ex) < 4) || (dy && Math.abs(ey) < 4)) return;
+        if (
+          (dx && Math.sign(ex) !== dx) ||
+          (dy && Math.sign(ey) !== dy) ||
+          (dx && Math.abs(ex) < 4) ||
+          (dy && Math.abs(ey) < 4)
+        )
+          return;
         const d = Math.abs(ex) + Math.abs(ey) * (dx ? 3 : 1) + Math.abs(ex) * (dy ? 2 : 0);
         if (d < bd) {
           bd = d;
@@ -362,21 +387,22 @@ export default {
     };
     host.on(window, 'keydown', kd);
     // для автотеста (dev/smoke_games.js): места (CSS-пиксели канвы), что где висит, можно ли звезду
-    if (DEV) cv.canvas.__tree = () => {
-      const g = L();
-      return {
-        w: cv.w,
-        h: cv.h,
-        sel,
-        spots: SPOTS.map((_, i) => ({ ...spotXY(i, g), kind: placed[i] ? placed[i].kind : null })),
-        top: topXY(g),
-        placed: count(),
-        kinds: kindsUsed(),
-        ready: starReady(),
-        starOn: !!topOn,
-        over,
+    if (DEV)
+      cv.canvas.__tree = () => {
+        const g = L();
+        return {
+          w: cv.w,
+          h: cv.h,
+          sel,
+          spots: SPOTS.map((_, i) => ({ ...spotXY(i, g), kind: placed[i] ? placed[i].kind : null })),
+          top: topXY(g),
+          placed: count(),
+          kinds: kindsUsed(),
+          ready: starReady(),
+          starOn: !!topOn,
+          over,
+        };
       };
-    };
 
     // ---------- рисование ----------
     function tree(g) {
@@ -452,13 +478,21 @@ export default {
           hw = 70;
         fillRR(ctx, hx, gy - hh, hw, hh + 10, 4, '#3b4a8a', null);
         for (let r = 0; r < 2; r++)
-          for (let c = 0; c < 2; c++) fillRR(ctx, hx + 12 + c * 30, gy - hh + 14 + r * 24, 14, 12, 2, (i + r + c) % 3 ? '#ffe066' : '#5c6bc0');
+          for (let c = 0; c < 2; c++)
+            fillRR(ctx, hx + 12 + c * 30, gy - hh + 14 + r * 24, 14, 12, 2, (i + r + c) % 3 ? '#ffe066' : '#5c6bc0');
       }
       ctx.fillStyle = '#eef6ff';
       ctx.fillRect(0, gy, W, H - gy);
       // тёплое сияние, когда звезда надета
       if (topOn) {
-        const gl = ctx.createRadialGradient(g.cx, g.crownTop + g.crownH * 0.5, 0, g.cx, g.crownTop + g.crownH * 0.5, g.crownH);
+        const gl = ctx.createRadialGradient(
+          g.cx,
+          g.crownTop + g.crownH * 0.5,
+          0,
+          g.cx,
+          g.crownTop + g.crownH * 0.5,
+          g.crownH,
+        );
         gl.addColorStop(0, 'rgba(255,230,140,.45)');
         gl.addColorStop(1, 'rgba(255,230,140,0)');
         ctx.fillStyle = gl;
@@ -472,7 +506,16 @@ export default {
           q = placed[i];
         if (!q) {
           const pulse = 0.5 + 0.5 * Math.sin(t * 4 + i);
-          ell(ctx, p.x, p.y + 8 * s, 9 * s, 9 * s, `rgba(255,255,255,${(0.25 + 0.3 * pulse).toFixed(2)})`, 'rgba(255,255,255,.85)', 1.6);
+          ell(
+            ctx,
+            p.x,
+            p.y + 8 * s,
+            9 * s,
+            9 * s,
+            `rgba(255,255,255,${(0.25 + 0.3 * pulse).toFixed(2)})`,
+            'rgba(255,255,255,.85)',
+            1.6,
+          );
         } else {
           const f = flash && flash.i === i ? Math.max(0, 1 - flash.t * 3) : 0,
             sw = Math.sin(t * 2.2 + i) * 0.06;
@@ -499,7 +542,15 @@ export default {
           r = 20 * s + (q < 1 ? 0 : Math.sin(t * 6) * 1.5);
         for (let i = 0; i < 10; i++) {
           const a = (i / 10) * TAU + t * 0.8;
-          line(ctx, tp.x + Math.cos(a) * r * 1.3, y + Math.sin(a) * r * 1.3, tp.x + Math.cos(a) * r * 1.9, y + Math.sin(a) * r * 1.9, 'rgba(255,212,59,.85)', 2.5);
+          line(
+            ctx,
+            tp.x + Math.cos(a) * r * 1.3,
+            y + Math.sin(a) * r * 1.3,
+            tp.x + Math.cos(a) * r * 1.9,
+            y + Math.sin(a) * r * 1.9,
+            'rgba(255,212,59,.85)',
+            2.5,
+          );
         }
         star(ctx, tp.x, y, r, '#ffd43b', OUT, 2.6);
         star(ctx, tp.x - r * 0.2, y - r * 0.2, r * 0.32, '#fff3bf');
@@ -515,11 +566,24 @@ export default {
       const hs = clamp(k * 0.9, 0.55, 1.4),
         hx = g.tall ? g.cx + halfW(1) * g.crownH * 0.75 : g.cx + halfW(1) * g.crownH + 70 * hs,
         jump = flash && flash.t < 0.4 ? Math.sin((flash.t / 0.4) * Math.PI) * 14 * hs : 0;
-      host.drawHamster(ctx, Math.min(W - 40 * hs, hx), g.base - 4 - jump, hs, host.look, { time: t, dir: -1, happy: true, armsUp: !!topOn || jump > 2 });
+      host.drawHamster(ctx, Math.min(W - 40 * hs, hx), g.base - 4 - jump, hs, host.look, {
+        time: t,
+        dir: -1,
+        happy: true,
+        armsUp: !!topOn || jump > 2,
+      });
       // тащим игрушку пальцем
       if (drag && drag.moved) {
         const r = cv.canvas.getBoundingClientRect();
-        toyArt(ctx, drag.kind, ((drag.x - r.left) / r.width) * cv.w, ((drag.y - r.top) / r.height) * cv.h - 12, s * 1.1, BALLS[balls % BALLS.length], t);
+        toyArt(
+          ctx,
+          drag.kind,
+          ((drag.x - r.left) / r.width) * cv.w,
+          ((drag.y - r.top) / r.height) * cv.h - 12,
+          s * 1.1,
+          BALLS[balls % BALLS.length],
+          t,
+        );
       }
       pops.draw(ctx);
     }
@@ -536,7 +600,13 @@ export default {
       tCount.textContent = `🎁 ${n} из ${SPOTS.length} · разных ${kindsUsed()} из ${KINDS.length}`;
       tSay.textContent =
         say ||
-        (topOn ? '🎄 Ёлка наряжена!' : n === 0 ? '👇 Выбери игрушку и нажми на ветку' : n < MIN ? `Ещё ${MIN - n} — и можно звезду!` : '⭐ Можно надеть звезду — или вешай ещё!');
+        (topOn
+          ? '🎄 Ёлка наряжена!'
+          : n === 0
+            ? '👇 Выбери игрушку и нажми на ветку'
+            : n < MIN
+              ? `Ещё ${MIN - n} — и можно звезду!`
+              : '⭐ Можно надеть звезду — или вешай ещё!');
       topBtn.disabled = !starReady();
       topBtn.classList.toggle('ready', starReady());
     }

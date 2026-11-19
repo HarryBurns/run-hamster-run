@@ -7,7 +7,16 @@
 import { clamp } from '../core/util.js';
 import { ell, fillRR, line, poly, emoji } from '../core/draw.js';
 import { NPCS, ING_BY_ID, SEED_BY_ID, TASK_BY_ID, LAND_BY_ID, BIZ_BY_ID } from '../data/index.js';
-import { G, cal, ownsHome, landOpen, guestsWaiting, stepWaits, hotelPoolGuests, hotelRoomGuest } from '../core/state.js';
+import {
+  G,
+  cal,
+  ownsHome,
+  landOpen,
+  guestsWaiting,
+  stepWaits,
+  hotelPoolGuests,
+  hotelRoomGuest,
+} from '../core/state.js';
 import { T, OUT, SP, put, defineTiles, defineObjects } from '../engine/topdown/kinds.js';
 import { createTopDownScene } from '../engine/topdown/scene.js';
 import { run } from '../core/registry.js';
@@ -295,7 +304,13 @@ const PLACES = [
     at: [1.5, 54.5],
     hit: { dx: 80, up: 100, down: 70 },
     stand: [4.5, 54.5],
-    act: { do: 'say', text: ['🪨 Ореховые скалы. На закате они светятся, как скорлупка лесного ореха!', '🪨 Тёплый рыжий камень. Вот почему наш городок — Ореховая Гавань.'] },
+    act: {
+      do: 'say',
+      text: [
+        '🪨 Ореховые скалы. На закате они светятся, как скорлупка лесного ореха!',
+        '🪨 Тёплый рыжий камень. Вот почему наш городок — Ореховая Гавань.',
+      ],
+    },
     key: false,
   },
   {
@@ -303,7 +318,13 @@ const PLACES = [
     at: [94.5, 55.5],
     hit: { dx: 80, up: 100, down: 70 },
     stand: [91.5, 54.5],
-    act: { do: 'say', text: ['🪨 Ореховые скалы. Говорят, в шторм они укрывают гавань от волн.', '🪨 Скалы цвета лесного ореха. Чайки любят сидеть на самой макушке!'] },
+    act: {
+      do: 'say',
+      text: [
+        '🪨 Ореховые скалы. Говорят, в шторм они укрывают гавань от волн.',
+        '🪨 Скалы цвета лесного ореха. Чайки любят сидеть на самой макушке!',
+      ],
+    },
     key: false,
   },
   // конец пирса: рыбалка
@@ -370,11 +391,14 @@ const PLACES = [
     use: () =>
       run(
         winter()
-          ? ask('guard', 'Брр! Зимой в море никто не купается — на вышке пусто. Приходи летом, вместе подежурим! ☀️', [{ text: 'Хорошо' }])
-          : ask('guard', 'Привет! Я спасатель Волна. Подежуришь со мной на вышке? Смотри на море: кто устал плыть или уронил мячик — тому помоги!', [
-              { text: '🛟 На вышку!', cls: 'green', do: 'minigame:lifeguard' },
-              { text: 'Не сейчас' },
-            ]),
+          ? ask('guard', 'Брр! Зимой в море никто не купается — на вышке пусто. Приходи летом, вместе подежурим! ☀️', [
+              { text: 'Хорошо' },
+            ])
+          : ask(
+              'guard',
+              'Привет! Я спасатель Волна. Подежуришь со мной на вышке? Смотри на море: кто устал плыть или уронил мячик — тому помоги!',
+              [{ text: '🛟 На вышку!', cls: 'green', do: 'minigame:lifeguard' }, { text: 'Не сейчас' }],
+            ),
       ),
     key: false,
     map: { icon: '🛟', at: [JOB_SPOTS.lifeguard[0] + 0.5, JOB_SPOTS.lifeguard[1]], label: '🛟 Вышка спасателя' },
@@ -481,7 +505,8 @@ defineObjects({
           const cs = season === 'winter' ? ['#2f9e44', '#2b8a3e', '#2f9e44'] : ['#ff6b9d', '#ffd43b', '#9775fa'];
           [-18, -4, 10].forEach((x, i) => {
             fillRR(ctx, x - 5, -26, 10, 9, 2, '#e8590c', OUT, 1.4);
-            for (let k = 0; k < 4; k++) ell(ctx, x + Math.cos(k * 1.6) * 3.5, -32 + Math.sin(k * 1.6) * 3, 3, 3, cs[i], OUT, 0.8);
+            for (let k = 0; k < 4; k++)
+              ell(ctx, x + Math.cos(k * 1.6) * 3.5, -32 + Math.sin(k * 1.6) * 3, 3, 3, cs[i], OUT, 0.8);
           });
           // лейка
           fillRR(ctx, -32, -6, 12, 12, 3, '#4dabf7', OUT, 1.6);
@@ -559,7 +584,16 @@ defineObjects({
           }
           shadow(ctx, 48, 66, 78, 10);
           // тело скалы
-          poly(ctx, [-27, 68, -29, 22, -19, -18, -3, -50, 17, -63, 39, -49, 55, -70, 80, -62, 98, -38, 116, -10, 123, 30, 119, 68], NUT.base, OUT, 2.4);
+          poly(
+            ctx,
+            [
+              -27, 68, -29, 22, -19, -18, -3, -50, 17, -63, 39, -49, 55, -70, 80, -62, 98, -38, 116, -10, 123, 30, 119,
+              68,
+            ],
+            NUT.base,
+            OUT,
+            2.4,
+          );
           // светлые «полки» сверху
           poly(ctx, [-19, -18, -3, -50, 17, -63, 39, -49, 30, -30, 6, -24], NUT.light);
           poly(ctx, [39, -49, 55, -70, 80, -62, 98, -38, 74, -32, 52, -40], NUT.light);
@@ -868,7 +902,14 @@ function target(sc) {
 function landExit(id, area) {
   const land = LAND_BY_ID[id];
   // своя дорога (go — пустыня: караван-автобус везёт картинкой): за шлагбаумом выполняется действие, а не переход
-  return { id, area, to: land.scene, entry: land.entry, when: () => landOpen(id), ...(land.go ? { act: land.go } : null) };
+  return {
+    id,
+    area,
+    to: land.scene,
+    entry: land.entry,
+    when: () => landOpen(id),
+    ...(land.go ? { act: land.go } : null),
+  };
 }
 
 const town = createTopDownScene({
@@ -937,7 +978,15 @@ const town = createTopDownScene({
       ty = Math.floor(sc.p.y / T);
     for (const id of Object.keys(GATES)) {
       const b = GATES[id].behind;
-      if (from === 'demo_meadow' || from === 'forest' || gateOpen(id) || tx < b[0] || tx > b[2] || ty < b[1] || ty > b[3])
+      if (
+        from === 'demo_meadow' ||
+        from === 'forest' ||
+        gateOpen(id) ||
+        tx < b[0] ||
+        tx > b[2] ||
+        ty < b[1] ||
+        ty > b[3]
+      )
         continue;
       const st = PLACES.find((pl) => pl.id === id).stand;
       sc.p.x = st[0] * T;

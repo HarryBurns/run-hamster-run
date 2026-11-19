@@ -81,11 +81,17 @@ export function createHerbs(list) {
   }
   /** Кружок со значком находки (из кэша спрайтов). */
   const bubble = (id, x, y) =>
-    SP.put('herb:' + id, [-22, -22, 22, 22], (c) => {
-      ell(c, 0, 1.5, 17, 17, 'rgba(60,40,30,.25)');
-      ell(c, 0, 0, 17, 17, '#fffbe6', OUT, 2);
-      emoji(c, FIND_BY_ID[id].e, 0, 0, 20);
-    }, x, y);
+    SP.put(
+      'herb:' + id,
+      [-22, -22, 22, 22],
+      (c) => {
+        ell(c, 0, 1.5, 17, 17, 'rgba(60,40,30,.25)');
+        ell(c, 0, 0, 17, 17, '#fffbe6', OUT, 2);
+        emoji(c, FIND_BY_ID[id].e, 0, 0, 20);
+      },
+      x,
+      y,
+    );
   return {
     built(sc) {
       const m = sc.map;
@@ -117,7 +123,8 @@ export function createHerbs(list) {
       }
       return false;
     },
-    near: (sc) => (near ? { d: dist(sc.p.x, sc.p.y, near.x, near.y) * 0.8, pending: { fn: () => pick(sc, near) } } : null),
+    near: (sc) =>
+      near ? { d: dist(sc.p.x, sc.p.y, near.x, near.y) * 0.8, pending: { fn: () => pick(sc, near) } } : null,
     buttons(sc) {
       if (!near) return [];
       const h = near;

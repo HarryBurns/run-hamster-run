@@ -42,7 +42,24 @@ function drawFir(ctx, x, y, s) {
 /** Камень в снегу. */
 function drawRock(ctx, x, y, s) {
   ell(ctx, x + 3 * s, y + 3 * s, 20 * s, 6 * s, 'rgba(70,90,140,.18)');
-  poly(ctx, [x - 18 * s, y + 2 * s, x - 14 * s, y - 12 * s, x - 2 * s, y - 20 * s, x + 14 * s, y - 14 * s, x + 18 * s, y + 2 * s], '#adb5bd', OUT, 2);
+  poly(
+    ctx,
+    [
+      x - 18 * s,
+      y + 2 * s,
+      x - 14 * s,
+      y - 12 * s,
+      x - 2 * s,
+      y - 20 * s,
+      x + 14 * s,
+      y - 14 * s,
+      x + 18 * s,
+      y + 2 * s,
+    ],
+    '#adb5bd',
+    OUT,
+    2,
+  );
   poly(ctx, [x + 2 * s, y - 19 * s, x + 14 * s, y - 14 * s, x + 18 * s, y + 2 * s, x + 4 * s, y + 2 * s], '#868e96');
   ell(ctx, x - 4 * s, y - 17 * s, 10 * s, 3.5 * s, '#ffffff');
 }
@@ -75,7 +92,8 @@ function drawSled(ctx, x, y, s) {
     line(ctx, x + dx * s, y - 30 * s, x + dx * s, y + 6 * s, '#adb5bd', 2.6 * s);
   }
   fillRR(ctx, x - 22 * s, y - 26 * s, 44 * s, 30 * s, 6 * s, '#e8590c', OUT, 2);
-  for (let i = 1; i < 4; i++) line(ctx, x - 20 * s, y - 26 * s + i * 7.5 * s, x + 20 * s, y - 26 * s + i * 7.5 * s, 'rgba(74,55,40,.35)', 1.2);
+  for (let i = 1; i < 4; i++)
+    line(ctx, x - 20 * s, y - 26 * s + i * 7.5 * s, x + 20 * s, y - 26 * s + i * 7.5 * s, 'rgba(74,55,40,.35)', 1.2);
   // загнутый нос полозьев
   for (const dx of [-16, 16]) {
     ctx.beginPath();
@@ -91,7 +109,15 @@ function drawSkis(ctx, x, y, s, lean = 0) {
   ell(ctx, x + 3 * s, y + 4 * s, 26 * s, 8 * s, 'rgba(70,90,140,.2)');
   for (const dx of [-9, 9]) {
     fillRR(ctx, x + (dx - 3.5) * s + lean * 4 * s, y - 40 * s, 7 * s, 50 * s, 3.5 * s, '#1c7ed6', OUT, 1.6);
-    line(ctx, x + dx * s + lean * 4 * s, y - 36 * s, x + dx * s + lean * 4 * s, y + 6 * s, 'rgba(255,255,255,.55)', 1.4 * s);
+    line(
+      ctx,
+      x + dx * s + lean * 4 * s,
+      y - 36 * s,
+      x + dx * s + lean * 4 * s,
+      y + 6 * s,
+      'rgba(255,255,255,.55)',
+      1.4 * s,
+    );
   }
   for (const dx of [-1, 1]) {
     line(ctx, x + dx * 22 * s, y - 22 * s, x + dx * 26 * s, y + 8 * s, '#868e96', 2.2 * s);
@@ -183,10 +209,17 @@ export default {
 
     function spawn(good) {
       // на лыжах флажков-находок нет — флажки там только у ворот
-      const list = good ? (Math.random() < 0.3 && ride !== 'ski' ? 'flag' : 'flake') : Math.random() < 0.6 ? 'fir' : 'rock';
+      const list = good
+        ? Math.random() < 0.3 && ride !== 'ski'
+          ? 'flag'
+          : 'flake'
+        : Math.random() < 0.6
+          ? 'fir'
+          : 'rock';
       let x = 0.1 + Math.random() * 0.8;
       // хорошее не кладём прямо на плохое
-      for (let k = 0; k < 4 && items.some((q) => q.y < 60 && Math.abs(q.x - x) < 0.12); k++) x = 0.1 + Math.random() * 0.8;
+      for (let k = 0; k < 4 && items.some((q) => q.y < 60 && Math.abs(q.x - x) < 0.12); k++)
+        x = 0.1 + Math.random() * 0.8;
       items.push({ kind: list, x, y: -40, hit: false });
     }
 

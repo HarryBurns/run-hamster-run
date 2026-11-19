@@ -158,8 +158,7 @@ export function drawActors(ctx, sc, t) {
       const shut = blinkAt(t, g.ph) > 0.5 ? 1 : 0;
       const fr = g.moving
         ? Math.floor((((g.walkT % 1) + 1) % 1) * WALK_FRAMES)
-        : WALK_FRAMES +
-          Math.min(IDLE_FRAMES - 1, Math.floor(((Math.sin((t + g.ph) * 2.2) + 1) / 2) * IDLE_FRAMES));
+        : WALK_FRAMES + Math.min(IDLE_FRAMES - 1, Math.floor(((Math.sin((t + g.ph) * 2.2) + 1) / 2) * IDLE_FRAMES));
       const i = fr - WALK_FRAMES,
         time = i < 0 ? 0 : Math.asin((((i + 0.5) / IDLE_FRAMES) * 2 - 1) * 0.9) / 2.2;
       const dir = g.dir === -1 ? -1 : 1;
@@ -185,7 +184,13 @@ export function drawActors(ctx, sc, t) {
         gv = g.carry.give;
       if (gv) {
         const a = Math.min(1, Math.max(0, gv.a));
-        paintGiftBox(ctx, hx + (gv.x - hx) * a, hy + (gv.y - hy) * a - Math.sin(a * Math.PI) * 70, k * (1 + Math.sin(a * Math.PI) * 0.25), g.carry);
+        paintGiftBox(
+          ctx,
+          hx + (gv.x - hx) * a,
+          hy + (gv.y - hy) * a - Math.sin(a * Math.PI) * 70,
+          k * (1 + Math.sin(a * Math.PI) * 0.25),
+          g.carry,
+        );
       } else {
         paintGiftBox(ctx, hx, hy, k, g.carry);
         // лапки держат коробочку с боков

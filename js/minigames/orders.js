@@ -55,8 +55,14 @@ export function domCanvas(w, h, cls) {
 export function makeVisits(host, o) {
   const { later } = host,
     p = o.p;
-  const guests = shuffle(host.friends && host.friends.length ? host.friends : [{ id: 'me', name: o.who || 'Гость', look: host.look }]);
-  const header = el('div', `${p}-top`, `<div class="${p}-count"></div><div class="${o.marks ? `${p}-marks` : `${p}-miss`}"></div>`);
+  const guests = shuffle(
+    host.friends && host.friends.length ? host.friends : [{ id: 'me', name: o.who || 'Гость', look: host.look }],
+  );
+  const header = el(
+    'div',
+    `${p}-top`,
+    `<div class="${p}-count"></div><div class="${o.marks ? `${p}-marks` : `${p}-miss`}"></div>`,
+  );
   const marks = [];
   for (let i = 0; o.marks && i < o.total; i++) marks.push(header.lastChild.appendChild(el('div', `${p}-mark`)));
   const v = {

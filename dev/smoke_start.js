@@ -6,8 +6,26 @@ const lib = require('./lib.js');
 
 module.exports = async function start(ctx) {
   const L = lib(ctx);
-  const { page, step, ev, wait, closeAll, until, untilScene, untilPanel, untilDialog, frames, act, expect, state, panelText, blank, go } = L;
-  const dialogText = async () => L.norm(await ev(() => (document.querySelector('.dialog') || { textContent: '' }).textContent));
+  const {
+    page,
+    step,
+    ev,
+    wait,
+    closeAll,
+    until,
+    untilScene,
+    untilPanel,
+    untilDialog,
+    frames,
+    act,
+    expect,
+    state,
+    panelText,
+    blank,
+    go,
+  } = L;
+  const dialogText = async () =>
+    L.norm(await ev(() => (document.querySelector('.dialog') || { textContent: '' }).textContent));
   const welcome = () => ev(() => window.__dev.F.debugWelcome());
   const intro = () => ev(() => window.__dev.F.introDebug());
   /** Новая игра как у игрока: сценку пропустить, приветствие закрыть; вводная цепочка включена. */
@@ -15,11 +33,20 @@ module.exports = async function start(ctx) {
   /** Ответить первой кнопкой диалога; дождаться следующей реплики (с защитой её кнопок) — или конца разговора с соседом. */
   const reply = async (sel = '.dialog .btn') => {
     await page.click(sel); // старый диалог убирается сразу по нажатию
-    await until(() => !!document.querySelector('.dialog .btn') || !window.__dev.F.debugWelcome().visit, undefined, 'следующая реплика');
+    await until(
+      () => !!document.querySelector('.dialog .btn') || !window.__dev.F.debugWelcome().visit,
+      undefined,
+      'следующая реплика',
+    );
     if (await ev(() => !!document.querySelector('.dialog'))) await wait(380);
   };
   /** Разговор с соседом кончился: диалога нет, визит закончен. */
-  const untilVisitEnd = () => until(() => !document.querySelector('.dialog') && !window.__dev.F.debugWelcome().visit, undefined, 'сосед договорил');
+  const untilVisitEnd = () =>
+    until(
+      () => !document.querySelector('.dialog') && !window.__dev.F.debugWelcome().visit,
+      undefined,
+      'сосед договорил',
+    );
   /**
    * Хомячок на вилле; дождаться, пока сосед зайдёт и заговорит; вернуть текст его реплики. boxes — сколько раз видели
    * гостинец в лапках (смотрит сама страница, пока ждём).
@@ -54,7 +81,11 @@ module.exports = async function start(ctx) {
     await page.click('.dialog .btn');
     await untilDialog();
     await page.click('.dialog .btn');
-    await until(() => [...document.querySelectorAll('.overlay .panel')].some((p) => p.textContent.includes('Задание выполнено')), undefined, { timeout: 4000 }).catch(() => {});
+    await until(
+      () => [...document.querySelectorAll('.overlay .panel')].some((p) => p.textContent.includes('Задание выполнено')),
+      undefined,
+      { timeout: 4000 },
+    ).catch(() => {});
     const p = await panelText();
     await L.drain();
     return p;
@@ -93,24 +124,46 @@ module.exports = async function start(ctx) {
     });
     expect(town > 12, 'кадр сценки пустой', town);
     await page.click('#intro .i-next');
-    await until(() => !window.__dev.F.introDebug() && !document.getElementById('intro'), undefined, { timeout: 3000 }).catch(() => {});
+    await until(() => !window.__dev.F.introDebug() && !document.getElementById('intro'), undefined, {
+      timeout: 3000,
+    }).catch(() => {});
     await untilPanel('Добро пожаловать').catch(() => {});
     expect((await intro()) === null && !(await ev(() => !!document.getElementById('intro'))), 'сценка не закрылась');
     const hello = await panelText();
-    expect(hello.includes('Ореховую Гавань') && hello.includes('июнь') && hello.includes('соседи'), 'приветствие', hello.slice(0, 200));
+    expect(
+      hello.includes('Ореховую Гавань') && hello.includes('июнь') && hello.includes('соседи'),
+      'приветствие',
+      hello.slice(0, 200),
+    );
     await act('go');
     await untilScene('villa');
     const s = await state();
     const c = await ev(async () => (await import('./js/core/state.js')).cal());
-    expect(s.day === 15 && s.startDay === 15 && c.month === 5 && c.dom === 1 && c.season === 'summer' && c.year === 1, 'новая игра — 1 июня', [s.day, s.startDay, c]);
-    expect(s.weather === 'sun' && s.look.outfit.body === 'tee_heart' && !s.look.outfit.head && s.seeds.seed_carrot === 2, 'лето: солнце, майка, морковка в семенах', [s.weather, s.look.outfit, s.seeds]);
-    expect(s.flags.intro === 1 && s.mail && s.mail.task === 'buy_clothes', 'первое письмо — «Обновка», цепочка включена', [s.flags, s.mail]);
+    expect(
+      s.day === 15 && s.startDay === 15 && c.month === 5 && c.dom === 1 && c.season === 'summer' && c.year === 1,
+      'новая игра — 1 июня',
+      [s.day, s.startDay, c],
+    );
+    expect(
+      s.weather === 'sun' && s.look.outfit.body === 'tee_heart' && !s.look.outfit.head && s.seeds.seed_carrot === 2,
+      'лето: солнце, майка, морковка в семенах',
+      [s.weather, s.look.outfit, s.seeds],
+    );
+    expect(
+      s.flags.intro === 1 && s.mail && s.mail.task === 'buy_clothes',
+      'первое письмо — «Обновка», цепочка включена',
+      [s.flags, s.mail],
+    );
     expect(s.immuneUntil === 18, 'первые дни не болеет', s.immuneUntil);
     // первое письмо здоровается с новой соседкой
     await ev(() => window.__dev.F.openMailbox());
     await untilPanel();
     const letter = await panelText();
-    expect(letter.includes('С приездом в Ореховую Гавань') && letter.includes('Обновка'), 'первое письмо', letter.slice(0, 200));
+    expect(
+      letter.includes('С приездом в Ореховую Гавань') && letter.includes('Обновка'),
+      'первое письмо',
+      letter.slice(0, 200),
+    );
     await closeAll();
     const dateChip = L.norm(await ev(() => document.querySelector('.chip.date').textContent));
     expect(dateChip.includes('Июнь') && !/🎄|🌟|🎉/.test(dateChip), 'на дате — июнь, без значка праздника', dateChip);
@@ -130,7 +183,10 @@ module.exports = async function start(ctx) {
     await untilScene('villa').catch(() => {});
     expect((await ev(() => window.__dev.sceneName)) === 'villa', 'игра не началась на вилле');
     await L.reload(); // записать, перезагрузить, «Продолжить»
-    expect((await intro()) === null && (await ev(() => window.__dev.sceneName)) === 'villa', 'сценка при продолжении игры');
+    expect(
+      (await intro()) === null && (await ev(() => window.__dev.sceneName)) === 'villa',
+      'сценка при продолжении игры',
+    );
     // сама листается: кадр стоит frameTime секунд (в игре — 11, здесь — 1) и сменяется следующим, после последнего — конец
     await closeAll();
     await ev(() => {
@@ -145,225 +201,346 @@ module.exports = async function start(ctx) {
     await until(() => !document.getElementById('intro'), undefined, { timeout: 2000 }).catch(() => {});
   });
 
-  await step('начало игры: вводная цепочка — четыре соседа заходят в гости, шаги по событиям, награды, наклейка «Новосёл»', async () => {
-    await fresh();
-    let w = await welcome();
-    expect(w.on && w.next === 'intro_home' && w.quests.join() === 'intro_home:ready:0,intro_garden:locked:0,intro_work:locked:0,intro_sea:locked:0', 'цепочка в начале', w);
-    // «!» над Плюшей на улице нет: вводное задание она приносит сама
-    expect((await ev(() => window.__dev.QuestState.questBadge('plusha'))) === null, 'у Плюши «!» на улице');
-    let s0 = await state();
-    // 1. Плюша с печеньем
-    let v = await waitVisit('intro_home');
-    expect(v.text.includes('Плюша') && v.text.includes('Ореховую Гавань') && v.text.includes('Я уже всё умею') && v.boxes > 0, 'Плюша пришла с коробочкой', v);
-    await reply();
-    expect((await dialogText()).includes('журнал'), 'Плюша: «записала в журнал»', await dialogText());
-    await page.click('.dialog .btn');
-    await untilVisitEnd();
-    let s = await state();
-    expect(s.quests.intro_home && s.quests.intro_home.done === null && s.dishes.cookies === s0.dishes.cookies + 2 && s.guests.includes('plusha') && s.friends.plusha.met, 'задание взято, печенье в рюкзаке, Плюша в гостях', [s.quests, s.dishes, s.guests]);
-    expect(!(await ev(() => window.__dev.scene.actors.some((g) => g.carry))), 'коробочка осталась в лапках');
-    await ev(() => window.__dev.F.openAlbum('quests'));
-    await untilPanel();
-    const j = await panelText();
-    expect(j.includes('Новоселье') && j.includes('попробуй печенье') && j.includes('Купи обновку') && !j.includes('Своя грядка'), 'журнал: одно вводное задание', j.slice(0, 300));
-    await closeAll();
-    // шаги: съесть печенье (по-настоящему, из рюкзака), купить и надеть обновку
-    await L.react(() => {
-      window.__dev.F.eat('cookies');
-    });
-    await closeAll();
-    w = await welcome();
-    expect(w.quests[0] === 'intro_home:active:1', 'шаг «печенье»', w.quests);
-    await emit('buy', { cat: 'food', id: 'flour' });
-    expect((await welcome()).quests[0] === 'intro_home:active:1', 'покупка еды засчиталась как обновка');
-    await emit('buy', { cat: 'clothes', id: 'tee_sun' });
-    await ev(() => window.__dev.actions.wear('head', null));
-    expect((await welcome()).quests[0] === 'intro_home:active:3', 'шаги «купить» и «надеть»', (await welcome()).quests);
-    expect((await ev(() => window.__dev.QuestState.questBadge('plusha'))) === '?', 'у Плюши «?»');
-    let fin = await handIn('plusha');
-    s = await state();
-    expect(fin.includes('Задание выполнено') && fin.includes('Новоселье') && s.quests.intro_home.done === 15 && s.money === s0.money + 100, 'Новоселье сдано: +100', [fin.slice(0, 120), s.money - s0.money]);
-    // 2. Мята с рассадой
-    s0 = s;
-    v = await waitVisit('intro_garden');
-    expect(v.text.includes('Мята') && v.text.includes('рассаду') && !v.text.includes('Я уже всё умею') && v.boxes > 0, 'Мята пришла с рассадой', v);
-    await reply();
-    await page.click('.dialog .btn');
-    await untilVisitEnd();
-    s = await state();
-    expect(s.quests.intro_garden && s.seeds.seed_carrot === s0.seeds.seed_carrot + 2 && s.guests.includes('myata'), 'рассада в рюкзаке', [s.seeds, s.guests]);
-    await emit('plant');
-    await emit('harvest');
-    await emit('cook', { dish: 'fish_soup', perfect: false });
-    expect((await welcome()).quests[1] === 'intro_garden:active:3', 'шаги огорода и кухни', (await welcome()).quests);
-    fin = await handIn('myata');
-    s = await state();
-    expect(fin.includes('Своя грядка') && fin.includes('Семена помидоров') && s.seeds.seed_tomato === 2 && s.seeds.seed_strawberry === 2 && s.money === s0.money + 100, 'Своя грядка сдана: семена и +100', [fin.slice(0, 160), s.seeds]);
-    // 3. Профессор — без гостинца, рассказывает про работу и рынок
-    s0 = s;
-    v = await waitVisit('intro_work');
-    expect(v.text.includes('Профессор') && v.text.includes('рынке'), 'Профессор зашёл', v);
-    await reply();
-    await page.click('.dialog .btn');
-    await untilVisitEnd();
-    await emit('minigame', { id: 'tug', stars: 3 });
-    expect((await welcome()).quests[2] === 'intro_work:active:0', 'не работа засчиталась как работа');
-    await emit('minigame', { id: 'teacher', stars: 1 });
-    await emit('sell', { id: 'carrot', n: 1, sum: 10 });
-    expect((await welcome()).quests[2] === 'intro_work:active:2', 'шаги «работа» и «рынок»', (await welcome()).quests);
-    fin = await handIn('prof');
-    s = await state();
-    expect(fin.includes('Первая зарплата') && s.money === s0.money + 150, 'Первая зарплата сдана: +150', s.money - s0.money);
-    // 4. Капитан Боб: дом полон гостей (трое) — рассказывает и так, рыбка в рюкзаке
-    s0 = s;
-    expect(s.guests.length === 3, 'трое соседей в гостях', s.guests);
-    v = await waitVisit('intro_sea');
-    expect(v.text.includes('Капитан Боб') && v.text.includes('цвета лесного ореха'), 'Боб рассказал про ореховые скалы', v);
-    await reply();
-    await page.click('.dialog .btn');
-    await untilVisitEnd();
-    s = await state();
-    expect(s.ing.fish === (s0.ing.fish || 0) + 1 && s.quests.intro_sea, 'рыбка от Боба', s.ing);
-    for (const id of ['plusha', 'plusha', 'senya', 'busya']) await emit('talk', { id });
-    expect((await welcome()).quests[3] === 'intro_sea:active:0', 'один и тот же житель считается один раз');
-    await emit('talk', { id: 'zefirka' });
-    await emit('invite', { id: 'senya' });
-    await emit('swim', { where: 'pool' });
-    expect((await welcome()).quests[3] === 'intro_sea:active:2', 'бассейн — не море', (await welcome()).quests);
-    await emit('swim', { where: 'sea' });
-    fin = await handIn('bob');
-    s = await state();
-    expect(fin.includes('Морской привет') && fin.includes('Новосёл') && fin.includes('Пиратская треуголка'), 'окно последнего задания', fin.slice(0, 200));
-    expect(s.stickers.includes('q_newcomer') && s.clothes.includes('hat_pirate') && s.money === s0.money + 150, 'наклейка «Новосёл», треуголка, +150', [s.stickers, s.money - s0.money]);
-    w = await welcome();
-    expect(w.next === null && w.quests.every((q) => q.includes(':done:')), 'цепочка пройдена', w);
-    // дома больше никто не стучит
-    await ev(() => window.__dev.villaAt(0, 700));
-    await wait(2400); // сосед стучит, побыв дома 1,6 с (features/welcome.js, WAIT) — проверяем, что никто не пришёл
-    expect(!(await dialogText()) && (await welcome()).visit === null, 'после цепочки снова кто-то пришёл');
-  });
-
-  await step('начало игры: телефон — «позвать в гости» считается шагом; «Я уже всё умею» выключает цепочку; у старой игры её нет', async () => {
-    await fresh();
-    await ev(() => {
-      window.__dev.__ev = [];
-      window.__dev.events.on('invite', (d) => window.__dev.__ev.push(d.id));
-      window.__dev.actions.meetFriend('senya');
-      window.__dev.go('world');
-      window.__dev.F.openPhone();
-    });
-    await untilPanel();
-    await page.click('.overlay .btn.small.green');
-    await until(() => window.__dev.__ev.length > 0, undefined, { timeout: 3000 }).catch(() => {});
-    expect((await ev(() => window.__dev.__ev.join())) === (await state()).guests.join() && (await state()).guests.length === 1, 'событие «позвали в гости»', await ev(() => window.__dev.__ev));
-    await closeAll();
-    // Плюша приходит — отвечаем «Я уже всё умею»
-    await ev(() => window.__dev.villaAt(0, 700));
-    await untilDialog(15000).catch(() => {});
-    expect((await dialogText()).includes('Я уже всё умею'), 'первая встреча', await dialogText());
-    await reply('.dialog .btn:has-text("Я уже всё умею")');
-    expect((await dialogText()).includes('журнал'), 'ответ Плюши', await dialogText());
-    await page.click('.dialog .btn');
-    await untilVisitEnd();
-    let s = await state(),
+  await step(
+    'начало игры: вводная цепочка — четыре соседа заходят в гости, шаги по событиям, награды, наклейка «Новосёл»',
+    async () => {
+      await fresh();
+      let w = await welcome();
+      expect(
+        w.on &&
+          w.next === 'intro_home' &&
+          w.quests.join() === 'intro_home:ready:0,intro_garden:locked:0,intro_work:locked:0,intro_sea:locked:0',
+        'цепочка в начале',
+        w,
+      );
+      // «!» над Плюшей на улице нет: вводное задание она приносит сама
+      expect((await ev(() => window.__dev.QuestState.questBadge('plusha'))) === null, 'у Плюши «!» на улице');
+      let s0 = await state();
+      // 1. Плюша с печеньем
+      let v = await waitVisit('intro_home');
+      expect(
+        v.text.includes('Плюша') &&
+          v.text.includes('Ореховую Гавань') &&
+          v.text.includes('Я уже всё умею') &&
+          v.boxes > 0,
+        'Плюша пришла с коробочкой',
+        v,
+      );
+      await reply();
+      expect((await dialogText()).includes('журнал'), 'Плюша: «записала в журнал»', await dialogText());
+      await page.click('.dialog .btn');
+      await untilVisitEnd();
+      let s = await state();
+      expect(
+        s.quests.intro_home &&
+          s.quests.intro_home.done === null &&
+          s.dishes.cookies === s0.dishes.cookies + 2 &&
+          s.guests.includes('plusha') &&
+          s.friends.plusha.met,
+        'задание взято, печенье в рюкзаке, Плюша в гостях',
+        [s.quests, s.dishes, s.guests],
+      );
+      expect(!(await ev(() => window.__dev.scene.actors.some((g) => g.carry))), 'коробочка осталась в лапках');
+      await ev(() => window.__dev.F.openAlbum('quests'));
+      await untilPanel();
+      const j = await panelText();
+      expect(
+        j.includes('Новоселье') &&
+          j.includes('попробуй печенье') &&
+          j.includes('Купи обновку') &&
+          !j.includes('Своя грядка'),
+        'журнал: одно вводное задание',
+        j.slice(0, 300),
+      );
+      await closeAll();
+      // шаги: съесть печенье (по-настоящему, из рюкзака), купить и надеть обновку
+      await L.react(() => {
+        window.__dev.F.eat('cookies');
+      });
+      await closeAll();
       w = await welcome();
-    expect(s.flags.intro === 2 && !w.on && !s.quests.intro_home && w.quests[0] === 'intro_home:locked:0', 'цепочка выключена', [s.flags, w]);
-    await ev(() => window.__dev.F.openAlbum('quests'));
-    await untilPanel();
-    expect(!(await panelText()).includes('Новоселье'), 'вводное задание в журнале после «Я уже всё умею»');
-    await closeAll();
-    await ev(() => window.__dev.villaAt(0, 700));
-    await wait(2400); // сосед стучит, побыв дома 1,6 с — проверяем, что не пришёл
-    expect(!(await dialogText()), 'сосед пришёл снова', await dialogText());
-    // ничего не заблокировано: задание Мяты (гербарий) на второй день — как обычно
-    await ev(() => window.__dev.actions.mutate((st) => (st.day += 1)));
-    expect((await ev(() => window.__dev.QuestState.questNow('herbarium').status)) === 'ready', 'гербарий Мяты на второй день');
-    // старая игра (до этапа 10): нет ни startDay, ни отметки цепочки — началась 1 января, соседи не приходят
-    const old = await ev(async () => {
-      const St = await import('./js/core/state.js');
-      const copy = JSON.parse(JSON.stringify(window.__dev.G.state));
-      delete copy.startDay;
-      delete copy.flags.intro;
-      copy.day = 40;
-      St.repair(copy);
-      const D = await import('./js/data/index.js');
-      return { start: copy.startDay, intro: copy.flags.intro, when: D.QUEST_BY_ID.intro_home.when(copy), town: [D.holidayOn(51, copy.startDay), D.holidayOn(15, copy.startDay)].map((h) => (h ? h.id : null)) };
-    });
-    expect(old.start === 0 && old.intro === undefined && old.when === false && old.town.join() === 'birthday,', 'старая игра: начало — 1 января, цепочки нет, «Год в городе» — 1 июня второго года', old);
-  });
+      expect(w.quests[0] === 'intro_home:active:1', 'шаг «печенье»', w.quests);
+      await emit('buy', { cat: 'food', id: 'flour' });
+      expect((await welcome()).quests[0] === 'intro_home:active:1', 'покупка еды засчиталась как обновка');
+      await emit('buy', { cat: 'clothes', id: 'tee_sun' });
+      await ev(() => window.__dev.actions.wear('head', null));
+      expect(
+        (await welcome()).quests[0] === 'intro_home:active:3',
+        'шаги «купить» и «надеть»',
+        (await welcome()).quests,
+      );
+      expect((await ev(() => window.__dev.QuestState.questBadge('plusha'))) === '?', 'у Плюши «?»');
+      let fin = await handIn('plusha');
+      s = await state();
+      expect(
+        fin.includes('Задание выполнено') &&
+          fin.includes('Новоселье') &&
+          s.quests.intro_home.done === 15 &&
+          s.money === s0.money + 100,
+        'Новоселье сдано: +100',
+        [fin.slice(0, 120), s.money - s0.money],
+      );
+      // 2. Мята с рассадой
+      s0 = s;
+      v = await waitVisit('intro_garden');
+      expect(
+        v.text.includes('Мята') && v.text.includes('рассаду') && !v.text.includes('Я уже всё умею') && v.boxes > 0,
+        'Мята пришла с рассадой',
+        v,
+      );
+      await reply();
+      await page.click('.dialog .btn');
+      await untilVisitEnd();
+      s = await state();
+      expect(
+        s.quests.intro_garden && s.seeds.seed_carrot === s0.seeds.seed_carrot + 2 && s.guests.includes('myata'),
+        'рассада в рюкзаке',
+        [s.seeds, s.guests],
+      );
+      await emit('plant');
+      await emit('harvest');
+      await emit('cook', { dish: 'fish_soup', perfect: false });
+      expect((await welcome()).quests[1] === 'intro_garden:active:3', 'шаги огорода и кухни', (await welcome()).quests);
+      fin = await handIn('myata');
+      s = await state();
+      expect(
+        fin.includes('Своя грядка') &&
+          fin.includes('Семена помидоров') &&
+          s.seeds.seed_tomato === 2 &&
+          s.seeds.seed_strawberry === 2 &&
+          s.money === s0.money + 100,
+        'Своя грядка сдана: семена и +100',
+        [fin.slice(0, 160), s.seeds],
+      );
+      // 3. Профессор — без гостинца, рассказывает про работу и рынок
+      s0 = s;
+      v = await waitVisit('intro_work');
+      expect(v.text.includes('Профессор') && v.text.includes('рынке'), 'Профессор зашёл', v);
+      await reply();
+      await page.click('.dialog .btn');
+      await untilVisitEnd();
+      await emit('minigame', { id: 'tug', stars: 3 });
+      expect((await welcome()).quests[2] === 'intro_work:active:0', 'не работа засчиталась как работа');
+      await emit('minigame', { id: 'teacher', stars: 1 });
+      await emit('sell', { id: 'carrot', n: 1, sum: 10 });
+      expect(
+        (await welcome()).quests[2] === 'intro_work:active:2',
+        'шаги «работа» и «рынок»',
+        (await welcome()).quests,
+      );
+      fin = await handIn('prof');
+      s = await state();
+      expect(
+        fin.includes('Первая зарплата') && s.money === s0.money + 150,
+        'Первая зарплата сдана: +150',
+        s.money - s0.money,
+      );
+      // 4. Капитан Боб: дом полон гостей (трое) — рассказывает и так, рыбка в рюкзаке
+      s0 = s;
+      expect(s.guests.length === 3, 'трое соседей в гостях', s.guests);
+      v = await waitVisit('intro_sea');
+      expect(
+        v.text.includes('Капитан Боб') && v.text.includes('цвета лесного ореха'),
+        'Боб рассказал про ореховые скалы',
+        v,
+      );
+      await reply();
+      await page.click('.dialog .btn');
+      await untilVisitEnd();
+      s = await state();
+      expect(s.ing.fish === (s0.ing.fish || 0) + 1 && s.quests.intro_sea, 'рыбка от Боба', s.ing);
+      for (const id of ['plusha', 'plusha', 'senya', 'busya']) await emit('talk', { id });
+      expect((await welcome()).quests[3] === 'intro_sea:active:0', 'один и тот же житель считается один раз');
+      await emit('talk', { id: 'zefirka' });
+      await emit('invite', { id: 'senya' });
+      await emit('swim', { where: 'pool' });
+      expect((await welcome()).quests[3] === 'intro_sea:active:2', 'бассейн — не море', (await welcome()).quests);
+      await emit('swim', { where: 'sea' });
+      fin = await handIn('bob');
+      s = await state();
+      expect(
+        fin.includes('Морской привет') && fin.includes('Новосёл') && fin.includes('Пиратская треуголка'),
+        'окно последнего задания',
+        fin.slice(0, 200),
+      );
+      expect(
+        s.stickers.includes('q_newcomer') && s.clothes.includes('hat_pirate') && s.money === s0.money + 150,
+        'наклейка «Новосёл», треуголка, +150',
+        [s.stickers, s.money - s0.money],
+      );
+      w = await welcome();
+      expect(w.next === null && w.quests.every((q) => q.includes(':done:')), 'цепочка пройдена', w);
+      // дома больше никто не стучит
+      await ev(() => window.__dev.villaAt(0, 700));
+      await wait(2400); // сосед стучит, побыв дома 1,6 с (features/welcome.js, WAIT) — проверяем, что никто не пришёл
+      expect(!(await dialogText()) && (await welcome()).visit === null, 'после цепочки снова кто-то пришёл');
+    },
+  );
 
-  await step('начало игры: Ореховая Гавань — скалы по краям пляжа, доска с названием, карта, реплики жителей', async () => {
-    await L.fresh({ scene: 'world' }); // без вводной цепочки
-    const r = await ev(async () => {
-      const d = window.__dev,
-        W = d.World,
-        m = W.map,
-        D = await import('./js/data/index.js');
-      const count = (t) => m.objs.filter((o) => o.type === t).length;
-      const door = m.doorPx(m.bById.villa),
-        way = (x, y) => !!m.path(m.foot, Math.floor(door.x / 48), Math.floor(door.y / 48), x, y);
-      return {
-        cliffs: count('nutcliff'),
-        rocks: count('nutrock'),
-        sign: count('townsign'),
-        solid: [m.solid[54][1], m.solid[55][94], m.solid[47][60], m.solid[47][61]],
-        ways: [way(63, 56), way(5, 54), way(90, 55), way(61, 48), way(30, 56)], // пирс, у западных и восточных скал, у доски, пляж
-        place: !!W.whereIs('townsign'),
-        title: W.desc.title,
-        lines: D.NPCS.filter((n) => n.lines.some((l) => /орехов/i.test(l))).map((n) => n.id),
-      };
-    });
-    expect(r.cliffs === 4 && r.rocks >= 8 && r.sign === 1 && r.solid.every(Boolean), 'скалы и доска на месте, сквозь них не пройти', r);
-    expect(r.ways.every(Boolean), 'пляж, пирс и набережная проходимы', r.ways);
-    expect(r.place && r.title.includes('Ореховая Гавань'), 'доска — место на карте; название в заголовке карты', r);
-    expect(['plusha', 'prof', 'bob', 'myata'].every((id) => r.lines.includes(id)), 'жители говорят про название', r.lines);
-    // доска рассказывает, почему городок так зовут
-    await ev(() => document.querySelectorAll('.toast').forEach((t) => t.remove()));
-    await ev(() => window.__dev.World.walkToPlace('townsign'));
-    await until(
-      () => {
-        if ([...document.querySelectorAll('.toast')].some((t) => t.textContent.includes('Ореховая Гавань'))) return true;
-        if (window.__dev.World.skipAlong) window.__dev.World.skipAlong();
-        return false;
-      },
-      undefined,
-      { timeout: 10000, poll: 150 },
-    ).catch(() => {});
-    const t = L.norm(await ev(() => [...document.querySelectorAll('.toast')].map((x) => x.textContent).join(' | ')));
-    expect(t.includes('Ореховая Гавань') && /орех/.test(t), 'подсказка у доски', t);
-    await ev(() => window.__dev.F.openMap());
-    await untilPanel();
-    expect((await panelText()).includes('Ореховая Гавань'), 'название на карте');
-    await closeAll();
-  });
+  await step(
+    'начало игры: телефон — «позвать в гости» считается шагом; «Я уже всё умею» выключает цепочку; у старой игры её нет',
+    async () => {
+      await fresh();
+      await ev(() => {
+        window.__dev.__ev = [];
+        window.__dev.events.on('invite', (d) => window.__dev.__ev.push(d.id));
+        window.__dev.actions.meetFriend('senya');
+        window.__dev.go('world');
+        window.__dev.F.openPhone();
+      });
+      await untilPanel();
+      await page.click('.overlay .btn.small.green');
+      await until(() => window.__dev.__ev.length > 0, undefined, { timeout: 3000 }).catch(() => {});
+      expect(
+        (await ev(() => window.__dev.__ev.join())) === (await state()).guests.join() &&
+          (await state()).guests.length === 1,
+        'событие «позвали в гости»',
+        await ev(() => window.__dev.__ev),
+      );
+      await closeAll();
+      // Плюша приходит — отвечаем «Я уже всё умею»
+      await ev(() => window.__dev.villaAt(0, 700));
+      await untilDialog(15000).catch(() => {});
+      expect((await dialogText()).includes('Я уже всё умею'), 'первая встреча', await dialogText());
+      await reply('.dialog .btn:has-text("Я уже всё умею")');
+      expect((await dialogText()).includes('журнал'), 'ответ Плюши', await dialogText());
+      await page.click('.dialog .btn');
+      await untilVisitEnd();
+      let s = await state(),
+        w = await welcome();
+      expect(
+        s.flags.intro === 2 && !w.on && !s.quests.intro_home && w.quests[0] === 'intro_home:locked:0',
+        'цепочка выключена',
+        [s.flags, w],
+      );
+      await ev(() => window.__dev.F.openAlbum('quests'));
+      await untilPanel();
+      expect(!(await panelText()).includes('Новоселье'), 'вводное задание в журнале после «Я уже всё умею»');
+      await closeAll();
+      await ev(() => window.__dev.villaAt(0, 700));
+      await wait(2400); // сосед стучит, побыв дома 1,6 с — проверяем, что не пришёл
+      expect(!(await dialogText()), 'сосед пришёл снова', await dialogText());
+      // ничего не заблокировано: задание Мяты (гербарий) на второй день — как обычно
+      await ev(() => window.__dev.actions.mutate((st) => (st.day += 1)));
+      expect(
+        (await ev(() => window.__dev.QuestState.questNow('herbarium').status)) === 'ready',
+        'гербарий Мяты на второй день',
+      );
+      // старая игра (до этапа 10): нет ни startDay, ни отметки цепочки — началась 1 января, соседи не приходят
+      const old = await ev(async () => {
+        const St = await import('./js/core/state.js');
+        const copy = JSON.parse(JSON.stringify(window.__dev.G.state));
+        delete copy.startDay;
+        delete copy.flags.intro;
+        copy.day = 40;
+        St.repair(copy);
+        const D = await import('./js/data/index.js');
+        return {
+          start: copy.startDay,
+          intro: copy.flags.intro,
+          when: D.QUEST_BY_ID.intro_home.when(copy),
+          town: [D.holidayOn(51, copy.startDay), D.holidayOn(15, copy.startDay)].map((h) => (h ? h.id : null)),
+        };
+      });
+      expect(
+        old.start === 0 && old.intro === undefined && old.when === false && old.town.join() === 'birthday,',
+        'старая игра: начало — 1 января, цепочки нет, «Год в городе» — 1 июня второго года',
+        old,
+      );
+    },
+  );
 
-  await step('начало игры: хомячок в спальне на втором этаже — сосед едет к ней на лифте и вручает гостинец', async () => {
-    await fresh();
-    let sc = await ev(() => ({ f: window.__dev.scene.p.f, name: window.__dev.sceneName }));
-    expect(sc.name === 'villa' && sc.f === 1, 'новая игра — в спальне на втором этаже', sc);
-    // страница сама смотрит, пока ждём: ехала ли Плюша в лифте, вышла ли на втором этаже, вручала ли гостинец
-    await ev(() => (window.__seen = { hide: 0, up: 0, give: 0 }));
-    await until(
-      () => {
-        const g = window.__dev.scene.actors.find((a) => a.guest && a.id === 'plusha'),
-          seen = window.__seen;
-        if (g) {
-          if (g.hide) seen.hide++;
-          if (g.f === 1 && !g.hide) seen.up++;
-          if (g.carry && g.carry.give) seen.give++;
-        }
-        return !!document.querySelector('.dialog .say');
-      },
-      undefined,
-      { timeout: 25000, poll: 100 },
-    ).catch(() => {});
-    await wait(380); // защита кнопок диалога
-    const seen = await ev(() => window.__seen);
-    const text = await dialogText();
-    expect(text.includes('Я уже всё умею'), 'Плюша не дошла и не заговорила', [seen, text.slice(0, 80)]);
-    expect(seen.hide > 0 && seen.up > 0 && seen.give > 0, 'не ехала в лифте / не вышла на втором этаже / не вручила', seen);
-    expect((await ev(() => window.__dev.scene.p.f)) === 1, 'хомячка увезли с этажа');
-    await reply();
-    await closeAll();
-  });
+  await step(
+    'начало игры: Ореховая Гавань — скалы по краям пляжа, доска с названием, карта, реплики жителей',
+    async () => {
+      await L.fresh({ scene: 'world' }); // без вводной цепочки
+      const r = await ev(async () => {
+        const d = window.__dev,
+          W = d.World,
+          m = W.map,
+          D = await import('./js/data/index.js');
+        const count = (t) => m.objs.filter((o) => o.type === t).length;
+        const door = m.doorPx(m.bById.villa),
+          way = (x, y) => !!m.path(m.foot, Math.floor(door.x / 48), Math.floor(door.y / 48), x, y);
+        return {
+          cliffs: count('nutcliff'),
+          rocks: count('nutrock'),
+          sign: count('townsign'),
+          solid: [m.solid[54][1], m.solid[55][94], m.solid[47][60], m.solid[47][61]],
+          ways: [way(63, 56), way(5, 54), way(90, 55), way(61, 48), way(30, 56)], // пирс, у западных и восточных скал, у доски, пляж
+          place: !!W.whereIs('townsign'),
+          title: W.desc.title,
+          lines: D.NPCS.filter((n) => n.lines.some((l) => /орехов/i.test(l))).map((n) => n.id),
+        };
+      });
+      expect(
+        r.cliffs === 4 && r.rocks >= 8 && r.sign === 1 && r.solid.every(Boolean),
+        'скалы и доска на месте, сквозь них не пройти',
+        r,
+      );
+      expect(r.ways.every(Boolean), 'пляж, пирс и набережная проходимы', r.ways);
+      expect(r.place && r.title.includes('Ореховая Гавань'), 'доска — место на карте; название в заголовке карты', r);
+      expect(
+        ['plusha', 'prof', 'bob', 'myata'].every((id) => r.lines.includes(id)),
+        'жители говорят про название',
+        r.lines,
+      );
+      // доска рассказывает, почему городок так зовут
+      await ev(() => document.querySelectorAll('.toast').forEach((t) => t.remove()));
+      await ev(() => window.__dev.World.walkToPlace('townsign'));
+      await until(
+        () => {
+          if ([...document.querySelectorAll('.toast')].some((t) => t.textContent.includes('Ореховая Гавань')))
+            return true;
+          if (window.__dev.World.skipAlong) window.__dev.World.skipAlong();
+          return false;
+        },
+        undefined,
+        { timeout: 10000, poll: 150 },
+      ).catch(() => {});
+      const t = L.norm(await ev(() => [...document.querySelectorAll('.toast')].map((x) => x.textContent).join(' | ')));
+      expect(t.includes('Ореховая Гавань') && /орех/.test(t), 'подсказка у доски', t);
+      await ev(() => window.__dev.F.openMap());
+      await untilPanel();
+      expect((await panelText()).includes('Ореховая Гавань'), 'название на карте');
+      await closeAll();
+    },
+  );
+
+  await step(
+    'начало игры: хомячок в спальне на втором этаже — сосед едет к ней на лифте и вручает гостинец',
+    async () => {
+      await fresh();
+      let sc = await ev(() => ({ f: window.__dev.scene.p.f, name: window.__dev.sceneName }));
+      expect(sc.name === 'villa' && sc.f === 1, 'новая игра — в спальне на втором этаже', sc);
+      // страница сама смотрит, пока ждём: ехала ли Плюша в лифте, вышла ли на втором этаже, вручала ли гостинец
+      await ev(() => (window.__seen = { hide: 0, up: 0, give: 0 }));
+      await until(
+        () => {
+          const g = window.__dev.scene.actors.find((a) => a.guest && a.id === 'plusha'),
+            seen = window.__seen;
+          if (g) {
+            if (g.hide) seen.hide++;
+            if (g.f === 1 && !g.hide) seen.up++;
+            if (g.carry && g.carry.give) seen.give++;
+          }
+          return !!document.querySelector('.dialog .say');
+        },
+        undefined,
+        { timeout: 25000, poll: 100 },
+      ).catch(() => {});
+      await wait(380); // защита кнопок диалога
+      const seen = await ev(() => window.__seen);
+      const text = await dialogText();
+      expect(text.includes('Я уже всё умею'), 'Плюша не дошла и не заговорила', [seen, text.slice(0, 80)]);
+      expect(
+        seen.hide > 0 && seen.up > 0 && seen.give > 0,
+        'не ехала в лифте / не вышла на втором этаже / не вручила',
+        seen,
+      );
+      expect((await ev(() => window.__dev.scene.p.f)) === 1, 'хомячка увезли с этажа');
+      await reply();
+      await closeAll();
+    },
+  );
 };

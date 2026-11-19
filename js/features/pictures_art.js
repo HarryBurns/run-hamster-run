@@ -74,7 +74,8 @@ export function paintTreasureMap(ctx, w, h, have) {
   // Звёздный остров с флажком и пальмой (левый низ)
   ell(ctx, 64, 150, 34, 14, '#ffe8a8', OUT, 1.5);
   line(ctx, 54, 148, 58, 120, '#a8703f', 3);
-  for (const a of [-2.4, -1.6, -0.8]) ell(ctx, 58 + Math.cos(a) * 10, 120 + Math.sin(a) * 6, 10, 3, '#40c057', OUT, 1, a + 1.6);
+  for (const a of [-2.4, -1.6, -0.8])
+    ell(ctx, 58 + Math.cos(a) * 10, 120 + Math.sin(a) * 6, 10, 3, '#40c057', OUT, 1, a + 1.6);
   star(ctx, 80, 146, 5, '#ff922b');
   // затонувший корабль (правый верх): мачта из воды
   line(ctx, 230, 96, 236, 58, OUT, 2.4);
@@ -163,7 +164,13 @@ export function paintStarSky(ctx, w, h, t, look) {
   // барханы и хомячок на гребне
   poly(ctx, [0, h, 0, h * 0.8, w * 0.3, h * 0.72, w * 0.6, h * 0.8, w, h * 0.74, w, h], '#6b4f7a');
   poly(ctx, [0, h, 0, h * 0.9, w * 0.4, h * 0.84, w * 0.75, h * 0.92, w, h * 0.88, w, h], '#4f3b62');
-  drawHamster(ctx, w * 0.32, h * 0.76, 0.55, look, { time: t, dir: 0, happy: true, armsUp: Math.sin(t * 3) > 0.6, shadow: false });
+  drawHamster(ctx, w * 0.32, h * 0.76, 0.55, look, {
+    time: t,
+    dir: 0,
+    happy: true,
+    armsUp: Math.sin(t * 3) > 0.6,
+    shadow: false,
+  });
 }
 
 // ════════ из mountain.js ════════
@@ -226,7 +233,20 @@ export function paintSummitView(ctx, w, h, season, dark) {
     ctx.globalAlpha = 1;
   }
   // край вершины в снегу и флаг
-  const snowTop = [0, h * 0.88, w * 0.18, h * 0.84, w * 0.36, h * 0.86, w * 0.55, h * 0.82, w * 0.78, h * 0.85, w, h * 0.83];
+  const snowTop = [
+    0,
+    h * 0.88,
+    w * 0.18,
+    h * 0.84,
+    w * 0.36,
+    h * 0.86,
+    w * 0.55,
+    h * 0.82,
+    w * 0.78,
+    h * 0.85,
+    w,
+    h * 0.83,
+  ];
   poly(ctx, [0, h, ...snowTop, w, h], '#ffffff', OUT, 2);
   poly(ctx, [w * 0.55, h * 0.82, w * 0.78, h * 0.85, w, h * 0.83, w, h, w * 0.62, h], '#e3eef8');
   for (let i = 0; i < 6; i++) ell(ctx, w * (0.1 + i * 0.15), h * 0.93 + (i % 2) * 6, 14, 4, '#e7f1f9');
@@ -282,7 +302,11 @@ export function paintSpa(what) {
     }
     for (const cx of [w * 0.12, w * 0.18]) {
       fillRR(ctx, cx - 6 * s, h * 0.62, 12 * s, 24 * s, 3, '#fff', OUT, 1.5);
-      poly(ctx, [cx - 4 * s, h * 0.62, cx + Math.sin(t * 7 + cx) * 2 * s, h * 0.62 - 14 * s, cx + 4 * s, h * 0.62], '#ffa94d');
+      poly(
+        ctx,
+        [cx - 4 * s, h * 0.62, cx + Math.sin(t * 7 + cx) * 2 * s, h * 0.62 - 14 * s, cx + 4 * s, h * 0.62],
+        '#ffa94d',
+      );
     }
     // стол
     const tx = w * 0.55,
@@ -304,12 +328,26 @@ export function paintSpa(what) {
       for (let i = 0; i < 8; i++) {
         const ph = (t * 0.6 + i / 8) % 1;
         ctx.globalAlpha = 1 - ph;
-        ell(ctx, tx - 40 * s + i * 22 * s, ty - 50 * s - ph * h * 0.3, 7 * s, 7 * s, 'rgba(255,255,255,.9)', '#a5d8ff', 1.2);
+        ell(
+          ctx,
+          tx - 40 * s + i * 22 * s,
+          ty - 50 * s - ph * h * 0.3,
+          7 * s,
+          7 * s,
+          'rgba(255,255,255,.9)',
+          '#a5d8ff',
+          1.2,
+        );
       }
       ctx.globalAlpha = 1;
     } else {
       // массаж: Пенка разминает спинку — лапки двигаются
-      drawHamster(ctx, tx + 40 * s, ty - 4 * s, 0.95 * s, npcLook('penka'), { time: t, dir: -1, armsUp: Math.sin(t * 8) > 0, happy: true });
+      drawHamster(ctx, tx + 40 * s, ty - 4 * s, 0.95 * s, npcLook('penka'), {
+        time: t,
+        dir: -1,
+        armsUp: Math.sin(t * 8) > 0,
+        happy: true,
+      });
       for (let i = 0; i < 3; i++) {
         const ph = (t * 0.7 + i / 3) % 1;
         ctx.globalAlpha = 1 - ph;

@@ -17,7 +17,13 @@ defineArt({
     [-44, -78, 44, 10],
     (ctx, f) => {
       if (f === 2) ctx.rotate(0.14);
-      drawHamster(ctx, 0, 0, 0.56, DOORMAN, { dir: f === 3 ? 0 : 1, time: 0.4, blink: f === 1 ? 1 : 0, happy: f >= 2, armsUp: f === 3 });
+      drawHamster(ctx, 0, 0, 0.56, DOORMAN, {
+        dir: f === 3 ? 0 : 1,
+        time: 0.4,
+        blink: f === 1 ? 1 : 0,
+        happy: f >= 2,
+        armsUp: f === 3,
+      });
     },
   ],
 });

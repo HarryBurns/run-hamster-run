@@ -369,14 +369,21 @@ export default {
     host.on(window, 'pointerup', up);
     host.on(cv.canvas, 'pointerleave', leave);
     // для автотеста (dev/smoke_desert.js): где плита (CSS-пиксели канвы), где окаменелость, сколько расчищено
-    if (DEV) cv.canvas.__dig = () => ({
-      box: { ...box },
-      cells: mask ? [...mask].map((v, i) => (v ? [box.x + ((i % GX) + 0.5) * (box.w / GX), box.y + (Math.floor(i / GX) + 0.5) * (box.h / GY)] : null)).filter(Boolean) : [],
-      progress: progress(),
-      left: Math.max(0, TIME - t),
-      found: !!found,
-      fossil: id,
-    });
+    if (DEV)
+      cv.canvas.__dig = () => ({
+        box: { ...box },
+        cells: mask
+          ? [...mask]
+              .map((v, i) =>
+                v ? [box.x + ((i % GX) + 0.5) * (box.w / GX), box.y + (Math.floor(i / GX) + 0.5) * (box.h / GY)] : null,
+              )
+              .filter(Boolean)
+          : [],
+        progress: progress(),
+        left: Math.max(0, TIME - t),
+        found: !!found,
+        fossil: id,
+      });
 
     function update(dt) {
       t += dt;
@@ -424,12 +431,27 @@ export default {
         ctx.globalAlpha = 0.55 * k;
         ell(ctx, b.x + b.w / 2, b.y + b.h / 2, R() * 1.4, R() * 1.2, '#fff9db');
         ctx.restore();
-        fossil(ctx, id, b.x + b.w / 2, b.y + b.h / 2 - Math.sin(Math.min(1, foundT) * Math.PI) * 12, R() * (1 + 0.1 * k));
+        fossil(
+          ctx,
+          id,
+          b.x + b.w / 2,
+          b.y + b.h / 2 - Math.sin(Math.min(1, foundT) * Math.PI) * 12,
+          R() * (1 + 0.1 * k),
+        );
         for (let i = 0; i < 8; i++) {
           const a = i * 0.785 + foundT * 2,
             rr = R() * (1.2 + foundT * 0.4);
           ctx.globalAlpha = Math.max(0, 1 - foundT * 0.7);
-          ell(ctx, b.x + b.w / 2 + Math.cos(a) * rr, b.y + b.h / 2 + Math.sin(a) * rr * 0.8, 4 * s, 4 * s, '#ffd43b', OUT, 1);
+          ell(
+            ctx,
+            b.x + b.w / 2 + Math.cos(a) * rr,
+            b.y + b.h / 2 + Math.sin(a) * rr * 0.8,
+            4 * s,
+            4 * s,
+            '#ffd43b',
+            OUT,
+            1,
+          );
         }
         ctx.globalAlpha = 1;
         ctx.textAlign = 'center';
@@ -444,10 +466,12 @@ export default {
       // хомячок-археолог с кисточкой — сбоку снизу
       const hx = Math.max(60 * s, b.x - 50 * s),
         hy = Math.min(H - 12, b.y + b.h + 90 * s);
-      if (W > 360 || hy < H - 20) host.drawHamster(ctx, hx, hy, 0.75 * s, look, { time: t, dir: 1, happy: !!found, blink: t % 3.1 < 0.12 });
+      if (W > 360 || hy < H - 20)
+        host.drawHamster(ctx, hx, hy, 0.75 * s, look, { time: t, dir: 1, happy: !!found, blink: t % 3.1 < 0.12 });
       // кисточка у пальца (или над плитой — подсказкой)
       if (!found) {
-        if (hover && px > -40 && px < b.w + 40 && py > -40 && py < b.h + 40) brush(ctx, b.x + px, b.y + py, s * 0.9, drawing ? -0.4 + Math.sin(t * 20) * 0.25 : -0.7);
+        if (hover && px > -40 && px < b.w + 40 && py > -40 && py < b.h + 40)
+          brush(ctx, b.x + px, b.y + py, s * 0.9, drawing ? -0.4 + Math.sin(t * 20) * 0.25 : -0.7);
         else if (t < 3) brush(ctx, b.x + b.w * 0.25 + Math.sin(t * 3) * 30, b.y + b.h * 0.5, s * 0.9);
       }
     }

@@ -138,7 +138,8 @@ export default {
       sayT = 0;
     const ball = { x: BALL.x, y: BALL.y, vx: 0, vy: 0, rot: 0 };
     let pins = [];
-    const resetPins = () => (pins = PINS.map(([x, y]) => ({ x, y, down: false, fall: 0, vx: 0, vy: 0, rot: 0, move: 0 })));
+    const resetPins = () =>
+      (pins = PINS.map(([x, y]) => ({ x, y, down: false, fall: 0, vx: 0, vy: 0, rot: 0, move: 0 })));
     resetPins();
     const standing = () => pins.filter((p) => !p.down).length;
     let downBefore = 0;
@@ -245,7 +246,9 @@ export default {
           p.x += p.vx * dt;
           p.y += p.vy * dt;
           // падающая кегля сбивает соседей
-          for (const q of pins) if (!q.down && Math.hypot(q.x - p.x, q.y - p.y) < PIN_R * 2) knock(q, q.x - p.x + p.vx * 0.02, q.y - p.y + p.vy * 0.02, Math.hypot(p.vx, p.vy) * 0.8);
+          for (const q of pins)
+            if (!q.down && Math.hypot(q.x - p.x, q.y - p.y) < PIN_R * 2)
+              knock(q, q.x - p.x + p.vx * 0.02, q.y - p.y + p.vy * 0.02, Math.hypot(p.vx, p.vy) * 0.8);
         }
       }
       if (phase === 'roll') {
@@ -257,8 +260,8 @@ export default {
         ball.y += ball.vy * dt;
         ball.rot += (sp / BALL.r) * dt;
         // мягкий отскок от бортиков
-        if (ball.x < LX0 + BALL.r && ball.vx < 0) (ball.x = LX0 + BALL.r), (ball.vx = -ball.vx * 0.6);
-        if (ball.x > LX1 - BALL.r && ball.vx > 0) (ball.x = LX1 - BALL.r), (ball.vx = -ball.vx * 0.6);
+        if (ball.x < LX0 + BALL.r && ball.vx < 0) ((ball.x = LX0 + BALL.r), (ball.vx = -ball.vx * 0.6));
+        if (ball.x > LX1 - BALL.r && ball.vx > 0) ((ball.x = LX1 - BALL.r), (ball.vx = -ball.vx * 0.6));
         for (const p of pins)
           if (!p.down && Math.hypot(p.x - ball.x, p.y - ball.y) < BALL.r + PIN_R) {
             knock(p, p.x - ball.x + ball.vx * 0.03, p.y - ball.y + ball.vy * 0.03, Math.max(260, sp * 0.7));
@@ -302,14 +305,25 @@ export default {
         line(ctx, x, y + 40 * s, x + 8 * s, y - 20 * s, '#a8703f', 4.4 * s);
         for (let i = 0; i < 6; i++) {
           const a = -Math.PI / 2 + (i - 2.5) * 0.62 + Math.sin(t + x) * 0.04;
-          ell(ctx, x + 8 * s + Math.cos(a) * 20 * s, y - 20 * s + Math.sin(a) * 9 * s + 4, 22 * s, 6 * s, i % 2 ? '#40c057' : '#2f9e44', OUT, 1.2, a);
+          ell(
+            ctx,
+            x + 8 * s + Math.cos(a) * 20 * s,
+            y - 20 * s + Math.sin(a) * 9 * s + 4,
+            22 * s,
+            6 * s,
+            i % 2 ? '#40c057' : '#2f9e44',
+            OUT,
+            1.2,
+            a,
+          );
         }
       }
       // дорожка
       fillRR(ctx, LX0 - 10, 50, LX1 - LX0 + 20, LH - 40, 12, '#a0662d', OUT, 2.4);
       fillRR(ctx, LX0, 56, LX1 - LX0, LH - 52, 8, '#f6e6bd', null);
       for (let y = 70; y < LH; y += 26) line(ctx, LX0 + 4, y, LX1 - 4, y + 2, 'rgba(160,110,50,.16)', 1.2);
-      for (let i = 0; i < 5; i++) poly(ctx, [140 + i * 20, 330, 134 + i * 20, 344, 146 + i * 20, 344], 'rgba(224,49,49,.35)');
+      for (let i = 0; i < 5; i++)
+        poly(ctx, [140 + i * 20, 330, 134 + i * 20, 344, 146 + i * 20, 344], 'rgba(224,49,49,.35)');
       line(ctx, LX0 + 4, 440, LX1 - 4, 440, 'rgba(224,49,49,.55)', 3);
       // тотем у кеглей
       fillRR(ctx, 168, 44, 24, 30, 6, '#8d6e63', OUT, 1.6);
@@ -321,13 +335,26 @@ export default {
       // прицел
       if (phase === 'aim' || phase === 'power') {
         ctx.setLineDash([6, 8]);
-        line(ctx, BALL.x, BALL.y - 20, BALL.x + Math.sin(angle) * 300, BALL.y - 20 - Math.cos(angle) * 300, 'rgba(74,55,40,.25)', 2);
+        line(
+          ctx,
+          BALL.x,
+          BALL.y - 20,
+          BALL.x + Math.sin(angle) * 300,
+          BALL.y - 20 - Math.cos(angle) * 300,
+          'rgba(74,55,40,.25)',
+          2,
+        );
         ctx.setLineDash([]);
         arrow(ctx, BALL.x, BALL.y - 18, angle, 64, phase === 'aim' ? '#69db7c' : '#adb5bd');
       }
       coconut(ctx, ball.x, ball.y, BALL.r, ball.rot);
       // хомячок у начала дорожки
-      host.drawHamster(ctx, 236, 540, 0.85, host.look, { time: t, dir: -1, happy: phase === 'roll' && ball.y < 300, armsUp: phase === 'roll' });
+      host.drawHamster(ctx, 236, 540, 0.85, host.look, {
+        time: t,
+        dir: -1,
+        happy: phase === 'roll' && ball.y < 300,
+        armsUp: phase === 'roll',
+      });
       ctx.restore();
       // полоска силы
       if (phase === 'power') {
@@ -386,7 +413,19 @@ export default {
     };
     host.on(window, 'keydown', key);
     // для автотеста: что сейчас в игре
-    if (DEV) cv.canvas.__bowling = () => ({ phase, round, throwN, score, strikes, angle, power, standing: standing(), over, ball: { x: ball.x, y: ball.y } });
+    if (DEV)
+      cv.canvas.__bowling = () => ({
+        phase,
+        round,
+        throwN,
+        score,
+        strikes,
+        angle,
+        power,
+        standing: standing(),
+        over,
+        ball: { x: ball.x, y: ball.y },
+      });
     cv.canvas.classList.add('bw-canvas');
   },
 };

@@ -165,7 +165,8 @@ export function runnerGame(host, cfg) {
     if (!over && chosen && !pickEl) {
       r.t += dt;
       // руль: стрелки двигают цель, герой сам плавно едет к ней (как — решает игра)
-      const kx = (keys.has('ArrowRight') || keys.has('KeyD') ? 1 : 0) - (keys.has('ArrowLeft') || keys.has('KeyA') ? 1 : 0);
+      const kx =
+        (keys.has('ArrowRight') || keys.has('KeyD') ? 1 : 0) - (keys.has('ArrowLeft') || keys.has('KeyA') ? 1 : 0);
       if (kx) r.pos.to = clamp(r.pos.to + kx * dt * cfg.keySpeed, lo, hi);
       cfg.update(dt, r);
     }

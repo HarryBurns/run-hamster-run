@@ -38,7 +38,17 @@ export function updateSound() {
     night = darkness() > 0.75,
     s = (sc.sound && sc.sound()) || {};
   setMusic(
-    mg ? 'minigame' : s.force ? s.force : night ? 'night' : s.day === 'town' ? 'town_' + c.season : ['forest', 'mountain', 'desert', 'jungle', 'cove', 'island'].includes(s.day) ? s.day : 'villa',
+    mg
+      ? 'minigame'
+      : s.force
+        ? s.force
+        : night
+          ? 'night'
+          : s.day === 'town'
+            ? 'town_' + c.season
+            : ['forest', 'mountain', 'desert', 'jungle', 'cove', 'island'].includes(s.day)
+              ? s.day
+              : 'villa',
   );
   const rain = G.state.weather === 'rain' || !!s.drizzle;
   setAmbience({
@@ -49,7 +59,11 @@ export function updateSound() {
       !mg &&
       !night &&
       (!rain || s.day === 'jungle') &&
-      (c.season === 'spring' || c.season === 'summer' || s.day === 'jungle' || s.day === 'island' || (s.day === 'forest' && c.season === 'autumn')),
+      (c.season === 'spring' ||
+        c.season === 'summer' ||
+        s.day === 'jungle' ||
+        s.day === 'island' ||
+        (s.day === 'forest' && c.season === 'autumn')),
     night: !!s.crickets && !mg && night && (c.season !== 'winter' || s.day === 'jungle' || s.day === 'island'),
     wind: mg ? 0 : s.wind || 0,
     bells: mg || night ? 0 : s.bells || 0,

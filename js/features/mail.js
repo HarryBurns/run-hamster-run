@@ -63,10 +63,7 @@ export function newDayMail() {
   if (first && (!s.sick || !taskNeedsHealth(first, JOBS))) id = first.id;
   else {
     let pool = TASKS.filter(
-      (t) =>
-        fits(t) &&
-        !s.lastTasks.includes(t.id) &&
-        (t.id !== 'buy_clothes' || newClothesToday().length > 0), // «Обновка» — только когда на витринах есть что купить
+      (t) => fits(t) && !s.lastTasks.includes(t.id) && (t.id !== 'buy_clothes' || newClothesToday().length > 0), // «Обновка» — только когда на витринах есть что купить
     );
     if (!pool.length) pool = TASKS.filter(fits);
     id = pick(pool).id;
@@ -155,7 +152,10 @@ function letterHtml() {
     ? homes.join(' или ')
     : PLACES[t.where] || (t.where === 'beach' ? 'Пляж' : t.where === 'town' ? 'Город' : '');
   // первое письмо новой игры (1 июня): городок здоровается с новой соседкой
-  const hello = S().startDay && S().day === S().startDay ? '<p>С приездом в <b>Ореховую Гавань</b>! Весь городок рад новой соседке. 🌰</p>' : '';
+  const hello =
+    S().startDay && S().day === S().startDay
+      ? '<p>С приездом в <b>Ореховую Гавань</b>! Весь городок рад новой соседке. 🌰</p>'
+      : '';
   return `<div class="letter"><h3>${t.sticker} ${t.title}</h3><p>Дорогая ${esc(S().name)}!</p>${hello}<p>${t.text}</p>${tip ? `<p class="tip">${tip}</p>` : ''}
     <p class="muted">${c.seasonIcon} ${c.monthName}, день ${c.dom}${where ? ` · Куда идти: <b>${where}</b>` : ''}</p></div>
     <p class="center">${m.done ? '✅ <b>Задание выполнено!</b>' : `Награда: <b>🪙 ${fmtMoney(taskCoins(t.id))}</b>, наклейка ${t.sticker} и, может быть, сюрприз 🎁${taskProgress() ? '<br>Сделано' + taskProgress() : ''}`}</p>`;

@@ -84,11 +84,31 @@ function umbrella(ctx, x, y, s) {
   for (let i = 0; i < 6; i++) {
     const a0 = Math.PI + (i / 6) * Math.PI,
       a1 = Math.PI + ((i + 1) / 6) * Math.PI;
-    poly(ctx, [x + 2 * s, y - 128 * s, x + 2 * s + Math.cos(a0) * 70 * s, y - 96 * s, x + 2 * s + Math.cos(a1) * 70 * s, y - 96 * s], i % 2 ? '#fff' : '#22b8cf', OUT, 1.6);
+    poly(
+      ctx,
+      [
+        x + 2 * s,
+        y - 128 * s,
+        x + 2 * s + Math.cos(a0) * 70 * s,
+        y - 96 * s,
+        x + 2 * s + Math.cos(a1) * 70 * s,
+        y - 96 * s,
+      ],
+      i % 2 ? '#fff' : '#22b8cf',
+      OUT,
+      1.6,
+    );
   }
   // шезлонг перед зонтиком (за ним и прячутся)
-  poly(ctx, [x - 58 * s, y - 2 * s, x + 50 * s, y - 2 * s, x + 56 * s, y - 40 * s, x - 52 * s, y - 40 * s], '#ffd43b', OUT, 2);
-  for (let i = 1; i < 6; i++) line(ctx, x + (-56 + i * 18) * s, y - 4 * s, x + (-50 + i * 18) * s, y - 38 * s, 'rgba(240,140,0,.6)', 3);
+  poly(
+    ctx,
+    [x - 58 * s, y - 2 * s, x + 50 * s, y - 2 * s, x + 56 * s, y - 40 * s, x - 52 * s, y - 40 * s],
+    '#ffd43b',
+    OUT,
+    2,
+  );
+  for (let i = 1; i < 6; i++)
+    line(ctx, x + (-56 + i * 18) * s, y - 4 * s, x + (-50 + i * 18) * s, y - 38 * s, 'rgba(240,140,0,.6)', 3);
   ell(ctx, x - 30 * s, y - 22 * s, 9 * s, 6 * s, '#fff', OUT, 1.2); // полотенце-рулончик
 }
 const COVERS = [castle, ring, umbrella];
@@ -290,7 +310,16 @@ export default {
         x0 = w / 2 - lw * (LANES / 2 - 0.5),
         s = clamp(Math.min(lw / 150, h / 560), 0.55, 1.35);
       const tall = h > w * 1.15; // телефон стоя: укрытия выше, хомячок крупнее — без пустого песка посередине
-      return { w, h, lw, s, tall, xs: Array.from({ length: LANES }, (_, i) => x0 + i * lw), base: h * (tall ? 0.56 : 0.6), py: h - (tall ? 24 : 10) };
+      return {
+        w,
+        h,
+        lw,
+        s,
+        tall,
+        xs: Array.from({ length: LANES }, (_, i) => x0 + i * lw),
+        base: h * (tall ? 0.56 : 0.6),
+        py: h - (tall ? 24 : 10),
+      };
     }
     function draw() {
       const { w, h, lw, s, tall, xs, base, py } = layout();
@@ -339,8 +368,21 @@ export default {
           ctx.beginPath();
           ctx.rect(x - lw / 2, 0, lw, base - 6 * s);
           ctx.clip();
-          host.drawHamster(ctx, x, hy, 0.95 * s, l.look, { time: t + i, dir: 0, happy: l.wet > 0, armsUp: l.wet > 0 || l.stay < 0.25 });
-          if (l.wet > 0) for (let k = 0; k < 7; k++) drop(ctx, x + Math.cos(k * 0.9) * 34 * s, hy - 60 * s + Math.sin(k * 1.7 + l.wet * 6) * 22 * s - l.wet * 10, 4 * s, 1 - l.wet * 0.6);
+          host.drawHamster(ctx, x, hy, 0.95 * s, l.look, {
+            time: t + i,
+            dir: 0,
+            happy: l.wet > 0,
+            armsUp: l.wet > 0 || l.stay < 0.25,
+          });
+          if (l.wet > 0)
+            for (let k = 0; k < 7; k++)
+              drop(
+                ctx,
+                x + Math.cos(k * 0.9) * 34 * s,
+                hy - 60 * s + Math.sin(k * 1.7 + l.wet * 6) * 22 * s - l.wet * 10,
+                4 * s,
+                1 - l.wet * 0.6,
+              );
           ctx.restore();
         }
         COVERS[i](ctx, x, base, s);
@@ -348,7 +390,12 @@ export default {
       // хомячок с пистолетом внизу, поворачивается к дорожке
       const hx = w / 2 + (xs[aim] - w / 2) * 0.25,
         hs = clamp(s * (tall ? 1.7 : 1.15), 0.7, 1.6);
-      host.drawHamster(ctx, hx, py, hs, host.look, { time: t, dir: aim === 0 ? -1 : aim === 2 ? 1 : 0, happy: sayT > 0 && say.startsWith('💦'), armsUp: false });
+      host.drawHamster(ctx, hx, py, hs, host.look, {
+        time: t,
+        dir: aim === 0 ? -1 : aim === 2 ? 1 : 0,
+        happy: sayT > 0 && say.startsWith('💦'),
+        armsUp: false,
+      });
       pistol(ctx, hx + (aim === 0 ? -30 : 24) * hs, py - 22 * hs, hs, aim === 0 ? -1 : 1);
       // струи: капли летят от пистолета к дорожке
       for (const st of streams) {
@@ -364,7 +411,9 @@ export default {
             y = sy + (ty - sy) * qq - Math.sin(qq * Math.PI) * 60 * s;
           drop(ctx, x, y, 4.2 * s, 1 - st.t * 1.6);
         }
-        if (q >= 1 && !st.hit) for (let k = 0; k < 4; k++) drop(ctx, tx + (k - 1.5) * 12 * s, ty + 26 * s - st.t * 20, 3 * s, Math.max(0, 1 - st.t * 2));
+        if (q >= 1 && !st.hit)
+          for (let k = 0; k < 4; k++)
+            drop(ctx, tx + (k - 1.5) * 12 * s, ty + 26 * s - st.t * 20, 3 * s, Math.max(0, 1 - st.t * 2));
       }
       // друг обрызгал в ответ: капли по экрану
       if (wet > 0)
@@ -385,7 +434,28 @@ export default {
           ctx.save();
           ctx.translate(x, y);
           ctx.rotate(d ? (d > 0 ? 0 : Math.PI) : -Math.PI / 2);
-          poly(ctx, [-r * 0.5, -r * 0.18, r * 0.05, -r * 0.18, r * 0.05, -r * 0.45, r * 0.55, 0, r * 0.05, r * 0.45, r * 0.05, r * 0.18, -r * 0.5, r * 0.18], '#4dabf7', OUT, 1.4);
+          poly(
+            ctx,
+            [
+              -r * 0.5,
+              -r * 0.18,
+              r * 0.05,
+              -r * 0.18,
+              r * 0.05,
+              -r * 0.45,
+              r * 0.55,
+              0,
+              r * 0.05,
+              r * 0.45,
+              r * 0.05,
+              r * 0.18,
+              -r * 0.5,
+              r * 0.18,
+            ],
+            '#4dabf7',
+            OUT,
+            1.4,
+          );
           ctx.restore();
           ctx.globalAlpha = 1;
         });
@@ -414,7 +484,20 @@ export default {
       if (Math.abs(x - xs[best]) < lw) shoot(best);
     };
     host.on(cv.canvas, 'pointerdown', pd);
-    const KEYS = { ArrowLeft: 0, KeyA: 0, Digit1: 0, ArrowUp: 1, ArrowDown: 1, KeyW: 1, KeyS: 1, Space: 1, Digit2: 1, ArrowRight: 2, KeyD: 2, Digit3: 2 };
+    const KEYS = {
+      ArrowLeft: 0,
+      KeyA: 0,
+      Digit1: 0,
+      ArrowUp: 1,
+      ArrowDown: 1,
+      KeyW: 1,
+      KeyS: 1,
+      Space: 1,
+      Digit2: 1,
+      ArrowRight: 2,
+      KeyD: 2,
+      Digit3: 2,
+    };
     const key = (e) => {
       if (e.code in KEYS) {
         e.preventDefault();
@@ -423,7 +506,16 @@ export default {
     };
     host.on(window, 'keydown', key);
     // для автотеста: что сейчас в игре (up — кто выглянул и в него можно брызнуть)
-    if (DEV) cv.canvas.__splash = () => ({ t, over, hits, pops, backs, cool, up: lanes.map((l) => l.on && l.up > 0.35 && !l.wet) });
+    if (DEV)
+      cv.canvas.__splash = () => ({
+        t,
+        over,
+        hits,
+        pops,
+        backs,
+        cool,
+        up: lanes.map((l) => l.on && l.up > 0.35 && !l.wet),
+      });
     cv.canvas.classList.add('sp-canvas');
   },
 };

@@ -127,7 +127,10 @@ const DUNES = [
   [28, 9, 2.4, 1.6, 0.6, 1],
 ];
 const inDune = (x, y) =>
-  DUNES.some(([cx, cy, rx, ry, dx, dy]) => inEll(x, y, [cx, cy, rx, ry]) && !inEll(x, y, [cx + dx, cy + dy, rx * 0.9, ry * 0.85]));
+  DUNES.some(
+    ([cx, cy, rx, ry, dx, dy]) =>
+      inEll(x, y, [cx, cy, rx, ry]) && !inEll(x, y, [cx + dx, cy + dy, rx * 0.9, ry * 0.85]),
+  );
 // «тихие» места: тут ничего случайного не растёт
 const CALM = [
   [18, 32, 27, 38], // остановка и автобус
@@ -239,9 +242,9 @@ function build(m) {
   m.put1('signpost', 30, 12, { text: '🦴 Раскопки' });
   // перед зданиями — свободно (там двери)
   for (const b of [AT.stop, AT.tent, AT.pyramid])
-    for (let x = b.x - 1; x <= b.x + b.w; x++) for (let y = b.y; y <= b.y + b.h + 1; y++) if (m.at(x, y) !== 'oasisWater') m.clear(x, y);
+    for (let x = b.x - 1; x <= b.x + b.w; x++)
+      for (let y = b.y; y <= b.y + b.h + 1; y++) if (m.at(x, y) !== 'oasisWater') m.clear(x, y);
 }
-
 
 // ---------- катание на верблюде: хомячок верхом на Финике, круг по верблюжьей тропе ----------
 let riding = false,
@@ -400,7 +403,9 @@ export const mirageAlpha = (sc) =>
 // ---------- жара без штрафов (Д7): в тени пальм прохладно; на солнце без шляпы хомячок обмахивается лапкой ----------
 let palms = [];
 /** Стоит ли хомячок в тени пальмы (ближе полутора клеток к стволу) или в траве оазиса у воды. */
-export const inShade = (sc) => palms.some(([x, y]) => Math.hypot(sc.p.x - x, sc.p.y - y) < T * 1.5) || sc.map.at(Math.floor(sc.p.x / T), Math.floor(sc.p.y / T)) === 'g';
+export const inShade = (sc) =>
+  palms.some(([x, y]) => Math.hypot(sc.p.x - x, sc.p.y - y) < T * 1.5) ||
+  sc.map.at(Math.floor(sc.p.x / T), Math.floor(sc.p.y / T)) === 'g';
 /** Жарко ли хомячку прямо сейчас: день, на солнце и без шляпы от солнца. */
 export function feelsHot(sc) {
   if (!daytime(sc) || inShade(sc)) return false;
@@ -409,7 +414,13 @@ export function feelsHot(sc) {
 }
 
 // ---------- звёздное небо ночью (Д6): чёткие точки-звёзды поверх кадра (в экранных координатах), мерцают ----------
-const STARS = Array.from({ length: 90 }, (_, i) => ({ x: hash(i, 1), y: hash(2, i), r: 1.1 + hash(i, 3) * 1.3, tw: hash(i, 4) * 6.3, big: hash(i, 5) > 0.9 }));
+const STARS = Array.from({ length: 90 }, (_, i) => ({
+  x: hash(i, 1),
+  y: hash(2, i),
+  r: 1.1 + hash(i, 3) * 1.3,
+  tw: hash(i, 4) * 6.3,
+  big: hash(i, 5) > 0.9,
+}));
 function drawStars(ctx, sc, w, h, t, k) {
   // небо чуть сдвигается вслед за камерой, но медленнее земли — оно далеко
   const ox = sc.cam.x * 0.05,
@@ -419,8 +430,8 @@ function drawStars(ctx, sc, w, h, t, k) {
   ctx.beginPath();
   for (const q of STARS) {
     const tw = 0.65 + Math.sin(t * 1.7 + q.tw) * 0.35,
-      x = ((((q.x * w - ox) % w) + w) % w),
-      y = ((((q.y * h - oy) % h) + h) % h),
+      x = (((q.x * w - ox) % w) + w) % w,
+      y = (((q.y * h - oy) % h) + h) % h,
       r = q.r * tw;
     ctx.moveTo(x + r, y);
     ctx.arc(x, y, r, 0, 6.2832);
@@ -537,9 +548,25 @@ const desert = createTopDownScene({
   build,
   buildings: [
     // остановка каравана: обратно в город (caravan:back — features/desert.js)
-    { id: 'stop', kind: 'caravanStop', ...AT.stop, name: 'Остановка каравана', mapName: 'Караван в город', icon: '🚌', act: 'caravan:back' },
+    {
+      id: 'stop',
+      kind: 'caravanStop',
+      ...AT.stop,
+      name: 'Остановка каравана',
+      mapName: 'Караван в город',
+      icon: '🚌',
+      act: 'caravan:back',
+    },
     // шатёр кочевника Бархана у оазиса
-    { id: 'tent', kind: 'tent', ...AT.tent, name: 'Шатёр', mapName: 'Шатёр Бархана', icon: '⛺', act: 'inside:tent_barkhan' },
+    {
+      id: 'tent',
+      kind: 'tent',
+      ...AT.tent,
+      name: 'Шатёр',
+      mapName: 'Шатёр Бархана',
+      icon: '⛺',
+      act: 'inside:tent_barkhan',
+    },
     // пирамида: внутри — загадка «Пары»
     { id: 'pyramid', kind: 'pyramid', ...AT.pyramid, name: 'Пирамида', icon: '🔺', act: 'inside:pyramid_hall' },
   ],
@@ -587,7 +614,15 @@ const desert = createTopDownScene({
       map: { icon: '🪣', at: [AT.well[0] + 0.5, AT.well[1] + 0.5], label: '🪣 Старый колодец' },
     },
     // бубенчик Финика (задание «Бубенчик верблюда»): виден, пока его не нашли
-    { id: 'bell', at: AT.bell, hit: { r: 40 }, stand: [AT.bell[0] + 0.5, AT.bell[1] + 1.4], when: bellHidden, act: 'desert:bell', key: false },
+    {
+      id: 'bell',
+      at: AT.bell,
+      hit: { r: 40 },
+      stand: [AT.bell[0] + 0.5, AT.bell[1] + 1.4],
+      when: bellHidden,
+      act: 'desert:bell',
+      key: false,
+    },
   ],
   spots: {
     cacti: { at: [6.5, 23.5], label: '🌵 Кактусы' },

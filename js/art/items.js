@@ -1042,7 +1042,8 @@ function passionDrink(c) {
   // долька маракуйи на краю
   E(c, -15, -18, 10, 10, '#7b3585', 2.4, '#3d1642');
   E(c, -15, -18, 6.5, 6.5, '#ffb629', 0, null);
-  for (let i = 0; i < 5; i++) E(c, -15 + Math.cos(i * 1.26) * 3.4, -18 + Math.sin(i * 1.26) * 3.4, 1.3, 0.9, '#2b1a12', 0, null, i * 1.26);
+  for (let i = 0; i < 5; i++)
+    E(c, -15 + Math.cos(i * 1.26) * 3.4, -18 + Math.sin(i * 1.26) * 3.4, 1.3, 0.9, '#2b1a12', 0, null, i * 1.26);
 }
 
 export const ITEM_ART = {

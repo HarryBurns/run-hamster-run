@@ -216,13 +216,14 @@ export default {
     }
     host.on(cv.canvas, 'pointerdown', tap);
     // для автотеста (dev/smoke_forest.js): где сейчас какие грибы и куда нажать
-    if (DEV) cv.canvas.__mh = () =>
-      SPOTS.map((s) => {
-        const g = geo(s);
-        return s.m && !s.m.hit && rise(s.m) > 0.9
-          ? { good: MUSHROOMS[s.m.kind].good, x: g.x, y: g.y - 34 * g.k }
-          : null;
-      }).filter(Boolean);
+    if (DEV)
+      cv.canvas.__mh = () =>
+        SPOTS.map((s) => {
+          const g = geo(s);
+          return s.m && !s.m.hit && rise(s.m) > 0.9
+            ? { good: MUSHROOMS[s.m.kind].good, x: g.x, y: g.y - 34 * g.k }
+            : null;
+        }).filter(Boolean);
 
     function draw() {
       const W = cv.w,

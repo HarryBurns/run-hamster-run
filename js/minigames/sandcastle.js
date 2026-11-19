@@ -162,14 +162,16 @@ export function paintOwnCastle(ctx, cells) {
   ctx.save();
   ctx.translate(-BASE_X[2], -GROUND);
   for (let i = 0; i < 5; i++) if (cells[i] && PIECE[cells[i]]) drawPiece(ctx, cells[i], BASE_X[i], GROUND);
-  for (let i = 0; i < 5; i++) if (cells[5 + i] && PIECE[cells[5 + i]]) drawPiece(ctx, cells[5 + i], BASE_X[i], topY(cells, i));
+  for (let i = 0; i < 5; i++)
+    if (cells[5 + i] && PIECE[cells[5 + i]]) drawPiece(ctx, cells[5 + i], BASE_X[i], topY(cells, i));
   ctx.restore();
 }
 function slotBox(ctx, i, row, opts, y) {
   ctx.setLineDash([7, 6]);
   ctx.strokeStyle = 'rgba(74,55,40,.55)';
   ctx.lineWidth = 2.4;
-  if (row === 'base') fillRR(ctx, BASE_X[i] - 28, GROUND - 74, 56, 74, 10, 'rgba(255,255,255,.35)', 'rgba(74,55,40,.55)', 2.4);
+  if (row === 'base')
+    fillRR(ctx, BASE_X[i] - 28, GROUND - 74, 56, 74, 10, 'rgba(255,255,255,.35)', 'rgba(74,55,40,.55)', 2.4);
   else {
     ctx.beginPath();
     ctx.arc(BASE_X[i], y - 18, 20, 0, 6.2832);
@@ -350,7 +352,8 @@ export default {
         p = PIECE[sel];
       if (p.row !== row) {
         host.sfx('thud');
-        say.textContent = row === 'top' ? '☝️ Наверх ставят флажок, ракушку или звёздочку!' : '👇 Внизу — башня, стена или ворота!';
+        say.textContent =
+          row === 'top' ? '☝️ Наверх ставят флажок, ракушку или звёздочку!' : '👇 Внизу — башня, стена или ворота!';
         return;
       }
       cells[j] = sel;
@@ -386,7 +389,9 @@ export default {
       bad = [];
       phase = 'wait';
       host.sfx('ok');
-      say.textContent = ROUNDS[round].free ? '😍 Какой чудесный замок!' : ['🎉 Точь-в-точь как образец!', '🌟 Здорово получилось!'][round] || '🎉 Ура!';
+      say.textContent = ROUNDS[round].free
+        ? '😍 Какой чудесный замок!'
+        : ['🎉 Точь-в-точь как образец!', '🌟 Здорово получилось!'][round] || '🎉 Ура!';
       paint();
       round++;
       if (round >= ROUNDS.length) {
@@ -401,18 +406,28 @@ export default {
       cells = Array(10).fill(null);
       pattern = ROUNDS[round].free ? null : makePattern();
       phase = 'play';
-      say.textContent = ROUNDS[round].free ? '✨ А теперь — свой замок! Ставь что хочешь.' : '👀 Новый образец! Построй такой же.';
+      say.textContent = ROUNDS[round].free
+        ? '✨ А теперь — свой замок! Ставь что хочешь.'
+        : '👀 Новый образец! Построй такой же.';
       paint();
     }
     // для автотеста (dev/smoke_sbeach.js): образец, что стоит, и где на экране каждое место
-    if (DEV) cv.__castle = () => {
-      const r = cv.getBoundingClientRect(),
-        at = (j) => ({
-          x: r.left + (BASE_X[j % 5] / CW) * r.width,
-          y: r.top + ((j < 5 ? GROUND - 40 : topY(cells, j - 5) - 18) / CH) * r.height,
-        });
-      return { round, phase, miss, pattern: pattern && [...pattern], cells: [...cells], slots: slotsOf(round).map((j) => ({ j, ...at(j) })) };
-    };
+    if (DEV)
+      cv.__castle = () => {
+        const r = cv.getBoundingClientRect(),
+          at = (j) => ({
+            x: r.left + (BASE_X[j % 5] / CW) * r.width,
+            y: r.top + ((j < 5 ? GROUND - 40 : topY(cells, j - 5) - 18) / CH) * r.height,
+          });
+        return {
+          round,
+          phase,
+          miss,
+          pattern: pattern && [...pattern],
+          cells: [...cells],
+          slots: slotsOf(round).map((j) => ({ j, ...at(j) })),
+        };
+      };
     pattern = makePattern();
     paint();
     function finish() {

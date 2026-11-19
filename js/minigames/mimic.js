@@ -250,7 +250,15 @@ export default {
         ell(ctx, W * 0.84, H * 0.18, 30 * s, 30 * s, '#ffe066');
         for (let i = 0; i < 8; i++) {
           const a = (i * TAU) / 8 + t * 0.5;
-          line(ctx, W * 0.84 + Math.cos(a) * 40 * s, H * 0.18 + Math.sin(a) * 40 * s, W * 0.84 + Math.cos(a) * 52 * s, H * 0.18 + Math.sin(a) * 52 * s, '#ffd43b', 3 * s);
+          line(
+            ctx,
+            W * 0.84 + Math.cos(a) * 40 * s,
+            H * 0.18 + Math.sin(a) * 40 * s,
+            W * 0.84 + Math.cos(a) * 52 * s,
+            H * 0.18 + Math.sin(a) * 52 * s,
+            '#ffd43b',
+            3 * s,
+          );
         }
         for (let i = 0; i < 2; i++) {
           const cx = ((t * 12 + i * W * 0.55) % (W + 160)) - 80;
@@ -263,14 +271,34 @@ export default {
         for (let i = 0; i < 6; i++) {
           const a = t * 1.6 + (i * TAU) / 6;
           ctx.globalAlpha = 0.22;
-          poly(ctx, [W / 2, H * 0.08 + 18 * s, W / 2 + Math.cos(a) * W * 0.6 - 30, floor, W / 2 + Math.cos(a) * W * 0.6 + 30, floor], ['#ff6b9d', '#ffd43b', '#63e6be', '#74c0fc', '#b197fc', '#ff922b'][i]);
+          poly(
+            ctx,
+            [
+              W / 2,
+              H * 0.08 + 18 * s,
+              W / 2 + Math.cos(a) * W * 0.6 - 30,
+              floor,
+              W / 2 + Math.cos(a) * W * 0.6 + 30,
+              floor,
+            ],
+            ['#ff6b9d', '#ffd43b', '#63e6be', '#74c0fc', '#b197fc', '#ff922b'][i],
+          );
           ctx.globalAlpha = 1;
         }
       }
       // бассейн и палуба
       fillRR(ctx, -10, floor - 10 * s, W + 20, H, 0, morning ? '#ffe8cc' : '#495057');
       fillRR(ctx, -10, floor + 18 * s, W + 20, H, 0, morning ? '#4dabf7' : '#3b5bdb');
-      for (let i = 0; i < 8; i++) line(ctx, ((i * 0.13 + t * 0.02) % 1) * W, floor + 30 * s + (i % 3) * 8, ((i * 0.13 + t * 0.02) % 1) * W + 26, floor + 30 * s + (i % 3) * 8, 'rgba(255,255,255,.4)', 2);
+      for (let i = 0; i < 8; i++)
+        line(
+          ctx,
+          ((i * 0.13 + t * 0.02) % 1) * W,
+          floor + 30 * s + (i % 3) * 8,
+          ((i * 0.13 + t * 0.02) % 1) * W + 26,
+          floor + 30 * s + (i % 3) * 8,
+          'rgba(255,255,255,.4)',
+          2,
+        );
       // Хлопушка слева, хомячок справа; над ними — облачко «что делать»
       const ax = W * 0.3,
         hx = W * 0.7,
@@ -288,7 +316,10 @@ export default {
         by = fy - 175 * s;
       for (let i = 0; i < n; i++) {
         const x = W / 2 - bw / 2 + (i + 0.5) * (bw / n),
-          done = phase === 'input' || phase === 'good' || phase === 'oops' ? i < pos : phase === 'show' && aMove && i <= aMove.k;
+          done =
+            phase === 'input' || phase === 'good' || phase === 'oops'
+              ? i < pos
+              : phase === 'show' && aMove && i <= aMove.k;
         ell(ctx, x, by, 13 * s, 13 * s, done ? '#ffd43b' : 'rgba(255,255,255,.55)', OUT, 1.6);
         if (done && phase !== 'show') star(ctx, x, by, 7 * s, '#fff');
         else if (phase === 'show' && aMove && i === aMove.k) {
@@ -314,7 +345,11 @@ export default {
       host.finish({
         stars,
         text: `${morning ? 'Зарядка окончена' : 'Дискотека удалась'}! Повторено танцев: <b>${wins}</b> из ${ROUNDS}${longest ? `, самый длинный — ${longest} ${plural(longest, 'движение', 'движения', 'движений')}` : ''}. ${
-          stars === 3 ? 'Хлопушка хлопает: «Повторяешь точь-в-точь — хоть сама веди дискотеку!»' : stars === 2 ? 'Хлопушка: «Здорово! Ещё чуть-чуть — и будешь как я!»' : 'Хлопушка: «Главное — весело! Приходи ещё!»'
+          stars === 3
+            ? 'Хлопушка хлопает: «Повторяешь точь-в-точь — хоть сама веди дискотеку!»'
+            : stars === 2
+              ? 'Хлопушка: «Здорово! Ещё чуть-чуть — и будешь как я!»'
+              : 'Хлопушка: «Главное — весело! Приходи ещё!»'
         }`,
         extra: { wins, mistakes, longest },
       });

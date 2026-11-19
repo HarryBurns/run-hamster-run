@@ -180,7 +180,8 @@ export function gather(sc, o) {
   setDayFlag(keyOf(o), 1, 'plants');
   addItem('ing', id, n);
   if (pl.drop)
-    for (let i = 0; i < n; i++) sc.drops.push({ x: o.x + pl.drop[0] + i * 11, y: o.y + pl.drop[1] - i * 7, t: 0, e: ing.e });
+    for (let i = 0; i < n; i++)
+      sc.drops.push({ x: o.x + pl.drop[0] + i * 11, y: o.y + pl.drop[1] - i * 7, t: 0, e: ing.e });
   setTimeout(() => {
     sfx('pop');
     toast(`${pl.got ? pl.got + ' ' : ''}+${n} ${ing.e} ${pl.name || (n > 1 && pl.many) || ing.name}`, 'good');
@@ -289,7 +290,15 @@ function paintBananaTop(ctx, sea, fruit) {
     ctx.translate(Math.cos(a) * 3, -46 + Math.sin(a) * 3);
     ctx.rotate(a);
     // снег — на той стороне листа, что смотрит вверх
-    bananaLeaf(ctx, len, wid, i % 2 ? shade(col, 0.08) : col, i % 2 ? col : dark, rib, sea !== 'winter' ? 0 : Math.cos(a) >= 0 ? -1 : 1);
+    bananaLeaf(
+      ctx,
+      len,
+      wid,
+      i % 2 ? shade(col, 0.08) : col,
+      i % 2 ? col : dark,
+      rib,
+      sea !== 'winter' ? 0 : Math.cos(a) >= 0 ? -1 : 1,
+    );
     ctx.restore();
   });
   // молодой лист-свёрток в середине
@@ -394,7 +403,17 @@ function paintMangoCrown(ctx, sea, fruit) {
     MANGO_CROWN.forEach(([x, y, rx, ry], i) => {
       for (let k = 0; k < 2; k++) {
         const a = i * 1.7 + k * 2.6;
-        ell(ctx, x + Math.cos(a) * rx * 0.55, y + Math.sin(a) * ry * 0.5, 3.4, 1.9, k ? '#fcc419' : '#e8900c', null, 1, a);
+        ell(
+          ctx,
+          x + Math.cos(a) * rx * 0.55,
+          y + Math.sin(a) * ry * 0.5,
+          3.4,
+          1.9,
+          k ? '#fcc419' : '#e8900c',
+          null,
+          1,
+          a,
+        );
       }
     });
   if (fruit) for (const [x, y, a] of MANGO_AT) mangoFruit(ctx, x, y, a);
@@ -454,7 +473,17 @@ function paintBerryBush(ctx, sea, fruit) {
   BERRY_PUFFS.forEach(([x, y, rx, ry], i) => {
     for (let k = 0; k < 3; k++) {
       const a = i * 2.1 + k * 2.2;
-      ell(ctx, x + Math.cos(a) * rx * 0.5, y + Math.sin(a) * ry * 0.45, 2.6, 1.5, k % 2 ? tones[0] : tones[2], null, 1, a);
+      ell(
+        ctx,
+        x + Math.cos(a) * rx * 0.5,
+        y + Math.sin(a) * ry * 0.45,
+        2.6,
+        1.5,
+        k % 2 ? tones[0] : tones[2],
+        null,
+        1,
+        a,
+      );
     }
   });
   if (sea === 'spring')
@@ -552,7 +581,13 @@ function paintWildStrawberry(ctx, sea, fruit) {
       ell(ctx, x + Math.cos(a) * 4, y + Math.sin(a) * 4, 4, 2.6, leaf, OUT, 1, a);
       ell(ctx, x + Math.cos(a) * 4 - 0.8, y + Math.sin(a) * 4 - 0.8, 1.6, 1, 'rgba(255,255,255,.3)', null, 1, a);
     }
-  if (sea === 'spring') for (const [x, y] of [[-5, -2], [6, -8], [3, 4]]) flower(ctx, x, y, 2.4, '#fff', '#ffd43b');
+  if (sea === 'spring')
+    for (const [x, y] of [
+      [-5, -2],
+      [6, -8],
+      [3, 4],
+    ])
+      flower(ctx, x, y, 2.4, '#fff', '#ffd43b');
   if (!fruit) return;
   for (const [x, y] of [
     [-6, 4],
@@ -584,7 +619,16 @@ function paintHazel(ctx, sea, fruit) {
       line(ctx, ax, ay, bx, by, OUT, 5);
       line(ctx, ax, ay, bx, by, '#a8703f', 2.8);
     }
-    crown(ctx, [[-20, -28, 7, 4], [18, -30, 7, 4], [0, -40, 8, 4]], ['#cfe3f0', '#ffffff', '#ffffff'], 1.5);
+    crown(
+      ctx,
+      [
+        [-20, -28, 7, 4],
+        [18, -30, 7, 4],
+        [0, -40, 8, 4],
+      ],
+      ['#cfe3f0', '#ffffff', '#ffffff'],
+      1.5,
+    );
     return;
   }
   const tones = sea === 'autumn' ? ['#d9a400', '#f2c14e', '#ffe08a'] : leafTones(sea, 1);
@@ -641,8 +685,16 @@ function paintPricklyPear(ctx, fruit) {
 // Лиана маракуйи: шпалера из двух колышков с перекладинами, по ней вьётся лиана с трёхпалыми листьями;
 // fruit: 0 — только листья, 1 — висят тёмно-лиловые плоды, 2 — цветёт (бело-фиолетовые цветы со звёздочкой)
 const VINE_LEAVES = [
-  [-22, -18, 0.4], [-14, -40, -0.3], [-2, -58, 0.2], [12, -52, 0.9], [22, -34, -0.5], [20, -12, 0.3],
-  [-8, -22, -0.8], [6, -30, 0.1], [-20, -54, 0.6], [24, -60, -0.2],
+  [-22, -18, 0.4],
+  [-14, -40, -0.3],
+  [-2, -58, 0.2],
+  [12, -52, 0.9],
+  [22, -34, -0.5],
+  [20, -12, 0.3],
+  [-8, -22, -0.8],
+  [6, -30, 0.1],
+  [-20, -54, 0.6],
+  [24, -60, -0.2],
 ];
 const VINE_FRUIT = [
   [-12, -30],
@@ -799,20 +851,47 @@ function paintAppleCrown(ctx, sea, fruit) {
   APPLE_CROWN.forEach(([x, y, rx, ry], i) => {
     for (let k = 0; k < 3; k++) {
       const a = i * 2.2 + k * 2.1 + 0.3;
-      ell(ctx, x + Math.cos(a) * rx * 0.5, y + Math.sin(a) * ry * 0.46, 3.6, 2, k % 2 ? tones[0] : tones[2], null, 1, a);
+      ell(
+        ctx,
+        x + Math.cos(a) * rx * 0.5,
+        y + Math.sin(a) * ry * 0.46,
+        3.6,
+        2,
+        k % 2 ? tones[0] : tones[2],
+        null,
+        1,
+        a,
+      );
     }
   });
   if (sea === 'spring')
     APPLE_CROWN.forEach(([x, y, rx, ry], i) => {
       for (let k = 0; k < 3; k++) {
         const a = i * 1.9 + k * 2.2;
-        flower(ctx, x + Math.cos(a) * rx * 0.55, y + Math.sin(a) * ry * 0.5, 2.8, k % 2 ? '#ffdeeb' : '#fff', '#ffd43b');
+        flower(
+          ctx,
+          x + Math.cos(a) * rx * 0.55,
+          y + Math.sin(a) * ry * 0.5,
+          2.8,
+          k % 2 ? '#ffdeeb' : '#fff',
+          '#ffd43b',
+        );
       }
     });
   if (sea === 'autumn')
     APPLE_CROWN.forEach(([x, y, rx, ry], i) => {
       const a = i * 1.7 + 0.8;
-      ell(ctx, x + Math.cos(a) * rx * 0.55, y + Math.sin(a) * ry * 0.5, 3.2, 2, i % 2 ? '#fcc419' : '#e8590c', null, 1, a);
+      ell(
+        ctx,
+        x + Math.cos(a) * rx * 0.55,
+        y + Math.sin(a) * ry * 0.5,
+        3.2,
+        2,
+        i % 2 ? '#fcc419' : '#e8590c',
+        null,
+        1,
+        a,
+      );
     });
   if (fruit) for (const [x, y] of fruit === 2 ? APPLE_AT.slice(0, 5) : APPLE_AT) appleFruit(ctx, x, y, fruit === 2);
 }
@@ -974,7 +1053,13 @@ defineObjects({
     draw(ctx, o, env) {
       const h = env.hero,
         inside = Math.abs(h.x - o.x) < 26 && Math.abs(h.y - o.y) < 26;
-      put('hazelBush', o.x + (inside ? Math.sin(env.t * 22) * 1.8 : wobble(o, env.t)), o.y, env.season, hasFruit(o) ? 1 : 0);
+      put(
+        'hazelBush',
+        o.x + (inside ? Math.sin(env.t * 22) * 1.8 : wobble(o, env.t)),
+        o.y,
+        env.season,
+        hasFruit(o) ? 1 : 0,
+      );
     },
   },
   pricklyPear: {

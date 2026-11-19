@@ -195,7 +195,9 @@ module.exports = async function title(ctx) {
       await page.mouse.down();
       await wait(1700);
       await page.mouse.up();
-      await until(() => JSON.parse(localStorage.getItem('rhr-games')).games.length === 1, undefined, { timeout: 3000 }).catch(() => {});
+      await until(() => JSON.parse(localStorage.getItem('rhr-games')).games.length === 1, undefined, {
+        timeout: 3000,
+      }).catch(() => {});
       const idx2 = await index(),
         st = await store();
       expect(idx2.games.length === 1 && idx2.games[0].name !== 'Булочка', 'удалилась не та игра', idx2);

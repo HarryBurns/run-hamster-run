@@ -280,6 +280,5 @@ export default {
     });
 
     showTask();
-
   },
 };

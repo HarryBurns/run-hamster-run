@@ -48,7 +48,8 @@ function face(ctx, x, y, pose, o = {}) {
       ell(ctx, x + dx + 0.6, ey - 0.8, 0.7, 0.7, '#fff');
     }
     // бровки домиком
-    if (sad) line(ctx, x + dx - 2.6, ey - 3.2 - (dx < 2 ? 0 : 1.6), x + dx + 2.6, ey - 3.2 - (dx < 2 ? 1.6 : 0), OUT, 1.2);
+    if (sad)
+      line(ctx, x + dx - 2.6, ey - 3.2 - (dx < 2 ? 0 : 1.6), x + dx + 2.6, ey - 3.2 - (dx < 2 ? 1.6 : 0), OUT, 1.2);
   }
   // нос и рот
   ell(ctx, x + 2.5 + (o.nx || 0), y + 3, o.nose || 1.7, (o.nose || 1.7) * 0.8, o.noseCol || '#ff8fab', OUT, 0.9);
@@ -196,7 +197,10 @@ const KINDS = {
 export function drawPet(ctx, kind, pose = {}) {
   const c = COL[kind] || COL.kitten,
     paint = KINDS[kind] || KINDS.kitten;
-  const bob = pose.walk === null || pose.walk === undefined ? 0 : Math.abs(Math.sin(pose.walk * TAU)) * (kind === 'bunny' ? 5 : 1.4);
+  const bob =
+    pose.walk === null || pose.walk === undefined
+      ? 0
+      : Math.abs(Math.sin(pose.walk * TAU)) * (kind === 'bunny' ? 5 : 1.4);
   const hy = (kind === 'hedgehog' ? -15 : -22) + (pose.eat ? pose.eat * 9 : 0) + (pose.mood === 'sad' ? 2 : 0);
   ctx.save();
   ctx.lineJoin = 'round';

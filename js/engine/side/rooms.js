@@ -226,7 +226,8 @@ function wallpaper(ctx, geo, r, y) {
       ctx.fillRect(r.x0, yy + 3, w, 3);
       ctx.fillStyle = 'rgba(90,50,20,.3)';
       ctx.fillRect(r.x0, yy + h - 4, w, 4);
-      for (let xx = r.x0 + 30 + ((i * 97) % 150); xx < r.x1 - 20; xx += 190) ell(ctx, xx, yy + h / 2, 4.5, 2.6, 'rgba(90,50,20,.32)');
+      for (let xx = r.x0 + 30 + ((i * 97) % 150); xx < r.x1 - 20; xx += 190)
+        ell(ctx, xx, yy + h / 2, 4.5, 2.6, 'rgba(90,50,20,.32)');
     }
   } else if (paper === 'stone') {
     // каменные блоки (пирамида, храм): ряды со сдвигом швов, блоки чуть разного тона
@@ -372,9 +373,8 @@ function windowAt(ctx, x, y, hw = 44, view = null) {
   } else if (view === 'jungle') {
     const leaf = mix('#2f9e44', '#16214d', d * 0.75);
     for (let i = 0, xx = x - hw; xx < x + hw + 20; xx += 26, i++)
-      ell(ctx, xx, y - 116 - (i % 3) * 16, 22, 12, i % 2 ? leaf : shade(leaf, -0.15), null, 2, (i % 2 ? 0.5 : -0.5));
-  }
-  else if (view === 'forest') {
+      ell(ctx, xx, y - 116 - (i % 3) * 16, 22, 12, i % 2 ? leaf : shade(leaf, -0.15), null, 2, i % 2 ? 0.5 : -0.5);
+  } else if (view === 'forest') {
     const fir = mix(c.season === 'winter' ? '#b8d8c8' : '#2f9e44', '#16214d', d * 0.75);
     for (let i = 0, xx = x - hw - 6; xx < x + hw + 12; xx += 17, i++) {
       const h = 34 + ((i * 17) % 22);
@@ -496,7 +496,8 @@ function shellShape(ctx, sh, geo, c) {
     ctx.clip();
     for (let yy = SLAB - 34, i = 0; yy > top - H; yy -= 34, i++) {
       line(ctx, cx - B, yy, cx + B, yy, 'rgba(110,70,20,.25)', 2);
-      for (let xx = cx - B + (i % 2 ? 40 : 0); xx < cx + B; xx += 80) line(ctx, xx, yy, xx, yy + 34, 'rgba(110,70,20,.18)', 2);
+      for (let xx = cx - B + (i % 2 ? 40 : 0); xx < cx + B; xx += 80)
+        line(ctx, xx, yy, xx, yy + 34, 'rgba(110,70,20,.18)', 2);
     }
     ctx.restore();
     return;
@@ -514,8 +515,16 @@ function shellShape(ctx, sh, geo, c) {
     ctx.lineWidth = 3;
     ctx.stroke();
     for (let i = 0; i < 9; i++)
-      ell(ctx, -120 + ((i * 331) % (WTOT + 240)), top - 40 - ((i * 53) % 110), 40, 20, i % 2 ? shade(wall, 0.1) : shade(wall, -0.12));
-    if (sh.moss) for (let i = 0; i < 6; i++) ell(ctx, -80 + i * ((WTOT + 160) / 5), top - 150 + (i % 2) * 40, 46, 14, sh.moss);
+      ell(
+        ctx,
+        -120 + ((i * 331) % (WTOT + 240)),
+        top - 40 - ((i * 53) % 110),
+        40,
+        20,
+        i % 2 ? shade(wall, 0.1) : shade(wall, -0.12),
+      );
+    if (sh.moss)
+      for (let i = 0; i < 6; i++) ell(ctx, -80 + i * ((WTOT + 160) / 5), top - 150 + (i % 2) * 40, 46, 14, sh.moss);
     return;
   }
   if (sh.shape === 'tent') {
@@ -648,7 +657,9 @@ export function drawHouseGround(ctx, desc, geo) {
     if (sh.bushes) greenery(ctx, sh.trees || 'bush', WTOT, c.season);
   }
   // сваи хижины над лагуной — под полом, в слое земли
-  if (sh.stilts) for (let xx = 20; xx < WTOT; xx += Math.max(120, WTOT / 6)) fillRR(ctx, xx - 9, SLAB - 4, 18, 150, 4, '#8d5524', OUT, 2);
+  if (sh.stilts)
+    for (let xx = 20; xx < WTOT; xx += Math.max(120, WTOT / 6))
+      fillRR(ctx, xx - 9, SLAB - 4, 18, 150, 4, '#8d5524', OUT, 2);
 }
 
 /** Неподвижное: коробка дома, крыша, чердачное окно, труба; обои и полы комнат (кроме открытых террас). */

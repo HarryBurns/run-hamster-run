@@ -320,6 +320,5 @@ export default {
     });
 
     startOrder();
-
   },
 };

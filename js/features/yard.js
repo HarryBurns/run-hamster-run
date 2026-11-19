@@ -29,7 +29,8 @@ const owns = (y) => y.home === 'villa' || S().homesOwned.includes(y.home);
 const itemsOf = (y) => S().yard.at[y.id] || [];
 /** Сколько таких предметов у хозяйки всего: в сарайчике и во дворах. */
 const ownedCount = (id) =>
-  (S().yard.store[id] || 0) + Object.values(S().yard.at).reduce((n, list) => n + list.filter((i) => i.id === id).length, 0);
+  (S().yard.store[id] || 0) +
+  Object.values(S().yard.at).reduce((n, list) => n + list.filter((i) => i.id === id).length, 0);
 
 /** Значок предмета двора — его же рисунок из реестра (ART), вписанный в квадрат. */
 export function yardIcon(def, size = 84) {
@@ -51,7 +52,8 @@ export function yardIcon(def, size = 84) {
 /** Двор этой локации, в котором стоит точка (клетка), — только свой (вилла или купленное жильё). */
 function yardAt(sc, tx, ty) {
   for (const y of YARDS)
-    if (y.loc === sc.name && owns(y) && tx >= y.area[0] && tx <= y.area[2] && ty >= y.area[1] && ty <= y.area[3]) return y;
+    if (y.loc === sc.name && owns(y) && tx >= y.area[0] && tx <= y.area[2] && ty >= y.area[1] && ty <= y.area[3])
+      return y;
   return null;
 }
 /**
@@ -72,7 +74,8 @@ function canPlace(sc, y, tx, ty, skip = null, soft = false) {
     const d = m.doorPx(b);
     if (ty === tileOf(d.y) && Math.abs(tx - tileOf(d.x)) <= 1) return false;
   }
-  for (const pl of sc.places) if (pl.stand && Math.floor(pl.stand[0]) === tx && Math.floor(pl.stand[1]) === ty) return false;
+  for (const pl of sc.places)
+    if (pl.stand && Math.floor(pl.stand[0]) === tx && Math.floor(pl.stand[1]) === ty) return false;
   for (const it of sc.taskItems()) if (!it.got && it.x === tx && it.y === ty) return false;
   for (const pk of sc.pickups) if (pk.tx === tx && pk.ty === ty) return false;
   return keepsWay(sc, y, tx, ty, skip);
@@ -99,7 +102,8 @@ function wayTargets(sc, y) {
     if (inArea(tileOf(d.x), tileOf(d.y))) out.push([tileOf(d.x), tileOf(d.y)]);
   }
   for (const pl of sc.places)
-    if (pl.stand && inArea(Math.floor(pl.stand[0]), Math.floor(pl.stand[1]))) out.push([Math.floor(pl.stand[0]), Math.floor(pl.stand[1])]);
+    if (pl.stand && inArea(Math.floor(pl.stand[0]), Math.floor(pl.stand[1])))
+      out.push([Math.floor(pl.stand[0]), Math.floor(pl.stand[1])]);
   if (inArea(tileOf(sc.p.x), tileOf(sc.p.y))) out.push([tileOf(sc.p.x), tileOf(sc.p.y)]);
   return out;
 }
@@ -118,7 +122,12 @@ function wayReach(m, box) {
   for (let i = 0; i < q.length; i += 2) {
     const x = q[i],
       yy = q[i + 1];
-    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+    for (const [dx, dy] of [
+      [1, 0],
+      [-1, 0],
+      [0, 1],
+      [0, -1],
+    ]) {
       const nx = x + dx,
         ny = yy + dy;
       if (nx < x0 || nx > x1 || ny < y0 || ny > y1) continue;
@@ -131,7 +140,16 @@ function wayReach(m, box) {
   return (x, yy) => seen[(yy - y0) * bw + x - x0] === 1;
 }
 /** 8 соседей клетки по кругу: С, СВ, В, ЮВ, Ю, ЮЗ, З, СЗ (чётные — по сторонам). */
-const RING = [[0, -1], [1, -1], [1, 0], [1, 1], [0, 1], [-1, 1], [-1, 0], [-1, -1]];
+const RING = [
+  [0, -1],
+  [1, -1],
+  [1, 0],
+  [1, 1],
+  [0, 1],
+  [-1, 1],
+  [-1, 0],
+  [-1, -1],
+];
 /**
  * Занять клетку точно безопасно, если соседи по сторонам, куда можно пройти, связаны между собой в обход неё — через
  * углы её же квадрата 3×3 (открытая лужайка, край двора). Тогда обход не нужен.
@@ -160,7 +178,15 @@ function keepsWay(sc, y, tx, ty, skip) {
     k = wayAt,
     px = tileOf(sc.p.x),
     py = tileOf(sc.p.y);
-  if (k.sc !== sc || k.y !== y || k.ver !== wayVer || k.n !== m.objs.length || k.px !== px || k.py !== py || k.skip !== skip) {
+  if (
+    k.sc !== sc ||
+    k.y !== y ||
+    k.ver !== wayVer ||
+    k.n !== m.objs.length ||
+    k.px !== px ||
+    k.py !== py ||
+    k.skip !== skip
+  ) {
     Object.assign(k, { sc, y, ver: wayVer, n: m.objs.length, px, py, skip });
     wayMemo.clear();
     wayBase = null;
@@ -168,7 +194,12 @@ function keepsWay(sc, y, tx, ty, skip) {
   const mk = ty * 4096 + tx;
   let ok = wayMemo.get(mk);
   if (ok === undefined) {
-    const box = [Math.max(0, y.area[0] - 1), Math.max(0, y.area[1] - 1), Math.min(m.w - 1, y.area[2] + 1), Math.min(m.h - 1, y.area[3] + 1)],
+    const box = [
+        Math.max(0, y.area[0] - 1),
+        Math.max(0, y.area[1] - 1),
+        Math.min(m.w - 1, y.area[2] + 1),
+        Math.min(m.h - 1, y.area[3] + 1),
+      ],
       solid = m.solid,
       skipWas = skip ? solid[skip.ty][skip.tx] : false;
     if (skip) solid[skip.ty][skip.tx] = false;
@@ -204,7 +235,8 @@ function freeCells(sc, y) {
   if (key !== freeMemo.key) {
     const [ax0, ay0, ax1, ay1] = y.area,
       cells = [];
-    for (let ty = ay0; ty <= ay1; ty++) for (let tx = ax0; tx <= ax1; tx++) if (canPlace(sc, y, tx, ty)) cells.push(tx, ty);
+    for (let ty = ay0; ty <= ay1; ty++)
+      for (let tx = ax0; tx <= ax1; tx++) if (canPlace(sc, y, tx, ty)) cells.push(tx, ty);
     freeMemo.key = key;
     freeMemo.cells = cells;
     wayBlocked = false; // перебор клеток — не попытка поставить: подсказка «будет не пройти» не о нём
@@ -334,7 +366,8 @@ function fromStore(id) {
     bd = 1e9;
   for (let ty = y.area[1]; ty <= y.area[3]; ty++)
     for (let tx = y.area[0]; tx <= y.area[2]; tx++) {
-      const d = Math.hypot(tx - cx, ty - cy) + (Math.abs(tx - tileOf(sc.p.x)) + Math.abs(ty - tileOf(sc.p.y)) < 2 ? 3 : 0);
+      const d =
+        Math.hypot(tx - cx, ty - cy) + (Math.abs(tx - tileOf(sc.p.x)) + Math.abs(ty - tileOf(sc.p.y)) < 2 ? 3 : 0);
       if (d < bd && canPlace(sc, y, tx, ty)) {
         bd = d;
         best = [tx, ty];

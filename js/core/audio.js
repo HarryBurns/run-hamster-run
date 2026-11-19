@@ -480,7 +480,8 @@ const sfxFile = (name, i) => {
 };
 function sfxUrls() {
   const out = [];
-  for (const name in SFX_FILES) if (!SFX_FILES[name].as) for (let i = 0; i < SFX_FILES[name].n; i++) out.push(sfxFile(name, i));
+  for (const name in SFX_FILES)
+    if (!SFX_FILES[name].as) for (let i = 0; i < SFX_FILES[name].n; i++) out.push(sfxFile(name, i));
   return out;
 }
 let sfxLoading = false;
@@ -1088,11 +1089,14 @@ function stopFileTrack(d) {
   d.g.gain.cancelScheduledValues(t);
   d.g.gain.setValueAtTime(d.g.gain.value, t);
   d.g.gain.linearRampToValueAtTime(0, t + MUSIC_OUT);
-  setTimeout(() => {
-    if (d.token !== tok) return; // проигрыватель уже взял другой трек
-    d.el.pause();
-    d.busy = false;
-  }, MUSIC_OUT * 1000 + 100);
+  setTimeout(
+    () => {
+      if (d.token !== tok) return; // проигрыватель уже взял другой трек
+      d.el.pause();
+      d.busy = false;
+    },
+    MUSIC_OUT * 1000 + 100,
+  );
 }
 /** Сменить музыку: старое затихает, новое вступает (файл, а если его нет — сочинённая мелодия). */
 function switchMusic(id) {
@@ -1136,8 +1140,7 @@ function loopNoise(type, freq, q = 0.7) {
 function chirp(t0) {
   const base = 2300 + Math.random() * 1100,
     n = 2 + Math.floor(Math.random() * 3);
-  for (let i = 0; i < n; i++)
-    tone(base * (1 + (i % 2) * 0.12), t0 + i * 0.09, 0.08, 'sine', 0.012, base * 1.2, ambBus);
+  for (let i = 0; i < n; i++) tone(base * (1 + (i % 2) * 0.12), t0 + i * 0.09, 0.08, 'sine', 0.012, base * 1.2, ambBus);
 }
 /** Колокольчик коровы на лугу (гора): два-три «звяк» с призвуком. */
 function cowbell(t0, vol) {

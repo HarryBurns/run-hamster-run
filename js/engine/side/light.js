@@ -57,9 +57,15 @@ export function drawLight(ctx, sc, view) {
     const w = r.x1 - r.x0,
       n = Math.max(1, Math.round(w / 520));
     for (let i = 0; i < n; i++)
-      lights.push({ x: r.x0 + (w * (i + 0.5)) / n, y: fy(r.f) - RH * 0.62, r: Math.min(400, Math.max(240, w / n / 1.4)), c: WARM });
+      lights.push({
+        x: r.x0 + (w * (i + 0.5)) / n,
+        y: fy(r.f) - RH * 0.62,
+        r: Math.min(400, Math.max(240, w / n / 1.4)),
+        c: WARM,
+      });
   }
-  for (const l of desc.lamps || []) lights.push({ x: l.x, y: fy(l.f || 0) - (l.h || 150), r: l.r || 240, c: l.c || WARM });
+  for (const l of desc.lamps || [])
+    lights.push({ x: l.x, y: fy(l.f || 0) - (l.h || 150), r: l.r || 240, c: l.c || WARM });
   for (const it of sc.items()) {
     const d = FURN_BY_ID[it.id],
       g = d && GLOW[d.kind];

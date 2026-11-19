@@ -23,7 +23,16 @@ function symbol(ctx, id, s) {
     case 'pyramid':
       poly(ctx, [s * 0.14, s * 0.8, c, s * 0.18, s * 0.86, s * 0.8], '#ffd43b', OUT, 3);
       poly(ctx, [c, s * 0.18, s * 0.86, s * 0.8, c + s * 0.08, s * 0.8], '#f59f00');
-      for (let i = 1; i < 4; i++) line(ctx, c - i * s * 0.08, s * 0.18 + i * s * 0.155, c + i * s * 0.08, s * 0.18 + i * s * 0.155, 'rgba(120,70,30,.4)', 1.5);
+      for (let i = 1; i < 4; i++)
+        line(
+          ctx,
+          c - i * s * 0.08,
+          s * 0.18 + i * s * 0.155,
+          c + i * s * 0.08,
+          s * 0.18 + i * s * 0.155,
+          'rgba(120,70,30,.4)',
+          1.5,
+        );
       poly(ctx, [s * 0.14, s * 0.8, c, s * 0.18, s * 0.86, s * 0.8], null, OUT, 3);
       break;
     case 'camel':
@@ -40,13 +49,22 @@ function symbol(ctx, id, s) {
       line(ctx, c, s * 0.34, c, s * 0.8, OUT, 2);
       ell(ctx, c, s * 0.3, s * 0.1, s * 0.08, '#1c7ed6', OUT, 2.5);
       for (const sx of [-1, 1])
-        for (let i = 0; i < 3; i++) line(ctx, c + sx * s * 0.18, s * (0.48 + i * 0.12), c + sx * s * 0.32, s * (0.42 + i * 0.16), OUT, 2.5);
+        for (let i = 0; i < 3; i++)
+          line(ctx, c + sx * s * 0.18, s * (0.48 + i * 0.12), c + sx * s * 0.32, s * (0.42 + i * 0.16), OUT, 2.5);
       ell(ctx, c, s * 0.15, s * 0.1, s * 0.1, '#ffd43b', OUT, 2);
       break;
     case 'sun':
       for (let i = 0; i < 12; i++) {
         const a = (i / 12) * Math.PI * 2;
-        line(ctx, c + Math.cos(a) * s * 0.22, c + Math.sin(a) * s * 0.22, c + Math.cos(a) * s * 0.36, c + Math.sin(a) * s * 0.36, '#f59f00', 4);
+        line(
+          ctx,
+          c + Math.cos(a) * s * 0.22,
+          c + Math.sin(a) * s * 0.22,
+          c + Math.cos(a) * s * 0.36,
+          c + Math.sin(a) * s * 0.36,
+          '#f59f00',
+          4,
+        );
       }
       ell(ctx, c, c, s * 0.2, s * 0.2, '#ffd43b', OUT, 3);
       ell(ctx, c - s * 0.07, c - s * 0.03, 2, 2, OUT);
@@ -84,7 +102,17 @@ function symbol(ctx, id, s) {
       ctx.stroke();
       for (let i = 0; i < 6; i++) {
         const a = Math.PI + (i / 5) * Math.PI;
-        ell(ctx, c + Math.cos(a) * s * 0.2, s * 0.3 + Math.sin(a) * s * 0.1 + s * 0.06, s * 0.2, s * 0.06, '#40c057', OUT, 2, a);
+        ell(
+          ctx,
+          c + Math.cos(a) * s * 0.2,
+          s * 0.3 + Math.sin(a) * s * 0.1 + s * 0.06,
+          s * 0.2,
+          s * 0.06,
+          '#40c057',
+          OUT,
+          2,
+          a,
+        );
       }
       ell(ctx, c - s * 0.05, s * 0.36, s * 0.04, s * 0.04, '#8d5524', OUT, 1.5);
       ell(ctx, c + s * 0.04, s * 0.37, s * 0.04, s * 0.04, '#8d5524', OUT, 1.5);
@@ -214,7 +242,11 @@ export default {
       tMiss.textContent = `🔄 Промахи: ${miss}`;
     };
     const cards = deck.map((id, i) => {
-      const b = el('button', 'pr-card', `<img class="bk" src="${faceImg('back')}" alt=""><img class="face" src="${faceImg(id)}" alt="">`);
+      const b = el(
+        'button',
+        'pr-card',
+        `<img class="bk" src="${faceImg('back')}" alt=""><img class="face" src="${faceImg(id)}" alt="">`,
+      );
       b.dataset.i = i;
       b.onclick = () => flip(i);
       grid.appendChild(b);

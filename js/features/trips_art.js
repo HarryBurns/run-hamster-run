@@ -38,7 +38,7 @@ export function paintGrotto(ctx, w, h, k, toCove, look, t) {
   ctx.fillStyle = '#2d2733';
   ctx.beginPath();
   ctx.moveTo(0, 0);
-  for (let x = 0; x <= w; x += w / 10) ctx.lineTo(x, h * (0.12 + ((x / w) * 7 % 1) * 0.08) + Math.sin(x * 0.05) * 6);
+  for (let x = 0; x <= w; x += w / 10) ctx.lineTo(x, h * (0.12 + (((x / w) * 7) % 1) * 0.08) + Math.sin(x * 0.05) * 6);
   ctx.lineTo(w, 0);
   ctx.closePath();
   ctx.fill();
@@ -49,7 +49,7 @@ export function paintGrotto(ctx, w, h, k, toCove, look, t) {
   ctx.fillStyle = '#3a3240';
   ctx.beginPath();
   ctx.moveTo(0, h);
-  for (let x = 0; x <= w; x += w / 9) ctx.lineTo(x, h * (0.84 + ((x / w) * 5 % 1) * 0.06) + Math.cos(x * 0.04) * 6);
+  for (let x = 0; x <= w; x += w / 9) ctx.lineTo(x, h * (0.84 + (((x / w) * 5) % 1) * 0.06) + Math.cos(x * 0.04) * 6);
   ctx.lineTo(w, h);
   ctx.closePath();
   ctx.fill();
@@ -90,7 +90,16 @@ export function paintGrotto(ctx, w, h, k, toCove, look, t) {
   // пузырьки за хомячком
   for (let i = 0; i < 6; i++) {
     const ph = (t * 1.5 + i / 6) % 1;
-    ell(ctx, hx - dir * (20 + i * 10) * z, hy - 20 * z - ph * 60 * z, (3 + (i % 3)) * z, (3 + (i % 3)) * z, null, 'rgba(255,255,255,.8)', 1.5);
+    ell(
+      ctx,
+      hx - dir * (20 + i * 10) * z,
+      hy - 20 * z - ph * 60 * z,
+      (3 + (i % 3)) * z,
+      (3 + (i % 3)) * z,
+      null,
+      'rgba(255,255,255,.8)',
+      1.5,
+    );
   }
 }
 
@@ -116,7 +125,13 @@ export function paintCaravan(ctx, w, h, k, toDesert, look, t) {
     ctx.fillRect(w * x, h * (0.62 - bh), w * bw, h * bh);
   poly(ctx, [w * 0.68, h * 0.62, w * 0.78, h * 0.4, w * 0.88, h * 0.62], '#e8b974', OUT, 1.6);
   // барханы
-  poly(ctx, [0, h, 0, h * 0.62, w * 0.3, h * 0.58, w * 0.55, h * 0.64, w * 0.8, h * 0.56, w, h * 0.62, w, h], '#f2d39a', OUT, 2);
+  poly(
+    ctx,
+    [0, h, 0, h * 0.62, w * 0.3, h * 0.58, w * 0.55, h * 0.64, w * 0.8, h * 0.56, w, h * 0.62, w, h],
+    '#f2d39a',
+    OUT,
+    2,
+  );
   poly(ctx, [0, h, 0, h * 0.86, w * 0.35, h * 0.8, w * 0.7, h * 0.88, w, h * 0.82, w, h], '#e6c288');
   // кактусы и пальма
   for (const x of [0.28, 0.58, 0.9]) {
@@ -147,7 +162,14 @@ export function paintCaravan(ctx, w, h, k, toDesert, look, t) {
   for (let i = 0; i < 4; i++) {
     const ph = (t * 2 + i / 4) % 1;
     ctx.globalAlpha = 0.5 * (1 - ph);
-    ell(ctx, bx + (toDesert ? -30 * z - ph * 50 * z : 120 * z + ph * 50 * z), by + 4 - ph * 12, (8 + ph * 12) * z, (5 + ph * 7) * z, '#e6c288');
+    ell(
+      ctx,
+      bx + (toDesert ? -30 * z - ph * 50 * z : 120 * z + ph * 50 * z),
+      by + 4 - ph * 12,
+      (8 + ph * 12) * z,
+      (5 + ph * 7) * z,
+      '#e6c288',
+    );
   }
   ctx.globalAlpha = 1;
   // верблюд идёт рядом (караван!)
@@ -182,12 +204,30 @@ export function paintFaraway(ctx, w, h, k, toIsland, look, t) {
     vs = 0.35 + near * 0.9,
     vx = toIsland ? w * 0.72 : w * 0.24,
     hz = h * 0.55;
-  poly(ctx, [vx - 70 * vs, hz, vx - 14 * vs, hz - 70 * vs, vx + 14 * vs, hz - 70 * vs, vx + 70 * vs, hz], '#8a7568', OUT, 2);
-  poly(ctx, [vx - 14 * vs, hz - 70 * vs, vx - 8 * vs, hz - 62 * vs, vx + 8 * vs, hz - 64 * vs, vx + 14 * vs, hz - 70 * vs], '#ff6b35');
-  for (let i = 0; i < 6; i++) ell(ctx, vx - 66 * vs + i * 26 * vs, hz - 4 * vs, 18 * vs, 9 * vs, i % 2 ? '#37b24d' : '#2b8a3e', OUT, 1.2);
+  poly(
+    ctx,
+    [vx - 70 * vs, hz, vx - 14 * vs, hz - 70 * vs, vx + 14 * vs, hz - 70 * vs, vx + 70 * vs, hz],
+    '#8a7568',
+    OUT,
+    2,
+  );
+  poly(
+    ctx,
+    [vx - 14 * vs, hz - 70 * vs, vx - 8 * vs, hz - 62 * vs, vx + 8 * vs, hz - 64 * vs, vx + 14 * vs, hz - 70 * vs],
+    '#ff6b35',
+  );
+  for (let i = 0; i < 6; i++)
+    ell(ctx, vx - 66 * vs + i * 26 * vs, hz - 4 * vs, 18 * vs, 9 * vs, i % 2 ? '#37b24d' : '#2b8a3e', OUT, 1.2);
   for (let i = 0; i < 3; i++) {
     const ph = (t * 0.3 + i / 3) % 1;
-    ell(ctx, vx + ph * 30 * vs, hz - (78 + ph * 60) * vs, (6 + ph * 14) * vs, (5 + ph * 9) * vs, `rgba(240,240,245,${(0.75 * (1 - ph)).toFixed(2)})`);
+    ell(
+      ctx,
+      vx + ph * 30 * vs,
+      hz - (78 + ph * 60) * vs,
+      (6 + ph * 14) * vs,
+      (5 + ph * 9) * vs,
+      `rgba(240,240,245,${(0.75 * (1 - ph)).toFixed(2)})`,
+    );
   }
   if (!toIsland) {
     ctx.fillStyle = '#b6c6dd';
@@ -269,9 +309,38 @@ export function paintVoyage(ctx, w, h, k, toJungle, look, t) {
   }
   // остров джунглей справа: горы в зелени, пальмы, причал; город — маленький слева
   const sx = w * 0.62;
-  poly(ctx, [sx, h * 0.56, sx + w * 0.1, h * 0.3, sx + w * 0.22, h * 0.36, sx + w * 0.3, h * 0.26, w + 10, h * 0.4, w + 10, h * 0.56], '#2f9e44', OUT, 2);
+  poly(
+    ctx,
+    [
+      sx,
+      h * 0.56,
+      sx + w * 0.1,
+      h * 0.3,
+      sx + w * 0.22,
+      h * 0.36,
+      sx + w * 0.3,
+      h * 0.26,
+      w + 10,
+      h * 0.4,
+      w + 10,
+      h * 0.56,
+    ],
+    '#2f9e44',
+    OUT,
+    2,
+  );
   poly(ctx, [sx + w * 0.1, h * 0.3, sx + w * 0.16, h * 0.4, sx + w * 0.22, h * 0.36], 'rgba(0,0,0,.12)');
-  for (let i = 0; i < 7; i++) ell(ctx, sx + w * 0.03 + i * w * 0.055, h * 0.47 - (i % 2) * h * 0.04, w * 0.04, h * 0.05, i % 2 ? '#37b24d' : '#2b8a3e', OUT, 1.4);
+  for (let i = 0; i < 7; i++)
+    ell(
+      ctx,
+      sx + w * 0.03 + i * w * 0.055,
+      h * 0.47 - (i % 2) * h * 0.04,
+      w * 0.04,
+      h * 0.05,
+      i % 2 ? '#37b24d' : '#2b8a3e',
+      OUT,
+      1.4,
+    );
   // водопад на горе
   fillRR(ctx, sx + w * 0.235, h * 0.3, w * 0.02, h * 0.18, 3, '#a5d8ff', OUT, 1.2);
   for (const x of [0.05, 0.3]) {
@@ -360,7 +429,17 @@ function paintVoyageHome(ctx, w, h, k, look, t) {
   ctx.translate(ix, h * 0.56);
   ctx.scale(back, back);
   poly(ctx, [0, 0, w * 0.06, -h * 0.3, w * 0.14, -h * 0.22, w * 0.24, -h * 0.28, w * 0.36, 0], '#2f9e44', OUT, 2);
-  for (let i = 0; i < 6; i++) ell(ctx, w * 0.03 + i * w * 0.055, -h * 0.08 - (i % 2) * h * 0.04, w * 0.04, h * 0.05, i % 2 ? '#37b24d' : '#2b8a3e', OUT, 1.4);
+  for (let i = 0; i < 6; i++)
+    ell(
+      ctx,
+      w * 0.03 + i * w * 0.055,
+      -h * 0.08 - (i % 2) * h * 0.04,
+      w * 0.04,
+      h * 0.05,
+      i % 2 ? '#37b24d' : '#2b8a3e',
+      OUT,
+      1.4,
+    );
   fillRR(ctx, w * 0.12, -h * 0.25, w * 0.02, h * 0.17, 3, '#a5d8ff', OUT, 1.2); // водопад
   // пальма на берегу — на ней попугай машет вслед
   const px = w * 0.3;
@@ -427,7 +506,8 @@ function paintVoyageHome(ctx, w, h, k, look, t) {
   ctx.stroke();
   // солнечная дорожка
   ctx.fillStyle = 'rgba(255,212,140,.45)';
-  for (let i = 0; i < 6; i++) ctx.fillRect(w * 0.8 + Math.sin(t * 3 + i) * 8 - 14 + i * 2, h * (0.58 + i * 0.06), 28 - i * 3, 3);
+  for (let i = 0; i < 6; i++)
+    ctx.fillRect(w * 0.8 + Math.sin(t * 3 + i) * 8 - 14 + i * 2, h * (0.58 + i * 0.06), 28 - i * 3, 3);
   // кораблик с хомячком — слева направо, к городу
   const z = w / 560,
     bx = w * 0.06 + k * w * 0.62,
@@ -451,7 +531,26 @@ export function paintRide(ctx, w, h, k, season, look, t) {
   const mx = w * 0.72;
   poly(ctx, [mx - w * 0.5, h, mx, h * 0.12, mx + w * 0.5, h], '#9aa9c9', OUT, 2.5);
   poly(ctx, [mx, h * 0.12, mx + w * 0.5, h, mx + w * 0.12, h], '#7d8db0');
-  poly(ctx, [mx - 52, h * 0.12 + 62, mx, h * 0.12, mx + 56, h * 0.12 + 66, mx + 26, h * 0.12 + 52, mx + 6, h * 0.12 + 70, mx - 22, h * 0.12 + 54], '#ffffff', OUT, 2);
+  poly(
+    ctx,
+    [
+      mx - 52,
+      h * 0.12 + 62,
+      mx,
+      h * 0.12,
+      mx + 56,
+      h * 0.12 + 66,
+      mx + 26,
+      h * 0.12 + 52,
+      mx + 6,
+      h * 0.12 + 70,
+      mx - 22,
+      h * 0.12 + 54,
+    ],
+    '#ffffff',
+    OUT,
+    2,
+  );
   // облака ниже вершины
   for (let i = 0; i < 4; i++) {
     const cx = ((i * 0.31 + t * 0.03) % 1.3) * w - w * 0.15,

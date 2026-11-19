@@ -94,7 +94,20 @@ export default {
   dim: 0.5,
   door: { f: 0, x: 110 },
   shell: { shape: 'cave', wall: '#5c6070', moss: '#2b8a3e', ground: 'sand', bushes: false },
-  rooms: [{ id: 'cave', f: 0, x0: 0, x1: 1150, name: 'Грот', wall: '#4f5566', paper: 'rock', floor: 'rock', win: null, lamp: false }],
+  rooms: [
+    {
+      id: 'cave',
+      f: 0,
+      x0: 0,
+      x1: 1150,
+      name: 'Грот',
+      wall: '#4f5566',
+      paper: 'rock',
+      floor: 'rock',
+      win: null,
+      lamp: false,
+    },
+  ],
   lamps: [
     { f: 0, x: 900, h: 30, r: 330, c: '60,180,180' },
     { f: 0, x: 430, h: 120, r: 220, c: '80,160,150' },

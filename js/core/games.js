@@ -328,7 +328,8 @@ export function deleteGame(id) {
   // в корзину — с проверкой: не записалось (нет места) — прежняя корзина цела, а игру всё равно удаляем (так просили)
   const trashed = !!raw && put(TRASH_KEY, JSON.stringify({ meta: m, at: Date.now(), raw }));
   del(slot(id));
-  if (trashed) movePhotos(id, 'trash'); // снимки фотоальбома этой игры (core/photos.js) — следом за ней
+  if (trashed)
+    movePhotos(id, 'trash'); // снимки фотоальбома этой игры (core/photos.js) — следом за ней
   else dropPhotos(id);
   if (live) {
     del(KEY);
@@ -444,7 +445,11 @@ export async function importGame(text) {
   if (!f) return { why: 'bad' };
   // наш файл выгрузки или «голое» сохранение (строка из хранилища, образцы dev/saves)
   const wrapped = f.app === FILE_APP;
-  const s = wrapped ? (f.save && typeof f.save === 'object' ? f.save : parse(typeof f.raw === 'string' ? f.raw : '')) : f;
+  const s = wrapped
+    ? f.save && typeof f.save === 'object'
+      ? f.save
+      : parse(typeof f.raw === 'string' ? f.raw : '')
+    : f;
   if (!s) return { why: 'bad' };
   if (wrapped && Number.isFinite(f.build) && f.build > BUILD) return { why: 'newer' };
   const why = checkSave(s);

@@ -80,7 +80,9 @@ export function openBackpack() {
           const card = el('div', 'card tap map-card');
           card.appendChild(el('div', 'e', ICON.map_piece));
           card.appendChild(el('div', '', 'Карта сокровищ'));
-          card.appendChild(el('span', 'cnt', pieces.length === PIECES.length ? 'вся' : `${pieces.length} из ${PIECES.length}`));
+          card.appendChild(
+            el('span', 'cnt', pieces.length === PIECES.length ? 'вся' : `${pieces.length} из ${PIECES.length}`),
+          );
           card.appendChild(el('div', 'note up', 'посмотреть'));
           card.onclick = () => {
             sfx('paper');
@@ -97,7 +99,13 @@ export function openBackpack() {
           grid.appendChild(card);
         }
         body.appendChild(grid);
-        body.appendChild(el('p', 'muted center', 'Находки — не еда. Одни нужны для заданий из журнала 📖, из других жители делают украшения, а лишнее берёт рынок.'));
+        body.appendChild(
+          el(
+            'p',
+            'muted center',
+            'Находки — не еда. Одни нужны для заданий из журнала 📖, из других жители делают украшения, а лишнее берёт рынок.',
+          ),
+        );
       } else {
         const ids = Object.keys(S().storage);
         if (!ids.length) {

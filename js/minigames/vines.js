@@ -146,7 +146,12 @@ export default {
       }
       host.sfx(f.best ? 'win' : 'ok');
       const e = endOf(at);
-      pops.add(f.best ? `Отлично! ${FRUITS[at - 1]}🦋` : `Хоп! ${FRUITS[at - 1]}`, e.x, e.y - 80, f.best ? '#f08c00' : '#2b8a3e');
+      pops.add(
+        f.best ? `Отлично! ${FRUITS[at - 1]}🦋` : `Хоп! ${FRUITS[at - 1]}`,
+        e.x,
+        e.y - 80,
+        f.best ? '#f08c00' : '#2b8a3e',
+      );
       if (at >= JUMPS) host.later(finish, 900);
     }
 
@@ -164,7 +169,17 @@ export default {
     };
     host.on(window, 'keydown', kd);
     // для автотеста (dev/smoke_jungle.js): на какой лиане, летит ли вперёд, насколько далеко качнулась (−1..1)
-    if (DEV) cv.canvas.__vines = () => ({ at, n: JUMPS, forward: vel(at) > 0, q: ang(at) / A, flying: !!fly, score, miss, over });
+    if (DEV)
+      cv.canvas.__vines = () => ({
+        at,
+        n: JUMPS,
+        forward: vel(at) > 0,
+        q: ang(at) / A,
+        flying: !!fly,
+        score,
+        miss,
+        over,
+      });
 
     // ---------- фон: слои джунглей (рисуются один раз на размер, дальше только копируются со сдвигом) ----------
     let bg = null;
@@ -191,7 +206,8 @@ export default {
         for (let i = 0; i < 26; i++) {
           const px = (i / 26) * W,
             r = 40 + ((i * 37) % 30);
-          for (const dx of [-W, 0, W]) ell(x, px + dx, H * 0.5 + ((i * 53) % 40), r, r * 1.4, i % 2 ? '#40916c' : '#2d6a4f');
+          for (const dx of [-W, 0, W])
+            ell(x, px + dx, H * 0.5 + ((i * 53) % 40), r, r * 1.4, i % 2 ? '#40916c' : '#2d6a4f');
         }
       });
       const near = layer((x, W, H) => {
@@ -259,10 +275,12 @@ export default {
       const up = OY() / k + 10;
       ctx.fillStyle = '#2d6a4f';
       ctx.fillRect(camX - 20, -up, W + 40, up + TOP - 4);
-      for (let x = Math.floor(camX / 90) * 90 - 45; x < camX + W + 90; x += 90) ell(ctx, x, TOP - 6, 56, 26, (x / 90) % 2 ? '#1b4332' : '#2b8a3e', OUT, 2);
+      for (let x = Math.floor(camX / 90) * 90 - 45; x < camX + W + 90; x += 90)
+        ell(ctx, x, TOP - 6, 56, 26, (x / 90) % 2 ? '#1b4332' : '#2b8a3e', OUT, 2);
       // ветка сверху, к которой привязаны лианы
       fillRR(ctx, camX - 20, 0, W + 40, TOP + 6, 10, '#7a5a3a', OUT, 2.5);
-      for (let x = Math.floor(camX / 60) * 60; x < camX + W + 60; x += 60) ell(ctx, x + 20, TOP + 4, 22, 10, '#2f9e44', OUT, 1.6);
+      for (let x = Math.floor(camX / 60) * 60; x < camX + W + 60; x += 60)
+        ell(ctx, x + 20, TOP + 4, 22, 10, '#2f9e44', OUT, 1.6);
       // фрукты и бабочки в пролётах (что уже собрано — нет)
       for (let i = 0; i < JUMPS; i++) {
         if (i < at) continue;
@@ -288,7 +306,14 @@ export default {
       ctx.save();
       ctx.translate(hp.x, hp.y);
       ctx.rotate(fly ? Math.sin(fly.t * Math.PI) * 0.5 : hp.a * 0.8);
-      host.drawHamster(ctx, 0, 70, 0.72, host.look, { time: t, dir: 1, grip: true, happy: !!fly || at >= JUMPS, blink: t % 3.1 < 0.12, shadow: false });
+      host.drawHamster(ctx, 0, 70, 0.72, host.look, {
+        time: t,
+        dir: 1,
+        grip: true,
+        happy: !!fly || at >= JUMPS,
+        blink: t % 3.1 < 0.12,
+        shadow: false,
+      });
       ctx.restore();
       // надписи
       pops.draw(ctx, 22);

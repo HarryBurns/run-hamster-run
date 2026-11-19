@@ -21,7 +21,8 @@ function vines(ctx, x, y, t, k) {
     ctx.moveTo(vx, y - 250);
     ctx.quadraticCurveTo(vx + sw, y - 250 + len / 2, vx + sw * 1.4, y - 250 + len);
     ctx.stroke();
-    for (let j = 1; j < 4; j++) ell(ctx, vx + sw * (j / 3) * 1.2 + 6, y - 250 + (len * j) / 4, 7, 4, '#40c057', null, 2, 0.6);
+    for (let j = 1; j < 4; j++)
+      ell(ctx, vx + sw * (j / 3) * 1.2 + 6, y - 250 + (len * j) / 4, 7, 4, '#40c057', null, 2, 0.6);
   }
 }
 /** Стена со знаками — вход в загадку «Узор храма»: каменная плита, узор из цветных знаков, светится. */
@@ -86,8 +87,29 @@ export const temple = {
   ambience: { drips: 0.3 },
   dim: 0.32,
   door: { f: 0, x: 110 },
-  shell: { shape: 'temple', wall: '#8f9b7a', roof: '#7d8b6a', moss: '#2f9e44', ground: 'jungle', bushes: true, trees: 'palm' },
-  rooms: [{ id: 'hall', f: 0, x0: 0, x1: 1350, name: 'Зал храма', wall: '#9aa284', paper: 'stone', floor: 'stone', win: null, lamp: false }],
+  shell: {
+    shape: 'temple',
+    wall: '#8f9b7a',
+    roof: '#7d8b6a',
+    moss: '#2f9e44',
+    ground: 'jungle',
+    bushes: true,
+    trees: 'palm',
+  },
+  rooms: [
+    {
+      id: 'hall',
+      f: 0,
+      x0: 0,
+      x1: 1350,
+      name: 'Зал храма',
+      wall: '#9aa284',
+      paper: 'stone',
+      floor: 'stone',
+      win: null,
+      lamp: false,
+    },
+  ],
   lamps: [
     { f: 0, x: 300, h: 190, r: 300, c: '255,170,80' },
     { f: 0, x: 760, h: 190, r: 320, c: '255,170,80' },
@@ -95,7 +117,13 @@ export const temple = {
   ],
   built: [
     { id: 'door', type: 'door', f: 0, x: 110, look: 'arch', c: '#8f9b7a', sky: '#d3f9d8', ground: '#37b24d' },
-    { id: 'torches', type: 'prop', f: 0, x: 300, draw: (ctx, x, y, t) => [300, 760, 1200].forEach((tx) => torch(ctx, tx, y - 190, t)) },
+    {
+      id: 'torches',
+      type: 'prop',
+      f: 0,
+      x: 300,
+      draw: (ctx, x, y, t) => [300, 760, 1200].forEach((tx) => torch(ctx, tx, y - 190, t)),
+    },
     {
       id: 'vines',
       type: 'prop',
@@ -106,7 +134,10 @@ export const temple = {
       up: 150,
       draw: vines,
       sfx: 'flap',
-      say: ['Лианы пробрались в храм через щели в потолке. Качаются, как качели! 🌿', 'Шур-шур… С лианы спрыгнула маленькая древесная лягушка!'],
+      say: [
+        'Лианы пробрались в храм через щели в потолке. Качаются, как качели! 🌿',
+        'Шур-шур… С лианы спрыгнула маленькая древесная лягушка!',
+      ],
     },
     {
       id: 'idol',
@@ -116,7 +147,10 @@ export const temple = {
       w: 90,
       h: 190,
       draw: idol,
-      say: ['Каменная обезьянка — страж храма. У неё глазки из зелёного камня 🐒', 'Говорят, обезьянка подмигивает тем, кто разгадал узор.'],
+      say: [
+        'Каменная обезьянка — страж храма. У неё глазки из зелёного камня 🐒',
+        'Говорят, обезьянка подмигивает тем, кто разгадал узор.',
+      ],
     },
     { id: 'glyphs', type: 'prop', f: 0, x: 930, w: 190, h: 236, draw: glyphWall, sfx: 'magic', run: 'jungle:temple' },
     {
@@ -130,7 +164,10 @@ export const temple = {
       fx: 'spark',
       fxN: 8,
       sfx: 'coin',
-      say: ['Сокровище храма — золотой кубок с изумрудом! Брать нельзя: он тут уже тысячу лет ✨', 'Лиана записала в блокнот: «Кубок на месте. Изумруд — с орех!»'],
+      say: [
+        'Сокровище храма — золотой кубок с изумрудом! Брать нельзя: он тут уже тысячу лет ✨',
+        'Лиана записала в блокнот: «Кубок на месте. Изумруд — с орех!»',
+      ],
     },
   ],
   furniture: { fixed: [] },
@@ -203,16 +240,42 @@ export const camp = {
   id: 'tent_liana',
   name: 'Палатка Лианы',
   owner: 'liana',
-  hello: '⛺ Палатка исследовательницы! Карты, бабочки в рамке и походная раскладушка. Всё можно потрогать — аккуратно!',
-  greet: ['Лиана: «Заходи! Только не наступи на карту — она ещё сохнет.»', 'Лиана: «О, помощница! Смотри, какую бабочку я сегодня зарисовала.»'],
+  hello:
+    '⛺ Палатка исследовательницы! Карты, бабочки в рамке и походная раскладушка. Всё можно потрогать — аккуратно!',
+  greet: [
+    'Лиана: «Заходи! Только не наступи на карту — она ещё сохнет.»',
+    'Лиана: «О, помощница! Смотри, какую бабочку я сегодня зарисовала.»',
+  ],
   floors: 1,
   width: 1150,
   maxZoom: 1.1,
   music: 'jungle',
   ambience: { birds: true },
   door: { f: 0, x: 100 },
-  shell: { shape: 'tent', wall: '#a9a26a', roof: '#6f7d3c', flag: '#ffd43b', ground: 'jungle', bushes: true, trees: 'palm' },
-  rooms: [{ id: 'tent', f: 0, x0: 0, x1: 1150, name: 'Палатка', wall: '#c2b98a', trim: '#6f7d3c', paper: 'fabric', floor: 'mat', win: 620, view: 'jungle' }],
+  shell: {
+    shape: 'tent',
+    wall: '#a9a26a',
+    roof: '#6f7d3c',
+    flag: '#ffd43b',
+    ground: 'jungle',
+    bushes: true,
+    trees: 'palm',
+  },
+  rooms: [
+    {
+      id: 'tent',
+      f: 0,
+      x0: 0,
+      x1: 1150,
+      name: 'Палатка',
+      wall: '#c2b98a',
+      trim: '#6f7d3c',
+      paper: 'fabric',
+      floor: 'mat',
+      win: 620,
+      view: 'jungle',
+    },
+  ],
   lamps: [{ f: 0, x: 360, h: 196, r: 260, c: '255,200,120' }],
   built: [
     { id: 'door', type: 'door', f: 0, x: 100, look: 'flap', c: '#6f7d3c', sky: '#d3f9d8', ground: '#37b24d' },
@@ -236,7 +299,10 @@ export const camp = {
       h: 100,
       draw: mapTable,
       sfx: 'paper',
-      say: ['Карта джунглей! Красная линия — тропа к водопаду, крестик — храм 🗺️', 'Лупа и компас. Лиана говорит: «Исследователь без компаса — просто гуляющий!»'],
+      say: [
+        'Карта джунглей! Красная линия — тропа к водопаду, крестик — храм 🗺️',
+        'Лупа и компас. Лиана говорит: «Исследователь без компаса — просто гуляющий!»',
+      ],
     },
     {
       id: 'butterflies',
@@ -261,9 +327,17 @@ export const camp = {
       h: 110,
       draw: cot,
       fx: 'heart',
-      say: ['Раскладушка и спальник. Ночью над палаткой кричат лягушки — Лиане нравится 🐸', 'В рюкзаке — бинокль. Лиана в него смотрит на попугаев!'],
+      say: [
+        'Раскладушка и спальник. Ночью над палаткой кричат лягушки — Лиане нравится 🐸',
+        'В рюкзаке — бинокль. Лиана в него смотрит на попугаев!',
+      ],
     },
   ],
-  furniture: { fixed: [['globe', 0, 660], ['feather_frame', 0, 230, 190]] },
+  furniture: {
+    fixed: [
+      ['globe', 0, 660],
+      ['feather_frame', 0, 230, 190],
+    ],
+  },
   actors: [{ npc: 'liana', f: 0, x: 560, roam: [240, 760], act: 'explorer' }],
 };

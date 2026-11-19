@@ -144,7 +144,8 @@ export function updateResidents(sc, dt) {
     if (!waits) n.inside = n.goingHome = false;
     else if (!n.inside && cellDist(n, n.home) < T * 1.2) n.inside = true;
     // away(id) в описании жителя — он сейчас не здесь (житель отдыхает у бассейна отеля — locations/town.js)
-    n.hidden = (night && !n.def.always) || G.state.guests.includes(n.id) || n.inside || (!!n.def.away && n.def.away(n.id));
+    n.hidden =
+      (night && !n.def.always) || G.state.guests.includes(n.id) || n.inside || (!!n.def.away && n.def.away(n.id));
     // hold — житель занят своим (присел рядом с хомячком на скамейку — features/rest.js): стоит на месте, рисует его hold.draw
     if (n.hidden || G.modal || n.def.still || n.hold) continue;
     if (n.path.length) {
@@ -199,7 +200,9 @@ export function drawResident(n, t) {
     const i = fr - WALK_FRAMES,
       time = i < 0 ? 0 : Math.asin((((i + 0.5) / IDLE_FRAMES) * 2 - 1) * 0.9) / 2.2;
     const pose = { dir: faceDir(n), time, walk: i < 0 ? (fr + 0.5) / WALK_FRAMES : null, blink: shut };
-    s = SP.get(key, [-56 * sc, -124 * sc, 56 * sc, 12 * sc], (c) => drawHamster(c, 0, 0, sc, npcLook(n.id, fest), pose));
+    s = SP.get(key, [-56 * sc, -124 * sc, 56 * sc, 12 * sc], (c) =>
+      drawHamster(c, 0, 0, sc, npcLook(n.id, fest), pose),
+    );
   }
   SP.draw(s, n.x, n.y + 10);
 }

@@ -119,7 +119,9 @@ export function emoji(ctx, ch, x, y, size) {
  * рисунками высотой size. (x, y) — середина строки по вертикали; align — 'center' или 'left'. Возвращает ширину строки.
  */
 export function iconText(ctx, str, x, y, size, align = 'center') {
-  const parts = String(str).split(/([\uE000-\uE0FF])/).filter(Boolean),
+  const parts = String(str)
+      .split(/([\uE000-\uE0FF])/)
+      .filter(Boolean),
     widths = parts.map((p) => (ICON_RE.test(p) ? size * 1.2 : ctx.measureText(p).width)),
     total = widths.reduce((a, b) => a + b, 0);
   let at = align === 'center' ? x - total / 2 : x;

@@ -69,7 +69,8 @@ function build(m) {
   for (let y = 0; y < H - 1; y++)
     for (let x = 0; x < W; x++) {
       if (!rockAt(x, y) || rockAt(x, y + 1) || (y === AT.grotto[1] && Math.abs(x - AT.grotto[0]) <= 1)) continue;
-      const ends = (rockAt(x - 1, y + 1) || !rockAt(x - 1, y) ? 1 : 0) | (rockAt(x + 1, y + 1) || !rockAt(x + 1, y) ? 2 : 0);
+      const ends =
+        (rockAt(x - 1, y + 1) || !rockAt(x - 1, y) ? 1 : 0) | (rockAt(x + 1, y + 1) || !rockAt(x + 1, y) ? 2 : 0);
       m.add('cliffFace', x, y, { v: Math.floor(rnd() * 3), ends });
     }
   m.add('grottoArch', ...AT.grotto);
@@ -136,7 +137,14 @@ function placeShells(sc) {
     shellsToday().map(({ i, kind }) => {
       const id = SHELL_IDS[kind],
         f = FIND_BY_ID[id];
-      return { id: 's' + i, at: [SHELL_X[i], sandEnd(SHELL_X[i]) - 1], icon: f.e, give: ['finds', id, 1], text: `+1 ${f.e} ${f.name}`, act: 'cove:shell' };
+      return {
+        id: 's' + i,
+        at: [SHELL_X[i], sandEnd(SHELL_X[i]) - 1],
+        icon: f.e,
+        give: ['finds', id, 1],
+        text: `+1 ${f.e} ${f.name}`,
+        act: 'cove:shell',
+      };
     }),
   );
 }
@@ -371,7 +379,17 @@ function pearlAt(t) {
 }
 defineArt({
   // Жемчужинка в воде по пояс: кадр — куда смотрит (dir) и моргает ли (b)
-  pearlSwim: [[-56, -112, 56, 8], (ctx, dir, b) => drawHamster(ctx, 0, 0, PS, npcLook('pearl'), { dir, clipBelow: -34, happy: true, blink: b ? 1 : 0, shadow: false })],
+  pearlSwim: [
+    [-56, -112, 56, 8],
+    (ctx, dir, b) =>
+      drawHamster(ctx, 0, 0, PS, npcLook('pearl'), {
+        dir,
+        clipBelow: -34,
+        happy: true,
+        blink: b ? 1 : 0,
+        shadow: false,
+      }),
+  ],
 });
 function drawPearlSwim(ctx, q, t) {
   if (q.dive >= 0) {
@@ -448,7 +466,16 @@ const cove = createTopDownScene({
   dry: true, // ни снега, ни холодного дождя
   clouds: false, // тени облаков на белом песке — серые пятна (как в пустыне)
   build,
-  actors: [{ npc: 'pearl', at: [AT.rock[0], AT.rock[1] - 0.04], always: true, still: true, act: 'mermaid', away: () => swim.on }],
+  actors: [
+    {
+      npc: 'pearl',
+      at: [AT.rock[0], AT.rock[1] - 0.04],
+      always: true,
+      still: true,
+      act: 'mermaid',
+      away: () => swim.on,
+    },
+  ],
   places: [
     {
       id: 'grotto',
@@ -496,10 +523,13 @@ const cove = createTopDownScene({
     // вода для огоньков: клетки мелководья и глубины (с постоянным «случайным» числом)
     const r = seeded(99),
       out = [];
-    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (['clag', 'cdeep'].includes(sc.map.at(x, y))) out.push(x, y, r());
+    for (let y = 0; y < H; y++)
+      for (let x = 0; x < W; x++) if (['clag', 'cdeep'].includes(sc.map.at(x, y))) out.push(x, y, r());
     glowCells = out;
     glowShore = [];
-    for (let y = 1; y < H; y++) for (let x = 0; x < W; x++) if (sc.map.at(x, y) === 'clag' && sc.map.at(x, y - 1) === 'csand') glowShore.push(x, y);
+    for (let y = 1; y < H; y++)
+      for (let x = 0; x < W; x++)
+        if (sc.map.at(x, y) === 'clag' && sc.map.at(x, y - 1) === 'csand') glowShore.push(x, y);
   },
   enter(sc) {
     dolph.j = null;
@@ -535,10 +565,14 @@ const cove = createTopDownScene({
     const own = ownCastle();
     if (own) add(CASTLE_PX.y, () => put('ownCastle', CASTLE_PX.x, CASTLE_PX.y, own));
     if (dolph.j)
-      add(dolph.j.y, (ctx, j, t) => {
-        SP.world();
-        drawDolphinJump(ctx, j, t);
-      }, dolph.j);
+      add(
+        dolph.j.y,
+        (ctx, j, t) => {
+          SP.world();
+          drawDolphinJump(ctx, j, t);
+        },
+        dolph.j,
+      );
     const nx = (AT.nest[0] + 0.5) * T,
       ny = (AT.nest[1] + 0.5) * T;
     add(ny - 20, () => put('cnest', nx, ny, hatch.on || SC().turtles ? 1 : 0));

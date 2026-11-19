@@ -18,7 +18,17 @@ import { makeCanvas } from '../core/draw.js';
 import { on, emit } from '../core/events.js';
 import { scene } from '../core/loop.js';
 import { register } from '../core/registry.js';
-import { G, cal, friendHearts, outfitTags, ownsHome, ownedHomes, invitedToday, npcWhere, npcLookNow } from '../core/state.js';
+import {
+  G,
+  cal,
+  friendHearts,
+  outfitTags,
+  ownsHome,
+  ownedHomes,
+  invitedToday,
+  npcWhere,
+  npcLookNow,
+} from '../core/state.js';
 import { el, esc, pick } from '../core/util.js';
 import { drawPortrait } from '../art/hamster.js';
 import {

@@ -73,7 +73,11 @@ function openSalon() {
       side.appendChild(st.canvas);
       const tried = Object.keys(tryOn);
       side.appendChild(
-        el('div', 'muted center', tried.length ? 'Это примерка — она бесплатная' : 'Нажми на вариант,<br>чтобы примерить'),
+        el(
+          'div',
+          'muted center',
+          tried.length ? 'Это примерка — она бесплатная' : 'Нажми на вариант,<br>чтобы примерить',
+        ),
       );
       if (tried.length) {
         const back = el('button', 'btn small ghost salon-back', '↩️ Как было');
@@ -121,7 +125,8 @@ function openSalon() {
               panel.refresh();
             }),
           );
-          if (lacking(cat.price)) pay.appendChild(el('span', 'lack-line', `накопить ещё ${fmtMoney(lacking(cat.price))}`));
+          if (lacking(cat.price))
+            pay.appendChild(el('span', 'lack-line', `накопить ещё ${fmtMoney(lacking(cat.price))}`));
           main.appendChild(pay);
         }
       }

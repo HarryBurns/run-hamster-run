@@ -47,7 +47,11 @@ export const { talk: talkLiana } = landNpc({
   met: 'metLiana',
   hello: (name) =>
     `Ой, гостья! Добро пожаловать в джунгли, ${name}! Я исследовательница Лиана — зарисовываю бабочек, цветы и попугаев. Капитан Боб писал, что приплывёт юнга! Здесь есть водопад, подвесной мост, древний храм и лианы, на которых можно качаться. А попугаи повторяют всё, что услышат!`,
-  greet: (name) => [`Привет, ${name}!`, 'О, это ты! Смотри, какую бабочку я сегодня зарисовала!', 'Здравствуй! Попугаи весь день повторяли твоё имя!'],
+  greet: (name) => [
+    `Привет, ${name}!`,
+    'О, это ты! Смотри, какую бабочку я сегодня зарисовала!',
+    'Здравствуй! Попугаи весь день повторяли твоё имя!',
+  ],
   line: lianaLine,
   top: [{ text: '🐒 Покачаться на лианах', cls: 'yellow', fn: async () => (await vinesGame(), null) }],
   more: [
@@ -57,7 +61,8 @@ export const { talk: talkLiana } = landNpc({
       title: '🪶 Перья в рамке',
       mark: (id, i) => PARROTS[i].name,
       sep: ' · ',
-      lack: (have) => `Для рамки нужно по перышку от каждого попугая: ${have}. Поболтай с ними — каждый раз в день роняет своё перо!`,
+      lack: (have) =>
+        `Для рамки нужно по перышку от каждого попугая: ${have}. Поболтай с ними — каждый раз в день роняет своё перо!`,
       give: ['storage', 'feather_frame'],
       sticker: 'x_feathers',
       event: ['jungle', 'frame'],
@@ -116,7 +121,8 @@ export function fallBath(ctx) {
   startFallBath(sc);
   sfx('splash');
   emit('jungle', { what: 'fall' });
-  if (award('x_fall', { delay: 1400 })) toast('💦 Брр-ух! Прохладная вода водопада — как душ в жаркий день! Нажми куда угодно, чтобы вылезти.', 'good');
+  if (award('x_fall', { delay: 1400 }))
+    toast('💦 Брр-ух! Прохладная вода водопада — как душ в жаркий день! Нажми куда угодно, чтобы вылезти.', 'good');
   else toast('💦 Плюх! Водопад шумит прямо над головой. Нажми куда угодно, чтобы вылезти.', 'good');
   return true;
 }
@@ -126,7 +132,12 @@ export function parrotChat(i) {
   if (!p) return false;
   // через раз попугай хвастается выученным словом
   const own = parrotWords(i),
-    line = parrotSay(i, own.length && Math.random() < 0.5 ? pick(own) : pick([`Кр-р-ра! ${p.name} хор-р-роший!`, 'Пр-р-ривет, {name}!', `${p.name} любит тебя!`, 'Ещё! Ещё!']));
+    line = parrotSay(
+      i,
+      own.length && Math.random() < 0.5
+        ? pick(own)
+        : pick([`Кр-р-ра! ${p.name} хор-р-роший!`, 'Пр-р-ривет, {name}!', `${p.name} любит тебя!`, 'Ещё! Ещё!']),
+    );
   emit('jungle', { what: 'parrot', i });
   const id = FEATHER_IDS[i];
   let note, kind;
@@ -155,12 +166,17 @@ function parrotTalk(i, line, note) {
 async function parrotWindow(i, line, note) {
   const p = PARROTS[i],
     own = parrotWords(i).map((t) => t.replace(/\{name\}/g, S().name));
-  const knows = own.length ? `<p class="muted center">${p.name} выучил: ${own.map((t) => `«${esc(t)}»`).join(', ')}</p>` : '';
+  const knows = own.length
+    ? `<p class="muted center">${p.name} выучил: ${own.map((t) => `«${esc(t)}»`).join(', ')}</p>`
+    : '';
   const b = await message({
     title: `Попугай ${p.name}`,
     icon: '🦜',
     html: `<p class="center big-emoji">🦜</p><p class="center"><b>${p.name}:</b> «${esc(line)}»</p><p class="center">${esc(note)}</p>${knows}`,
-    buttons: [{ text: '🎓 Научить слову', cls: 'green' }, { text: 'Пока!', cls: 'ghost' }],
+    buttons: [
+      { text: '🎓 Научить слову', cls: 'green' },
+      { text: 'Пока!', cls: 'ghost' },
+    ],
   });
   parrotOpen = false;
   if (b === 0) teachWindow(i);
@@ -176,7 +192,11 @@ export function teachWindow(i) {
     render(body, tab, panel) {
       const known = (S().parrots && S().parrots[i]) || [];
       body.appendChild(
-        el('p', 'center', `Выбери фразу — ${p.name} её запомнит и будет повторять. Он помнит ${PARROT_MEMORY} последние фразы.`),
+        el(
+          'p',
+          'center',
+          `Выбери фразу — ${p.name} её запомнит и будет повторять. Он помнит ${PARROT_MEMORY} последние фразы.`,
+        ),
       );
       const list = el('div', 'parrot-words');
       for (const w of PARROT_WORDS) {
@@ -189,7 +209,12 @@ export function teachWindow(i) {
           panel.close();
           parrotSay(i, w.text);
           sfx('win');
-          toast(has ? `🦜 ${p.name} повторил: «${esc(text)}»` : `🦜 ${p.name} запомнил: «${esc(text)}» Теперь он будет это повторять!`, 'good');
+          toast(
+            has
+              ? `🦜 ${p.name} повторил: «${esc(text)}»`
+              : `🦜 ${p.name} запомнил: «${esc(text)}» Теперь он будет это повторять!`,
+            'good',
+          );
         };
         list.appendChild(b);
       }
@@ -220,8 +245,12 @@ landActs(
 on('jungle', ({ what }) => {
   if (!S()) return;
   if (what === 'parrot' && award('x_parrot', { delay: 1600 }))
-    toast('🦜 Попугай повторяет слова! Скажи ему что-нибудь доброе — и он тоже скажет. А если поболтать (нажми на него), может уронить перо.', 'good');
-  else if (what === 'bridge' && award('x_bridge', { delay: 900 })) toast('🌉 Подвесной мост качается — ух! Внизу шумит река. Держись за верёвочные перила!', 'good');
+    toast(
+      '🦜 Попугай повторяет слова! Скажи ему что-нибудь доброе — и он тоже скажет. А если поболтать (нажми на него), может уронить перо.',
+      'good',
+    );
+  else if (what === 'bridge' && award('x_bridge', { delay: 900 }))
+    toast('🌉 Подвесной мост качается — ух! Внизу шумит река. Держись за верёвочные перила!', 'good');
 });
 landHint('jungle', 'jungleHint', '🦜 Вот они — джунгли! Лиана — у палатки, прямо по тропе на север. Слышишь попугаев?');
 

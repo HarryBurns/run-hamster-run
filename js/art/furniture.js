@@ -646,7 +646,8 @@ const D = {
     line(c, -33, -52, 33, -52, '#ffd43b', 3);
     fillRR(c, -40, -42, 80, 42, 6, '#8d5524', OUT, 2);
     for (const x of [-26, 26]) fillRR(c, x - 4, -42, 8, 42, 2, '#ffd43b', OUT, 1.2);
-    for (let i = 0; i < 9; i++) ell(c, -26 + i * 6.5, -44 - (i % 3) * 3, 5, 5, i % 4 === 3 ? '#fff5f5' : '#ffd43b', OUT, 1);
+    for (let i = 0; i < 9; i++)
+      ell(c, -26 + i * 6.5, -44 - (i % 3) * 3, 5, 5, i % 4 === 3 ? '#fff5f5' : '#ffd43b', OUT, 1);
     for (let i = 0; i < 4; i++) ell(c, -12 + i * 8, -50, 3, 3, '#fff5f5', OUT, 0.8);
     fillRR(c, -7, -30, 14, 12, 3, '#ffd43b', OUT, 1.4);
     ell(c, 0, -24, 2, 2.4, OUT);

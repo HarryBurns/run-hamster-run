@@ -36,7 +36,8 @@ const fresh = (e) => !!e.land && S().day - S().lands[e.land] <= FRESH_DAYS;
 /** Все реплики жителя про открытые места, которые он может сказать сейчас: [{ text, fresh }]. */
 export function placeLines(npcId) {
   const out = [];
-  for (const e of PLACE_TALK[npcId] || []) if (holds(e)) for (const text of e.lines) out.push({ text, fresh: fresh(e) });
+  for (const e of PLACE_TALK[npcId] || [])
+    if (holds(e)) for (const text of e.lines) out.push({ text, fresh: fresh(e) });
   return out;
 }
 let last = '';
@@ -72,7 +73,8 @@ export async function taleTalk(npcId) {
   const t = taleFor(npcId);
   if (!t || asked[t.id] === S().day) return null;
   const npc = NPC_BY_ID[npcId],
-    say = (text, options, happy = false) => dialog({ look: npcLook(npcId), name: npc.name, text: named(text), options, happy });
+    say = (text, options, happy = false) =>
+      dialog({ look: npcLook(npcId), name: npc.name, text: named(text), options, happy });
   emit('talk', { id: npcId });
   const left = t.parts.slice();
   let text = t.ask,
@@ -98,6 +100,10 @@ export async function taleTalk(npcId) {
   if (t.pts && S().friends[npcId]) addFriendPts(npcId, t.pts);
   emit('tale', { id: t.id, npc: npcId });
   sfx('win');
-  await say(`${text.replace(/\s*А (что )?ещё\?$/, '')} ${t.end}`, [{ text: t.bye || 'Рада помочь!', cls: 'green' }], true);
+  await say(
+    `${text.replace(/\s*А (что )?ещё\?$/, '')} ${t.end}`,
+    [{ text: t.bye || 'Рада помочь!', cls: 'green' }],
+    true,
+  );
   return { end: true };
 }

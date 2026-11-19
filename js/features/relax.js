@@ -41,7 +41,8 @@ register(
 /** Вид предмета знает, как на нём отдыхают: { how, spots } или undefined. */
 const seatOf = (o) => (OBJECTS[o.type] || {}).seat;
 /** Предмет сейчас «под снегом»: гамак и полотенце зимой убраны. */
-const hiddenNow = (sc, o) => (o.type === 'hammock' || o.type === 'towel') && (sc.desc.season || cal().season) === 'winter';
+const hiddenNow = (sc, o) =>
+  (o.type === 'hammock' || o.type === 'towel') && (sc.desc.season || cal().season) === 'winter';
 /** Какие места предмета заняты (хомячком или жителем рядом). */
 function takenSpots(o) {
   const out = new Set();
@@ -175,7 +176,7 @@ on('step', ({ dt }) => {
   if (scene() !== sc || p.ride !== c.ride) return standUp(true);
   if (p.moving || p.path.length) return standUp();
   c.t += dt;
-  if (c.say && (c.t - c.say.t > 1.6)) c.say = null;
+  if (c.say && c.t - c.say.t > 1.6) c.say = null;
   if (c.how === 'slide') {
     if (c.t >= RELAX.slide) {
       standUp(true);
@@ -291,7 +292,20 @@ function drawMate(c, m, t) {
     s = st.spots[m.spot];
   const how = c.how === 'swing' && m.o !== c.o ? 'sit' : c.how;
   const dir = m.t < 4 ? (c.ax > m.ax ? 1 : -1) : 0;
-  drawSitter(SP.ctx, how, npcLook(n.id, npcDress()), 'n' + n.id + (npcDress() || ''), m.o.x + s[0], m.o.y + s[1], m.t + 0.37, n.ph, m.o, m.spot, dir, cur ? cur.t : 0);
+  drawSitter(
+    SP.ctx,
+    how,
+    npcLook(n.id, npcDress()),
+    'n' + n.id + (npcDress() || ''),
+    m.o.x + s[0],
+    m.o.y + s[1],
+    m.t + 0.37,
+    n.ph,
+    m.o,
+    m.spot,
+    dir,
+    cur ? cur.t : 0,
+  );
   if (m.line && m.t < 4.5) {
     SP.world();
     bubble(SP.ctx, m.line, m.o.x + s[0], m.o.y + s[1] - (c.how === 'lie' ? 100 : 110));
@@ -324,7 +338,14 @@ export function relaxJoinNow() {
 export function volleyTeams() {
   const town = shuffle(NPCS.filter((n) => !n.land));
   town.sort((a, b) => friendHearts(b.id) - friendHearts(a.id));
-  const who = (n) => ({ id: n.id, name: n.name, fem: !!n.fem, look: npcLook(n.id), small: !!n.small, hearts: friendHearts(n.id) });
+  const who = (n) => ({
+    id: n.id,
+    name: n.name,
+    fem: !!n.fem,
+    look: npcLook(n.id),
+    small: !!n.small,
+    hearts: friendHearts(n.id),
+  });
   const rest = shuffle(town.slice(1));
   return { mate: who(town[0]), rivals: rest.slice(0, 2).map(who) };
 }
@@ -334,7 +355,9 @@ export function volleyTeamNote(team) {
     h = m.hearts ? '❤️'.repeat(Math.min(5, m.hearts)) : '🤍';
   const vs = team.rivals.length ? ` Соперники — <b>${team.rivals.map((r) => r.name).join('</b> и <b>')}</b>.` : '';
   return `<div class="pay-note">🏐 Твоя пара — <b>${m.name}</b> ${h}.${vs}<br>${
-    m.hearts ? 'Вы дружите — у сетки друг возьмёт больше мячей!' : 'Подружитесь — и друг у сетки будет брать больше мячей.'
+    m.hearts
+      ? 'Вы дружите — у сетки друг возьмёт больше мячей!'
+      : 'Подружитесь — и друг у сетки будет брать больше мячей.'
   }</div>`;
 }
 /** Сыграть в волейбол у сетки на пляже. */

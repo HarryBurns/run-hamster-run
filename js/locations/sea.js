@@ -402,7 +402,16 @@ defineObjects({
     draw(ctx, o, env) {
       SP.world(); // пена вокруг камня набегает и тает
       const ph = (env.t * 0.45 + o.tx * 0.37) % 1;
-      ell(ctx, o.x, o.y + o.r * 0.35, o.r * 1.2 + ph * 12, o.r * 0.42 + ph * 5, null, `rgba(255,255,255,${(0.6 * (1 - ph)).toFixed(2)})`, 1.8);
+      ell(
+        ctx,
+        o.x,
+        o.y + o.r * 0.35,
+        o.r * 1.2 + ph * 12,
+        o.r * 0.42 + ph * 5,
+        null,
+        `rgba(255,255,255,${(0.6 * (1 - ph)).toFixed(2)})`,
+        1.8,
+      );
       put('seaCrag', o.x, o.y, o.r);
     },
   },
@@ -489,7 +498,8 @@ export function createSea(cfg) {
     for (const [x, y] of cfg.icebergs || []) g.add('iceberg', x, y);
     // настоящие скалы у буйка-ракушки и плотик у отметки «Далеко на юг» (С11, О12)
     if (GROT_PX)
-      for (const [dx, dy, r] of GROT_ROCKS) g.add('seaCrag', tileOf(GROT_PX.x + dx), tileOf(GROT_PX.y + dy), { x: GROT_PX.x + dx, y: GROT_PX.y + dy, r });
+      for (const [dx, dy, r] of GROT_ROCKS)
+        g.add('seaCrag', tileOf(GROT_PX.x + dx), tileOf(GROT_PX.y + dy), { x: GROT_PX.x + dx, y: GROT_PX.y + dy, r });
     if (FAR_PX) g.add('farRaft', tileOf(FAR_PX.x), tileOf(FAR_PX.y), { land: FAR.land });
     if (PORT) {
       // остров причала: джунгли (рисунки — jungle_art.js) и табличка с замочком, пока место закрыто
@@ -506,7 +516,10 @@ export function createSea(cfg) {
       ])
         g.add(type, X + dx, Y + dy, v === undefined ? {} : { v });
       const land = LAND_BY_ID[PORT.land];
-      g.add('signpost', ...PORT.sign, { text: `${land.icon} ${land.name}`, text2: () => (landOpen(PORT.land) ? '⛵ Причал' : '🔒 Спроси Боба') });
+      g.add('signpost', ...PORT.sign, {
+        text: `${land.icon} ${land.name}`,
+        text2: () => (landOpen(PORT.land) ? '⛵ Причал' : '🔒 Спроси Боба'),
+      });
     }
   }
 
@@ -526,7 +539,6 @@ export function createSea(cfg) {
     if (d < T * 1.9 && !farNear && !sc.p.path.length) farGo();
     else if (d > T * 4) farNear = false;
   }
-
 
   // ---------- кораблик ----------
   // Одно расстояние (в клетках) на «сойти на берег» и «сесть обратно»: откуда сошла — оттуда и сядет, даже простуженная,
@@ -642,7 +654,11 @@ export function createSea(cfg) {
     const d = dist(sc.p.x, sc.p.y, GROT_PX.x, GROT_PX.y);
     if (d < T * 2 && !grotNear) {
       grotNear = true;
-      toast(landOpen(GROT.land) ? '🌊 Под буйком-ракушкой — вход в подводный грот! Нажми 🤿 «Нырнуть».' : '🔒 Под водой у скал темнеет проход… Без карты в нём не разобраться. Может, Зефирка что-то знает?');
+      toast(
+        landOpen(GROT.land)
+          ? '🌊 Под буйком-ракушкой — вход в подводный грот! Нажми 🤿 «Нырнуть».'
+          : '🔒 Под водой у скал темнеет проход… Без карты в нём не разобраться. Может, Зефирка что-то знает?',
+      );
     } else if (d > T * 4.5) grotNear = false;
   }
   /** Нажали на буёк над гротом: подплыть и нырнуть. */
@@ -865,7 +881,8 @@ export function createSea(cfg) {
       if (c.up > 0) {
         c.up -= dt;
         if (c.kind === 'whale' && dist(c.x, c.y, p.x, p.y) < T * 6.5) award('x_whale');
-        if (c.kind === 'shark' && dist(c.x, c.y, p.x, p.y) < T * 3) hintToday('shark', 'Акула улыбнулась тебе и поплыла дальше 🦈', '', null);
+        if (c.kind === 'shark' && dist(c.x, c.y, p.x, p.y) < T * 3)
+          hintToday('shark', 'Акула улыбнулась тебе и поплыла дальше 🦈', '', null);
         continue;
       }
       c.timer -= dt;
@@ -951,7 +968,14 @@ export function createSea(cfg) {
     where(s, name) {
       if (!name.startsWith('sea:')) return null;
       const land = name.slice(4),
-        goal = PORT && PORT.land === land ? PORT_PX : GROT && GROT.land === land ? GROT_PX : FAR && FAR.land === land ? FAR_PX : null;
+        goal =
+          PORT && PORT.land === land
+            ? PORT_PX
+            : GROT && GROT.land === land
+              ? GROT_PX
+              : FAR && FAR.land === land
+                ? FAR_PX
+                : null;
       if (!goal) return null;
       if (isBoating()) return { x: goal.x, y: goal.y + 30 };
       // вплавь у самого буйка над гротом (приплыла сама или вынырнула из грота) — нырять можно и без кораблика
@@ -1121,7 +1145,8 @@ export function createSea(cfg) {
         const land = LAND_BY_ID[PORT.land],
           sz = Math.max(12, k * 2.6);
         emoji(ctx, land.icon, PORT.dock[0] * k, PORT.dock[1] * k + k, sz);
-        if (!landOpen(PORT.land)) emoji(ctx, '🔒', PORT.dock[0] * k + sz * 0.55, PORT.dock[1] * k + k + sz * 0.3, sz * 0.6);
+        if (!landOpen(PORT.land))
+          emoji(ctx, '🔒', PORT.dock[0] * k + sz * 0.55, PORT.dock[1] * k + k + sz * 0.3, sz * 0.6);
       }
     },
     /** Кнопки HUD: сойти с кораблика, нырнуть. */
@@ -1144,7 +1169,9 @@ export function createSea(cfg) {
     debugDolphins() {
       dolph = null;
       const d0 = sc.p.dir || 1;
-      return showDolphins(sc.p.x + d0 * 170, sc.p.y + 30, d0) || showDolphins(sc.p.x - d0 * 170, sc.p.y + 30, -d0) ? sc.debugScreen(dolph.x, dolph.y) : false;
+      return showDolphins(sc.p.x + d0 * 170, sc.p.y + 30, d0) || showDolphins(sc.p.x - d0 * 170, sc.p.y + 30, -d0)
+        ? sc.debugScreen(dolph.x, dolph.y)
+        : false;
     },
     /** Прыжок дельфинов, который сейчас виден (или null), — для тестов. */
     dolphinJump: () => dolph,
@@ -1182,7 +1209,13 @@ function drawFarRaft(ctx, g, t) {
   SP.world();
   // стрелка на юг покачивается под табличкой
   const ay = y - 30 + bob + Math.sin(t * 3) * 3;
-  poly(ctx, [x + 22, ay - 6, x + 32, ay - 6, x + 32, ay + 4, x + 37, ay + 4, x + 27, ay + 14, x + 17, ay + 4, x + 22, ay + 4], '#ffd43b', OUT, 1.6);
+  poly(
+    ctx,
+    [x + 22, ay - 6, x + 32, ay - 6, x + 32, ay + 4, x + 37, ay + 4, x + 27, ay + 14, x + 17, ay + 4, x + 22, ay + 4],
+    '#ffd43b',
+    OUT,
+    1.6,
+  );
   if (!landOpen(g.land)) emoji(ctx, '🔒', x + 40, y - 100 + bob, 18);
 }
 /** Отметка «Далеко на юг»: плотик из брёвен, столб и табличка (неподвижное — в кэше спрайтов). */

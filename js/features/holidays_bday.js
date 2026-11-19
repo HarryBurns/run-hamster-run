@@ -14,7 +14,17 @@ import { makeCanvas } from '../core/draw.js';
 import { on } from '../core/events.js';
 import { scene } from '../core/loop.js';
 import { G } from '../core/state.js';
-import { HOLIDAY, HOLIDAY_BY_ID, HOME_BY_ID, NPCS, NPC_BY_ID, DISH_BY_ID, ING_BY_ID, SEED_BY_ID, BLOWS } from '../data/index.js';
+import {
+  HOLIDAY,
+  HOLIDAY_BY_ID,
+  HOME_BY_ID,
+  NPCS,
+  NPC_BY_ID,
+  DISH_BY_ID,
+  ING_BY_ID,
+  SEED_BY_ID,
+  BLOWS,
+} from '../data/index.js';
 import { addSidePart } from '../engine/side/scene.js';
 import { paintBdayRoom } from '../locations/holidays_art.js';
 import { enqueue } from '../ui/modals.js';
@@ -39,7 +49,10 @@ function nextGuest() {
   const s = S(),
     came = [...(HF().guests || []), ...carrying.keys()];
   const list = NPCS.filter((n) => !n.land && s.friends[n.id] && !came.includes(n.id) && !s.guests.includes(n.id));
-  list.sort((a, b) => (s.friends[b.id].met ? 1 : 0) - (s.friends[a.id].met ? 1 : 0) || s.friends[b.id].pts - s.friends[a.id].pts);
+  list.sort(
+    (a, b) =>
+      (s.friends[b.id].met ? 1 : 0) - (s.friends[a.id].met ? 1 : 0) || s.friends[b.id].pts - s.friends[a.id].pts,
+  );
   return list.length ? list[0].id : null;
 }
 /** Что подарил гость (в рюкзак или монеты) — строка для подсказки: «🥞 Блинчики ×2». */
@@ -146,7 +159,8 @@ function tick({ dt = 0 } = {}) {
   if (!stepWanted('birthday', 'guests') || s.minutes < HOLIDAY.bday.from * 60) return;
   // кто уже сидит в гостях в этом доме — гость праздника
   if ((s.guestsAt || 'villa') === sc.houseKey)
-    for (const id of s.guests) if (!carrying.has(id) && !stepDoneFor('birthday', 'guests', id) && stepWanted('birthday', 'guests')) greet(id);
+    for (const id of s.guests)
+      if (!carrying.has(id) && !stepDoneFor('birthday', 'guests', id) && stepWanted('birthday', 'guests')) greet(id);
   // гостей с коробочками считаем уже пришедшими: четвёртый не придёт, пока трое несут подарки
   const have = (HF().guests || []).length + carrying.size;
   if (have >= (BDAY.steps[0].n || 3) || s.guests.length >= MAX_GUESTS || s.minutes < nextAt) return;
@@ -164,7 +178,14 @@ on('scene', () => {
 });
 // три гостя — пора задувать свечи (один раз за день спросить окном; дальше — в разговоре с гостем)
 on('holiday', ({ id, what } = {}) => {
-  if (id !== 'birthday' || what !== 'guests' || stepWanted('birthday', 'guests') || !stepWanted('birthday', 'cake') || HF().asked) return;
+  if (
+    id !== 'birthday' ||
+    what !== 'guests' ||
+    stepWanted('birthday', 'guests') ||
+    !stepWanted('birthday', 'cake') ||
+    HF().asked
+  )
+    return;
   setDayFlag('asked', 1, 'holiday');
   enqueue(
     () =>
@@ -182,7 +203,12 @@ on('holiday', ({ id, what } = {}) => {
 });
 talkHooks.guest = async (id) => {
   if (!isBday() || stepWanted('birthday', 'guests') || !stepWanted('birthday', 'cake')) return null;
-  const i = await holidaySay(id, 'С праздником! Торт уже ждёт — задуешь свечи? А мы споём!', [{ text: '🎂 Задуть свечи!', cls: 'green' }, { text: 'Потом' }], true);
+  const i = await holidaySay(
+    id,
+    'С праздником! Торт уже ждёт — задуешь свечи? А мы споём!',
+    [{ text: '🎂 Задуть свечи!', cls: 'green' }, { text: 'Потом' }],
+    true,
+  );
   if (i === 0) await cake();
   return { end: true };
 };
@@ -222,7 +248,10 @@ let roomPic = null;
 function drawBdayRoom(ctx, sc) {
   if (!isBday() || sc.houseKey !== (S().homeMain || 'villa')) return;
   const door = sc.desc.door || { f: 0, x: 100 },
-    room = (sc.desc.rooms || []).find((r) => r.f === door.f && door.x >= r.x0 && door.x <= r.x1) || { x0: 0, x1: sc.geo.W };
+    room = (sc.desc.rooms || []).find((r) => r.f === door.f && door.x >= r.x0 && door.x <= r.x1) || {
+      x0: 0,
+      x1: sc.geo.W,
+    };
   const y = sc.geo.fy(door.f),
     top = y - sc.geo.RH,
     x0 = room.x0 + 16,

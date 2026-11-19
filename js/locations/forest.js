@@ -240,7 +240,8 @@ function build(m) {
         const k = rnd(),
           v = Math.floor(rnd() * 3);
         if (floor || edge) m.add(k < 0.55 ? 'spruce' : k < 0.8 ? 'pine' : 'birch', x, y, { v });
-        else if (k < 0.4) m.add('tree', x, y, { v }); // лиственное (плодов на обычных деревьях нет)
+        else if (k < 0.4)
+          m.add('tree', x, y, { v }); // лиственное (плодов на обычных деревьях нет)
         else m.add(k < 0.7 ? 'birch' : 'spruce', x, y, { v });
         continue;
       }
@@ -280,7 +281,6 @@ function build(m) {
   ])
     m.add('flowers', x, y, { v });
 }
-
 
 /** Находки дня: шишки — всегда, еловые веточки — зимой. Утром появляются снова (движок, dayFlags.finds). */
 function dailyPickups(sc) {

@@ -129,7 +129,13 @@ export default {
       .filter((f) => !mates.has(f.id))
       .slice(0, Math.max(3, ours.length))
       .map((f) => f.look);
-    const fanIds = new Set([...mates, ...(host.friends || []).filter((f) => !mates.has(f.id)).slice(0, ours.length).map((f) => f.id)]);
+    const fanIds = new Set([
+      ...mates,
+      ...(host.friends || [])
+        .filter((f) => !mates.has(f.id))
+        .slice(0, ours.length)
+        .map((f) => f.id),
+    ]);
     function shout(text, d = 1.2) {
       say = text;
       sayT = d;
@@ -227,11 +233,24 @@ export default {
         const x = x0 + step * i;
         ctx.save();
         ctx.translate(x, y);
-        const lean = fallen ? dir * -1.2 * Math.min(1, phaseT * 3) : dir * -(0.18 + pull * 0.14) + Math.sin(t * 7 + i) * 0.03;
+        const lean = fallen
+          ? dir * -1.2 * Math.min(1, phaseT * 3)
+          : dir * -(0.18 + pull * 0.14) + Math.sin(t * 7 + i) * 0.03;
         ctx.rotate(lean);
         host.drawHamster(ctx, 0, 0, s, look, { time: t, dir, happy: !fallen || winner === dir, armsUp: false });
         ctx.restore();
-        if (fallen) for (let k = 0; k < 4; k++) ell(ctx, x + Math.cos(k * 1.7 + i) * 26 * s, y - 6 - Math.abs(Math.sin(k + phaseT * 4)) * 14 * s, 4, 4, '#fff', 'rgba(150,180,220,.8)', 1);
+        if (fallen)
+          for (let k = 0; k < 4; k++)
+            ell(
+              ctx,
+              x + Math.cos(k * 1.7 + i) * 26 * s,
+              y - 6 - Math.abs(Math.sin(k + phaseT * 4)) * 14 * s,
+              4,
+              4,
+              '#fff',
+              'rgba(150,180,220,.8)',
+              1,
+            );
       });
     }
     function draw() {
@@ -269,18 +288,33 @@ export default {
           [w * 0.82, '#1c7ed6', '🎪'],
         ]) {
           fillRR(ctx, x - 40, by - 62, 80, 62, 3, '#fff4e6', OUT, 1.6);
-          for (let i = 0; i < 4; i++) poly(ctx, [x - 44 + i * 22, by - 76, x - 22 + i * 22, by - 76, x - 22 + i * 22, by - 62, x - 44 + i * 22, by - 62], i % 2 ? '#fff' : c, OUT, 1.2);
+          for (let i = 0; i < 4; i++)
+            poly(
+              ctx,
+              [x - 44 + i * 22, by - 76, x - 22 + i * 22, by - 76, x - 22 + i * 22, by - 62, x - 44 + i * 22, by - 62],
+              i % 2 ? '#fff' : c,
+              OUT,
+              1.2,
+            );
           poly(ctx, [x - 46, by - 76, x, by - 98, x + 46, by - 76], c, OUT, 1.6);
           ctx.font = '26px sans-serif';
           ctx.textAlign = 'center';
           ctx.fillText(word, x, by - 24);
         }
         // зрители на горке болеют за команды
-        const fans = (host.friends || []).filter((f) => !fanIds.has(f.id)).slice(0, 3).map((f) => f.look);
+        const fans = (host.friends || [])
+          .filter((f) => !fanIds.has(f.id))
+          .slice(0, 3)
+          .map((f) => f.look);
         fans.forEach((lk, i) => {
           const x = w * (0.36 + i * 0.14),
             y = h * hor + 4 + Math.abs(Math.sin(t * 5 + i)) * -5;
-          host.drawHamster(ctx, x, y, 0.5, lk, { time: t + i, dir: i === 0 ? 1 : i === 2 ? -1 : 0, happy: true, armsUp: Math.sin(t * 5 + i) > 0 });
+          host.drawHamster(ctx, x, y, 0.5, lk, {
+            time: t + i,
+            dir: i === 0 ? 1 : i === 2 ? -1 : 0,
+            happy: true,
+            armsUp: Math.sin(t * 5 + i) > 0,
+          });
         });
       }
 
@@ -296,13 +330,21 @@ export default {
         const q = i / 12,
           x = q * w,
           y = h * fy + Math.sin(q * Math.PI) * h * 0.06;
-        poly(ctx, [x - 7, y, x + 7, y, x, y + 14], ['#ff6b6b', '#ffd43b', '#69db7c', '#4dabf7', '#da77f2'][i % 5], OUT, 1);
+        poly(
+          ctx,
+          [x - 7, y, x + 7, y, x, y + 14],
+          ['#ff6b6b', '#ffd43b', '#69db7c', '#4dabf7', '#da77f2'][i % 5],
+          OUT,
+          1,
+        );
       }
       const cy = h * (tall ? 0.56 : 0.66),
         mid = w / 2,
         span = Math.min(w * 0.18, 130),
         // на телефоне команды помельче; стоя — крупнее, насколько позволяет ширина
-        s = tall ? Math.max(0.5, Math.min(1.1, w / 520)) : Math.max(0.5, Math.min(1.3, Math.min(w / 700, h / 420) * 1.15 + 0.15));
+        s = tall
+          ? Math.max(0.5, Math.min(1.1, w / 520))
+          : Math.max(0.5, Math.min(1.3, Math.min(w / 700, h / 420) * 1.15 + 0.15));
       // черты
       line(ctx, mid - span, cy - 46, mid - span, cy + 46, 'rgba(77,171,247,.85)', 4);
       line(ctx, mid + span, cy - 46, mid + span, cy + 46, 'rgba(255,146,43,.85)', 4);
@@ -361,7 +403,21 @@ export default {
     };
     host.on(window, 'keydown', key);
     // для автотеста: что сейчас в игре
-    if (DEV) cv.canvas.__tug = () => ({ round, phase, p, fill, full: fill >= FULL, wins, lost, over, strong, taps, help, team: crew.map((f) => f.hearts || 0) });
+    if (DEV)
+      cv.canvas.__tug = () => ({
+        round,
+        phase,
+        p,
+        fill,
+        full: fill >= FULL,
+        wins,
+        lost,
+        over,
+        strong,
+        taps,
+        help,
+        team: crew.map((f) => f.hearts || 0),
+      });
     cv.canvas.classList.add('tg-canvas');
   },
 };

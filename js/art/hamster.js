@@ -11,7 +11,19 @@ const BACK_ACC = ['wings', 'backpack', 'cape', 'pickaxe']; // аксессуар
 const FACE_ACC = ['glasses', 'sunglasses']; // аксессуары на мордочке: поворачиваются вместе с ней
 // Аксессуары на груди: рисуются поверх одежды, но ДО головы — висят из-под подбородка (его низ: y = -29),
 // а не лежат на мордочке. Шарф — исключение: он обмотан вокруг шеи и рисуется поверх подбородка.
-const CHEST_ACC = ['necklace', 'bag', 'bowtie', 'tie', 'lei', 'camera', 'medal', 'waterpistol', 'nutbadge', 'fan', 'balloon'];
+const CHEST_ACC = [
+  'necklace',
+  'bag',
+  'bowtie',
+  'tie',
+  'lei',
+  'camera',
+  'medal',
+  'waterpistol',
+  'nutbadge',
+  'fan',
+  'balloon',
+];
 
 /**
  * Насколько закрыты глаза в момент времени t: 0 — открыты, 1 — закрыты.
@@ -121,8 +133,16 @@ export function drawHamster(ctx, x, y, s, look, pose = {}) {
   const bob = walking ? Math.abs(Math.sin(t * TAU)) * 2.5 : Math.sin(time * 2.2) * 0.7;
   // kick — сидит и болтает ногами (скамейка, этап 17а): лапки по очереди приподнимаются, тело не качается
   const kick = !walking && typeof pose.kick === 'number' ? pose.kick : null;
-  const liftL = walking ? Math.max(0, Math.sin(t * TAU)) * 5 : kick !== null ? Math.max(0, Math.sin(kick * TAU)) * 5 : 0;
-  const liftR = walking ? Math.max(0, -Math.sin(t * TAU)) * 5 : kick !== null ? Math.max(0, -Math.sin(kick * TAU)) * 5 : 0;
+  const liftL = walking
+    ? Math.max(0, Math.sin(t * TAU)) * 5
+    : kick !== null
+      ? Math.max(0, Math.sin(kick * TAU)) * 5
+      : 0;
+  const liftR = walking
+    ? Math.max(0, -Math.sin(t * TAU)) * 5
+    : kick !== null
+      ? Math.max(0, -Math.sin(kick * TAU)) * 5
+      : 0;
   const fur = look.fur;
   // простуда (Ф1): чих — набираем воздух («а-а-а…»), потом «апчхи!» с зажмуренными глазами
   const sn = look.sick && typeof pose.sneeze === 'number' ? pose.sneeze : null;
@@ -149,9 +169,9 @@ export function drawHamster(ctx, x, y, s, look, pose = {}) {
   const fw = pose.sit ? 14 : 10;
   if (!(o.legs && o.legs.kind === 'mermaid'))
     drawFeet(ctx, o.feet, b.nails, k, [
-    [-fw, liftL],
-    [fw, liftR],
-  ]);
+      [-fw, liftL],
+      [fw, liftR],
+    ]);
 
   ctx.translate(0, -bob);
   if (k && walking && pose.lean !== false) ctx.rotate(k * LEAN); // на ходу — лёгкий наклон вперёд

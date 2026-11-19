@@ -185,7 +185,19 @@ export function showQuestOnMap(id) {
 const STEP_EVENTS = new Set(QUESTS.flatMap((q) => q.steps.filter((st) => st.on).map((st) => st.on)));
 // после этих событий задание могло сдвинуться (шаг «принести» — что-то появилось в рюкзаке или пропало)
 // (или шаг «приди в тёплом» — надели или сняли вещь)
-const WATCH = new Set([...STEP_EVENTS, 'herb', 'find', 'gather', 'harvest', 'buy', 'sell', 'cook', 'eat', 'wake', 'wear']);
+const WATCH = new Set([
+  ...STEP_EVENTS,
+  'herb',
+  'find',
+  'gather',
+  'harvest',
+  'buy',
+  'sell',
+  'cook',
+  'eat',
+  'wake',
+  'wear',
+]);
 
 function countEvent(ev, d) {
   const s = S();
@@ -195,7 +207,8 @@ function countEvent(ev, d) {
     q.steps.forEach((step, i) => {
       if (step.on !== ev || (st.n[i] || 0) >= (step.n || 1)) return;
       // значение в if может быть списком: «любая из работ»
-      if (step.if && Object.entries(step.if).some(([k, v]) => (Array.isArray(v) ? !v.includes(d[k]) : d[k] !== v))) return;
+      if (step.if && Object.entries(step.if).some(([k, v]) => (Array.isArray(v) ? !v.includes(d[k]) : d[k] !== v)))
+        return;
       if (step.min && Object.entries(step.min).some(([k, v]) => !(d[k] >= v))) return;
       questCount(q.id, i, step.distinct ? d[step.distinct] : undefined);
     });
@@ -228,7 +241,8 @@ function refresh(quiet = false) {
       sfx('ok');
       if (cur && cur.talk) toast(`${q.icon} Всё готово! ${cur.text} — у ${hisOf(cur.talk)} над головой «?»`, 'good');
       else if (cur) toast(`✅ Сделано! Дальше: ${cur.text}`, 'good');
-    } else if (w.i === wi && cur && w.steps[w.i].need > 1) toast(`${q.icon} ${q.title}: ${w.steps[w.i].have} из ${w.steps[w.i].need}`);
+    } else if (w.i === wi && cur && w.steps[w.i].need > 1)
+      toast(`${q.icon} ${q.title}: ${w.steps[w.i].have} из ${w.steps[w.i].need}`);
   }
   if (changed) emit('hud');
 }
@@ -255,7 +269,8 @@ function hintNew() {
 }
 on('wake', hintNew);
 on('scene', ({ from }) => {
-  if (from === '') hintNew(); // игра только началась (новая или продолжение)
+  if (from === '')
+    hintNew(); // игра только началась (новая или продолжение)
   else refresh(); // после загрузки сохранения — запомнить, где задания, чтобы следующий шаг подсказать
 });
 
@@ -302,7 +317,15 @@ async function offer(q) {
   });
   trackQuest(q.id);
   sfx('bell');
-  const j = await say(npc, q.lines.accept, [{ text: 'Хорошо!', cls: 'green' }, { text: '📖 Открыть журнал', cls: 'blue' }], true);
+  const j = await say(
+    npc,
+    q.lines.accept,
+    [
+      { text: 'Хорошо!', cls: 'green' },
+      { text: '📖 Открыть журнал', cls: 'blue' },
+    ],
+    true,
+  );
   toast(`📖 Новое задание в журнале: ${q.icon} ${q.title}`, 'good');
   emit('hud');
   if (j === 1) run('journal');
@@ -366,7 +389,14 @@ async function talkStep(q, w) {
 
 /** Название вещи из рюкзака для окон: семена, продукт, блюдо. */
 function itemName(bag, id) {
-  const d = bag === 'seeds' ? SEED_BY_ID[id] : bag === 'ing' ? ING_BY_ID[id] : bag === 'dishes' ? DISH_BY_ID[id] : FIND_BY_ID[id];
+  const d =
+    bag === 'seeds'
+      ? SEED_BY_ID[id]
+      : bag === 'ing'
+        ? ING_BY_ID[id]
+        : bag === 'dishes'
+          ? DISH_BY_ID[id]
+          : FIND_BY_ID[id];
   return d ? `${d.e ? d.e + ' ' : ''}${d.name}` : id;
 }
 /**
@@ -421,7 +451,9 @@ function complete(q) {
 function questDone(q, got) {
   const st = got.sticker;
   const lines = [
-    got.land ? `<p class="land-open">${got.land.icon} <b>${got.land.name} ${got.land.opened || 'открыт'}!</b><br>${got.land.at ? `Вход — ${got.land.at}.` : ''}</p>` : '',
+    got.land
+      ? `<p class="land-open">${got.land.icon} <b>${got.land.name} ${got.land.opened || 'открыт'}!</b><br>${got.land.at ? `Вход — ${got.land.at}.` : ''}</p>`
+      : '',
     st ? `<p>Наклейка «${st.title}» ${st.isNew ? '— новая в альбоме!' : '— такая у тебя уже есть.'}</p>` : '',
     got.clothes ? `<p>🎁 Подарок: <b>${got.clothes.name}</b> — уже в шкафу!</p>` : '',
     got.items ? `<p>🎁 В рюкзаке: <b>${got.items}</b></p>` : '',
@@ -463,7 +495,11 @@ export function renderJournal(body, panel) {
       npc = NPC_BY_ID[q.npc];
     const card = el('div', 'quest');
     card.appendChild(
-      el('div', 'q-head', `<span class="q-ic">${q.icon}</span><div><div class="ttl">${q.title}</div><div class="sub">Просит ${npc.name}</div></div>`),
+      el(
+        'div',
+        'q-head',
+        `<span class="q-ic">${q.icon}</span><div><div class="ttl">${q.title}</div><div class="sub">Просит ${npc.name}</div></div>`,
+      ),
     );
     card.appendChild(el('p', 'q-story', q.story));
     const ol = el('ol', 'q-steps');
@@ -513,11 +549,15 @@ export function renderJournal(body, panel) {
 }
 /** Что уже собрано для задания «принеси разные находки»: значки из рюкзака. */
 function findsRow(kind) {
-  const have = Object.keys(S().finds).filter((id) => FIND_BY_ID[id] && FIND_BY_ID[id].kind === kind && S().finds[id] > 0);
+  const have = Object.keys(S().finds).filter(
+    (id) => FIND_BY_ID[id] && FIND_BY_ID[id].kind === kind && S().finds[id] > 0,
+  );
   return el(
     'div',
     'q-finds',
-    have.length ? have.map((id) => `<span title="${FIND_BY_ID[id].name}">${FIND_BY_ID[id].e}</span>`).join('') : '<span class="muted">пока ничего</span>',
+    have.length
+      ? have.map((id) => `<span title="${FIND_BY_ID[id].name}">${FIND_BY_ID[id].e}</span>`).join('')
+      : '<span class="muted">пока ничего</span>',
   );
 }
 
@@ -572,11 +612,17 @@ export function openWay(id) {
     text = `${door} Говорят, ${land.who} знает дорогу… Сегодня ${npc.fem ? 'она занята' : 'он занят'} — загляни к ${toHim(land.npc)} завтра!`;
   } else if (w.status === 'ready') {
     text = `${door} ${land.who} знает дорогу — поговори с ${her(land.npc)}! Над головой у ${hisOf(land.npc)} «!».`;
-    buttons = [{ text: `⭐ Где ${npc.name}?`, cls: 'yellow' }, { text: 'Хорошо', cls: 'ghost' }];
+    buttons = [
+      { text: `⭐ Где ${npc.name}?`, cls: 'yellow' },
+      { text: 'Хорошо', cls: 'ghost' },
+    ];
     act = () => showQuestOnMap(q.id);
   } else {
     text = `${door} ${land.who} уже ${npc.fem ? 'рассказала' : 'рассказал'}, что нужно сделать, — всё записано в журнале 📖`;
-    buttons = [{ text: '📖 Журнал', cls: 'blue' }, { text: 'Хорошо', cls: 'ghost' }];
+    buttons = [
+      { text: '📖 Журнал', cls: 'blue' },
+      { text: 'Хорошо', cls: 'ghost' },
+    ];
     act = () => run('journal');
   }
   message({

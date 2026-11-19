@@ -72,7 +72,13 @@ function nutCliff(ctx, x, y, ww, hh, flip) {
   ctx.translate(x, y);
   ctx.scale((flip ? -1 : 1) * (ww / 150), hh / 140);
   ctx.lineJoin = 'round';
-  poly(ctx, [-75, 0, -77, -46, -67, -86, -51, -118, -31, -131, -9, -117, 7, -138, 32, -130, 50, -106, 68, -78, 75, -38, 75, 0], NUT.base, OUT, 2.4);
+  poly(
+    ctx,
+    [-75, 0, -77, -46, -67, -86, -51, -118, -31, -131, -9, -117, 7, -138, 32, -130, 50, -106, 68, -78, 75, -38, 75, 0],
+    NUT.base,
+    OUT,
+    2.4,
+  );
   poly(ctx, [-67, -86, -51, -118, -31, -131, -9, -117, -18, -98, -42, -92], NUT.light);
   poly(ctx, [-9, -117, 7, -138, 32, -130, 50, -106, 26, -100, 4, -108], NUT.light);
   poly(ctx, [50, -106, 68, -78, 75, -38, 75, 0, 44, 0, 48, -44, 40, -76, 26, -100], NUT.dark);
@@ -192,7 +198,8 @@ export function paintCity(ctx, w, h, t, look, fh) {
   ctx.fillRect(0, ground, w, h - ground);
   ctx.fillStyle = '#737c88';
   ctx.fillRect(0, ground, w, 12 * u);
-  for (let i = 0; i < 5; i++) ell(ctx, w * (0.12 + i * 0.2), ground + (60 + (i % 2) * 44) * u, 46 * u, 9 * u, 'rgba(160,180,200,.5)');
+  for (let i = 0; i < 5; i++)
+    ell(ctx, w * (0.12 + i * 0.2), ground + (60 + (i % 2) * 44) * u, 46 * u, 9 * u, 'rgba(160,180,200,.5)');
   ctx.strokeStyle = 'rgba(255,255,255,.45)';
   ctx.lineWidth = 4 * u;
   ctx.setLineDash([26 * u, 22 * u]);
@@ -242,7 +249,8 @@ export function paintCity(ctx, w, h, t, look, fh) {
   ctx.beginPath();
   ctx.moveTo(hx - 34 * hs, hy - 100 * hs);
   ctx.quadraticCurveTo(hx + 26 * hs, hy - 162 * hs, hx + 86 * hs, hy - 100 * hs);
-  for (let i = 3; i >= 0; i--) ctx.quadraticCurveTo(hx - 34 * hs + (i + 0.5) * 30 * hs, hy - 112 * hs, hx - 34 * hs + i * 30 * hs, hy - 100 * hs);
+  for (let i = 3; i >= 0; i--)
+    ctx.quadraticCurveTo(hx - 34 * hs + (i + 0.5) * 30 * hs, hy - 112 * hs, hx - 34 * hs + i * 30 * hs, hy - 100 * hs);
   ctx.closePath();
   ctx.fillStyle = '#ff8fab';
   ctx.fill();
@@ -254,7 +262,7 @@ export function paintCity(ctx, w, h, t, look, fh) {
   ctx.lineWidth = 2 * u;
   ctx.beginPath();
   for (let i = 0; i < 110; i++) {
-    const x = (h01(i) * (w + 200 * u) + t * 90 * u) % (w + 200 * u) - 100 * u,
+    const x = ((h01(i) * (w + 200 * u) + t * 90 * u) % (w + 200 * u)) - 100 * u,
       y = (h01(i + 500) * h + t * (520 + h01(i + 9) * 240) * u) % h;
     ctx.moveTo(x, y);
     ctx.lineTo(x - 7 * u, y + 22 * u);
@@ -273,7 +281,14 @@ export function paintTrain(ctx, w, h, t, look, fh) {
     sy = fh * 0.2;
   ell(ctx, sx, sy, 78 * u, 78 * u, `rgba(255,236,150,${0.28 * a})`);
   ell(ctx, sx, sy, 46 * u, 46 * u, mix('#dfe3e8', '#ffe066', a), OUT, 2.4 * u);
-  for (let i = 0; i < 3; i++) cloud(ctx, ((w * (0.9 - i * 0.36) - t * (14 + i * 5) * u) % (w + 300 * u) + w + 300 * u) % (w + 300 * u) - 150 * u, fh * (0.13 + i * 0.07), (44 - i * 6) * u, mix('#a3adb9', '#ffffff', a));
+  for (let i = 0; i < 3; i++)
+    cloud(
+      ctx,
+      ((((w * (0.9 - i * 0.36) - t * (14 + i * 5) * u) % (w + 300 * u)) + w + 300 * u) % (w + 300 * u)) - 150 * u,
+      fh * (0.13 + i * 0.07),
+      (44 - i * 6) * u,
+      mix('#a3adb9', '#ffffff', a),
+    );
   // море вдали — показывается всё больше
   const seaY = rail - 150 * u;
   ctx.fillStyle = mix('#9fb0bf', '#3fb2ee', a);
@@ -287,7 +302,8 @@ export function paintTrain(ctx, w, h, t, look, fh) {
     const sp = (layer ? 90 : 46) * u,
       amp = (layer ? 42 : 70) * u,
       base = rail - (layer ? 36 : 80) * u;
-    for (let x = 0; x <= w + 20; x += 20) ctx.lineTo(x, base - Math.sin((x + t * sp) / (layer ? 150 : 230) / u) * amp * 0.5 - amp * 0.5);
+    for (let x = 0; x <= w + 20; x += 20)
+      ctx.lineTo(x, base - Math.sin((x + t * sp) / (layer ? 150 : 230) / u) * amp * 0.5 - amp * 0.5);
     ctx.lineTo(w, rail + 4);
     ctx.closePath();
     ctx.fill();
@@ -295,7 +311,7 @@ export function paintTrain(ctx, w, h, t, look, fh) {
   // деревья у дороги
   for (let i = 0; i < 7; i++) {
     const span = w + 240 * u,
-      x = ((((i * span) / 7 - t * 170 * u) % span) + span) % span - 120 * u,
+      x = (((((i * span) / 7 - t * 170 * u) % span) + span) % span) - 120 * u,
       y = rail - 4 * u,
       s = (0.8 + h01(i) * 0.5) * u;
     fillRR(ctx, x - 5 * s, y - 40 * s, 10 * s, 42 * s, 3, '#9a6a3c', OUT, 2 * u);
@@ -306,7 +322,8 @@ export function paintTrain(ctx, w, h, t, look, fh) {
   ctx.fillRect(0, rail, w, h - rail);
   ctx.fillStyle = mix('#6f8f6a', '#7ccf72', a);
   ctx.fillRect(0, rail + 46 * u, w, h);
-  for (let x = -((t * 420 * u) % (34 * u)); x < w; x += 34 * u) fillRR(ctx, x, rail + 16 * u, 16 * u, 22 * u, 2, '#8d6b4a', OUT, 1.5 * u);
+  for (let x = -((t * 420 * u) % (34 * u)); x < w; x += 34 * u)
+    fillRR(ctx, x, rail + 16 * u, 16 * u, 22 * u, 2, '#8d6b4a', OUT, 1.5 * u);
   line(ctx, 0, rail + 18 * u, w, rail + 18 * u, '#59606b', 5 * u);
   line(ctx, 0, rail + 34 * u, w, rail + 34 * u, '#59606b', 5 * u);
   // поезд: паровозик и два вагона, покачивается
@@ -357,7 +374,14 @@ export function paintTrain(ctx, w, h, t, look, fh) {
   // дым колечками — улетает назад
   for (let i = 0; i < 5; i++) {
     const q = (t * 0.55 + i / 5) % 1;
-    ell(ctx, tx + (41 - q * 230) * k, ty - (140 + q * 90) * k, (10 + q * 22) * k, (9 + q * 18) * k, `rgba(255,255,255,${0.85 * (1 - q)})`);
+    ell(
+      ctx,
+      tx + (41 - q * 230) * k,
+      ty - (140 + q * 90) * k,
+      (10 + q * 22) * k,
+      (9 + q * 18) * k,
+      `rgba(255,255,255,${0.85 * (1 - q)})`,
+    );
   }
   // чайки встречают
   if (a > 0.45) {
@@ -394,7 +418,8 @@ export function paintTown(ctx, w, h, t, look, fh) {
   ctx.fillStyle = '#8fd88a';
   ctx.beginPath();
   ctx.moveTo(0, shore);
-  for (let x = 0; x <= w + 20; x += 20) ctx.lineTo(x, hill - 30 * u - Math.sin(x / (170 * u) + 1) * 34 * u - Math.sin(x / (71 * u)) * 10 * u);
+  for (let x = 0; x <= w + 20; x += 20)
+    ctx.lineTo(x, hill - 30 * u - Math.sin(x / (170 * u) + 1) * 34 * u - Math.sin(x / (71 * u)) * 10 * u);
   ctx.lineTo(w, shore);
   ctx.closePath();
   ctx.fill();
@@ -452,7 +477,13 @@ export function paintTown(ctx, w, h, t, look, fh) {
     const q = i / 12,
       fx = gx0 + (gx1 - gx0) * q,
       fy = gy + Math.sin(q * Math.PI) * 25 * u + Math.sin(t * 3 + i) * 1.5 * u;
-    poly(ctx, [fx - 9 * u, fy, fx + 9 * u, fy, fx, fy + 19 * u], ['#ff6b6b', '#ffd43b', '#69db7c', '#4dabf7', '#da77f2'][i % 5], OUT, 1.4 * u);
+    poly(
+      ctx,
+      [fx - 9 * u, fy, fx + 9 * u, fy, fx, fy + 19 * u],
+      ['#ff6b6b', '#ffd43b', '#69db7c', '#4dabf7', '#da77f2'][i % 5],
+      OUT,
+      1.4 * u,
+    );
   }
   palm(ctx, w * 0.27, shore - 2 * u, 0.82 * u, t);
   palm(ctx, w * 0.73, shore - 2 * u, 0.82 * u, t + 2);
@@ -503,7 +534,12 @@ export function paintTown(ctx, w, h, t, look, fh) {
   TOWN_FOLK.forEach((id, i) => {
     const x = cx - fw / 2 + (i / (n - 1)) * fw,
       wave = Math.sin(t * 5 + i * 1.3) > 0;
-    drawHamster(ctx, x, shore + 30 * u + (i % 2) * 8 * u, 0.86 * u, npcLook(id), { time: t + i, dir: 0, happy: true, armsUp: wave });
+    drawHamster(ctx, x, shore + 30 * u + (i % 2) * 8 * u, 0.86 * u, npcLook(id), {
+      time: t + i,
+      dir: 0,
+      happy: true,
+      armsUp: wave,
+    });
   });
 }
 
@@ -581,9 +617,17 @@ export function paintVilla(ctx, w, h, t, look, fh) {
   // цветы на лужайке
   for (let i = 0; i < 14; i++) {
     const x = h01(i + 40) * w,
-      y = ground + (24 + h01(i + 80) * 0.9 * (h - ground - 30 * u) / u) * u;
+      y = ground + (24 + (h01(i + 80) * 0.9 * (h - ground - 30 * u)) / u) * u;
     if (Math.abs(x - (vx + 20 * k)) < 90 * k) continue;
-    for (let j = 0; j < 5; j++) ell(ctx, x + Math.cos(j * 1.257) * 5 * u, y + Math.sin(j * 1.257) * 5 * u, 3.4 * u, 3.4 * u, ['#ff8fab', '#fff', '#ffd43b', '#b197fc'][i % 4]);
+    for (let j = 0; j < 5; j++)
+      ell(
+        ctx,
+        x + Math.cos(j * 1.257) * 5 * u,
+        y + Math.sin(j * 1.257) * 5 * u,
+        3.4 * u,
+        3.4 * u,
+        ['#ff8fab', '#fff', '#ffd43b', '#b197fc'][i % 4],
+      );
     ell(ctx, x, y, 2.6 * u, 2.6 * u, '#ffa94d');
   }
   // бабочки

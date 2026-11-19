@@ -701,7 +701,8 @@ defineBuildings({
     paint: paintCableway,
     live: cablewayLive,
     icon: '🚡',
-    box: (b) => (b.cable === 'down' ? [-24, -60, b.w * T + 120, b.h * T + 130] : [-24, -190, b.w * T + 24, b.h * T + 14]),
+    box: (b) =>
+      b.cable === 'down' ? [-24, -60, b.w * T + 120, b.h * T + 130] : [-24, -190, b.w * T + 24, b.h * T + 14],
     hitUp: () => 120,
     lights: (b) => [[(b.x + b.w / 2) * T + 31, b.y * T + 46, 40, 40, 0.8]],
   },

@@ -41,15 +41,34 @@ const CSS = `
 function coco(ctx, x, y, r, gold) {
   ell(ctx, x, y, r, r, gold ? '#ffd43b' : '#8d5524', OUT, 2);
   ell(ctx, x - r * 0.3, y - r * 0.32, r * 0.3, r * 0.22, 'rgba(255,255,255,.45)');
-  for (let i = 0; i < 3; i++) ell(ctx, x + Math.cos(i * 2.1 + 0.6) * r * 0.36, y + Math.sin(i * 2.1 + 0.6) * r * 0.36, r * 0.12, r * 0.12, gold ? '#f08c00' : '#5c3a1a');
+  for (let i = 0; i < 3; i++)
+    ell(
+      ctx,
+      x + Math.cos(i * 2.1 + 0.6) * r * 0.36,
+      y + Math.sin(i * 2.1 + 0.6) * r * 0.36,
+      r * 0.12,
+      r * 0.12,
+      gold ? '#f08c00' : '#5c3a1a',
+    );
 }
 /** Барабан Бума: (x, y) — низ, s — масштаб, hit — 0..1 удар. */
 function drum(ctx, x, y, s, hit) {
   fillRR(ctx, x - 26 * s, y - 52 * s, 52 * s, 52 * s, 8 * s, '#c0703a', OUT, 2.2);
-  for (let i = 0; i < 5; i++) line(ctx, x - 24 * s + i * 12 * s, y - 50 * s, x - 18 * s + i * 12 * s, y - 2 * s, 'rgba(74,55,40,.45)', 1.6);
+  for (let i = 0; i < 5; i++)
+    line(ctx, x - 24 * s + i * 12 * s, y - 50 * s, x - 18 * s + i * 12 * s, y - 2 * s, 'rgba(74,55,40,.45)', 1.6);
   fillRR(ctx, x - 26 * s, y - 14 * s, 52 * s, 6 * s, 2, '#e03131', OUT, 1.2);
   ell(ctx, x, y - 52 * s, 28 * s, 8 * s, '#fff4e6', OUT, 2);
-  if (hit > 0) ell(ctx, x, y - 52 * s, 28 * s * (1 + hit * 0.4), 8 * s * (1 + hit * 0.4), null, `rgba(255,212,59,${hit.toFixed(2)})`, 3);
+  if (hit > 0)
+    ell(
+      ctx,
+      x,
+      y - 52 * s,
+      28 * s * (1 + hit * 0.4),
+      8 * s * (1 + hit * 0.4),
+      null,
+      `rgba(255,212,59,${hit.toFixed(2)})`,
+      3,
+    );
 }
 const pic = (draw, w = 120, h = 64) => kitPic(draw, w, h, { cap: true });
 
@@ -155,7 +174,8 @@ export default {
       moveN++;
       host.sfx(ok ? 'clink' : 'pop');
       pops.add(ok ? 'Отлично!' : 'Хорошо!', g.tx + g.r * 0.6, g.laneY - g.r * 2.4, ok ? '#f59f00' : '#40c057');
-      for (let i = 0; i < (ok ? 10 : 5); i++) sparks.push({ x: g.tx, y: g.laneY, vx: (Math.random() - 0.5) * 220, vy: -60 - Math.random() * 160, t: 0 });
+      for (let i = 0; i < (ok ? 10 : 5); i++)
+        sparks.push({ x: g.tx, y: g.laneY, vx: (Math.random() - 0.5) * 220, vy: -60 - Math.random() * 160, t: 0 });
       if (combo && combo % 8 === 0) pops.add(`🔥 ${combo} подряд!`, g.W / 2, g.H * 0.25, '#e8590c');
     }
     const pd = (e) => {
@@ -171,14 +191,26 @@ export default {
     };
     host.on(window, 'keydown', kd);
     // для автотеста (dev/smoke_games.js): время песни, сколько до ближайшего кокоса, очки
-    if (DEV) cv.canvas.__drum = () => {
-      const n = notes.find((q) => !q.res && q.at > t - GOOD);
-      return { t, next: n ? n.at - t : null, total: notes.length, pts, perfect, good, missed: notes.filter((q) => q.res === 'miss').length, best, over };
-    };
-    if (DEV) cv.canvas.__drumSkip = () => {
-      // автотест: пропустить песню почти до конца (оставшиеся кокосы — мимо)
-      t = Math.max(t, songEnd - 1.5);
-    };
+    if (DEV)
+      cv.canvas.__drum = () => {
+        const n = notes.find((q) => !q.res && q.at > t - GOOD);
+        return {
+          t,
+          next: n ? n.at - t : null,
+          total: notes.length,
+          pts,
+          perfect,
+          good,
+          missed: notes.filter((q) => q.res === 'miss').length,
+          best,
+          over,
+        };
+      };
+    if (DEV)
+      cv.canvas.__drumSkip = () => {
+        // автотест: пропустить песню почти до конца (оставшиеся кокосы — мимо)
+        t = Math.max(t, songEnd - 1.5);
+      };
 
     function update(dt) {
       t += dt;
@@ -217,7 +249,14 @@ export default {
       sky.addColorStop(1, '#a8543a');
       ctx.fillStyle = sky;
       ctx.fillRect(0, 0, W, H);
-      for (let i = 0; i < 40; i++) star(ctx, ((i * 0.37) % 1) * W, ((i * 0.61) % 0.5) * H, 1.2 + (i % 3) * 0.6, `rgba(255,255,255,${(0.4 + 0.4 * Math.sin(t * 2 + i)).toFixed(2)})`);
+      for (let i = 0; i < 40; i++)
+        star(
+          ctx,
+          ((i * 0.37) % 1) * W,
+          ((i * 0.61) % 0.5) * H,
+          1.2 + (i % 3) * 0.6,
+          `rgba(255,255,255,${(0.4 + 0.4 * Math.sin(t * 2 + i)).toFixed(2)})`,
+        );
       poly(ctx, [W * 0.55, g.ground, W * 0.72, H * 0.24, W * 0.79, H * 0.24, W * 0.98, g.ground], '#3a2b3a', OUT, 2);
       ell(ctx, W * 0.755, H * 0.24, W * 0.035, H * 0.012, '#ff6b35');
       ctx.strokeStyle = 'rgba(255,255,255,.35)';
@@ -229,7 +268,16 @@ export default {
       for (let i = 1; i < 16; i++) {
         const q = i / 16,
           on = (i + lastBeat) % 2 === 0;
-        ell(ctx, q * W, H * 0.13 + Math.sin(q * Math.PI) * H * 0.085 + 4, 4, 5, on ? ['#ff6b6b', '#ffd43b', '#69db7c', '#4dabf7', '#da77f2'][i % 5] : '#6c5f7a', OUT, 1);
+        ell(
+          ctx,
+          q * W,
+          H * 0.13 + Math.sin(q * Math.PI) * H * 0.085 + 4,
+          4,
+          5,
+          on ? ['#ff6b6b', '#ffd43b', '#69db7c', '#4dabf7', '#da77f2'][i % 5] : '#6c5f7a',
+          OUT,
+          1,
+        );
       }
       // земля
       ctx.fillStyle = '#6b4a2e';
@@ -251,13 +299,31 @@ export default {
       }
       for (let i = 0; i < 3; i++) {
         const f = Math.sin(t * 9 + i * 2) * 4 * s;
-        poly(ctx, [fx - 18 * s + i * 10 * s, fy - 4 * s, fx - 10 * s + i * 10 * s + f, fy - (44 + (i % 2) * 14) * s, fx - 2 * s + i * 10 * s, fy - 4 * s], ['#ff922b', '#ffd43b', '#ff6b35'][i], OUT, 1.2);
+        poly(
+          ctx,
+          [
+            fx - 18 * s + i * 10 * s,
+            fy - 4 * s,
+            fx - 10 * s + i * 10 * s + f,
+            fy - (44 + (i % 2) * 14) * s,
+            fx - 2 * s + i * 10 * s,
+            fy - 4 * s,
+          ],
+          ['#ff922b', '#ffd43b', '#ff6b35'][i],
+          OUT,
+          1.2,
+        );
       }
       // танцоры: хомячок впереди, островитяне хлопают
       const hop = (k) => Math.abs(Math.sin((t / beat) * Math.PI + k)) * 6 * s;
       looks.slice(0, 2).forEach((lk, i) => {
         const x = i ? fx + 125 * s : fx - 125 * s;
-        host.drawHamster(ctx, x, fy - 6 * s - hop(i), 0.85 * s, lk, { time: t, dir: i ? -1 : 1, happy: true, armsUp: Math.sin((t / beat) * Math.PI * 2 + i) > 0.3 });
+        host.drawHamster(ctx, x, fy - 6 * s - hop(i), 0.85 * s, lk, {
+          time: t,
+          dir: i ? -1 : 1,
+          happy: true,
+          armsUp: Math.sin((t / beat) * Math.PI * 2 + i) > 0.3,
+        });
       });
       const mv = move > 0 ? moveN % 4 : -1,
         jump = mv === 1 ? Math.sin(move * Math.PI) * 26 * s : mv === 3 ? Math.sin(move * Math.PI) * 12 * s : 0;
@@ -267,20 +333,50 @@ export default {
       ctx.translate(hx, hy - jump);
       if (mv === 2) ctx.rotate(Math.sin(move * Math.PI) * 0.35);
       if (mv === 0) ctx.rotate(-Math.sin(move * Math.PI) * 0.35);
-      host.drawHamster(ctx, 0, 0, 1.05 * s, host.look, { time: t, dir: mv === 0 ? -1 : mv === 2 ? 1 : 0, happy: true, armsUp: move > 0.2 });
+      host.drawHamster(ctx, 0, 0, 1.05 * s, host.look, {
+        time: t,
+        dir: mv === 0 ? -1 : mv === 2 ? 1 : 0,
+        happy: true,
+        armsUp: move > 0.2,
+      });
       ctx.restore();
       // Бум с барабаном у круга
       const bx = g.tx - g.r * 1.2 - 34 * s,
         by = g.laneY + g.r * 0.9;
-      host.drawHamster(ctx, bx - 40 * s, by - 14 * s - bumHit * 4 * s, 0.85 * s, bum, { time: t, dir: 1, happy: true, armsUp: bumHit > 0.5 });
+      host.drawHamster(ctx, bx - 40 * s, by - 14 * s - bumHit * 4 * s, 0.85 * s, bum, {
+        time: t,
+        dir: 1,
+        happy: true,
+        armsUp: bumHit > 0.5,
+      });
       drum(ctx, bx, by, 0.85 * s, bumHit);
       // дорожка и круг
-      fillRR(ctx, g.tx - g.r * 1.2, g.laneY - g.r * 0.95, W - g.tx + g.r * 1.4, g.r * 1.9, g.r, 'rgba(40,20,10,.35)', 'rgba(255,212,59,.35)', 2);
+      fillRR(
+        ctx,
+        g.tx - g.r * 1.2,
+        g.laneY - g.r * 0.95,
+        W - g.tx + g.r * 1.4,
+        g.r * 1.9,
+        g.r,
+        'rgba(40,20,10,.35)',
+        'rgba(255,212,59,.35)',
+        2,
+      );
       for (let k = 0; k < 12; k++) {
         const x = g.tx + ((k * beat - (t % beat) + beat) / TRAVEL) * (W + 40 - g.tx);
-        if (x > g.tx + g.r && x < W) line(ctx, x, g.laneY - g.r * 0.5, x, g.laneY + g.r * 0.5, 'rgba(255,255,255,.12)', 2);
+        if (x > g.tx + g.r && x < W)
+          line(ctx, x, g.laneY - g.r * 0.5, x, g.laneY + g.r * 0.5, 'rgba(255,255,255,.12)', 2);
       }
-      ell(ctx, g.tx, g.laneY, g.r * 1.18, g.r * 1.18, `rgba(255,212,59,${(0.18 + bumHit * 0.25).toFixed(2)})`, '#ffd43b', 3);
+      ell(
+        ctx,
+        g.tx,
+        g.laneY,
+        g.r * 1.18,
+        g.r * 1.18,
+        `rgba(255,212,59,${(0.18 + bumHit * 0.25).toFixed(2)})`,
+        '#ffd43b',
+        3,
+      );
       // кокосы
       for (const n of notes) {
         if (n.res === 'perfect' || n.res === 'good') continue;
@@ -321,7 +417,8 @@ export default {
     host.loop((dt) => {
       if (!over) update(dt);
       tScore.textContent = `🥁 ${pts}`;
-      tCombo.textContent = combo >= 2 ? `🔥 ${combo} подряд` : `🥥 ${notes.filter((q) => q.res).length} из ${notes.length}`;
+      tCombo.textContent =
+        combo >= 2 ? `🔥 ${combo} подряд` : `🥥 ${notes.filter((q) => q.res).length} из ${notes.length}`;
       draw();
     });
     function finish() {
@@ -332,7 +429,11 @@ export default {
       host.finish({
         stars,
         text: `Танец окончен! «Отлично!» — <b>${perfect}</b>, «Хорошо!» — <b>${good}</b> из ${notes.length} шагов${best >= 4 ? `, лучшая серия — ${best} подряд` : ''}. ${
-          stars === 3 ? 'Бум в восторге: «Ты чувствуешь ритм, как настоящая островитянка!»' : stars === 2 ? 'Островитяне хлопают: «Здорово танцуешь!»' : 'Главное — было весело! Завтра потанцуем снова.'
+          stars === 3
+            ? 'Бум в восторге: «Ты чувствуешь ритм, как настоящая островитянка!»'
+            : stars === 2
+              ? 'Островитяне хлопают: «Здорово танцуешь!»'
+              : 'Главное — было весело! Завтра потанцуем снова.'
         }`,
         extra: { pts, perfect, good, best },
       });

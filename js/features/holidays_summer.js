@@ -54,7 +54,10 @@ async function parade() {
   await playScene('🎈 Парад! Шарики, флажки и музыка!', paintParade, 3200);
   holidayStep('mayday', 'parade');
   emit('holiday', { id: 'mayday', what: 'parade' });
-  toast(pick(['🎈 Какой весёлый парад! Все машут тебе флажками!', '🎈 Мир! Труд! Май! Шарики летят к самым облакам!']), 'good');
+  toast(
+    pick(['🎈 Какой весёлый парад! Все машут тебе флажками!', '🎈 Мир! Труд! Май! Шарики летят к самым облакам!']),
+    'good',
+  );
 }
 // звёздочка «Субботника» — к ближайшей ещё пустой клумбе
 holidayWhere('maybed', (sc, h, x) => {
@@ -74,8 +77,10 @@ holidayWhere('maybed', (sc, h, x) => {
 });
 
 async function wreath() {
-  if (offset('kupala') < 0) return void toast('🌼 Цветы для венков уже собрали! Пускать венки по воде будем завтра, на Ивана Купалу.');
-  if (stepDoneFor('kupala', 'wreath')) return void toast('🌼 Твой венок уже уплыл далеко-далеко, к самому закату 🌊', 'good');
+  if (offset('kupala') < 0)
+    return void toast('🌼 Цветы для венков уже собрали! Пускать венки по воде будем завтра, на Ивана Купалу.');
+  if (stepDoneFor('kupala', 'wreath'))
+    return void toast('🌼 Твой венок уже уплыл далеко-далеко, к самому закату 🌊', 'good');
   paintWreath.t0 = null;
   const ok = await tapScene({
     title: 'Купальский венок',
@@ -95,15 +100,27 @@ function bonfire() {
   if (offset('kupala') < 0) return void toast('🔥 Купальский костёр уже сложили! Зажгут его завтра, на Ивана Купалу.');
   toast(
     darkness() > 0.2
-      ? pick(['🔥 Костёр трещит и светит до самого моря. Тепло и уютно!', '🔥 Искорки летят к звёздам. Самая короткая ночь в году!'])
-      : pick(['🔥 Купальский костёр! Вечером он будет светить на весь пляж.', '🔥 Как тепло у костра! Пахнет дымком и луговыми цветами.']),
+      ? pick([
+          '🔥 Костёр трещит и светит до самого моря. Тепло и уютно!',
+          '🔥 Искорки летят к звёздам. Самая короткая ночь в году!',
+        ])
+      : pick([
+          '🔥 Купальский костёр! Вечером он будет светить на весь пляж.',
+          '🔥 Как тепло у костра! Пахнет дымком и луговыми цветами.',
+        ]),
     'good',
   );
 }
 /** «Водяная битва» на пляже: за первые HOLIDAY.splash.paid игр — монеты по звёздам. */
 async function splash() {
-  if (offset('kupala') < 0) return void toast('💦 Вёдра и водяные пистолеты уже на пляже! Водяная битва — завтра, на Ивана Купалу.');
-  const res = await holidayPrize('splash', { flag: 'splashes', cfg: HOLIDAY.splash, label: '🌿 <b>Приз Купалы</b>', sticker: 'x_splash' });
+  if (offset('kupala') < 0)
+    return void toast('💦 Вёдра и водяные пистолеты уже на пляже! Водяная битва — завтра, на Ивана Купалу.');
+  const res = await holidayPrize('splash', {
+    flag: 'splashes',
+    cfg: HOLIDAY.splash,
+    label: '🌿 <b>Приз Купалы</b>',
+    sticker: 'x_splash',
+  });
   if (res) soak();
   return res;
 }
@@ -120,7 +137,8 @@ function soak() {
 }
 
 async function pumpkins() {
-  if (offset('halloween') < 0) return void toast('🎃 Тыквы уже привезли на площадь! Вырезать фонарики будем завтра, на Хеллоуин.');
+  if (offset('halloween') < 0)
+    return void toast('🎃 Тыквы уже привезли на площадь! Вырезать фонарики будем завтра, на Хеллоуин.');
   if (stepDoneFor('halloween', 'carve')) return void toast('🎃 Твоя тыква-фонарик улыбается всем на площади!', 'good');
   const ok = await tapScene({
     title: 'Тыква-фонарик',
@@ -139,11 +157,13 @@ doorRound({
   step: 'treats',
   title: 'Сладость или гадость?',
   icon: '🎃',
-  ask: (name) => `<div class="center big-emoji">🎃🍬</div><p class="center">Это домик, где живёт <b>${name}</b>. Постучим и скажем: «Сладость или гадость?» На Хеллоуин хозяева всегда угощают!</p>`,
+  ask: (name) =>
+    `<div class="center big-emoji">🎃🍬</div><p class="center">Это домик, где живёт <b>${name}</b>. Постучим и скажем: «Сладость или гадость?» На Хеллоуин хозяева всегда угощают!</p>`,
   go: '🎃 Сладость или гадость!',
   scene: ['🎃 «Сладость или гадость?» — «Конечно, сладость!»', paintTrick],
   treats: HOLIDAY.treats,
-  thanks: (npc, d) => `Ой, какой нарядный гость! Совсем не страшный, а очень милый! Я как раз жду у двери с конфетами! С Хеллоуином! Держи сладость: ${d.e} ${d.name}!`,
+  thanks: (npc, d) =>
+    `Ой, какой нарядный гость! Совсем не страшный, а очень милый! Я как раз жду у двери с конфетами! С Хеллоуином! Держи сладость: ${d.e} ${d.name}!`,
   ok: 'Спасибо! С Хеллоуином! 🎃',
   talkBtn: '🎃 Сладость или гадость!',
   hourHint: `🎃 «Сладость или гадость» — вечером, с ${HOLIDAY.carols[0]}:00. Приходи к этой двери!`,

@@ -149,7 +149,11 @@ for (const ev of STEP_EVENTS)
     for (const step of h.steps) {
       if (step.on !== ev) continue;
       // значение в if может быть списком: «любые блины» (BLINI в data/food.js)
-      if (step.if && Object.entries(step.if).some(([k, val]) => (Array.isArray(val) ? !val.includes(d[k]) : d[k] !== val))) continue;
+      if (
+        step.if &&
+        Object.entries(step.if).some(([k, val]) => (Array.isArray(val) ? !val.includes(d[k]) : d[k] !== val))
+      )
+        continue;
       holidayStep(h.id, step.id, step.distinct ? d[step.distinct] : undefined);
     }
   });
@@ -163,13 +167,17 @@ function giftOwned(g) {
   if (!g) return false;
   if (g.clothes) return giftClothes(g).every((id) => hasClothes(id));
   if (g.recipe) return s.recipes.includes(g.recipe);
-  if (g.furn) return (s.storage[g.furn] || 0) > 0 || ownedHomes().some((k) => houseItems(k).some((i) => i.id === g.furn));
+  if (g.furn)
+    return (s.storage[g.furn] || 0) > 0 || ownedHomes().some((k) => houseItems(k).some((i) => i.id === g.furn));
   return false;
 }
 /** Название подарка (для окон): «Новогодний колпак», «рецепт: Медовые пряники», «Шляпа волшебницы и Волшебная мантия». */
 export function giftName(g) {
   if (!g) return '';
-  if (g.clothes) return giftClothes(g).map((id) => CLOTHES_BY_ID[id].name).join(' и ');
+  if (g.clothes)
+    return giftClothes(g)
+      .map((id) => CLOTHES_BY_ID[id].name)
+      .join(' и ');
   if (g.recipe) return `рецепт «${DISH_BY_ID[g.recipe].e} ${DISH_BY_ID[g.recipe].name}»`;
   if (g.furn) return `${FURN_BY_ID[g.furn].name}`;
   return '';
@@ -219,7 +227,13 @@ function finishHoliday(h) {
 function holidayDone(h, got, isNew) {
   const st = STICKER[h.sticker];
   const g = got.g || {};
-  const where = g.clothes ? 'уже в шкафу!' : g.recipe ? 'готовь на кухне!' : g.furn ? 'лежит в кладовке — поставь дома через 🔨!' : '';
+  const where = g.clothes
+    ? 'уже в шкафу!'
+    : g.recipe
+      ? 'готовь на кухне!'
+      : g.furn
+        ? 'лежит в кладовке — поставь дома через 🔨!'
+        : '';
   const lines = [
     got.gift ? `<p>🎁 Праздничный подарок: <b>${got.gift}</b> — ${where}</p>` : '',
     got.again ? '<p>🎁 Все вещи этого праздника у тебя уже есть — держи праздничный мешочек монет!</p>' : '',
@@ -254,10 +268,16 @@ export function announceHoliday(quiet = false) {
     return;
   }
   // наутро после Нового года — поздравление (и про завтрашний праздник, если он есть)
-  const ny = after && after.h.id === 'newyear' ? `🎆 С Новым годом! Наступил год ${cal().year}. Ёлка на площади ещё постоит!` : '';
+  const ny =
+    after && after.h.id === 'newyear'
+      ? `🎆 С Новым годом! Наступил год ${cal().year}. Ёлка на площади ещё постоит!`
+      : '';
   if (h) {
     // в окне праздника — и про завтрашний праздник, если он есть
-    const more = [ny, t ? `${t.icon} Завтра — ${t.name}!` : ''].filter(Boolean).map((x) => `<p class="center muted">${x}</p>`).join('');
+    const more = [ny, t ? `${t.icon} Завтра — ${t.name}!` : '']
+      .filter(Boolean)
+      .map((x) => `<p class="center muted">${x}</p>`)
+      .join('');
     enqueue(
       () => {
         sfx('fanfare');
@@ -361,17 +381,21 @@ holidayWhere('friend', (sc, h, x) => {
   const list = HF()[x.step.id] || [];
   return near(
     sc,
-    sc.npcs.filter((n) => NPC_BY_ID[n.id] && S().friends[n.id] && !n.hidden && !list.includes(n.id)).map((n) => ({ x: n.x, y: n.y - 62 })),
+    sc.npcs
+      .filter((n) => NPC_BY_ID[n.id] && S().friends[n.id] && !n.hidden && !list.includes(n.id))
+      .map((n) => ({ x: n.x, y: n.y - 62 })),
   );
 });
 holidayWhere('door', (sc, h, x) => {
   const list = HF()[x.step.id] || [];
   return near(
     sc,
-    sc.map.buildings.filter((b) => b.npc && !list.includes(b.npc)).map((b) => {
-      const d = sc.map.doorPx(b);
-      return { x: d.x, y: d.y - 40 };
-    }),
+    sc.map.buildings
+      .filter((b) => b.npc && !list.includes(b.npc))
+      .map((b) => {
+        const d = sc.map.doorPx(b);
+        return { x: d.x, y: d.y - 40 };
+      }),
   );
 });
 holidayWhere('envelope', (sc) =>
@@ -411,7 +435,9 @@ export function showHolidayOnMap() {
   sfx('ok');
   if (!currentLocation().desc.home) {
     const way = routeText(currentLocation().name, HOME_SCENE);
-    toast(`${st.h.icon} Праздник — в городе. ${st.steps[st.i].step.where && way ? `Звёздочка ⭐ покажет дорогу — ${way}.` : 'Возвращайся в город!'}`);
+    toast(
+      `${st.h.icon} Праздник — в городе. ${st.steps[st.i].step.where && way ? `Звёздочка ⭐ покажет дорогу — ${way}.` : 'Возвращайся в город!'}`,
+    );
   }
   openMap();
   return true;
@@ -422,16 +448,30 @@ export function showHolidayOnMap() {
 function holidayCard(h, panel) {
   const st = holidayState(h),
     card = el('div', 'quest holiday');
-  card.appendChild(el('div', 'q-head', `<span class="q-ic">${h.icon}</span><div><div class="ttl">Сегодня — ${h.name}!</div><div class="sub">Праздник один день — ${dateText(h)}</div></div>`));
+  card.appendChild(
+    el(
+      'div',
+      'q-head',
+      `<span class="q-ic">${h.icon}</span><div><div class="ttl">Сегодня — ${h.name}!</div><div class="sub">Праздник один день — ${dateText(h)}</div></div>`,
+    ),
+  );
   card.appendChild(el('p', 'q-story', h.story));
   const ol = el('ol', 'q-steps');
   st.steps.forEach((x, i) => {
     const cur = i === st.i;
     const prog = x.need > 1 ? ` <b>${x.have}/${x.need}</b>` : '';
-    ol.appendChild(el('li', x.ok ? 'ok' : cur ? 'cur' : 'todo', `${x.ok ? '✅' : cur ? '👉' : '▫️'} ${x.step.text}${prog}${cur && x.step.hint ? `<div class="q-hint">📍 ${x.step.hint}</div>` : ''}`));
+    ol.appendChild(
+      el(
+        'li',
+        x.ok ? 'ok' : cur ? 'cur' : 'todo',
+        `${x.ok ? '✅' : cur ? '👉' : '▫️'} ${x.step.text}${prog}${cur && x.step.hint ? `<div class="q-hint">📍 ${x.step.hint}</div>` : ''}`,
+      ),
+    );
   });
   card.appendChild(ol);
-  card.appendChild(el('p', 'hol-gift', `🎁 Подарок: <b>${giftLabel(h)}</b>${st.rewarded ? ' — в этом году уже получен ✅' : ''}`));
+  card.appendChild(
+    el('p', 'hol-gift', `🎁 Подарок: <b>${giftLabel(h)}</b>${st.rewarded ? ' — в этом году уже получен ✅' : ''}`),
+  );
   if (!st.done) {
     const b = el('button', 'btn small yellow', '🗺️ Показать на карте');
     b.onclick = () => {
@@ -445,7 +485,14 @@ setJournalTop((body, panel) => {
   const h = holidayToday();
   if (h) return void body.appendChild(holidayCard(h, panel));
   const t = holidayTomorrow();
-  if (t) body.appendChild(el('div', 'quest holiday soon', `<div class="q-head"><span class="q-ic">${t.icon}</span><div><div class="ttl">Завтра — ${t.name}!</div><div class="sub">Город уже украшают. Завтра — праздничные занятия и подарок.</div></div></div>`));
+  if (t)
+    body.appendChild(
+      el(
+        'div',
+        'quest holiday soon',
+        `<div class="q-head"><span class="q-ic">${t.icon}</span><div><div class="ttl">Завтра — ${t.name}!</div><div class="sub">Город уже украшают. Завтра — праздничные занятия и подарок.</div></div></div>`,
+      ),
+    );
 });
 /**
  * Плашка праздника в HUD вместо плашки журнала — только когда у журнала нечего показать (ни взятого задания, ни нового
@@ -455,7 +502,11 @@ export function holidayChip(questInfo) {
   const st = holidayState();
   if (!st || st.done || questInfo) return null;
   const n = st.steps.filter((x) => x.ok).length;
-  return { text: `${st.h.icon} ${st.h.short || st.h.name} · ${n}/${st.steps.length}`, short: `${st.h.icon} ${n}/${st.steps.length}`, cls: 'holiday' };
+  return {
+    text: `${st.h.icon} ${st.h.short || st.h.name} · ${n}/${st.steps.length}`,
+    short: `${st.h.icon} ${n}/${st.steps.length}`,
+    cls: 'holiday',
+  };
 }
 /** Значок праздника на плашке даты: сегодня — ярко и с ходом занятий («🎄 1/2»), завтра — бледнее. */
 export function holidayBadge() {
@@ -481,7 +532,14 @@ export function openHolidays() {
       body.appendChild(el('p', 'center', `Сегодня: <b>${c.monthName}, день ${c.dom}</b> · год ${c.year}`));
       if (h) body.appendChild(holidayCard(h, panel));
       const nx = nextHoliday(s.day + (h ? 1 : 0), START());
-      if (!h && nx) body.appendChild(el('p', 'center muted', nx.days === 1 ? `Завтра — ${nx.h.icon} ${nx.h.name}!` : `До праздника «${nx.h.name}» — дней: ${nx.days}`));
+      if (!h && nx)
+        body.appendChild(
+          el(
+            'p',
+            'center muted',
+            nx.days === 1 ? `Завтра — ${nx.h.icon} ${nx.h.name}!` : `До праздника «${nx.h.name}» — дней: ${nx.days}`,
+          ),
+        );
       for (const q of HOLIDAYS) {
         // «Год в городе» в первый год ещё не празднуют — только дата и «впервые — через год после приезда»
         const early = daysToHoliday(q, s.day, START()) >= 36 && !(holidayToday() === q);
@@ -490,10 +548,22 @@ export function openHolidays() {
         const li = el('div', 'list-item hol-row' + (k === 0 ? ' now' : ''));
         li.appendChild(el('div', 'e', `<span style="font-size:32px">${q.icon}</span>`));
         const first = early && q.since ? ' (впервые — через год после твоего приезда)' : '';
-        li.appendChild(el('div', 'grow', `<div class="ttl">${q.name}</div><div class="sub">${when}${first} · 🎁 ${giftLabel(q)}${holidayRewarded(q) ? ' ✅' : ''}</div>`));
+        li.appendChild(
+          el(
+            'div',
+            'grow',
+            `<div class="ttl">${q.name}</div><div class="sub">${when}${first} · 🎁 ${giftLabel(q)}${holidayRewarded(q) ? ' ✅' : ''}</div>`,
+          ),
+        );
         body.appendChild(li);
       }
-      body.appendChild(el('p', 'muted center', 'Праздник длится один день, а накануне город уже украшен. Подарок праздника — раз в год.'));
+      body.appendChild(
+        el(
+          'p',
+          'muted center',
+          'Праздник длится один день, а накануне город уже украшен. Подарок праздника — раз в год.',
+        ),
+      );
     },
     foot: [{ text: 'Хорошо', cls: 'green', fn: (p) => p.close() }],
   });

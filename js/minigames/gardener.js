@@ -64,7 +64,13 @@ export default {
     const cv = host.canvas();
     cv.canvas.classList.add('gd-canvas');
     const ctx = cv.ctx;
-    const me = { ...host.look, outfit: { ...(host.look.outfit || {}), head: (host.look.outfit && host.look.outfit.head) || CLOTHES_BY_ID.panama_green || null } };
+    const me = {
+      ...host.look,
+      outfit: {
+        ...(host.look.outfit || {}),
+        head: (host.look.outfit && host.look.outfit.head) || CLOTHES_BY_ID.panama_green || null,
+      },
+    };
 
     let t = 0,
       over = false,
@@ -122,7 +128,9 @@ export default {
       (x, y) => (x === 0 || y === 0 || x === FC - 1 || y === FR - 1 ? 0 : 1 % ncol), // рамка и середина
     ];
     const pat = pick(patterns);
-    const bed = Array.from({ length: FR }, (_, y) => Array.from({ length: FC }, (_, x) => ({ want: pat(x, y), got: null, shake: -9 })));
+    const bed = Array.from({ length: FR }, (_, y) =>
+      Array.from({ length: FC }, (_, x) => ({ want: pat(x, y), got: null, shake: -9 })),
+    );
     let sel = 0;
     function buildPalette() {
       pal.innerHTML = '';
@@ -160,13 +168,16 @@ export default {
         const stars = hints <= STARS[0] ? 3 : hints <= STARS[1] ? 2 : 1;
         host.finish({
           stars,
-          text: hints ? `Цветы политы, куст подстрижен, клумба посажена! Подсказок: ${hints}.` : 'Цветы политы, куст — точь-в-точь как на карточке, клумба — по схеме. И ни одной подсказки!',
+          text: hints
+            ? `Цветы политы, куст подстрижен, клумба посажена! Подсказок: ${hints}.`
+            : 'Цветы политы, куст — точь-в-точь как на карточке, клумба — по схеме. И ни одной подсказки!',
           extra: { hints },
         });
       }, 900);
     }
     const puff = (x, y, kind, c, n = 6) => {
-      for (let i = 0; i < n; i++) fx.push({ x, y, vx: (Math.random() - 0.5) * 60, vy: -30 - Math.random() * 40, t0: t, kind, c });
+      for (let i = 0; i < n; i++)
+        fx.push({ x, y, vx: (Math.random() - 0.5) * 60, vy: -30 - Math.random() * 40, t0: t, kind, c });
     };
 
     // ---------- нажатия ----------
@@ -355,7 +366,11 @@ export default {
         cy = 70,
         s = 11;
       drawCard(cx, cy - 6, 90, 92, '📋 Как надо');
-      shape.forEach((r, yy) => [...r].forEach((ch, xx) => ch === 'X' && fillRR(ctx, cx + 6 + xx * s, cy + 14 + yy * s, s - 1, s - 1, 3, '#51cf66', null)));
+      shape.forEach((r, yy) =>
+        [...r].forEach(
+          (ch, xx) => ch === 'X' && fillRR(ctx, cx + 6 + xx * s, cy + 14 + yy * s, s - 1, s - 1, 3, '#51cf66', null),
+        ),
+      );
       // земля под кустом
       ell(ctx, BX + (BC * CELL) / 2, BY + BR * CELL + 6, (BC * CELL) / 2 + 6, 12, 'rgba(74,55,40,.18)', null);
       for (let yy = 0; yy < BR; yy++)
@@ -383,7 +398,20 @@ export default {
         sy = 64,
         s = 15;
       drawCard(sx, sy - 6, 92, 28 + FR * s, '📋 Схема');
-      bed.forEach((r, y) => r.forEach((b, x) => ell(ctx, sx + 46 - (FC * s) / 2 + (x + 0.5) * s, sy + 18 + (y + 0.5) * s, s * 0.38, s * 0.38, cols[b.want].c, OUT, 1)));
+      bed.forEach((r, y) =>
+        r.forEach((b, x) =>
+          ell(
+            ctx,
+            sx + 46 - (FC * s) / 2 + (x + 0.5) * s,
+            sy + 18 + (y + 0.5) * s,
+            s * 0.38,
+            s * 0.38,
+            cols[b.want].c,
+            OUT,
+            1,
+          ),
+        ),
+      );
       // клумба
       fillRR(ctx, FX - 8, FY - 8, FC * FCELL + 16, FR * FCELL + 16, 16, '#adb5bd', OUT, 2.5);
       fillRR(ctx, FX - 2, FY - 2, FC * FCELL + 4, FR * FCELL + 4, 12, '#8d5a35', null);
@@ -437,26 +465,43 @@ export default {
       if (st === 'water') return plants.filter((p) => p.dry).map((p) => ({ x: p.x, y: p.y - 20 }));
       if (st === 'trim') {
         const out = [];
-        bush.forEach((r, y) => r.forEach((b, x) => !b.keep && !b.cut && out.push({ x: BX + (x + 0.5) * CELL, y: BY + (y + 0.5) * CELL })));
+        bush.forEach((r, y) =>
+          r.forEach((b, x) => !b.keep && !b.cut && out.push({ x: BX + (x + 0.5) * CELL, y: BY + (y + 0.5) * CELL })),
+        );
         return out;
       }
       const out = [];
-      bed.forEach((r, y) => r.forEach((b, x) => b.got === null && out.push({ x: FX + (x + 0.5) * FCELL, y: FY + (y + 0.5) * FCELL, color: b.want })));
+      bed.forEach((r, y) =>
+        r.forEach(
+          (b, x) => b.got === null && out.push({ x: FX + (x + 0.5) * FCELL, y: FY + (y + 0.5) * FCELL, color: b.want }),
+        ),
+      );
       return out;
     };
-    if (DEV) cv.canvas.__garden = () => ({ stage: STAGES[Math.min(stage, 2)].id, i: stage, over, hints, busy: !!can || t - stageAt < 0.3, todo: todo(), shape: shapeId, view: { ...view, W, H } });
-    if (DEV) cv.canvas.__gardenDo = () => {
-      const q = todo()[0];
-      if (!q || can || t - stageAt < 0.3) return false;
-      if (q.color !== undefined) sel = q.color;
-      tap(q.x, q.y, false);
-      return true;
-    };
+    if (DEV)
+      cv.canvas.__garden = () => ({
+        stage: STAGES[Math.min(stage, 2)].id,
+        i: stage,
+        over,
+        hints,
+        busy: !!can || t - stageAt < 0.3,
+        todo: todo(),
+        shape: shapeId,
+        view: { ...view, W, H },
+      });
+    if (DEV)
+      cv.canvas.__gardenDo = () => {
+        const q = todo()[0];
+        if (!q || can || t - stageAt < 0.3) return false;
+        if (q.color !== undefined) sel = q.color;
+        tap(q.x, q.y, false);
+        return true;
+      };
     if (DEV) cv.canvas.__gardenTap = (x, y) => tap(x, y, false);
-    if (DEV) cv.canvas.__gardenSel = (i) => {
-      sel = i;
-      buildPalette();
-    };
-
+    if (DEV)
+      cv.canvas.__gardenSel = (i) => {
+        sel = i;
+        buildPalette();
+      };
   },
 };

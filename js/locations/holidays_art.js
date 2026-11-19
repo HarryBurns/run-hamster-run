@@ -275,7 +275,8 @@ export function lantern(ctx, x, y, s = 1, i = 0) {
   line(ctx, x, y - 4 * s, x, y + 2 * s, OUT, 1);
   fillRR(ctx, x - 6 * s, y + 1 * s, 12 * s, 3 * s, 1, GOLD, OUT, 0.9);
   ell(ctx, x, y + 12 * s, 11 * s, 9 * s, i % 4 === 3 ? '#ff922b' : '#e03131', OUT, 1.4);
-  for (const k of [-0.5, 0, 0.5]) line(ctx, x + k * 10 * s, y + 4 * s, x + k * 10 * s, y + 20 * s, 'rgba(120,20,20,.45)', 1);
+  for (const k of [-0.5, 0, 0.5])
+    line(ctx, x + k * 10 * s, y + 4 * s, x + k * 10 * s, y + 20 * s, 'rgba(120,20,20,.45)', 1);
   ell(ctx, x - 4 * s, y + 9 * s, 2.5 * s, 3.5 * s, 'rgba(255,255,255,.35)');
   fillRR(ctx, x - 6 * s, y + 19 * s, 12 * s, 3 * s, 1, GOLD, OUT, 0.9);
   line(ctx, x, y + 22 * s, x, y + 30 * s, GOLD, 1.6);
@@ -357,7 +358,8 @@ function paintDragonHead(ctx, f) {
   shadow(ctx, 0, 6, 26, 7);
   for (const x of [-8, 8]) line(ctx, x, -8, x, 4, OUT, 3.5); // лапки танцора
   // грива
-  for (let i = 0; i < 7; i++) ell(ctx, -18 + Math.cos(i) * 4, -40 + i * 5, 9, 6, i % 2 ? '#ffd43b' : '#ff922b', OUT, 1.1);
+  for (let i = 0; i < 7; i++)
+    ell(ctx, -18 + Math.cos(i) * 4, -40 + i * 5, 9, 6, i % 2 ? '#ffd43b' : '#ff922b', OUT, 1.1);
   // голова
   fillRR(ctx, -20, -48, 44, 30, 12, '#e03131', OUT, 2);
   fillRR(ctx, 12, -40 + jaw, 20, 14, 6, '#fa5252', OUT, 1.6); // нижняя челюсть
@@ -397,14 +399,16 @@ function paintDragonBody(ctx, tail) {
   if (tail) {
     // хвост: сужается назад, на кончике — золотая кисточка
     ell(ctx, -4, -30, 16, 11, '#e03131', OUT, 2);
-    for (let i = 0; i < 3; i++) ell(ctx, -20 - i * 6, -34 + i * 5, 7 - i, 6 - i, i % 2 ? '#ffd43b' : '#ff922b', OUT, 1.1);
+    for (let i = 0; i < 3; i++)
+      ell(ctx, -20 - i * 6, -34 + i * 5, 7 - i, 6 - i, i % 2 ? '#ffd43b' : '#ff922b', OUT, 1.1);
     ell(ctx, -4, -25, 10, 4, '#ffd43b', OUT, 1);
     return;
   }
   ell(ctx, 0, -30, 23, 16, '#e03131', OUT, 2);
   ell(ctx, 0, -23, 17, 6, '#ffd43b', OUT, 1.2); // золотое брюшко
   for (const x of [-10, 0, 10]) poly(ctx, [x - 4, -44, x, -53, x + 4, -44], GOLD, OUT, 1); // гребень
-  for (const x of [-8, 6]) ctx.fillStyle = 'rgba(160,20,20,.35)', ctx.beginPath(), ctx.arc(x, -32, 5, 0, Math.PI), ctx.fill(); // чешуйки
+  for (const x of [-8, 6])
+    ((ctx.fillStyle = 'rgba(160,20,20,.35)'), ctx.beginPath(), ctx.arc(x, -32, 5, 0, Math.PI), ctx.fill()); // чешуйки
   ell(ctx, -8, -38, 6, 3, 'rgba(255,255,255,.35)');
   // бахрома снизу
   for (let i = -3; i <= 3; i++) line(ctx, i * 6, -16, i * 6, -10, '#ffd43b', 2);
@@ -477,7 +481,13 @@ function paintCarousel(ctx, frame) {
   for (let i = 0; i < n; i++) {
     const a0 = Math.PI + (i / n) * Math.PI,
       a1 = Math.PI + ((i + 1) / n) * Math.PI;
-    poly(ctx, [0, -138, Math.cos(a0) * 70, -100 + Math.sin(a0) * -2, Math.cos(a1) * 70, -100 + Math.sin(a1) * -2], i % 2 ? '#fff' : '#e03131', OUT, 1.6);
+    poly(
+      ctx,
+      [0, -138, Math.cos(a0) * 70, -100 + Math.sin(a0) * -2, Math.cos(a1) * 70, -100 + Math.sin(a1) * -2],
+      i % 2 ? '#fff' : '#e03131',
+      OUT,
+      1.6,
+    );
   }
   for (let i = 0; i < 9; i++) ell(ctx, -64 + i * 16, -98, 8, 6, i % 2 ? '#fff' : '#e03131', OUT, 1.2);
   ell(ctx, 0, -140, 5, 5, GOLD, OUT, 1.4);
@@ -499,7 +509,8 @@ function paintEffigy(ctx) {
   line(ctx, -34, -86, 34, -86, WOOD_D, 3);
   // соломенное тело в пёстром сарафане
   poly(ctx, [-14, -88, 14, -88, 26, -30, -26, -30], '#e64980', OUT, 2);
-  for (let i = 0; i < 4; i++) line(ctx, -22 + i * 3, -44 + i * 4, 22 - i * 3, -44 + i * 4, i % 2 ? '#ffd43b' : '#fff', 2);
+  for (let i = 0; i < 4; i++)
+    line(ctx, -22 + i * 3, -44 + i * 4, 22 - i * 3, -44 + i * 4, i % 2 ? '#ffd43b' : '#fff', 2);
   ctx.fillStyle = '#ffe066';
   for (let i = 0; i < 9; i++) ctx.fillRect(-22 + i * 5, -32, 3, 12);
   // руки-солома
@@ -549,7 +560,13 @@ function paintBooth(ctx, v) {
   for (const x of [-48, 42]) fillRR(ctx, x, -104, 6, 62, 2, WOOD_D, OUT, 1.5);
   // навес в полоску
   for (let i = 0; i < 6; i++) {
-    poly(ctx, [-56 + i * 19, -106, -56 + (i + 1) * 19, -106, -56 + (i + 1) * 19, -90, -56 + i * 19, -90], i % 2 ? '#fff' : c1, OUT, 1.4);
+    poly(
+      ctx,
+      [-56 + i * 19, -106, -56 + (i + 1) * 19, -106, -56 + (i + 1) * 19, -90, -56 + i * 19, -90],
+      i % 2 ? '#fff' : c1,
+      OUT,
+      1.4,
+    );
     ell(ctx, -46.5 + i * 19, -90, 9.5, 5, i % 2 ? '#fff' : c1, OUT, 1.2);
   }
   poly(ctx, [-58, -106, 0, -126, 58, -106], c1, OUT, 2);
@@ -670,7 +687,8 @@ function paintFlowerPot(ctx, v) {
   shadow(ctx, 0, 5, 26, 7);
   poly(ctx, [-22, -30, 22, -30, 16, 0, -16, 0], v ? '#e8590c' : '#c2255c', OUT, 2);
   fillRR(ctx, -25, -34, 50, 8, 3, v ? '#fd7e14' : '#e64980', OUT, 1.6);
-  for (let i = 0; i < 6; i++) ell(ctx, -16 + i * 6.4, -40 - (i % 2) * 6, 7, 5, i % 2 ? '#2f9e44' : '#40c057', OUT, 0.8, i);
+  for (let i = 0; i < 6; i++)
+    ell(ctx, -16 + i * 6.4, -40 - (i % 2) * 6, 7, 5, i % 2 ? '#2f9e44' : '#40c057', OUT, 0.8, i);
   const cols = v ? ['#ffd43b', '#fff', '#ff6b6b'] : ['#ff8fab', '#b197fc', '#ffd43b'];
   for (let i = 0; i < 5; i++) flower(ctx, -16 + i * 8, -48 - (i % 2) * 9, 5, cols[i % 3]);
 }
@@ -736,7 +754,7 @@ function paintBonfire(ctx, frame) {
     [-24, 8],
     [24, -8],
   ])
-    line(ctx, x0, -6, x1 * 0.4, -50, OUT, 7), line(ctx, x0, -6, x1 * 0.4, -50, '#a0662d', 4.4);
+    (line(ctx, x0, -6, x1 * 0.4, -50, OUT, 7), line(ctx, x0, -6, x1 * 0.4, -50, '#a0662d', 4.4));
   const f = frame % 4,
     wob = [0, 3, -2, 2][f];
   const fl = (s, col, dy, lw) => {
@@ -763,7 +781,7 @@ function paintBonfire(ctx, frame) {
     [-26, 14],
     [26, -14],
   ])
-    line(ctx, x0, -4, x1, -16, OUT, 7), line(ctx, x0, -4, x1, -16, '#c98b5a', 4.4);
+    (line(ctx, x0, -4, x1, -16, OUT, 7), line(ctx, x0, -4, x1, -16, '#c98b5a', 4.4));
   for (let i = 0; i < 4; i++) ell(ctx, -16 + i * 10 + wob, -80 - ((i * 7 + f * 9) % 24), 1.8, 1.8, '#ffd43b');
 }
 /** Цветочный венок: кольцо, n цветов (последний — с анимацией a), candle — свечка посередине (по воде). */
@@ -780,7 +798,17 @@ export function wreathRing(ctx, x, y, r, n = 8, a = 1, candle = false) {
   ctx.stroke();
   for (let i = 0; i < 12; i++) {
     const q = (i / 12) * TAU;
-    ell(ctx, x + Math.cos(q) * r, y + Math.sin(q) * r * 0.5, r * 0.12, r * 0.06, i % 2 ? '#40c057' : '#2b8a3e', null, 0, q + 1);
+    ell(
+      ctx,
+      x + Math.cos(q) * r,
+      y + Math.sin(q) * r * 0.5,
+      r * 0.12,
+      r * 0.06,
+      i % 2 ? '#40c057' : '#2b8a3e',
+      null,
+      0,
+      q + 1,
+    );
   }
   const cols = ['#ff8fab', '#ffd43b', '#fff', '#b197fc', '#ff6b6b', '#74c0fc', '#ffa94d', '#fff'];
   for (let i = 0; i < n; i++) {
@@ -807,7 +835,8 @@ function paintFlowerBasket(ctx) {
   ctx.beginPath();
   ctx.arc(-10, -24, 14, Math.PI, 0);
   ctx.stroke();
-  for (let i = 0; i < 6; i++) flower(ctx, -22 + i * 5, -27 - (i % 2) * 5, 4.2, ['#ff8fab', '#ffd43b', '#fff', '#b197fc'][i % 4]);
+  for (let i = 0; i < 6; i++)
+    flower(ctx, -22 + i * 5, -27 - (i % 2) * 5, 4.2, ['#ff8fab', '#ffd43b', '#fff', '#b197fc'][i % 4]);
   signBoard(ctx, '🌼 Венки', -10, -56, 60, 16, 'plate', '#2f9e44');
   line(ctx, -10, -48, -10, -38, OUT, 1.6);
 }
@@ -1167,7 +1196,10 @@ defineArt({
   hJack: [[-34, -66, 34, 10], (ctx, f, v) => paintJack(ctx, f || 0, v || 0)],
   hPumpkinTable: [[-58, -100, 58, 16], (ctx) => paintPumpkinTable(ctx)],
   hGhost: [[-32, -84, 32, 8], (ctx, f) => paintGhost(ctx, f || 0)],
-  hFir: [[-104, -272, 104, 36], (ctx, dressed, frame) => (ctx.scale(FIR_SCALE, FIR_SCALE), paintFir(ctx, dressed || 0, frame || 0))],
+  hFir: [
+    [-104, -272, 104, 36],
+    (ctx, dressed, frame) => (ctx.scale(FIR_SCALE, FIR_SCALE), paintFir(ctx, dressed || 0, frame || 0)),
+  ],
   hSnowman: [[-40, -104, 40, 18], (ctx, v) => paintSnowman(ctx, v || 0)],
   hCandle: [[-16, -22, 16, 10], (ctx, f) => paintCandle(ctx, f || 0)],
   hWreath: [[-18, -16, 18, 18], (ctx) => paintWreath(ctx)],

@@ -585,7 +585,10 @@ export const touchState = () => touch();
 export const adoptPet = act((kind, name) => {
   const s = S();
   if (s.pet || !PET_BY_ID[kind]) return false;
-  const nm = String(name || '').trim().slice(0, PET.nameMax) || PET_BY_ID[kind].names[0];
+  const nm =
+    String(name || '')
+      .trim()
+      .slice(0, PET.nameMax) || PET_BY_ID[kind].names[0];
   s.pet = { kind, name: nm, love: 0, fed: s.day, feedDay: -1, pet: -1, play: -1, food: 2, ball: false, stay: false };
   touch();
   emit('pet', { what: 'adopt', kind });
@@ -594,7 +597,9 @@ export const adoptPet = act((kind, name) => {
 /** Дать питомцу другое имя. */
 export const renamePet = act((name) => {
   const pt = S().pet,
-    nm = String(name || '').trim().slice(0, PET.nameMax);
+    nm = String(name || '')
+      .trim()
+      .slice(0, PET.nameMax);
   if (!pt || !nm) return false;
   pt.name = nm;
   touch();

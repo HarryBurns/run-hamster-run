@@ -299,7 +299,17 @@ export default {
           ell(ctx, px + 6, y + 6, 30 * s, 26 * s, 'rgba(60,40,30,.12)');
           for (let k = 0; k < 6; k++) {
             const a = (k * Math.PI) / 3 + i;
-            ell(ctx, px + Math.cos(a) * 18 * s, y + Math.sin(a) * 18 * s, 18 * s, 7 * s, k % 2 ? '#40c057' : '#2f9e44', OUT, 1.2, a);
+            ell(
+              ctx,
+              px + Math.cos(a) * 18 * s,
+              y + Math.sin(a) * 18 * s,
+              18 * s,
+              7 * s,
+              k % 2 ? '#40c057' : '#2f9e44',
+              OUT,
+              1.2,
+              a,
+            );
           }
           ell(ctx, px, y, 6 * s, 6 * s, '#8d5524', OUT, 1.2);
         }
@@ -370,7 +380,13 @@ export default {
       ctx.save();
       ctx.translate(x, ry);
       ctx.rotate(tilt);
-      host.drawHamster(ctx, 0, 2 * s, 0.62 * s, host.look, { time: t, clipBelow: -18, happy: splash <= 0, armsUp: end > 0 || Math.abs(tilt) > 0.3, blink: t % 3.1 < 0.12 });
+      host.drawHamster(ctx, 0, 2 * s, 0.62 * s, host.look, {
+        time: t,
+        clipBelow: -18,
+        happy: splash <= 0,
+        armsUp: end > 0 || Math.abs(tilt) > 0.3,
+        blink: t % 3.1 < 0.12,
+      });
       ctx.restore();
       for (const p of drops) {
         ctx.globalAlpha = 1 - p.t / 0.8;
@@ -411,7 +427,9 @@ export default {
         tube: center(U(dist)),
         track: track ? track.id : null,
         half: halfW(),
-        items: items.filter((q) => !q.hit).map((q) => ({ kind: q.kind, x: center(U(q.d)) + q.off * halfW() * 0.8, y: r.Y() - (q.d - dist) })),
+        items: items
+          .filter((q) => !q.hit)
+          .map((q) => ({ kind: q.kind, x: center(U(q.d)) + q.off * halfW() * 0.8, y: r.Y() - (q.d - dist) })),
       }),
     });
   },

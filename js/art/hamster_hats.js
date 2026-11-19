@@ -359,7 +359,8 @@ export function drawHat(ctx, item, side = 1) {
       }
       fillRR(ctx, -23, -76, 46, 9, 4, '#c9a24a', OUT, 1.6);
       for (let x = -18; x <= 18; x += 6) line(ctx, x, -75, x + 3, -68, 'rgba(74,55,40,.45)', 1.2);
-      for (let k = 0; k < 5; k++) ell(ctx, Math.cos(k * 1.257) * 4.5, -72 + Math.sin(k * 1.257) * 4.5, 3.2, 3.2, '#ff8fab', OUT, 0.9);
+      for (let k = 0; k < 5; k++)
+        ell(ctx, Math.cos(k * 1.257) * 4.5, -72 + Math.sin(k * 1.257) * 4.5, 3.2, 3.2, '#ff8fab', OUT, 0.9);
       ell(ctx, 0, -72, 2.2, 2.2, '#ffd43b');
       break;
     }
@@ -400,7 +401,8 @@ export function drawHat(ctx, item, side = 1) {
       ctx.strokeStyle = OUT;
       ctx.lineWidth = 1.8;
       ctx.stroke();
-      for (let i = -1; i <= 1; i++) poly(ctx, [i * 9 - 4, -93, i * 9, -101 - (i === 0 ? 3 : 0), i * 9 + 4, -93], '#ff6b6b', OUT, 1.3);
+      for (let i = -1; i <= 1; i++)
+        poly(ctx, [i * 9 - 4, -93, i * 9, -101 - (i === 0 ? 3 : 0), i * 9 + 4, -93], '#ff6b6b', OUT, 1.3);
       for (const sx of [-1, 1]) {
         ell(ctx, sx * 11, -82, 6, 6.5, '#fff', OUT, 1.4);
         ell(ctx, sx * 11 + side * 1.5, -81, 2.6, 3.2, OUT);
@@ -698,12 +700,21 @@ export function drawAcc(ctx, item) {
         ctx.strokeStyle = OUT;
         ctx.lineWidth = 1.8;
         ctx.stroke();
-        for (let i = 0; i < 4; i++) line(ctx, sx * (20 - i * 5), -9.5 - i * 2.6, sx * (21 - i * 5), -5.5 - i * 2.6, c2, 1.4);
+        for (let i = 0; i < 4; i++)
+          line(ctx, sx * (20 - i * 5), -9.5 - i * 2.6, sx * (21 - i * 5), -5.5 - i * 2.6, c2, 1.4);
         for (const [fx, fy] of [
           [14, -27],
           [22, -19],
         ]) {
-          for (let k = 0; k < 5; k++) ell(ctx, sx * fx + Math.cos(k * 1.257) * 2.6, fy + Math.sin(k * 1.257) * 2.6, 1.7, 1.7, k % 2 ? '#fff' : '#ff8fab');
+          for (let k = 0; k < 5; k++)
+            ell(
+              ctx,
+              sx * fx + Math.cos(k * 1.257) * 2.6,
+              fy + Math.sin(k * 1.257) * 2.6,
+              1.7,
+              1.7,
+              k % 2 ? '#fff' : '#ff8fab',
+            );
           ell(ctx, sx * fx, fy, 1.4, 1.4, c2);
         }
       }

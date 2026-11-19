@@ -17,7 +17,15 @@ function wheel(c, x, y, r, fr, hub = '#ffd43b') {
   const a0 = (fr / 4) * (TAU / 3);
   for (let i = 0; i < 3; i++) {
     const a = a0 + (i * TAU) / 3;
-    line(c, x - Math.cos(a) * r * 0.62, y - Math.sin(a) * r * 0.62, x + Math.cos(a) * r * 0.62, y + Math.sin(a) * r * 0.62, '#adb5bd', 1.2);
+    line(
+      c,
+      x - Math.cos(a) * r * 0.62,
+      y - Math.sin(a) * r * 0.62,
+      x + Math.cos(a) * r * 0.62,
+      y + Math.sin(a) * r * 0.62,
+      '#adb5bd',
+      1.2,
+    );
   }
   ell(c, x, y, r * 0.24, r * 0.24, hub, OUT, 1);
 }
@@ -81,7 +89,8 @@ export const WHEELS_ART = {
       for (const k of [0.33, 0.66]) line(c, (22 + 18 * k) * d, -46, (25 + 12 * k) * d, -31, 'rgba(74,55,40,.4)', 1);
       line(c, 23.5 * d, -39, 38.5 * d, -39, 'rgba(74,55,40,.4)', 1);
       line(c, 31 * d, -46, 31 * d, -54, '#2f9e44', 1.6);
-      for (let i = 0; i < 5; i++) ell(c, 31 * d + Math.cos((i * TAU) / 5) * 3.4, -56 + Math.sin((i * TAU) / 5) * 3.4, 2.4, 2.4, '#ff8fab');
+      for (let i = 0; i < 5; i++)
+        ell(c, 31 * d + Math.cos((i * TAU) / 5) * 3.4, -56 + Math.sin((i * TAU) / 5) * 3.4, 2.4, 2.4, '#ff8fab');
       ell(c, 31 * d, -56, 2, 2, '#ffd43b');
     },
   },

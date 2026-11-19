@@ -208,27 +208,36 @@ const { pathToFileURL } = require('url');
     if (now >= 3 * avg2)
       bad(`город, лес и огород: ${MONTHS[month]} — ${fmt(now)} монет в день, это не меньше трёх смен на 2★`);
     if (later > MARKET.purse)
-      bad(`город, лес и огород: ${MONTHS[month]} — если продать не в сезон, ${fmt(later)} в день: больше кошелька торговца`);
+      bad(
+        `город, лес и огород: ${MONTHS[month]} — если продать не в сезон, ${fmt(later)} в день: больше кошелька торговца`,
+      );
   }
   const yearAvg = (fn) => avgOf(ALL_MONTHS.map(fn));
   if (!(yearAvg(forestSum) >= 1.5 * yearAvg(gatherSum)))
-    bad(`лес должен быть главным местом сбора: за год в среднем ${fmt(yearAvg(forestSum))} против ${fmt(yearAvg(gatherSum))} в городе`);
+    bad(
+      `лес должен быть главным местом сбора: за год в среднем ${fmt(yearAvg(forestSum))} против ${fmt(yearAvg(gatherSum))} в городе`,
+    );
   // «Грибная охота»: монеты и грибы — только за первые FOREST.hunt.paid игр в день; лучшая игра — меньше смены на 2★
   const hunt = FOREST.hunt,
     huntBest = hunt.coins[2] + hunt.items[2] * Math.max(ING.mushroom.sellOff, ING.porcini.sellOff);
-  if (!(hunt.coins.length === 3 && hunt.items.length === 3 && hunt.paid >= 1)) bad('FOREST.hunt: нужны coins и items на 1–3★ и paid');
+  if (!(hunt.coins.length === 3 && hunt.items.length === 3 && hunt.paid >= 1))
+    bad('FOREST.hunt: нужны coins и items на 1–3★ и paid');
   if (huntBest >= avg2) bad(`«Грибная охота» на 3★ даёт ${huntBest} — это не меньше смены на 2★ (${fmt(avg2)})`);
   // белка: орешек за шишки не дороже, чем стоят шишки (шишки не продаются); золотая шишка — украшение, не продаётся
   if (!(FOREST.squirrel.nuts >= 2 && FOREST.squirrel.cones >= 3)) bad('FOREST.squirrel: обмен слишком щедрый');
-  if (D.FURNITURE.some((f) => f.shop === 'forest' && f.price)) bad('лесные украшения не продаются — у них не должно быть цены');
+  if (D.FURNITURE.some((f) => f.shop === 'forest' && f.price))
+    bad('лесные украшения не продаются — у них не должно быть цены');
   // гора (П.9): «Спуск на санках» — монеты только за первые MOUNTAIN.sled.paid игр в день, лучшая — меньше смены на 2★;
   // эдельвейсы и украшения с горы не продаются
   const { MOUNTAIN } = D,
     sled = MOUNTAIN.sled;
   if (!(sled.coins.length === 3 && sled.paid >= 1)) bad('MOUNTAIN.sled: нужны coins на 1–3★ и paid');
-  if (sled.coins[2] >= avg2) bad(`«Спуск на санках» на 3★ даёт ${sled.coins[2]} — это не меньше смены на 2★ (${fmt(avg2)})`);
-  if (D.FURNITURE.some((f) => f.shop === 'mountain' && f.price)) bad('украшения с горы не продаются — у них не должно быть цены');
-  if (!(MOUNTAIN.edelweiss === 1 && MOUNTAIN.frame >= 3)) bad('MOUNTAIN: эдельвейс — один в день, рамка — из трёх и больше');
+  if (sled.coins[2] >= avg2)
+    bad(`«Спуск на санках» на 3★ даёт ${sled.coins[2]} — это не меньше смены на 2★ (${fmt(avg2)})`);
+  if (D.FURNITURE.some((f) => f.shop === 'mountain' && f.price))
+    bad('украшения с горы не продаются — у них не должно быть цены');
+  if (!(MOUNTAIN.edelweiss === 1 && MOUNTAIN.frame >= 3))
+    bad('MOUNTAIN: эдельвейс — один в день, рамка — из трёх и больше');
   // пещеры (П.9): самоцветы — только из «Кристаллов» за первые CAVES.crystals.paid игр в день; продаются на рынке,
   // купить их негде; лучшая игра (монеты + самоцветы по самой высокой цене) — меньше смены на 2★
   const { CAVES, GEM_IDS } = D,
@@ -236,20 +245,26 @@ const { pathToFileURL } = require('url');
     gemMax = Math.max(...Object.values(CAVES.gems)),
     digBest = dig.coins[2] + dig.gems[2] * gemMax,
     cavesDay = dig.paid * digBest;
-  if (!(dig.coins.length === 3 && dig.gems.length === 3 && dig.paid >= 1)) bad('CAVES.crystals: нужны coins и gems на 1–3★ и paid');
-  if (digBest >= avg2) bad(`«Кристаллы» на 3★ дают до ${digBest} (монеты и самоцветы) — это не меньше смены на 2★ (${fmt(avg2)})`);
+  if (!(dig.coins.length === 3 && dig.gems.length === 3 && dig.paid >= 1))
+    bad('CAVES.crystals: нужны coins и gems на 1–3★ и paid');
+  if (digBest >= avg2)
+    bad(`«Кристаллы» на 3★ дают до ${digBest} (монеты и самоцветы) — это не меньше смены на 2★ (${fmt(avg2)})`);
   for (const id of GEM_IDS) if (!(CAVES.gems[id] > 0)) bad(`самоцвет без цены на рынке: ${id}`);
   for (const id of Object.keys(CAVES.gems))
     if (!D.FIND_BY_ID[id] || D.FIND_BY_ID[id].kind !== 'gem') bad(`CAVES.gems: ${id} — не самоцвет из data/finds.js`);
-  for (const id of GEM_IDS) for (const t of Object.keys(PRICES)) if (PRICES[t][id] !== undefined) bad(`самоцвет ${id} можно купить (${t}) — перепродажа`);
+  for (const id of GEM_IDS)
+    for (const t of Object.keys(PRICES))
+      if (PRICES[t][id] !== undefined) bad(`самоцвет ${id} можно купить (${t}) — перепродажа`);
   for (const id of Object.keys(PRICES.tools || {})) {
     const f = D.FIND_BY_ID[id];
     if (!f || f.kind !== 'tool') bad(`PRICES.tools: ${id} — не инструмент из data/finds.js`);
     if (CAVES.gems[id] !== undefined || MARKET.sell[id] !== undefined) bad(`инструмент ${id} покупает рынок`);
   }
   if (CAVES.geode !== GEM_IDS.length) bad('CAVES.geode: шкатулка — по одному самоцвету каждого вида');
-  if (!(CAVES.shrooms >= 1 && CAVES.shrooms <= 2 && CAVES.lamp >= 3)) bad('CAVES: светящихся грибов — 1–2 в день, ночник — из трёх и больше');
-  if (D.FURNITURE.some((f) => f.shop === 'caves' && f.price)) bad('украшения из пещер не продаются — у них не должно быть цены');
+  if (!(CAVES.shrooms >= 1 && CAVES.shrooms <= 2 && CAVES.lamp >= 3))
+    bad('CAVES: светящихся грибов — 1–2 в день, ночник — из трёх и больше');
+  if (D.FURNITURE.some((f) => f.shop === 'caves' && f.price))
+    bad('украшения из пещер не продаются — у них не должно быть цены');
   // пустыня (П.9): плоды кактуса — сезонный сбор (1–2 в день); окаменелости — только из «Раскопок» за первые
   // DESERT.dig.paid игр в день (по одной), продаются на рынке, купить их негде; лучшая раскопка (монеты + самая
   // дорогая окаменелость) и загадка пирамиды на 3★ — меньше смены на 2★; весь сбор вместе — правило «день сбора» ниже
@@ -266,14 +281,20 @@ const { pathToFileURL } = require('url');
     if (!(q.n > 0 && q.n * q.max <= 2)) bad(`пустыня: ${id} — собирать 1–2 в день`);
   }
   if (!(DESERT.dig.coins.length === 3 && DESERT.dig.paid >= 1)) bad('DESERT.dig: нужны coins на 1–3★ и paid');
-  if (digBestD >= avg2) bad(`«Раскопки» на 3★ дают до ${digBestD} (монеты и окаменелость) — это не меньше смены на 2★ (${fmt(avg2)})`);
-  if (DESERT.pairs.coins[2] >= avg2) bad(`загадка пирамиды на 3★ даёт ${DESERT.pairs.coins[2]} — это не меньше смены на 2★`);
+  if (digBestD >= avg2)
+    bad(`«Раскопки» на 3★ дают до ${digBestD} (монеты и окаменелость) — это не меньше смены на 2★ (${fmt(avg2)})`);
+  if (DESERT.pairs.coins[2] >= avg2)
+    bad(`загадка пирамиды на 3★ даёт ${DESERT.pairs.coins[2]} — это не меньше смены на 2★`);
   for (const id of FOSSIL_IDS) if (!(DESERT.fossils[id] > 0)) bad(`окаменелость без цены на рынке: ${id}`);
   for (const id of Object.keys(DESERT.fossils))
-    if (!D.FIND_BY_ID[id] || D.FIND_BY_ID[id].kind !== 'fossil') bad(`DESERT.fossils: ${id} — не окаменелость из data/finds.js`);
-  for (const id of FOSSIL_IDS) for (const t of Object.keys(PRICES)) if (PRICES[t][id] !== undefined) bad(`окаменелость ${id} можно купить (${t}) — перепродажа`);
+    if (!D.FIND_BY_ID[id] || D.FIND_BY_ID[id].kind !== 'fossil')
+      bad(`DESERT.fossils: ${id} — не окаменелость из data/finds.js`);
+  for (const id of FOSSIL_IDS)
+    for (const t of Object.keys(PRICES))
+      if (PRICES[t][id] !== undefined) bad(`окаменелость ${id} можно купить (${t}) — перепродажа`);
   if (DESERT.collection !== FOSSIL_IDS.length) bad('DESERT.collection: коллекция — по одной окаменелости каждого вида');
-  if (D.FURNITURE.some((f) => f.shop === 'desert' && f.price)) bad('украшения из пустыни не продаются — у них не должно быть цены');
+  if (D.FURNITURE.some((f) => f.shop === 'desert' && f.price))
+    bad('украшения из пустыни не продаются — у них не должно быть цены');
   // джунгли (П.9): бананы, ананасы, манго и кокос — сезонный сбор (1–2 в день с каждого вида); перья попугаев —
   // по одному от каждого попугая в день (FEATHER_IDS), продаются на рынке, купить их негде; «Лианы» на 3★ и «Узор
   // храма» — меньше смены на 2★; весь сбор вместе — правило «день сбора» ниже
@@ -290,16 +311,23 @@ const { pathToFileURL } = require('url');
   }
   if (Math.max(...ALL_MONTHS.map(jungleIn)) >= avg2 / 4) bad('джунгли: сбор за день — не меньше четверти смены на 2★');
   if (!(JUNGLE.vines.coins.length === 3 && JUNGLE.vines.paid >= 1)) bad('JUNGLE.vines: нужны coins на 1–3★ и paid');
-  if (JUNGLE.vines.coins[2] >= avg2) bad(`«Лианы» на 3★ дают ${JUNGLE.vines.coins[2]} — это не меньше смены на 2★ (${fmt(avg2)})`);
-  if (JUNGLE.glyphs.coins[2] >= avg2) bad(`«Узор храма» на 3★ даёт ${JUNGLE.glyphs.coins[2]} — это не меньше смены на 2★`);
+  if (JUNGLE.vines.coins[2] >= avg2)
+    bad(`«Лианы» на 3★ дают ${JUNGLE.vines.coins[2]} — это не меньше смены на 2★ (${fmt(avg2)})`);
+  if (JUNGLE.glyphs.coins[2] >= avg2)
+    bad(`«Узор храма» на 3★ даёт ${JUNGLE.glyphs.coins[2]} — это не меньше смены на 2★`);
   if (feathersDay >= avg2) bad(`перья за день (${feathersDay}) — не меньше смены на 2★`);
   for (const id of FEATHER_IDS) if (!(JUNGLE.feathers[id] > 0)) bad(`перо без цены на рынке: ${id}`);
   for (const id of Object.keys(JUNGLE.feathers))
-    if (!D.FIND_BY_ID[id] || D.FIND_BY_ID[id].kind !== 'feather') bad(`JUNGLE.feathers: ${id} — не перо из data/finds.js`);
-  for (const id of FEATHER_IDS) for (const t of Object.keys(PRICES)) if (PRICES[t][id] !== undefined) bad(`перо ${id} можно купить (${t}) — перепродажа`);
+    if (!D.FIND_BY_ID[id] || D.FIND_BY_ID[id].kind !== 'feather')
+      bad(`JUNGLE.feathers: ${id} — не перо из data/finds.js`);
+  for (const id of FEATHER_IDS)
+    for (const t of Object.keys(PRICES))
+      if (PRICES[t][id] !== undefined) bad(`перо ${id} можно купить (${t}) — перепродажа`);
   if (JUNGLE.frame !== FEATHER_IDS.length) bad('JUNGLE.frame: рамка — по одному перу каждого цвета');
-  if (D.FURNITURE.some((f) => f.shop === 'jungle' && f.price)) bad('украшения из джунглей не продаются — у них не должно быть цены');
-  if (D.CLOTHES_BY_ID.panama_explorer.price || D.CLOTHES_BY_ID.panama_explorer.shop !== 'gift') bad('панама исследовательницы — только в подарок');
+  if (D.FURNITURE.some((f) => f.shop === 'jungle' && f.price))
+    bad('украшения из джунглей не продаются — у них не должно быть цены');
+  if (D.CLOTHES_BY_ID.panama_explorer.price || D.CLOTHES_BY_ID.panama_explorer.shop !== 'gift')
+    bad('панама исследовательницы — только в подарок');
   // секретный пляж (П.9): фруктов нет — сбор пляжа только ракушки (находки: летом COVE.shells.summer в день, иначе
   // COVE.shells.other; купить негде, рынок берёт по COVE.shells.sell); «Замок из песка» на 3★ — меньше смены на 2★;
   // клад — один раз за игру. Ракушки вместе со всем остальным сбором — правило «день сбора» ниже
@@ -308,16 +336,24 @@ const { pathToFileURL } = require('url');
     shellsDay = Math.max(COVE.shells.summer, COVE.shells.other) * shellMax;
   for (const id of SHELL_IDS) if (!(COVE.shells.sell[id] > 0)) bad(`ракушка без цены на рынке: ${id}`);
   for (const id of Object.keys(COVE.shells.sell))
-    if (!D.FIND_BY_ID[id] || D.FIND_BY_ID[id].kind !== 'shell') bad(`COVE.shells.sell: ${id} — не ракушка из data/finds.js`);
-  for (const id of SHELL_IDS) for (const t of Object.keys(PRICES)) if (PRICES[t][id] !== undefined) bad(`ракушка ${id} можно купить (${t}) — перепродажа`);
-  if (!(COVE.shells.summer <= 2 && COVE.shells.other >= 1 && COVE.shells.other <= COVE.shells.summer)) bad('COVE.shells: ракушек — 1–2 в день');
+    if (!D.FIND_BY_ID[id] || D.FIND_BY_ID[id].kind !== 'shell')
+      bad(`COVE.shells.sell: ${id} — не ракушка из data/finds.js`);
+  for (const id of SHELL_IDS)
+    for (const t of Object.keys(PRICES))
+      if (PRICES[t][id] !== undefined) bad(`ракушка ${id} можно купить (${t}) — перепродажа`);
+  if (!(COVE.shells.summer <= 2 && COVE.shells.other >= 1 && COVE.shells.other <= COVE.shells.summer))
+    bad('COVE.shells: ракушек — 1–2 в день');
   if (shellsDay >= avg2 / 4) bad(`ракушки за день (${shellsDay}) — не меньше четверти смены на 2★`);
   if (!(COVE.castle.coins.length === 3 && COVE.castle.paid >= 1)) bad('COVE.castle: нужны coins на 1–3★ и paid');
-  if (COVE.castle.coins[2] >= avg2) bad(`«Замок из песка» на 3★ даёт ${COVE.castle.coins[2]} — это не меньше смены на 2★ (${fmt(avg2)})`);
+  if (COVE.castle.coins[2] >= avg2)
+    bad(`«Замок из песка» на 3★ даёт ${COVE.castle.coins[2]} — это не меньше смены на 2★ (${fmt(avg2)})`);
   if (COVE.frame !== SHELL_IDS.length) bad('COVE.frame: рамка — по одной ракушке каждого вида');
-  if (!(COVE.treasure.coins > 0 && COVE.treasure.coins <= 1000)) bad('COVE.treasure: клад — до 1000 монет, один раз за игру');
-  if (D.FURNITURE.some((f) => f.shop === 'cove' && f.price)) bad('украшения с секретного пляжа не продаются — у них не должно быть цены');
-  if (D.CLOTHES_BY_ID.clip_shell.price || D.CLOTHES_BY_ID.clip_shell.shop !== 'gift') bad('заколка-ракушка — только в подарок');
+  if (!(COVE.treasure.coins > 0 && COVE.treasure.coins <= 1000))
+    bad('COVE.treasure: клад — до 1000 монет, один раз за игру');
+  if (D.FURNITURE.some((f) => f.shop === 'cove' && f.price))
+    bad('украшения с секретного пляжа не продаются — у них не должно быть цены');
+  if (D.CLOTHES_BY_ID.clip_shell.price || D.CLOTHES_BY_ID.clip_shell.shop !== 'gift')
+    bad('заколка-ракушка — только в подарок');
   // удалённый остров (П.9): фруктов нет — сбор острова только находки (вулканическое стекло — одно в день, цветок для
   // леи — один в день); купить их негде, рынок берёт по ISLAND.obsidian и ISLAND.flowers; «Кокосовый боулинг» на 3★ —
   // меньше смены на 2★. Находки острова вместе со всем остальным сбором — правило «день сбора» ниже.
@@ -326,9 +362,13 @@ const { pathToFileURL } = require('url');
     islandDay = ISLAND.obsidian + Math.max(...Object.values(ISLAND.flowers));
   for (const id of LEI_IDS) if (!(ISLAND.flowers[id] > 0)) bad(`цветок без цены на рынке: ${id}`);
   for (const id of Object.keys(ISLAND.flowers))
-    if (!D.FIND_BY_ID[id] || D.FIND_BY_ID[id].kind !== 'lei') bad(`ISLAND.flowers: ${id} — не цветок для леи из data/finds.js`);
-  if (!D.FIND_BY_ID.obsidian || D.FIND_BY_ID.obsidian.kind !== 'volcano' || !(ISLAND.obsidian > 0)) bad('вулканическое стекло: нет находки или цены');
-  for (const id of ['obsidian', ...LEI_IDS, 'compass']) for (const t of Object.keys(PRICES)) if (PRICES[t][id] !== undefined) bad(`находку ${id} можно купить (${t}) — перепродажа`);
+    if (!D.FIND_BY_ID[id] || D.FIND_BY_ID[id].kind !== 'lei')
+      bad(`ISLAND.flowers: ${id} — не цветок для леи из data/finds.js`);
+  if (!D.FIND_BY_ID.obsidian || D.FIND_BY_ID.obsidian.kind !== 'volcano' || !(ISLAND.obsidian > 0))
+    bad('вулканическое стекло: нет находки или цены');
+  for (const id of ['obsidian', ...LEI_IDS, 'compass'])
+    for (const t of Object.keys(PRICES))
+      if (PRICES[t][id] !== undefined) bad(`находку ${id} можно купить (${t}) — перепродажа`);
   if (!D.FIND_BY_ID.compass || D.FIND_BY_ID.compass.kind !== 'tool') bad('компас — инструмент (находка вида tool)');
   if (MARKET.sell.compass !== undefined || ISLAND.flowers.compass !== undefined) bad('компас покупает рынок');
   if (islandDay >= avg2 / 4) bad(`находки острова за день (${islandDay}) — не меньше четверти смены на 2★`);
@@ -365,7 +405,8 @@ const { pathToFileURL } = require('url');
     cove: (m) => ({ sum: shellsN(m) * shellMax, picks: shellsN(m) }),
     island: () => ({ sum: islandDay, picks: 2 }),
   };
-  for (const id of Object.keys(placeIn)) if (!GD.places[id]) bad(`день сбора: у места ${id} нет дороги в GATHER_DAY.places`);
+  for (const id of Object.keys(placeIn))
+    if (!GD.places[id]) bad(`день сбора: у места ${id} нет дороги в GATHER_DAY.places`);
   for (const [id, pl] of Object.entries(GD.places)) {
     if (pl.via && !GD.places[pl.via]) bad(`день сбора: ${id} — неизвестная пересадка ${pl.via}`);
     if (!(pl.go >= 0 && pl.walk >= 0)) bad(`день сбора: ${id} — нужны go и walk (игровые минуты)`);
@@ -391,55 +432,80 @@ const { pathToFileURL } = require('url');
       const time = tripTime(ids, month);
       if (!ids.length || time > GD.day) continue;
       const sum = ids.reduce((a, id) => a + placeIn[id](month).sum, 0);
-      if (sum > best.sum || (sum === best.sum && time < best.time))
-        best = { ids, sum, time };
+      if (sum > best.sum || (sum === best.sum && time < best.time)) best = { ids, sum, time };
     }
     return best;
   };
   const workPerMin = avg2 / GD.shift;
   if (!(GD.day > 0 && GD.day <= 16.5 * 60)) bad('GATHER_DAY.day: день — не длиннее, чем с 7:30 до полуночи');
-  if (!(GD.shift >= 40)) bad('GATHER_DAY.shift: смена занимает не меньше 40 игровых минут (столько списывает сама смена)');
+  if (!(GD.shift >= 40))
+    bad('GATHER_DAY.shift: смена занимает не меньше 40 игровых минут (столько списывает сама смена)');
   for (let month = 0; month < 12; month++) {
     for (const id of gatherPlaces) {
       const q = placeIn[id](month);
       if (!q.sum) continue;
       const rate = q.sum / tripTime([id], month);
       if (rate >= 0.75 * workPerMin)
-        bad(`день сбора: ${MONTHS[month]}, ${GD.places[id].name} — ${rate.toFixed(1)} монеты в минуту, это не меньше трёх четвертей работы (${workPerMin.toFixed(1)})`);
+        bad(
+          `день сбора: ${MONTHS[month]}, ${GD.places[id].name} — ${rate.toFixed(1)} монеты в минуту, это не меньше трёх четвертей работы (${workPerMin.toFixed(1)})`,
+        );
     }
     const day = gatherDay(month);
     if (day.sum / day.time >= 0.5 * workPerMin)
-      bad(`день сбора: ${MONTHS[month]} — ${(day.sum / day.time).toFixed(1)} монеты в минуту, это не меньше половины работы (${workPerMin.toFixed(1)})`);
+      bad(
+        `день сбора: ${MONTHS[month]} — ${(day.sum / day.time).toFixed(1)} монеты в минуту, это не меньше половины работы (${workPerMin.toFixed(1)})`,
+      );
     const withBeds = day.sum + 8 * bedBestIn(month);
     if (withBeds >= 5 * avg2)
-      bad(`день сбора с огородом: ${MONTHS[month]} — ${fmt(withBeds)} монет, это не меньше пяти смен на 2★ (${fmt(5 * avg2)})`);
-    if (withBeds > MARKET.purse) bad(`день сбора с огородом: ${MONTHS[month]} — ${fmt(withBeds)} монет: больше кошелька торговца`);
+      bad(
+        `день сбора с огородом: ${MONTHS[month]} — ${fmt(withBeds)} монет, это не меньше пяти смен на 2★ (${fmt(5 * avg2)})`,
+      );
+    if (withBeds > MARKET.purse)
+      bad(`день сбора с огородом: ${MONTHS[month]} — ${fmt(withBeds)} монет: больше кошелька торговца`);
   }
-  if (!(ISLAND.bowling.coins.length === 3 && ISLAND.bowling.paid >= 1)) bad('ISLAND.bowling: нужны coins на 1–3★ и paid');
-  if (ISLAND.bowling.coins[2] >= avg2) bad(`«Кокосовый боулинг» на 3★ даёт ${ISLAND.bowling.coins[2]} — это не меньше смены на 2★ (${fmt(avg2)})`);
+  if (!(ISLAND.bowling.coins.length === 3 && ISLAND.bowling.paid >= 1))
+    bad('ISLAND.bowling: нужны coins на 1–3★ и paid');
+  if (ISLAND.bowling.coins[2] >= avg2)
+    bad(`«Кокосовый боулинг» на 3★ даёт ${ISLAND.bowling.coins[2]} — это не меньше смены на 2★ (${fmt(avg2)})`);
   // отдых в городе (этап 17а): «Пляжный волейбол» — маленький приз, меньше смены на 2★
   const VB = D.RELAX_PRIZE.volley;
-  if (!(VB.coins.length === 3 && VB.paid >= 1 && VB.paid <= 2)) bad('RELAX_PRIZE.volley: нужны coins на 1–3★ и paid 1–2');
+  if (!(VB.coins.length === 3 && VB.paid >= 1 && VB.paid <= 2))
+    bad('RELAX_PRIZE.volley: нужны coins на 1–3★ и paid 1–2');
   if (VB.coins[2] >= ISLAND.bowling.coins[2]) bad(`«Пляжный волейбол» на 3★ даёт ${VB.coins[2]} — не меньше боулинга`);
-  if (VB.coins[2] * VB.paid >= avg2) bad(`«Пляжный волейбол» за день — ${VB.coins[2] * VB.paid}, это не меньше смены на 2★ (${fmt(avg2)})`);
+  if (VB.coins[2] * VB.paid >= avg2)
+    bad(`«Пляжный волейбол» за день — ${VB.coins[2] * VB.paid}, это не меньше смены на 2★ (${fmt(avg2)})`);
   if (ISLAND.lei !== LEI_IDS.length) bad('ISLAND.lei: лея — по одному цветку каждого вида');
   if (!(ISLAND.totem >= 3)) bad('ISLAND.totem: тотем — из трёх кусочков стекла и больше');
-  if (D.FURNITURE.some((f) => f.shop === 'island' && f.price)) bad('украшения с острова не продаются — у них не должно быть цены');
-  for (const id of ['grass_skirt', 'lei_island']) if (D.CLOTHES_BY_ID[id].price || D.CLOTHES_BY_ID[id].shop !== 'gift') bad(`${D.CLOTHES_BY_ID[id].name} — только в подарок`);
-  if (!(ISLAND.fest.from >= 18 && ISLAND.fest.to <= 23 && ISLAND.fest.to > ISLAND.fest.from)) bad('праздник огней — вечером');
-  if (!D.isSunHat(D.CLOTHES_BY_ID.sunhat_wide) || D.CLOTHES_BY_ID.sunhat_wide.season || D.CLOTHES_BY_ID.sunhat_wide.stock || !PRICES.clothes.sunhat_wide)
+  if (D.FURNITURE.some((f) => f.shop === 'island' && f.price))
+    bad('украшения с острова не продаются — у них не должно быть цены');
+  for (const id of ['grass_skirt', 'lei_island'])
+    if (D.CLOTHES_BY_ID[id].price || D.CLOTHES_BY_ID[id].shop !== 'gift')
+      bad(`${D.CLOTHES_BY_ID[id].name} — только в подарок`);
+  if (!(ISLAND.fest.from >= 18 && ISLAND.fest.to <= 23 && ISLAND.fest.to > ISLAND.fest.from))
+    bad('праздник огней — вечером');
+  if (
+    !D.isSunHat(D.CLOTHES_BY_ID.sunhat_wide) ||
+    D.CLOTHES_BY_ID.sunhat_wide.season ||
+    D.CLOTHES_BY_ID.sunhat_wide.stock ||
+    !PRICES.clothes.sunhat_wide
+  )
     bad('«Шляпа от солнца» (задание Буси) должна продаваться всегда и защищать от солнца');
   // курортный отель (П.17): открыт с начала игры. «Горка» — приз за первые HOTEL.slide.paid игр в день, лучшая — меньше
   // смены на 2★; носильщица — обычная работа (JOBS.porter: 2★ не меньше средней смены); номер на ночь и спа — траты,
   // шведский стол — только «съесть тут» (с собой не купить, поэтому скидку нельзя перепродать на рынке); люкс продаётся
   const { HOTEL, BUFFET, DISH_BY_ID, animatorNow, poolGuestOn, POOL_GUESTS } = D;
   if (!(HOTEL.slide.coins.length === 3 && HOTEL.slide.paid >= 1)) bad('HOTEL.slide: нужны coins на 1–3★ и paid');
-  if (HOTEL.slide.coins[2] >= avg2) bad(`«Горка» на 3★ даёт ${HOTEL.slide.coins[2]} — это не меньше смены на 2★ (${fmt(avg2)})`);
+  if (HOTEL.slide.coins[2] >= avg2)
+    bad(`«Горка» на 3★ даёт ${HOTEL.slide.coins[2]} — это не меньше смены на 2★ (${fmt(avg2)})`);
   // бодрость после спа (От7): прибавка к одной смене — приятный бонус, но спа им не окупается (не «вечный двигатель»)
   {
     const best = Math.max(...Object.values(JOBS).flatMap((j) => j.pay || []));
-    if (!(HOTEL.spaBoost > 0 && HOTEL.spaBoost <= 0.2)) bad(`HOTEL.spaBoost = ${HOTEL.spaBoost}: бодрость — небольшая прибавка (до 20%)`);
-    if (Math.round(best * HOTEL.spaBoost) >= HOTEL.spa) bad(`бодрость после спа на лучшей смене (${fmt(Math.round(best * HOTEL.spaBoost))}) окупает спа (${fmt(HOTEL.spa)})`);
+    if (!(HOTEL.spaBoost > 0 && HOTEL.spaBoost <= 0.2))
+      bad(`HOTEL.spaBoost = ${HOTEL.spaBoost}: бодрость — небольшая прибавка (до 20%)`);
+    if (Math.round(best * HOTEL.spaBoost) >= HOTEL.spa)
+      bad(
+        `бодрость после спа на лучшей смене (${fmt(Math.round(best * HOTEL.spaBoost))}) окупает спа (${fmt(HOTEL.spa)})`,
+      );
   }
   if (!JOBS.porter) bad('нет работы носильщицей (JOBS.porter)');
   else {
@@ -450,17 +516,25 @@ const { pathToFileURL } = require('url');
   if (!(HOTEL.room >= 100 && HOTEL.room <= 1000)) bad(`номер на ночь за ${HOTEL.room} — вне 100–1 000`);
   if (!(HOTEL.spa >= 50 && HOTEL.spa <= 500)) bad(`спа за ${HOTEL.spa} — вне 50–500`);
   if (!(HOTEL.buffet > 0 && HOTEL.buffet < 1)) bad('HOTEL.buffet: скидка шведского стола — доля цены от 0 до 1');
-  for (const id of BUFFET) if (!DISH_BY_ID[id] || !(DISH_BY_ID[id].price > 0)) bad(`шведский стол: блюдо без цены ${id}`);
+  for (const id of BUFFET)
+    if (!DISH_BY_ID[id] || !(DISH_BY_ID[id].price > 0)) bad(`шведский стол: блюдо без цены ${id}`);
   const am = HOTEL.animator;
-  if (!(am.morning[0] >= 6 && am.morning[1] <= 12 && am.evening[0] >= 18 && am.evening[1] <= 23)) bad('аниматор: зарядка — утром, дискотека — вечером');
-  if (animatorNow(am.morning[0] * 60) !== 'morning' || animatorNow(am.evening[0] * 60 + 10) !== 'evening' || animatorNow(14 * 60)) bad('animatorNow не совпадает с HOTEL.animator');
+  if (!(am.morning[0] >= 6 && am.morning[1] <= 12 && am.evening[0] >= 18 && am.evening[1] <= 23))
+    bad('аниматор: зарядка — утром, дискотека — вечером');
+  if (
+    animatorNow(am.morning[0] * 60) !== 'morning' ||
+    animatorNow(am.evening[0] * 60 + 10) !== 'evening' ||
+    animatorNow(14 * 60)
+  )
+    bad('animatorNow не совпадает с HOTEL.animator');
   if (HOMES.find((h) => h.id === 'suite').soon) bad('номер-люкс всё ещё «скоро» — отель открыт');
   if (HOMES.find((h) => h.id === 'suite').building !== 'hotel') bad('номер-люкс: дверь — в отеле (building: hotel)');
   {
     let days = 0;
     for (let d = 0; d < 72; d++) if (poolGuestOn(d, HOTEL.poolGuest.from * 60 + 30)) days++;
     if (days < 18 || days > 54) bad(`житель у бассейна отеля — ${days} дней из 72 (ждём примерно через день)`);
-    if (POOL_GUESTS.some((id) => !D.NPC_BY_ID[id] || D.LAND_NPCS.some((n) => n.id === id))) bad('у бассейна отеля отдыхают только жители города');
+    if (POOL_GUESTS.some((id) => !D.NPC_BY_ID[id] || D.LAND_NPCS.some((n) => n.id === id)))
+      bad('у бассейна отеля отдыхают только жители города');
   }
   // праздники (П.13): праздник раз в год и один день. Монеты за все занятия, конверты и «Перетягивание каната» (призовые
   // игры на 3★) вместе — меньше двух смен на 2★: праздник — радость, а не заработок. Подарки праздников — без цены
@@ -475,24 +549,46 @@ const { pathToFileURL } = require('url');
   for (const h of HOLIDAYS) {
     if (holidayOn(holidayDoy(h) + 36, 0) !== h) bad(`праздник ${h.id}: в его день — другой праздник`);
     if (!(HOLIDAY.coins[h.id] >= 100)) bad(`праздник ${h.id}: нет монет за занятия (HOLIDAY.coins)`);
-    if (holidayDay(h) >= 2 * avg2) bad(`праздник ${h.id}: за день ${holidayDay(h)} — не меньше двух смен на 2★ (${fmt(2 * avg2)})`);
+    if (holidayDay(h) >= 2 * avg2)
+      bad(`праздник ${h.id}: за день ${holidayDay(h)} — не меньше двух смен на 2★ (${fmt(2 * avg2)})`);
     // подарки по годам (этап 10, Пр6): первый раз и следующие годы — всё из таблиц, только подарком, без повторов
     const gifts = D.holidayGifts(h);
     if (gifts.length < 3) bad(`праздник ${h.id}: подарков по годам меньше трёх (${gifts.length})`);
     for (const g of gifts) {
-      const items = g.clothes ? [].concat(g.clothes).map((id) => D.CLOTHES_BY_ID[id]) : g.furn ? [D.FURN_BY_ID[g.furn]] : g.recipe ? [D.DISH_BY_ID[g.recipe]] : [];
-      if (!items.length || items.some((q) => !q)) bad(`праздник ${h.id}: подарка нет в таблицах (${JSON.stringify(g)})`);
+      const items = g.clothes
+        ? [].concat(g.clothes).map((id) => D.CLOTHES_BY_ID[id])
+        : g.furn
+          ? [D.FURN_BY_ID[g.furn]]
+          : g.recipe
+            ? [D.DISH_BY_ID[g.recipe]]
+            : [];
+      if (!items.length || items.some((q) => !q))
+        bad(`праздник ${h.id}: подарка нет в таблицах (${JSON.stringify(g)})`);
       else
         for (const item of items) {
-          if (g.recipe ? D.SECRET_RECIPES.includes(g.recipe) || item.holiday !== h.id : item.shop !== 'holiday' || item.price)
+          if (
+            g.recipe
+              ? D.SECRET_RECIPES.includes(g.recipe) || item.holiday !== h.id
+              : item.shop !== 'holiday' || item.price
+          )
             bad(`праздник ${h.id}: подарок «${item.name}» должен быть только подарком (без цены, shop: holiday)`);
-          const n = HOLIDAYS.flatMap((q) => D.holidayGifts(q)).filter((q) => [].concat(q.clothes || q.furn || q.recipe).includes(item.id)).length;
+          const n = HOLIDAYS.flatMap((q) => D.holidayGifts(q)).filter((q) =>
+            [].concat(q.clothes || q.furn || q.recipe).includes(item.id),
+          ).length;
           if (n !== 1) bad(`подарок «${item.name}» — у ${n} праздников (ждём у одного)`);
         }
     }
     // «Год в городе»: ещё и подарки от друзей (presents), всё из таблиц
     for (const [id, p] of Object.entries(h.presents || {}))
-      if (!D.NPC_BY_ID[id] || !(p.money || (p.dish && D.DISH_BY_ID[p.dish]) || (p.ing && D.ING_BY_ID[p.ing]) || (p.seed && D.SEED_BY_ID[p.seed])))
+      if (
+        !D.NPC_BY_ID[id] ||
+        !(
+          p.money ||
+          (p.dish && D.DISH_BY_ID[p.dish]) ||
+          (p.ing && D.ING_BY_ID[p.ing]) ||
+          (p.seed && D.SEED_BY_ID[p.seed])
+        )
+      )
         bad(`«Год в городе»: странный подарок от ${id}`);
     if (!D.EXTRA_STICKERS.some((q) => q.id === h.sticker)) bad(`праздник ${h.id}: нет наклейки ${h.sticker}`);
     if (!(h.decor[0] <= 0 && h.decor[1] >= 0)) bad(`праздник ${h.id}: город не украшен в сам праздник`);
@@ -500,25 +596,34 @@ const { pathToFileURL } = require('url');
   // праздничная полка ТЦ «Уютный дом» (этап 15, Пр13): у каждого праздника (кроме «Года в городе») — украшение домой,
   // с ценой как у недорогого декора; праздничные наряды жителей — из каталога одежды
   for (const f of D.FURNITURE.filter((q) => q.shop === 'fest'))
-    if (!(f.price > 0 && f.price <= 1000) || !D.HOLIDAY_BY_ID[f.fest]) bad(`праздничная полка: «${f.name}» — цена ${f.price}, праздник ${f.fest}`);
+    if (!(f.price > 0 && f.price <= 1000) || !D.HOLIDAY_BY_ID[f.fest])
+      bad(`праздничная полка: «${f.name}» — цена ${f.price}, праздник ${f.fest}`);
   for (const h of HOLIDAYS)
-    if (h.id !== 'birthday' && !D.FURNITURE.some((q) => q.shop === 'fest' && q.fest === h.id)) bad(`праздничная полка: к празднику ${h.id} нечего купить`);
+    if (h.id !== 'birthday' && !D.FURNITURE.some((q) => q.shop === 'fest' && q.fest === h.id))
+      bad(`праздничная полка: к празднику ${h.id} нечего купить`);
   for (const [hid, list] of Object.entries(D.HOLIDAY_DRESS))
     for (const [npc, patch] of Object.entries(list)) {
-      if (!D.HOLIDAY_BY_ID[hid] || !D.NPC_BY_ID[npc]) bad(`праздничный наряд ${hid}/${npc}: нет такого праздника или жителя`);
+      if (!D.HOLIDAY_BY_ID[hid] || !D.NPC_BY_ID[npc])
+        bad(`праздничный наряд ${hid}/${npc}: нет такого праздника или жителя`);
       for (const [slot, id] of Object.entries(patch))
-        if (id !== null && (!D.CLOTHES_BY_ID[id] || D.CLOTHES_BY_ID[id].slot !== slot)) bad(`праздничный наряд ${hid}/${npc}: «${id}» — не вещь для ${slot}`);
+        if (id !== null && (!D.CLOTHES_BY_ID[id] || D.CLOTHES_BY_ID[id].slot !== slot))
+          bad(`праздничный наряд ${hid}/${npc}: «${id}» — не вещь для ${slot}`);
     }
   if (!(HOLIDAY.tug.coins[2] < avg2)) bad(`«Перетягивание каната» на 3★ — не меньше смены на 2★`);
   if (!(HOLIDAY.splash.coins[2] < avg2)) bad(`«Водяная битва» на 3★ — не меньше смены на 2★`);
   // новая игра начинается 1 июня (этап 10): в первые три дня — ни праздника, ни украшений (Пр1); «Год в городе» —
   // через год после начала (и у старых игр, которые начались 1 января), в первый год его нет
   const SD = D.START_DAY;
-  for (let d = SD; d < SD + 2; d++) if (holidayOn(d, SD) || decorsOn(d, SD).length) bad(`в ${d - SD + 1}-й день новой игры — праздник или украшения`);
-  if (holidayOn(SD + 36, SD) !== D.HOLIDAY_BY_ID.birthday) bad('«Год в городе» — через год после начала новой игры (1 июня)');
-  if (holidayOn(SD, 0) || holidayOn(SD + 36, 0) !== D.HOLIDAY_BY_ID.birthday) bad('«Год в городе» у старой игры (началась 1 января) — 1 июня второго года');
-  for (let d = SD; d < SD + 36; d++) if (holidayOn(d, SD) === D.HOLIDAY_BY_ID.birthday) bad(`«Год в городе» в первый год игры (день ${d})`);
-  if (!(HOLIDAY.again <= HOLIDAY.coins.newyear)) bad('HOLIDAY.again: мешочек вместо подарка — не больше монет за праздник');
+  for (let d = SD; d < SD + 2; d++)
+    if (holidayOn(d, SD) || decorsOn(d, SD).length) bad(`в ${d - SD + 1}-й день новой игры — праздник или украшения`);
+  if (holidayOn(SD + 36, SD) !== D.HOLIDAY_BY_ID.birthday)
+    bad('«Год в городе» — через год после начала новой игры (1 июня)');
+  if (holidayOn(SD, 0) || holidayOn(SD + 36, 0) !== D.HOLIDAY_BY_ID.birthday)
+    bad('«Год в городе» у старой игры (началась 1 января) — 1 июня второго года');
+  for (let d = SD; d < SD + 36; d++)
+    if (holidayOn(d, SD) === D.HOLIDAY_BY_ID.birthday) bad(`«Год в городе» в первый год игры (день ${d})`);
+  if (!(HOLIDAY.again <= HOLIDAY.coins.newyear))
+    bad('HOLIDAY.again: мешочек вместо подарка — не больше монет за праздник');
   if (decorsOn(10).length) bad('украшения в обычный день (10-й день года)');
 
   // (ж) ассортимент дня: в любой день двух игровых лет на прилавках хватает всего, чтобы готовить, сажать и угощать.
@@ -665,7 +770,8 @@ const { pathToFileURL } = require('url');
     ['«Замок из песка» (секретный пляж)', D.COVE.castle],
     ['«Кокосовый боулинг» (остров)', D.ISLAND.bowling],
   ].map(([name, q, town]) => ({ name, best: q.coins[2], n: q.paid || 1, town: !!town }));
-  for (const g of PRIZE_GAMES) if (!(g.best > 0 && g.n >= 1)) bad(`призовая игра ${g.name}: нет приза на 3★ или числа игр`);
+  for (const g of PRIZE_GAMES)
+    if (!(g.best > 0 && g.n >= 1)) bad(`призовая игра ${g.name}: нет приза на 3★ или числа игр`);
   const prizeSum = (list) => list.reduce((a, g) => a + g.best * g.n, 0);
   const prizeTown = prizeSum(PRIZE_GAMES.filter((g) => g.town)),
     prizeAll = prizeSum(PRIZE_GAMES);
@@ -676,22 +782,33 @@ const { pathToFileURL } = require('url');
   const gamesPerDay = Math.floor(GD.day / GD.shift);
   const ceilDay = (prizes) => {
     const slots = [
-      ...jobs.flatMap(([, j]) => Array(PAID_SHIFTS).fill(j.pay[2])).sort((a, b) => b - a).slice(0, paidMax).map((v) => ({ v, shift: 1 })),
+      ...jobs
+        .flatMap(([, j]) => Array(PAID_SHIFTS).fill(j.pay[2]))
+        .sort((a, b) => b - a)
+        .slice(0, paidMax)
+        .map((v) => ({ v, shift: 1 })),
       ...prizes.flatMap((g) => Array(g.n).fill({ v: g.best, shift: 0 })),
     ].sort((a, b) => b.v - a.v);
     const pick = slots.slice(0, gamesPerDay);
-    return { sum: pick.reduce((a, q) => a + q.v, 0), shifts: pick.filter((q) => q.shift).length, prizes: pick.filter((q) => !q.shift).length };
+    return {
+      sum: pick.reduce((a, q) => a + q.v, 0),
+      shifts: pick.filter((q) => q.shift).length,
+      prizes: pick.filter((q) => !q.shift).length,
+    };
   };
   const ceilStart = ceilDay(PRIZE_GAMES.filter((g) => g.town)),
     ceilWeek = ceilDay(PRIZE_GAMES);
-  const ceilHow = (c) => `${c.shifts} смен${c.prizes ? ` и ${c.prizes} призовых игр` : ''} на 3★ — столько игр умещается в день (${gamesPerDay} по ${GD.shift} мин), лучшее задание`;
+  const ceilHow = (c) =>
+    `${c.shifts} смен${c.prizes ? ` и ${c.prizes} призовых игр` : ''} на 3★ — столько игр умещается в день (${gamesPerDay} по ${GD.shift} мин), лучшее задание`;
   // если играть всё подряд и после 22:00 (часы встают на 23:59, хомячок ложится, когда захочет): все смены и все призы
   const everything = ceilWork + prizeAll + taskMax + MARKET.purse;
   // кратчайший день: от подъёма (7:30) до SLEEP_FROM — столько игрового времени должно пройти, чтобы снова «раз в день»
   const shortDay = D.SLEEP_FROM - (7 * 60 + 30);
-  if (!(D.SLEEP_FROM >= 18 * 60 && D.SLEEP_FROM <= 21 * 60)) bad(`SLEEP_FROM = ${D.SLEEP_FROM}: спать — вечером, с 18:00 до 21:00`);
+  if (!(D.SLEEP_FROM >= 18 * 60 && D.SLEEP_FROM <= 21 * 60))
+    bad(`SLEEP_FROM = ${D.SLEEP_FROM}: спать — вечером, с 18:00 до 21:00`);
   if (D.SLEEP_FROM > 7.5 * 60 + GD.day) bad('SLEEP_FROM: лечь спать можно только после «пора спать» из дня сбора');
-  if (shortDay < 8 * GD.shift) bad(`до сна (${shortDay} мин) не умещаются 8 игр — «раз в день» снова станет «раз в несколько минут»`);
+  if (shortDay < 8 * GD.shift)
+    bad(`до сна (${shortDay} мин) не умещаются 8 игр — «раз в день» снова станет «раз в несколько минут»`);
   // Три игрока. «В начале» — первые дни: грядки ещё пустые, мини-игры получаются на две звезды.
   // «Через неделю» — грядки работают, есть рыбалка и готовка, часть смен уже на три звезды.
   // Рынок в любом случае не даёт больше, чем лежит в кошельке торговца.
@@ -731,8 +848,18 @@ const { pathToFileURL } = require('url');
     {
       id: 'max',
       name: `потолок (самые дорогие игры на 3★, сколько умещается в день до 22:00, весь кошелёк торговца)`,
-      start: { work: ceilStart.sum, task: taskMax, market: MARKET.purse, how: ceilHow(ceilStart) + ' (открыты горка и волейбол)' },
-      week: { work: ceilWeek.sum, task: taskMax, market: MARKET.purse, how: ceilHow(ceilWeek) + ' (открыты все места)' },
+      start: {
+        work: ceilStart.sum,
+        task: taskMax,
+        market: MARKET.purse,
+        how: ceilHow(ceilStart) + ' (открыты горка и волейбол)',
+      },
+      week: {
+        work: ceilWeek.sum,
+        task: taskMax,
+        market: MARKET.purse,
+        how: ceilHow(ceilWeek) + ' (открыты все места)',
+      },
     },
   ];
   const GOAL = 25000; // первое жильё — квартира в городе (docs/DESIGN.md, раздел 3)
@@ -791,9 +918,18 @@ const { pathToFileURL } = require('url');
   line(`оплачиваемых смен в день на каждом месте / на всех вместе`, `${PAID_SHIFTS} / ${PAID_DAY}`);
   line(`все ${paidMax} оплачиваемых смен за день на 3★ (самые дорогие)`, fmt(ceilWork));
   line('задание из конверта', `${range(taskAll)} (в среднем ${fmt(taskAvg)})`);
-  line('призовые игры мест на 3★ за день: в начале (горка, волейбол) / все места', `${fmt(prizeTown)} / ${fmt(prizeAll)} (${PRIZE_GAMES.length} игр, ${PRIZE_GAMES.reduce((a, g) => a + g.n, 0)} с призом)`);
-  line('сон (этап 18): лечь спать можно с', `${Math.floor(D.SLEEP_FROM / 60)}:${String(D.SLEEP_FROM % 60).padStart(2, '0')} — кратчайший день ${shortDay} игровых мин (≈ ${Math.round((shortDay * 0.6) / 60)} мин настоящего времени без мини-игр)`);
-  line('всё оплачиваемое за день, если играть и после 22:00', `${fmt(ceilWork)} смены + ${fmt(prizeAll)} призы + ${fmt(taskMax)} задание + ${fmt(MARKET.purse)} рынок = ${fmt(everything)}`);
+  line(
+    'призовые игры мест на 3★ за день: в начале (горка, волейбол) / все места',
+    `${fmt(prizeTown)} / ${fmt(prizeAll)} (${PRIZE_GAMES.length} игр, ${PRIZE_GAMES.reduce((a, g) => a + g.n, 0)} с призом)`,
+  );
+  line(
+    'сон (этап 18): лечь спать можно с',
+    `${Math.floor(D.SLEEP_FROM / 60)}:${String(D.SLEEP_FROM % 60).padStart(2, '0')} — кратчайший день ${shortDay} игровых мин (≈ ${Math.round((shortDay * 0.6) / 60)} мин настоящего времени без мини-игр)`,
+  );
+  line(
+    'всё оплачиваемое за день, если играть и после 22:00',
+    `${fmt(ceilWork)} смены + ${fmt(prizeAll)} призы + ${fmt(taskMax)} задание + ${fmt(MARKET.purse)} рынок = ${fmt(everything)}`,
+  );
   line('кошелёк торговца на рынке (предел продаж в день)', fmt(MARKET.purse));
   console.log('\nРынок: что почём');
   for (const id of Object.keys(MARKET.sell))
@@ -861,31 +997,63 @@ const { pathToFileURL } = require('url');
   }
   line('за год в среднем: лес / город', `${fmt(yearAvg(forestSum))} / ${fmt(yearAvg(gatherSum))} в день`);
   line('находки (не продаются)', `шишки — ${FOREST.cones} в день круглый год, еловые веточки — ${FOREST.twigs} зимой`);
-  line('белка', `${FOREST.squirrel.nuts} орешка → золотая шишка (украшение, раз в день); ${FOREST.squirrel.cones} шишки → орешек`);
+  line(
+    'белка',
+    `${FOREST.squirrel.nuts} орешка → золотая шишка (украшение, раз в день); ${FOREST.squirrel.cones} шишки → орешек`,
+  );
   line('улей', `${FOREST.honey} мёд в день летом и осенью (${ING.honey.sell} на рынке)`);
-  line('«Грибная охота» (1★ / 2★ / 3★, первые ' + hunt.paid + ' в день)', `${hunt.coins.join(' / ')} монет + ${hunt.items.join(' / ')} грибов`);
+  line(
+    '«Грибная охота» (1★ / 2★ / 3★, первые ' + hunt.paid + ' в день)',
+    `${hunt.coins.join(' / ')} монет + ${hunt.items.join(' / ')} грибов`,
+  );
   console.log('\nГора (П.9)');
-  line('«Спуск на санках» (1★ / 2★ / 3★, первые ' + D.MOUNTAIN.sled.paid + ' в день)', `${D.MOUNTAIN.sled.coins.join(' / ')} монет`);
-  line('эдельвейсы (находка, не продаются)', `${D.MOUNTAIN.edelweiss} в день летом; ${D.MOUNTAIN.frame} → «Эдельвейсы в рамке» (украшение)`);
+  line(
+    '«Спуск на санках» (1★ / 2★ / 3★, первые ' + D.MOUNTAIN.sled.paid + ' в день)',
+    `${D.MOUNTAIN.sled.coins.join(' / ')} монет`,
+  );
+  line(
+    'эдельвейсы (находка, не продаются)',
+    `${D.MOUNTAIN.edelweiss} в день летом; ${D.MOUNTAIN.frame} → «Эдельвейсы в рамке» (украшение)`,
+  );
   line('горячий источник, смотровая площадка, снеговик', 'бесплатно: наклейки, тепло и морковка для носа (из рюкзака)');
   console.log('\nПещеры (П.9)');
   line('фонарик (ТЦ «Уютный дом», продать нельзя)', `${PRICES.tools.flashlight} монет, один на всю игру`);
-  line('«Кристаллы» (1★ / 2★ / 3★, первые ' + dig.paid + ' в день)', `${dig.coins.join(' / ')} монет + ${dig.gems.join(' / ')} самоцвета`);
+  line(
+    '«Кристаллы» (1★ / 2★ / 3★, первые ' + dig.paid + ' в день)',
+    `${dig.coins.join(' / ')} монет + ${dig.gems.join(' / ')} самоцвета`,
+  );
   line(
     'самоцветы на рынке',
-    GEM_IDS.map((id) => `${D.FIND_BY_ID[id].name.toLowerCase()} ${CAVES.gems[id]}`).join(', ') + `; в день не больше ${dig.paid * dig.gems[2]}`,
+    GEM_IDS.map((id) => `${D.FIND_BY_ID[id].name.toLowerCase()} ${CAVES.gems[id]}`).join(', ') +
+      `; в день не больше ${dig.paid * dig.gems[2]}`,
   );
-  line('«Кристаллы»: лучшая игра / лучший день', `до ${fmt(digBest)} / до ${fmt(cavesDay)} (смена на 2★ — ${fmt(avg2)})`);
-  line('светящиеся грибы (находка, не продаются)', `${CAVES.shrooms} в день; ${CAVES.lamp} → «Грибной ночник» (украшение)`);
+  line(
+    '«Кристаллы»: лучшая игра / лучший день',
+    `до ${fmt(digBest)} / до ${fmt(cavesDay)} (смена на 2★ — ${fmt(avg2)})`,
+  );
+  line(
+    'светящиеся грибы (находка, не продаются)',
+    `${CAVES.shrooms} в день; ${CAVES.lamp} → «Грибной ночник» (украшение)`,
+  );
   line('шкатулка самоцветов', `по одному каждого вида (${GEM_IDS.length}) → украшение`);
   console.log('\nПустыня (П.9)');
-  line('плоды кактуса (весна и лето)', `${DESERT_GATHER.cactus_fruit.n * DESERT_GATHER.cactus_fruit.max} в день (${ING.cactus_fruit.sell} на рынке)`);
-  line('«Раскопки» (1★ / 2★ / 3★, первые ' + DESERT.dig.paid + ' в день)', `${DESERT.dig.coins.join(' / ')} монет + 1 окаменелость`);
+  line(
+    'плоды кактуса (весна и лето)',
+    `${DESERT_GATHER.cactus_fruit.n * DESERT_GATHER.cactus_fruit.max} в день (${ING.cactus_fruit.sell} на рынке)`,
+  );
+  line(
+    '«Раскопки» (1★ / 2★ / 3★, первые ' + DESERT.dig.paid + ' в день)',
+    `${DESERT.dig.coins.join(' / ')} монет + 1 окаменелость`,
+  );
   line(
     'окаменелости на рынке',
-    FOSSIL_IDS.map((id) => `${D.FIND_BY_ID[id].name.toLowerCase()} ${DESERT.fossils[id]}`).join(', ') + `; в день не больше ${DESERT.dig.paid}`,
+    FOSSIL_IDS.map((id) => `${D.FIND_BY_ID[id].name.toLowerCase()} ${DESERT.fossils[id]}`).join(', ') +
+      `; в день не больше ${DESERT.dig.paid}`,
   );
-  line('«Раскопки»: лучшая игра / лучший день', `до ${fmt(digBestD)} / до ${fmt(DESERT.dig.paid * digBestD)} (смена на 2★ — ${fmt(avg2)})`);
+  line(
+    '«Раскопки»: лучшая игра / лучший день',
+    `до ${fmt(digBestD)} / до ${fmt(DESERT.dig.paid * digBestD)} (смена на 2★ — ${fmt(avg2)})`,
+  );
   line('загадка пирамиды «Пары» (раз в день)', `${DESERT.pairs.coins.join(' / ')} монет`);
   line('коллекция окаменелостей', `по одной каждого вида (${FOSSIL_IDS.length}) → украшение`);
   line('«Шляпа от солнца» (ТЦ «Модный», всегда)', `${PRICES.clothes.sunhat_wide} монет`);
@@ -896,34 +1064,81 @@ const { pathToFileURL } = require('url');
       .map(([id, q]) => `${ING[id].name.toLowerCase()} ${q.n * q.max}`)
       .join(', ') + ' в день',
   );
-  line('сбор в джунглях по сезонам (на рынке)', ['winter', 'spring', 'summer', 'autumn'].map((sea, i) => `${['зима', 'весна', 'лето', 'осень'][i]} ${fmt(jungleIn([0, 3, 6, 9][i]))}`).join(', '));
-  line('перья попугаев на рынке', FEATHER_IDS.map((id) => `${D.FIND_BY_ID[id].name.toLowerCase()} ${JUNGLE.feathers[id]}`).join(', ') + `; в день до ${fmt(feathersDay)}`);
+  line(
+    'сбор в джунглях по сезонам (на рынке)',
+    ['winter', 'spring', 'summer', 'autumn']
+      .map((sea, i) => `${['зима', 'весна', 'лето', 'осень'][i]} ${fmt(jungleIn([0, 3, 6, 9][i]))}`)
+      .join(', '),
+  );
+  line(
+    'перья попугаев на рынке',
+    FEATHER_IDS.map((id) => `${D.FIND_BY_ID[id].name.toLowerCase()} ${JUNGLE.feathers[id]}`).join(', ') +
+      `; в день до ${fmt(feathersDay)}`,
+  );
   line('«Лианы» (1★ / 2★ / 3★, первые ' + JUNGLE.vines.paid + ' в день)', `${JUNGLE.vines.coins.join(' / ')} монет`);
   line('«Узор храма» (раз в день)', `${JUNGLE.glyphs.coins.join(' / ')} монет`);
   line('перья в рамке', `по одному каждого цвета (${FEATHER_IDS.length}) → украшение`);
   console.log('\nСекретный пляж (П.9)');
-  line('редкие ракушки на рынке', D.SHELL_IDS.map((id) => `${D.FIND_BY_ID[id].name.toLowerCase()} ${D.COVE.shells.sell[id]}`).join(', ') + `; в день летом ${D.COVE.shells.summer}, иначе ${D.COVE.shells.other} (до ${fmt(D.COVE.shells.summer * Math.max(...Object.values(D.COVE.shells.sell)))})`);
-  line('«Замок из песка» (1★ / 2★ / 3★, первые ' + D.COVE.castle.paid + ' в день)', `${D.COVE.castle.coins.join(' / ')} монет`);
-  line('клад под крестиком (один раз за игру)', `${fmt(D.COVE.treasure.coins)} монет + «Сундучок с сокровищами» (украшение)`);
+  line(
+    'редкие ракушки на рынке',
+    D.SHELL_IDS.map((id) => `${D.FIND_BY_ID[id].name.toLowerCase()} ${D.COVE.shells.sell[id]}`).join(', ') +
+      `; в день летом ${D.COVE.shells.summer}, иначе ${D.COVE.shells.other} (до ${fmt(D.COVE.shells.summer * Math.max(...Object.values(D.COVE.shells.sell)))})`,
+  );
+  line(
+    '«Замок из песка» (1★ / 2★ / 3★, первые ' + D.COVE.castle.paid + ' в день)',
+    `${D.COVE.castle.coins.join(' / ')} монет`,
+  );
+  line(
+    'клад под крестиком (один раз за игру)',
+    `${fmt(D.COVE.treasure.coins)} монет + «Сундучок с сокровищами» (украшение)`,
+  );
   line('ракушки в рамке', `по одной каждого вида (${D.SHELL_IDS.length}) → украшение`);
-  line('черепашата (вечером, с ' + D.COVE.turtles.from + ':00)', `летом ${D.COVE.turtles.summer}, иначе ${D.COVE.turtles.other} — наклейка, без монет`);
+  line(
+    'черепашата (вечером, с ' + D.COVE.turtles.from + ':00)',
+    `летом ${D.COVE.turtles.summer}, иначе ${D.COVE.turtles.other} — наклейка, без монет`,
+  );
   console.log('\nУдалённый остров (П.9)');
   line(
     'находки на рынке',
     `вулканическое стекло ${D.ISLAND.obsidian} (одно в день), цветы для леи ${Object.values(D.ISLAND.flowers).join(' / ')} (один в день); в день до ${fmt(D.ISLAND.obsidian + Math.max(...Object.values(D.ISLAND.flowers)))}`,
   );
-  line('«Кокосовый боулинг» (1★ / 2★ / 3★, первые ' + D.ISLAND.bowling.paid + ' в день)', `${D.ISLAND.bowling.coins.join(' / ')} монет`);
-  line('«Пляжный волейбол» (1★ / 2★ / 3★, первые ' + D.RELAX_PRIZE.volley.paid + ' в день)', `${D.RELAX_PRIZE.volley.coins.join(' / ')} монет`);
-  line('лея из цветов / маленький тотем', `${D.ISLAND.lei} разных цветка → вещь (один раз) / ${D.ISLAND.totem} кусочка стекла → украшение`);
-  line('праздник огней (каждый вечер)', `с ${D.ISLAND.fest.from}:00 до ${D.ISLAND.fest.to}:00 — танец и наклейка, без монет`);
+  line(
+    '«Кокосовый боулинг» (1★ / 2★ / 3★, первые ' + D.ISLAND.bowling.paid + ' в день)',
+    `${D.ISLAND.bowling.coins.join(' / ')} монет`,
+  );
+  line(
+    '«Пляжный волейбол» (1★ / 2★ / 3★, первые ' + D.RELAX_PRIZE.volley.paid + ' в день)',
+    `${D.RELAX_PRIZE.volley.coins.join(' / ')} монет`,
+  );
+  line(
+    'лея из цветов / маленький тотем',
+    `${D.ISLAND.lei} разных цветка → вещь (один раз) / ${D.ISLAND.totem} кусочка стекла → украшение`,
+  );
+  line(
+    'праздник огней (каждый вечер)',
+    `с ${D.ISLAND.fest.from}:00 до ${D.ISLAND.fest.to}:00 — танец и наклейка, без монет`,
+  );
   console.log('\n«День сбора» (этап 12): что реально обойти за день — с дорогой, обходом и временем на сбор');
-  line('день / смена / на одно растение', `${GD.day} / ${GD.shift} / ${GD.pick} игровых минут; работа — ${workPerMin.toFixed(1)} монеты в минуту (смена на 2★ — ${fmt(avg2)})`);
-  console.log('  места (дорога в один конец + обход, минут): ' + Object.values(GD.places).map((pl) => `${pl.name} ${pl.go}+${pl.walk}`).join(', '));
+  line(
+    'день / смена / на одно растение',
+    `${GD.day} / ${GD.shift} / ${GD.pick} игровых минут; работа — ${workPerMin.toFixed(1)} монеты в минуту (смена на 2★ — ${fmt(avg2)})`,
+  );
+  console.log(
+    '  места (дорога в один конец + обход, минут): ' +
+      Object.values(GD.places)
+        .map((pl) => `${pl.name} ${pl.go}+${pl.walk}`)
+        .join(', '),
+  );
   for (const s of Object.keys(SEASONS)) {
     const month = SEASON_OF_MONTH.lastIndexOf(s),
       day = gatherDay(month);
-    console.log(`  ${SEASONS[s].name.toLowerCase()} (${MONTHS[month]}): ${day.ids.map((id) => `${GD.places[id].name} ${fmt(placeIn[id](month).sum)}`).join(', ')}`);
-    line('', `${fmt(day.sum)} монет за ${fmt(day.time)} мин — ${Math.round((100 * day.sum) / day.time / workPerMin)} % работы; с огородом ${fmt(day.sum + 8 * bedBestIn(month))}`);
+    console.log(
+      `  ${SEASONS[s].name.toLowerCase()} (${MONTHS[month]}): ${day.ids.map((id) => `${GD.places[id].name} ${fmt(placeIn[id](month).sum)}`).join(', ')}`,
+    );
+    line(
+      '',
+      `${fmt(day.sum)} монет за ${fmt(day.time)} мин — ${Math.round((100 * day.sum) / day.time / workPerMin)} % работы; с огородом ${fmt(day.sum + 8 * bedBestIn(month))}`,
+    );
   }
   {
     let top = 0,
@@ -933,24 +1148,40 @@ const { pathToFileURL } = require('url');
       rateWho = '';
     for (let mo = 0; mo < 12; mo++) {
       const v = gatherDay(mo).sum + 8 * bedBestIn(mo);
-      if (v > top) (top = v), (topM = mo);
+      if (v > top) ((top = v), (topM = mo));
       old = Math.max(old, gatherPlaces.reduce((a, id) => a + placeIn[id](mo).sum, 0) + 8 * bedBestIn(mo));
       for (const id of gatherPlaces) {
         const q = placeIn[id](mo);
-        if (q.sum && q.sum / tripTime([id], mo) > rate) (rate = q.sum / tripTime([id], mo)), (rateWho = `${GD.places[id].name}, ${MONTHS[mo]}`);
+        if (q.sum && q.sum / tripTime([id], mo) > rate)
+          ((rate = q.sum / tripTime([id], mo)), (rateWho = `${GD.places[id].name}, ${MONTHS[mo]}`));
       }
     }
-    line('самый щедрый день сбора с огородом', `${fmt(top)} монет (${MONTHS[topM]}) — предел: пять смен на 2★ — ${fmt(5 * avg2)}, кошелёк торговца — ${fmt(MARKET.purse)}`);
-    line('самый выгодный поход в одно место', `${rateWho}: ${rate.toFixed(1)} монеты в минуту — ${Math.round((100 * rate) / workPerMin)} % работы (предел — 75 %)`);
-    line('для сравнения: все места сразу, без дороги (старое правило)', `${fmt(old)} монет — с перьями и мёдом, которых старое правило не считало`);
+    line(
+      'самый щедрый день сбора с огородом',
+      `${fmt(top)} монет (${MONTHS[topM]}) — предел: пять смен на 2★ — ${fmt(5 * avg2)}, кошелёк торговца — ${fmt(MARKET.purse)}`,
+    );
+    line(
+      'самый выгодный поход в одно место',
+      `${rateWho}: ${rate.toFixed(1)} монеты в минуту — ${Math.round((100 * rate) / workPerMin)} % работы (предел — 75 %)`,
+    );
+    line(
+      'для сравнения: все места сразу, без дороги (старое правило)',
+      `${fmt(old)} монет — с перьями и мёдом, которых старое правило не считало`,
+    );
   }
   console.log('\nКурортный отель «Морская звезда» (П.17, открыт сразу)');
   line('носильщица (1★ / 2★ / 3★, две смены в день)', `${D.JOBS.porter.pay.join(' / ')} монет`);
   line('«Горка» (1★ / 2★ / 3★, первые ' + D.HOTEL.slide.paid + ' в день)', `${D.HOTEL.slide.coins.join(' / ')} монет`);
   line('номер на ночь / спа (массаж или маска)', `${fmt(D.HOTEL.room)} / ${fmt(D.HOTEL.spa)} монет`);
-  line('шведский стол (только «съесть тут»)', `блюда ${range(D.BUFFET.map((id) => D.DISH_BY_ID[id].price))}; раз в день × ${D.HOTEL.buffet}, после ночи в отеле — даром`);
+  line(
+    'шведский стол (только «съесть тут»)',
+    `блюда ${range(D.BUFFET.map((id) => D.DISH_BY_ID[id].price))}; раз в день × ${D.HOTEL.buffet}, после ночи в отеле — даром`,
+  );
   line('номер-люкс (агентство «Свой домик»)', `${fmt(D.HOME_PRICES.suite)} монет`);
-  line('аниматор', `зарядка ${D.HOTEL.animator.morning.join('–')} ч, дискотека ${D.HOTEL.animator.evening.join('–')} ч — танец и наклейка, без монет`);
+  line(
+    'аниматор',
+    `зарядка ${D.HOTEL.animator.morning.join('–')} ч, дискотека ${D.HOTEL.animator.evening.join('–')} ч — танец и наклейка, без монет`,
+  );
   {
     let days = 0;
     for (let d = 0; d < 72; d++) if (D.poolGuestOn(d, D.HOTEL.poolGuest.from * 60 + 30)) days++;
@@ -958,7 +1189,15 @@ const { pathToFileURL } = require('url');
   }
   console.log('\nПраздники (П.13, раз в год, один день; накануне город украшен)');
   for (const h of D.HOLIDAYS) {
-    const gname = (g) => (g.clothes ? [].concat(g.clothes).map((id) => D.CLOTHES_BY_ID[id].name).join(' и ') : g.furn ? D.FURN_BY_ID[g.furn].name : 'рецепт «' + D.DISH_BY_ID[g.recipe].name + '»');
+    const gname = (g) =>
+      g.clothes
+        ? []
+            .concat(g.clothes)
+            .map((id) => D.CLOTHES_BY_ID[id].name)
+            .join(' и ')
+        : g.furn
+          ? D.FURN_BY_ID[g.furn].name
+          : 'рецепт «' + D.DISH_BY_ID[g.recipe].name + '»';
     const g = h.gift,
       gift = D.holidayGifts(h).map(gname).join(' → ');
     const extra =
@@ -975,7 +1214,10 @@ const { pathToFileURL } = require('url');
                 : '';
     const doy = D.holidayDoy(h),
       when = `${D.MONTHS[Math.floor(doy / 3)].toLowerCase()} ${(doy % 3) + 1}${h.since ? ', через год после начала игры' : ''}`;
-    line(`${h.icon} ${h.name} (${when})`, `${D.HOLIDAY.coins[h.id]}${extra}; подарки по годам — ${gift}${g ? ` (всё собрано — ${D.HOLIDAY.again} монет)` : ''}`);
+    line(
+      `${h.icon} ${h.name} (${when})`,
+      `${D.HOLIDAY.coins[h.id]}${extra}; подарки по годам — ${gift}${g ? ` (всё собрано — ${D.HOLIDAY.again} монет)` : ''}`,
+    );
   }
   console.log('\nГотовка: продукты → порция на рынке (1 / 2 / 3 порции за одну готовку)');
   for (const { d, cost, raw, buyable } of cook.sort((a, b) => b.d.sell - a.d.sell).slice(0, 8))
@@ -1039,8 +1281,12 @@ const { pathToFileURL } = require('url');
   // и даже если играть без перерыва и после 22:00 (все смены, все призы мест, лучшее задание, весь рынок) — квартира
   // не за один день; призы всех мест вместе — меньше трети заработка всеми сменами на 3★ (каждый приз сам по себе —
   // меньше смены на 2★, это проверено выше)
-  if (START_MONEY + everything >= GOAL) bad(`всё оплачиваемое за день (${fmt(everything)}) с первого дня покупает квартиру`);
-  if (prizeAll >= ceilWork / 3) bad(`призовые игры всех мест за день — ${fmt(prizeAll)}, это не меньше трети всех смен на 3★ (${fmt(ceilWork / 3)})`);
+  if (START_MONEY + everything >= GOAL)
+    bad(`всё оплачиваемое за день (${fmt(everything)}) с первого дня покупает квартиру`);
+  if (prizeAll >= ceilWork / 3)
+    bad(
+      `призовые игры всех мест за день — ${fmt(prizeAll)}, это не меньше трети всех смен на 3★ (${fmt(ceilWork / 3)})`,
+    );
 
   // ---------- 5. жильё и свой бизнес ----------
   // Заведение приносит выручку раз в день; хозяйка может поработать сама (прибавка по звёздам) и получает за смену
@@ -1258,7 +1504,8 @@ const { pathToFileURL } = require('url');
       // самоцветы рынок берёт (CAVES.gems — их мало в день, раздел про пещеры выше), инструмент продаётся в ТЦ
       if (D.CAVES.gems[f.id] !== undefined && f.kind !== 'gem') bad(`находку ${f.id} покупает рынок`);
       for (const t of Object.keys(PRICES))
-        if (PRICES[t] && PRICES[t][f.id] !== undefined && !(t === 'tools' && f.kind === 'tool')) bad(`у находки ${f.id} есть цена (${t})`);
+        if (PRICES[t] && PRICES[t][f.id] !== undefined && !(t === 'tools' && f.kind === 'tool'))
+          bad(`у находки ${f.id} есть цена (${t})`);
     }
     for (const [type, bySeason] of Object.entries(HERB_KINDS))
       for (const sea of Object.keys(SEASONS)) {
@@ -1280,7 +1527,8 @@ const { pathToFileURL } = require('url');
       if (r.coins !== QUEST_COINS[q.id]) bad(`задание ${q.id}: монеты не из QUEST_COINS`);
       if (r.clothes && !CLOTHES_BY_ID[r.clothes]) bad(`задание ${q.id}: неизвестная вещь ${r.clothes}`);
       if (r.open && !LAND_BY_ID[r.open]) bad(`задание ${q.id}: неизвестное место ${r.open}`);
-      if (r.sticker && !EXTRA_STICKERS.some((x) => x.id === r.sticker)) bad(`задание ${q.id}: нет наклейки ${r.sticker}`);
+      if (r.sticker && !EXTRA_STICKERS.some((x) => x.id === r.sticker))
+        bad(`задание ${q.id}: нет наклейки ${r.sticker}`);
       line(
         `  ${q.title}`,
         `${fmt(r.coins || 0)} монет${r.clothes ? ` + ${CLOTHES_BY_ID[r.clothes].name} (если уже есть — ${fmt(QUEST_GIFT_COINS)} монет)` : ''}, один раз за игру`,
@@ -1293,12 +1541,16 @@ const { pathToFileURL } = require('url');
     const { PETS, PET, PET_GOODS, PET_PRICES, RIDES, RIDE_PRICES, YARD_ITEMS, YARD_PRICES, HOME_PRICES } = D;
     console.log('\nПитомец, транспорт, двор (этап 17б)');
     if (!(PET_PRICES.fee > 0 && PET_PRICES.food > 0 && PET_PRICES.ball > 0)) bad('PET_PRICES: нужны fee, food и ball');
-    if (PET_PRICES.fee > avg2 * 2) bad(`взнос приюту (${PET_PRICES.fee}) дороже двух смен на 2★ — питомец должен быть доступен в первые дни`);
+    if (PET_PRICES.fee > avg2 * 2)
+      bad(`взнос приюту (${PET_PRICES.fee}) дороже двух смен на 2★ — питомец должен быть доступен в первые дни`);
     if (PET_PRICES.food * 30 > avg2 * 4) bad('корм на месяц дороже четырёх смен на 2★');
     for (const g of PET_GOODS) if (!(g.price > 0)) bad(`товар для питомца без цены: ${g.id}`);
     const days = Math.ceil((PET.heart * PET.hearts) / (PET.pet + PET.feed + PET.play));
     if (days < 3 || days > 14) bad(`«Лучший друг» за ${days} дн. заботы — должно быть от 3 до 14`);
-    line(`питомец из приюта (${PETS.map((q) => q.name.toLowerCase()).join(', ')})`, `взнос на корм ${fmt(PET_PRICES.fee)}, корм ${PET_PRICES.food} за раз, мячик ${PET_PRICES.ball}`);
+    line(
+      `питомец из приюта (${PETS.map((q) => q.name.toLowerCase()).join(', ')})`,
+      `взнос на корм ${fmt(PET_PRICES.fee)}, корм ${PET_PRICES.food} за раз, мячик ${PET_PRICES.ball}`,
+    );
     line('«Лучший друг» (5 сердечек)', `${days} дн., если каждый день гладить, кормить и играть; монет не даёт`);
     let prev = 0,
       prevSp = 1;
@@ -1312,13 +1564,18 @@ const { pathToFileURL } = require('url');
     }
     if (RIDE_PRICES.scooter > avg2 * 4) bad('самокат дороже четырёх смен на 2★');
     if (RIDE_PRICES.car >= Math.min(...Object.values(HOME_PRICES))) bad('кабриолет не дешевле самого дешёвого жилья');
-    for (const id of Object.keys(RIDE_PRICES)) if (!RIDES.some((r) => r.id === id)) bad(`RIDE_PRICES: неизвестный транспорт ${id}`);
+    for (const id of Object.keys(RIDE_PRICES))
+      if (!RIDES.some((r) => r.id === id)) bad(`RIDE_PRICES: неизвестный транспорт ${id}`);
     for (const y of YARD_ITEMS) if (!(y.price > 0)) bad(`предмет для двора без цены: ${y.id}`);
-    for (const id of Object.keys(YARD_PRICES)) if (!YARD_ITEMS.some((y) => y.id === id)) bad(`YARD_PRICES: неизвестный предмет ${id}`);
+    for (const id of Object.keys(YARD_PRICES))
+      if (!YARD_ITEMS.some((y) => y.id === id)) bad(`YARD_PRICES: неизвестный предмет ${id}`);
     for (const id of [...YARD_ITEMS.map((y) => y.id), ...RIDES.map((r) => r.id), 'food', 'ball'])
       if (MARKET.sell[id] !== undefined) bad(`${id} покупает рынок — питомец, транспорт и двор не продаются`);
     const yp = YARD_ITEMS.map((y) => y.price);
-    line(`для двора (${YARD_ITEMS.length} предметов, ТЦ «Уютный дом»)`, `от ${fmt(Math.min(...yp))} до ${fmt(Math.max(...yp))} монет; всё по одному — ${fmt(yp.reduce((q, v) => q + v, 0))}`);
+    line(
+      `для двора (${YARD_ITEMS.length} предметов, ТЦ «Уютный дом»)`,
+      `от ${fmt(Math.min(...yp))} до ${fmt(Math.max(...yp))} монет; всё по одному — ${fmt(yp.reduce((q, v) => q + v, 0))}`,
+    );
   }
 
   if (problems.length) {

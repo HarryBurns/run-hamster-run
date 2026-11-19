@@ -16,14 +16,16 @@ export const EVENTS = {
   scene: 'сменилась сцена { name, from }',
   step: 'шаг логики, мир не на паузе { dt }',
   saveFail: 'сохранение не записалось { quota } — quota: хранилище переполнено (core/state.js, save)',
-  saveLost: 'игру увела другая вкладка { why } — why: tab | newer (там код новее); эта вкладка больше не сохраняет (core/state.js)',
+  saveLost:
+    'игру увела другая вкладка { why } — why: tab | newer (там код новее); эта вкладка больше не сохраняет (core/state.js)',
   // --- дом ---
   guests: 'изменился список гостей',
   guestHappy: 'гостя угостили { id }',
   happy: 'хомячок радуется (вкусно поела и т. п.)',
   wake: 'наступило утро: хомячок просыпается в своей кровати',
   place: 'мебель поставили из кладовки { id }',
-  friend: 'выросли сердечки дружбы { id, before, after } (core/actions.js, addFriendPts) — награды выдаёт features/friends.js',
+  friend:
+    'выросли сердечки дружбы { id, before, after } (core/actions.js, addFriendPts) — награды выдаёт features/friends.js',
   estate: 'куплено жильё или заведение, сменился основной дом, изменились настройки заведения',
   health: 'хомячок простыла или выздоровела { sick, cause, how } (features/health.js)',
   // --- сюжетные задания (features/quests.js) ---
@@ -32,7 +34,8 @@ export const EVENTS = {
   tale: 'хомячок рассказала жителю о том, что видела { id, npc } (features/tales.js)',
   // --- то, что считают ежедневные задания (features/mail.js) и сюжетные задания (features/quests.js) ---
   minigame: 'сыграна мини-игра { id, stars }',
-  relax: 'хомячок присела отдохнуть на скамейку, лежак, качели… { how: sit | lie | swing | hammock | slide, type } (features/relax.js)',
+  relax:
+    'хомячок присела отдохнуть на скамейку, лежак, качели… { how: sit | lie | swing | hammock | slide, type } (features/relax.js)',
   buy: 'покупка { cat, id }',
   sell: 'продано на рынке { id, n, sum }',
   cook: 'приготовлено блюдо { dish, perfect }',
@@ -66,14 +69,12 @@ export const EVENTS = {
     'занятие на горе { what } — spring (горячий источник), edelweiss (сорвали эдельвейс), summit (смотровая площадка), snowman (слепили снеговика), frame (эдельвейс в рамке), mitten (нашли варежку) — features/mountain.js',
   caves:
     'занятие в пещерах { what } — shroom (сорвали светящийся гриб), paint (древние рисунки), bats (вспугнули летучих мышей), lake (подземное озеро), pick (нашли кирку Камушкина), geode (шкатулка самоцветов), lamp (грибной ночник) — features/caves.js',
-  deep:
-    'нижний ярус пещер { what } — ride (проплыли вниз по подземной реке), back (вернулись на лодочке обратно) — locations/deep.js (этап 17в)',
+  deep: 'нижний ярус пещер { what } — ride (проплыли вниз по подземной реке), back (вернулись на лодочке обратно) — locations/deep.js (этап 17в)',
   desert:
     'занятие в пустыне { what } — ride (прокатились на верблюде), mirage (подошли к миражу), wish (загадали желание), bell (нашли бубенчик), fossils (коллекция окаменелостей), oasis (оазис) — features/desert.js',
   jungle:
     'занятие в джунглях { what } — fall (искупались под водопадом), parrot (попугай заговорил), feather (попугай уронил перо), teach (попугая научили слову { i, id }), bridge (перешли подвесной мост), notebook (нашли дневник Лианы), frame (перья в рамке), canoe (доплыли на лодочке-пироге до водопада) — features/jungle.js, locations/jungle.js',
-  cove:
-    'секретный пляж { what } — piece (нашли кусочек карты Зефирки, поле id: tower | ship | isle), turtles (черепашата доплыли до моря), glow (ночью вошла в светящуюся воду), shell (подобрали ракушку), frame (ракушки в рамке), treasure (выкопали клад) — features/cove.js, locations/cove.js',
+  cove: 'секретный пляж { what } — piece (нашли кусочек карты Зефирки, поле id: tower | ship | isle), turtles (черепашата доплыли до моря), glow (ночью вошла в светящуюся воду), shell (подобрали ракушку), frame (ракушки в рамке), treasure (выкопали клад) — features/cove.js, locations/cove.js',
   island:
     'удалённый остров { what } — spot (нашли остров в подзорную трубу), volcano (посмотрела на вулкан), obsidian (взяла вулканическое стекло), flower (подобрала цветок для леи), dance (потанцевала на празднике огней), lei (Вождь сплёл лею), totem (Вождь вырезал тотем), lagoon (зашла в тёплую лагуну), erupt (увидела «доброе извержение») — features/island.js, locations/island.js',
   hotel:
@@ -84,7 +85,8 @@ export const EVENTS = {
   pet: 'питомец (этап 17б) { what } — adopt (взяли из приюта, поле kind), name (дали имя), pet / feed / play (погладили, покормили, поиграли; gain — очки дружбы), good (купили корм или мячик), stay (ждёт дома или гуляет)',
   wheels: 'транспорт (этап 17б) { what, id } — buy (купили), use (выбрали, на чём ездить), on / off (сели, слезли)',
   yard: 'двор (этап 17б) { what, yard, id } — buy (купили предмет), place / move / stash (поставили, переставили, убрали в сарайчик)',
-  forest: 'занятие в лесу { what } — hive (мёд), squirrel (обмен у белки), fire (жарили зефир), treehouse (домик на дереве), wreath (венок), kit (нашли бельчонка), kitHome (отнесли маме) — features/forest.js',
+  forest:
+    'занятие в лесу { what } — hive (мёд), squirrel (обмен у белки), fire (жарили зефир), treehouse (домик на дереве), wreath (венок), kit (нашли бельчонка), kitHome (отнесли маме) — features/forest.js',
 };
 
 const listeners = new Map(); // имя → Set функций

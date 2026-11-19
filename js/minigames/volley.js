@@ -144,7 +144,6 @@ function howTo() {
 }
 
 function start(host) {
-
   const top = el('div', 'vb-top');
   const tScore = el('div', 'vb-chip'),
     tSay = el('div', 'vb-chip');
@@ -511,12 +510,14 @@ function start(host) {
     // песок из-под мяча
     for (const q of puffs) {
       ctx.globalAlpha = 1 - q.t / 0.6;
-      for (let i = 0; i < 5; i++) ell(ctx, q.x + (i - 2) * 9 * (1 + q.t * 2), G - q.t * 30 - (i % 2) * 6, 4, 3, '#f2d48a');
+      for (let i = 0; i < 5; i++)
+        ell(ctx, q.x + (i - 2) * 9 * (1 + q.t * 2), G - q.t * 30 - (i % 2) * 6, 4, 3, '#f2d48a');
       ctx.globalAlpha = 1;
     }
     ball(ctx, b.x, b.y, BALL_R, b.rot);
     // хомячок готов отбить — искорка над головой
-    if (me.swing > 0 && phase === 'fly') poly(ctx, [me.x - 6, G - 108, me.x, G - 122, me.x + 6, G - 108], '#ffd43b', OUT, 1.4);
+    if (me.swing > 0 && phase === 'fly')
+      poly(ctx, [me.x - 6, G - 108, me.x, G - 122, me.x + 6, G - 108], '#ffd43b', OUT, 1.4);
     ctx.restore();
   }
   host.loop((dt) => {
@@ -564,19 +565,26 @@ function start(host) {
   host.on(window, 'keydown', key);
   host.on(window, 'keyup', key);
   // для автотеста: что сейчас в игре; __volleyBot(true) — играет сама
-  if (DEV) cv.canvas.__volley = () => ({
-    phase,
-    us,
-    them,
-    rally,
-    hits,
-    over,
-    server,
-    me: me.x,
-    zone: NET - zone0,
-    over2: sk.over,
-    ball: { x: b.x, y: b.y, side: b.side, who: b.who === me ? 'me' : b.who === pal ? 'mate' : b.who ? 'rival' : null, tx: b.tx },
-  });
+  if (DEV)
+    cv.canvas.__volley = () => ({
+      phase,
+      us,
+      them,
+      rally,
+      hits,
+      over,
+      server,
+      me: me.x,
+      zone: NET - zone0,
+      over2: sk.over,
+      ball: {
+        x: b.x,
+        y: b.y,
+        side: b.side,
+        who: b.who === me ? 'me' : b.who === pal ? 'mate' : b.who ? 'rival' : null,
+        tx: b.tx,
+      },
+    });
   if (DEV) cv.canvas.__volleyBot = (on = true) => (bot = !!on);
   /** Точка игры (единицы мира 800 × 450) → CSS-пиксели канвы: куда нажимать автотесту. */
   if (DEV) cv.canvas.__volleyScreen = (x, y) => ({ x: OX() + x * K(), y: OY() + y * K() });

@@ -34,7 +34,23 @@ export const GATHER = {
     { from: 17, to: 22, kind: 'ring', c: [44.5, 23.15], r: [2.45, 1.15], speed: 0.3, where: 'хоровод у ёлки' },
   ],
   xmas: [
-    { from: 11, to: 15, kind: 'crowd', c: [54, 23], spots: [[52.4, 24.6], [55.6, 24.2], [53.3, 25.5], [54.8, 25.7], [51.3, 23.9], [56.8, 23.6], [51.9, 25.8], [56.6, 25.4]], where: 'у вертепа' },
+    {
+      from: 11,
+      to: 15,
+      kind: 'crowd',
+      c: [54, 23],
+      spots: [
+        [52.4, 24.6],
+        [55.6, 24.2],
+        [53.3, 25.5],
+        [54.8, 25.7],
+        [51.3, 23.9],
+        [56.8, 23.6],
+        [51.9, 25.8],
+        [56.6, 25.4],
+      ],
+      where: 'у вертепа',
+    },
     { from: 16, to: 22, kind: 'doors', where: 'у своих дверей' },
   ],
   cny: [
@@ -43,7 +59,16 @@ export const GATHER = {
       to: 18,
       kind: 'dance',
       c: [45.5, 23.3],
-      spots: [[42.9, 25.3], [44.3, 25.7], [47.6, 25.6], [49.1, 25.2], [50.3, 24.4], [41.7, 24.5], [48.6, 21.6], [42.5, 21.5]],
+      spots: [
+        [42.9, 25.3],
+        [44.3, 25.7],
+        [47.6, 25.6],
+        [49.1, 25.2],
+        [50.3, 24.4],
+        [41.7, 24.5],
+        [48.6, 21.6],
+        [42.5, 21.5],
+      ],
       where: 'танцуют у дракона',
     },
   ],
@@ -53,7 +78,16 @@ export const GATHER = {
       to: 17,
       kind: 'crowd',
       c: [50, 24],
-      spots: [[42.6, 24.6], [47.4, 24.4], [57.8, 26.1], [61.7, 26.4], [49.6, 25.7], [53.6, 25.9], [56.3, 24.1], [47.2, 22.3]],
+      spots: [
+        [42.6, 24.6],
+        [47.4, 24.4],
+        [57.8, 26.1],
+        [61.7, 26.4],
+        [49.6, 25.7],
+        [53.6, 25.9],
+        [56.3, 24.1],
+        [47.2, 22.3],
+      ],
       where: 'на ярмарке',
     },
   ],
@@ -92,7 +126,8 @@ export function createCrowd() {
     crew.clear();
   }
   /** Может ли житель праздновать сейчас. */
-  const free = (n) => !n.hidden && !n.inside && !n.goingHome && !invitedToday(n.id) && (!n.hold || n.hold.crowd) && !!NPC_BY_ID[n.id];
+  const free = (n) =>
+    !n.hidden && !n.inside && !n.goingHome && !invitedToday(n.id) && (!n.hold || n.hold.crowd) && !!NPC_BY_ID[n.id];
   /** Куда встать жителю (единицы мира). */
   function placeOf(sc, g, n, slot, total, t) {
     if (CIRCLE[g.kind]) return circleAt(g, slot, total, t);
@@ -112,7 +147,10 @@ export function createCrowd() {
       dir = n.dir === -1 ? -1 : 1;
     const key = `npcd:${n.id}:${fest || ''}:${dir}:${up}:${shut}`;
     let s = SP.find(key);
-    if (!s) s = SP.get(key, [-56 * sc, -128 * sc, 56 * sc, 12 * sc], (c) => drawHamster(c, 0, 0, sc, npcLook(n.id, fest), { dir, time: 0, happy: true, armsUp: !!up, blink: shut }));
+    if (!s)
+      s = SP.get(key, [-56 * sc, -128 * sc, 56 * sc, 12 * sc], (c) =>
+        drawHamster(c, 0, 0, sc, npcLook(n.id, fest), { dir, time: 0, happy: true, armsUp: !!up, blink: shut }),
+      );
     SP.draw(s, n.x, n.y + 10 - hop);
   }
   return {
@@ -199,7 +237,17 @@ export function createCrowd() {
       return {
         kind: cur ? cur.g.kind : '',
         where: cur ? cur.g.where : '',
-        crew: sc ? sc.npcs.filter((n) => n.hold && n.hold.crowd).map((n) => ({ id: n.id, x: +(n.x / T).toFixed(1), y: +(n.y / T).toFixed(1), tx: tileOf(n.x), ty: tileOf(n.y) })) : [],
+        crew: sc
+          ? sc.npcs
+              .filter((n) => n.hold && n.hold.crowd)
+              .map((n) => ({
+                id: n.id,
+                x: +(n.x / T).toFixed(1),
+                y: +(n.y / T).toFixed(1),
+                tx: tileOf(n.x),
+                ty: tileOf(n.y),
+              }))
+          : [],
       };
     },
   };

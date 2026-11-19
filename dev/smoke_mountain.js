@@ -8,7 +8,35 @@ const lib = require('./lib.js');
 
 module.exports = async function mountain(ctx) {
   const L = lib(ctx);
-  const { page, step, ev, wait, closeAll, until, untilScene, untilPanel, frames, go, sel, norm, expect, near, state, dialogText, panelText, toasts, clearToasts, where, watch, unwatch, MG_START, tap, mgGo, mgDone, mgClose } = L;
+  const {
+    page,
+    step,
+    ev,
+    wait,
+    closeAll,
+    until,
+    untilScene,
+    untilPanel,
+    frames,
+    go,
+    sel,
+    norm,
+    expect,
+    near,
+    state,
+    dialogText,
+    panelText,
+    toasts,
+    clearToasts,
+    where,
+    watch,
+    unwatch,
+    MG_START,
+    tap,
+    mgGo,
+    mgDone,
+    mgClose,
+  } = L;
   /** Новая игра с чистого листа. */
   const fresh = () => L.fresh(); // 1 июня, без вводной цепочки
   /** День (номер — месяц × 3), полдень, солнце; на гору (открыв лес и гору действием openLand). */
@@ -33,132 +61,157 @@ module.exports = async function mountain(ctx) {
   /** Поговорить с Вершинкиным; если он предлагает задание — «Потом» (дальше обычный разговор). */
   const talkV = async () => {
     await L.run('instructor', 500);
-    if (await ev(() => !!document.querySelector('.dialog') && /Помогу/.test(document.querySelector('.dialog').textContent))) {
+    if (
+      await ev(
+        () => !!document.querySelector('.dialog') && /Помогу/.test(document.querySelector('.dialog').textContent),
+      )
+    ) {
       await tap('.dialog .btn >> text=Потом', 450);
     }
   };
-  await step('гора: задание Сени «На вершину!» — канатная дорога закрыта, без тёплых вещей, сдача, гора открыта', async () => {
-    await fresh();
-    // тёплое в продаже есть в любой день двух игровых лет (кофты в ТЦ «Модный» — круглый год)
-    const noWarm = await ev(async () => {
-      const D = await import('/js/data/index.js');
-      const out = [];
-      for (let day = 0; day < 72; day++)
-        if (!D.CLOTHES.some((c) => D.isWarmItem(c) && ['mall', 'boutique'].includes(c.shop) && D.wareOn(c, day)))
-          out.push(day);
-      return out;
-    });
-    expect(!noWarm.length, 'есть дни, когда тёплого в магазинах нет', noWarm);
-    // лес открыт, гора — нет: станция с замочком, окно — про Сеню
-    await ev(() => {
-      const d = window.__dev;
-      d.actions.openLand('forest');
-      d.actions.mutate((s) => (s.dayFlags = {}));
-      d.go('forest');
-      d.locations.forest.debugTeleport(44, 6);
-    });
-    await untilScene('forest');
-    await frames(2);
-    expect(
-      (await ev(() => window.__dev.locations.forest.map.bById.station.signText())) === '🔒 На гору',
-      'табличка станции закрытой горы',
-    );
-    await L.run('way:mountain', 500);
-    expect(/Канатная дорога/.test(await panelText()) && /Сеня/.test(await panelText()), 'окно у закрытой станции', await panelText());
-    await closeAll();
-    expect((await where()).scene === 'forest', 'закрытая станция увезла на гору');
-    // без тёплых вещей в шкафу (так бывает в старых сохранениях)
-    await watch();
-    await ev(async () => {
-      const D = await import('/js/data/index.js'),
-        d = window.__dev;
-      const warm = D.CLOTHES.filter((c) => D.isWarmItem(c)).map((c) => c.id);
-      d.actions.mutate((s) => {
-        s.clothes = s.clothes.filter((id) => !warm.includes(id));
-        for (const k of Object.keys(s.look.outfit)) if (warm.includes(s.look.outfit[k])) s.look.outfit[k] = null;
-        s.best.swim = 0;
+  await step(
+    'гора: задание Сени «На вершину!» — канатная дорога закрыта, без тёплых вещей, сдача, гора открыта',
+    async () => {
+      await fresh();
+      // тёплое в продаже есть в любой день двух игровых лет (кофты в ТЦ «Модный» — круглый год)
+      const noWarm = await ev(async () => {
+        const D = await import('/js/data/index.js');
+        const out = [];
+        for (let day = 0; day < 72; day++)
+          if (!D.CLOTHES.some((c) => D.isWarmItem(c) && ['mall', 'boutique'].includes(c.shop) && D.wareOn(c, day)))
+            out.push(day);
+        return out;
       });
-      d.go('world');
-    });
-    await untilScene('world');
-    await frames(2);
-    expect(!(await ev(() => window.__dev.F.ownsWarm())), 'тёплые вещи не убраны');
-    const now = () => ev(() => window.__dev.QuestState.questNow('summit'));
-    expect((await ev(() => window.__dev.QuestState.questBadge('senya'))) === '!', 'над Сеней нет «!»');
-    await L.run('npc:senya', 500);
-    expect(/канатная дорога/.test(await dialogText()), 'Сеня не предлагает задание', await dialogText());
-    await tap('.dialog .btn.green', 400);
-    await tap('.dialog .btn.green', 400);
-    let w = await now();
-    expect(w.status === 'active' && w.i === 0 && !w.steps[1].ok, 'задание не взято', w);
-    // звёздочка — к бассейну
-    const tg = await ev(() => {
-      const d = window.__dev;
-      return { t: d.World.target(), door: d.World.doorOf('pool') };
-    });
-    expect(tg.t && Math.abs(tg.t.x - tg.door.x) < 3, 'звёздочка не у бассейна', tg);
-    // заплыв на 3★ (событие мини-игры — как после настоящего заплыва)
-    await ev(() => window.__dev.emit('minigame', { id: 'swim', stars: 3 }));
-    await frames(2);
-    w = await now();
-    expect(w.i === 1, 'золото в бассейне не засчитано', w);
-    // как дела? — тёплого нет: где купить; в тот же день — та же подсказка, назавтра — шапка в подарок
-    await L.run('npc:senya', 500);
-    expect(/ТЦ «Модный»/.test(await dialogText()), 'Сеня не подсказал, где купить тёплое', await dialogText());
-    await closeAll();
-    await ev(() => window.__dev.actions.nextDay());
-    await ev(() => window.__dev.actions.mutate((s) => (s.minutes = 12 * 60)));
-    await clearToasts();
-    await L.run('npc:senya', 500);
-    expect(/запасную шапку/.test(await dialogText()), 'Сеня не подарил шапку', await dialogText());
-    await closeAll();
-    let s = await state();
-    expect(s.clothes.includes('beanie_blue'), 'шапки нет в шкафу', s.clothes);
-    // надели — «?» над Сеней; сдаём
-    await ev(() => window.__dev.actions.wear('head', 'beanie_blue'));
-    await frames(2);
-    w = await now();
-    expect(w.i === 2 && (await ev(() => window.__dev.QuestState.questBadge('senya'))) === '?', 'надела шапку — а «?» нет', w);
-    const s0 = await state();
-    await L.run('npc:senya', 500);
-    await tap('.dialog .btn.green', 500);
-    await tap('.dialog .btn.green', 1500);
-    const t = await panelText();
-    expect(/Задание выполнено/.test(t) && /Покоритель вершин/.test(t) && /Гора открыт/.test(t), 'праздничное окно', t);
-    await closeAll();
-    await unwatch();
-    s = await state();
-    expect(
-      s.quests.summit.done === s.day && Number.isFinite(s.lands.mountain) && s.money === s0.money + 700 && s.stickers.includes('q_summit'),
-      'награда за задание Сени',
-      [s.quests.summit, s.lands, s.money - s0.money],
-    );
-    // рекорд в бассейне уже был — первый шаг засчитывается сразу, как взяли задание (поле already)
-    await ev(() => window.__dev.actions.mutate((st) => (st.best.swim = 3)));
-    await ev(() => window.__dev.actions.mutate((st) => delete st.quests.summit));
-    await L.run('npc:senya', 500);
-    await tap('.dialog .btn.green', 400);
-    await closeAll();
-    expect((await now()).i >= 1, 'рекорд 3★ не засчитан сразу', await now());
-    // станция в лесу открыта: вагончик везёт на гору, ко входу station
-    await ev(() => {
-      const d = window.__dev;
-      d.go('forest');
-      d.locations.forest.debugTeleport(44, 6);
-    });
-    await untilScene('forest');
-    await frames(2);
-    expect((await ev(() => window.__dev.locations.forest.map.bById.station.signText())) === '🚡 На гору', 'табличка открытой станции');
-    await L.run('way:mountain', 900);
-    expect(await ev(() => !!document.querySelector('.cable-ride canvas')), 'нет картинки переезда');
-    await L.untilArrive('mountain').catch(() => {});
-    await frames(2);
-    const r = await where();
-    const door = await ev(() => window.__dev.locations.mountain.doorOf('station'));
-    expect(r.scene === 'mountain' && near(r, door, 30), 'приехали не на станцию горы', [r, door]);
-    const saved = await ev(() => JSON.parse(localStorage.getItem('rhr-save-v1')).pos);
-    expect(saved.scene === 'mountain', 'позиция в сохранении после переезда', saved);
-  });
+      expect(!noWarm.length, 'есть дни, когда тёплого в магазинах нет', noWarm);
+      // лес открыт, гора — нет: станция с замочком, окно — про Сеню
+      await ev(() => {
+        const d = window.__dev;
+        d.actions.openLand('forest');
+        d.actions.mutate((s) => (s.dayFlags = {}));
+        d.go('forest');
+        d.locations.forest.debugTeleport(44, 6);
+      });
+      await untilScene('forest');
+      await frames(2);
+      expect(
+        (await ev(() => window.__dev.locations.forest.map.bById.station.signText())) === '🔒 На гору',
+        'табличка станции закрытой горы',
+      );
+      await L.run('way:mountain', 500);
+      expect(
+        /Канатная дорога/.test(await panelText()) && /Сеня/.test(await panelText()),
+        'окно у закрытой станции',
+        await panelText(),
+      );
+      await closeAll();
+      expect((await where()).scene === 'forest', 'закрытая станция увезла на гору');
+      // без тёплых вещей в шкафу (так бывает в старых сохранениях)
+      await watch();
+      await ev(async () => {
+        const D = await import('/js/data/index.js'),
+          d = window.__dev;
+        const warm = D.CLOTHES.filter((c) => D.isWarmItem(c)).map((c) => c.id);
+        d.actions.mutate((s) => {
+          s.clothes = s.clothes.filter((id) => !warm.includes(id));
+          for (const k of Object.keys(s.look.outfit)) if (warm.includes(s.look.outfit[k])) s.look.outfit[k] = null;
+          s.best.swim = 0;
+        });
+        d.go('world');
+      });
+      await untilScene('world');
+      await frames(2);
+      expect(!(await ev(() => window.__dev.F.ownsWarm())), 'тёплые вещи не убраны');
+      const now = () => ev(() => window.__dev.QuestState.questNow('summit'));
+      expect((await ev(() => window.__dev.QuestState.questBadge('senya'))) === '!', 'над Сеней нет «!»');
+      await L.run('npc:senya', 500);
+      expect(/канатная дорога/.test(await dialogText()), 'Сеня не предлагает задание', await dialogText());
+      await tap('.dialog .btn.green', 400);
+      await tap('.dialog .btn.green', 400);
+      let w = await now();
+      expect(w.status === 'active' && w.i === 0 && !w.steps[1].ok, 'задание не взято', w);
+      // звёздочка — к бассейну
+      const tg = await ev(() => {
+        const d = window.__dev;
+        return { t: d.World.target(), door: d.World.doorOf('pool') };
+      });
+      expect(tg.t && Math.abs(tg.t.x - tg.door.x) < 3, 'звёздочка не у бассейна', tg);
+      // заплыв на 3★ (событие мини-игры — как после настоящего заплыва)
+      await ev(() => window.__dev.emit('minigame', { id: 'swim', stars: 3 }));
+      await frames(2);
+      w = await now();
+      expect(w.i === 1, 'золото в бассейне не засчитано', w);
+      // как дела? — тёплого нет: где купить; в тот же день — та же подсказка, назавтра — шапка в подарок
+      await L.run('npc:senya', 500);
+      expect(/ТЦ «Модный»/.test(await dialogText()), 'Сеня не подсказал, где купить тёплое', await dialogText());
+      await closeAll();
+      await ev(() => window.__dev.actions.nextDay());
+      await ev(() => window.__dev.actions.mutate((s) => (s.minutes = 12 * 60)));
+      await clearToasts();
+      await L.run('npc:senya', 500);
+      expect(/запасную шапку/.test(await dialogText()), 'Сеня не подарил шапку', await dialogText());
+      await closeAll();
+      let s = await state();
+      expect(s.clothes.includes('beanie_blue'), 'шапки нет в шкафу', s.clothes);
+      // надели — «?» над Сеней; сдаём
+      await ev(() => window.__dev.actions.wear('head', 'beanie_blue'));
+      await frames(2);
+      w = await now();
+      expect(
+        w.i === 2 && (await ev(() => window.__dev.QuestState.questBadge('senya'))) === '?',
+        'надела шапку — а «?» нет',
+        w,
+      );
+      const s0 = await state();
+      await L.run('npc:senya', 500);
+      await tap('.dialog .btn.green', 500);
+      await tap('.dialog .btn.green', 1500);
+      const t = await panelText();
+      expect(
+        /Задание выполнено/.test(t) && /Покоритель вершин/.test(t) && /Гора открыт/.test(t),
+        'праздничное окно',
+        t,
+      );
+      await closeAll();
+      await unwatch();
+      s = await state();
+      expect(
+        s.quests.summit.done === s.day &&
+          Number.isFinite(s.lands.mountain) &&
+          s.money === s0.money + 700 &&
+          s.stickers.includes('q_summit'),
+        'награда за задание Сени',
+        [s.quests.summit, s.lands, s.money - s0.money],
+      );
+      // рекорд в бассейне уже был — первый шаг засчитывается сразу, как взяли задание (поле already)
+      await ev(() => window.__dev.actions.mutate((st) => (st.best.swim = 3)));
+      await ev(() => window.__dev.actions.mutate((st) => delete st.quests.summit));
+      await L.run('npc:senya', 500);
+      await tap('.dialog .btn.green', 400);
+      await closeAll();
+      expect((await now()).i >= 1, 'рекорд 3★ не засчитан сразу', await now());
+      // станция в лесу открыта: вагончик везёт на гору, ко входу station
+      await ev(() => {
+        const d = window.__dev;
+        d.go('forest');
+        d.locations.forest.debugTeleport(44, 6);
+      });
+      await untilScene('forest');
+      await frames(2);
+      expect(
+        (await ev(() => window.__dev.locations.forest.map.bById.station.signText())) === '🚡 На гору',
+        'табличка открытой станции',
+      );
+      await L.run('way:mountain', 900);
+      expect(await ev(() => !!document.querySelector('.cable-ride canvas')), 'нет картинки переезда');
+      await L.untilArrive('mountain').catch(() => {});
+      await frames(2);
+      const r = await where();
+      const door = await ev(() => window.__dev.locations.mountain.doorOf('station'));
+      expect(r.scene === 'mountain' && near(r, door, 30), 'приехали не на станцию горы', [r, door]);
+      const saved = await ev(() => JSON.parse(localStorage.getItem('rhr-save-v1')).pos);
+      expect(saved.scene === 'mountain', 'позиция в сохранении после переезда', saved);
+    },
+  );
 
   await step('гора: всё важное достижимо пешком, карта горы, спрайты и земля во все сезоны', async () => {
     await toMountain();
@@ -195,7 +248,8 @@ module.exports = async function mountain(ctx) {
       }
       // ручей — пешком не зайти, источник — тоже (в него окунаются через особое место)
       for (let y = 0; y < m.h; y++)
-        for (let x = 0; x < m.w; x++) if (['brook', 'mtBrook', 'hotSpring'].includes(m.at(x, y)) && m.foot(x, y)) out.push(`вода (${x}, ${y})`);
+        for (let x = 0; x < m.w; x++)
+          if (['brook', 'mtBrook', 'hotSpring'].includes(m.at(x, y)) && m.foot(x, y)) out.push(`вода (${x}, ${y})`);
       // на вершине снег в любой сезон; ниже — трава
       if (m.at(20, 6) !== 'snowCap' && m.at(20, 6) !== 'snowPath') out.push('на вершине нет снега: ' + m.at(20, 6));
       if (m.at(8, 36) !== 'g') out.push('на лугах не трава: ' + m.at(8, 36));
@@ -208,7 +262,11 @@ module.exports = async function mountain(ctx) {
     await untilPanel();
     const t = await panelText();
     expect(
-      /Карта горы/.test(t) && /Горячий источник/.test(t) && /Смотровая площадка/.test(t) && /Шале Вершинкина/.test(t) && /Вход в пещеры/.test(t),
+      /Карта горы/.test(t) &&
+        /Горячий источник/.test(t) &&
+        /Смотровая площадка/.test(t) &&
+        /Шале Вершинкина/.test(t) &&
+        /Вход в пещеры/.test(t),
       'карта горы',
       t,
     );
@@ -249,114 +307,145 @@ module.exports = async function mountain(ctx) {
     expect(g.count > 0 && g.pixels < 12e6, 'кэш земли', g);
   });
 
-  await step('гора: источник, эдельвейсы, смотровая площадка, снеговик, рамка, пещеры, мороз — только действия', async () => {
-    await toMountain(3, 720, 7, 29); // зима
-    await watch();
-    // горячий источник: снимает «мороз» за день, хомячок сидит в воде; нажатие — вылезти
-    await ev(() => window.__dev.actions.setDayFlag('cold', 1, 'careless'));
-    await clearToasts();
-    await ev(() => {
-      window.__dev.run('mountain:spring', { scene: window.__dev.locations.mountain });
-    });
-    await until(() => !!window.__dev.locations.mountain.p.ride && window.__dev.G.state.stickers.includes('x_spring'), undefined, { timeout: 2000 }).catch(() => {});
-    let s = await state();
-    expect(
-      !s.dayFlags.careless.cold && s.stickers.includes('x_spring') && (await ev(() => !!window.__dev.locations.mountain.p.ride)),
-      'источник: мороз не снят или хомячок не в воде',
-      [s.dayFlags, s.stickers],
-    );
-    expect(/согрелись|мороза как не бывало/.test(await toasts()), 'источник: подсказка', await toasts());
-    const hud = await ev(() => document.querySelector('#hud').textContent);
-    expect(/Вылезти/.test(hud), 'нет кнопки «Вылезти»', hud);
-    await page.mouse.click(300, 300);
-    await until(() => !window.__dev.locations.mountain.p.ride, undefined, { timeout: 2000 }).catch(() => {});
-    expect(await ev(() => !window.__dev.locations.mountain.p.ride), 'нажатие не вытащило из источника');
-    // простуженная: источник не лечит — добрая фраза
-    await ev(() => window.__dev.actions.fallSick('cold'));
-    await clearToasts();
-    await ev(() => {
-      window.__dev.run('mountain:spring', { scene: window.__dev.locations.mountain });
-    });
-    await until(() => /не лечит/.test(document.querySelector('#toasts').textContent), undefined, { timeout: 2000 }).catch(() => {});
-    expect(/не лечит/.test(await toasts()) && (await state()).sick, 'источник у простуженной', await toasts());
-    await ev(() => {
-      window.__dev.actions.recoverSick('doctor');
-      window.__dev.locations.mountain.interact();
-    });
-    // на вершине мороз круглый год, на летнем лугу — нет
-    const cold = await ev(() => {
-      const d = window.__dev,
-        sc = d.locations.mountain;
-      d.actions.mutate((st) => (st.day = 18));
-      sc.debugTeleport(20, 6);
-      const top = sc.cold();
-      sc.debugTeleport(14, 33);
-      return [top, sc.cold()];
-    });
-    expect(cold[0] === true && cold[1] === false, 'мороз на вершине летом', cold);
-    // эдельвейсы: зимой — нет, летом — один в день
-    await ev(() => window.__dev.actions.mutate((st) => (st.day = 3)));
-    await clearToasts();
-    await L.run('mountain:edelweiss', 200);
-    expect(!(await state()).finds.edelweiss && /летом/.test(await toasts()), 'эдельвейс зимой', await toasts());
-    await ev(() => window.__dev.actions.mutate((st) => (st.day = 18)));
-    expect(await ev(() => window.__dev.locations.mountain.places.find((p) => p.id === 'edelweiss0').when()), 'летом эдельвейса нет');
-    await ev(() => {
-      window.__dev.run('mountain:edelweiss');
-      window.__dev.run('mountain:edelweiss');
-    });
-    await wait(200);
-    s = await state();
-    expect(s.finds.edelweiss === 1, 'эдельвейс — один в день', s.finds);
-    expect(!(await ev(() => window.__dev.locations.mountain.places.find((p) => p.id === 'edelweiss0').when())), 'сорванный эдельвейс всё ещё виден');
-    // рамка у Вершинкина из трёх эдельвейсов
-    await ev(() => window.__dev.actions.addItem('finds', 'edelweiss', 2));
-    await ev(() => window.__dev.locations.mountain.debugTeleport(27, 22));
-    await talkV();
-    await tap('.dialog .btn >> text=Эдельвейсы в рамке', 400);
-    s = await state();
-    expect(s.storage.edelweiss_frame === 1 && !s.finds.edelweiss && s.stickers.includes('x_edelweiss'), 'рамка с эдельвейсами', [s.storage, s.finds]);
-    await closeAll();
-    // смотровая площадка: окно с видом, наклейка
-    await L.run('mountain:view', 500);
-    expect(/Смотровая площадка/.test(await panelText()) && (await ev(() => !!document.querySelector('.overlay canvas'))), 'смотровая площадка');
-    await closeAll();
-    expect((await state()).stickers.includes('x_summit'), 'наклейка «На вершине мира»');
-    // снеговик: 3 кома × 4 раза, ведро, морковка из рюкзака (нет — морковка у Вершинкина)
-    await ev(() => {
-      const d = window.__dev;
-      d.actions.addItem('ing', 'carrot', -(d.G.state.ing.carrot || 0));
-      d.locations.mountain.debugTeleport(8, 11);
-      d.run('mountain:snowman');
-    });
-    await untilPanel().catch(() => {});
-    await frames(2);
-    for (let i = 0; i < 13; i++) {
-      await tap('.overlay .snow-step', 60);
-    }
-    s = await state();
-    expect(s.dayFlags.mountain.snowman === 4, 'снеговик: комы и ведро', s.dayFlags.mountain);
-    await tap('.overlay .snow-step', 300);
-    expect((await state()).dayFlags.mountain.snowman === 4 && /Вершинкин/.test(await toasts()), 'нос без морковки', await toasts());
-    await closeAll();
-    await talkV();
-    await tap('.dialog .btn >> text=Морковку для снеговика', 300);
-    await closeAll();
-    expect((await state()).ing.carrot === 1, 'Вершинкин не дал морковку');
-    await L.run('mountain:snowman', 400);
-    await tap('.overlay .snow-step', 300);
-    s = await state();
-    expect(s.dayFlags.mountain.snowman === 5 && !s.ing.carrot && s.stickers.includes('x_snowman'), 'снеговик готов', [s.dayFlags.mountain, s.ing.carrot]);
-    await closeAll();
-    // вход в пещеры: окно с замочком и Профессором Орешкиным
-    await L.run('way:caves', 400);
-    expect(/Пещеры/.test(await panelText()) && /Орешкин/.test(await panelText()), 'вход в пещеры', await panelText());
-    await closeAll();
-    await unwatch();
-    // назавтра снеговика нет
-    await ev(() => window.__dev.actions.nextDay());
-    expect(!(await state()).dayFlags.mountain, 'снеговик остался на завтра');
-  });
+  await step(
+    'гора: источник, эдельвейсы, смотровая площадка, снеговик, рамка, пещеры, мороз — только действия',
+    async () => {
+      await toMountain(3, 720, 7, 29); // зима
+      await watch();
+      // горячий источник: снимает «мороз» за день, хомячок сидит в воде; нажатие — вылезти
+      await ev(() => window.__dev.actions.setDayFlag('cold', 1, 'careless'));
+      await clearToasts();
+      await ev(() => {
+        window.__dev.run('mountain:spring', { scene: window.__dev.locations.mountain });
+      });
+      await until(
+        () => !!window.__dev.locations.mountain.p.ride && window.__dev.G.state.stickers.includes('x_spring'),
+        undefined,
+        { timeout: 2000 },
+      ).catch(() => {});
+      let s = await state();
+      expect(
+        !s.dayFlags.careless.cold &&
+          s.stickers.includes('x_spring') &&
+          (await ev(() => !!window.__dev.locations.mountain.p.ride)),
+        'источник: мороз не снят или хомячок не в воде',
+        [s.dayFlags, s.stickers],
+      );
+      expect(/согрелись|мороза как не бывало/.test(await toasts()), 'источник: подсказка', await toasts());
+      const hud = await ev(() => document.querySelector('#hud').textContent);
+      expect(/Вылезти/.test(hud), 'нет кнопки «Вылезти»', hud);
+      await page.mouse.click(300, 300);
+      await until(() => !window.__dev.locations.mountain.p.ride, undefined, { timeout: 2000 }).catch(() => {});
+      expect(await ev(() => !window.__dev.locations.mountain.p.ride), 'нажатие не вытащило из источника');
+      // простуженная: источник не лечит — добрая фраза
+      await ev(() => window.__dev.actions.fallSick('cold'));
+      await clearToasts();
+      await ev(() => {
+        window.__dev.run('mountain:spring', { scene: window.__dev.locations.mountain });
+      });
+      await until(() => /не лечит/.test(document.querySelector('#toasts').textContent), undefined, {
+        timeout: 2000,
+      }).catch(() => {});
+      expect(/не лечит/.test(await toasts()) && (await state()).sick, 'источник у простуженной', await toasts());
+      await ev(() => {
+        window.__dev.actions.recoverSick('doctor');
+        window.__dev.locations.mountain.interact();
+      });
+      // на вершине мороз круглый год, на летнем лугу — нет
+      const cold = await ev(() => {
+        const d = window.__dev,
+          sc = d.locations.mountain;
+        d.actions.mutate((st) => (st.day = 18));
+        sc.debugTeleport(20, 6);
+        const top = sc.cold();
+        sc.debugTeleport(14, 33);
+        return [top, sc.cold()];
+      });
+      expect(cold[0] === true && cold[1] === false, 'мороз на вершине летом', cold);
+      // эдельвейсы: зимой — нет, летом — один в день
+      await ev(() => window.__dev.actions.mutate((st) => (st.day = 3)));
+      await clearToasts();
+      await L.run('mountain:edelweiss', 200);
+      expect(!(await state()).finds.edelweiss && /летом/.test(await toasts()), 'эдельвейс зимой', await toasts());
+      await ev(() => window.__dev.actions.mutate((st) => (st.day = 18)));
+      expect(
+        await ev(() => window.__dev.locations.mountain.places.find((p) => p.id === 'edelweiss0').when()),
+        'летом эдельвейса нет',
+      );
+      await ev(() => {
+        window.__dev.run('mountain:edelweiss');
+        window.__dev.run('mountain:edelweiss');
+      });
+      await wait(200);
+      s = await state();
+      expect(s.finds.edelweiss === 1, 'эдельвейс — один в день', s.finds);
+      expect(
+        !(await ev(() => window.__dev.locations.mountain.places.find((p) => p.id === 'edelweiss0').when())),
+        'сорванный эдельвейс всё ещё виден',
+      );
+      // рамка у Вершинкина из трёх эдельвейсов
+      await ev(() => window.__dev.actions.addItem('finds', 'edelweiss', 2));
+      await ev(() => window.__dev.locations.mountain.debugTeleport(27, 22));
+      await talkV();
+      await tap('.dialog .btn >> text=Эдельвейсы в рамке', 400);
+      s = await state();
+      expect(
+        s.storage.edelweiss_frame === 1 && !s.finds.edelweiss && s.stickers.includes('x_edelweiss'),
+        'рамка с эдельвейсами',
+        [s.storage, s.finds],
+      );
+      await closeAll();
+      // смотровая площадка: окно с видом, наклейка
+      await L.run('mountain:view', 500);
+      expect(
+        /Смотровая площадка/.test(await panelText()) && (await ev(() => !!document.querySelector('.overlay canvas'))),
+        'смотровая площадка',
+      );
+      await closeAll();
+      expect((await state()).stickers.includes('x_summit'), 'наклейка «На вершине мира»');
+      // снеговик: 3 кома × 4 раза, ведро, морковка из рюкзака (нет — морковка у Вершинкина)
+      await ev(() => {
+        const d = window.__dev;
+        d.actions.addItem('ing', 'carrot', -(d.G.state.ing.carrot || 0));
+        d.locations.mountain.debugTeleport(8, 11);
+        d.run('mountain:snowman');
+      });
+      await untilPanel().catch(() => {});
+      await frames(2);
+      for (let i = 0; i < 13; i++) {
+        await tap('.overlay .snow-step', 60);
+      }
+      s = await state();
+      expect(s.dayFlags.mountain.snowman === 4, 'снеговик: комы и ведро', s.dayFlags.mountain);
+      await tap('.overlay .snow-step', 300);
+      expect(
+        (await state()).dayFlags.mountain.snowman === 4 && /Вершинкин/.test(await toasts()),
+        'нос без морковки',
+        await toasts(),
+      );
+      await closeAll();
+      await talkV();
+      await tap('.dialog .btn >> text=Морковку для снеговика', 300);
+      await closeAll();
+      expect((await state()).ing.carrot === 1, 'Вершинкин не дал морковку');
+      await L.run('mountain:snowman', 400);
+      await tap('.overlay .snow-step', 300);
+      s = await state();
+      expect(s.dayFlags.mountain.snowman === 5 && !s.ing.carrot && s.stickers.includes('x_snowman'), 'снеговик готов', [
+        s.dayFlags.mountain,
+        s.ing.carrot,
+      ]);
+      await closeAll();
+      // вход в пещеры: окно с замочком и Профессором Орешкиным
+      await L.run('way:caves', 400);
+      expect(/Пещеры/.test(await panelText()) && /Орешкин/.test(await panelText()), 'вход в пещеры', await panelText());
+      await closeAll();
+      await unwatch();
+      // назавтра снеговика нет
+      await ev(() => window.__dev.actions.nextDay());
+      expect(!(await state()).dayFlags.mountain, 'снеговик остался на завтра');
+    },
+  );
 
   await step('гора: «Спуск на санках» у Вершинкина — до конца, приз за первые две игры дня', async () => {
     await toMountain(18, 720, 27, 22);
@@ -365,7 +454,10 @@ module.exports = async function mountain(ctx) {
     await tap('.dialog .btn >> text=Спуск с горы', 1200);
     const intro = norm(await ev(() => document.querySelector('#mg').textContent));
     expect(
-      /Собирай/.test(intro) && /Объезжай/.test(intro) && (await ev(() => document.querySelectorAll('#mg .sl-col img').length)) === 6 && /Приз Вершинкина/.test(intro),
+      /Собирай/.test(intro) &&
+        /Объезжай/.test(intro) &&
+        (await ev(() => document.querySelectorAll('#mg .sl-col img').length)) === 6 &&
+        /Приз Вершинкина/.test(intro),
       'правило картинкой',
       intro,
     );
@@ -400,18 +492,20 @@ module.exports = async function mountain(ctx) {
     await mgDone();
     await ev(() => window.__dev.fastGames(false));
     const s1 = await state();
-    expect(moves > 10 && s1.plays.sled === 1 && s1.dayFlags.mountain.sleds === 1 && s1.money > s0.money, 'спуск записан, приз выдан', [
-      moves,
-      s1.plays,
-      s1.dayFlags.mountain,
-      s1.money - s0.money,
-    ]);
+    expect(
+      moves > 10 && s1.plays.sled === 1 && s1.dayFlags.mountain.sleds === 1 && s1.money > s0.money,
+      'спуск записан, приз выдан',
+      [moves, s1.plays, s1.dayFlags.mountain, s1.money - s0.money],
+    );
     // вторая игра — с призом (на заставке «ещё 1 спуск»); закрыли крестиком сразу — ничего
     await ev(() => {
       window.__dev.F.sledRide();
     });
     await page.waitForSelector(MG_START);
-    expect(/ещё 1 спуск/.test(norm(await ev(() => document.querySelector('#mg').textContent))), 'на заставке — сколько спусков с призом');
+    expect(
+      /ещё 1 спуск/.test(norm(await ev(() => document.querySelector('#mg').textContent))),
+      'на заставке — сколько спусков с призом',
+    );
     await mgClose();
     expect((await state()).money === s1.money, 'закрыли игру — а приз пришёл');
     await closeAll();
@@ -449,7 +543,11 @@ module.exports = async function mountain(ctx) {
     await ev(() => window.__dev.emit('minigame', { id: 'sled', stars: 1 }));
     await frames(2);
     w = await now();
-    expect(w.i === 2 && (await ev(() => window.__dev.QuestState.questBadge('vershinkin'))) === '?', 'после спуска — к Вершинкину «?»', w);
+    expect(
+      w.i === 2 && (await ev(() => window.__dev.QuestState.questBadge('vershinkin'))) === '?',
+      'после спуска — к Вершинкину «?»',
+      w,
+    );
     const s0 = await state();
     await ev(() => {
       window.__dev.locations.mountain.debugTeleport(27, 22);
@@ -459,12 +557,19 @@ module.exports = async function mountain(ctx) {
     await tap('.dialog .btn.green', 500);
     await tap('.dialog .btn.green', 1500);
     const t = await panelText();
-    expect(/Задание выполнено/.test(t) && /Друг гор/.test(t) && /Лыжные очки/.test(t) && /Орешкин/.test(t), 'праздничное окно', t);
+    expect(
+      /Задание выполнено/.test(t) && /Друг гор/.test(t) && /Лыжные очки/.test(t) && /Орешкин/.test(t),
+      'праздничное окно',
+      t,
+    );
     await closeAll();
     await unwatch();
     const s = await state();
     expect(
-      s.quests.lost_mitten.done === s.day && s.money === s0.money + 600 && s.stickers.includes('q_mountain') && s.clothes.includes('goggles_ski'),
+      s.quests.lost_mitten.done === s.day &&
+        s.money === s0.money + 600 &&
+        s.stickers.includes('q_mountain') &&
+        s.clothes.includes('goggles_ski'),
       'награда за задание Вершинкина',
       [s.quests.lost_mitten, s.money - s0.money],
     );
@@ -495,7 +600,9 @@ module.exports = async function mountain(ctx) {
     // вниз: дверь станции — вагончик в лес, к станции
     await ev(() => window.__dev.locations.mountain.walkToPlace('station'));
     // дошла до станции — вагончик в лес
-    await until(() => window.__dev.sceneName === 'forest' && !document.querySelector('.fade'), undefined, { timeout: 14000 }).catch(() => {});
+    await until(() => window.__dev.sceneName === 'forest' && !document.querySelector('.fade'), undefined, {
+      timeout: 14000,
+    }).catch(() => {});
     await frames(2);
     r = await where();
     const door = await ev(() => window.__dev.locations.forest.doorOf('station'));
@@ -505,6 +612,10 @@ module.exports = async function mountain(ctx) {
     await page.click('.hud-btns.left .rbtn:last-child');
     await page.click('.panel-foot .btn.green');
     await untilScene('villa').catch(() => {});
-    expect((await ev(() => window.__dev.sceneName)) === 'villa', 'кнопка «Домой» с горы', await ev(() => window.__dev.sceneName));
+    expect(
+      (await ev(() => window.__dev.sceneName)) === 'villa',
+      'кнопка «Домой» с горы',
+      await ev(() => window.__dev.sceneName),
+    );
   });
 };

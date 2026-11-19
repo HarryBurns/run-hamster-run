@@ -12,7 +12,8 @@ const lib = require('./lib.js');
 
 module.exports = async function seasons(ctx) {
   const L = lib(ctx);
-  const { page, step, ev, wait, closeAll, until, untilPanel, frames, norm, text, toasts, clearToasts, expect, state } = L;
+  const { page, step, ev, wait, closeAll, until, untilPanel, frames, norm, text, toasts, clearToasts, expect, state } =
+    L;
   /** Новая игра с чистого листа (шаг не зависит от того, что было до него): 1 июня, в городе. */
   const fresh = () => L.fresh({ scene: 'world' });
   /** Перенестись в день day (утро, отметки дня чистые) и положить монет. */
@@ -631,10 +632,7 @@ module.exports = async function seasons(ctx) {
     await closeAll();
     let s = await state();
     // Э1 версию не меняла; с Ф1 (болезнь) сохранение v3 переносится в v4 — остальное то же
-    expect(s.v === 5 && s.day === old.day && s.money === old.money, 'версия или деньги после загрузки', [
-      s.v,
-      s.money,
-    ]);
+    expect(s.v === 5 && s.day === old.day && s.money === old.money, 'версия или деньги после загрузки', [s.v, s.money]);
     expect(
       JSON.stringify(s.garden.slice(0, 2)) === JSON.stringify(old.garden.slice(0, 2)) &&
         JSON.stringify(s.seeds) === JSON.stringify(old.seeds) &&

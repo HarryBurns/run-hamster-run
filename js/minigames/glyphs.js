@@ -34,10 +34,24 @@ function stone(ctx, id, s, lit) {
     ell(ctx, c, c, s * 0.15, s * 0.15, lit ? g.col : null, ink === g.col ? OUT : ink, w * 0.8);
     for (let i = 0; i < 8; i++) {
       const a = (i / 8) * Math.PI * 2;
-      line(ctx, c + Math.cos(a) * s * 0.22, c + Math.sin(a) * s * 0.22, c + Math.cos(a) * s * 0.32, c + Math.sin(a) * s * 0.32, lit ? OUT : ink, w * 0.7);
+      line(
+        ctx,
+        c + Math.cos(a) * s * 0.22,
+        c + Math.sin(a) * s * 0.22,
+        c + Math.cos(a) * s * 0.32,
+        c + Math.sin(a) * s * 0.32,
+        lit ? OUT : ink,
+        w * 0.7,
+      );
     }
   } else if (id === 'hill') {
-    poly(ctx, [s * 0.18, s * 0.72, s * 0.42, s * 0.3, s * 0.56, s * 0.52, s * 0.66, s * 0.4, s * 0.82, s * 0.72], lit ? g.col : null, lit ? OUT : ink, w * 0.8);
+    poly(
+      ctx,
+      [s * 0.18, s * 0.72, s * 0.42, s * 0.3, s * 0.56, s * 0.52, s * 0.66, s * 0.4, s * 0.82, s * 0.72],
+      lit ? g.col : null,
+      lit ? OUT : ink,
+      w * 0.8,
+    );
   } else if (id === 'wave') {
     ctx.strokeStyle = lit ? OUT : ink;
     ctx.lineWidth = w;
@@ -198,17 +212,23 @@ export default {
       mask.src = maskImg(true);
       const step = 720;
       seq.forEach((k, j) => {
-        later(() => {
-          light(k, true);
-          chime(k);
-        }, 500 + j * step);
+        later(
+          () => {
+            light(k, true);
+            chime(k);
+          },
+          500 + j * step,
+        );
         later(() => light(k, false), 500 + j * step + 460);
       });
-      later(() => {
-        phase = 'input';
-        mask.src = maskImg(false);
-        say.textContent = '👆 Повтори!';
-      }, 500 + seq.length * step);
+      later(
+        () => {
+          phase = 'input';
+          mask.src = maskImg(false);
+          say.textContent = '👆 Повтори!';
+        },
+        500 + seq.length * step,
+      );
     }
     function press(i) {
       if (phase !== 'input') return;

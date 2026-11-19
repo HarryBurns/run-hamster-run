@@ -27,7 +27,10 @@ export function setMapGoal(fn) {
 export function routeText(from, to) {
   const r = routeTo(from, to, landOpen);
   if (!r) return '';
-  const names = r.path.slice(1).map((id) => `${landOf(id).icon} ${landOf(id).name}`).join(' → ');
+  const names = r.path
+    .slice(1)
+    .map((id) => `${landOf(id).icon} ${landOf(id).name}`)
+    .join(' → ');
   return `${names}: ${r.path.length > 2 ? 'сначала ' : ''}${ROUTE_WORDS[from][r.next]}`;
 }
 
@@ -185,7 +188,11 @@ function landsRow(panel, loc, walk) {
       land,
       'land' + (open ? ' open' : '') + (here ? ' here' : '') + (goal === land.id && !here ? ' goal' : ''),
       `<span class="ic">${land.icon}</span>${open ? '' : '<span class="lk">🔒</span>'}<span class="nm">${land.name}</span>${here ? '<span class="st">📍</span>' : star(land.id)}`,
-      here ? `${land.name} — ты здесь` : open ? `${land.name} — открыто!` : `${land.name} — закрыто. Кто знает дорогу: ${land.who}`,
+      here
+        ? `${land.name} — ты здесь`
+        : open
+          ? `${land.name} — открыто!`
+          : `${land.name} — закрыто. Кто знает дорогу: ${land.who}`,
       () => {
         if (here) return void toast(`${land.icon} ${land.name} — ты уже здесь!`);
         if (open && land.scene) return void travel(land);

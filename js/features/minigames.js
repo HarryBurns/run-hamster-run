@@ -301,7 +301,8 @@ export async function prizeGame(id, o) {
   setDayFlag(o.flag, ((S().dayFlags[o.group] || {})[o.flag] || 0) + 1, o.group);
   earn(c[res.stars - 1], o.source || 'work');
   sfx('coin');
-  if (o.thanks) toast(typeof o.thanks === 'function' ? o.thanks(res.stars, got) : `${o.thanks} ${won(res.stars)}`, 'good');
+  if (o.thanks)
+    toast(typeof o.thanks === 'function' ? o.thanks(res.stars, got) : `${o.thanks} ${won(res.stars)}`, 'good');
   return res;
 }
 

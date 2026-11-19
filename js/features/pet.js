@@ -116,7 +116,20 @@ function sideSpot(sc) {
 function enterWorld(sc) {
   w = null;
   if (!walks()) return;
-  w = { sc, x: sc.p.x, y: sc.p.y, dir: 1, moving: false, walkT: 0, trail: [], last: null, fx: null, pop: 0, away: true, hidden: true };
+  w = {
+    sc,
+    x: sc.p.x,
+    y: sc.p.y,
+    dir: 1,
+    moving: false,
+    walkT: 0,
+    trail: [],
+    last: null,
+    fx: null,
+    pop: 0,
+    away: true,
+    hidden: true,
+  };
   if (heroOnLand(sc)) popNear(sc);
 }
 
@@ -192,7 +205,8 @@ function updateWorld(sc, dt) {
 
 // ---------- погладить, покормить, поиграть: что видно ----------
 function burst(x, y, n, side) {
-  for (let i = 0; i < n; i++) hearts.push({ x: x + (Math.random() - 0.5) * 30, y: y - Math.random() * 10, t: -i * 0.12, side });
+  for (let i = 0; i < n; i++)
+    hearts.push({ x: x + (Math.random() - 0.5) * 30, y: y - Math.random() * 10, t: -i * 0.12, side });
 }
 /** Свободное место для мячика: прямая от питомца в одну из сторон, по суше. */
 function ballSpot(sc) {
@@ -304,7 +318,8 @@ on('step', ({ dt }) => {
 });
 
 // ---------- общая часть локаций ----------
-const hitWorld = (pt) => !!w && !w.hidden && Math.abs(pt.x - w.x) < 24 && pt.y > w.y - PET_BY_ID[pet().kind].size - 10 && pt.y < w.y + 12;
+const hitWorld = (pt) =>
+  !!w && !w.hidden && Math.abs(pt.x - w.x) < 24 && pt.y > w.y - PET_BY_ID[pet().kind].size - 10 && pt.y < w.y + 12;
 addWorldPart({
   enter(sc) {
     enterWorld(sc);
@@ -476,10 +491,14 @@ export function openPet() {
         return b;
       };
       btn('pink act-pet', '🤚 Погладить', () => act(panel, 'pet'));
-      btn(p2.food > 0 ? 'green act-feed' : 'ghost act-feed', `🥣 Покормить${p2.food > 0 ? ` <small>×${p2.food}</small>` : ''}`, () => {
-        if (p2.food > 0) act(panel, 'feed');
-        else toast('Корм закончился. Он продаётся в приюте «Тёплые лапки» — за школой, у детской площадки.');
-      });
+      btn(
+        p2.food > 0 ? 'green act-feed' : 'ghost act-feed',
+        `🥣 Покормить${p2.food > 0 ? ` <small>×${p2.food}</small>` : ''}`,
+        () => {
+          if (p2.food > 0) act(panel, 'feed');
+          else toast('Корм закончился. Он продаётся в приюте «Тёплые лапки» — за школой, у детской площадки.');
+        },
+      );
       btn(p2.ball ? 'blue act-play' : 'ghost act-play', '🎾 Поиграть', () => {
         if (p2.ball) act(panel, 'play');
         else toast('Нужен мячик! Он продаётся в приюте «Тёплые лапки».');
@@ -631,7 +650,9 @@ function openAdopt() {
       };
       nm.appendChild(dice);
       body.appendChild(nm);
-      body.appendChild(el('p', 'muted', `Взнос приюту — на корм тем, кто ещё ждёт друга. В подарок — две мисочки корма.`));
+      body.appendChild(
+        el('p', 'muted', `Взнос приюту — на корм тем, кто ещё ждёт друга. В подарок — две мисочки корма.`),
+      );
     },
     foot: () => [
       {
@@ -684,7 +705,17 @@ register(
 
 /** Для тестов: где питомец и что делает. */
 export const petDebug = () => ({
-  world: w ? { scene: w.sc.name, x: w.x, y: w.y, trail: w.trail.length, moving: w.moving, fx: w.fx ? w.fx.kind : '', away: w.away } : null,
+  world: w
+    ? {
+        scene: w.sc.name,
+        x: w.x,
+        y: w.y,
+        trail: w.trail.length,
+        moving: w.moving,
+        fx: w.fx ? w.fx.kind : '',
+        away: w.away,
+      }
+    : null,
   home: h ? { scene: h.sc.name, x: h.x, f: h.f, fx: h.fx ? h.fx.kind : '' } : null,
   hearts: petHearts(),
   hungry: petHungry(),

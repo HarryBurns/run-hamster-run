@@ -220,7 +220,10 @@ function gates(k, gateOpen) {
   put1('signpost', 3, 4, { text: '🌲 В лес', solid: true });
   put1('busstop', 89, 25);
   // табличка остановки: пока пустыня закрыта — замочек и подсказка, кто знает дорогу (Буся)
-  put1('signpost', 92, 25, { text: '🐪 В пустыню', text2: () => (landOpen('desert') ? '🚌 Караван' : '🔒 Спроси Бусю') });
+  put1('signpost', 92, 25, {
+    text: '🐪 В пустыню',
+    text2: () => (landOpen('desert') ? '🚌 Караван' : '🔒 Спроси Бусю'),
+  });
   put1('barrier', 94, 26, { open: () => gateOpen('desert') });
   put1('hedge', 95, 25); // за шлагбаум — только по дороге
   put1('hedge', 95, 28);

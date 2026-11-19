@@ -9,7 +9,37 @@ const lib = require('./lib.js');
 
 module.exports = async function desert(ctx) {
   const L = lib(ctx);
-  const { page, step, ev, wait, closeAll, until, untilScene, untilPanel, untilArrive, frames, go, sel, T, norm, expect, near, state, dialogText, panelText, toasts, clearToasts, where, watch, unwatch, MG_START, tap, mgGo, mgDone, mgClose } = L;
+  const {
+    page,
+    step,
+    ev,
+    wait,
+    closeAll,
+    until,
+    untilScene,
+    untilPanel,
+    untilArrive,
+    frames,
+    go,
+    sel,
+    T,
+    norm,
+    expect,
+    near,
+    state,
+    dialogText,
+    panelText,
+    toasts,
+    clearToasts,
+    where,
+    watch,
+    unwatch,
+    MG_START,
+    tap,
+    mgGo,
+    mgDone,
+    mgClose,
+  } = L;
   const fresh = () => L.fresh(); // 1 июня, без вводной цепочки
   /** В пустыню (открыв лес и пустыню действием openLand); полдень, лето. */
   const toDesert = async (tx = 21, ty = 30, minutes = 12 * 60) => {
@@ -36,121 +66,162 @@ module.exports = async function desert(ctx) {
   /** Поговорить с Барханом; если он предлагает задание — «Потом». */
   const talkB = async () => {
     await L.run('nomad', 500);
-    if (await ev(() => !!document.querySelector('.dialog') && /Помогу/.test(document.querySelector('.dialog').textContent))) {
+    if (
+      await ev(
+        () => !!document.querySelector('.dialog') && /Помогу/.test(document.querySelector('.dialog').textContent),
+      )
+    ) {
       await tap('.dialog .btn >> text=Потом', 450);
     }
   };
-  const SUN_HATS = ['sunhat', 'sunhat_blue', 'sunhat_daisy', 'sunhat_wide', 'panama_green', 'panama_white', 'panama_pink', 'hat_pith', 'hat_cowboy', 'scarf_nomad'];
+  const SUN_HATS = [
+    'sunhat',
+    'sunhat_blue',
+    'sunhat_daisy',
+    'sunhat_wide',
+    'panama_green',
+    'panama_white',
+    'panama_pink',
+    'hat_pith',
+    'hat_cowboy',
+    'scarf_nomad',
+  ];
 
-  await step('пустыня: задание Буси «Звезда подиума» — остановка закрыта, показ мод, шляпа от солнца, сдача, караван в пустыню', async () => {
-    await fresh();
-    // лес открыт, пустыня — нет: у остановки окно про Бусю, на табличке — замочек
-    await ev((hats) => {
-      const d = window.__dev;
-      d.actions.openLand('forest');
-      d.actions.mutate((s) => {
-        s.dayFlags = {};
-        s.minutes = 12 * 60;
-        s.best.fashion = 0;
-        s.clothes = s.clothes.filter((id) => !hats.includes(id));
-        s.money = 5000;
+  await step(
+    'пустыня: задание Буси «Звезда подиума» — остановка закрыта, показ мод, шляпа от солнца, сдача, караван в пустыню',
+    async () => {
+      await fresh();
+      // лес открыт, пустыня — нет: у остановки окно про Бусю, на табличке — замочек
+      await ev((hats) => {
+        const d = window.__dev;
+        d.actions.openLand('forest');
+        d.actions.mutate((s) => {
+          s.dayFlags = {};
+          s.minutes = 12 * 60;
+          s.best.fashion = 0;
+          s.clothes = s.clothes.filter((id) => !hats.includes(id));
+          s.money = 5000;
+        });
+        d.go('world');
+        d.World.debugTeleport(91, 26);
+      }, SUN_HATS);
+      await wait(300);
+      const sign = await ev(() => {
+        const o = window.__dev.World.map.objs.find((q) => q.type === 'signpost' && q.tx === 92 && q.ty === 25);
+        return o ? [o.text, o.text2()] : null;
       });
-      d.go('world');
-      d.World.debugTeleport(91, 26);
-    }, SUN_HATS);
-    await wait(300);
-    const sign = await ev(() => {
-      const o = window.__dev.World.map.objs.find((q) => q.type === 'signpost' && q.tx === 92 && q.ty === 25);
-      return o ? [o.text, o.text2()] : null;
-    });
-    expect(sign && sign[0] === '🐪 В пустыню' && /Бусю/.test(sign[1]) && /🔒/.test(sign[1]), 'табличка у закрытой остановки', sign);
-    await L.run('way:desert', 500);
-    expect(/Пустыня/.test(await panelText()) && /Буся/.test(await panelText()), 'окно у закрытой остановки', await panelText());
-    await closeAll();
-    expect((await where()).scene === 'world', 'закрытая остановка увезла в пустыню');
-    await watch();
-    const now = () => ev(() => window.__dev.QuestState.questNow('runway_star'));
-    expect((await ev(() => window.__dev.QuestState.questBadge('busya'))) === '!', 'над Бусей нет «!»');
-    await L.run('npc:busya', 500);
-    expect(/пустын/.test(await dialogText()) && /шляп/.test(await dialogText()), 'Буся не предлагает задание', await dialogText());
-    await tap('.dialog .btn.green', 400);
-    await tap('.dialog .btn.green', 400);
-    let w = await now();
-    expect(w.status === 'active' && w.i === 0, 'задание не взято', w);
-    // звёздочка — к Дому моды
-    const tg = await ev(() => {
-      const d = window.__dev;
-      return { t: d.World.target(), door: d.World.doorOf('fashion') };
-    });
-    expect(tg.t && Math.abs(tg.t.x - tg.door.x) < 3, 'звёздочка не у Дома моды', tg);
-    // показ мод: две звезды не считаются, три — да (событие мини-игры — как после настоящего показа)
-    await ev(() => window.__dev.emit('minigame', { id: 'fashion', stars: 2 }));
-    await frames(2);
-    expect((await now()).i === 0, 'показ на 2★ засчитан', await now());
-    await ev(() => window.__dev.emit('minigame', { id: 'fashion', stars: 3 }));
-    await frames(2);
-    w = await now();
-    expect(w.i === 1, 'показ на 3★ не засчитан', w);
-    // шляпа от солнца — в ТЦ «Модный», отдел «Голова»
-    const m0 = (await state()).money;
-    await ev(() => {
-      window.__dev.run({ do: 'clothes-shop', vendor: 'mall', shops: ['mall'] });
-    });
-    await untilPanel();
-    await tap('.overlay .tabs >> text=Голова', 400);
-    expect(/Шляпа от солнца/.test(await panelText()), 'нет шляпы от солнца в ТЦ «Модный»', await panelText());
-    await tap('.overlay .card:has-text("Шляпа от солнца") .btn', 500);
-    let s = await state();
-    expect(s.clothes.includes('sunhat_wide') && s.money === m0 - 350, 'шляпа не куплена', [m0 - s.money]);
-    await closeAll();
-    w = await now();
-    expect(w.i === 2 && (await ev(() => window.__dev.QuestState.questBadge('busya'))) === '?', 'после шляпы — к Бусе «?»', w);
-    const s0 = await state();
-    await L.run('npc:busya', 500);
-    await tap('.dialog .btn.green', 500);
-    await tap('.dialog .btn.green', 1500);
-    const t = await panelText();
-    expect(/Задание выполнено/.test(t) && /Королева песков/.test(t) && /Пустыня открыта/.test(t), 'праздничное окно', t);
-    await closeAll();
-    await unwatch();
-    s = await state();
-    expect(
-      s.quests.runway_star.done === s.day && Number.isFinite(s.lands.desert) && s.money === s0.money + 700 && s.stickers.includes('q_desert'),
-      'награда за задание Буси',
-      [s.quests.runway_star, s.lands, s.money - s0.money],
-    );
-    // показ уже был на 3★ и шляпа уже есть — оба шага засчитываются сразу, как взяли задание (поле already)
-    await ev(() =>
-      window.__dev.actions.mutate((st) => {
-        delete st.quests.runway_star;
-        st.best.fashion = 3;
-      }),
-    );
-    await L.run('npc:busya', 500);
-    await tap('.dialog .btn.green', 400);
-    await closeAll();
-    expect((await now()).i === 2, 'показ и шляпа «уже были» — не засчитаны сразу', await now());
-    // остановка открыта: на табличке — караван, за шлагбаумом — действие caravan:go; way:desert везёт картинкой
-    const open = await ev(() => {
-      const W = window.__dev.World,
-        o = W.map.objs.find((q) => q.type === 'signpost' && q.tx === 92 && q.ty === 25),
-        e = W.exit('desert');
-      return { sign: o.text2(), act: e.act, open: !e.off && e.when() };
-    });
-    expect(/Караван/.test(open.sign) && open.act === 'caravan:go' && open.open, 'открытая остановка', open);
-    await L.run('way:desert', 700);
-    expect(await ev(() => !!document.querySelector('.caravan-ride canvas')), 'нет картинки переезда');
-    await untilArrive('desert').catch(() => {});
-    await frames(2);
-    const r = await where();
-    const door = await ev(() => {
-      const sc = window.__dev.locations.desert;
-      return sc.map.doorPx(sc.map.bById.stop);
-    });
-    expect(r.scene === 'desert' && near(r, door, 30), 'приехали не к остановке в пустыне', [r, door]);
-    const saved = await ev(() => JSON.parse(localStorage.getItem('rhr-save-v1')).pos);
-    expect(saved.scene === 'desert', 'позиция в сохранении после переезда', saved);
-  });
+      expect(
+        sign && sign[0] === '🐪 В пустыню' && /Бусю/.test(sign[1]) && /🔒/.test(sign[1]),
+        'табличка у закрытой остановки',
+        sign,
+      );
+      await L.run('way:desert', 500);
+      expect(
+        /Пустыня/.test(await panelText()) && /Буся/.test(await panelText()),
+        'окно у закрытой остановки',
+        await panelText(),
+      );
+      await closeAll();
+      expect((await where()).scene === 'world', 'закрытая остановка увезла в пустыню');
+      await watch();
+      const now = () => ev(() => window.__dev.QuestState.questNow('runway_star'));
+      expect((await ev(() => window.__dev.QuestState.questBadge('busya'))) === '!', 'над Бусей нет «!»');
+      await L.run('npc:busya', 500);
+      expect(
+        /пустын/.test(await dialogText()) && /шляп/.test(await dialogText()),
+        'Буся не предлагает задание',
+        await dialogText(),
+      );
+      await tap('.dialog .btn.green', 400);
+      await tap('.dialog .btn.green', 400);
+      let w = await now();
+      expect(w.status === 'active' && w.i === 0, 'задание не взято', w);
+      // звёздочка — к Дому моды
+      const tg = await ev(() => {
+        const d = window.__dev;
+        return { t: d.World.target(), door: d.World.doorOf('fashion') };
+      });
+      expect(tg.t && Math.abs(tg.t.x - tg.door.x) < 3, 'звёздочка не у Дома моды', tg);
+      // показ мод: две звезды не считаются, три — да (событие мини-игры — как после настоящего показа)
+      await ev(() => window.__dev.emit('minigame', { id: 'fashion', stars: 2 }));
+      await frames(2);
+      expect((await now()).i === 0, 'показ на 2★ засчитан', await now());
+      await ev(() => window.__dev.emit('minigame', { id: 'fashion', stars: 3 }));
+      await frames(2);
+      w = await now();
+      expect(w.i === 1, 'показ на 3★ не засчитан', w);
+      // шляпа от солнца — в ТЦ «Модный», отдел «Голова»
+      const m0 = (await state()).money;
+      await ev(() => {
+        window.__dev.run({ do: 'clothes-shop', vendor: 'mall', shops: ['mall'] });
+      });
+      await untilPanel();
+      await tap('.overlay .tabs >> text=Голова', 400);
+      expect(/Шляпа от солнца/.test(await panelText()), 'нет шляпы от солнца в ТЦ «Модный»', await panelText());
+      await tap('.overlay .card:has-text("Шляпа от солнца") .btn', 500);
+      let s = await state();
+      expect(s.clothes.includes('sunhat_wide') && s.money === m0 - 350, 'шляпа не куплена', [m0 - s.money]);
+      await closeAll();
+      w = await now();
+      expect(
+        w.i === 2 && (await ev(() => window.__dev.QuestState.questBadge('busya'))) === '?',
+        'после шляпы — к Бусе «?»',
+        w,
+      );
+      const s0 = await state();
+      await L.run('npc:busya', 500);
+      await tap('.dialog .btn.green', 500);
+      await tap('.dialog .btn.green', 1500);
+      const t = await panelText();
+      expect(
+        /Задание выполнено/.test(t) && /Королева песков/.test(t) && /Пустыня открыта/.test(t),
+        'праздничное окно',
+        t,
+      );
+      await closeAll();
+      await unwatch();
+      s = await state();
+      expect(
+        s.quests.runway_star.done === s.day &&
+          Number.isFinite(s.lands.desert) &&
+          s.money === s0.money + 700 &&
+          s.stickers.includes('q_desert'),
+        'награда за задание Буси',
+        [s.quests.runway_star, s.lands, s.money - s0.money],
+      );
+      // показ уже был на 3★ и шляпа уже есть — оба шага засчитываются сразу, как взяли задание (поле already)
+      await ev(() =>
+        window.__dev.actions.mutate((st) => {
+          delete st.quests.runway_star;
+          st.best.fashion = 3;
+        }),
+      );
+      await L.run('npc:busya', 500);
+      await tap('.dialog .btn.green', 400);
+      await closeAll();
+      expect((await now()).i === 2, 'показ и шляпа «уже были» — не засчитаны сразу', await now());
+      // остановка открыта: на табличке — караван, за шлагбаумом — действие caravan:go; way:desert везёт картинкой
+      const open = await ev(() => {
+        const W = window.__dev.World,
+          o = W.map.objs.find((q) => q.type === 'signpost' && q.tx === 92 && q.ty === 25),
+          e = W.exit('desert');
+        return { sign: o.text2(), act: e.act, open: !e.off && e.when() };
+      });
+      expect(/Караван/.test(open.sign) && open.act === 'caravan:go' && open.open, 'открытая остановка', open);
+      await L.run('way:desert', 700);
+      expect(await ev(() => !!document.querySelector('.caravan-ride canvas')), 'нет картинки переезда');
+      await untilArrive('desert').catch(() => {});
+      await frames(2);
+      const r = await where();
+      const door = await ev(() => {
+        const sc = window.__dev.locations.desert;
+        return sc.map.doorPx(sc.map.bById.stop);
+      });
+      expect(r.scene === 'desert' && near(r, door, 30), 'приехали не к остановке в пустыне', [r, door]);
+      const saved = await ev(() => JSON.parse(localStorage.getItem('rhr-save-v1')).pos);
+      expect(saved.scene === 'desert', 'позиция в сохранении после переезда', saved);
+    },
+  );
 
   await step('пустыня: всё важное достижимо пешком, карта пустыни, спрайты, плоды кактуса по сезону', async () => {
     await toDesert();
@@ -171,7 +242,8 @@ module.exports = async function desert(ctx) {
           [0, 1],
           [0, -1],
         ].some(([dx, dy]) => reach(tx + dx, ty + dy));
-      for (const pl of sc.places) if (pl.stand && !reach(Math.floor(pl.stand[0]), Math.floor(pl.stand[1]))) out.push('место ' + pl.id);
+      for (const pl of sc.places)
+        if (pl.stand && !reach(Math.floor(pl.stand[0]), Math.floor(pl.stand[1]))) out.push('место ' + pl.id);
       for (const n of sc.npcs) if (!reachNear(Math.floor(n.x / 48), Math.floor(n.y / 48))) out.push('житель ' + n.id);
       for (const id of ['cacti', 'ring']) {
         const p = sc.spot(id);
@@ -184,12 +256,14 @@ module.exports = async function desert(ctx) {
       }
       const plants = m.objs.filter((o) => P.PLANTS[o.type]);
       for (const o of plants) if (!reachNear(o.tx, o.ty + 1)) out.push(`растение ${o.type} (${o.tx}, ${o.ty})`);
-      if (plants.length !== D.DESERT_GATHER.cactus_fruit.max) out.push(`опунций ${plants.length}, в таблице ${D.DESERT_GATHER.cactus_fruit.max}`);
+      if (plants.length !== D.DESERT_GATHER.cactus_fruit.max)
+        out.push(`опунций ${plants.length}, в таблице ${D.DESERT_GATHER.cactus_fruit.max}`);
       for (let y = 0; y < m.h; y++)
         for (let x = 0; x < m.w; x++) {
           const k = m.at(x, y);
           if (k === 'oasisWater' && m.foot(x, y)) out.push(`в оазис можно зайти (${x}, ${y})`);
-          if ((x === 0 || y === 0 || x === m.w - 1 || y === m.h - 1) && m.foot(x, y)) out.push(`край карты проходим (${x}, ${y})`);
+          if ((x === 0 || y === 0 || x === m.w - 1 || y === m.h - 1) && m.foot(x, y))
+            out.push(`край карты проходим (${x}, ${y})`);
         }
       // плоды кактуса: не в сезон — ничего; в сезон — по плоду, второй раз — ничего, наутро — снова
       const o = plants[0],
@@ -277,103 +351,140 @@ module.exports = async function desert(ctx) {
     await ev(() => window.__dev.actions.mutate((s) => (s.weather = 'sun')));
   });
 
-  await step('пустыня: оазис, колодец, мираж, звездопад, жара без шляпы, коллекция окаменелостей, рынок — только действия', async () => {
-    await toDesert(31, 30);
-    await watch();
-    await clearToasts();
-    await ev(() => {
-      window.__dev.run('desert:oasis');
-      window.__dev.run('desert:well');
-    });
-    await wait(200);
-    expect(/оазиса/.test(await toasts()) && /колодец/.test(await toasts()), 'оазис и колодец', await toasts());
-    // мираж: вдали виден, подошла — растаял, наклейка
-    await wait(300);
-    const far = await ev(async () => (await import('/js/locations/desert.js')).mirageAlpha(window.__dev.locations.desert));
-    expect(far > 0.3, 'миража вдали не видно', far);
-    await clearToasts();
-    await ev(() => window.__dev.locations.desert.debugTeleport(37, 30));
-    await until(() => /мираж/.test(document.querySelector('#toasts').textContent), undefined, { timeout: 3000 }).catch(() => {});
-    await frames(3);
-    const nearA = await ev(async () => (await import('/js/locations/desert.js')).mirageAlpha(window.__dev.locations.desert));
-    expect(nearA < 0.05 && /мираж/.test(await toasts()), 'мираж не растаял', [nearA, await toasts()]);
-    // звездопад: днём — подсказка, ночью — окно и желание
-    await clearToasts();
-    await L.run('desert:stars', 200);
-    expect(/ночью/.test(await toasts()) && !(await ev(() => !!document.querySelector('.overlay'))), 'звездопад днём', await toasts());
-    await ev(() => {
-      window.__dev.actions.mutate((s) => (s.minutes = 23 * 60));
-      window.__dev.run('desert:stars');
-    });
-    await untilPanel('Звездопад').catch(() => {});
-    expect(/Звездопад/.test(await panelText()) && (await ev(() => !!document.querySelector('.overlay canvas'))), 'окно звездопада');
-    await tap('.overlay .wish >> nth=0', 400);
-    expect(/Желание загадано/.test(await panelText()), 'желание не загадано', await panelText());
-    await closeAll();
-    let s = await state();
-    expect(s.stickers.includes('x_mirage') && s.stickers.includes('x_wish'), 'наклейки миража и желания', s.stickers);
-    // жара: днём без шляпы — добрая подсказка (раз в день); в шляпе — нет
-    await clearToasts();
-    await ev(() => {
-      const d = window.__dev;
-      d.actions.mutate((st) => {
-        st.minutes = 12 * 60;
-        st.dayFlags = {};
+  await step(
+    'пустыня: оазис, колодец, мираж, звездопад, жара без шляпы, коллекция окаменелостей, рынок — только действия',
+    async () => {
+      await toDesert(31, 30);
+      await watch();
+      await clearToasts();
+      await ev(() => {
+        window.__dev.run('desert:oasis');
+        window.__dev.run('desert:well');
       });
-      d.actions.wear('head', null);
-      d.locations.desert.debugTeleport(21, 30);
-    });
-    // жара копится 15 игровых минут (DESERT.heat, минута — 0,6 с)
-    await until(() => (window.__dev.G.state.dayFlags.desert || {}).heat === 1 && /шляпу/.test(document.querySelector('#toasts').textContent), undefined, { timeout: 14000 }).catch(() => {});
-    s = await state();
-    expect((s.dayFlags.desert || {}).heat === 1 && /шляпу/.test(await toasts()), 'нет подсказки про жару', [s.dayFlags, await toasts()]);
-    await ev(() => {
-      const d = window.__dev;
-      d.actions.mutate((st) => (st.dayFlags = {}));
-      if (!d.G.state.clothes.includes('sunhat_wide')) d.actions.addClothes('sunhat_wide');
-      d.actions.wear('head', 'sunhat_wide');
-    });
-    // жара уже накоплена (тот же день): без шляпы подсказка пришла бы в первый же кадр — хватит короткой паузы
-    await wait(1000);
-    expect(!((await state()).dayFlags.desert || {}).heat, 'подсказка про жару в шляпе');
-    // коллекция окаменелостей: по одной каждого вида
-    await ev(() => {
-      const a = window.__dev.actions;
-      for (const id of ['fossil_shell', 'fossil_leaf', 'fossil_tooth', 'fossil_bone']) a.addItem('finds', id, 1);
-      a.addItem('finds', 'fossil_bone', 2);
-      window.__dev.locations.desert.debugTeleport(27, 20);
-    });
-    await talkB();
-    await tap('.dialog .btn >> text=Коллекция окаменелостей', 400);
-    await closeAll();
-    s = await state();
-    expect(
-      s.storage.fossil_box === 1 && !s.finds.fossil_shell && s.finds.fossil_bone === 2 && s.stickers.includes('x_fossils'),
-      'коллекция окаменелостей',
-      [s.storage, s.finds],
-    );
-    // окаменелости берёт рынок (кошелёк торговца — общий)
-    const sold = await ev(() => {
-      const F = window.__dev.F,
-        g = F.sellable().find((q) => q.id === 'fossil_bone');
-      if (!g) return null;
-      const m0 = window.__dev.G.state.money;
-      F.sellGoods(g, 2);
-      return { sell: g.sell, got: window.__dev.G.state.money - m0, left: window.__dev.G.state.finds.fossil_bone || 0 };
-    });
-    expect(sold && sold.sell === 75 && sold.got === 150 && !sold.left, 'косточки на рынке', sold);
-    await unwatch();
-  });
+      await wait(200);
+      expect(/оазиса/.test(await toasts()) && /колодец/.test(await toasts()), 'оазис и колодец', await toasts());
+      // мираж: вдали виден, подошла — растаял, наклейка
+      await wait(300);
+      const far = await ev(async () =>
+        (await import('/js/locations/desert.js')).mirageAlpha(window.__dev.locations.desert),
+      );
+      expect(far > 0.3, 'миража вдали не видно', far);
+      await clearToasts();
+      await ev(() => window.__dev.locations.desert.debugTeleport(37, 30));
+      await until(() => /мираж/.test(document.querySelector('#toasts').textContent), undefined, {
+        timeout: 3000,
+      }).catch(() => {});
+      await frames(3);
+      const nearA = await ev(async () =>
+        (await import('/js/locations/desert.js')).mirageAlpha(window.__dev.locations.desert),
+      );
+      expect(nearA < 0.05 && /мираж/.test(await toasts()), 'мираж не растаял', [nearA, await toasts()]);
+      // звездопад: днём — подсказка, ночью — окно и желание
+      await clearToasts();
+      await L.run('desert:stars', 200);
+      expect(
+        /ночью/.test(await toasts()) && !(await ev(() => !!document.querySelector('.overlay'))),
+        'звездопад днём',
+        await toasts(),
+      );
+      await ev(() => {
+        window.__dev.actions.mutate((s) => (s.minutes = 23 * 60));
+        window.__dev.run('desert:stars');
+      });
+      await untilPanel('Звездопад').catch(() => {});
+      expect(
+        /Звездопад/.test(await panelText()) && (await ev(() => !!document.querySelector('.overlay canvas'))),
+        'окно звездопада',
+      );
+      await tap('.overlay .wish >> nth=0', 400);
+      expect(/Желание загадано/.test(await panelText()), 'желание не загадано', await panelText());
+      await closeAll();
+      let s = await state();
+      expect(s.stickers.includes('x_mirage') && s.stickers.includes('x_wish'), 'наклейки миража и желания', s.stickers);
+      // жара: днём без шляпы — добрая подсказка (раз в день); в шляпе — нет
+      await clearToasts();
+      await ev(() => {
+        const d = window.__dev;
+        d.actions.mutate((st) => {
+          st.minutes = 12 * 60;
+          st.dayFlags = {};
+        });
+        d.actions.wear('head', null);
+        d.locations.desert.debugTeleport(21, 30);
+      });
+      // жара копится 15 игровых минут (DESERT.heat, минута — 0,6 с)
+      await until(
+        () =>
+          (window.__dev.G.state.dayFlags.desert || {}).heat === 1 &&
+          /шляпу/.test(document.querySelector('#toasts').textContent),
+        undefined,
+        { timeout: 14000 },
+      ).catch(() => {});
+      s = await state();
+      expect((s.dayFlags.desert || {}).heat === 1 && /шляпу/.test(await toasts()), 'нет подсказки про жару', [
+        s.dayFlags,
+        await toasts(),
+      ]);
+      await ev(() => {
+        const d = window.__dev;
+        d.actions.mutate((st) => (st.dayFlags = {}));
+        if (!d.G.state.clothes.includes('sunhat_wide')) d.actions.addClothes('sunhat_wide');
+        d.actions.wear('head', 'sunhat_wide');
+      });
+      // жара уже накоплена (тот же день): без шляпы подсказка пришла бы в первый же кадр — хватит короткой паузы
+      await wait(1000);
+      expect(!((await state()).dayFlags.desert || {}).heat, 'подсказка про жару в шляпе');
+      // коллекция окаменелостей: по одной каждого вида
+      await ev(() => {
+        const a = window.__dev.actions;
+        for (const id of ['fossil_shell', 'fossil_leaf', 'fossil_tooth', 'fossil_bone']) a.addItem('finds', id, 1);
+        a.addItem('finds', 'fossil_bone', 2);
+        window.__dev.locations.desert.debugTeleport(27, 20);
+      });
+      await talkB();
+      await tap('.dialog .btn >> text=Коллекция окаменелостей', 400);
+      await closeAll();
+      s = await state();
+      expect(
+        s.storage.fossil_box === 1 &&
+          !s.finds.fossil_shell &&
+          s.finds.fossil_bone === 2 &&
+          s.stickers.includes('x_fossils'),
+        'коллекция окаменелостей',
+        [s.storage, s.finds],
+      );
+      // окаменелости берёт рынок (кошелёк торговца — общий)
+      const sold = await ev(() => {
+        const F = window.__dev.F,
+          g = F.sellable().find((q) => q.id === 'fossil_bone');
+        if (!g) return null;
+        const m0 = window.__dev.G.state.money;
+        F.sellGoods(g, 2);
+        return {
+          sell: g.sell,
+          got: window.__dev.G.state.money - m0,
+          left: window.__dev.G.state.finds.fossil_bone || 0,
+        };
+      });
+      expect(sold && sold.sell === 75 && sold.got === 150 && !sold.left, 'косточки на рынке', sold);
+      await unwatch();
+    },
+  );
 
   await step('пустыня: «Раскопки» у Бархана — до конца, находка и приз за первые две игры дня', async () => {
     await toDesert(27, 20);
-    await ev(() => window.__dev.actions.mutate((s) => (s.quests.camel_bell = { day: s.day, n: {}, got: {}, done: s.day })));
+    await ev(() =>
+      window.__dev.actions.mutate((s) => (s.quests.camel_bell = { day: s.day, n: {}, got: {}, done: s.day })),
+    );
     const s0 = await state();
     await talkB();
     await tap('.dialog .btn >> text=Раскопки', 1200);
     const intro = norm(await ev(() => document.querySelector('#mg').textContent));
     expect(
-      /Води/.test(intro) && /Найди/.test(intro) && (await ev(() => document.querySelectorAll('#mg .dg-col img').length)) === 3 && /Приз Бархана/.test(intro),
+      /Води/.test(intro) &&
+        /Найди/.test(intro) &&
+        (await ev(() => document.querySelectorAll('#mg .dg-col img').length)) === 3 &&
+        /Приз Бархана/.test(intro),
       'правило картинкой',
       intro,
     );
@@ -393,7 +504,8 @@ module.exports = async function desert(ctx) {
       y0 = Math.min(...ys),
       y1 = Math.max(...ys);
     for (let pass = 0; pass < 3; pass++) {
-      if (await ev(() => document.querySelector('#mg canvas') && document.querySelector('#mg canvas').__dig().found)) break;
+      if (await ev(() => document.querySelector('#mg canvas') && document.querySelector('#mg canvas').__dig().found))
+        break;
       await page.mouse.move(info.left + x0, info.top + y0);
       await page.mouse.down();
       for (let y = y0 + pass * 4; y <= y1 + 4; y += 12) {
@@ -407,10 +519,17 @@ module.exports = async function desert(ctx) {
     expect(/нашла/.test(end) && /⭐/.test(end), 'итог игры', end);
     await mgDone();
     const s1 = await state();
-    const got = ['fossil_shell', 'fossil_leaf', 'fossil_tooth', 'fossil_bone'].reduce((a, id) => a + (s1.finds[id] || 0) - (s0.finds[id] || 0), 0);
+    const got = ['fossil_shell', 'fossil_leaf', 'fossil_tooth', 'fossil_bone'].reduce(
+      (a, id) => a + (s1.finds[id] || 0) - (s0.finds[id] || 0),
+      0,
+    );
     const stars = s1.best.dig;
     expect(
-      s1.plays.dig === 1 && stars >= 2 && s1.dayFlags.desert.digs === 1 && got === 1 && (s1.finds[info.fossil] || 0) === (s0.finds[info.fossil] || 0) + 1,
+      s1.plays.dig === 1 &&
+        stars >= 2 &&
+        s1.dayFlags.desert.digs === 1 &&
+        got === 1 &&
+        (s1.finds[info.fossil] || 0) === (s0.finds[info.fossil] || 0) + 1,
       'игра записана, находка выдана',
       [s1.plays, s1.best, s1.dayFlags.desert, got, info.fossil],
     );
@@ -420,7 +539,10 @@ module.exports = async function desert(ctx) {
       window.__dev.F.digGame();
     });
     await page.waitForSelector(MG_START);
-    expect(/ещё 1 раскопка/.test(norm(await ev(() => document.querySelector('#mg').textContent))), 'на заставке — сколько раскопок с призом');
+    expect(
+      /ещё 1 раскопка/.test(norm(await ev(() => document.querySelector('#mg').textContent))),
+      'на заставке — сколько раскопок с призом',
+    );
     await mgClose();
     expect((await state()).money === s1.money, 'закрыли игру — а приз пришёл');
     // две раскопки уже были — третья для удовольствия
@@ -429,7 +551,10 @@ module.exports = async function desert(ctx) {
       window.__dev.F.digGame();
     });
     await page.waitForSelector(MG_START);
-    expect(/для удовольствия/.test(norm(await ev(() => document.querySelector('#mg').textContent))), 'третья раскопка — без находки');
+    expect(
+      /для удовольствия/.test(norm(await ev(() => document.querySelector('#mg').textContent))),
+      'третья раскопка — без находки',
+    );
     await mgClose();
     await closeAll();
   });
@@ -439,7 +564,13 @@ module.exports = async function desert(ctx) {
     const s0 = await state();
     await L.run('desert:pairs', 1200);
     const intro = norm(await ev(() => document.querySelector('#mg').textContent));
-    expect(/пары/.test(intro) && (await ev(() => document.querySelectorAll('#mg .pr-col').length)) === 3 && /Сокровище пирамиды/.test(intro), 'правило картинкой', intro);
+    expect(
+      /пары/.test(intro) &&
+        (await ev(() => document.querySelectorAll('#mg .pr-col').length)) === 3 &&
+        /Сокровище пирамиды/.test(intro),
+      'правило картинкой',
+      intro,
+    );
     await mgGo();
     // бот знает, где какая табличка, и открывает пары без промахов
     const deck = await ev(() => document.querySelector('#mg .pr-grid').__pairs().deck);
@@ -461,7 +592,11 @@ module.exports = async function desert(ctx) {
     await mgDone();
     let s = await state();
     expect(
-      s.plays.pairs === 1 && s.best.pairs === 3 && s.money === s0.money + 150 && s.dayFlags.desert.pairs === 1 && s.stickers.includes('x_pyramid'),
+      s.plays.pairs === 1 &&
+        s.best.pairs === 3 &&
+        s.money === s0.money + 150 &&
+        s.dayFlags.desert.pairs === 1 &&
+        s.stickers.includes('x_pyramid'),
       'сокровище и наклейка',
       [s.plays, s.best, s.money - s0.money, s.dayFlags.desert],
     );
@@ -470,18 +605,28 @@ module.exports = async function desert(ctx) {
       window.__dev.F.pairsGame();
     });
     await page.waitForSelector(MG_START);
-    expect(/для удовольствия/.test(norm(await ev(() => document.querySelector('#mg').textContent))), 'второй раз за день — без сокровища');
+    expect(
+      /для удовольствия/.test(norm(await ev(() => document.querySelector('#mg').textContent))),
+      'второй раз за день — без сокровища',
+    );
     await mgGo();
     const d2 = await ev(() => document.querySelector('#mg .pr-grid').__pairs().deck);
     const j = d2.findIndex((v) => v !== d2[0]);
     await page.click('#mg .pr-card >> nth=0');
     await wait(100);
     await page.click(`#mg .pr-card >> nth=${j}`);
-    await until(() => {
-      const q = document.querySelector('#mg .pr-grid').__pairs();
-      return q.miss === 1 && !q.open.length && !document.querySelectorAll('#mg .pr-card.open').length;
-    }, undefined, { timeout: 4000 }).catch(() => {});
-    const q = await ev(() => ({ ...document.querySelector('#mg .pr-grid').__pairs(), shown: document.querySelectorAll('#mg .pr-card.open').length }));
+    await until(
+      () => {
+        const q = document.querySelector('#mg .pr-grid').__pairs();
+        return q.miss === 1 && !q.open.length && !document.querySelectorAll('#mg .pr-card.open').length;
+      },
+      undefined,
+      { timeout: 4000 },
+    ).catch(() => {});
+    const q = await ev(() => ({
+      ...document.querySelector('#mg .pr-grid').__pairs(),
+      shown: document.querySelectorAll('#mg .pr-card.open').length,
+    }));
     expect(q.miss === 1 && !q.open.length && !q.done.length && !q.shown, 'промах не закрылся', q);
     await mgClose();
     s = await state();
@@ -498,7 +643,11 @@ module.exports = async function desert(ctx) {
     const r = await ev(() => {
       const sc = window.__dev.locations.desert,
         camel = sc.map.objs.find((o) => o.type === 'camel');
-      return { ride: !!(sc.p.ride && sc.p.ride.camel), away: camel.away(), hud: document.querySelector('#hud').textContent };
+      return {
+        ride: !!(sc.p.ride && sc.p.ride.camel),
+        away: camel.away(),
+        hud: document.querySelector('#hud').textContent,
+      };
     });
     expect(r.ride && r.away && /Слезть/.test(r.hud), 'не сели на верблюда', r);
     const p0 = await where();
@@ -506,14 +655,22 @@ module.exports = async function desert(ctx) {
     const p1 = await where();
     expect(!near(p0, p1, 10), 'верблюд стоит на месте', [p0, p1]);
     // круг до конца: слезла, наклейка
-    await until(() => !window.__dev.locations.desert.p.ride && window.__dev.G.state.stickers.includes('x_camel'), undefined, { timeout: 15000 }).catch(() => {});
+    await until(
+      () => !window.__dev.locations.desert.p.ride && window.__dev.G.state.stickers.includes('x_camel'),
+      undefined,
+      { timeout: 15000 },
+    ).catch(() => {});
     await frames(2);
     const s = await state();
     const after = await ev(() => {
       const sc = window.__dev.locations.desert;
       return { ride: !!sc.p.ride, x: sc.p.x, y: sc.p.y };
     });
-    expect(!after.ride && s.stickers.includes('x_camel') && near(after, { x: 29.5 * T, y: 19.6 * T }, 30), 'прогулка не закончилась', [after, s.stickers]);
+    expect(
+      !after.ride && s.stickers.includes('x_camel') && near(after, { x: 29.5 * T, y: 19.6 * T }, 30),
+      'прогулка не закончилась',
+      [after, s.stickers],
+    );
     // ещё раз — и слезть кнопкой
     await ev(() => {
       window.__dev.run({ do: 'desert', arg: 'camel', to: 'ring' });
@@ -556,7 +713,11 @@ module.exports = async function desert(ctx) {
     await ev(() => window.__dev.emit('desert', { what: 'ride' }));
     await frames(2);
     w = await now();
-    expect(w.i === 2 && (await ev(() => window.__dev.QuestState.questBadge('barkhan'))) === '?', 'после прогулки — к Бархану «?»', w);
+    expect(
+      w.i === 2 && (await ev(() => window.__dev.QuestState.questBadge('barkhan'))) === '?',
+      'после прогулки — к Бархану «?»',
+      w,
+    );
     const s0 = await state();
     await ev(() => {
       window.__dev.locations.desert.debugTeleport(27, 20);
@@ -571,7 +732,10 @@ module.exports = async function desert(ctx) {
     await unwatch();
     const s = await state();
     expect(
-      s.quests.camel_bell.done === s.day && s.money === s0.money + 600 && s.stickers.includes('q_nomad') && s.clothes.includes('scarf_nomad'),
+      s.quests.camel_bell.done === s.day &&
+        s.money === s0.money + 600 &&
+        s.stickers.includes('q_nomad') &&
+        s.clothes.includes('scarf_nomad'),
       'награда за задание Бархана',
       [s.quests.camel_bell, s.money - s0.money],
     );
@@ -579,45 +743,58 @@ module.exports = async function desert(ctx) {
     expect((await state()).look.outfit.head === 'scarf_nomad', 'платок не надевается');
   });
 
-  await step('пустыня: сохранение и загрузка в пустыне; караван в город и за шлагбаум; «Домой» из пустыни', async () => {
-    await fresh(); // своя новая игра: не опираться на дом и место, оставленные прошлыми шагами
-    await toDesert(22, 28);
-    await wait(300);
-    const raw = await ev(() => {
-      window.dispatchEvent(new Event('pagehide'));
-      return localStorage.getItem('rhr-save-v1');
-    });
-    const pos = JSON.parse(raw).pos;
-    expect(pos.scene === 'desert', 'позиция в сохранении', pos);
-    await ev((raw) => {
-      window.__dev.G.state = null;
-      localStorage.setItem('rhr-save-v1', raw);
-    }, raw);
-    await page.reload();
-    await page.waitForSelector(sel('continue'));
-    await L.cont();
-    await closeAll();
-    let r = await where();
-    expect(r.scene === 'desert' && near(r, pos, 30), 'после загрузки — в пустыне на том же месте', [r, pos]);
-    // в город — с остановки каравана (дверь здания stop)
-    await ev(() => {
-      const sc = window.__dev.locations.desert;
-      sc.enterBuilding(sc.map.bById.stop);
-    });
-    await L.until(() => window.__dev.sceneName === 'world' && !document.querySelector('.fade'), undefined, { timeout: 9000 }).catch(() => {});
-    await frames(2);
-    r = await where();
-    expect(r.scene === 'world' && near(r, { x: 91.5 * T, y: 26.4 * T }, 40), 'караван привёз не к остановке в городе', r);
-    // за открытый шлагбаум пешком — тоже караван
-    await ev(() => window.__dev.World.walkTo(95.5 * 48, 26.5 * 48, true));
-    await until(() => !!document.querySelector('.caravan-ride'), undefined, { timeout: 5000 }).catch(() => {});
-    expect(await ev(() => !!document.querySelector('.caravan-ride')), 'за шлагбаумом нет каравана');
-    await untilArrive('desert').catch(() => {});
-    expect((await where()).scene === 'desert', 'за шлагбаумом — не пустыня', await where());
-    // «Домой» — на виллу
-    await page.click('.hud-btns.left .rbtn:last-child');
-    await page.click('.panel-foot .btn.green');
-    await untilScene('villa').catch(() => {});
-    expect((await ev(() => window.__dev.sceneName)) === 'villa', 'кнопка «Домой» из пустыни', await ev(() => window.__dev.sceneName));
-  });
+  await step(
+    'пустыня: сохранение и загрузка в пустыне; караван в город и за шлагбаум; «Домой» из пустыни',
+    async () => {
+      await fresh(); // своя новая игра: не опираться на дом и место, оставленные прошлыми шагами
+      await toDesert(22, 28);
+      await wait(300);
+      const raw = await ev(() => {
+        window.dispatchEvent(new Event('pagehide'));
+        return localStorage.getItem('rhr-save-v1');
+      });
+      const pos = JSON.parse(raw).pos;
+      expect(pos.scene === 'desert', 'позиция в сохранении', pos);
+      await ev((raw) => {
+        window.__dev.G.state = null;
+        localStorage.setItem('rhr-save-v1', raw);
+      }, raw);
+      await page.reload();
+      await page.waitForSelector(sel('continue'));
+      await L.cont();
+      await closeAll();
+      let r = await where();
+      expect(r.scene === 'desert' && near(r, pos, 30), 'после загрузки — в пустыне на том же месте', [r, pos]);
+      // в город — с остановки каравана (дверь здания stop)
+      await ev(() => {
+        const sc = window.__dev.locations.desert;
+        sc.enterBuilding(sc.map.bById.stop);
+      });
+      await L.until(() => window.__dev.sceneName === 'world' && !document.querySelector('.fade'), undefined, {
+        timeout: 9000,
+      }).catch(() => {});
+      await frames(2);
+      r = await where();
+      expect(
+        r.scene === 'world' && near(r, { x: 91.5 * T, y: 26.4 * T }, 40),
+        'караван привёз не к остановке в городе',
+        r,
+      );
+      // за открытый шлагбаум пешком — тоже караван
+      await ev(() => window.__dev.World.walkTo(95.5 * 48, 26.5 * 48, true));
+      await until(() => !!document.querySelector('.caravan-ride'), undefined, { timeout: 5000 }).catch(() => {});
+      expect(await ev(() => !!document.querySelector('.caravan-ride')), 'за шлагбаумом нет каравана');
+      await untilArrive('desert').catch(() => {});
+      expect((await where()).scene === 'desert', 'за шлагбаумом — не пустыня', await where());
+      // «Домой» — на виллу
+      await page.click('.hud-btns.left .rbtn:last-child');
+      await page.click('.panel-foot .btn.green');
+      await untilScene('villa').catch(() => {});
+      expect(
+        (await ev(() => window.__dev.sceneName)) === 'villa',
+        'кнопка «Домой» из пустыни',
+        await ev(() => window.__dev.sceneName),
+      );
+    },
+  );
 };

@@ -175,7 +175,8 @@ export function drawLegs(ctx, item) {
     }
     ctx.stroke();
     fillRR(ctx, -22, -24, 44, 6, 3, shade(item.c, -0.35), OUT, 1.4);
-    for (let i = -2; i <= 2; i++) ell(ctx, i * 8, -21, 2.2, 2.2, ['#ff6b6b', '#ffd43b', '#fff', '#ffd43b', '#ff6b6b'][i + 2]);
+    for (let i = -2; i <= 2; i++)
+      ell(ctx, i * 8, -21, 2.2, 2.2, ['#ff6b6b', '#ffd43b', '#fff', '#ffd43b', '#ff6b6b'][i + 2]);
   } else if (item.kind === 'skirt') {
     const skirtPath = () => {
       ctx.beginPath();
@@ -526,7 +527,16 @@ export function printOn(ctx, kind, x, y) {
         cx = Math.cos(a),
         sy = Math.sin(a);
       line(ctx, x, y, x + cx * 8, y + sy * 8, '#fff', 1.8);
-      for (const d of [-0.7, 0.7]) line(ctx, x + cx * 5, y + sy * 5, x + cx * 5 + Math.cos(a + d) * 3, y + sy * 5 + Math.sin(a + d) * 3, '#fff', 1.3);
+      for (const d of [-0.7, 0.7])
+        line(
+          ctx,
+          x + cx * 5,
+          y + sy * 5,
+          x + cx * 5 + Math.cos(a + d) * 3,
+          y + sy * 5 + Math.sin(a + d) * 3,
+          '#fff',
+          1.3,
+        );
     }
   } else if (kind === 'star') star(ctx, x, y, 6, '#ffe066');
   else if (kind === 'sun') {

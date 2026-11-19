@@ -58,7 +58,15 @@ function grassDeco(ctx, x, y, tx, ty, env, r) {
   }
 }
 function ashDeco(ctx, x, y, tx, ty, env, r) {
-  for (let i = 0; i < 4; i++) ell(ctx, x + r(i) * T, y + r(i + 5) * T, 2 + r(i + 9) * 2.4, 1.6 + r(i + 9) * 1.6, i % 2 ? 'rgba(40,34,30,.45)' : 'rgba(150,135,125,.35)');
+  for (let i = 0; i < 4; i++)
+    ell(
+      ctx,
+      x + r(i) * T,
+      y + r(i + 5) * T,
+      2 + r(i + 9) * 2.4,
+      1.6 + r(i + 9) * 1.6,
+      i % 2 ? 'rgba(40,34,30,.45)' : 'rgba(150,135,125,.35)',
+    );
   if (r(14) < 0.15) ell(ctx, x + 10 + r(15) * 28, y + 10 + r(16) * 28, 3, 2, 'rgba(120,180,90,.5)'); // травинка пробилась
 }
 function trailDeco(ctx, x, y, tx, ty, env, r) {
@@ -67,7 +75,8 @@ function trailDeco(ctx, x, y, tx, ty, env, r) {
 }
 function plazaDeco(ctx, x, y, tx, ty, env, r) {
   for (let i = 0; i < 2; i++) ell(ctx, x + r(i) * T, y + r(i + 4) * T, 2.2, 1.6, 'rgba(120,85,50,.3)');
-  if (r(7) < 0.25) ell(ctx, x + 6 + r(8) * 36, y + 6 + r(9) * 36, 4, 3, 'rgba(200,190,175,.8)', 'rgba(90,70,50,.35)', 0.8); // камешек
+  if (r(7) < 0.25)
+    ell(ctx, x + 6 + r(8) * 36, y + 6 + r(9) * 36, 4, 3, 'rgba(200,190,175,.8)', 'rgba(90,70,50,.35)', 0.8); // камешек
 }
 function laneDeco(ctx, x, y, tx, ty, env, r) {
   ctx.strokeStyle = 'rgba(160,120,60,.18)';
@@ -82,10 +91,38 @@ function laneDeco(ctx, x, y, tx, ty, env, r) {
 }
 defineTiles({
   igrass: { map: GRASS, step: 'step', z: 4.33, fill: GRASS, edge: { wob: 8, in: [[GRASS_D, 7]] }, deco: grassDeco },
-  iash: { map: ASH, step: 'stepStone', z: 4.47, fill: ASH, edge: { wob: 10, out: [['rgba(40,30,25,.25)', 8]], in: [[ASH_D, 10]] }, deco: ashDeco },
-  itrail: { map: '#d9bf86', step: 'stepSand', z: 5.09, fill: TRAIL, edge: { wob: 7, out: [['rgba(120,90,40,.2)', 6]], in: [['rgba(255,250,230,.35)', 4]] }, deco: trailDeco },
-  iplaza: { map: PLAZA, step: 'stepSand', z: 5.21, fill: PLAZA, edge: { wob: 5, out: [['rgba(110,80,45,.28)', 7]], in: [['rgba(255,240,210,.3)', 5]] }, deco: plazaDeco },
-  ilane: { map: LANE, step: 'stepWood', z: 5.31, fill: LANE, edge: { wob: 1, out: [['rgba(110,70,30,.45)', 5]], in: [['rgba(255,255,255,.4)', 3]] }, deco: laneDeco },
+  iash: {
+    map: ASH,
+    step: 'stepStone',
+    z: 4.47,
+    fill: ASH,
+    edge: { wob: 10, out: [['rgba(40,30,25,.25)', 8]], in: [[ASH_D, 10]] },
+    deco: ashDeco,
+  },
+  itrail: {
+    map: '#d9bf86',
+    step: 'stepSand',
+    z: 5.09,
+    fill: TRAIL,
+    edge: { wob: 7, out: [['rgba(120,90,40,.2)', 6]], in: [['rgba(255,250,230,.35)', 4]] },
+    deco: trailDeco,
+  },
+  iplaza: {
+    map: PLAZA,
+    step: 'stepSand',
+    z: 5.21,
+    fill: PLAZA,
+    edge: { wob: 5, out: [['rgba(110,80,45,.28)', 7]], in: [['rgba(255,240,210,.3)', 5]] },
+    deco: plazaDeco,
+  },
+  ilane: {
+    map: LANE,
+    step: 'stepWood',
+    z: 5.31,
+    fill: LANE,
+    edge: { wob: 1, out: [['rgba(110,70,30,.45)', 5]], in: [['rgba(255,255,255,.4)', 3]] },
+    deco: laneDeco,
+  },
 });
 
 // ---------- вулкан ----------
@@ -278,7 +315,8 @@ function paintIFlowers(ctx, v) {
     [14, -4],
     [-6, -2],
   ]) {
-    for (let k = 0; k < 5; k++) ell(ctx, x + Math.cos(k * 1.257) * 3.6, y + Math.sin(k * 1.257) * 3.6, 3, 3, c, OUT, 0.8);
+    for (let k = 0; k < 5; k++)
+      ell(ctx, x + Math.cos(k * 1.257) * 3.6, y + Math.sin(k * 1.257) * 3.6, 3, 3, c, OUT, 0.8);
     ell(ctx, x, y, 1.8, 1.8, mid);
   }
 }
@@ -395,8 +433,18 @@ function paintStiltHut(ctx, b, snow, lit) {
   // крыша из листьев: большой навес с бахромой
   poly(ctx, [X - 12, top + 22, cx, top - 34, X + W + 12, top + 22], '#b9a24a', OUT, 2.6);
   poly(ctx, [cx, top - 34, X + W + 12, top + 22, cx + 8, top + 22], 'rgba(90,70,20,.18)');
-  for (let x = X - 8; x < X + W + 8; x += 12) poly(ctx, [x, top + 18, x + 6, top + 32, x + 12, top + 18], '#a08c3a', OUT, 1);
-  for (let k = 0.3; k < 0.95; k += 0.32) line(ctx, cx - (cx - X + 12) * k, top - 34 + 56 * k, cx + (X + W + 12 - cx) * k, top - 34 + 56 * k, 'rgba(90,70,20,.3)', 1.5);
+  for (let x = X - 8; x < X + W + 8; x += 12)
+    poly(ctx, [x, top + 18, x + 6, top + 32, x + 12, top + 18], '#a08c3a', OUT, 1);
+  for (let k = 0.3; k < 0.95; k += 0.32)
+    line(
+      ctx,
+      cx - (cx - X + 12) * k,
+      top - 34 + 56 * k,
+      cx + (X + W + 12 - cx) * k,
+      top - 34 + 56 * k,
+      'rgba(90,70,20,.3)',
+      1.5,
+    );
   // лесенка к двери
   for (const sx of [-10, 10]) line(ctx, cx + sx, floor + 2, cx + sx * 1.2, bot + 2, OUT, 3);
   for (let y = floor + 8; y < bot; y += 7) line(ctx, cx - 10, y, cx + 10, y, WOOD_D, 2.4);
@@ -419,11 +467,21 @@ function paintChiefHut(ctx, b, snow, lit) {
   // дверь
   fillRR(ctx, cx - 16, bot - 42, 32, 40, 8, lit ? '#8a6424' : '#4f3a1e', OUT, 2);
   if (lit) glow(ctx, cx, bot - 22, 40, 0.45);
-  for (let i = 0; i < 5; i++) ell(ctx, cx - 14 + i * 7, bot - 42, 3, 3, ['#ff6b6b', '#ffd43b', '#fff', '#ffd43b', '#ff6b6b'][i], OUT, 0.8);
+  for (let i = 0; i < 5; i++)
+    ell(ctx, cx - 14 + i * 7, bot - 42, 3, 3, ['#ff6b6b', '#ffd43b', '#fff', '#ffd43b', '#ff6b6b'][i], OUT, 0.8);
   // щит с солнцем
   ell(ctx, X + W - 34, bot - 40, 13, 13, '#e8590c', OUT, 2);
   ell(ctx, X + W - 34, bot - 40, 6, 6, '#ffd43b', OUT, 1.2);
-  for (let k = 0; k < 8; k++) line(ctx, X + W - 34 + Math.cos(k * 0.785) * 8, bot - 40 + Math.sin(k * 0.785) * 8, X + W - 34 + Math.cos(k * 0.785) * 12, bot - 40 + Math.sin(k * 0.785) * 12, '#ffd43b', 1.6);
+  for (let k = 0; k < 8; k++)
+    line(
+      ctx,
+      X + W - 34 + Math.cos(k * 0.785) * 8,
+      bot - 40 + Math.sin(k * 0.785) * 8,
+      X + W - 34 + Math.cos(k * 0.785) * 12,
+      bot - 40 + Math.sin(k * 0.785) * 12,
+      '#ffd43b',
+      1.6,
+    );
   // резные столбы по бокам
   for (const x of [X + 8, X + W - 8]) {
     fillRR(ctx, x - 7, top - 4, 14, bot - top + 4, 4, '#a0662d', OUT, 1.8);
@@ -451,7 +509,8 @@ function paintChiefHut(ctx, b, snow, lit) {
     ctx.quadraticCurveTo(cx, top - 70 + k * 18, X + W + 6 - k * 8, top + 4 - k * 14);
     ctx.stroke();
   }
-  for (let x = X - 10; x < X + W + 10; x += 12) poly(ctx, [x, top + 12, x + 6, top + 26, x + 12, top + 12], '#a8913e', OUT, 1);
+  for (let x = X - 10; x < X + W + 10; x += 12)
+    poly(ctx, [x, top + 12, x + 6, top + 26, x + 12, top + 12], '#a8913e', OUT, 1);
   // перья на верхушке
   for (let i = -1; i <= 1; i++) {
     ctx.save();
@@ -478,4 +537,3 @@ defineBuildings({
     lights: (b) => [[(b.x + b.w / 2) * T, (b.y + b.h) * T - 24, 80, 56, 1]],
   },
 });
-

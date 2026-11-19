@@ -10,7 +10,30 @@ const lib = require('./lib.js');
 
 module.exports = async function holidays(ctx) {
   const L = lib(ctx);
-  const { page, step, ev, wait, closeAll, go, T, norm, expect, state, dialogText, panelText, toasts, clearToasts, scene, mutate, watch, unwatch, MG_START, tap, mgGo, mgDone } = L;
+  const {
+    page,
+    step,
+    ev,
+    wait,
+    closeAll,
+    go,
+    T,
+    norm,
+    expect,
+    state,
+    dialogText,
+    panelText,
+    toasts,
+    clearToasts,
+    scene,
+    mutate,
+    watch,
+    unwatch,
+    MG_START,
+    tap,
+    mgGo,
+    mgDone,
+  } = L;
   const hol = () => ev(() => window.__dev.holiday.state());
   const decor = () => ev(() => window.__dev.holiday.decor());
   /** Действие из реестра; ждём отклика (окно, диалог, сцена, подсказка), но не дольше ms. */
@@ -62,203 +85,380 @@ module.exports = async function holidays(ctx) {
     await tap('.hol-scene-panel .panel-body .btn:has-text("Ура")', 400);
   };
 
-  await step('праздники: таблица и календарь — даты, канун, украшения по дням, значок в HUD, праздничный календарь', async () => {
-    await fresh();
-    const r = await ev(async () => {
-      const D = await import('./js/data/index.js');
-      const on = (d) => (D.holidayOn(d) || {}).id || null;
-      return {
-        ids: D.HOLIDAYS.map((h) => h.id),
-        days: { 35: on(35), 1: on(1), 3: on(3), 5: on(5), 71: on(71), 37: on(37), 2: on(2), 10: on(10) },
-        decor: [34, 35, 36, 37, 0, 1, 2, 3, 4, 5, 6].map((d) => D.decorsOn(d).map(({ h, k }) => h.id + k).join(',')),
-        gifts: D.HOLIDAYS.map((h) => h.gift),
-        prices: [D.CLOTHES_BY_ID.hat_santa, D.CLOTHES_BY_ID.dress_qipao, D.FURN_BY_ID.samovar, ...['wreath_may', 'water_pistol', 'hat_witch', 'cape_violet'].map((id) => D.CLOTHES_BY_ID[id])].map((q) => [q.shop, q.price]),
-        more: { 12: on(12), 18: on(18), 29: on(29), 0: on(0), 36: on(36), 72: on(72), 37: on(37) },
-        // «Год в городе» (этап 10): 1 июня, через год после начала игры (новая — день 15, старая — день 0)
-        town: [D.holidayOn(15, 15), D.holidayOn(51, 15), D.holidayOn(87, 15), D.holidayOn(15, 0), D.holidayOn(51, 0), D.holidayOn(50, 15), D.holidayOn(52, 15)].map((h) => (h ? h.id : null)),
-        start: [D.START_DAY, window.__dev.state.day, window.__dev.state.startDay, D.decorsOn(15, 15).length, D.decorsOn(16, 15).length],
-        gifts3: D.HOLIDAYS.map((h) => D.holidayGifts(h).length),
-        decor2: [11, 12, 13, 17, 18, 19, 28, 29, 30, 36].map((d) => D.decorsOn(d).map(({ h, k }) => h.id + k).join(',')),
-        secret: D.SECRET_RECIPES.includes('gingerbread'),
-        recipe: !!D.DISH_BY_ID.gingerbread,
-      };
-    });
-    expect(r.ids.join() === 'newyear,xmas,cny,maslenitsa,mayday,kupala,halloween,birthday', 'праздники в таблице', r.ids);
-    expect(r.days[35] === 'newyear' && r.days[71] === 'newyear' && r.days[1] === 'xmas' && r.days[37] === 'xmas', 'Новый год 3 декабря, Рождество 2 января', r.days);
-    expect(r.days[3] === 'cny' && r.days[5] === 'maslenitsa' && !r.days[2] && !r.days[10], 'Китайский Новый год 1 февраля, Масленица 3 февраля', r.days);
-    expect(r.decor.join('|') === 'newyear-1|newyear0|newyear1,xmas-1|xmas0|newyear1,xmas-1|xmas0|cny-1|cny0|maslenitsa-1|maslenitsa0|', 'украшения по дням', r.decor);
-    expect(r.prices.every(([shop, price]) => shop === 'holiday' && !price), 'подарки праздников — без цены, shop: holiday', r.prices);
-    expect(r.more[12] === 'mayday' && r.more[18] === 'kupala' && r.more[29] === 'halloween' && r.more[36] === null && r.more[72] === null && r.more[37] === 'xmas', '1 Мая, Купала, Хеллоуин; 1 января праздника нет', r.more);
-    expect(r.town.join() === ',birthday,birthday,,birthday,,', '«Год в городе» — 1 июня через год после начала игры (и у старых игр), в первый год его нет', r.town);
-    expect(r.start.join() === '15,15,15,0,0', 'новая игра начинается 1 июня, первые дни — без праздников и украшений', r.start);
-    expect(r.gifts3.every((n) => n === 3), 'у каждого праздника — три подарка по годам', r.gifts3);
-    expect(r.decor2.join('|') === 'mayday-1|mayday0||kupala-1|kupala0||halloween-1|halloween0||newyear1,xmas-1', 'украшения части 2 по дням', r.decor2);
-    expect(r.recipe && !r.secret, 'рецепт пряников — только подарок Рождества', r);
-    // значок праздника на плашке даты: канун — бледный, праздник — яркий; по нажатию — календарь
-    await toHoliday('newyear', 'eve');
-    let chip = await ev(() => document.querySelector('.chip.date').innerHTML);
-    expect(/hol-badge eve/.test(chip) && chip.includes('🎄'), 'значок кануна на дате', chip);
-    await toHoliday('newyear', 'day');
-    await ev(() => window.__dev.emit('hud'));
-    chip = await ev(() => document.querySelector('.chip.date').innerHTML);
-    expect(/hol-badge"/.test(chip) && chip.includes('🎄 0/2'), 'значок и ход праздника на дате', chip);
-    // плашка журнала: есть «!» у Мяты — она про Мяту; заданий нет — про праздник
-    let q = norm(await ev(() => document.querySelector('.chip.quest').textContent));
-    expect(q.includes('Мята'), 'плашка журнала при задании', q);
-    await mutate("s.quests.herbarium = { day: 0, n: {}, got: {}, done: 1 };");
-    await ev(() => window.__dev.emit('hud'));
-    q = norm(await ev(() => document.querySelector('.chip.quest').textContent));
-    expect(q.includes('Новый год') && q.includes('0/2'), 'плашка праздника, когда заданий нет', q);
-    await tap('.chip.date', 400);
-    const cal = await panelText();
-    expect(['Праздники', 'Новый год', 'Рождество', 'Китайский Новый год', 'Масленица', 'Наряди большую ёлку', 'Новогодний колпак'].every((w) => cal.includes(w)), 'праздничный календарь', cal.slice(0, 300));
-    await closeAll();
-    // журнал: карточка праздника сверху
-    await L.react(() => { window.__dev.F.openAlbum('quests'); }, undefined, 400);
-    const j = await panelText();
-    expect(j.includes('Сегодня — Новый год!') && j.includes('Подари новогодние подарки') && j.includes('0/3'), 'праздник в журнале', j.slice(0, 300));
-    await closeAll();
-  });
+  await step(
+    'праздники: таблица и календарь — даты, канун, украшения по дням, значок в HUD, праздничный календарь',
+    async () => {
+      await fresh();
+      const r = await ev(async () => {
+        const D = await import('./js/data/index.js');
+        const on = (d) => (D.holidayOn(d) || {}).id || null;
+        return {
+          ids: D.HOLIDAYS.map((h) => h.id),
+          days: { 35: on(35), 1: on(1), 3: on(3), 5: on(5), 71: on(71), 37: on(37), 2: on(2), 10: on(10) },
+          decor: [34, 35, 36, 37, 0, 1, 2, 3, 4, 5, 6].map((d) =>
+            D.decorsOn(d)
+              .map(({ h, k }) => h.id + k)
+              .join(','),
+          ),
+          gifts: D.HOLIDAYS.map((h) => h.gift),
+          prices: [
+            D.CLOTHES_BY_ID.hat_santa,
+            D.CLOTHES_BY_ID.dress_qipao,
+            D.FURN_BY_ID.samovar,
+            ...['wreath_may', 'water_pistol', 'hat_witch', 'cape_violet'].map((id) => D.CLOTHES_BY_ID[id]),
+          ].map((q) => [q.shop, q.price]),
+          more: { 12: on(12), 18: on(18), 29: on(29), 0: on(0), 36: on(36), 72: on(72), 37: on(37) },
+          // «Год в городе» (этап 10): 1 июня, через год после начала игры (новая — день 15, старая — день 0)
+          town: [
+            D.holidayOn(15, 15),
+            D.holidayOn(51, 15),
+            D.holidayOn(87, 15),
+            D.holidayOn(15, 0),
+            D.holidayOn(51, 0),
+            D.holidayOn(50, 15),
+            D.holidayOn(52, 15),
+          ].map((h) => (h ? h.id : null)),
+          start: [
+            D.START_DAY,
+            window.__dev.state.day,
+            window.__dev.state.startDay,
+            D.decorsOn(15, 15).length,
+            D.decorsOn(16, 15).length,
+          ],
+          gifts3: D.HOLIDAYS.map((h) => D.holidayGifts(h).length),
+          decor2: [11, 12, 13, 17, 18, 19, 28, 29, 30, 36].map((d) =>
+            D.decorsOn(d)
+              .map(({ h, k }) => h.id + k)
+              .join(','),
+          ),
+          secret: D.SECRET_RECIPES.includes('gingerbread'),
+          recipe: !!D.DISH_BY_ID.gingerbread,
+        };
+      });
+      expect(
+        r.ids.join() === 'newyear,xmas,cny,maslenitsa,mayday,kupala,halloween,birthday',
+        'праздники в таблице',
+        r.ids,
+      );
+      expect(
+        r.days[35] === 'newyear' && r.days[71] === 'newyear' && r.days[1] === 'xmas' && r.days[37] === 'xmas',
+        'Новый год 3 декабря, Рождество 2 января',
+        r.days,
+      );
+      expect(
+        r.days[3] === 'cny' && r.days[5] === 'maslenitsa' && !r.days[2] && !r.days[10],
+        'Китайский Новый год 1 февраля, Масленица 3 февраля',
+        r.days,
+      );
+      expect(
+        r.decor.join('|') ===
+          'newyear-1|newyear0|newyear1,xmas-1|xmas0|newyear1,xmas-1|xmas0|cny-1|cny0|maslenitsa-1|maslenitsa0|',
+        'украшения по дням',
+        r.decor,
+      );
+      expect(
+        r.prices.every(([shop, price]) => shop === 'holiday' && !price),
+        'подарки праздников — без цены, shop: holiday',
+        r.prices,
+      );
+      expect(
+        r.more[12] === 'mayday' &&
+          r.more[18] === 'kupala' &&
+          r.more[29] === 'halloween' &&
+          r.more[36] === null &&
+          r.more[72] === null &&
+          r.more[37] === 'xmas',
+        '1 Мая, Купала, Хеллоуин; 1 января праздника нет',
+        r.more,
+      );
+      expect(
+        r.town.join() === ',birthday,birthday,,birthday,,',
+        '«Год в городе» — 1 июня через год после начала игры (и у старых игр), в первый год его нет',
+        r.town,
+      );
+      expect(
+        r.start.join() === '15,15,15,0,0',
+        'новая игра начинается 1 июня, первые дни — без праздников и украшений',
+        r.start,
+      );
+      expect(
+        r.gifts3.every((n) => n === 3),
+        'у каждого праздника — три подарка по годам',
+        r.gifts3,
+      );
+      expect(
+        r.decor2.join('|') === 'mayday-1|mayday0||kupala-1|kupala0||halloween-1|halloween0||newyear1,xmas-1',
+        'украшения части 2 по дням',
+        r.decor2,
+      );
+      expect(r.recipe && !r.secret, 'рецепт пряников — только подарок Рождества', r);
+      // значок праздника на плашке даты: канун — бледный, праздник — яркий; по нажатию — календарь
+      await toHoliday('newyear', 'eve');
+      let chip = await ev(() => document.querySelector('.chip.date').innerHTML);
+      expect(/hol-badge eve/.test(chip) && chip.includes('🎄'), 'значок кануна на дате', chip);
+      await toHoliday('newyear', 'day');
+      await ev(() => window.__dev.emit('hud'));
+      chip = await ev(() => document.querySelector('.chip.date').innerHTML);
+      expect(/hol-badge"/.test(chip) && chip.includes('🎄 0/2'), 'значок и ход праздника на дате', chip);
+      // плашка журнала: есть «!» у Мяты — она про Мяту; заданий нет — про праздник
+      let q = norm(await ev(() => document.querySelector('.chip.quest').textContent));
+      expect(q.includes('Мята'), 'плашка журнала при задании', q);
+      await mutate('s.quests.herbarium = { day: 0, n: {}, got: {}, done: 1 };');
+      await ev(() => window.__dev.emit('hud'));
+      q = norm(await ev(() => document.querySelector('.chip.quest').textContent));
+      expect(q.includes('Новый год') && q.includes('0/2'), 'плашка праздника, когда заданий нет', q);
+      await tap('.chip.date', 400);
+      const cal = await panelText();
+      expect(
+        [
+          'Праздники',
+          'Новый год',
+          'Рождество',
+          'Китайский Новый год',
+          'Масленица',
+          'Наряди большую ёлку',
+          'Новогодний колпак',
+        ].every((w) => cal.includes(w)),
+        'праздничный календарь',
+        cal.slice(0, 300),
+      );
+      await closeAll();
+      // журнал: карточка праздника сверху
+      await L.react(
+        () => {
+          window.__dev.F.openAlbum('quests');
+        },
+        undefined,
+        400,
+      );
+      const j = await panelText();
+      expect(
+        j.includes('Сегодня — Новый год!') && j.includes('Подари новогодние подарки') && j.includes('0/3'),
+        'праздник в журнале',
+        j.slice(0, 300),
+      );
+      await closeAll();
+    },
+  );
 
-  await step('праздники: объявление утром — канун (подсказка), праздник (окно), наутро после Нового года (поздравление)', async () => {
-    await fresh();
-    await mutate('s.day = 33; s.dayFlags = {};');
-    await clearToasts();
-    await sleep(); // → 2 декабря, канун Нового года
-    await L.until(() => /Завтра — Новый год/.test(document.querySelector('#toasts').textContent.replace(/[\u00a0\u202f]/g, ' ')), undefined, { timeout: 5000 }).catch(() => {});
-    let t = await toasts();
-    expect(t.includes('Завтра — Новый год'), 'подсказка накануне', t);
-    await closeAll();
-    await sleep(); // → 3 декабря, Новый год
-    await L.untilPanel('Новый год').catch(() => {});
-    const p = await panelText();
-    expect(p.includes('Новый год!') && p.includes('Наряди большую ёлку') && p.includes('Новогодний колпак'), 'окно праздника утром', p.slice(0, 300));
-    await closeAll();
-    // один раз за день: после перезагрузки окно не повторяется
-    await L.reload(); // записать, перезагрузить, «Продолжить»
-    expect(!(await panelText()).includes('Наряди большую ёлку'), 'объявление повторилось после перезагрузки');
-    await closeAll();
-    await clearToasts();
-    await sleep(); // → 1 января года 2: поздравление с Новым годом и «завтра — Рождество» — подсказкой, без окна
-    await L.until(() => /С Новым годом/.test(document.querySelector('#toasts').textContent) && /Завтра — Рождество/.test(document.querySelector('#toasts').textContent.replace(/[\u00a0\u202f]/g, ' ')), undefined, { timeout: 5000 }).catch(() => {});
-    await wait(300); // окна «Год в городе» нет — проверяем, что не открылось
-    t = await toasts();
-    expect(t.includes('С Новым годом') && t.includes('Завтра — Рождество') && (await state()).day === 36, 'поздравление наутро после Нового года', t);
-    expect(!(await panelText()).includes('Год в городе'), '1 января — окно «Год в городе»');
-    await closeAll();
-  });
+  await step(
+    'праздники: объявление утром — канун (подсказка), праздник (окно), наутро после Нового года (поздравление)',
+    async () => {
+      await fresh();
+      await mutate('s.day = 33; s.dayFlags = {};');
+      await clearToasts();
+      await sleep(); // → 2 декабря, канун Нового года
+      await L.until(
+        () => /Завтра — Новый год/.test(document.querySelector('#toasts').textContent.replace(/[\u00a0\u202f]/g, ' ')),
+        undefined,
+        { timeout: 5000 },
+      ).catch(() => {});
+      let t = await toasts();
+      expect(t.includes('Завтра — Новый год'), 'подсказка накануне', t);
+      await closeAll();
+      await sleep(); // → 3 декабря, Новый год
+      await L.untilPanel('Новый год').catch(() => {});
+      const p = await panelText();
+      expect(
+        p.includes('Новый год!') && p.includes('Наряди большую ёлку') && p.includes('Новогодний колпак'),
+        'окно праздника утром',
+        p.slice(0, 300),
+      );
+      await closeAll();
+      // один раз за день: после перезагрузки окно не повторяется
+      await L.reload(); // записать, перезагрузить, «Продолжить»
+      expect(!(await panelText()).includes('Наряди большую ёлку'), 'объявление повторилось после перезагрузки');
+      await closeAll();
+      await clearToasts();
+      await sleep(); // → 1 января года 2: поздравление с Новым годом и «завтра — Рождество» — подсказкой, без окна
+      await L.until(
+        () =>
+          /С Новым годом/.test(document.querySelector('#toasts').textContent) &&
+          /Завтра — Рождество/.test(document.querySelector('#toasts').textContent.replace(/[\u00a0\u202f]/g, ' ')),
+        undefined,
+        { timeout: 5000 },
+      ).catch(() => {});
+      await wait(300); // окна «Год в городе» нет — проверяем, что не открылось
+      t = await toasts();
+      expect(
+        t.includes('С Новым годом') && t.includes('Завтра — Рождество') && (await state()).day === 36,
+        'поздравление наутро после Нового года',
+        t,
+      );
+      expect(!(await panelText()).includes('Год в городе'), '1 января — окно «Год в городе»');
+      await closeAll();
+    },
+  );
 
-  await step('праздники: украшения — накануне и в праздник стоят, после пропадают; клетки под ними закрыты; спрайты в рамке; ночью фейерверк', async () => {
-    await fresh();
-    const plan = [
-      ['newyear', 'eve', ['newyear'], true],
-      ['newyear', 'day', ['newyear'], true],
-      ['newyear', 'after', ['newyear', 'xmas'], true], // 1 января (год 2): ёлка ещё стоит, к Рождеству уже украшено
-      ['xmas', 'day', ['xmas'], true],
-      ['xmas', 'after', ['cny'], true], // 3 января — канун Китайского Нового года
-      ['cny', 'day', ['cny'], true],
-      ['maslenitsa', 'eve', ['maslenitsa'], true],
-      ['maslenitsa', 'day', ['maslenitsa'], true],
-      ['maslenitsa', 'after', [], false],
-    ];
-    for (const [id, when, want] of plan) {
-      await toHoliday(id, when);
-      for (const [x, y] of [
-        [45, 22],
-        [53, 22],
-        [60, 23],
-        [34, 32],
-        [11, 12],
-      ])
-        await ev(([x, y]) => window.__dev.World.debugTeleport(x, y), [x, y]);
-      await wait(250);
-      const d = await decor();
-      expect(d.active.join() === want.join(), `украшения ${id}/${when}`, d.active);
-      const blockedIds = [...new Set(d.blocked.map((b) => b.split(':')[1]))].sort().join();
-      expect(blockedIds === want.filter((q) => q !== 'birthday').sort().join() && !d.stuck.length, `закрытые клетки ${id}/${when}`, d); // у дня рождения в городе только шарики
-    }
-    // на десятый день года — ничего
-    await mutate('s.day = 10;');
-    await wait(200);
-    let d = await decor();
-    expect(!d.active.length && !d.blocked.length && !d.stuck.length, 'украшения в обычный день', d);
-    // спрайты украшений помещаются в рамку
-    const clipped = await ev(() => window.__dev.topdown.SP.stats().clipped.filter((k) => /^h[A-Z]|^hstr/.test(k)));
-    expect(!clipped.length, 'спрайты украшений не помещаются в рамку', clipped);
-    // фейерверк: в новогоднюю ночь — да, накануне ночью и днём — нет
-    await toHoliday('newyear', 'day', 1, 22 * 60);
-    await wait(800);
-    d = await decor();
-    expect(d.fireworks && d.bursts > 0, 'фейерверк в новогоднюю ночь', d);
-    await toHoliday('newyear', 'eve', 1, 22 * 60);
-    d = await decor();
-    expect(!d.fireworks, 'фейерверк накануне', d);
-    await toHoliday('newyear', 'day', 1, 12 * 60);
-    d = await decor();
-    expect(!d.fireworks, 'фейерверк днём', d);
-    // небесные фонарики вечером Китайского Нового года
-    await toHoliday('cny', 'day', 1, 21 * 60);
-    d = await decor();
-    expect(d.skyLanterns, 'небесные фонарики вечером', d);
-    // от двери виллы можно дойти до мест праздника (место «стоять» — свободно)
-    const bad = await ev(() => {
-      const W = window.__dev.World,
-        m = W.map,
-        T = 48,
-        door = m.doorPx(m.bById.villa),
-        s = [Math.floor(door.x / T), Math.floor(door.y / T)];
-      return W.places
-        .filter((pl) => /^(nytree|crib|skylanterns|dragon|carousel|effigy|blini|tug)$/.test(pl.id))
-        .filter((pl) => !m.path(m.foot, s[0], s[1], Math.floor(pl.stand[0]), Math.floor(pl.stand[1])))
-        .map((pl) => pl.id);
-    });
-    expect(!bad.length, 'до места праздника не дойти', bad);
-  });
+  await step(
+    'праздники: украшения — накануне и в праздник стоят, после пропадают; клетки под ними закрыты; спрайты в рамке; ночью фейерверк',
+    async () => {
+      await fresh();
+      const plan = [
+        ['newyear', 'eve', ['newyear'], true],
+        ['newyear', 'day', ['newyear'], true],
+        ['newyear', 'after', ['newyear', 'xmas'], true], // 1 января (год 2): ёлка ещё стоит, к Рождеству уже украшено
+        ['xmas', 'day', ['xmas'], true],
+        ['xmas', 'after', ['cny'], true], // 3 января — канун Китайского Нового года
+        ['cny', 'day', ['cny'], true],
+        ['maslenitsa', 'eve', ['maslenitsa'], true],
+        ['maslenitsa', 'day', ['maslenitsa'], true],
+        ['maslenitsa', 'after', [], false],
+      ];
+      for (const [id, when, want] of plan) {
+        await toHoliday(id, when);
+        for (const [x, y] of [
+          [45, 22],
+          [53, 22],
+          [60, 23],
+          [34, 32],
+          [11, 12],
+        ])
+          await ev(([x, y]) => window.__dev.World.debugTeleport(x, y), [x, y]);
+        await wait(250);
+        const d = await decor();
+        expect(d.active.join() === want.join(), `украшения ${id}/${when}`, d.active);
+        const blockedIds = [...new Set(d.blocked.map((b) => b.split(':')[1]))].sort().join();
+        expect(
+          blockedIds ===
+            want
+              .filter((q) => q !== 'birthday')
+              .sort()
+              .join() && !d.stuck.length,
+          `закрытые клетки ${id}/${when}`,
+          d,
+        ); // у дня рождения в городе только шарики
+      }
+      // на десятый день года — ничего
+      await mutate('s.day = 10;');
+      await wait(200);
+      let d = await decor();
+      expect(!d.active.length && !d.blocked.length && !d.stuck.length, 'украшения в обычный день', d);
+      // спрайты украшений помещаются в рамку
+      const clipped = await ev(() => window.__dev.topdown.SP.stats().clipped.filter((k) => /^h[A-Z]|^hstr/.test(k)));
+      expect(!clipped.length, 'спрайты украшений не помещаются в рамку', clipped);
+      // фейерверк: в новогоднюю ночь — да, накануне ночью и днём — нет
+      await toHoliday('newyear', 'day', 1, 22 * 60);
+      await wait(800);
+      d = await decor();
+      expect(d.fireworks && d.bursts > 0, 'фейерверк в новогоднюю ночь', d);
+      await toHoliday('newyear', 'eve', 1, 22 * 60);
+      d = await decor();
+      expect(!d.fireworks, 'фейерверк накануне', d);
+      await toHoliday('newyear', 'day', 1, 12 * 60);
+      d = await decor();
+      expect(!d.fireworks, 'фейерверк днём', d);
+      // небесные фонарики вечером Китайского Нового года
+      await toHoliday('cny', 'day', 1, 21 * 60);
+      d = await decor();
+      expect(d.skyLanterns, 'небесные фонарики вечером', d);
+      // от двери виллы можно дойти до мест праздника (место «стоять» — свободно)
+      const bad = await ev(() => {
+        const W = window.__dev.World,
+          m = W.map,
+          T = 48,
+          door = m.doorPx(m.bById.villa),
+          s = [Math.floor(door.x / T), Math.floor(door.y / T)];
+        return W.places
+          .filter((pl) => /^(nytree|crib|skylanterns|dragon|carousel|effigy|blini|tug)$/.test(pl.id))
+          .filter((pl) => !m.path(m.foot, s[0], s[1], Math.floor(pl.stand[0]), Math.floor(pl.stand[1])))
+          .map((pl) => pl.id);
+      });
+      expect(!bad.length, 'до места праздника не дойти', bad);
+    },
+  );
 
-  await step('праздники: Новый год — нарядить ёлку (мини-игра до конца), подарки трём друзьям, колпак, наклейка, монеты', async () => {
-    await fresh();
-    await toHoliday('newyear', 'day');
-    await watch();
-    const s0 = await state();
-    await run('holiday:tree', 800);
-    expect(await ev(() => /Нарядим ёлку/.test((document.querySelector('#mg') || {}).textContent || '')), 'игра «Нарядим ёлку» не открылась');
-    await trim();
-    let h = await hol();
-    expect(h.steps[0] === 'tree:1/1', 'ёлка не наряжена', h);
-    // игрушки, что повесила, остаются на большой ёлке до конца праздника (этап 15): наряд — в отметках дня
-    const toys = (await state()).dayFlags.holiday.treeToys || '';
-    expect(toys.length === 28 && (toys.match(/\d\d/g) || []).length === 6, 'наряд ёлки из мини-игры — на большой ёлке', toys);
-    await run('holiday:tree');
-    expect(!(await ev(() => !!document.querySelector('#mg'))), 'ёлку нарядили второй раз');
-    // подарки трём друзьям — в разговоре
-    for (const npc of ['plusha', 'ponchik', 'bob']) {
-      await L.react((npc) => { window.__dev.F.npcDialog(npc); }, npc, 500);
-      if (await page.locator('.dialog .btn:has-text("Подарить")').count()) await page.click('.dialog .btn:has-text("Подарить")');
-      else throw new Error('нет «Подарить» у ' + npc + ': ' + (await dialogText()));
-      await wait(500);
-      await tap('.dialog .btn:has-text("С Новым годом")', 400);
-    }
-    await L.until(() => [...document.querySelectorAll('.overlay .panel')].some((p) => p.textContent.includes('Все праздничные занятия сделаны')), undefined, { timeout: 5000 }).catch(() => {});
-    const fin = await panelText();
-    expect(fin.includes('Все праздничные занятия сделаны') && fin.includes('Новогодний колпак'), 'праздничное окно', fin.slice(0, 200));
-    await closeAll();
-    // второй раз тому же другу подарок не предлагают
-    await L.react(() => { window.__dev.F.npcDialog('plusha'); }, undefined, 500);
-    expect(!(await page.locator('.dialog .btn:has-text("Подарить")').count()), 'подарок второй раз тому же другу');
-    await closeAll();
-    h = await hol();
-    const s1 = await state();
-    expect(h.done && h.rewarded, 'праздник не завершён', h);
-    expect(s1.clothes.includes('hat_santa') && s1.stickers.includes('x_hol_newyear'), 'колпак и наклейка', s1.stickers.slice(-3));
-    expect(s1.money - s0.money === 400 && s1.flags['hol:newyear'] === 1, 'монеты за праздник и отметка года', [s1.money - s0.money, s1.flags]);
-    expect(s1.friends.plusha.pts > s0.friends.plusha.pts, 'дружба от подарка не выросла');
-    await unwatch();
-  });
+  await step(
+    'праздники: Новый год — нарядить ёлку (мини-игра до конца), подарки трём друзьям, колпак, наклейка, монеты',
+    async () => {
+      await fresh();
+      await toHoliday('newyear', 'day');
+      await watch();
+      const s0 = await state();
+      await run('holiday:tree', 800);
+      expect(
+        await ev(() => /Нарядим ёлку/.test((document.querySelector('#mg') || {}).textContent || '')),
+        'игра «Нарядим ёлку» не открылась',
+      );
+      await trim();
+      let h = await hol();
+      expect(h.steps[0] === 'tree:1/1', 'ёлка не наряжена', h);
+      // игрушки, что повесила, остаются на большой ёлке до конца праздника (этап 15): наряд — в отметках дня
+      const toys = (await state()).dayFlags.holiday.treeToys || '';
+      expect(
+        toys.length === 28 && (toys.match(/\d\d/g) || []).length === 6,
+        'наряд ёлки из мини-игры — на большой ёлке',
+        toys,
+      );
+      await run('holiday:tree');
+      expect(!(await ev(() => !!document.querySelector('#mg'))), 'ёлку нарядили второй раз');
+      // подарки трём друзьям — в разговоре
+      for (const npc of ['plusha', 'ponchik', 'bob']) {
+        await L.react(
+          (npc) => {
+            window.__dev.F.npcDialog(npc);
+          },
+          npc,
+          500,
+        );
+        if (await page.locator('.dialog .btn:has-text("Подарить")').count())
+          await page.click('.dialog .btn:has-text("Подарить")');
+        else throw new Error('нет «Подарить» у ' + npc + ': ' + (await dialogText()));
+        await wait(500);
+        await tap('.dialog .btn:has-text("С Новым годом")', 400);
+      }
+      await L.until(
+        () =>
+          [...document.querySelectorAll('.overlay .panel')].some((p) =>
+            p.textContent.includes('Все праздничные занятия сделаны'),
+          ),
+        undefined,
+        { timeout: 5000 },
+      ).catch(() => {});
+      const fin = await panelText();
+      expect(
+        fin.includes('Все праздничные занятия сделаны') && fin.includes('Новогодний колпак'),
+        'праздничное окно',
+        fin.slice(0, 200),
+      );
+      await closeAll();
+      // второй раз тому же другу подарок не предлагают
+      await L.react(
+        () => {
+          window.__dev.F.npcDialog('plusha');
+        },
+        undefined,
+        500,
+      );
+      expect(!(await page.locator('.dialog .btn:has-text("Подарить")').count()), 'подарок второй раз тому же другу');
+      await closeAll();
+      h = await hol();
+      const s1 = await state();
+      expect(h.done && h.rewarded, 'праздник не завершён', h);
+      expect(
+        s1.clothes.includes('hat_santa') && s1.stickers.includes('x_hol_newyear'),
+        'колпак и наклейка',
+        s1.stickers.slice(-3),
+      );
+      expect(s1.money - s0.money === 400 && s1.flags['hol:newyear'] === 1, 'монеты за праздник и отметка года', [
+        s1.money - s0.money,
+        s1.flags,
+      ]);
+      expect(s1.friends.plusha.pts > s0.friends.plusha.pts, 'дружба от подарка не выросла');
+      await unwatch();
+    },
+  );
 
   await step('праздники: Рождество — вертеп, колядки у трёх домиков (угощение), рецепт пряников', async () => {
     await fresh();
     await toHoliday('xmas', 'day'); // днём (10:00) у двери — обычный визит, колядки — вечером
-    await L.react(() => { window.__dev.run('home-of:myata', {}); }, undefined, 500);
+    await L.react(
+      () => {
+        window.__dev.run('home-of:myata', {});
+      },
+      undefined,
+      500,
+    );
     expect(!(await panelText()).includes('Колядки'), 'колядки днём');
     await closeAll();
     await toHoliday('xmas', 'day', 1, 17 * 60);
@@ -268,17 +468,33 @@ module.exports = async function holidays(ctx) {
     await closeAll();
     const d0 = (await state()).dishes;
     for (const npc of ['myata', 'busya', 'senya']) {
-      await L.react((npc) => { window.__dev.run('home-of:' + npc, {}); }, npc, 500);
+      await L.react(
+        (npc) => {
+          window.__dev.run('home-of:' + npc, {});
+        },
+        npc,
+        500,
+      );
       expect((await panelText()).includes('Колядки'), 'нет колядок у двери ' + npc);
       await page.click('.overlay .btn:has-text("Колядовать")');
       await L.untilDialog(6000).catch(() => {}); // сценка у двери — и хозяин с угощением
       const say = await dialogText();
-      expect(say.includes('колядки') || say.includes('Колядки') || say.includes('С Рождеством'), 'хозяин не ответил', say);
+      expect(
+        say.includes('колядки') || say.includes('Колядки') || say.includes('С Рождеством'),
+        'хозяин не ответил',
+        say,
+      );
       await tap('.dialog .btn:has-text("Спасибо")', 400);
     }
     // у того же домика второй раз не поют — обычная дверь
     await clearToasts();
-    await L.react(() => { window.__dev.run('home-of:myata', {}); }, undefined, 500);
+    await L.react(
+      () => {
+        window.__dev.run('home-of:myata', {});
+      },
+      undefined,
+      500,
+    );
     expect(!(await panelText()).includes('Колядки'), 'колядки второй раз у того же домика');
     await closeAll();
     await wait(900);
@@ -286,7 +502,11 @@ module.exports = async function holidays(ctx) {
       h = await hol();
     const treats = Object.values(s1.dishes).reduce((a, b) => a + b, 0) - Object.values(d0).reduce((a, b) => a + b, 0);
     expect(h.done && treats === 3, 'колядки: три угощения', [h, treats]);
-    expect(s1.recipes.includes('gingerbread') && s1.stickers.includes('x_hol_xmas'), 'рецепт пряников и наклейка', s1.recipes.slice(-3));
+    expect(
+      s1.recipes.includes('gingerbread') && s1.stickers.includes('x_hol_xmas'),
+      'рецепт пряников и наклейка',
+      s1.recipes.slice(-3),
+    );
     await closeAll();
     // пряники готовятся на кухне
     const known = await ev(() => {
@@ -298,133 +518,197 @@ module.exports = async function holidays(ctx) {
     await unwatch();
   });
 
-  await step('праздники: Китайский Новый год — небесные фонарики, пять конвертов с монетками, красный наряд', async () => {
-    await fresh();
-    await toHoliday('cny', 'eve');
-    await run('holiday:lanterns');
-    expect(!(await panelText()).includes('Небесные фонарики'), 'фонарики накануне');
-    expect((await decor()).envelopes === 0, 'конверты накануне');
-    await toHoliday('cny', 'day');
-    await watch();
-    await run('holiday:dragon');
-    await run('holiday:lanterns');
-    expect((await panelText()).includes('Небесные фонарики'), 'сценка фонариков');
-    await tapScene(3);
-    let h = await hol();
-    expect(h.steps[0] === 'lanterns:1/1', 'фонарики', h);
-    const m0 = (await state()).money;
-    const env = await ev(() => window.__dev.World.pickups.filter((p) => p.id.startsWith('env')).map((p) => [p.tx, p.ty]));
-    expect(env.length === 5, 'конвертов не пять', env);
-    for (const [x, y] of env) {
-      await ev(([x, y]) => window.__dev.World.debugTeleport(x, y), [x, y]);
-      await wait(300);
-    }
-    await L.until(() => window.__dev.holiday.decor().envelopes === 0 && window.__dev.holiday.state().done, undefined, { timeout: 4000 }).catch(() => {});
-    const s1 = await state();
-    h = await hol();
-    expect((await decor()).envelopes === 0 && h.done, 'конверты не собраны', [h, await decor()]);
-    expect(s1.money - m0 === 5 * 20 + 300, 'монеты: конверты и праздник', s1.money - m0);
-    expect(s1.clothes.includes('dress_qipao') && s1.stickers.includes('x_hol_cny'), 'красный наряд и наклейка');
-    await closeAll();
-    // наряд надевается и рисуется
-    await ev(() => window.__dev.actions.wear('body', 'dress_qipao'));
-    await wait(300);
-    await unwatch();
-  });
-
-  await step('праздники: Масленица — набор для блинов, испечь, угостить трёх друзей, «Перетягивание каната» до конца, самовар', async () => {
-    await fresh();
-    await toHoliday('maslenitsa', 'day');
-    await mutate('s.ing = {}; s.dishes = {};');
-    await watch();
-    await run('holiday:blini');
-    let s = await state();
-    expect(s.ing.flour === 1 && s.ing.egg === 1 && s.ing.milk === 1, 'набор для блинов', s.ing);
-    // этап 12 (Пр9): у прилавка рассказывают масленичные рецепты и можно печь прямо на ярмарке
-    expect(s.recipes.includes('blini_jam') && s.recipes.includes('blini_honey'), 'масленичные рецепты у прилавка', s.recipes);
-    let pt = await panelText();
-    expect(/блины с вареньем/.test(pt) && /блины с мёдом и маслом/.test(pt), 'окно прилавка называет рецепты', pt);
-    expect((await ev(() => document.querySelectorAll('.overlay .panel img.ico').length)) >= 2, 'в окне прилавка — рисованные значки блинов');
-    await closeAll();
-    await run('holiday:blini');
-    expect((await state()).ing.flour === 1, 'набор второй раз за день');
-    pt = await panelText();
-    expect(/Ярмарочная печка/.test(pt) && /Блинчики/.test(pt) && /Блины с вареньем/.test(pt) && !/Пицца/.test(pt), 'ярмарочная печка: только блины', pt);
-    // печём блины с мёдом и маслом прямо на ярмарке — шаг праздника засчитывается
-    await mutate('s.ing.honey = 1; s.ing.butter = 1;');
-    await closeAll();
-    await run('holiday:blini');
-    await tap('.overlay .list-item:has-text("Блины с мёдом и маслом") .btn', 300);
-    await tap('.panel-foot .btn:has-text("Снять с плиты")', 400);
-    await closeAll();
-    s = await state();
-    expect(s.dishes.blini_honey >= 1 && !s.ing.honey, 'блины с мёдом испечены на ярмарке', { dishes: s.dishes, ing: s.ing });
-    expect((await hol()).steps[0] === 'cook:1/1', 'масленичные блины засчитаны празднику', await hol());
-    // обычные блинчики на кухне — как раньше (набор выдаём ещё раз вручную)
-    await mutate('s.ing.flour = 1; s.ing.egg = 1; s.ing.milk = 1;');
-    await run('holiday:carousel', 3600);
-    await run('holiday:effigy');
-    // испечь блинчики: плита, «Снять с плиты» в зелёной зоне
-    await L.react(() => { window.__dev.F.openCooking(); }, undefined, 400);
-    await tap('.overlay .list-item:has-text("Блинчики") .btn', 300);
-    for (let i = 0; i < 60; i++) {
-      const pos = await ev(() => parseFloat(document.querySelector('.cookbar .mark').style.left));
-      if (pos > 45 && pos < 55) break;
-      await wait(20);
-    }
-    await tap('.panel-foot .btn:has-text("Снять с плиты")', 400);
-    await closeAll();
-    let h = await hol();
-    expect(h.steps[0] === 'cook:1/1', 'блины испечены', h);
-    await mutate('s.dishes = { pancakes: 2, blini_jam: 1 };');
-    for (const npc of ['plusha', 'ponchik', 'prof']) {
-      await L.react((npc) => { window.__dev.F.npcDialog(npc); }, npc, 500);
-      await tap('.dialog .btn:has-text("Угостить")', 400);
-      // одного друга угощаем масленичными блинами с вареньем — тоже считается
-      await page.click(`.overlay .card:has-text("${npc === 'prof' ? 'Блины с вареньем' : 'Блинчики'}") .btn`);
-      await wait(400);
+  await step(
+    'праздники: Китайский Новый год — небесные фонарики, пять конвертов с монетками, красный наряд',
+    async () => {
+      await fresh();
+      await toHoliday('cny', 'eve');
+      await run('holiday:lanterns');
+      expect(!(await panelText()).includes('Небесные фонарики'), 'фонарики накануне');
+      expect((await decor()).envelopes === 0, 'конверты накануне');
+      await toHoliday('cny', 'day');
+      await watch();
+      await run('holiday:dragon');
+      await run('holiday:lanterns');
+      expect((await panelText()).includes('Небесные фонарики'), 'сценка фонариков');
+      await tapScene(3);
+      let h = await hol();
+      expect(h.steps[0] === 'lanterns:1/1', 'фонарики', h);
+      const m0 = (await state()).money;
+      const env = await ev(() =>
+        window.__dev.World.pickups.filter((p) => p.id.startsWith('env')).map((p) => [p.tx, p.ty]),
+      );
+      expect(env.length === 5, 'конвертов не пять', env);
+      for (const [x, y] of env) {
+        await ev(([x, y]) => window.__dev.World.debugTeleport(x, y), [x, y]);
+        await wait(300);
+      }
+      await L.until(
+        () => window.__dev.holiday.decor().envelopes === 0 && window.__dev.holiday.state().done,
+        undefined,
+        { timeout: 4000 },
+      ).catch(() => {});
+      const s1 = await state();
+      h = await hol();
+      expect((await decor()).envelopes === 0 && h.done, 'конверты не собраны', [h, await decor()]);
+      expect(s1.money - m0 === 5 * 20 + 300, 'монеты: конверты и праздник', s1.money - m0);
+      expect(s1.clothes.includes('dress_qipao') && s1.stickers.includes('x_hol_cny'), 'красный наряд и наклейка');
       await closeAll();
-    }
-    h = await hol();
-    expect(h.steps[1] === 'treat:3/3', 'угостить блинами трёх друзей', h);
-    // «Перетягивание каната»: заставка с правилом картинками, игра в ритм до конца
-    const m0 = (await state()).money;
-    await L.react(() => { window.__dev.run('holiday:tug'); }, undefined, 800);
-    const intro = norm(await ev(() => document.querySelector('#mg').textContent));
-    expect(intro.includes('Тяни') && intro.includes('Приз ярмарки') && (await ev(() => document.querySelectorAll('#mg .tg-col img').length)) === 3, 'правило картинками', intro.slice(0, 200));
-    await ev(() => window.__dev.fastGames(2)); // Т3: вдвое быстрее — в ритм ещё успеваем нажимать (core/dev.js)
-    await mgGo();
-    for (let i = 0; i < 1400; i++) {
-      const g = await ev(() => {
-        const c = document.querySelector('#mg .tg-canvas');
-        return c ? c.__tug() : { over: true };
+      // наряд надевается и рисуется
+      await ev(() => window.__dev.actions.wear('body', 'dress_qipao'));
+      await wait(300);
+      await unwatch();
+    },
+  );
+
+  await step(
+    'праздники: Масленица — набор для блинов, испечь, угостить трёх друзей, «Перетягивание каната» до конца, самовар',
+    async () => {
+      await fresh();
+      await toHoliday('maslenitsa', 'day');
+      await mutate('s.ing = {}; s.dishes = {};');
+      await watch();
+      await run('holiday:blini');
+      let s = await state();
+      expect(s.ing.flour === 1 && s.ing.egg === 1 && s.ing.milk === 1, 'набор для блинов', s.ing);
+      // этап 12 (Пр9): у прилавка рассказывают масленичные рецепты и можно печь прямо на ярмарке
+      expect(
+        s.recipes.includes('blini_jam') && s.recipes.includes('blini_honey'),
+        'масленичные рецепты у прилавка',
+        s.recipes,
+      );
+      let pt = await panelText();
+      expect(/блины с вареньем/.test(pt) && /блины с мёдом и маслом/.test(pt), 'окно прилавка называет рецепты', pt);
+      expect(
+        (await ev(() => document.querySelectorAll('.overlay .panel img.ico').length)) >= 2,
+        'в окне прилавка — рисованные значки блинов',
+      );
+      await closeAll();
+      await run('holiday:blini');
+      expect((await state()).ing.flour === 1, 'набор второй раз за день');
+      pt = await panelText();
+      expect(
+        /Ярмарочная печка/.test(pt) && /Блинчики/.test(pt) && /Блины с вареньем/.test(pt) && !/Пицца/.test(pt),
+        'ярмарочная печка: только блины',
+        pt,
+      );
+      // печём блины с мёдом и маслом прямо на ярмарке — шаг праздника засчитывается
+      await mutate('s.ing.honey = 1; s.ing.butter = 1;');
+      await closeAll();
+      await run('holiday:blini');
+      await tap('.overlay .list-item:has-text("Блины с мёдом и маслом") .btn', 300);
+      await tap('.panel-foot .btn:has-text("Снять с плиты")', 400);
+      await closeAll();
+      s = await state();
+      expect(s.dishes.blini_honey >= 1 && !s.ing.honey, 'блины с мёдом испечены на ярмарке', {
+        dishes: s.dishes,
+        ing: s.ing,
       });
-      if (g.over) break;
-      if (g.full && g.phase === 'go') await page.keyboard.press('Space');
-      await wait(40);
-    }
-    await page.waitForSelector(L.sel('done', '#mg'), { timeout: 5000 });
-    const res = norm(await ev(() => document.querySelector('#mg').textContent));
-    expect(/Выиграно раундов: 3/.test(res) && res.includes('+120'), 'в ритм — три звезды', res.slice(0, 200));
-    await mgDone();
-    await L.drain(); // окна наград — из очереди
-    s = await state();
-    h = await hol();
-    expect(h.done && s.money - m0 === 120 + 400, 'монеты за канат и праздник', [s.money - m0, h]);
-    expect(s.storage.samovar === 1 && s.stickers.includes('x_hol_maslenitsa') && s.stickers.includes('x_tug'), 'самовар в кладовке и наклейки', s.storage);
-    await unwatch();
-    // без нажатий проиграть нельзя: игра доходит до конца, одна звезда
-    await L.react(() => { window.__dev.run('holiday:tug'); }, undefined, 800);
-    await ev(() => window.__dev.fastGames(8)); // без нажатий ждать нечего — те же раунды в 8 раз быстрее
-    await page.click(MG_START);
-    // игра идёт до конца сама — до итога
-    await page.waitForSelector(L.sel('done', '#mg'), { timeout: 90000 });
-    await ev(() => window.__dev.fastGames(false));
-    const res2 = norm(await ev(() => document.querySelector('#mg').textContent));
-    expect(/Выиграно раундов: 0/.test(res2) && res2.includes('Хорошо'), 'без нажатий — одна звезда, без наказания', res2.slice(0, 200));
-    await mgDone();
-    await L.drain(); // окна наград — из очереди
-  });
+      expect((await hol()).steps[0] === 'cook:1/1', 'масленичные блины засчитаны празднику', await hol());
+      // обычные блинчики на кухне — как раньше (набор выдаём ещё раз вручную)
+      await mutate('s.ing.flour = 1; s.ing.egg = 1; s.ing.milk = 1;');
+      await run('holiday:carousel', 3600);
+      await run('holiday:effigy');
+      // испечь блинчики: плита, «Снять с плиты» в зелёной зоне
+      await L.react(
+        () => {
+          window.__dev.F.openCooking();
+        },
+        undefined,
+        400,
+      );
+      await tap('.overlay .list-item:has-text("Блинчики") .btn', 300);
+      for (let i = 0; i < 60; i++) {
+        const pos = await ev(() => parseFloat(document.querySelector('.cookbar .mark').style.left));
+        if (pos > 45 && pos < 55) break;
+        await wait(20);
+      }
+      await tap('.panel-foot .btn:has-text("Снять с плиты")', 400);
+      await closeAll();
+      let h = await hol();
+      expect(h.steps[0] === 'cook:1/1', 'блины испечены', h);
+      await mutate('s.dishes = { pancakes: 2, blini_jam: 1 };');
+      for (const npc of ['plusha', 'ponchik', 'prof']) {
+        await L.react(
+          (npc) => {
+            window.__dev.F.npcDialog(npc);
+          },
+          npc,
+          500,
+        );
+        await tap('.dialog .btn:has-text("Угостить")', 400);
+        // одного друга угощаем масленичными блинами с вареньем — тоже считается
+        await page.click(`.overlay .card:has-text("${npc === 'prof' ? 'Блины с вареньем' : 'Блинчики'}") .btn`);
+        await wait(400);
+        await closeAll();
+      }
+      h = await hol();
+      expect(h.steps[1] === 'treat:3/3', 'угостить блинами трёх друзей', h);
+      // «Перетягивание каната»: заставка с правилом картинками, игра в ритм до конца
+      const m0 = (await state()).money;
+      await L.react(
+        () => {
+          window.__dev.run('holiday:tug');
+        },
+        undefined,
+        800,
+      );
+      const intro = norm(await ev(() => document.querySelector('#mg').textContent));
+      expect(
+        intro.includes('Тяни') &&
+          intro.includes('Приз ярмарки') &&
+          (await ev(() => document.querySelectorAll('#mg .tg-col img').length)) === 3,
+        'правило картинками',
+        intro.slice(0, 200),
+      );
+      await ev(() => window.__dev.fastGames(2)); // Т3: вдвое быстрее — в ритм ещё успеваем нажимать (core/dev.js)
+      await mgGo();
+      for (let i = 0; i < 1400; i++) {
+        const g = await ev(() => {
+          const c = document.querySelector('#mg .tg-canvas');
+          return c ? c.__tug() : { over: true };
+        });
+        if (g.over) break;
+        if (g.full && g.phase === 'go') await page.keyboard.press('Space');
+        await wait(40);
+      }
+      await page.waitForSelector(L.sel('done', '#mg'), { timeout: 5000 });
+      const res = norm(await ev(() => document.querySelector('#mg').textContent));
+      expect(/Выиграно раундов: 3/.test(res) && res.includes('+120'), 'в ритм — три звезды', res.slice(0, 200));
+      await mgDone();
+      await L.drain(); // окна наград — из очереди
+      s = await state();
+      h = await hol();
+      expect(h.done && s.money - m0 === 120 + 400, 'монеты за канат и праздник', [s.money - m0, h]);
+      expect(
+        s.storage.samovar === 1 && s.stickers.includes('x_hol_maslenitsa') && s.stickers.includes('x_tug'),
+        'самовар в кладовке и наклейки',
+        s.storage,
+      );
+      await unwatch();
+      // без нажатий проиграть нельзя: игра доходит до конца, одна звезда
+      await L.react(
+        () => {
+          window.__dev.run('holiday:tug');
+        },
+        undefined,
+        800,
+      );
+      await ev(() => window.__dev.fastGames(8)); // без нажатий ждать нечего — те же раунды в 8 раз быстрее
+      await page.click(MG_START);
+      // игра идёт до конца сама — до итога
+      await page.waitForSelector(L.sel('done', '#mg'), { timeout: 90000 });
+      await ev(() => window.__dev.fastGames(false));
+      const res2 = norm(await ev(() => document.querySelector('#mg').textContent));
+      expect(
+        /Выиграно раундов: 0/.test(res2) && res2.includes('Хорошо'),
+        'без нажатий — одна звезда, без наказания',
+        res2.slice(0, 200),
+      );
+      await mgDone();
+      await L.drain(); // окна наград — из очереди
+    },
+  );
 
   await step('праздники: подарок раз в год — второй раз в тот же год нет, на следующий год снова', async () => {
     await fresh();
@@ -445,34 +729,56 @@ module.exports = async function holidays(ctx) {
     let m0 = (await state()).money;
     await finish();
     let s = await state();
-    expect(s.clothes.includes('dress_qipao') && s.flags['hol:cny'] === 1 && s.money - m0 === 320, 'первый год: наряд', [s.money - m0, s.flags]);
+    expect(s.clothes.includes('dress_qipao') && s.flags['hol:cny'] === 1 && s.money - m0 === 320, 'первый год: наряд', [
+      s.money - m0,
+      s.flags,
+    ]);
     // тот же год, тот же день ещё раз (отметки дня сброшены отладкой) — подарка и монет нет
     await toHoliday('cny', 'day', 1);
     m0 = (await state()).money;
     await finish();
     s = await state();
-    expect(s.money - m0 === 20 && s.clothes.filter((c) => c === 'dress_qipao').length === 1, 'второй раз в тот же год', s.money - m0);
+    expect(
+      s.money - m0 === 20 && s.clothes.filter((c) => c === 'dress_qipao').length === 1,
+      'второй раз в тот же год',
+      s.money - m0,
+    );
     // годовые подарки по кругу (этап 10, Пр6): на второй год — новая вещь (веер), на третий — ещё одна (шапочка
     // дракона), на четвёртый все вещи праздника уже есть — мешочек монет
     await toHoliday('cny', 'day', 2);
     m0 = (await state()).money;
     await finish();
     s = await state();
-    expect(s.flags['hol:cny'] === 2 && s.money - m0 === 20 + 300 && s.clothes.includes('fan_red') && !s.clothes.includes('hat_dragon'), 'второй год: новая вещь — веер', [s.money - m0, s.flags]);
+    expect(
+      s.flags['hol:cny'] === 2 &&
+        s.money - m0 === 20 + 300 &&
+        s.clothes.includes('fan_red') &&
+        !s.clothes.includes('hat_dragon'),
+      'второй год: новая вещь — веер',
+      [s.money - m0, s.flags],
+    );
     await toHoliday('cny', 'day', 3);
     m0 = (await state()).money;
     let lbl = await ev(() => window.__dev.F.giftLabel(window.__dev.F.holidayToday()));
     expect(lbl === 'Шапочка дракона', 'подарок третьего года в календаре', lbl);
     await finish();
     s = await state();
-    expect(s.flags['hol:cny'] === 3 && s.money - m0 === 20 + 300 && s.clothes.includes('hat_dragon'), 'третий год: шапочка дракона', [s.money - m0, s.flags]);
+    expect(
+      s.flags['hol:cny'] === 3 && s.money - m0 === 20 + 300 && s.clothes.includes('hat_dragon'),
+      'третий год: шапочка дракона',
+      [s.money - m0, s.flags],
+    );
     await toHoliday('cny', 'day', 4);
     m0 = (await state()).money;
     lbl = await ev(() => window.__dev.F.giftLabel(window.__dev.F.holidayToday()));
     expect(lbl.includes('мешочек монет'), 'всё собрано — в календаре мешочек монет', lbl);
     await finish();
     s = await state();
-    expect(s.flags['hol:cny'] === 4 && s.money - m0 === 20 + 300 + 300, 'четвёртый год: все вещи есть — мешочек монет', [s.money - m0, s.flags]);
+    expect(
+      s.flags['hol:cny'] === 4 && s.money - m0 === 20 + 300 + 300,
+      'четвёртый год: все вещи есть — мешочек монет',
+      [s.money - m0, s.flags],
+    );
     await closeAll();
   });
 
@@ -481,18 +787,34 @@ module.exports = async function holidays(ctx) {
     await toHoliday('newyear', 'day');
     await run('holiday:tree', 800);
     await trim();
-    await L.react(() => { window.__dev.F.npcDialog('plusha'); }, undefined, 500);
+    await L.react(
+      () => {
+        window.__dev.F.npcDialog('plusha');
+      },
+      undefined,
+      500,
+    );
     await tap('.dialog .btn:has-text("Подарить")', 500);
     await closeAll();
     const h0 = await hol();
     await L.reload(); // записать, перезагрузить, «Продолжить»
     await closeAll();
     const h1 = await hol();
-    expect(h1.today === 'newyear' && h1.steps.join() === h0.steps.join() && h1.steps.join() === 'tree:1/1,gifts:1/3', 'ход праздника после загрузки', [h0, h1]);
+    expect(
+      h1.today === 'newyear' && h1.steps.join() === h0.steps.join() && h1.steps.join() === 'tree:1/1,gifts:1/3',
+      'ход праздника после загрузки',
+      [h0, h1],
+    );
     expect(!h1.rewarded, 'подарок выдан раньше времени');
     // доделать после загрузки — подарок
     for (const npc of ['ponchik', 'bob']) {
-      await L.react((npc) => { window.__dev.F.npcDialog(npc); }, npc, 500);
+      await L.react(
+        (npc) => {
+          window.__dev.F.npcDialog(npc);
+        },
+        npc,
+        500,
+      );
       await tap('.dialog .btn:has-text("Подарить")', 500);
       await closeAll();
     }
@@ -524,86 +846,104 @@ module.exports = async function holidays(ctx) {
     await tap('.hol-scene-panel .panel-body .btn:has-text("Ура")', 400);
   };
 
-  await step('праздники: первый день новой игры (1 июня) не перегружен — ни праздника, ни кануна, ни праздничного окна', async () => {
-    await fresh();
-    await wait(2800);
-    const s = await state(),
-      h = await hol();
-    expect(s.day === 15 && s.startDay === 15 && h.today === null && h.tomorrow === null && !h.decor.length, 'первый день (1 июня): ни праздника, ни кануна, ни украшений', h);
-    const p = await panelText();
-    expect(!/Год в городе|Ура! 🎉|Все праздничные/.test(p), 'в первый день — праздничное окно', p.slice(0, 200));
-    const chip = await ev(() => document.querySelector('.chip.date').innerHTML);
-    expect(!/hol-badge"/.test(chip), 'на дате — значок праздника в первый день', chip);
-    // в календаре «Год в городе» — «впервые — через год после приезда»
-    await tap('.chip.date', 400);
-    const cal = await panelText();
-    expect(cal.includes('Год в городе') && cal.includes('впервые — через год после твоего приезда') && cal.includes('Иван Купала') && cal.includes('Хеллоуин') && cal.includes('1 Мая'), 'праздничный календарь части 2', cal.slice(0, 400));
-    await closeAll();
-  });
+  await step(
+    'праздники: первый день новой игры (1 июня) не перегружен — ни праздника, ни кануна, ни праздничного окна',
+    async () => {
+      await fresh();
+      await wait(2800);
+      const s = await state(),
+        h = await hol();
+      expect(
+        s.day === 15 && s.startDay === 15 && h.today === null && h.tomorrow === null && !h.decor.length,
+        'первый день (1 июня): ни праздника, ни кануна, ни украшений',
+        h,
+      );
+      const p = await panelText();
+      expect(!/Год в городе|Ура! 🎉|Все праздничные/.test(p), 'в первый день — праздничное окно', p.slice(0, 200));
+      const chip = await ev(() => document.querySelector('.chip.date').innerHTML);
+      expect(!/hol-badge"/.test(chip), 'на дате — значок праздника в первый день', chip);
+      // в календаре «Год в городе» — «впервые — через год после приезда»
+      await tap('.chip.date', 400);
+      const cal = await panelText();
+      expect(
+        cal.includes('Год в городе') &&
+          cal.includes('впервые — через год после твоего приезда') &&
+          cal.includes('Иван Купала') &&
+          cal.includes('Хеллоуин') &&
+          cal.includes('1 Мая'),
+        'праздничный календарь части 2',
+        cal.slice(0, 400),
+      );
+      await closeAll();
+    },
+  );
 
-  await step('праздники: украшения части 2 — 1 Мая, Купала, Хеллоуин (накануне, в праздник, после); клетки, спрайты, свет ночью', async () => {
-    await fresh();
-    const plan = [
-      ['mayday', 'eve', ['mayday']],
-      ['mayday', 'day', ['mayday']],
-      ['mayday', 'after', []],
-      ['kupala', 'eve', ['kupala']],
-      ['kupala', 'day', ['kupala']],
-      ['kupala', 'after', []],
-      ['halloween', 'eve', ['halloween']],
-      ['halloween', 'day', ['halloween']],
-      ['halloween', 'after', []],
-    ];
-    for (const [id, when, want] of plan) {
-      await toHoliday(id, when);
-      for (const [x, y] of [
-        [51, 23],
-        [42, 33],
-        [39, 26],
-        [50, 54],
-        [41, 35],
-        [12, 37],
-      ])
-        await ev(([x, y]) => window.__dev.World.debugTeleport(x, y), [x, y]);
-      await wait(250);
-      const d = await decor();
-      expect(d.active.join() === want.join(), `украшения ${id}/${when}`, d.active);
-      const blockedIds = [...new Set(d.blocked.map((b) => b.split(':')[1]))].sort().join();
-      expect(blockedIds === want.join() && !d.stuck.length, `закрытые клетки ${id}/${when}`, d);
-    }
-    // день рождения: шарики у двери виллы (в городе) — во второй год
-    await toHoliday('birthday', 'day', 2);
-    await ev(() => window.__dev.World.debugTeleport(16, 11));
-    await wait(300);
-    let d = await decor();
-    expect(d.active.includes('birthday') && d.bday, 'шарики у двери дома на день рождения', d);
-    const clipped = await ev(() => window.__dev.topdown.SP.stats().clipped.filter((k) => /^h[A-Z]|^hstr/.test(k)));
-    expect(!clipped.length, 'спрайты украшений не помещаются в рамку', clipped);
-    // ночью светятся купальский костёр и тыквы
-    await toHoliday('kupala', 'day', 1, 22 * 60);
-    await ev(() => window.__dev.World.debugTeleport(50, 54));
-    await wait(400);
-    d = await decor();
-    expect(d.glow.includes('hBonfire'), 'костёр светит ночью', d.glow);
-    await toHoliday('halloween', 'day', 1, 22 * 60);
-    await ev(() => window.__dev.World.debugTeleport(51, 23));
-    await wait(400);
-    d = await decor();
-    expect(d.glow.includes('hJack'), 'тыквы светят ночью', d.glow);
-    // до мест праздника можно дойти от двери виллы
-    const bad = await ev(() => {
-      const W = window.__dev.World,
-        m = W.map,
-        T = 48,
-        door = m.doorPx(m.bById.villa),
-        s = [Math.floor(door.x / T), Math.floor(door.y / T)];
-      return W.places
-        .filter((pl) => /^(balloons|maybed\d|bonfire|splash|wreathfloat|pumpkins|ghost)$/.test(pl.id))
-        .filter((pl) => !m.path(m.foot, s[0], s[1], Math.floor(pl.stand[0]), Math.floor(pl.stand[1])))
-        .map((pl) => pl.id);
-    });
-    expect(!bad.length, 'до места праздника не дойти', bad);
-  });
+  await step(
+    'праздники: украшения части 2 — 1 Мая, Купала, Хеллоуин (накануне, в праздник, после); клетки, спрайты, свет ночью',
+    async () => {
+      await fresh();
+      const plan = [
+        ['mayday', 'eve', ['mayday']],
+        ['mayday', 'day', ['mayday']],
+        ['mayday', 'after', []],
+        ['kupala', 'eve', ['kupala']],
+        ['kupala', 'day', ['kupala']],
+        ['kupala', 'after', []],
+        ['halloween', 'eve', ['halloween']],
+        ['halloween', 'day', ['halloween']],
+        ['halloween', 'after', []],
+      ];
+      for (const [id, when, want] of plan) {
+        await toHoliday(id, when);
+        for (const [x, y] of [
+          [51, 23],
+          [42, 33],
+          [39, 26],
+          [50, 54],
+          [41, 35],
+          [12, 37],
+        ])
+          await ev(([x, y]) => window.__dev.World.debugTeleport(x, y), [x, y]);
+        await wait(250);
+        const d = await decor();
+        expect(d.active.join() === want.join(), `украшения ${id}/${when}`, d.active);
+        const blockedIds = [...new Set(d.blocked.map((b) => b.split(':')[1]))].sort().join();
+        expect(blockedIds === want.join() && !d.stuck.length, `закрытые клетки ${id}/${when}`, d);
+      }
+      // день рождения: шарики у двери виллы (в городе) — во второй год
+      await toHoliday('birthday', 'day', 2);
+      await ev(() => window.__dev.World.debugTeleport(16, 11));
+      await wait(300);
+      let d = await decor();
+      expect(d.active.includes('birthday') && d.bday, 'шарики у двери дома на день рождения', d);
+      const clipped = await ev(() => window.__dev.topdown.SP.stats().clipped.filter((k) => /^h[A-Z]|^hstr/.test(k)));
+      expect(!clipped.length, 'спрайты украшений не помещаются в рамку', clipped);
+      // ночью светятся купальский костёр и тыквы
+      await toHoliday('kupala', 'day', 1, 22 * 60);
+      await ev(() => window.__dev.World.debugTeleport(50, 54));
+      await wait(400);
+      d = await decor();
+      expect(d.glow.includes('hBonfire'), 'костёр светит ночью', d.glow);
+      await toHoliday('halloween', 'day', 1, 22 * 60);
+      await ev(() => window.__dev.World.debugTeleport(51, 23));
+      await wait(400);
+      d = await decor();
+      expect(d.glow.includes('hJack'), 'тыквы светят ночью', d.glow);
+      // до мест праздника можно дойти от двери виллы
+      const bad = await ev(() => {
+        const W = window.__dev.World,
+          m = W.map,
+          T = 48,
+          door = m.doorPx(m.bById.villa),
+          s = [Math.floor(door.x / T), Math.floor(door.y / T)];
+        return W.places
+          .filter((pl) => /^(balloons|maybed\d|bonfire|splash|wreathfloat|pumpkins|ghost)$/.test(pl.id))
+          .filter((pl) => !m.path(m.foot, s[0], s[1], Math.floor(pl.stand[0]), Math.floor(pl.stand[1])))
+          .map((pl) => pl.id);
+      });
+      expect(!bad.length, 'до места праздника не дойти', bad);
+    },
+  );
 
   await step('праздники: новогодний салют — залпы в верхней части экрана, искры-чёрточки', async () => {
     await fresh();
@@ -612,7 +952,11 @@ module.exports = async function holidays(ctx) {
     await L.until(() => window.__dev.holiday.fireworks().length > 0, undefined, { timeout: 6000 }).catch(() => {});
     const fw = await ev(() => window.__dev.holiday.fireworks());
     expect(fw.length > 0, 'залпов нет', fw);
-    expect(fw.every((b) => b.top < 0.42), 'залп раскрывается не в верхней части экрана', fw);
+    expect(
+      fw.every((b) => b.top < 0.42),
+      'залп раскрывается не в верхней части экрана',
+      fw,
+    );
     expect(new Set(fw.map((b) => Math.round(b.left * 4))).size >= Math.min(2, fw.length), 'залпы — в одном месте', fw);
     const keys = await ev(() => [...window.__dev.topdown.SP.map.keys()].filter((k) => k.includes('hStreak')).length);
     expect(keys > 4, 'искры-чёрточки не рисуются', keys);
@@ -636,13 +980,32 @@ module.exports = async function holidays(ctx) {
     await run({ do: 'holiday', arg: 'plant', bed: 1 });
     expect(!(await panelText()).includes('Субботник'), 'та же клумба второй раз');
     await run('holiday:parade', 4200);
-    await L.until(() => [...document.querySelectorAll('.overlay .panel')].some((p) => p.textContent.includes('Все праздничные занятия сделаны')), undefined, { timeout: 5000 }).catch(() => {});
+    await L.until(
+      () =>
+        [...document.querySelectorAll('.overlay .panel')].some((p) =>
+          p.textContent.includes('Все праздничные занятия сделаны'),
+        ),
+      undefined,
+      { timeout: 5000 },
+    ).catch(() => {});
     const fin = await panelText();
-    expect(fin.includes('Все праздничные занятия сделаны') && fin.includes('Майский венок'), 'праздничное окно 1 Мая', fin.slice(0, 200));
+    expect(
+      fin.includes('Все праздничные занятия сделаны') && fin.includes('Майский венок'),
+      'праздничное окно 1 Мая',
+      fin.slice(0, 200),
+    );
     await closeAll();
     const s = await state();
     h = await hol();
-    expect(h.done && h.rewarded && s.clothes.includes('wreath_may') && s.stickers.includes('x_hol_mayday') && s.money - m0 === 300, '1 Мая: венок, наклейка, монеты', [s.money - m0, h]);
+    expect(
+      h.done &&
+        h.rewarded &&
+        s.clothes.includes('wreath_may') &&
+        s.stickers.includes('x_hol_mayday') &&
+        s.money - m0 === 300,
+      '1 Мая: венок, наклейка, монеты',
+      [s.money - m0, h],
+    );
     await ev(() => window.__dev.actions.wear('head', 'wreath_may'));
     await unwatch();
   });
@@ -670,153 +1033,294 @@ module.exports = async function holidays(ctx) {
     return norm(await ev(() => document.querySelector('#mg').textContent));
   };
 
-  await step('праздники: Иван Купала — венок по воде (сценка), «Водяная битва» (3★ и без нажатий 1★, приз за две игры), водяной пистолет', async () => {
-    await fresh();
-    await toHoliday('kupala', 'day');
-    await watch();
-    const m0 = (await state()).money;
-    await run('holiday:bonfire');
-    await run('holiday:wreath');
-    expect((await panelText()).includes('Купальский венок'), 'сценка венка');
-    await tapThrough();
-    let h = await hol();
-    expect(h.steps[0] === 'wreath:1/1', 'венок по воде', h);
-    await L.react(() => { window.__dev.run('holiday:splash'); }, undefined, 800);
-    const intro = norm(await ev(() => document.querySelector('#mg').textContent));
-    expect(intro.includes('Брызни') && intro.includes('Приз Купалы') && (await ev(() => document.querySelectorAll('#mg .sp-col img').length)) === 3, 'правило картинками', intro.slice(0, 200));
-    const res = await splashGame(true);
-    expect(res.includes('⭐') && /Брызг: \d+/.test(res) && res.includes('+120'), 'меткая игра — три звезды', res.slice(0, 200));
-    await mgDone();
-    await L.untilPanel().catch(() => {}); // праздничное окно — из очереди
-    const fin = await panelText();
-    expect(fin.includes('Все праздничные занятия сделаны') && fin.includes('Водяной пистолет'), 'праздничное окно Купалы', fin.slice(0, 200));
-    await closeAll();
-    expect((await decor()).wet, 'после «Водяной битвы» все мокрые — капельки и лужицы (этап 15, Пр18)');
-    let s = await state();
-    h = await hol();
-    expect(h.done && s.clothes.includes('water_pistol') && s.stickers.includes('x_hol_kupala') && s.stickers.includes('x_splash') && s.money - m0 === 120 + 300, 'Купала: пистолет, наклейки, монеты', [s.money - m0, h]);
-    await ev(() => window.__dev.actions.wear('acc', 'water_pistol'));
-    await unwatch();
-    // без нажатий: игра доходит до конца, одна звезда, вторая призовая игра
-    const m1 = (await state()).money;
-    await L.react(() => { window.__dev.run('holiday:splash'); }, undefined, 800);
-    const res2 = await splashGame(false);
-    expect(/Брызг: 0/.test(res2) && res2.includes('Хорошо') && res2.includes('+40'), 'без нажатий — одна звезда, без наказания', res2.slice(0, 200));
-    await mgDone();
-    await L.drain(); // окна наград — из очереди
-    expect((await state()).money - m1 === 40, 'вторая призовая игра', (await state()).money - m1);
-    // третья — для удовольствия
-    await L.react(() => { window.__dev.run('holiday:splash'); }, undefined, 800);
-    expect(norm(await ev(() => document.querySelector('#mg').textContent)).includes('для удовольствия'), 'третья игра — без приза');
-    await ev(() => document.querySelector('#mg .xbtn').click());
-    await wait(400);
-  });
-
-  await step('праздники: Хеллоуин — вырезать тыкву (сценка), «сладость или гадость» у трёх домиков вечером, шляпа и мантия', async () => {
-    await fresh();
-    await toHoliday('halloween', 'day'); // днём у двери — обычный визит
-    await L.react(() => { window.__dev.run('home-of:myata', {}); }, undefined, 500);
-    expect(!(await panelText()).includes('Сладость или гадость'), '«сладость или гадость» днём');
-    await closeAll();
-    await toHoliday('halloween', 'day', 1, 17 * 60);
-    await watch();
-    const m0 = (await state()).money;
-    await run('holiday:ghost');
-    await run('holiday:pumpkins');
-    expect((await panelText()).includes('Тыква-фонарик'), 'сценка тыквы');
-    await tapThrough();
-    const d0 = (await state()).dishes;
-    for (const npc of ['myata', 'busya', 'senya']) {
-      await L.react((npc) => { window.__dev.run('home-of:' + npc, {}); }, npc, 500);
-      expect((await panelText()).includes('Сладость или гадость'), 'нет «сладость или гадость» у ' + npc);
-      await page.click('.overlay .btn:has-text("Сладость или гадость!")');
-      await L.untilDialog(6000).catch(() => {}); // сценка у двери — и хозяин с угощением
-      expect((await dialogText()).includes('С Хеллоуином'), 'хозяин не угостил', await dialogText());
-      await tap('.dialog .btn:has-text("Спасибо")', 400);
-    }
-    await L.until(() => [...document.querySelectorAll('.overlay .panel')].some((p) => p.textContent.includes('Все праздничные занятия сделаны')), undefined, { timeout: 5000 }).catch(() => {});
-    const fin = await panelText();
-    expect(fin.includes('Все праздничные занятия сделаны') && fin.includes('Шляпа волшебницы') && fin.includes('мантия'), 'праздничное окно Хеллоуина', fin.slice(0, 200));
-    await closeAll();
-    const s = await state(),
+  await step(
+    'праздники: Иван Купала — венок по воде (сценка), «Водяная битва» (3★ и без нажатий 1★, приз за две игры), водяной пистолет',
+    async () => {
+      await fresh();
+      await toHoliday('kupala', 'day');
+      await watch();
+      const m0 = (await state()).money;
+      await run('holiday:bonfire');
+      await run('holiday:wreath');
+      expect((await panelText()).includes('Купальский венок'), 'сценка венка');
+      await tapThrough();
+      let h = await hol();
+      expect(h.steps[0] === 'wreath:1/1', 'венок по воде', h);
+      await L.react(
+        () => {
+          window.__dev.run('holiday:splash');
+        },
+        undefined,
+        800,
+      );
+      const intro = norm(await ev(() => document.querySelector('#mg').textContent));
+      expect(
+        intro.includes('Брызни') &&
+          intro.includes('Приз Купалы') &&
+          (await ev(() => document.querySelectorAll('#mg .sp-col img').length)) === 3,
+        'правило картинками',
+        intro.slice(0, 200),
+      );
+      const res = await splashGame(true);
+      expect(
+        res.includes('⭐') && /Брызг: \d+/.test(res) && res.includes('+120'),
+        'меткая игра — три звезды',
+        res.slice(0, 200),
+      );
+      await mgDone();
+      await L.untilPanel().catch(() => {}); // праздничное окно — из очереди
+      const fin = await panelText();
+      expect(
+        fin.includes('Все праздничные занятия сделаны') && fin.includes('Водяной пистолет'),
+        'праздничное окно Купалы',
+        fin.slice(0, 200),
+      );
+      await closeAll();
+      expect((await decor()).wet, 'после «Водяной битвы» все мокрые — капельки и лужицы (этап 15, Пр18)');
+      let s = await state();
       h = await hol();
-    const treats = Object.values(s.dishes).reduce((a, b) => a + b, 0) - Object.values(d0).reduce((a, b) => a + b, 0);
-    expect(h.done && treats === 3 && s.clothes.includes('hat_witch') && s.clothes.includes('cape_violet') && s.stickers.includes('x_hol_halloween') && s.money - m0 === 300, 'Хеллоуин: угощения, шляпа, мантия', [treats, s.money - m0, h]);
-    await ev(() => { window.__dev.actions.wear('head', 'hat_witch'); window.__dev.actions.wear('acc', 'cape_violet'); });
-    await unwatch();
-    // на следующий год шляпа и мантия уже есть — новая вещь праздника: шапка-тыковка
-    await toHoliday('halloween', 'day', 2, 17 * 60);
-    const m1 = (await state()).money;
-    await run('holiday:pumpkins');
-    await tapThrough();
-    for (const npc of ['myata', 'busya', 'senya']) {
-      await L.react((npc) => { window.__dev.run('home-of:' + npc, {}); }, npc, 500);
-      await page.click('.overlay .btn:has-text("Сладость или гадость!")');
-      await L.untilDialog(6000).catch(() => {}); // сценка у двери — и хозяин с угощением
-      await tap('.dialog .btn:has-text("Спасибо")', 400);
-    }
-    await wait(1200);
-    await closeAll();
-    expect((await state()).money - m1 === 300 && (await state()).flags['hol:halloween'] === 2 && (await state()).clothes.includes('hat_pumpkin'), 'второй год: новая вещь — шапка-тыковка', (await state()).money - m1);
-  });
+      expect(
+        h.done &&
+          s.clothes.includes('water_pistol') &&
+          s.stickers.includes('x_hol_kupala') &&
+          s.stickers.includes('x_splash') &&
+          s.money - m0 === 120 + 300,
+        'Купала: пистолет, наклейки, монеты',
+        [s.money - m0, h],
+      );
+      await ev(() => window.__dev.actions.wear('acc', 'water_pistol'));
+      await unwatch();
+      // без нажатий: игра доходит до конца, одна звезда, вторая призовая игра
+      const m1 = (await state()).money;
+      await L.react(
+        () => {
+          window.__dev.run('holiday:splash');
+        },
+        undefined,
+        800,
+      );
+      const res2 = await splashGame(false);
+      expect(
+        /Брызг: 0/.test(res2) && res2.includes('Хорошо') && res2.includes('+40'),
+        'без нажатий — одна звезда, без наказания',
+        res2.slice(0, 200),
+      );
+      await mgDone();
+      await L.drain(); // окна наград — из очереди
+      expect((await state()).money - m1 === 40, 'вторая призовая игра', (await state()).money - m1);
+      // третья — для удовольствия
+      await L.react(
+        () => {
+          window.__dev.run('holiday:splash');
+        },
+        undefined,
+        800,
+      );
+      expect(
+        norm(await ev(() => document.querySelector('#mg').textContent)).includes('для удовольствия'),
+        'третья игра — без приза',
+      );
+      await ev(() => document.querySelector('#mg .xbtn').click());
+      await wait(400);
+    },
+  );
 
-  await step('праздники: «Год в городе» — через год после приезда, гости несут подарки в лапках, торт (задуть свечи), сохранение посреди праздника', async () => {
-    await fresh();
-    await mutate("s.quests.herbarium = { day: 0, n: {}, got: {}, done: 1 };");
-    // 1 июня первого года (день начала игры) праздника нет; через год — есть
-    await toHoliday('birthday', 'day', 1, 10 * 60 + 30);
-    let h = await hol();
-    expect(h.today === null && (await state()).day === 15, 'в первый год «Года в городе» нет', h);
-    await toHoliday('birthday', 'day', 2, 10 * 60 + 30);
-    h = await hol();
-    expect(h.today === 'birthday' && (await state()).day === 51 && h.steps.join() === 'guests:0/3,cake:0/1', '«Год в городе» — через год', h);
-    await watch();
-    // в городе гости не приходят; дома до 11:00 — тоже
-    await go('villa');
-    await closeAll();
-    expect((await state()).guests.length === 0, 'гости пришли раньше 11:00');
-    const s0 = await state();
-    await mutate('s.minutes = 11 * 60;');
-    let boxes = 0; // сколько раз видели гостя с коробочкой в лапках (Пр15)
-    for (let i = 0; i < 60 && (await hol()).steps[0] !== 'guests:3/3'; i++) {
-      await wait(500);
-      if (await ev(() => window.__dev.scene.actors.some((g) => g.guest && g.carry))) boxes++;
-      if (i % 4 === 3) await mutate('s.minutes += 20;'); // время в игре идёт быстрее
-      // сохранение и загрузка посреди праздника: ход не теряется
-      if (i === 1) {
-        const before = (await hol()).day.guests || [];
-        await L.reload(); // записать, перезагрузить, «Продолжить»
-        await closeAll();
-        const after = (await hol()).day.guests || []; // после загрузки гости могут прийти дальше — но никто не пропал
-        expect(before.length > 0 && before.every((g) => after.includes(g)), 'ход дня рождения после загрузки', [before, after]);
-        await ev(() => { window.__stopWatchHol = window.__dev.watchState(); });
+  await step(
+    'праздники: Хеллоуин — вырезать тыкву (сценка), «сладость или гадость» у трёх домиков вечером, шляпа и мантия',
+    async () => {
+      await fresh();
+      await toHoliday('halloween', 'day'); // днём у двери — обычный визит
+      await L.react(
+        () => {
+          window.__dev.run('home-of:myata', {});
+        },
+        undefined,
+        500,
+      );
+      expect(!(await panelText()).includes('Сладость или гадость'), '«сладость или гадость» днём');
+      await closeAll();
+      await toHoliday('halloween', 'day', 1, 17 * 60);
+      await watch();
+      const m0 = (await state()).money;
+      await run('holiday:ghost');
+      await run('holiday:pumpkins');
+      expect((await panelText()).includes('Тыква-фонарик'), 'сценка тыквы');
+      await tapThrough();
+      const d0 = (await state()).dishes;
+      for (const npc of ['myata', 'busya', 'senya']) {
+        await L.react(
+          (npc) => {
+            window.__dev.run('home-of:' + npc, {});
+          },
+          npc,
+          500,
+        );
+        expect((await panelText()).includes('Сладость или гадость'), 'нет «сладость или гадость» у ' + npc);
+        await page.click('.overlay .btn:has-text("Сладость или гадость!")');
+        await L.untilDialog(6000).catch(() => {}); // сценка у двери — и хозяин с угощением
+        expect((await dialogText()).includes('С Хеллоуином'), 'хозяин не угостил', await dialogText());
+        await tap('.dialog .btn:has-text("Спасибо")', 400);
       }
-    }
-    h = await hol();
-    let s = await state();
-    expect(h.steps[0] === 'guests:3/3' && s.guests.length === 3, 'три гостя', [h, s.guests]);
-    expect(boxes > 0, 'гости несут подарки в лапках', boxes);
-    expect(s.money > s0.money || Object.values(s.dishes).reduce((a, b) => a + b, 0) > Object.values(s0.dishes).reduce((a, b) => a + b, 0), 'подарки от друзей', s.dishes);
-    await wait(1500);
-    if ((await panelText()).includes('Все гости в сборе')) await page.click('.overlay .btn:has-text("Задуть свечи")');
-    else {
-      // окно уже закрыли — торт предлагает гость
-      expect((await hol()).day.asked === 1, 'окна «Все гости в сборе» не было');
-      await ev((id) => { window.__dev.run('guest:' + id); }, s.guests[0]);
-      await wait(600);
-      await page.click('.dialog .btn:has-text("Задуть свечи")');
-    }
-    await wait(500);
-    await tapThrough();
-    await L.until(() => [...document.querySelectorAll('.overlay .panel')].some((p) => p.textContent.includes('Все праздничные занятия сделаны')), undefined, { timeout: 5000 }).catch(() => {});
-    const fin = await panelText();
-    expect(fin.includes('Год в городе') && fin.includes('Все праздничные занятия сделаны') && fin.includes('подарки от друзей') && fin.includes('Значок «Ореховая Гавань»'), 'праздничное окно «Года в городе»', fin.slice(0, 300));
-    await closeAll();
-    s = await state();
-    h = await hol();
-    expect(h.done && h.rewarded && s.stickers.includes('x_hol_birthday') && s.flags['hol:birthday'] === 2 && s.clothes.includes('badge_nut'), '«Год в городе» сделан, значок в шкафу', h);
-    await unwatch();
-  });
+      await L.until(
+        () =>
+          [...document.querySelectorAll('.overlay .panel')].some((p) =>
+            p.textContent.includes('Все праздничные занятия сделаны'),
+          ),
+        undefined,
+        { timeout: 5000 },
+      ).catch(() => {});
+      const fin = await panelText();
+      expect(
+        fin.includes('Все праздничные занятия сделаны') && fin.includes('Шляпа волшебницы') && fin.includes('мантия'),
+        'праздничное окно Хеллоуина',
+        fin.slice(0, 200),
+      );
+      await closeAll();
+      const s = await state(),
+        h = await hol();
+      const treats = Object.values(s.dishes).reduce((a, b) => a + b, 0) - Object.values(d0).reduce((a, b) => a + b, 0);
+      expect(
+        h.done &&
+          treats === 3 &&
+          s.clothes.includes('hat_witch') &&
+          s.clothes.includes('cape_violet') &&
+          s.stickers.includes('x_hol_halloween') &&
+          s.money - m0 === 300,
+        'Хеллоуин: угощения, шляпа, мантия',
+        [treats, s.money - m0, h],
+      );
+      await ev(() => {
+        window.__dev.actions.wear('head', 'hat_witch');
+        window.__dev.actions.wear('acc', 'cape_violet');
+      });
+      await unwatch();
+      // на следующий год шляпа и мантия уже есть — новая вещь праздника: шапка-тыковка
+      await toHoliday('halloween', 'day', 2, 17 * 60);
+      const m1 = (await state()).money;
+      await run('holiday:pumpkins');
+      await tapThrough();
+      for (const npc of ['myata', 'busya', 'senya']) {
+        await L.react(
+          (npc) => {
+            window.__dev.run('home-of:' + npc, {});
+          },
+          npc,
+          500,
+        );
+        await page.click('.overlay .btn:has-text("Сладость или гадость!")');
+        await L.untilDialog(6000).catch(() => {}); // сценка у двери — и хозяин с угощением
+        await tap('.dialog .btn:has-text("Спасибо")', 400);
+      }
+      await wait(1200);
+      await closeAll();
+      expect(
+        (await state()).money - m1 === 300 &&
+          (await state()).flags['hol:halloween'] === 2 &&
+          (await state()).clothes.includes('hat_pumpkin'),
+        'второй год: новая вещь — шапка-тыковка',
+        (await state()).money - m1,
+      );
+    },
+  );
+
+  await step(
+    'праздники: «Год в городе» — через год после приезда, гости несут подарки в лапках, торт (задуть свечи), сохранение посреди праздника',
+    async () => {
+      await fresh();
+      await mutate('s.quests.herbarium = { day: 0, n: {}, got: {}, done: 1 };');
+      // 1 июня первого года (день начала игры) праздника нет; через год — есть
+      await toHoliday('birthday', 'day', 1, 10 * 60 + 30);
+      let h = await hol();
+      expect(h.today === null && (await state()).day === 15, 'в первый год «Года в городе» нет', h);
+      await toHoliday('birthday', 'day', 2, 10 * 60 + 30);
+      h = await hol();
+      expect(
+        h.today === 'birthday' && (await state()).day === 51 && h.steps.join() === 'guests:0/3,cake:0/1',
+        '«Год в городе» — через год',
+        h,
+      );
+      await watch();
+      // в городе гости не приходят; дома до 11:00 — тоже
+      await go('villa');
+      await closeAll();
+      expect((await state()).guests.length === 0, 'гости пришли раньше 11:00');
+      const s0 = await state();
+      await mutate('s.minutes = 11 * 60;');
+      let boxes = 0; // сколько раз видели гостя с коробочкой в лапках (Пр15)
+      for (let i = 0; i < 60 && (await hol()).steps[0] !== 'guests:3/3'; i++) {
+        await wait(500);
+        if (await ev(() => window.__dev.scene.actors.some((g) => g.guest && g.carry))) boxes++;
+        if (i % 4 === 3) await mutate('s.minutes += 20;'); // время в игре идёт быстрее
+        // сохранение и загрузка посреди праздника: ход не теряется
+        if (i === 1) {
+          const before = (await hol()).day.guests || [];
+          await L.reload(); // записать, перезагрузить, «Продолжить»
+          await closeAll();
+          const after = (await hol()).day.guests || []; // после загрузки гости могут прийти дальше — но никто не пропал
+          expect(before.length > 0 && before.every((g) => after.includes(g)), 'ход дня рождения после загрузки', [
+            before,
+            after,
+          ]);
+          await ev(() => {
+            window.__stopWatchHol = window.__dev.watchState();
+          });
+        }
+      }
+      h = await hol();
+      let s = await state();
+      expect(h.steps[0] === 'guests:3/3' && s.guests.length === 3, 'три гостя', [h, s.guests]);
+      expect(boxes > 0, 'гости несут подарки в лапках', boxes);
+      expect(
+        s.money > s0.money ||
+          Object.values(s.dishes).reduce((a, b) => a + b, 0) > Object.values(s0.dishes).reduce((a, b) => a + b, 0),
+        'подарки от друзей',
+        s.dishes,
+      );
+      await wait(1500);
+      if ((await panelText()).includes('Все гости в сборе')) await page.click('.overlay .btn:has-text("Задуть свечи")');
+      else {
+        // окно уже закрыли — торт предлагает гость
+        expect((await hol()).day.asked === 1, 'окна «Все гости в сборе» не было');
+        await ev((id) => {
+          window.__dev.run('guest:' + id);
+        }, s.guests[0]);
+        await wait(600);
+        await page.click('.dialog .btn:has-text("Задуть свечи")');
+      }
+      await wait(500);
+      await tapThrough();
+      await L.until(
+        () =>
+          [...document.querySelectorAll('.overlay .panel')].some((p) =>
+            p.textContent.includes('Все праздничные занятия сделаны'),
+          ),
+        undefined,
+        { timeout: 5000 },
+      ).catch(() => {});
+      const fin = await panelText();
+      expect(
+        fin.includes('Год в городе') &&
+          fin.includes('Все праздничные занятия сделаны') &&
+          fin.includes('подарки от друзей') &&
+          fin.includes('Значок «Ореховая Гавань»'),
+        'праздничное окно «Года в городе»',
+        fin.slice(0, 300),
+      );
+      await closeAll();
+      s = await state();
+      h = await hol();
+      expect(
+        h.done &&
+          h.rewarded &&
+          s.stickers.includes('x_hol_birthday') &&
+          s.flags['hol:birthday'] === 2 &&
+          s.clothes.includes('badge_nut'),
+        '«Год в городе» сделан, значок в шкафу',
+        h,
+      );
+      await unwatch();
+    },
+  );
 
   await step('праздники: реплики жителей на 1 Мая, Купалу, Хеллоуин и «Год в городе»', async () => {
     const line = (id) => ev((id) => window.__dev.F.holidayLineFor(id), id);

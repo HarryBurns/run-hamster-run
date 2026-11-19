@@ -94,7 +94,8 @@ function drawOpening(ctx, x, y, b, t) {
     ctx.fillStyle = out;
     ctx.fill();
     ctx.stroke();
-    if (b.look === 'arch') for (let i = 0; i < 4; i++) line(ctx, x - 62, y - 30 - i * 38, x - 44, y - 30 - i * 38, OUT, 1.2);
+    if (b.look === 'arch')
+      for (let i = 0; i < 4; i++) line(ctx, x - 62, y - 30 - i * 38, x - 44, y - 30 - i * 38, OUT, 1.2);
     else ell(ctx, x - 50, y - 120, 9, 6, shade(stone, -0.15));
     if (b.ground) fillRR(ctx, x - 44, y - 14, 88, 14, 3, mix(b.ground, '#2b2b55', d * 0.6));
     return;
@@ -151,7 +152,6 @@ export const FIXTURES = {
       if (b.front && b.draw) b.draw(ctx, b.x, y, t, propK(b, t), sc, b);
     },
   },
-
 
   /** Просто место нажатия: размер и действие задаёт описание дома. */
   zone: { w: 80, h: 110 },

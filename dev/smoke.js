@@ -407,7 +407,8 @@ async function extra({ page, step, ev, wait, closeAll, hold }) {
           const x = c.getContext('2d', { willReadFrequently: true });
           drawHamster(x, OX, OY, 1, look, { dir, walk, time: 1, shadow: false });
           const d = x.getImageData(0, 0, W, W).data;
-          const near = (i, r, g, b) => Math.abs(d[i] - r) < 8 && Math.abs(d[i + 1] - g) < 8 && Math.abs(d[i + 2] - b) < 8;
+          const near = (i, r, g, b) =>
+            Math.abs(d[i] - r) < 8 && Math.abs(d[i + 1] - g) < 8 && Math.abs(d[i + 2] - b) < 8;
           const q = { dir, walk, earL: 0, earR: 0, bodyL: 0, bodyR: 0, bowN: 0, bowX: 0, eyeN: 0, eyeX: 0 };
           for (let py = 0; py < W; py++)
             for (let px = 0; px < W; px++) {
@@ -415,7 +416,8 @@ async function extra({ page, step, ev, wait, closeAll, hold }) {
                 hx = px - OX,
                 hy = py - OY;
               if (near(i, 0x2f, 0x2a, 0x2a)) {
-                if (hy < -73) hx < 0 ? q.earL++ : q.earR++; // выше макушки — только уши
+                if (hy < -73)
+                  hx < 0 ? q.earL++ : q.earR++; // выше макушки — только уши
                 else if (hy > -26) hx < 0 ? q.bodyL++ : q.bodyR++; // ниже подбородка — пятна на боках
               } else if (near(i, 0xff, 0x5c, 0x8a)) {
                 q.bowN++;
@@ -683,7 +685,9 @@ async function extra({ page, step, ev, wait, closeAll, hold }) {
     await wait(300);
     const bs = await ev(() => window.__dev.World.debugScreen(65.5 * 48, 61.2 * 48));
     await page.mouse.click(bs.x, bs.y);
-    await L.until(() => window.__dev.World.isBoating() && !window.__dev.World.p.path.length, undefined, { timeout: 5000 }).catch(() => {});
+    await L.until(() => window.__dev.World.isBoating() && !window.__dev.World.p.path.length, undefined, {
+      timeout: 5000,
+    }).catch(() => {});
     await closeAll();
     await hold('ArrowDown', 1200);
     await ev(() => {
@@ -1078,7 +1082,10 @@ async function economy({ page, step, ev, wait, closeAll }) {
       const d = await import('./js/data/index.js');
       const all = [
         ...d.CLOTHES.filter((c) => !['start', 'gift', 'holiday'].includes(c.shop)), // holiday — подарки праздников (П.13), без цены
-        ...d.FURNITURE.filter((f) => !['gift', 'holiday', 'forest', 'mountain', 'caves', 'desert', 'jungle', 'cove', 'island'].includes(f.shop)), // подарки, праздники и украшения тайных мест — без цены
+        ...d.FURNITURE.filter(
+          (f) =>
+            !['gift', 'holiday', 'forest', 'mountain', 'caves', 'desert', 'jungle', 'cove', 'island'].includes(f.shop),
+        ), // подарки, праздники и украшения тайных мест — без цены
         ...d.INGREDIENTS.filter((i) => i.src === 'shop'),
         ...d.SEEDS,
         ...d.DISHES.filter((q) => q.cafe),
@@ -1251,7 +1258,11 @@ async function economy({ page, step, ev, wait, closeAll }) {
     const all = 5 * cp.now;
     const card = await text('.overlay .card');
     expect(cp.now > cp.inSeason, 'морковка зимой должна стоить на рынке дороже, чем в сезон', cp);
-    expect(card.includes('Морковка') && card.includes(`${cp.now} за штуку`) && card.includes('+' + all), 'карточка товара', card);
+    expect(
+      card.includes('Морковка') && card.includes(`${cp.now} за штуку`) && card.includes('+' + all),
+      'карточка товара',
+      card,
+    );
     await page.click('.overlay .card .btn.green'); // продать 1
     await wait(250);
     let s = await state();
@@ -1446,7 +1457,11 @@ async function economy({ page, step, ev, wait, closeAll }) {
     for (const k of ['name', 'storage', 'dishes', 'seeds', 'stickers', 'day', 'pearls'])
       expect(same(k), `после переноса изменилось «${k}»`, [s[k], old[k]]);
     // вещи: всё, что было, и шлёпанцы в подарок (У2)
-    expect(JSON.stringify(s.clothes) === JSON.stringify([...old.clothes, 'flip_pink']), 'вещи после переноса', s.clothes);
+    expect(
+      JSON.stringify(s.clothes) === JSON.stringify([...old.clothes, 'flip_pink']),
+      'вещи после переноса',
+      s.clothes,
+    );
     // рецепты: всё, что было, на месте; в конец дописаны только новые рецепты «с начала игры» (repair; список —
     // START_RECIPES из data/food.js: рецепты с отметкой start, их добавляют новые этапы)
     const startRecipes = await ev(async () => (await import('./js/data/food.js')).START_RECIPES);
@@ -1575,7 +1590,10 @@ const runParallel = () => {
       const t0 = await ev(() => window.__dev && window.__dev.G.time);
       const ok = await page
         .waitForFunction((t0) => window.__dev && window.__dev.G.time > t0, t0, { timeout: 3000, polling: 30 })
-        .then(() => true, () => false);
+        .then(
+          () => true,
+          () => false,
+        );
       if (!ok) throw new Error('главный цикл остановился');
     };
     const step = async (name, fn, o = {}) => {
@@ -1591,7 +1609,11 @@ const runParallel = () => {
         // строка шага в dev/*.js, где упало (с SMOKE_VERBOSE) — чтобы не перезапускать ради неё
         const lines = (e.stack || '').split('\n');
         const at = process.env.SMOKE_VERBOSE
-          ? ([/dev[\\/]smoke_\w+\.js:\d+/, /dev[\\/]lib\.js:\d+/, /dev[\\/]smoke\.js:\d+/].map((re) => lines.find((l) => re.test(l))).find(Boolean) || '').trim()
+          ? (
+              [/dev[\\/]smoke_\w+\.js:\d+/, /dev[\\/]lib\.js:\d+/, /dev[\\/]smoke\.js:\d+/]
+                .map((re) => lines.find((l) => re.test(l)))
+                .find(Boolean) || ''
+            ).trim()
           : '';
         errors.push(`[${tag}] ${name}: ${e.message.split('\n')[0]}${at ? ' — ' + at.replace(/^at\s+/, '') : ''}`);
       }
@@ -1604,7 +1626,8 @@ const runParallel = () => {
       // с SMOKE_VERBOSE — сколько шёл шаг (замеры этапа 21)
       const sec = process.env.SMOKE_VERBOSE ? ` (${((Date.now() - ts) / 1000).toFixed(1)} с)` : '';
       console.log(`${errors.length === before ? 'ok  ' : 'FAIL'} [${tag}] ${name}${sec}`);
-      if (errors.length > before && process.env.SMOKE_VERBOSE) console.log('     ' + errors.slice(before).join('\n     '));
+      if (errors.length > before && process.env.SMOKE_VERBOSE)
+        console.log('     ' + errors.slice(before).join('\n     '));
     };
     // помощники lib (этап 21); closeAll — закрыть все окна и диалоги: ждёт, только если было что закрывать
     const L = lib({ page, step, ev, wait });
@@ -1634,9 +1657,13 @@ const runParallel = () => {
       'showLetter',
     ]) {
       await step('окно ' + fn, async () => {
-        await L.react((f) => {
-          window.__dev.F[f]();
-        }, fn, 350);
+        await L.react(
+          (f) => {
+            window.__dev.F[f]();
+          },
+          fn,
+          350,
+        );
         await closeAll();
       });
     }
@@ -1818,184 +1845,220 @@ const runParallel = () => {
       });
       if (bad.length) throw new Error(bad.join('; '));
     });
-    await step('город: что растёт и когда плодоносит — кокосы на четырёх пальмах, сбор только в сезон (У3)', async () => {
-      await L.go('world');
-      await closeAll();
-      // шаг меняет день и собирает плоды: в конце возвращаем всё как было, чтобы не мешать следующим шагам
-      await ev(() => {
-        const s = window.__dev.G.state;
-        window.__plantsKeep = JSON.stringify(
-          Object.fromEntries(
-            ['day', 'minutes', 'weather', 'guests', 'visitor', 'dayFlags', 'ledger', 'garden', 'ing'].map((k) => [k, s[k]]),
-          ),
-        );
-      });
-      // день месяца, в котором у продукта сезон (и в котором — нет): по общей таблице сезонов
-      const info = await ev(async () => {
-        const d = window.__dev,
-          W = d.World,
-          m = W.map,
-          P = d.Plants,
-          T = 48,
-          out = [];
-        const D = await import('/js/data/index.js');
-        const plants = m.objs.filter((o) => P.PLANTS[o.type]);
-        const n = {};
-        for (const o of plants) n[P.PLANTS[o.type].gives] = (n[P.PLANTS[o.type].gives] || 0) + 1;
-        // сколько чего растёт: не больше, чем положено по таблице сбора; кокосовых пальм — не больше четырёх
-        for (const [id, q] of Object.entries(D.GATHER)) {
-          if (!n[id]) out.push('на карте нет растений: ' + id);
-          if (n[id] > q.max) out.push(`${id}: на карте ${n[id]}, а положено не больше ${q.max}`);
-        }
-        if (!(n.coconut >= 3 && n.coconut <= 4)) out.push('кокосовых пальм должно быть 3–4, а их ' + n.coconut);
-        // обычная пальма — без плодов и без действия
-        if (m.tappable.some((o) => o.type === 'palm')) out.push('обычную пальму можно потрясти');
-        if (!(m.objs.filter((o) => o.type === 'palm').length > 20)) out.push('куда-то делись обычные пальмы');
-        // в каждом месяце года: плоды есть ровно у тех растений, у чьего продукта сезон, и хоть что-то собрать можно;
-        // кокосовых пальм с плодами — не больше четырёх
-        const s = d.G.state,
-          day0 = s.day,
-          flags0 = s.dayFlags;
-        s.dayFlags = {};
-        const when = {};
-        for (let month = 0; month < 12; month++) {
-          s.day = month * D.DAYS_PER_MONTH;
-          let any = 0;
-          for (const o of plants) {
-            const id = P.PLANTS[o.type].gives,
-              ripe = D.pickIn(id, month); // сезон урожая или, у яблок, сезон сбора
-            if (P.hasFruit(o) !== ripe) out.push(`${o.type} (${o.tx}, ${o.ty}): месяц ${month}, плоды не по сезону`);
-            if (ripe) {
-              any++;
-              when[id] = when[id] === undefined ? month : when[id];
-            } else if (when['-' + id] === undefined) when['-' + id] = month;
-          }
-          if (!any) out.push('в месяце ' + month + ' нечего собрать');
-          // значки на карте (З9): ровно то, что сейчас в сезоне
-          const part = W.desc.parts.find((q) => q.ripeIcons),
-            icons = part.ripeIcons().sort().join(''),
-            should = [...new Set(plants.filter((o) => D.pickIn(P.PLANTS[o.type].gives, month)).map((o) => D.ING_BY_ID[P.PLANTS[o.type].gives].e))]
-              .sort()
-              .join('');
-          if (icons !== should) out.push(`месяц ${month}: на карте ${icons}, а в сезоне ${should}`);
-          if (plants.filter((o) => o.type === 'cocoPalm' && P.hasFruit(o)).length > 4)
-            out.push('кокосовых пальм с плодами больше четырёх');
-        }
-        s.day = day0;
-        s.dayFlags = flags0;
-        // до каждого растения на суше можно дойти от двери виллы (встать на соседнюю клетку)
-        const door = m.doorPx(m.bById.villa),
-          from = [Math.floor(door.x / T), Math.floor(door.y / T)];
-        const spots = [];
-        for (const o of plants) {
-          if (o.ty >= 57) continue; // острова: вплавь или на кораблике
-          let near = null;
-          for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, 1], [1, -1], [-1, -1]])
-            if (!near && m.foot(o.tx + dx, o.ty + dy) && m.path(m.foot, from[0], from[1], o.tx + dx, o.ty + dy))
-              near = [o.tx + dx, o.ty + dy];
-          if (!near) out.push(`${o.type} (${o.tx}, ${o.ty}): не подойти`);
-          else if (!spots.some((q) => q.type === o.type)) spots.push({ type: o.type, tx: o.tx, ty: o.ty, near });
-        }
-        return { out, spots, when, n, give: Object.fromEntries(Object.entries(D.GATHER).map(([id, q]) => [id, q.n])) };
-      });
-      if (info.out.length) throw new Error(info.out.join('; '));
-      if (info.spots.length !== 6) throw new Error('не все виды растений есть на суше: ' + JSON.stringify(info.spots));
-      const have = (id) => ev((id) => window.__dev.G.state.ing[id] || 0, id);
-      const setDay = (month, flags) =>
-        ev(([month, flags]) => {
+    await step(
+      'город: что растёт и когда плодоносит — кокосы на четырёх пальмах, сбор только в сезон (У3)',
+      async () => {
+        await L.go('world');
+        await closeAll();
+        // шаг меняет день и собирает плоды: в конце возвращаем всё как было, чтобы не мешать следующим шагам
+        await ev(() => {
           const s = window.__dev.G.state;
-          s.day = month * 3;
-          s.minutes = 12 * 60;
-          s.weather = 'sun';
-          if (flags) s.dayFlags = {};
-        }, [month, flags]);
-      const tapPlant = async (sp) => {
-        const pt = await ev(
-          ([x, y, up]) => window.__dev.World.debugScreen((x + 0.5) * 48, (y + 0.5) * 48 - up),
-          [sp.tx, sp.ty, sp.type === 'berryBush' || sp.type === 'mushrooms' ? 2 : 30],
-        );
-        await page.mouse.click(pt.x, pt.y);
-        await wait(1300);
-      };
-      const btn = () =>
-        ev(() => [...document.querySelectorAll('.hud-btns.left .rbtn')].map((e) => e.textContent).join(' | '));
-      let way = 0;
-      for (const sp of info.spots) {
-        const id = await ev((t) => window.__dev.Plants.PLANTS[t].gives, sp.type),
-          give = info.give[id],
-          name = `${sp.type} (${sp.tx}, ${sp.ty})`;
-        // не в сезон: плодов нет, кнопки нет, нажатие ничего не даёт (у дерева — подсказка, когда поспеет)
-        await setDay(info.when['-' + id], true);
-        await ev(([x, y]) => window.__dev.World.debugTeleport(x, y), sp.near);
-        await wait(350);
-        const n0 = await have(id);
-        if (/Сорвать|Стрясти|Собрать/.test(await btn())) throw new Error(name + ': не в сезон есть кнопка сбора');
-        await ev(() => document.querySelectorAll('#toasts .toast').forEach((e) => e.remove()));
-        await tapPlant(sp);
-        if ((await have(id)) !== n0) throw new Error(name + ': плод сорван не в сезон');
-        const hint = await ev(() => [...document.querySelectorAll('#toasts .toast')].map((e) => e.textContent).join(' | '));
-        if (sp.type !== 'mushrooms' && !/(поспеют|поспеет) (в конце лета|зимой|весной|летом|осенью)/.test(hint))
-          throw new Error(name + ': не в сезон нет подсказки, когда поспеет: ' + hint);
-        if (sp.type === 'mushrooms' && hint) throw new Error(name + ': грибов нет, а нажатие сработало: ' + hint);
-        // в сезон: рядом с растением — кнопка; сорвали (нажатием на растение, кнопкой или клавишей E) — в рюкзаке
-        await setDay(info.when[id], true);
-        await ev(([x, y]) => window.__dev.World.debugTeleport(x, y), sp.near);
-        await wait(350);
-        const b = await btn();
-        if (!/Сорвать|Стрясти|Собрать/.test(b)) throw new Error(name + ': в сезон нет кнопки сбора: ' + b);
-        if (way % 3 === 0) await tapPlant(sp);
-        else if (way % 3 === 1) {
-          await page.click('.hud-btns.left .rbtn.on');
-          await wait(900);
-        } else {
-          await page.keyboard.press('KeyE');
-          await wait(900);
-        }
-        way++;
-        const n1 = await have(id);
-        if (n1 !== n0 + give) throw new Error(`${name}: в рюкзаке ${n1}, а должно стать ${n0 + give}`);
-        if (/Сорвать|Стрясти|Собрать/.test(await btn())) throw new Error(name + ': плоды собраны, а кнопка осталась');
-        // второй раз за день с того же растения — ничего; наутро плод вырастает снова
-        await tapPlant(sp);
-        if ((await have(id)) !== n1) throw new Error(name + ': с одного растения собрано дважды за день');
-        const again = await ev(([x, y, month]) => {
+          window.__plantsKeep = JSON.stringify(
+            Object.fromEntries(
+              ['day', 'minutes', 'weather', 'guests', 'visitor', 'dayFlags', 'ledger', 'garden', 'ing'].map((k) => [
+                k,
+                s[k],
+              ]),
+            ),
+          );
+        });
+        // день месяца, в котором у продукта сезон (и в котором — нет): по общей таблице сезонов
+        const info = await ev(async () => {
           const d = window.__dev,
-            o = d.World.map.objs.find((q) => q.tx === x && q.ty === y),
-            was = d.Plants.hasFruit(o);
-          d.G.state.day = month * 3; // первый день месяца: завтра — тот же месяц
-          d.actions.nextDay();
-          return { was, now: d.Plants.hasFruit(o) };
-        }, [sp.tx, sp.ty, info.when[id]]);
-        if (again.was || !again.now) throw new Error(name + ': плод не отрастает наутро: ' + JSON.stringify(again));
-      }
-      // всё, что собрали, — еда: лежит в рюкзаке, чернику и банан можно съесть, всё продаётся на рынке
-      const food = await ev(async () => {
-        const d = window.__dev,
-          D = await import('/js/data/index.js'),
-          s = d.G.state;
-        return {
-          sell: Object.keys(D.GATHER).filter((id) => !(D.ING_BY_ID[id].sell > 0)),
-          stickers: ['x_gather', 'x_gather_all'].filter((q) => !s.stickers.includes(q)),
-          clipped: d.World.debugSprites().clipped,
+            W = d.World,
+            m = W.map,
+            P = d.Plants,
+            T = 48,
+            out = [];
+          const D = await import('/js/data/index.js');
+          const plants = m.objs.filter((o) => P.PLANTS[o.type]);
+          const n = {};
+          for (const o of plants) n[P.PLANTS[o.type].gives] = (n[P.PLANTS[o.type].gives] || 0) + 1;
+          // сколько чего растёт: не больше, чем положено по таблице сбора; кокосовых пальм — не больше четырёх
+          for (const [id, q] of Object.entries(D.GATHER)) {
+            if (!n[id]) out.push('на карте нет растений: ' + id);
+            if (n[id] > q.max) out.push(`${id}: на карте ${n[id]}, а положено не больше ${q.max}`);
+          }
+          if (!(n.coconut >= 3 && n.coconut <= 4)) out.push('кокосовых пальм должно быть 3–4, а их ' + n.coconut);
+          // обычная пальма — без плодов и без действия
+          if (m.tappable.some((o) => o.type === 'palm')) out.push('обычную пальму можно потрясти');
+          if (!(m.objs.filter((o) => o.type === 'palm').length > 20)) out.push('куда-то делись обычные пальмы');
+          // в каждом месяце года: плоды есть ровно у тех растений, у чьего продукта сезон, и хоть что-то собрать можно;
+          // кокосовых пальм с плодами — не больше четырёх
+          const s = d.G.state,
+            day0 = s.day,
+            flags0 = s.dayFlags;
+          s.dayFlags = {};
+          const when = {};
+          for (let month = 0; month < 12; month++) {
+            s.day = month * D.DAYS_PER_MONTH;
+            let any = 0;
+            for (const o of plants) {
+              const id = P.PLANTS[o.type].gives,
+                ripe = D.pickIn(id, month); // сезон урожая или, у яблок, сезон сбора
+              if (P.hasFruit(o) !== ripe) out.push(`${o.type} (${o.tx}, ${o.ty}): месяц ${month}, плоды не по сезону`);
+              if (ripe) {
+                any++;
+                when[id] = when[id] === undefined ? month : when[id];
+              } else if (when['-' + id] === undefined) when['-' + id] = month;
+            }
+            if (!any) out.push('в месяце ' + month + ' нечего собрать');
+            // значки на карте (З9): ровно то, что сейчас в сезоне
+            const part = W.desc.parts.find((q) => q.ripeIcons),
+              icons = part.ripeIcons().sort().join(''),
+              should = [
+                ...new Set(
+                  plants
+                    .filter((o) => D.pickIn(P.PLANTS[o.type].gives, month))
+                    .map((o) => D.ING_BY_ID[P.PLANTS[o.type].gives].e),
+                ),
+              ]
+                .sort()
+                .join('');
+            if (icons !== should) out.push(`месяц ${month}: на карте ${icons}, а в сезоне ${should}`);
+            if (plants.filter((o) => o.type === 'cocoPalm' && P.hasFruit(o)).length > 4)
+              out.push('кокосовых пальм с плодами больше четырёх');
+          }
+          s.day = day0;
+          s.dayFlags = flags0;
+          // до каждого растения на суше можно дойти от двери виллы (встать на соседнюю клетку)
+          const door = m.doorPx(m.bById.villa),
+            from = [Math.floor(door.x / T), Math.floor(door.y / T)];
+          const spots = [];
+          for (const o of plants) {
+            if (o.ty >= 57) continue; // острова: вплавь или на кораблике
+            let near = null;
+            for (const [dx, dy] of [
+              [1, 0],
+              [-1, 0],
+              [0, 1],
+              [0, -1],
+              [1, 1],
+              [-1, 1],
+              [1, -1],
+              [-1, -1],
+            ])
+              if (!near && m.foot(o.tx + dx, o.ty + dy) && m.path(m.foot, from[0], from[1], o.tx + dx, o.ty + dy))
+                near = [o.tx + dx, o.ty + dy];
+            if (!near) out.push(`${o.type} (${o.tx}, ${o.ty}): не подойти`);
+            else if (!spots.some((q) => q.type === o.type)) spots.push({ type: o.type, tx: o.tx, ty: o.ty, near });
+          }
+          return {
+            out,
+            spots,
+            when,
+            n,
+            give: Object.fromEntries(Object.entries(D.GATHER).map(([id, q]) => [id, q.n])),
+          };
+        });
+        if (info.out.length) throw new Error(info.out.join('; '));
+        if (info.spots.length !== 6)
+          throw new Error('не все виды растений есть на суше: ' + JSON.stringify(info.spots));
+        const have = (id) => ev((id) => window.__dev.G.state.ing[id] || 0, id);
+        const setDay = (month, flags) =>
+          ev(
+            ([month, flags]) => {
+              const s = window.__dev.G.state;
+              s.day = month * 3;
+              s.minutes = 12 * 60;
+              s.weather = 'sun';
+              if (flags) s.dayFlags = {};
+            },
+            [month, flags],
+          );
+        const tapPlant = async (sp) => {
+          const pt = await ev(
+            ([x, y, up]) => window.__dev.World.debugScreen((x + 0.5) * 48, (y + 0.5) * 48 - up),
+            [sp.tx, sp.ty, sp.type === 'berryBush' || sp.type === 'mushrooms' ? 2 : 30],
+          );
+          await page.mouse.click(pt.x, pt.y);
+          await wait(1300);
         };
-      });
-      if (food.sell.length) throw new Error('собранное не продать на рынке: ' + food.sell);
-      if (food.stickers.length) throw new Error('нет наклеек за сбор: ' + food.stickers);
-      if (food.clipped.length) throw new Error('спрайты не поместились в рамку: ' + food.clipped.join(', '));
-      const b0 = await have('blueberry');
-      await ev(() => window.__dev.F.openBackpack());
-      await L.untilPanel();
-      await L.tap('.overlay .tabs >> text=Продукты', 250);
-      await L.tap('.overlay .card:has-text("Черника") .btn', 300);
-      if ((await have('blueberry')) !== b0 - 1) throw new Error('чернику из рюкзака не съесть');
-      await closeAll();
-      await ev(() => {
-        Object.assign(window.__dev.G.state, JSON.parse(window.__plantsKeep));
-        window.__dev.emit('guests');
-        window.__dev.emit('hud');
-      });
-      await wait(200);
-    });
+        const btn = () =>
+          ev(() => [...document.querySelectorAll('.hud-btns.left .rbtn')].map((e) => e.textContent).join(' | '));
+        let way = 0;
+        for (const sp of info.spots) {
+          const id = await ev((t) => window.__dev.Plants.PLANTS[t].gives, sp.type),
+            give = info.give[id],
+            name = `${sp.type} (${sp.tx}, ${sp.ty})`;
+          // не в сезон: плодов нет, кнопки нет, нажатие ничего не даёт (у дерева — подсказка, когда поспеет)
+          await setDay(info.when['-' + id], true);
+          await ev(([x, y]) => window.__dev.World.debugTeleport(x, y), sp.near);
+          await wait(350);
+          const n0 = await have(id);
+          if (/Сорвать|Стрясти|Собрать/.test(await btn())) throw new Error(name + ': не в сезон есть кнопка сбора');
+          await ev(() => document.querySelectorAll('#toasts .toast').forEach((e) => e.remove()));
+          await tapPlant(sp);
+          if ((await have(id)) !== n0) throw new Error(name + ': плод сорван не в сезон');
+          const hint = await ev(() =>
+            [...document.querySelectorAll('#toasts .toast')].map((e) => e.textContent).join(' | '),
+          );
+          if (sp.type !== 'mushrooms' && !/(поспеют|поспеет) (в конце лета|зимой|весной|летом|осенью)/.test(hint))
+            throw new Error(name + ': не в сезон нет подсказки, когда поспеет: ' + hint);
+          if (sp.type === 'mushrooms' && hint) throw new Error(name + ': грибов нет, а нажатие сработало: ' + hint);
+          // в сезон: рядом с растением — кнопка; сорвали (нажатием на растение, кнопкой или клавишей E) — в рюкзаке
+          await setDay(info.when[id], true);
+          await ev(([x, y]) => window.__dev.World.debugTeleport(x, y), sp.near);
+          await wait(350);
+          const b = await btn();
+          if (!/Сорвать|Стрясти|Собрать/.test(b)) throw new Error(name + ': в сезон нет кнопки сбора: ' + b);
+          if (way % 3 === 0) await tapPlant(sp);
+          else if (way % 3 === 1) {
+            await page.click('.hud-btns.left .rbtn.on');
+            await wait(900);
+          } else {
+            await page.keyboard.press('KeyE');
+            await wait(900);
+          }
+          way++;
+          const n1 = await have(id);
+          if (n1 !== n0 + give) throw new Error(`${name}: в рюкзаке ${n1}, а должно стать ${n0 + give}`);
+          if (/Сорвать|Стрясти|Собрать/.test(await btn())) throw new Error(name + ': плоды собраны, а кнопка осталась');
+          // второй раз за день с того же растения — ничего; наутро плод вырастает снова
+          await tapPlant(sp);
+          if ((await have(id)) !== n1) throw new Error(name + ': с одного растения собрано дважды за день');
+          const again = await ev(
+            ([x, y, month]) => {
+              const d = window.__dev,
+                o = d.World.map.objs.find((q) => q.tx === x && q.ty === y),
+                was = d.Plants.hasFruit(o);
+              d.G.state.day = month * 3; // первый день месяца: завтра — тот же месяц
+              d.actions.nextDay();
+              return { was, now: d.Plants.hasFruit(o) };
+            },
+            [sp.tx, sp.ty, info.when[id]],
+          );
+          if (again.was || !again.now) throw new Error(name + ': плод не отрастает наутро: ' + JSON.stringify(again));
+        }
+        // всё, что собрали, — еда: лежит в рюкзаке, чернику и банан можно съесть, всё продаётся на рынке
+        const food = await ev(async () => {
+          const d = window.__dev,
+            D = await import('/js/data/index.js'),
+            s = d.G.state;
+          return {
+            sell: Object.keys(D.GATHER).filter((id) => !(D.ING_BY_ID[id].sell > 0)),
+            stickers: ['x_gather', 'x_gather_all'].filter((q) => !s.stickers.includes(q)),
+            clipped: d.World.debugSprites().clipped,
+          };
+        });
+        if (food.sell.length) throw new Error('собранное не продать на рынке: ' + food.sell);
+        if (food.stickers.length) throw new Error('нет наклеек за сбор: ' + food.stickers);
+        if (food.clipped.length) throw new Error('спрайты не поместились в рамку: ' + food.clipped.join(', '));
+        const b0 = await have('blueberry');
+        await ev(() => window.__dev.F.openBackpack());
+        await L.untilPanel();
+        await L.tap('.overlay .tabs >> text=Продукты', 250);
+        await L.tap('.overlay .card:has-text("Черника") .btn', 300);
+        if ((await have('blueberry')) !== b0 - 1) throw new Error('чернику из рюкзака не съесть');
+        await closeAll();
+        await ev(() => {
+          Object.assign(window.__dev.G.state, JSON.parse(window.__plantsKeep));
+          window.__dev.emit('guests');
+          window.__dev.emit('hud');
+        });
+        await wait(200);
+      },
+    );
     await step('город: карта — кнопка «дойти» работает для каждого места', async () => {
       const r = await ev(() => {
         const W = window.__dev.World,
@@ -2043,7 +2106,8 @@ const runParallel = () => {
       await L.tap('.overlay .opt >> text=Морская звезда', 1200);
       let r = await at();
       const walking = await ev(() => window.__dev.World.p.path.length > 0);
-      if (r.scene !== 'world' || r.fade || !walking) throw new Error('к месту, где не была, — не пешком: ' + JSON.stringify(r));
+      if (r.scene !== 'world' || r.fade || !walking)
+        throw new Error('к месту, где не была, — не пешком: ' + JSON.stringify(r));
       // дошла (пешком) — отель «посещён»
       await ev(() => {
         const W = window.__dev.World,
@@ -2066,14 +2130,16 @@ const runParallel = () => {
       await ev(() => window.__dev.F.openMap());
       await L.untilPanel();
       const btn = page.locator('.overlay .opt.been');
-      if ((await btn.count()) !== 1 || !(await btn.innerText()).includes('⚡')) throw new Error('на кнопке отеля нет ⚡');
+      if ((await btn.count()) !== 1 || !(await btn.innerText()).includes('⚡'))
+        throw new Error('на кнопке отеля нет ⚡');
       const t0 = Date.now();
       await btn.click();
       await wait(250);
       if (!(await at()).fade) throw new Error('быстрый переход без затемнения');
       for (let i = 0; i < 40 && (await at()).scene !== 'hotel'; i++) await wait(100);
       const sec = (Date.now() - t0) / 1000;
-      if ((await at()).scene !== 'hotel' || sec > 3) throw new Error('быстрый переход: ' + sec + ' с, сцена ' + (await at()).scene);
+      if ((await at()).scene !== 'hotel' || sec > 3)
+        throw new Error('быстрый переход: ' + sec + ' с, сцена ' + (await at()).scene);
       await closeAll();
       // рядом (меньше 8 клеток) — пешком, даже если уже была
       await ev(() => {
@@ -2294,7 +2360,8 @@ const runParallel = () => {
       let s = await st();
       if (s.money !== s0.money || s.b.tuft !== 0 || s.b.hair !== null)
         throw new Error('примерка списала монеты или поменяла внешность: ' + JSON.stringify(s));
-      if ((await page.locator('.overlay .salon-pay .btn').count()) !== 2) throw new Error('нет двух кнопок «Сделать за»');
+      if ((await page.locator('.overlay .salon-pay .btn').count()) !== 2)
+        throw new Error('нет двух кнопок «Сделать за»');
       if (!(await page.locator('.overlay .salon-pay .btn').first().innerText()).includes('Сделать за'))
         throw new Error('кнопка без «Сделать за»');
       await page.click('.overlay .salon-pay .btn >> nth=0'); // причёска
@@ -2304,7 +2371,8 @@ const runParallel = () => {
         throw new Error('«Сделать за» причёску: ' + JSON.stringify(s));
       await closeAll();
       s = await st();
-      if (s.b.hair !== null || s.money !== s0.money - 400) throw new Error('закрыла без покупки — цвет изменился: ' + JSON.stringify(s));
+      if (s.b.hair !== null || s.money !== s0.money - 400)
+        throw new Error('закрыла без покупки — цвет изменился: ' + JSON.stringify(s));
       // мало монет: кнопка бледная, нажатие — подсказка, монеты и внешность прежние
       await ev(() => {
         const d = window.__dev;
@@ -2313,7 +2381,8 @@ const runParallel = () => {
       });
       await wait(400);
       await L.tap('.overlay .opt >> text=Ирокез', 200);
-      if (!(await page.locator('.overlay .salon-pay .btn.ghost').count())) throw new Error('при нехватке кнопка не бледная');
+      if (!(await page.locator('.overlay .salon-pay .btn.ghost').count()))
+        throw new Error('при нехватке кнопка не бледная');
       await L.tap('.overlay .salon-pay .btn', 250);
       s = await st();
       if (s.money !== 100 || s.b.tuft !== 4) throw new Error('при нехватке что-то списалось: ' + JSON.stringify(s));
@@ -2329,13 +2398,16 @@ const runParallel = () => {
             const e = document.querySelector(q);
             return e && e.getBoundingClientRect().toJSON();
           };
-          const ts = [...document.querySelectorAll('#toasts .toast')].filter((t) => getComputedStyle(t).display !== 'none');
+          const ts = [...document.querySelectorAll('#toasts .toast')].filter(
+            (t) => getComputedStyle(t).display !== 'none',
+          );
           // текст заголовка окна (сам .title растянут до монеток — берём рамку букв)
           const title = document.querySelector('.overlay .panel-head .title'),
             rg = title && document.createRange();
           if (rg) rg.selectNodeContents(title);
           const hit = (a) =>
-            !!a && ts.some((t) => {
+            !!a &&
+            ts.some((t) => {
               const b = t.getBoundingClientRect();
               return b.left < a.right && b.right > a.left && b.top < a.bottom && b.bottom > a.top;
             });
@@ -2345,7 +2417,10 @@ const runParallel = () => {
             shown: ts.length,
             top: ts.length ? Math.min(...ts.map((t) => t.getBoundingClientRect().top)) : null,
             onTitle: hit(rg && rg.getBoundingClientRect()),
-            onX: hit(document.querySelector('.overlay .xbtn') && document.querySelector('.overlay .xbtn').getBoundingClientRect()),
+            onX: hit(
+              document.querySelector('.overlay .xbtn') &&
+                document.querySelector('.overlay .xbtn').getBoundingClientRect(),
+            ),
           };
         });
       await closeAll();
@@ -2373,11 +2448,13 @@ const runParallel = () => {
       await ev(() => window.__dev.F.openBackpack());
       await L.untilPanel();
       const c = await box();
-      if (!c.head || c.top < c.head.bottom - 17 || c.onTitle || c.onX) throw new Error('подсказка не переехала под шапку: ' + JSON.stringify(c));
+      if (!c.head || c.top < c.head.bottom - 17 || c.onTitle || c.onX)
+        throw new Error('подсказка не переехала под шапку: ' + JSON.stringify(c));
       await closeAll();
       await wait(100);
       const d = await box();
-      if (d.shown && d.top > 120) throw new Error('окно закрыто, а подсказки не вернулись наверх: ' + JSON.stringify(d));
+      if (d.shown && d.top > 120)
+        throw new Error('окно закрыто, а подсказки не вернулись наверх: ' + JSON.stringify(d));
     });
     for (const g of ['swim', 'fishing', 'teacher', 'doctor', 'chef', 'fashion']) {
       await step('мини-игра ' + g, async () => {
@@ -2513,17 +2590,22 @@ const runParallel = () => {
       await wait(400);
       const s = await ev(() => window.__dev.World.debugScreen(65.5 * 48, 61.2 * 48));
       await page.mouse.click(s.x, s.y);
-      await L.until(() => window.__dev.World.isBoating() && !window.__dev.World.p.path.length, undefined, { timeout: 5000 }).catch(() => {});
+      await L.until(() => window.__dev.World.isBoating() && !window.__dev.World.p.path.length, undefined, {
+        timeout: 5000,
+      }).catch(() => {});
       await closeAll();
       if (!(await ev(() => window.__dev.World.isBoating()))) throw new Error('не сели на кораблик');
       // этап 8: нажали на пирс прямо у борта — сразу сошли (раньше путь был пустой, и ничего не происходило)
       const pier = await ev(() => window.__dev.World.debugScreen(64.5 * 48, 61.5 * 48));
       await page.mouse.click(pier.x, pier.y);
       await L.until(() => !window.__dev.World.isBoating(), undefined, { timeout: 2000 }).catch(() => {});
-      if (await ev(() => window.__dev.World.isBoating())) throw new Error('нажатие на пирс у борта не сняло с кораблика');
+      if (await ev(() => window.__dev.World.isBoating()))
+        throw new Error('нажатие на пирс у борта не сняло с кораблика');
       const s2 = await ev(() => window.__dev.World.debugScreen(65.5 * 48, 61.2 * 48)); // камера ушла за хомячком
       await page.mouse.click(s2.x, s2.y);
-      await L.until(() => window.__dev.World.isBoating() && !window.__dev.World.p.path.length, undefined, { timeout: 5000 }).catch(() => {});
+      await L.until(() => window.__dev.World.isBoating() && !window.__dev.World.p.path.length, undefined, {
+        timeout: 5000,
+      }).catch(() => {});
       await closeAll();
       if (!(await ev(() => window.__dev.World.isBoating()))) throw new Error('не сели на кораблик второй раз');
       // этап 9 (Ф3): нажали на мокрый песок у кромки (клетка мелководья h у берега) — подплыть и сойти на берег
@@ -2533,7 +2615,9 @@ const runParallel = () => {
       });
       if (wet.at !== 'h') throw new Error('у пирса нет мокрого песка (h): ' + wet.at);
       await page.mouse.click(wet.s.x, wet.s.y);
-      await L.until(() => !window.__dev.World.isBoating() && !window.__dev.World.p.path.length, undefined, { timeout: 6000 }).catch(() => {});
+      await L.until(() => !window.__dev.World.isBoating() && !window.__dev.World.p.path.length, undefined, {
+        timeout: 6000,
+      }).catch(() => {});
       const off = await ev(() => {
         const W = window.__dev.World;
         return { boat: W.isBoating(), y: W.p.y / 48, c: W.map.at(Math.floor(W.p.x / 48), Math.floor(W.p.y / 48)) };
@@ -2546,13 +2630,16 @@ const runParallel = () => {
         return window.__dev.World.debugScreen(b.x, b.y - 10);
       });
       await page.mouse.click(s3.x, s3.y);
-      await L.until(() => window.__dev.World.isBoating() && !window.__dev.World.p.path.length, undefined, { timeout: 5000 }).catch(() => {});
+      await L.until(() => window.__dev.World.isBoating() && !window.__dev.World.p.path.length, undefined, {
+        timeout: 5000,
+      }).catch(() => {});
       await closeAll();
       if (!(await ev(() => window.__dev.World.isBoating()))) throw new Error('не сели на кораблик у берега');
       const far = await ev(() => window.__dev.World.debugScreen(70.5 * 48, 58.7 * 48));
       await page.mouse.click(far.x, far.y);
       await wait(1500);
-      if (!(await ev(() => window.__dev.World.isBoating()))) throw new Error('нажатие на дальнюю полосу мелководья высадило');
+      if (!(await ev(() => window.__dev.World.isBoating())))
+        throw new Error('нажатие на дальнюю полосу мелководья высадило');
       await hold('ArrowDown', 1500);
       await ev(() => {
         window.__dev.World.leaveBoat();

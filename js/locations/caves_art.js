@@ -44,7 +44,8 @@ function floorDeco(ctx, x, y, tx, ty, env, r) {
     ctx.lineTo(sx + 15, sy + 1);
     ctx.stroke();
   }
-  if (r(14) < 0.07) ell(ctx, x + 10 + r(15) * 28, y + 12 + r(16) * 24, 9, 4, 'rgba(110,170,200,.35)', 'rgba(60,90,110,.3)', 1);
+  if (r(14) < 0.07)
+    ell(ctx, x + 10 + r(15) * 28, y + 12 + r(16) * 24, 9, 4, 'rgba(110,170,200,.35)', 'rgba(60,90,110,.3)', 1);
   if (r(17) < 0.25) {
     ctx.fillStyle = 'rgba(200,180,255,.55)';
     ctx.fillRect(x + r(18) * T, y + r(19) * T, 1.6, 1.6);

@@ -155,7 +155,10 @@ async function moveKey(d, key) {
       const all = [...add, ...have].slice(-PHOTO.max); // прежние снимки старше тех, что уже в базе
       await idbSet(d, key, all);
       const back = await idbGet(d, key); // проверка чтением: всё ли на месте
-      if (back.length !== all.length || !old.every((p) => all.length === PHOTO.max || back.some((h) => h.src === p.src)))
+      if (
+        back.length !== all.length ||
+        !old.every((p) => all.length === PHOTO.max || back.some((h) => h.src === p.src))
+      )
         return false;
     }
     ls.del(key); // только теперь — из localStorage
@@ -237,7 +240,12 @@ export function addPhoto(photo, { replaceOldest = false } = {}) {
 /** Удалить снимок по id. */
 export function removePhoto(id) {
   const key = keyOf(gidNow());
-  return queued(async () => write(key, (await read(key)).filter((p) => p.id !== id))).catch(() => false);
+  return queued(async () =>
+    write(
+      key,
+      (await read(key)).filter((p) => p.id !== id),
+    ),
+  ).catch(() => false);
 }
 /** Убрать все снимки игры насовсем. */
 export function dropPhotos(gid) {

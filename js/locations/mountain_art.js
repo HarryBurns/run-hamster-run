@@ -244,7 +244,14 @@ function paintCrag(ctx, v, snow) {
     poly(ctx, [pts[4], pts[5], pts[6], pts[7], pts[8], pts[9], (pts[4] + pts[8]) / 2, 14], '#8e98a8');
     ell(ctx, pts[4] - 5, pts[5] + 18, 4, 9, 'rgba(255,255,255,.35)', null, 1, 0.3);
     poly(ctx, pts, null, OUT, 2.4);
-    if (snow) poly(ctx, [pts[4] - 7, pts[5] + 14, pts[4], pts[5], pts[4] + 8, pts[5] + 15, pts[4], pts[5] + 10], '#ffffff', SNOW_D, 1.2);
+    if (snow)
+      poly(
+        ctx,
+        [pts[4] - 7, pts[5] + 14, pts[4], pts[5], pts[4] + 8, pts[5] + 15, pts[4], pts[5] + 10],
+        '#ffffff',
+        SNOW_D,
+        1.2,
+      );
   }
 }
 /** Горные цветы по сезону: весной — крокусы, летом — колокольчики, горечавка, лютики; осенью — сухая трава. */
@@ -622,7 +629,14 @@ defineObjects({
       put('fallRock', o.x, o.y, o.snow ? 1 : 0);
       SP.world();
       // днём в ясную погоду над омутом — радуга в брызгах
-      drawFall(ctx, o.x, o.y, env.t, env.season === 'winter', env.dark < 0.2 && G.state && G.state.weather === 'sun' ? 1 : 0);
+      drawFall(
+        ctx,
+        o.x,
+        o.y,
+        env.t,
+        env.season === 'winter',
+        env.dark < 0.2 && G.state && G.state.weather === 'sun' ? 1 : 0,
+      );
     },
   },
   flagPole: {

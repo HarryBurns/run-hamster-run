@@ -225,7 +225,13 @@ export function createSideScene(desc) {
       const on = sc.decor.on;
       return { main: { icon: '🔨', label: 'Обустроить', on, fn: () => setDecor(sc, !on) }, cls: on ? 'decor' : '' };
     },
-    sound: () => ({ force: isParty(sc) ? 'party' : null, day: desc.music || 'villa', sea: 0, rain: 0.3, ...desc.ambience }),
+    sound: () => ({
+      force: isParty(sc) ? 'party' : null,
+      day: desc.music || 'villa',
+      sea: 0,
+      rain: 0.3,
+      ...desc.ambience,
+    }),
     /** Можно ли сейчас впустить гостя, который пришёл сам. */
     canHostGuests: () => !!desc.guests && !sc.decor.on,
 
@@ -618,14 +624,16 @@ export function createSideScene(desc) {
     if (geo.lift) drawLift(ctx, geo, sc.liftY);
     if (desc.art && desc.art.back) desc.art.back(ctx, sc, t);
     for (const part of SIDE_PARTS) if (part.back) part.back(ctx, sc, t);
-    for (const b of drawOrder) if (b.def.back && floorSeen(b.f)) b.def.back(ctx, b.x - (b.def.ref || 0), fy(b.f), t, sc, b);
+    for (const b of drawOrder)
+      if (b.def.back && floorSeen(b.f)) b.def.back(ctx, b.x - (b.def.ref || 0), fy(b.f), t, sc, b);
     drawItems(ctx, sc, t);
     for (const part of SIDE_PARTS) if (part.front) part.front(ctx, sc, t);
     drawActors(ctx, sc, t);
     for (const part of SIDE_PARTS) if (part.draw) part.draw(ctx, sc, t);
     if (desc.art && desc.art.mid) desc.art.mid(ctx, sc, t);
     drawPlayer(ctx, t);
-    for (const b of drawOrder) if (b.def.front && floorSeen(b.f)) b.def.front(ctx, b.x - (b.def.ref || 0), fy(b.f), t, sc, b);
+    for (const b of drawOrder)
+      if (b.def.front && floorSeen(b.f)) b.def.front(ctx, b.x - (b.def.ref || 0), fy(b.f), t, sc, b);
     if (desc.art && desc.art.front) desc.art.front(ctx, sc, t);
     drawParts(ctx);
     drawLight(ctx, sc, view);

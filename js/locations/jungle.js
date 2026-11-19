@@ -186,7 +186,8 @@ function build(m) {
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (inEll(x, y, AT.pool)) m.set(x, y, 'jpool');
   m.stroke(RIVER, 1.25, (x, y) => m.at(x, y) !== 'jpool' && m.set(x, y, 'jriver'));
   // 3. плиты у храма
-  for (let y = 8; y <= 11; y++) for (let x = 4; x <= 14; x++) if (!(y === 11 && (x === 4 || x === 14))) m.set(x, y, 'jstone');
+  for (let y = 8; y <= 11; y++)
+    for (let x = 4; x <= 14; x++) if (!(y === 11 && (x === 4 || x === 14))) m.set(x, y, 'jstone');
   // 4. тропы; через реку — мост (плиты храма — тоже «тропа»: к югу от них высокое не растёт)
   const path = new Set();
   for (let y = 8; y <= 11; y++) for (let x = 4; x <= 14; x++) if (m.at(x, y) === 'jstone') path.add(x + ',' + y);
@@ -204,7 +205,9 @@ function build(m) {
         m.set(x, y, 'jbridge');
         path.add(x + ',' + y); // мост — тоже тропа: у его концов высокое не растёт (Дж10)
       }
-  for (let y = 10; y <= 19; y++) if (m.at(AT.bridge[0], y) === 'jbridge') (BRIDGE_ROWS[0] = Math.min(BRIDGE_ROWS[0], y)), (BRIDGE_ROWS[1] = Math.max(BRIDGE_ROWS[1], y));
+  for (let y = 10; y <= 19; y++)
+    if (m.at(AT.bridge[0], y) === 'jbridge')
+      ((BRIDGE_ROWS[0] = Math.min(BRIDGE_ROWS[0], y)), (BRIDGE_ROWS[1] = Math.max(BRIDGE_ROWS[1], y)));
   // причал: доски от пляжа в море
   for (let y = 36; y <= 40; y++) for (const x of [22, 23]) m.set(x, y, 'i');
   const free = (x, y) => !path.has(x + ',' + y) && ['jfloor'].includes(m.at(x, y));
@@ -242,7 +245,9 @@ function build(m) {
       else if (r < 0.66) m.add('mossRock', x, y, { v: v % 2 });
     }
   // концы пляжа — замшелые камни (по краю карты не пройти)
-  for (const x of [0, 1, W - 2, W - 1]) for (let y = sandY(x) - 1; y < H; y++) if (['s', 'h'].includes(m.at(x, y))) m.add('mossRock', x, y, { v: (x + y) % 2 });
+  for (const x of [0, 1, W - 2, W - 1])
+    for (let y = sandY(x) - 1; y < H; y++)
+      if (['s', 'h'].includes(m.at(x, y))) m.add('mossRock', x, y, { v: (x + y) % 2 });
   // пальмы вдоль пляжа
   for (let x = 2; x < W - 2; x += 3) {
     const y = sandY(x) - 1;
@@ -280,7 +285,8 @@ function build(m) {
   m.put1('signpost', 23, 10, { text: '💦 Водопад', text2: '🗿 Храм' });
   // перед зданиями — свободно (там двери)
   for (const b of [AT.dock, AT.camp, AT.temple])
-    for (let x = b.x - 1; x <= b.x + b.w; x++) for (let y = b.y; y <= b.y + b.h; y++) if (m.at(x, y) !== 'i') m.clear(x, y);
+    for (let x = b.x - 1; x <= b.x + b.w; x++)
+      for (let y = b.y; y <= b.y + b.h; y++) if (m.at(x, y) !== 'i') m.clear(x, y);
   // факелы по бокам палатки (ночью светят)
   m.put1('tikiTorch', AT.camp.x - 2, AT.camp.y + 1);
   m.put1('tikiTorch', AT.camp.x + AT.camp.w + 1, AT.camp.y + 1);
@@ -296,7 +302,10 @@ let said = 0;
 export const talking = (i) => talk[i].until > G.time;
 /** Слова, которым хомячок научила попугая i (state.parrots, Дж6): тексты из PARROT_WORDS. */
 export const parrotWords = (i) =>
-  ((G.state && G.state.parrots && G.state.parrots[i]) || []).map((id) => PARROT_WORD_BY_ID[id]).filter(Boolean).map((w) => w.text);
+  ((G.state && G.state.parrots && G.state.parrots[i]) || [])
+    .map((id) => PARROT_WORD_BY_ID[id])
+    .filter(Boolean)
+    .map((w) => w.text);
 /**
  * Попугай i говорит фразу (своя — text; без неё — следующая по кругу: через раз — выученное слово, если хомячок
  * его чему-то научила; {name} — имя хомячка).
@@ -427,7 +436,14 @@ function drawCanoe(ctx, x, y, dir, t, look, moving) {
   put('canoe', x, y + bob, dir < 0 ? 1 : 0);
   SP.world();
   if (!look) return;
-  drawHamster(ctx, x + dir * 4, y + 6 + bob, PS, look, { dir, time: t, clipBelow: -24, shadow: false, blink: blinkAt(t), happy: true });
+  drawHamster(ctx, x + dir * 4, y + 6 + bob, PS, look, {
+    dir,
+    time: t,
+    clipBelow: -24,
+    shadow: false,
+    blink: blinkAt(t),
+    happy: true,
+  });
   // весло: гребёт то слева, то справа
   const a = moving ? Math.sin(t * 5) : 0.3,
     hx = x + dir * 10,
@@ -466,7 +482,10 @@ export function startCanoe(sc) {
     drop: (s) => endCanoe(s),
   };
   sfx('splash');
-  hintOnce('canoeHint', '🛶 Ты в лодочке! Нажимай на воду — поплывём вверх по реке, к водопаду. На берег рядом — сойти.');
+  hintOnce(
+    'canoeHint',
+    '🛶 Ты в лодочке! Нажимай на воду — поплывём вверх по реке, к водопаду. На берег рядом — сойти.',
+  );
   return true;
 }
 /** Сойти с пироги на ближайший берег (у точки w, если она рядом, иначе — у хомячка). false — хомячок не в лодке. */
@@ -484,7 +503,7 @@ export function endCanoe(sc, w) {
         y = cy + dy;
       if (!m.foot(x, y) || riverAt(m, x, y) || m.at(x, y) === 'jbridge') continue;
       const d = Math.hypot((x + 0.5) * T - p.x, (y + 0.5) * T - p.y);
-      if (d < bd && d < T * 2.8) (bd = d), (best = [x, y]);
+      if (d < bd && d < T * 2.8) ((bd = d), (best = [x, y]));
     }
   if (!best) {
     if (w) toast('Отсюда до берега далеко — подплыви поближе 🛶');
@@ -549,9 +568,25 @@ const jungle = createTopDownScene({
   build,
   buildings: [
     // хижина у причала: кораблик обратно в город (voyage:back — features/jungle.js)
-    { id: 'dock', kind: 'dock', ...AT.dock, name: 'Причал', mapName: 'Кораблик в город', icon: '⛵', act: 'voyage:back' },
+    {
+      id: 'dock',
+      kind: 'dock',
+      ...AT.dock,
+      name: 'Причал',
+      mapName: 'Кораблик в город',
+      icon: '⛵',
+      act: 'voyage:back',
+    },
     // палатка исследовательницы Лианы
-    { id: 'camp', kind: 'camp', ...AT.camp, name: 'Лагерь', mapName: 'Лагерь Лианы', icon: '⛺', act: 'inside:tent_liana' },
+    {
+      id: 'camp',
+      kind: 'camp',
+      ...AT.camp,
+      name: 'Лагерь',
+      mapName: 'Лагерь Лианы',
+      icon: '⛺',
+      act: 'inside:tent_liana',
+    },
     // руины храма: загадка «Узор храма»
     { id: 'temple', kind: 'temple', ...AT.temple, name: 'Руины храма', icon: '🗿', act: 'inside:temple_hall' },
   ],
@@ -661,7 +696,8 @@ const jungle = createTopDownScene({
     if (notebookHidden()) {
       const bx = (AT.notebook[0] + 0.5) * T,
         by = (AT.notebook[1] + 0.5) * T;
-      if (bx > v.x0 && bx < v.x1 && by > v.y0 && by < v.y1) add(by, (ctx, _v, t) => put('notebook', bx, by + 6 + (Math.sin(t * 3) > 0.7 ? -2 : 0)));
+      if (bx > v.x0 && bx < v.x1 && by > v.y0 && by < v.y1)
+        add(by, (ctx, _v, t) => put('notebook', bx, by + 6 + (Math.sin(t * 3) > 0.7 ? -2 : 0)));
     }
   },
   /** Облачка с фразами над попугаями. */

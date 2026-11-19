@@ -49,7 +49,11 @@ const barkhan = landNpc({
   met: 'metBarkhan',
   hello: (name) =>
     `Добро пожаловать в пески, ${name}! Я кочевник Бархан, а это мой верблюд Финик. Буся писала, что приедет звезда подиума! Здесь есть оазис, пирамида с загадкой, раскопки древних окаменелостей, а ночью — звездопад. Только днём надевай шляпу: солнце у нас горячее!`,
-  greet: (name) => [`Привет, ${name}!`, 'О, гостья из города! Садись, выпей чаю с финиками.', 'Здравствуй-здравствуй! Финик тебе рад — слышишь, фыркает?'],
+  greet: (name) => [
+    `Привет, ${name}!`,
+    'О, гостья из города! Садись, выпей чаю с финиками.',
+    'Здравствуй-здравствуй! Финик тебе рад — слышишь, фыркает?',
+  ],
   line: barkhanLine,
   top: [
     { text: '🦴 Раскопки', cls: 'yellow', fn: async () => (await digGame(), null) },
@@ -60,7 +64,8 @@ const barkhan = landNpc({
     craftSet({
       ids: FOSSIL_IDS,
       title: '🦴 Коллекция окаменелостей',
-      lack: (have) => `Для коллекции нужна одна окаменелость каждого вида: ${have}. Копай на раскопе — каждый раз попадается что-то новое!`,
+      lack: (have) =>
+        `Для коллекции нужна одна окаменелость каждого вида: ${have}. Копай на раскопе — каждый раз попадается что-то новое!`,
       give: ['storage', 'fossil_box'],
       sticker: 'x_fossils',
       event: ['desert', 'fossils'],
@@ -82,7 +87,9 @@ export const talkBarkhan = barkhan.talk;
 export function digGame() {
   const c = DESERT.dig.coins,
     left = prizeLeft('desert', 'digs', DESERT.dig.paid),
-    fossil = left ? FOSSIL_IDS[(S().day * 2 + (SD().digs || 0)) % FOSSIL_IDS.length] : FOSSIL_IDS[(S().day + 1) % FOSSIL_IDS.length],
+    fossil = left
+      ? FOSSIL_IDS[(S().day * 2 + (SD().digs || 0)) % FOSSIL_IDS.length]
+      : FOSSIL_IDS[(S().day + 1) % FOSSIL_IDS.length],
     f = FIND_BY_ID[fossil];
   return prizeGame('dig', {
     group: 'desert',
@@ -130,7 +137,15 @@ export async function rideCamel(ctx, p = {}) {
   if (!sc) return false;
   let to = p.to;
   if (!to) {
-    const opts = [{ text: '🔄 По кругу, по верблюжьей тропе', cls: 'yellow', to: 'ring' }, ...CAMEL_GOALS.map((g) => ({ text: `${g.icon} ${g.name[0].toUpperCase()}${g.name.slice(1)}`, cls: 'blue', to: g.id })), { text: 'Не сейчас' }];
+    const opts = [
+      { text: '🔄 По кругу, по верблюжьей тропе', cls: 'yellow', to: 'ring' },
+      ...CAMEL_GOALS.map((g) => ({
+        text: `${g.icon} ${g.name[0].toUpperCase()}${g.name.slice(1)}`,
+        cls: 'blue',
+        to: g.id,
+      })),
+      { text: 'Не сейчас' },
+    ];
     const i = await barkhan.say('Куда поедем? Финик знает в пустыне все тропинки — скажи, куда, и он довезёт!', opts);
     to = (opts[i] || {}).to;
     if (!to) return false;
@@ -138,7 +153,12 @@ export async function rideCamel(ctx, p = {}) {
   if (!startCamelRide(sc, to === 'ring' ? null : to)) return false;
   sfx('pop');
   const g = CAMEL_GOALS.find((q) => q.id === to);
-  toast(g ? `🐫 Держись крепче! Финик везёт тебя ${g.name} — цок-цок по песку…` : '🐫 Держись крепче! Финик идёт по кругу — цок-цок по песку…', 'good');
+  toast(
+    g
+      ? `🐫 Держись крепче! Финик везёт тебя ${g.name} — цок-цок по песку…`
+      : '🐫 Держись крепче! Финик идёт по кругу — цок-цок по песку…',
+    'good',
+  );
   return true;
 }
 on('desert', ({ what, to }) => {
@@ -199,7 +219,13 @@ export function makeWish() {
       };
       raf = requestAnimationFrame(loop);
       if (wished) {
-        body.appendChild(el('p', 'center', `Желание загадано: «${esc(wished.replace(/^\S+\s/, ''))}». Тс-с — никому не говори, и оно обязательно сбудется! ✨`));
+        body.appendChild(
+          el(
+            'p',
+            'center',
+            `Желание загадано: «${esc(wished.replace(/^\S+\s/, ''))}». Тс-с — никому не говори, и оно обязательно сбудется! ✨`,
+          ),
+        );
         return;
       }
       body.appendChild(el('p', 'center', 'Смотри — падают звёзды! Скорее загадай желание:'));
@@ -235,7 +261,9 @@ export function drinkOasis() {
 }
 export function lookWell() {
   sfx('bubble');
-  toast('🪣 Старый колодец. Крикни в него: «Ау-у!» — и колодец ответит эхом: «у-у-у…» Воды в нём давно нет — вся вода в оазисе.');
+  toast(
+    '🪣 Старый колодец. Крикни в него: «Ау-у!» — и колодец ответит эхом: «у-у-у…» Воды в нём давно нет — вся вода в оазисе.',
+  );
   return true;
 }
 /** Нашли бубенчик Финика (место bell видно, пока задание на первом шаге). */
@@ -282,9 +310,15 @@ on('step', ({ dt }) => {
   heatMin += dt / 0.6;
   if (heatMin < DESERT.heat) return;
   setDayFlag('heat', 1, 'desert');
-  toast('☀️ Ух, как печёт солнышко! Надень шляпу от солнца или панамку — в пустыне без неё жарко. И попей водички в оазисе 🌴');
+  toast(
+    '☀️ Ух, как печёт солнышко! Надень шляпу от солнца или панамку — в пустыне без неё жарко. И попей водички в оазисе 🌴',
+  );
 });
-landHint('desert', 'desertHint', '🐫 Вот она — пустыня! Барханы, пальмы и жаркое солнце. Кочевник Бархан — у шатра в оазисе, прямо по тропе на север.');
+landHint(
+  'desert',
+  'desertHint',
+  '🐫 Вот она — пустыня! Барханы, пальмы и жаркое солнце. Кочевник Бархан — у шатра в оазисе, прямо по тропе на север.',
+);
 
 // ---------- караван-автобус ----------
 /** Проехать на караван-автобусе: toDesert — из города в пустыню, иначе — обратно в город. */

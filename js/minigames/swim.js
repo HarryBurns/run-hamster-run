@@ -20,7 +20,6 @@ export default {
     const { ctx } = cv;
     const sfx = host.sfx;
 
-
     // ---------- участники ----------
     const rivals = shuffle(host.friends || []).slice(0, 3);
     while (rivals.length < 3)

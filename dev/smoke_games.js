@@ -51,99 +51,123 @@ module.exports = async function games(ctx) {
     return t;
   };
 
-  await step('игры 14: «Горка» — четыре трассы с разным рисунком поворотов, выбор картинкой, спуск до итога', async () => {
-    await fresh();
-    // рисунки поворотов разные: центры трубы в одних и тех же точках у трасс не совпадают
-    const prof = await ev(async () => {
-      const m = await import('/js/minigames/slide.js');
-      return m.TRACKS.map((q) => ({ id: q.id, c: [0.7, 2.1, 3.5, 6, 9.4, 14, 20].map((u) => +q.c(u).toFixed(3)) }));
-    });
-    expect(prof.length === 4, 'трасс не четыре', prof);
-    for (let i = 0; i < prof.length; i++)
-      for (let j = i + 1; j < prof.length; j++) {
-        const diff = prof[i].c.reduce((a, v, k) => a + Math.abs(v - prof[j].c[k]), 0);
-        expect(diff > 0.3, `трассы ${prof[i].id} и ${prof[j].id} почти одинаковые`, [prof[i], prof[j]]);
-      }
-    expect(prof.every((q) => q.c.every((v) => v > 0.22 && v < 0.78)), 'труба уходит за край', prof);
-    const s0 = await state();
-    await ev(() => {
-      window.__dev.run('hotel:slide');
-    });
-    await card();
-    expect(/Детская/.test(await mgText()) && /Тайфун/.test(await mgText()), 'на заставке не названы горки', await mgText());
-    await start();
-    let st = await hook('__slide');
-    expect(st && st.picking && st.t === 0, 'нет выбора трассы', st);
-    await wait(500);
-    expect((await hook('__slide')).t === 0, 'игра идёт до выбора трассы');
-    await page.click('#mg .sd-pick button[data-track="zigzag"]');
-    await wait(300);
-    st = await hook('__slide');
-    expect(st.track === 'zigzag' && !st.picking && !(await ev(() => !!document.querySelector('#mg .sd-pick'))), 'трасса не выбрана', st);
-    await wait(800);
-    st = await hook('__slide');
-    expect(st.t > 0.3, 'после выбора игра не пошла', st);
-    await ev(() => [...document.querySelectorAll('#mg canvas')].find((q) => q.__slideSkip).__slideSkip(1.5));
-    const end = await ura();
-    expect(/Зигзаг/.test(end) && /бассейн/.test(end), 'итог без названия трассы', end);
-    const s1 = await state();
-    expect(s1.plays.slide === 1 && s1.money > s0.money, 'спуск не записан', [s1.plays, s1.money - s0.money]);
-  });
-
-  await step('игры 14: «Носильщица» — на опытной смене кнопки этажей в лифте: не тот этаж — подсказка, итог', async () => {
-    await fresh();
-    // новичку лифт возит сам
-    await mutate('s.plays.porter = 0;');
-    await ev(() => {
-      window.__dev.F.playMinigame('porter');
-    });
-    await card();
-    await start();
-    let st = await hook('__porter');
-    expect(st && !st.lift && !st.buttons.length, 'у новичка кнопки лифта', st);
-    await closeMg();
-    // опытная смена (сыграно 4 → уровень 2): этаж — кнопкой
-    const s0 = await state();
-    await mutate('s.plays.porter = 4;');
-    await ev(() => {
-      window.__dev.F.playMinigame('porter');
-    });
-    await card();
-    expect(/Лифт/.test(await mgText()), 'на заставке нет правила про лифт', await mgText());
-    await start();
-    st = await hook('__porter');
-    expect(st.lift && st.buttons.length === 3 && st.at === 1, 'нет кнопок лифта на опытной смене', st);
-    // дверь из холла — подсказка «сначала в лифт», не ошибка
-    const d0 = st.doors.find((q) => q.n === st.tag);
-    await tapAt(d0.x, d0.y, st.w, st.h);
-    await wait(300);
-    st = await hook('__porter');
-    expect(st.at === 1 && st.mistakes === 0 && !st.busy, 'дверь из холла сработала', st);
-    await ev(() => window.__dev.fastGames(true)); // Т3: лифт и тележка вчетверо быстрее (core/dev.js)
-    let wrongFloor = false;
-    for (let k = 0; k < 400; k++) {
-      st = await hook('__porter');
-      if (!st || !st.tag) break;
-      if (!st.busy) {
-        const want = Math.floor(st.tag / 100);
-        if (st.at !== want) {
-          const b = !wrongFloor ? st.buttons.find((q) => q.f !== want && q.f !== 1 && q.f !== st.at) : st.buttons.find((q) => q.f === want);
-          wrongFloor = true;
-          await tapAt(b.x, b.y, st.w, st.h);
-        } else {
-          const d = st.doors.find((q) => q.n === st.tag);
-          await tapAt(d.x, d.y, st.w, st.h);
+  await step(
+    'игры 14: «Горка» — четыре трассы с разным рисунком поворотов, выбор картинкой, спуск до итога',
+    async () => {
+      await fresh();
+      // рисунки поворотов разные: центры трубы в одних и тех же точках у трасс не совпадают
+      const prof = await ev(async () => {
+        const m = await import('/js/minigames/slide.js');
+        return m.TRACKS.map((q) => ({ id: q.id, c: [0.7, 2.1, 3.5, 6, 9.4, 14, 20].map((u) => +q.c(u).toFixed(3)) }));
+      });
+      expect(prof.length === 4, 'трасс не четыре', prof);
+      for (let i = 0; i < prof.length; i++)
+        for (let j = i + 1; j < prof.length; j++) {
+          const diff = prof[i].c.reduce((a, v, k) => a + Math.abs(v - prof[j].c[k]), 0);
+          expect(diff > 0.3, `трассы ${prof[i].id} и ${prof[j].id} почти одинаковые`, [prof[i], prof[j]]);
         }
+      expect(
+        prof.every((q) => q.c.every((v) => v > 0.22 && v < 0.78)),
+        'труба уходит за край',
+        prof,
+      );
+      const s0 = await state();
+      await ev(() => {
+        window.__dev.run('hotel:slide');
+      });
+      await card();
+      expect(
+        /Детская/.test(await mgText()) && /Тайфун/.test(await mgText()),
+        'на заставке не названы горки',
+        await mgText(),
+      );
+      await start();
+      let st = await hook('__slide');
+      expect(st && st.picking && st.t === 0, 'нет выбора трассы', st);
+      await wait(500);
+      expect((await hook('__slide')).t === 0, 'игра идёт до выбора трассы');
+      await page.click('#mg .sd-pick button[data-track="zigzag"]');
+      await wait(300);
+      st = await hook('__slide');
+      expect(
+        st.track === 'zigzag' && !st.picking && !(await ev(() => !!document.querySelector('#mg .sd-pick'))),
+        'трасса не выбрана',
+        st,
+      );
+      await wait(800);
+      st = await hook('__slide');
+      expect(st.t > 0.3, 'после выбора игра не пошла', st);
+      await ev(() => [...document.querySelectorAll('#mg canvas')].find((q) => q.__slideSkip).__slideSkip(1.5));
+      const end = await ura();
+      expect(/Зигзаг/.test(end) && /бассейн/.test(end), 'итог без названия трассы', end);
+      const s1 = await state();
+      expect(s1.plays.slide === 1 && s1.money > s0.money, 'спуск не записан', [s1.plays, s1.money - s0.money]);
+    },
+  );
+
+  await step(
+    'игры 14: «Носильщица» — на опытной смене кнопки этажей в лифте: не тот этаж — подсказка, итог',
+    async () => {
+      await fresh();
+      // новичку лифт возит сам
+      await mutate('s.plays.porter = 0;');
+      await ev(() => {
+        window.__dev.F.playMinigame('porter');
+      });
+      await card();
+      await start();
+      let st = await hook('__porter');
+      expect(st && !st.lift && !st.buttons.length, 'у новичка кнопки лифта', st);
+      await closeMg();
+      // опытная смена (сыграно 4 → уровень 2): этаж — кнопкой
+      const s0 = await state();
+      await mutate('s.plays.porter = 4;');
+      await ev(() => {
+        window.__dev.F.playMinigame('porter');
+      });
+      await card();
+      expect(/Лифт/.test(await mgText()), 'на заставке нет правила про лифт', await mgText());
+      await start();
+      st = await hook('__porter');
+      expect(st.lift && st.buttons.length === 3 && st.at === 1, 'нет кнопок лифта на опытной смене', st);
+      // дверь из холла — подсказка «сначала в лифт», не ошибка
+      const d0 = st.doors.find((q) => q.n === st.tag);
+      await tapAt(d0.x, d0.y, st.w, st.h);
+      await wait(300);
+      st = await hook('__porter');
+      expect(st.at === 1 && st.mistakes === 0 && !st.busy, 'дверь из холла сработала', st);
+      await ev(() => window.__dev.fastGames(true)); // Т3: лифт и тележка вчетверо быстрее (core/dev.js)
+      let wrongFloor = false;
+      for (let k = 0; k < 400; k++) {
+        st = await hook('__porter');
+        if (!st || !st.tag) break;
+        if (!st.busy) {
+          const want = Math.floor(st.tag / 100);
+          if (st.at !== want) {
+            const b = !wrongFloor
+              ? st.buttons.find((q) => q.f !== want && q.f !== 1 && q.f !== st.at)
+              : st.buttons.find((q) => q.f === want);
+            wrongFloor = true;
+            await tapAt(b.x, b.y, st.w, st.h);
+          } else {
+            const d = st.doors.find((q) => q.n === st.tag);
+            await tapAt(d.x, d.y, st.w, st.h);
+          }
+        }
+        if (/Ура!/.test(await mgText())) break;
+        await wait(60);
       }
-      if (/Ура!/.test(await mgText())) break;
-      await wait(60);
-    }
-    await ev(() => window.__dev.fastGames(false));
-    const end = await ura();
-    expect(/чемоданов на месте/.test(end) && /этажом в лифте — 1/.test(end) && /ошибок дверью — 0/.test(end), 'итог смены с лифтом', end);
-    const s1 = await state();
-    expect(s1.plays.porter === 5 && s1.money > s0.money, 'смена не записана', [s1.plays.porter, s1.money - s0.money]);
-  });
+      await ev(() => window.__dev.fastGames(false));
+      const end = await ura();
+      expect(
+        /чемоданов на месте/.test(end) && /этажом в лифте — 1/.test(end) && /ошибок дверью — 0/.test(end),
+        'итог смены с лифтом',
+        end,
+      );
+      const s1 = await state();
+      expect(s1.plays.porter === 5 && s1.money > s0.money, 'смена не записана', [s1.plays.porter, s1.money - s0.money]);
+    },
+  );
 
   await step('игры 14: «Спуск» на горе — выбор «санки или лыжи», на лыжах ворота-флажки, итог по воротам', async () => {
     await fresh();
@@ -157,7 +181,10 @@ module.exports = async function games(ctx) {
     await start();
     let st = await hook('__sled');
     expect(st && st.picking && !st.ride, 'нет выбора «санки или лыжи»', st);
-    expect((await ev(() => document.querySelectorAll('#mg .sl-pick button img').length)) === 2, 'у выбора нет картинок');
+    expect(
+      (await ev(() => document.querySelectorAll('#mg .sl-pick button img').length)) === 2,
+      'у выбора нет картинок',
+    );
     await page.click('#mg .sl-pick button[data-ride="ski"]');
     // едем к воротам: руль — в самой странице, каждый кадр мышью на середину ближайших ворот (под нагрузкой
     // кадров меньше, но и руль не отстаёт); ждём по состоянию игры — 6 ворот позади и 4 из них пройдены (или игра
@@ -170,7 +197,14 @@ module.exports = async function games(ctx) {
         const gate = st.gates.filter((g) => g.y < st.y + 5).sort((a, b) => b.y - a.y)[0];
         const b = cv.getBoundingClientRect();
         const x = b.left + ((st.x0 + (gate ? gate.x : 0.5) * st.lw) / st.w) * b.width;
-        cv.dispatchEvent(new PointerEvent('pointermove', { clientX: x, clientY: b.top + b.height * 0.8, pointerType: 'mouse', bubbles: true }));
+        cv.dispatchEvent(
+          new PointerEvent('pointermove', {
+            clientX: x,
+            clientY: b.top + b.height * 0.8,
+            pointerType: 'mouse',
+            bubbles: true,
+          }),
+        );
         requestAnimationFrame(steer);
       };
       window.__skiStop = false;
@@ -190,12 +224,20 @@ module.exports = async function games(ctx) {
       window.__dev.fastGames(false);
     });
     st = await hook('__sled');
-    expect(st.ride === 'ski' && st.gatesAll >= 6 && st.gatesOk >= 4 && st.got >= st.gatesOk * 2, 'ворота не проходятся', st);
+    expect(
+      st.ride === 'ski' && st.gatesAll >= 6 && st.gatesOk >= 4 && st.got >= st.gatesOk * 2,
+      'ворота не проходятся',
+      st,
+    );
     await ev(() => [...document.querySelectorAll('#mg canvas')].find((q) => q.__sledSkip).__sledSkip(1));
     const end = await ura();
     expect(/На лыжах/.test(end) && /ворот пройдено/.test(end) && /Приз/.test(end), 'итог лыж', end);
     const s1 = await state();
-    expect(s1.plays.sled === 1 && s1.dayFlags.mountain.sleds === 1 && s1.money > s0.money, 'спуск на лыжах не записан', [s1.plays, s1.money - s0.money]);
+    expect(
+      s1.plays.sled === 1 && s1.dayFlags.mountain.sleds === 1 && s1.money > s0.money,
+      'спуск на лыжах не записан',
+      [s1.plays, s1.money - s0.money],
+    );
   });
 
   const toHoliday = async (id, when = 'day', year = 1, minutes = 600) => {
@@ -225,204 +267,250 @@ module.exports = async function games(ctx) {
     return a.p - b.p;
   };
 
-  await step('игры 14: «Перетягивание каната» — в команде друзья с сердечками, рывок сильнее, без нажатий всё равно не выиграть', async () => {
-    await fresh();
-    await toHoliday('maslenitsa', 'day');
-    // без дружбы: в команде трое без сердечек, рывок обычный
-    await ev(() => {
-      window.__dev.run('holiday:tug');
-    });
-    await card();
-    let t = await mgText();
-    expect(/В твоей команде/.test(t) && /Подружись/.test(t), 'на заставке нет команды', t);
-    await start();
-    await wait(900);
-    let g = await hook('__tug');
-    expect(g.help === 0 && g.team.length === 3 && g.team.every((h) => h === 0), 'без дружбы — помощь', g);
-    const d0 = await tugPull();
-    await closeMg();
-    // лучшие друзья: по 5 сердечек у троих — рывок заметно сильнее (+35%), на заставке — сердечки
-    await mutate("for (const id of ['plusha', 'ponchik', 'bob']) { s.friends[id].met = true; s.friends[id].pts = 20; }");
-    await ev(() => {
-      window.__dev.run('holiday:tug');
-    });
-    await card();
-    t = await mgText();
-    expect(/Плюша/.test(t) && /❤️❤️❤️❤️❤️/.test(t) && /35%/.test(t), 'на заставке нет друзей с сердечками', t);
-    await start();
-    await wait(900);
-    g = await hook('__tug');
-    expect(Math.abs(g.help - 0.35) < 1e-6 && g.team.every((h) => h === 5), 'друзья не помогают', g);
-    const d1 = await tugPull();
-    expect(d0 > 0.12 && d1 > d0 * 1.2 && d1 < d0 * 1.5, 'рывок с друзьями не сильнее', [d0, d1]);
-    // без нажатий не выиграть даже с друзьями: первый раунд уходит другой команде (Т3: ждём в 8 раз быстрее)
-    await ev(() => window.__dev.fastGames(8));
-    for (let i = 0; i < 160; i++) {
-      g = await hook('__tug');
-      if (g.lost || g.wins) break;
-      await wait(60);
-    }
-    await ev(() => window.__dev.fastGames(false));
-    expect(g.lost === 1 && g.wins === 0, 'без нажатий раунд выигран', g);
-    await closeMg();
-  });
-
-  await step('игры 14: «Нарядим ёлку» — сама выбираешь игрушку и место, звезда после шести, ⭐⭐⭐ за разнообразие, наклейка', async () => {
-    await fresh();
-    await toHoliday('newyear', 'day');
-    await ev(() => {
-      window.__dev.run('holiday:tree');
-    });
-    await card();
-    expect(/Нарядим ёлку/.test(await mgText()) && (await ev(() => document.querySelectorAll('#mg .tr-rules img').length)) === 7, 'заставка ёлки', await mgText());
-    await start();
-    let st = await hook('__tree');
-    expect(st && st.spots.length >= 12 && st.placed === 0 && !st.ready, 'ёлка не пустая', st);
-    const r = await box();
-    const at = (p) => page.mouse.click(r.x + p.x * (r.w / st.w), r.y + (p.y + 8) * (r.h / st.h));
-    // звезда раньше времени — нельзя, только подсказка
-    await page.click('#mg .tr-tray button[data-kind="top"]', { force: true });
-    await wait(200);
-    expect(!(await hook('__tree')).starOn, 'звезду надели на пустую ёлку');
-    // выбрала шар — повесила на место 3; потом сосульку туда же — игрушка поменялась
-    await page.click('#mg .tr-tray button[data-kind="ball"]');
-    await at(st.spots[3]);
-    await wait(150);
-    expect((await hook('__tree')).spots[3].kind === 'ball', 'шар не повис');
-    await page.click('#mg .tr-tray button[data-kind="icicle"]');
-    await at(st.spots[3]);
-    await wait(150);
-    st = await hook('__tree');
-    expect(st.spots[3].kind === 'icicle' && st.placed === 1, 'игрушка не поменялась', st.spots[3]);
-    // перетащить игрушку пальцем (мышью) из коробки на ветку
-    const bb = await ev(() => {
-      const b = document.querySelector('#mg .tr-tray button[data-kind="bell"]').getBoundingClientRect();
-      return { x: b.left + b.width / 2, y: b.top + b.height / 2 };
-    });
-    await page.mouse.move(bb.x, bb.y);
-    await page.mouse.down();
-    const p5 = st.spots[5];
-    await page.mouse.move(r.x + p5.x * (r.w / st.w), r.y + (p5.y + 8) * (r.h / st.h), { steps: 6 });
-    await page.mouse.up();
-    await wait(150);
-    st = await hook('__tree');
-    expect(st.spots[5].kind === 'bell', 'перетаскивание не повесило колокольчик', st.spots[5]);
-    // все семь видов, 11 мест — ⭐⭐⭐
-    const kinds = ['ball', 'star', 'bow', 'candy', 'garland', 'ball', 'star', 'bow', 'ball'];
-    const free = st.spots.map((q, i) => (q.kind ? -1 : i)).filter((i) => i >= 0);
-    for (let k = 0; k < kinds.length; k++) {
-      await page.click(`#mg .tr-tray button[data-kind="${kinds[k]}"]`);
-      await at(st.spots[free[k]]);
-      await wait(60);
-    }
-    st = await hook('__tree');
-    expect(st.placed === 11 && st.kinds === 7 && st.ready, 'не повесились игрушки', st);
-    await at({ x: st.top.x, y: st.top.y - 8 }); // нажать на макушку — тоже звезда
-    await wait(200);
-    expect((await hook('__tree')).starOn, 'звезда не надета');
-    const end = await ura();
-    expect(/звезда сияет/.test(end) && /разных — 7/.test(end) && /⭐⭐⭐/.test(end.replace(/\s/g, '')), 'итог ёлки', end);
-    const s = await state();
-    expect(s.plays.tree === 1 && s.stickers.includes('x_tree'), 'нет наклейки «Самая нарядная ёлка»', [s.plays, s.stickers.slice(-3)]);
-    const h = await ev(() => window.__dev.F.holidayToday && window.__dev.G.state.dayFlags.holiday);
-    expect(h, 'шаг праздника');
-  });
-
-  await step('игры 14: «Танец у костра» на острове — ритм под барабан Бума: в такт — «Отлично!», ⭐⭐⭐ и наклейка', async () => {
-    await fresh();
-    await mutate("s.minutes = 20 * 60; s.flags['land:island'] = 1;");
-    // занятие острова: танец у костра (на празднике огней)
-    await ev(async () => (await import('/js/features/island.js')).dance());
-    await card();
-    expect(/Танец у костра/.test(await mgText()) && /кокос/.test(await mgText()), 'заставка танца', await mgText());
-    await start();
-    let st = await hook('__drum');
-    expect(st && st.total >= 40 && st.t < 0.5, 'песня не началась', st);
-    // лишнее нажатие до первого кокоса — не ошибка
-    await page.keyboard.press('Space');
-    await wait(100);
-    expect((await hook('__drum')).pts === 0, 'лишнее нажатие засчиталось', await hook('__drum'));
-    // играем в такт: нажимаем, когда кокос в кругу (ждём в браузере — точнее, чем отсюда)
-    await ev(() => {
-      const c = document.querySelector('#mg .dr-canvas');
-      window.__drumBot = setInterval(() => {
-        const q = c.__drum && c.__drum();
-        if (q && q.next !== null && Math.abs(q.next) < 0.035) c.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
-      }, 8);
-    });
-    for (let i = 0; i < 60; i++) {
-      if (/Ура!/.test(await mgText())) break;
-      await wait(1000);
-    }
-    await ev(() => clearInterval(window.__drumBot));
-    const end = await ura();
-    expect(/Танец окончен/.test(end) && /Бум в восторге/.test(end), 'итог танца в такт', end);
-    const s = await state();
-    expect(s.plays.drum === 1 && s.stickers.includes('x_fest') && s.stickers.includes('x_drum'), 'наклейки танца', s.stickers.slice(-4));
-  });
-
-  await step('игры 14: «Повтори движение» у аниматора — показ, повтор кнопками, танец растёт, ошибка — показ ещё раз', async () => {
-    await fresh();
-    const toHotelPool = async (min) => {
-      await mutate(`s.minutes = ${min};`);
+  await step(
+    'игры 14: «Перетягивание каната» — в команде друзья с сердечками, рывок сильнее, без нажатий всё равно не выиграть',
+    async () => {
+      await fresh();
+      await toHoliday('maslenitsa', 'day');
+      // без дружбы: в команде трое без сердечек, рывок обычный
       await ev(() => {
-        const d = window.__dev;
-        if (d.sceneName !== 'world') d.go('world');
-        d.enterBuilding('hotel');
+        window.__dev.run('holiday:tug');
       });
-      await L.untilScene('hotel');
-    };
-    await toHotelPool(19.5 * 60);
-    await ev(() => {
-      window.__dev.run('hotel:animator');
-    });
-    await L.untilDialog(); // и защита кнопок от случайного нажатия
-    await page.click('.dialog .btn:has-text("Танцевать")');
-    await card();
-    expect(/Повтори движение/.test(await mgText()), 'нет заставки', await mgText());
-    await start();
-    expect((await ev(() => document.querySelectorAll('#mg .mm-pad button').length)) === 6, 'нет шести кнопок движений');
-    const g = () => hook('__mimic');
-    const until = async (cond, ms = 12000) => {
-      const t0 = Date.now();
-      let q = await g();
-      while (!cond(q) && Date.now() - t0 < ms) {
-        await wait(80);
-        q = await g();
+      await card();
+      let t = await mgText();
+      expect(/В твоей команде/.test(t) && /Подружись/.test(t), 'на заставке нет команды', t);
+      await start();
+      await wait(900);
+      let g = await hook('__tug');
+      expect(g.help === 0 && g.team.length === 3 && g.team.every((h) => h === 0), 'без дружбы — помощь', g);
+      const d0 = await tugPull();
+      await closeMg();
+      // лучшие друзья: по 5 сердечек у троих — рывок заметно сильнее (+35%), на заставке — сердечки
+      await mutate(
+        "for (const id of ['plusha', 'ponchik', 'bob']) { s.friends[id].met = true; s.friends[id].pts = 20; }",
+      );
+      await ev(() => {
+        window.__dev.run('holiday:tug');
+      });
+      await card();
+      t = await mgText();
+      expect(/Плюша/.test(t) && /❤️❤️❤️❤️❤️/.test(t) && /35%/.test(t), 'на заставке нет друзей с сердечками', t);
+      await start();
+      await wait(900);
+      g = await hook('__tug');
+      expect(Math.abs(g.help - 0.35) < 1e-6 && g.team.every((h) => h === 5), 'друзья не помогают', g);
+      const d1 = await tugPull();
+      expect(d0 > 0.12 && d1 > d0 * 1.2 && d1 < d0 * 1.5, 'рывок с друзьями не сильнее', [d0, d1]);
+      // без нажатий не выиграть даже с друзьями: первый раунд уходит другой команде (Т3: ждём в 8 раз быстрее)
+      await ev(() => window.__dev.fastGames(8));
+      for (let i = 0; i < 160; i++) {
+        g = await hook('__tug');
+        if (g.lost || g.wins) break;
+        await wait(60);
       }
-      return q;
-    };
-    const tapMove = (id) => page.click(`#mg .mm-pad button[data-move="${id}"]`);
-    // во время показа кнопки не нажимаются
-    let q = await until((x) => x.phase === 'show');
-    expect(q.seq.length === 2 && (await ev(() => document.querySelector('#mg .mm-pad button').disabled)), 'во время показа кнопки работают', q);
-    // раунд 1: ошибка — Хлопушка показывает ещё раз, потом повторили верно
-    q = await until((x) => x.phase === 'input');
-    await tapMove(q.seq[0] === 'clap' ? 'jump' : 'clap');
-    q = await until((x) => x.phase === 'show');
-    expect(q.mistakes === 1 && q.round === 0, 'после ошибки нет повторного показа', q);
-    q = await until((x) => x.phase === 'input');
-    for (const id of q.seq) await tapMove(id);
-    q = await until((x) => x.phase === 'show' && x.round === 1);
-    expect(q.wins === 1 && q.seq.length === 3, 'танец не вырос на одно движение', q);
-    // раунд 2: две ошибки — раунд пропущен без наказания, длина та же
-    for (let k = 0; k < 2; k++) {
+      await ev(() => window.__dev.fastGames(false));
+      expect(g.lost === 1 && g.wins === 0, 'без нажатий раунд выигран', g);
+      await closeMg();
+    },
+  );
+
+  await step(
+    'игры 14: «Нарядим ёлку» — сама выбираешь игрушку и место, звезда после шести, ⭐⭐⭐ за разнообразие, наклейка',
+    async () => {
+      await fresh();
+      await toHoliday('newyear', 'day');
+      await ev(() => {
+        window.__dev.run('holiday:tree');
+      });
+      await card();
+      expect(
+        /Нарядим ёлку/.test(await mgText()) &&
+          (await ev(() => document.querySelectorAll('#mg .tr-rules img').length)) === 7,
+        'заставка ёлки',
+        await mgText(),
+      );
+      await start();
+      let st = await hook('__tree');
+      expect(st && st.spots.length >= 12 && st.placed === 0 && !st.ready, 'ёлка не пустая', st);
+      const r = await box();
+      const at = (p) => page.mouse.click(r.x + p.x * (r.w / st.w), r.y + (p.y + 8) * (r.h / st.h));
+      // звезда раньше времени — нельзя, только подсказка
+      await page.click('#mg .tr-tray button[data-kind="top"]', { force: true });
+      await wait(200);
+      expect(!(await hook('__tree')).starOn, 'звезду надели на пустую ёлку');
+      // выбрала шар — повесила на место 3; потом сосульку туда же — игрушка поменялась
+      await page.click('#mg .tr-tray button[data-kind="ball"]');
+      await at(st.spots[3]);
+      await wait(150);
+      expect((await hook('__tree')).spots[3].kind === 'ball', 'шар не повис');
+      await page.click('#mg .tr-tray button[data-kind="icicle"]');
+      await at(st.spots[3]);
+      await wait(150);
+      st = await hook('__tree');
+      expect(st.spots[3].kind === 'icicle' && st.placed === 1, 'игрушка не поменялась', st.spots[3]);
+      // перетащить игрушку пальцем (мышью) из коробки на ветку
+      const bb = await ev(() => {
+        const b = document.querySelector('#mg .tr-tray button[data-kind="bell"]').getBoundingClientRect();
+        return { x: b.left + b.width / 2, y: b.top + b.height / 2 };
+      });
+      await page.mouse.move(bb.x, bb.y);
+      await page.mouse.down();
+      const p5 = st.spots[5];
+      await page.mouse.move(r.x + p5.x * (r.w / st.w), r.y + (p5.y + 8) * (r.h / st.h), { steps: 6 });
+      await page.mouse.up();
+      await wait(150);
+      st = await hook('__tree');
+      expect(st.spots[5].kind === 'bell', 'перетаскивание не повесило колокольчик', st.spots[5]);
+      // все семь видов, 11 мест — ⭐⭐⭐
+      const kinds = ['ball', 'star', 'bow', 'candy', 'garland', 'ball', 'star', 'bow', 'ball'];
+      const free = st.spots.map((q, i) => (q.kind ? -1 : i)).filter((i) => i >= 0);
+      for (let k = 0; k < kinds.length; k++) {
+        await page.click(`#mg .tr-tray button[data-kind="${kinds[k]}"]`);
+        await at(st.spots[free[k]]);
+        await wait(60);
+      }
+      st = await hook('__tree');
+      expect(st.placed === 11 && st.kinds === 7 && st.ready, 'не повесились игрушки', st);
+      await at({ x: st.top.x, y: st.top.y - 8 }); // нажать на макушку — тоже звезда
+      await wait(200);
+      expect((await hook('__tree')).starOn, 'звезда не надета');
+      const end = await ura();
+      expect(
+        /звезда сияет/.test(end) && /разных — 7/.test(end) && /⭐⭐⭐/.test(end.replace(/\s/g, '')),
+        'итог ёлки',
+        end,
+      );
+      const s = await state();
+      expect(s.plays.tree === 1 && s.stickers.includes('x_tree'), 'нет наклейки «Самая нарядная ёлка»', [
+        s.plays,
+        s.stickers.slice(-3),
+      ]);
+      const h = await ev(() => window.__dev.F.holidayToday && window.__dev.G.state.dayFlags.holiday);
+      expect(h, 'шаг праздника');
+    },
+  );
+
+  await step(
+    'игры 14: «Танец у костра» на острове — ритм под барабан Бума: в такт — «Отлично!», ⭐⭐⭐ и наклейка',
+    async () => {
+      await fresh();
+      await mutate("s.minutes = 20 * 60; s.flags['land:island'] = 1;");
+      // занятие острова: танец у костра (на празднике огней)
+      await ev(async () => (await import('/js/features/island.js')).dance());
+      await card();
+      expect(/Танец у костра/.test(await mgText()) && /кокос/.test(await mgText()), 'заставка танца', await mgText());
+      await start();
+      let st = await hook('__drum');
+      expect(st && st.total >= 40 && st.t < 0.5, 'песня не началась', st);
+      // лишнее нажатие до первого кокоса — не ошибка
+      await page.keyboard.press('Space');
+      await wait(100);
+      expect((await hook('__drum')).pts === 0, 'лишнее нажатие засчиталось', await hook('__drum'));
+      // играем в такт: нажимаем, когда кокос в кругу (ждём в браузере — точнее, чем отсюда)
+      await ev(() => {
+        const c = document.querySelector('#mg .dr-canvas');
+        window.__drumBot = setInterval(() => {
+          const q = c.__drum && c.__drum();
+          if (q && q.next !== null && Math.abs(q.next) < 0.035)
+            c.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+        }, 8);
+      });
+      for (let i = 0; i < 60; i++) {
+        if (/Ура!/.test(await mgText())) break;
+        await wait(1000);
+      }
+      await ev(() => clearInterval(window.__drumBot));
+      const end = await ura();
+      expect(/Танец окончен/.test(end) && /Бум в восторге/.test(end), 'итог танца в такт', end);
+      const s = await state();
+      expect(
+        s.plays.drum === 1 && s.stickers.includes('x_fest') && s.stickers.includes('x_drum'),
+        'наклейки танца',
+        s.stickers.slice(-4),
+      );
+    },
+  );
+
+  await step(
+    'игры 14: «Повтори движение» у аниматора — показ, повтор кнопками, танец растёт, ошибка — показ ещё раз',
+    async () => {
+      await fresh();
+      const toHotelPool = async (min) => {
+        await mutate(`s.minutes = ${min};`);
+        await ev(() => {
+          const d = window.__dev;
+          if (d.sceneName !== 'world') d.go('world');
+          d.enterBuilding('hotel');
+        });
+        await L.untilScene('hotel');
+      };
+      await toHotelPool(19.5 * 60);
+      await ev(() => {
+        window.__dev.run('hotel:animator');
+      });
+      await L.untilDialog(); // и защита кнопок от случайного нажатия
+      await page.click('.dialog .btn:has-text("Танцевать")');
+      await card();
+      expect(/Повтори движение/.test(await mgText()), 'нет заставки', await mgText());
+      await start();
+      expect(
+        (await ev(() => document.querySelectorAll('#mg .mm-pad button').length)) === 6,
+        'нет шести кнопок движений',
+      );
+      const g = () => hook('__mimic');
+      const until = async (cond, ms = 12000) => {
+        const t0 = Date.now();
+        let q = await g();
+        while (!cond(q) && Date.now() - t0 < ms) {
+          await wait(80);
+          q = await g();
+        }
+        return q;
+      };
+      const tapMove = (id) => page.click(`#mg .mm-pad button[data-move="${id}"]`);
+      // во время показа кнопки не нажимаются
+      let q = await until((x) => x.phase === 'show');
+      expect(
+        q.seq.length === 2 && (await ev(() => document.querySelector('#mg .mm-pad button').disabled)),
+        'во время показа кнопки работают',
+        q,
+      );
+      // раунд 1: ошибка — Хлопушка показывает ещё раз, потом повторили верно
       q = await until((x) => x.phase === 'input');
       await tapMove(q.seq[0] === 'clap' ? 'jump' : 'clap');
-      await until((x) => x.phase !== 'input');
-    }
-    q = await until((x) => x.round === 2 && x.phase === 'show');
-    expect(q.wins === 1 && q.seq.length === 3 && q.mistakes === 3, 'после двух ошибок — не следующий раунд', q);
-    // дальше — всё верно до конца (раунды 3–6)
-    for (let k = 0; k < 4; k++) {
-      q = await until((x) => x.phase === 'input' || x.over, 20000);
-      if (q.over) break;
+      q = await until((x) => x.phase === 'show');
+      expect(q.mistakes === 1 && q.round === 0, 'после ошибки нет повторного показа', q);
+      q = await until((x) => x.phase === 'input');
       for (const id of q.seq) await tapMove(id);
-      await until((x) => x.phase !== 'input');
-    }
-    const end = await ura();
-    expect(/Дискотека удалась/.test(end) && /Повторено танцев: 5 из 6/.test(end) && /6 движений/.test(end), 'итог', end);
-    const s = await state();
-    expect(s.plays.mimic === 1 && s.stickers.includes('x_disco') && s.stickers.includes('x_mimic'), 'наклейки аниматора', s.stickers.slice(-4));
-  });
+      q = await until((x) => x.phase === 'show' && x.round === 1);
+      expect(q.wins === 1 && q.seq.length === 3, 'танец не вырос на одно движение', q);
+      // раунд 2: две ошибки — раунд пропущен без наказания, длина та же
+      for (let k = 0; k < 2; k++) {
+        q = await until((x) => x.phase === 'input');
+        await tapMove(q.seq[0] === 'clap' ? 'jump' : 'clap');
+        await until((x) => x.phase !== 'input');
+      }
+      q = await until((x) => x.round === 2 && x.phase === 'show');
+      expect(q.wins === 1 && q.seq.length === 3 && q.mistakes === 3, 'после двух ошибок — не следующий раунд', q);
+      // дальше — всё верно до конца (раунды 3–6)
+      for (let k = 0; k < 4; k++) {
+        q = await until((x) => x.phase === 'input' || x.over, 20000);
+        if (q.over) break;
+        for (const id of q.seq) await tapMove(id);
+        await until((x) => x.phase !== 'input');
+      }
+      const end = await ura();
+      expect(
+        /Дискотека удалась/.test(end) && /Повторено танцев: 5 из 6/.test(end) && /6 движений/.test(end),
+        'итог',
+        end,
+      );
+      const s = await state();
+      expect(
+        s.plays.mimic === 1 && s.stickers.includes('x_disco') && s.stickers.includes('x_mimic'),
+        'наклейки аниматора',
+        s.stickers.slice(-4),
+      );
+    },
+  );
 };

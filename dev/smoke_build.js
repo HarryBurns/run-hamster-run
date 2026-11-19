@@ -22,9 +22,7 @@ module.exports = async function build(ctx) {
       } finally {
         page.off('request', onReq);
       }
-      const BUILD = Number(
-        /BUILD\s*=\s*(\d+)/.exec(fs.readFileSync(path.join(ROOT, 'js/data/build.js'), 'utf8'))[1],
-      );
+      const BUILD = Number(/BUILD\s*=\s*(\d+)/.exec(fs.readFileSync(path.join(ROOT, 'js/data/build.js'), 'utf8'))[1]);
       const js = urls.filter((u) => /\/js\/.*\.js(\?|$)/.test(u));
       const plain = js.filter((u) => !u.endsWith('?v=' + BUILD) && !u.includes('/js/data/build.js?t=')); // build.js читает запуск
       expect(js.length > 150, 'мало модулей (проверка не годится)', js.length);

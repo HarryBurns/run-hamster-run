@@ -186,7 +186,11 @@ export function openTitle({ start }) {
           );
         if (res.restored)
           menu.appendChild(
-            el('div', 'sub', '<small>Игра открылась из запасной копии 💾 — что-то из последнего могло не сохраниться.</small>'),
+            el(
+              'div',
+              'sub',
+              '<small>Игра открылась из запасной копии 💾 — что-то из последнего могло не сохраниться.</small>',
+            ),
           );
         const b1 = el('button', 'btn big green', 'Продолжить ▶');
         b1.dataset.act = 'continue';
@@ -314,7 +318,11 @@ export function openTitle({ start }) {
         // про запас: отложенные нечитаемые сохранения и последняя удалённая игра (core/games.js)
         const spare = el('div', 'g-spare');
         for (const l of lostGames()) {
-          const row = el('div', 'g-row g-lost', `<span>😿 <b>${esc(l.name)}</b> — не открывается, лежит про запас</span>`);
+          const row = el(
+            'div',
+            'g-row g-lost',
+            `<span>😿 <b>${esc(l.name)}</b> — не открывается, лежит про запас</span>`,
+          );
           row.dataset.id = l.id;
           const again = el('button', 'btn ghost small', '🔁 Ещё раз');
           again.onclick = () => {
@@ -422,8 +430,10 @@ export function openTitle({ start }) {
     if (r.why === 'full') return noRoom('full');
     const text = {
       bad: `Файл <b>«${esc(f.name)}»</b> не похож на сохранённую игру или он испорчен.</p><p class="center muted">Нужен файл, который игра сохранила сама: «Пушистая жизнь - имя - дата.json».`,
-      newer: 'Этот файл сохранён в более новой игре, а страница ещё старая.</p><p class="center">Обнови страницу и попробуй ещё раз.',
-      store: 'Игру не удалось записать — в памяти браузера нет места.</p><p class="center">Можно удалить одну из игр и попробовать ещё раз.',
+      newer:
+        'Этот файл сохранён в более новой игре, а страница ещё старая.</p><p class="center">Обнови страницу и попробуй ещё раз.',
+      store:
+        'Игру не удалось записать — в памяти браузера нет места.</p><p class="center">Можно удалить одну из игр и попробовать ещё раз.',
     }[r.why];
     const i = await message({
       title: 'Не получилось загрузить',

@@ -20,7 +20,8 @@ export function paintCake(ctx, w, h, n, a, t) {
   // комната: обои в горошек, гирлянда, стол
   ctx.fillStyle = '#ffe3ec';
   ctx.fillRect(0, 0, w, h);
-  for (let y = 12; y < h * 0.7; y += 26) for (let x = (y / 26) % 2 ? 14 : 0; x < w; x += 28) ell(ctx, x, y, 3, 3, '#ffc9de');
+  for (let y = 12; y < h * 0.7; y += 26)
+    for (let x = (y / 26) % 2 ? 14 : 0; x < w; x += 28) ell(ctx, x, y, 3, 3, '#ffc9de');
   ctx.strokeStyle = 'rgba(74,55,40,.6)';
   ctx.lineWidth = 1.2;
   ctx.beginPath();
@@ -29,17 +30,30 @@ export function paintCake(ctx, w, h, n, a, t) {
   ctx.stroke();
   for (let i = 1; i < 10; i++) {
     const q = i / 10;
-    balloon(ctx, q * w, h * 0.06 + Math.sin(q * Math.PI) * h * 0.07 + 14 + Math.sin(t * 2 + i) * 2, 8, ['#ff6b6b', '#ffd43b', '#69db7c', '#4dabf7', '#da77f2'][i % 5]);
+    balloon(
+      ctx,
+      q * w,
+      h * 0.06 + Math.sin(q * Math.PI) * h * 0.07 + 14 + Math.sin(t * 2 + i) * 2,
+      8,
+      ['#ff6b6b', '#ffd43b', '#69db7c', '#4dabf7', '#da77f2'][i % 5],
+    );
   }
   fillRR(ctx, w * 0.08, h * 0.72, w * 0.84, 14, 5, '#f783ac', '#4a3728', 1.6);
   ctx.fillStyle = '#fff0f6';
   ctx.fillRect(w * 0.1, h * 0.72 + 14, w * 0.8, h);
   const s = Math.min(w / 380, h / 330);
   // гости за столом — машут и поют
-  const looks = (S().guests.length ? S().guests : NPCS.slice(0, 3).map((q) => q.id)).slice(0, 3).map((id) => npcLook(id));
+  const looks = (S().guests.length ? S().guests : NPCS.slice(0, 3).map((q) => q.id))
+    .slice(0, 3)
+    .map((id) => npcLook(id));
   looks.forEach((lk, i) => {
     const x = w * (0.14 + i * 0.12) + (i === 2 ? w * 0.52 : 0);
-    drawHamster(ctx, x, h * 0.72, 0.62 * s, lk, { time: t + i, dir: i === 2 ? -1 : 1, happy: true, armsUp: n >= BLOWS || Math.sin(t * 4 + i) > 0.6 });
+    drawHamster(ctx, x, h * 0.72, 0.62 * s, lk, {
+      time: t + i,
+      dir: i === 2 ? -1 : 1,
+      happy: true,
+      armsUp: n >= BLOWS || Math.sin(t * 4 + i) > 0.6,
+    });
   });
   // торт: два яруса, крем, вишенки, свечки
   const cx = w * 0.5,
@@ -54,19 +68,51 @@ export function paintCake(ctx, w, h, n, a, t) {
   for (let i = 0; i < CANDLES; i++) {
     const x = cx - 32 * s + i * 12.8 * s,
       y = cy - 80 * s;
-    fillRR(ctx, x - 3 * s, y - 22 * s, 6 * s, 22 * s, 2, ['#74c0fc', '#ffd43b', '#b197fc', '#69db7c', '#ff8fab', '#ffa94d'][i], '#4a3728', 1);
+    fillRR(
+      ctx,
+      x - 3 * s,
+      y - 22 * s,
+      6 * s,
+      22 * s,
+      2,
+      ['#74c0fc', '#ffd43b', '#b197fc', '#69db7c', '#ff8fab', '#ffa94d'][i],
+      '#4a3728',
+      1,
+    );
     if (i >= out) {
       const fl = Math.sin(t * 12 + i) * 1.2 * s;
       ell(ctx, x, y - 28 * s, 5 * s, 9 * s, 'rgba(255,212,59,.35)');
       ell(ctx, x + fl * 0.3, y - 28 * s, 3 * s, 6 * s, '#ffd43b', '#e8590c', 1);
     } else if (i >= out - CANDLES / BLOWS && a < 1) {
       // дымок от только что задутых
-      ell(ctx, x + a * 6, y - 30 * s - a * 26 * s, (3 + a * 5) * s, (3 + a * 5) * s, `rgba(173,181,189,${0.6 * (1 - a)})`);
+      ell(
+        ctx,
+        x + a * 6,
+        y - 30 * s - a * 26 * s,
+        (3 + a * 5) * s,
+        (3 + a * 5) * s,
+        `rgba(173,181,189,${0.6 * (1 - a)})`,
+      );
     }
   }
   // хомячок дует
-  drawHamster(ctx, w * 0.5, h * 0.99, 0.82 * s, playerLook(), { time: t, dir: 0, happy: n >= BLOWS, armsUp: n >= BLOWS });
-  if (n > 0 && n < BLOWS && a < 1) for (let i = 0; i < 4; i++) line(ctx, w * 0.5 - 12 + i * 8, h * 0.82 - a * 30, w * 0.5 - 14 + i * 9, h * 0.78 - a * 46, `rgba(165,216,255,${1 - a})`, 2);
+  drawHamster(ctx, w * 0.5, h * 0.99, 0.82 * s, playerLook(), {
+    time: t,
+    dir: 0,
+    happy: n >= BLOWS,
+    armsUp: n >= BLOWS,
+  });
+  if (n > 0 && n < BLOWS && a < 1)
+    for (let i = 0; i < 4; i++)
+      line(
+        ctx,
+        w * 0.5 - 12 + i * 8,
+        h * 0.82 - a * 30,
+        w * 0.5 - 14 + i * 9,
+        h * 0.78 - a * 46,
+        `rgba(165,216,255,${1 - a})`,
+        2,
+      );
   if (n >= BLOWS)
     for (let i = 0; i < 26; i++) {
       const x = ((i * 0.377 + t * 0.02) % 1) * w,
@@ -85,7 +131,12 @@ export function paintCake(ctx, w, h, n, a, t) {
 
 // ════════ из holidays_summer.js ════════
 /** Немного друзей для сценок (первые трое знакомых, а не знакомых — тоже можно: праздник для всех). */
-const pals = (n = 3) => NPCS.slice(0, 8).filter((q) => S().friends[q.id] && S().friends[q.id].met).concat(NPCS.slice(0, 8)).slice(0, n).map((q) => npcLook(q.id));
+const pals = (n = 3) =>
+  NPCS.slice(0, 8)
+    .filter((q) => S().friends[q.id] && S().friends[q.id].met)
+    .concat(NPCS.slice(0, 8))
+    .slice(0, n)
+    .map((q) => npcLook(q.id));
 
 /** Солнечное небо с травой (фон дневных сценок). */
 function daySky(ctx, w, h, ground = '#8ce99a', hy = 0.62) {
@@ -124,8 +175,10 @@ export function paintPlant(ctx, w, h, n, a, t) {
   ctx.lineCap = 'round';
   // клумба: 0 — утоптанная земля, 1 — вскопана, 2 — посажены цветы, 3 — полита (цветы распустились)
   paintMayBed(ctx, Math.min(2, n), false, n >= 3 ? 0.4 + Math.min(1, a) * 0.6 : 0.3);
-  if (n === 1 && a < 1) for (let i = 0; i < 5; i++) ell(ctx, -30 + i * 15, -10 - Math.sin(a * Math.PI) * (16 + i * 3), 3, 2.4, '#8d5a3a');
-  if (n >= 3 && a < 1) for (let i = 0; i < 6; i++) ell(ctx, -26 + i * 11, -40 + a * 34 + (i % 2) * 6, 2.4, 3.4, '#74c0fc');
+  if (n === 1 && a < 1)
+    for (let i = 0; i < 5; i++) ell(ctx, -30 + i * 15, -10 - Math.sin(a * Math.PI) * (16 + i * 3), 3, 2.4, '#8d5a3a');
+  if (n >= 3 && a < 1)
+    for (let i = 0; i < 6; i++) ell(ctx, -26 + i * 11, -40 + a * 34 + (i % 2) * 6, 2.4, 3.4, '#74c0fc');
   ctx.restore();
   // хомячок с лопаткой или лейкой
   const hx = w * 0.82,
@@ -146,8 +199,19 @@ export function paintParade(ctx, w, h, k, look, t) {
   // дома-силуэты и флажки
   for (let i = 0; i < 6; i++) {
     const x = (i / 6) * w + 10;
-    fillRR(ctx, x, h * 0.36 - (i % 3) * 14, w / 6 - 14, h * 0.3 + (i % 3) * 14, 4, ['#ffe3e3', '#d0ebff', '#fff3bf', '#e5dbff', '#d3f9d8', '#ffe8cc'][i], OUT, 1.4);
-    for (let j = 0; j < 2; j++) fillRR(ctx, x + 8 + j * (w / 12 - 4), h * 0.44 - (i % 3) * 14, 12, 14, 2, '#a5d8ff', OUT, 1);
+    fillRR(
+      ctx,
+      x,
+      h * 0.36 - (i % 3) * 14,
+      w / 6 - 14,
+      h * 0.3 + (i % 3) * 14,
+      4,
+      ['#ffe3e3', '#d0ebff', '#fff3bf', '#e5dbff', '#d3f9d8', '#ffe8cc'][i],
+      OUT,
+      1.4,
+    );
+    for (let j = 0; j < 2; j++)
+      fillRR(ctx, x + 8 + j * (w / 12 - 4), h * 0.44 - (i % 3) * 14, 12, 14, 2, '#a5d8ff', OUT, 1);
   }
   ctx.strokeStyle = 'rgba(74,55,40,.6)';
   ctx.lineWidth = 1.2;
@@ -210,14 +274,37 @@ export function paintWreath(ctx, w, h, n, a, t) {
     wreathRing(ctx, w * 0.42, h * 0.84, 46 * s, fl, fl === n && a < 1 ? a : 1, false);
     // корзинка с цветами
     fillRR(ctx, w * 0.76, h * 0.8, 56 * s, 30 * s, 8, '#d9a066', OUT, 1.6);
-    for (let i = 0; i < FLOWERS - fl; i++) ell(ctx, w * 0.76 + (10 + (i % 3) * 16) * s, h * 0.8 - (2 + Math.floor(i / 3) * 6) * s, 7 * s, 7 * s, ['#ff8fab', '#ffd43b', '#fff', '#b197fc'][i % 4], OUT, 1);
+    for (let i = 0; i < FLOWERS - fl; i++)
+      ell(
+        ctx,
+        w * 0.76 + (10 + (i % 3) * 16) * s,
+        h * 0.8 - (2 + Math.floor(i / 3) * 6) * s,
+        7 * s,
+        7 * s,
+        ['#ff8fab', '#ffd43b', '#fff', '#b197fc'][i % 4],
+        OUT,
+        1,
+      );
   } else {
     // пустили по воде: венок со свечкой уплывает к закату
     if (paintWreath.t0 == null) paintWreath.t0 = t;
     const q = Math.min(1, (t - paintWreath.t0) / 4);
-    wreathRing(ctx, w * 0.42 + w * 0.08 * q, h * 0.8 - h * 0.26 * q + Math.sin(t * 2) * 2, 46 * s * (1 - 0.55 * q), FLOWERS, 1, true);
+    wreathRing(
+      ctx,
+      w * 0.42 + w * 0.08 * q,
+      h * 0.8 - h * 0.26 * q + Math.sin(t * 2) * 2,
+      46 * s * (1 - 0.55 * q),
+      FLOWERS,
+      1,
+      true,
+    );
   }
-  drawHamster(ctx, w * 0.2, h * 0.98, 0.75 * s, playerLook(), { time: t, dir: 1, happy: n > FLOWERS, armsUp: a < 0.5 && n > 0 });
+  drawHamster(ctx, w * 0.2, h * 0.98, 0.75 * s, playerLook(), {
+    time: t,
+    dir: 1,
+    happy: n > FLOWERS,
+    armsUp: a < 0.5 && n > 0,
+  });
 }
 
 // ==================== ХЕЛЛОУИН ====================
@@ -237,8 +324,21 @@ export function paintCarve(ctx, w, h, n, a, t) {
   ctx.lineJoin = 'round';
   jackFace(ctx, n, lit ? 1 : 0, Math.floor(t * 6) % 2);
   ctx.restore();
-  if (lit && a < 1) for (let i = 0; i < 8; i++) star(ctx, w * 0.45 + Math.cos(i) * (60 + a * 40) * s, h * 0.58 + Math.sin(i * 1.3) * (40 + a * 30) * s, 4, '#ffd43b');
-  drawHamster(ctx, w * 0.85, h * 0.97, 0.7 * s, playerLook(), { time: t, dir: -1, happy: lit, armsUp: a < 0.5 && n > 0 });
+  if (lit && a < 1)
+    for (let i = 0; i < 8; i++)
+      star(
+        ctx,
+        w * 0.45 + Math.cos(i) * (60 + a * 40) * s,
+        h * 0.58 + Math.sin(i * 1.3) * (40 + a * 30) * s,
+        4,
+        '#ffd43b',
+      );
+  drawHamster(ctx, w * 0.85, h * 0.97, 0.7 * s, playerLook(), {
+    time: t,
+    dir: -1,
+    happy: lit,
+    armsUp: a < 0.5 && n > 0,
+  });
 }
 
 /** Сценка «Сладость или гадость?»: хомячок с ведёрком-тыквой у двери, хозяин открывает и сыплет конфеты. */
@@ -288,7 +388,7 @@ export function paintTrick(ctx, w, h, k, look, t) {
   // конфеты летят из двери в ведёрко
   if (k > 0.55)
     for (let i = 0; i < 5; i++) {
-      const q = ((t * 0.9 + i / 5) % 1),
+      const q = (t * 0.9 + i / 5) % 1,
         cx = hx + (x + 36 * s - hx) * q,
         cy = hy - 50 - Math.sin(q * Math.PI) * 60;
       ell(ctx, cx, cy, 6, 4, ['#ff6b9d', '#ffd43b', '#69db7c', '#4dabf7', '#ff922b'][i], OUT, 1);
@@ -319,7 +419,16 @@ export function paintRink(ctx, w, h, k, look, t) {
   for (let i = 1; i < 12; i++) {
     const q = i / 12,
       on = Math.floor(t * 3 + i) % 2 === 0;
-    ell(ctx, q * w, h * 0.1 + Math.sin(q * Math.PI) * h * 0.08 + 5, 4, 5, on ? ['#ff6b6b', '#ffd43b', '#69db7c', '#4dabf7'][i % 4] : '#ced4da', OUT, 1);
+    ell(
+      ctx,
+      q * w,
+      h * 0.1 + Math.sin(q * Math.PI) * h * 0.08 + 5,
+      4,
+      5,
+      on ? ['#ff6b6b', '#ffd43b', '#69db7c', '#4dabf7'][i % 4] : '#ced4da',
+      OUT,
+      1,
+    );
   }
   ctx.fillStyle = '#fff';
   ctx.fillRect(0, h * 0.4, w, h * 0.6);
@@ -335,11 +444,31 @@ export function paintRink(ctx, w, h, k, look, t) {
     team = [look, ...NPCS.slice(0, 3).map((q) => npcLook(q.id, 'newyear'))],
     list = team.map((lk, i) => {
       const a = t * 1.3 - i * 0.7;
-      return { lk, i, x: w / 2 + Math.cos(a) * w * 0.3, y: h * 0.74 + Math.sin(a) * h * 0.12, dir: -Math.sin(a) >= 0 ? 1 : -1 };
+      return {
+        lk,
+        i,
+        x: w / 2 + Math.cos(a) * w * 0.3,
+        y: h * 0.74 + Math.sin(a) * h * 0.12,
+        dir: -Math.sin(a) >= 0 ? 1 : -1,
+      };
     });
   list.sort((p, q) => p.y - q.y);
-  for (const p of list) drawHamster(ctx, p.x, p.y, 0.62 * s, p.lk, { time: t + p.i, dir: p.dir, happy: true, armsUp: p.i === 0 && Math.sin(t * 2) > 0.6 });
-  for (let i = 0; i < 18; i++) ell(ctx, ((i * 0.377 + Math.sin(t * 0.5 + i) * 0.01) % 1) * w, ((i * 0.613 + t * 0.05) % 1) * h, 1.8, 1.8, 'rgba(255,255,255,.9)');
+  for (const p of list)
+    drawHamster(ctx, p.x, p.y, 0.62 * s, p.lk, {
+      time: t + p.i,
+      dir: p.dir,
+      happy: true,
+      armsUp: p.i === 0 && Math.sin(t * 2) > 0.6,
+    });
+  for (let i = 0; i < 18; i++)
+    ell(
+      ctx,
+      ((i * 0.377 + Math.sin(t * 0.5 + i) * 0.01) % 1) * w,
+      ((i * 0.613 + t * 0.05) % 1) * h,
+      1.8,
+      1.8,
+      'rgba(255,255,255,.9)',
+    );
 }
 
 export function paintCarol(ctx, w, h, k, look, t) {
@@ -374,7 +503,16 @@ export function paintCarol(ctx, w, h, k, look, t) {
   ctx.save();
   ctx.translate(x + 30 * s, y - 128 * s - bob);
   ctx.rotate(t * 2);
-  for (let i = 0; i < 5; i++) line(ctx, Math.cos((i / 5) * TAU) * 18 * s, Math.sin((i / 5) * TAU) * 18 * s, Math.cos((i / 5) * TAU) * 24 * s, Math.sin((i / 5) * TAU) * 24 * s, '#fff3bf', 2);
+  for (let i = 0; i < 5; i++)
+    line(
+      ctx,
+      Math.cos((i / 5) * TAU) * 18 * s,
+      Math.sin((i / 5) * TAU) * 18 * s,
+      Math.cos((i / 5) * TAU) * 24 * s,
+      Math.sin((i / 5) * TAU) * 24 * s,
+      '#fff3bf',
+      2,
+    );
   ctx.restore();
   drawHamster(ctx, x, y - bob, 1.05 * s, look, { time: t, dir: 1, happy: true, armsUp: Math.sin(t * 5) > 0.3 });
   ctx.font = `${Math.round(22 * s + 6)}px sans-serif`;
@@ -394,7 +532,16 @@ export function paintLanterns(ctx, w, h, n, a, t) {
   ell(ctx, w * 0.8, h * 0.16, 18, 18, '#fff3bf');
   ctx.fillStyle = '#2b3f7a';
   ctx.fillRect(0, h * 0.62, w, h * 0.38);
-  for (let i = 0; i < 6; i++) line(ctx, w * (0.1 + i * 0.15), h * (0.66 + (i % 3) * 0.08), w * (0.18 + i * 0.15), h * (0.66 + (i % 3) * 0.08), 'rgba(255,255,255,.25)', 2);
+  for (let i = 0; i < 6; i++)
+    line(
+      ctx,
+      w * (0.1 + i * 0.15),
+      h * (0.66 + (i % 3) * 0.08),
+      w * (0.18 + i * 0.15),
+      h * (0.66 + (i % 3) * 0.08),
+      'rgba(255,255,255,.25)',
+      2,
+    );
   ctx.fillStyle = '#e9c48e';
   ctx.fillRect(0, h * 0.82, w, h * 0.18);
   // красные фонарики на верёвке сверху
@@ -416,7 +563,12 @@ export function paintLanterns(ctx, w, h, n, a, t) {
       skyLantern(ctx, x, by - 26 * s - up, 1.9 * s, true);
     } else skyLantern(ctx, bx, by - 26 * s, 1.9 * s, false);
   }
-  drawHamster(ctx, w * 0.82, h * 0.97, 0.8 * s, playerLook(), { time: t, dir: -1, happy: n > 0, armsUp: a < 0.5 && n > 0 });
+  drawHamster(ctx, w * 0.82, h * 0.97, 0.8 * s, playerLook(), {
+    time: t,
+    dir: -1,
+    happy: n > 0,
+    armsUp: a < 0.5 && n > 0,
+  });
 }
 
 // ==================== МАСЛЕНИЦА ====================
@@ -436,7 +588,13 @@ export function paintCarousel(ctx, w, h, k, look, t) {
   for (let i = 0; i < 10; i++) {
     const a0 = Math.PI + (i / 10) * Math.PI,
       a1 = Math.PI + ((i + 1) / 10) * Math.PI;
-    poly(ctx, [cx, h * 0.06, cx + Math.cos(a0) * R * 1.1, h * 0.3, cx + Math.cos(a1) * R * 1.1, h * 0.3], i % 2 ? '#fff' : '#e03131', OUT, 1.6);
+    poly(
+      ctx,
+      [cx, h * 0.06, cx + Math.cos(a0) * R * 1.1, h * 0.3, cx + Math.cos(a1) * R * 1.1, h * 0.3],
+      i % 2 ? '#fff' : '#e03131',
+      OUT,
+      1.6,
+    );
   }
   line(ctx, cx, h * 0.3, cx, cy, OUT, 6);
   line(ctx, cx, h * 0.3, cx, cy, '#ffd43b', 3);
@@ -458,9 +616,16 @@ export function paintCarousel(ctx, w, h, k, look, t) {
     fillRR(ctx, p.x - 22 * s, by - 8 * s, 44 * s, 18 * s, 8 * s, col, OUT, 1.6);
     fillRR(ctx, p.x + hd * 14 * s - 5 * s, by - 26 * s, 10 * s, 22 * s, 4 * s, col, OUT, 1.4);
     ell(ctx, p.x + hd * 22 * s, by - 24 * s, 10 * s, 6 * s, col, OUT, 1.4);
-    poly(ctx, [p.x + hd * 12 * s, by - 30 * s, p.x + hd * 15 * s, by - 38 * s, p.x + hd * 18 * s, by - 29 * s], col, OUT, 1.1);
+    poly(
+      ctx,
+      [p.x + hd * 12 * s, by - 30 * s, p.x + hd * 15 * s, by - 38 * s, p.x + hd * 18 * s, by - 29 * s],
+      col,
+      OUT,
+      1.1,
+    );
     ell(ctx, p.x + hd * 24 * s, by - 26 * s, 1.4 * s, 1.4 * s, OUT);
     fillRR(ctx, p.x + hd * 6 * s - 7 * s, by - 14 * s, 6 * s, 14 * s, 2 * s, '#e03131', OUT, 1); // грива
-    if (p.i === 0) drawHamster(ctx, p.x, p.y - 2 * s + up, 0.7 * s, look, { time: t, dir: 1, happy: true, armsUp: true });
+    if (p.i === 0)
+      drawHamster(ctx, p.x, p.y - 2 * s + up, 0.7 * s, look, { time: t, dir: 1, happy: true, armsUp: true });
   }
 }

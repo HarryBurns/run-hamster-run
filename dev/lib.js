@@ -37,7 +37,8 @@ const sel = (name, scope = '') => (scope ? scope + ' ' : '') + `[data-act="${nam
 function dialogReady(txt) {
   if (!window.__dlgBorn) {
     const born = (window.__dlgBorn = new WeakMap());
-    const mark = () => document.querySelectorAll('.dialog').forEach((d) => born.has(d) || born.set(d, performance.now()));
+    const mark = () =>
+      document.querySelectorAll('.dialog').forEach((d) => born.has(d) || born.set(d, performance.now()));
     new MutationObserver(mark).observe(document, { childList: true, subtree: true });
     mark();
   }
@@ -93,8 +94,7 @@ function lib(ctx) {
   /** Открыто окно, в заголовке которого есть title (строка), или любое окно (без title). */
   const untilPanel = (title, timeout) =>
     until(
-      (t) =>
-        [...document.querySelectorAll('.overlay .panel-head .title')].some((e) => !t || e.textContent.includes(t)),
+      (t) => [...document.querySelectorAll('.overlay .panel-head .title')].some((e) => !t || e.textContent.includes(t)),
       title || '',
       { timeout, msg: 'окно ' + (title || '') },
     );
@@ -120,9 +120,15 @@ function lib(ctx) {
   };
   /** Приехали: сцена name (если дана), затемнения и картинки поездки (.fade: караван, кораблик, канатка) уже нет. */
   const untilArrive = (name, timeout = 9000) =>
-    until((n) => (!n || window.__dev.sceneName === n) && !document.querySelector('.fade'), name || '', { timeout, msg: 'приехали ' + (name || '') });
+    until((n) => (!n || window.__dev.sceneName === n) && !document.querySelector('.fade'), name || '', {
+      timeout,
+      msg: 'приехали ' + (name || ''),
+    });
   const untilNoWindows = (timeout) =>
-    until(() => !document.querySelector('.overlay, .dialog, #mg, .fade'), undefined, { timeout, msg: 'все окна закрыты' });
+    until(() => !document.querySelector('.overlay, .dialog, #mg, .fade'), undefined, {
+      timeout,
+      msg: 'все окна закрыты',
+    });
   /** Хомячок в локации дошёл, куда шла (путь пуст, отложенного дела нет). */
   const untilIdle = (timeout = 8000) =>
     until(
@@ -204,7 +210,8 @@ function lib(ctx) {
     });
 
   // тексты с экрана
-  const toasts = async () => norm(await ev(() => (document.querySelector('#toasts') || { textContent: '' }).textContent));
+  const toasts = async () =>
+    norm(await ev(() => (document.querySelector('#toasts') || { textContent: '' }).textContent));
   const clearToasts = () =>
     ev(() => {
       const t = document.querySelector('#toasts');
@@ -261,7 +268,8 @@ function lib(ctx) {
     if (o.weather) parts.push(`s.weather = ${JSON.stringify(o.weather)};`);
     if (o.dayFlags) parts.push('s.dayFlags = {};');
     if (o.money != null) parts.push(`s.money = ${+o.money};`);
-    for (const [k, v] of Object.entries(o.flags || {})) parts.push(`s.flags[${JSON.stringify(k)}] = ${JSON.stringify(v)};`);
+    for (const [k, v] of Object.entries(o.flags || {}))
+      parts.push(`s.flags[${JSON.stringify(k)}] = ${JSON.stringify(v)};`);
     if (parts.length) await mutate(parts.join(' '));
     if (o.set) await mutate(o.set);
     if (o.scene) await go(o.scene);
@@ -290,10 +298,13 @@ function lib(ctx) {
   };
   /** Встать в локации на клетку (tx, ty) — debugTeleport текущей сцены. */
   const teleport = async (tx, ty) => {
-    await ev(([tx, ty]) => {
-      const d = window.__dev;
-      (d.locations[d.sceneName] || d.World).debugTeleport(tx, ty);
-    }, [tx, ty]);
+    await ev(
+      ([tx, ty]) => {
+        const d = window.__dev;
+        (d.locations[d.sceneName] || d.World).debugTeleport(tx, ty);
+      },
+      [tx, ty],
+    );
     await frames(2);
   };
   /** Войти в здание города по id (enterBuilding) и дождаться отклика: сцена дома, окно, диалог или подсказка. */
@@ -376,7 +387,11 @@ function lib(ctx) {
   /** На заставке — «Продолжить» и дождаться сцены игры. */
   const cont = async () => {
     await act('continue');
-    await until(() => window.__dev && window.__dev.G.state && !document.querySelector('#title'), undefined, 'игра открылась');
+    await until(
+      () => window.__dev && window.__dev.G.state && !document.querySelector('#title'),
+      undefined,
+      'игра открылась',
+    );
     await frames(2);
   };
   /** Записать игру (как при уходе со страницы), перезагрузить и продолжить. */

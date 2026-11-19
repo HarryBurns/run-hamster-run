@@ -121,7 +121,14 @@ export default {
 
     const cases = shuffle(CASES).slice(0, TOTAL);
     // шаги пациента (v.phase): enter | wait | wrong | happy | exit
-    const v = makeVisits(host, { p: 'doc', total: TOTAL, noun: 'Пациент', who: 'Пациент', start: startPatient, finish });
+    const v = makeVisits(host, {
+      p: 'doc',
+      total: TOTAL,
+      noun: 'Пациент',
+      who: 'Пациент',
+      start: startPatient,
+      finish,
+    });
     const docLook = { ...host.look, outfit: { ...(host.look.outfit || {}), head: null } };
 
     const wrap = el('div', 'doc');
@@ -305,6 +312,5 @@ export default {
     });
 
     startPatient();
-
   },
 };

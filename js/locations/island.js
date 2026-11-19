@@ -178,7 +178,8 @@ function build(m) {
       if (!['s', 'h', 'O', 'iplaza', 'ilane'].includes(c)) m.set(x, y, 'itrail');
       path.add(x + ',' + y);
     });
-  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (['iplaza', 'ilane'].includes(m.at(x, y))) path.add(x + ',' + y);
+  for (let y = 0; y < H; y++)
+    for (let x = 0; x < W; x++) if (['iplaza', 'ilane'].includes(m.at(x, y))) path.add(x + ',' + y);
   // причал: доски от пляжа в море
   for (let y = 28; y <= 33; y++) for (const x of [19, 20]) m.set(x, y, 'i');
   const free = (x, y) => !path.has(x + ',' + y) && ['igrass', 'iash'].includes(m.at(x, y));
@@ -236,7 +237,9 @@ function build(m) {
   ])
     if (m.at(x, y) === 'clag' || m.at(x, y) === 'O' || m.at(x, y) === 'h') m.add('mossRock', x, y, { v });
   // концы пляжа — камни (по краю карты не пройти)
-  for (const x of [0, 1, W - 2, W - 1]) for (let y = sandY(x) - 1; y < H; y++) if (['s', 'h'].includes(m.at(x, y))) m.add('mossRock', x, y, { v: (x + y) % 2 });
+  for (const x of [0, 1, W - 2, W - 1])
+    for (let y = sandY(x) - 1; y < H; y++)
+      if (['s', 'h'].includes(m.at(x, y))) m.add('mossRock', x, y, { v: (x + y) % 2 });
   // 4. особые предметы — на место того, что выросло (m.clear)
   for (let dy = -2; dy <= 0; dy++) for (let dx = -4; dx <= 4; dx++) m.clear(AT.volcano[0] + dx, AT.volcano[1] + dy);
   m.put1('bigVolcano', ...AT.volcano);
@@ -260,9 +263,9 @@ function build(m) {
   m.put1('signpost', 26, 2, { text: '🌋 Смотровая', text2: 'у кратера' });
   // перед зданиями — свободно (там двери)
   for (const b of [AT.dock, AT.chief, AT.laguna, AT.guest, AT.bum])
-    for (let x = b.x - 1; x <= b.x + b.w; x++) for (let y = b.y; y <= b.y + b.h; y++) if (m.at(x, y) !== 'i') m.clear(x, y);
+    for (let x = b.x - 1; x <= b.x + b.w; x++)
+      for (let y = b.y; y <= b.y + b.h; y++) if (m.at(x, y) !== 'i') m.clear(x, y);
 }
-
 
 // ---------- время праздника, костёр, находки ----------
 const S = () => G.state;
@@ -293,7 +296,16 @@ export function flowerToday() {
 export function placeFlowers(sc) {
   const { i, id } = flowerToday(),
     f = FIND_BY_ID[id];
-  sc.setPickups([{ id: 'f' + i, at: FLOWER_SPOTS[i], icon: f.e, give: ['finds', id, 1], text: `+1 ${f.e} ${f.name}`, act: 'island:flower' }]);
+  sc.setPickups([
+    {
+      id: 'f' + i,
+      at: FLOWER_SPOTS[i],
+      icon: f.e,
+      give: ['finds', id, 1],
+      text: `+1 ${f.e} ${f.name}`,
+      act: 'island:flower',
+    },
+  ]);
 }
 
 // ---------- «доброе извержение» (О9): раз в неделю вечером вулкан пускает искры над кратером, как салют ----------
@@ -304,7 +316,8 @@ export const eruptNow = () => {
   return !!s && s.day % e.every === e.on && s.minutes >= e.from * 60 && s.minutes < e.to * 60;
 };
 /** Через сколько дней следующее доброе извержение (0 — сегодня). */
-export const eruptIn = (day = S().day) => (ISLAND.erupt.on - (day % ISLAND.erupt.every) + ISLAND.erupt.every) % ISLAND.erupt.every;
+export const eruptIn = (day = S().day) =>
+  (ISLAND.erupt.on - (day % ISLAND.erupt.every) + ISLAND.erupt.every) % ISLAND.erupt.every;
 const CRATER = { x: (AT.volcano[0] + 0.5) * T - 4, y: (AT.volcano[1] + 0.5) * T - 262 };
 const SPARK_C = ['#ffd43b', '#ff922b', '#ff6b9d', '#fff3bf', '#ffa94d'];
 const BURST = 0.8, // новый залп каждые 0,8 с
@@ -370,17 +383,31 @@ function updateEruption() {
   setDayFlag('erupt', 1, 'island');
   emit('island', { what: 'erupt' });
   sfx('magic');
-  toast('🌋✨ Доброе извержение! Раз в неделю вулкан пускает искры, как салют. Это совсем не опасно — полюбуйся со смотровой у кратера!', 'good');
+  toast(
+    '🌋✨ Доброе извержение! Раз в неделю вулкан пускает искры, как салют. Это совсем не опасно — полюбуйся со смотровой у кратера!',
+    'good',
+  );
 }
 
 // ---------- лагуна (О10): рыбки в тёплой воде ----------
-const LAG_FISH = [0, 1, 2, 3, 4, 5].map((i) => ({ ph: i * 1.7, rx: 1.2 + (i % 3) * 0.9, ry: 0.5 + (i % 2) * 0.5, sp: 0.35 + (i % 3) * 0.12, c: ['#ff922b', '#ffd43b', '#f783ac', '#4dabf7', '#ff922b', '#69db7c'][i] }));
+const LAG_FISH = [0, 1, 2, 3, 4, 5].map((i) => ({
+  ph: i * 1.7,
+  rx: 1.2 + (i % 3) * 0.9,
+  ry: 0.5 + (i % 2) * 0.5,
+  sp: 0.35 + (i % 3) * 0.12,
+  c: ['#ff922b', '#ffd43b', '#f783ac', '#4dabf7', '#ff922b', '#69db7c'][i],
+}));
 /** Рыбка лагуны i сейчас: где и куда плывёт (единицы мира). */
 function lagFishAt(i, t) {
   const f = LAG_FISH[i],
     a = t * f.sp + f.ph,
     [lx, ly] = AT.lagoon;
-  return { x: (lx + 0.3 + Math.cos(a) * f.rx) * T, y: (ly + 0.2 + Math.sin(a) * f.ry) * T, dir: -Math.sin(a) >= 0 ? 1 : -1, c: f.c };
+  return {
+    x: (lx + 0.3 + Math.cos(a) * f.rx) * T,
+    y: (ly + 0.2 + Math.sin(a) * f.ry) * T,
+    dir: -Math.sin(a) >= 0 ? 1 : -1,
+    c: f.c,
+  };
 }
 function drawLagFish(ctx, q, t) {
   ctx.globalAlpha = 0.8;
@@ -407,21 +434,45 @@ function drawLagFish(ctx, q, t) {
 }
 
 // ---------- праздник: танцующие островитяне и гирлянда огоньков ----------
-const lk = (fur, outfit, beauty = {}) => resolveLook({ fur, spots: null, ear: '#ffb3c1', belly: '#fff3e0', outfit, beauty: { blush: '#ffb0bd', ...beauty } });
+const lk = (fur, outfit, beauty = {}) =>
+  resolveLook({ fur, spots: null, ear: '#ffb3c1', belly: '#fff3e0', outfit, beauty: { blush: '#ffb0bd', ...beauty } });
 const grass = (c, c2) => ({ id: 'x_dancer_skirt', slot: 'legs', kind: 'grass', name: 'Юбочка из травы', c, c2 });
 const leiOf = (c, c2) => ({ id: 'x_dancer_lei', slot: 'acc', kind: 'lei', name: 'Лея', c, c2 });
 /** Островитяне, которые танцуют у костра на празднике. */
 const DANCERS = [
-  lk('#f2b34c', { legs: grass('#b5c95a', '#7f9a3a'), acc: leiOf('#ff6b9d', '#fff'), head: { id: 'x_d1', slot: 'head', kind: 'wreath', c: '#fff' } }, { lashes: true, tuft: 3, hair: '#4a3728' }),
+  lk(
+    '#f2b34c',
+    {
+      legs: grass('#b5c95a', '#7f9a3a'),
+      acc: leiOf('#ff6b9d', '#fff'),
+      head: { id: 'x_d1', slot: 'head', kind: 'wreath', c: '#fff' },
+    },
+    { lashes: true, tuft: 3, hair: '#4a3728' },
+  ),
   lk('#c98b5a', { legs: grass('#94b84a', '#6f9a2e'), acc: leiOf('#ffd43b', '#ff922b') }, { tuft: 1, hair: '#4a3728' }),
-  lk('#fff', { legs: grass('#a9c95a', '#74a03a'), acc: leiOf('#da77f2', '#fff3bf'), head: { id: 'x_d3', slot: 'head', kind: 'flower', c: '#ffd43b', c2: '#ff922b' } }, { lashes: true, tuft: 2, hair: '#a0522d' }),
+  lk(
+    '#fff',
+    {
+      legs: grass('#a9c95a', '#74a03a'),
+      acc: leiOf('#da77f2', '#fff3bf'),
+      head: { id: 'x_d3', slot: 'head', kind: 'flower', c: '#ffd43b', c2: '#ff922b' },
+    },
+    { lashes: true, tuft: 2, hair: '#a0522d' },
+  ),
   lk('#e6c9a8', { legs: grass('#b5c95a', '#7f9a3a'), acc: leiOf('#4dabf7', '#fff') }, { tuft: 2, hair: '#6b4423' }),
 ];
 defineArt({
   // кадр танцора: i — кто, f — фаза (0–3: лапки вверх / вниз, поворот)
   dancer: [
     [-48, -112, 48, 14],
-    (ctx, i, f) => drawHamster(ctx, 0, 0, PS, DANCERS[i], { dir: f % 2 ? 1 : -1, time: 0, happy: true, armsUp: f >= 2, shadow: true }),
+    (ctx, i, f) =>
+      drawHamster(ctx, 0, 0, PS, DANCERS[i], {
+        dir: f % 2 ? 1 : -1,
+        time: 0,
+        happy: true,
+        armsUp: f >= 2,
+        shadow: true,
+      }),
   ],
 });
 /**
@@ -434,22 +485,22 @@ function dancerAt(i, t, obst = []) {
   let x = (AT.fire[0] + 0.5) * T + Math.cos(a) * 118,
     y = (AT.fire[1] + 0.5) * T + 10 + Math.sin(a) * 62;
   for (let pass = 0; pass < 2; pass++)
-  for (const o of obst) {
-    const dx = x - o.x,
-      dy = y - o.y,
-      d = Math.hypot(dx, dy);
-    if (d >= DANCE_GAP) continue;
-    // в сторону от препятствия; совсем вплотную — наружу от костра
-    const ux = d > 1 ? dx / d : Math.cos(a),
-      uy = d > 1 ? dy / d : Math.sin(a),
-      k = DANCE_GAP - d;
-    x += ux * k;
-    y += uy * k;
-  }
+    for (const o of obst) {
+      const dx = x - o.x,
+        dy = y - o.y,
+        d = Math.hypot(dx, dy);
+      if (d >= DANCE_GAP) continue;
+      // в сторону от препятствия; совсем вплотную — наружу от костра
+      const ux = d > 1 ? dx / d : Math.cos(a),
+        uy = d > 1 ? dy / d : Math.sin(a),
+        k = DANCE_GAP - d;
+      x += ux * k;
+      y += uy * k;
+    }
   return { x, y, a };
 }
 /** Кого обходит хоровод: хомячок и жители острова у площади (кто сейчас не спрятан). */
-const danceObstacles = (sc) => [...sc.npcs.filter((n) => !n.hidden), sc.p] // хомячок — последним: его обходят наверняка.filter((o) => Math.hypot(o.x - (AT.fire[0] + 0.5) * T, o.y - (AT.fire[1] + 0.5) * T) < T * 5);
+const danceObstacles = (sc) => [...sc.npcs.filter((n) => !n.hidden), sc.p]; // хомячок — последним: его обходят наверняка.filter((o) => Math.hypot(o.x - (AT.fire[0] + 0.5) * T, o.y - (AT.fire[1] + 0.5) * T) < T * 5);
 /**
  * Гирлянда (О7): огоньки на верёвке между факелами — буквой «П», по дальней стороне площади и по бокам; передняя
  * сторона открыта, чтобы гирлянда не закрывала танец и хомячка у костра. У каждого кусочка верёвки — своя глубина
@@ -466,7 +517,13 @@ const BULBS = (() => {
       pts = [{ x: ax, y: ay, gy: ag }];
     for (let i = 1; i < 9; i++) {
       const q = i / 9,
-        b = { x: ax + (bx - ax) * q, y: ay + (by - ay) * q + Math.sin(q * Math.PI) * 26, gy: ag + (bg - ag) * q, c: ['#ff6b6b', '#ffd43b', '#69db7c', '#4dabf7', '#da77f2'][(k * 8 + i) % 5], n: out.length };
+        b = {
+          x: ax + (bx - ax) * q,
+          y: ay + (by - ay) * q + Math.sin(q * Math.PI) * 26,
+          gy: ag + (bg - ag) * q,
+          c: ['#ff6b6b', '#ffd43b', '#69db7c', '#4dabf7', '#da77f2'][(k * 8 + i) % 5],
+          n: out.length,
+        };
       out.push(b);
       pts.push(b);
     }
@@ -552,11 +609,28 @@ const island = createTopDownScene({
   build,
   buildings: [
     // хижина у причала: кораблик обратно в город (faraway:back — features/island.js)
-    { id: 'dock', kind: 'dock', ...AT.dock, name: 'Причал', mapName: 'Кораблик в город', icon: '⛵', act: 'faraway:back' },
+    {
+      id: 'dock',
+      kind: 'dock',
+      ...AT.dock,
+      name: 'Причал',
+      mapName: 'Кораблик в город',
+      icon: '⛵',
+      act: 'faraway:back',
+    },
     // хижина вождя Кокоса (вход — разговор с вождём)
     { id: 'chief', kind: 'chiefHut', ...AT.chief, name: 'Хижина вождя', icon: '🌴', act: 'inside:hut_kokos' },
     // хижина для гостей: переночевать (features/island.js)
-    { id: 'guest', kind: 'stiltHut', ...AT.guest, v: 1, sign: '🛏️ Для гостей', name: 'Хижина для гостей', icon: '🛏️', act: 'inside:hut_guest' },
+    {
+      id: 'guest',
+      kind: 'stiltHut',
+      ...AT.guest,
+      v: 1,
+      sign: '🛏️ Для гостей',
+      name: 'Хижина для гостей',
+      icon: '🛏️',
+      act: 'inside:hut_guest',
+    },
     // домики островитян
     { id: 'laguna', kind: 'stiltHut', ...AT.laguna, v: 0, name: 'Домик Лагуны', icon: '🛖', act: 'inside:hut_laguna' },
     { id: 'bumhut', kind: 'stiltHut', ...AT.bum, v: 2, name: 'Домик Бума', icon: '🛖', act: 'inside:hut_bum' },
@@ -582,7 +656,11 @@ const island = createTopDownScene({
       hit: { r: 42 },
       stand: [AT.obsidian[0] + 0.5, AT.obsidian[1] + 1.6],
       act: 'island:obsidian',
-      map: { icon: FIND_BY_ID.obsidian.e, at: [AT.obsidian[0] + 0.5, AT.obsidian[1] + 0.5], label: `${FIND_BY_ID.obsidian.e} Вулканическое стекло` },
+      map: {
+        icon: FIND_BY_ID.obsidian.e,
+        at: [AT.obsidian[0] + 0.5, AT.obsidian[1] + 0.5],
+        label: `${FIND_BY_ID.obsidian.e} Вулканическое стекло`,
+      },
     },
     {
       id: 'fire',
@@ -661,7 +739,8 @@ const island = createTopDownScene({
     const t = G.time;
     for (let i = 0; i < LAG_FISH.length; i++) {
       const q = lagFishAt(i, t);
-      if (q.x > v.x0 - 30 && q.x < v.x1 + 30 && q.y > v.y0 - 30 && q.y < v.y1 + 30) add(q.y - 30, (ctx) => drawLagFish(ctx, q, t));
+      if (q.x > v.x0 - 30 && q.x < v.x1 + 30 && q.y > v.y0 - 30 && q.y < v.y1 + 30)
+        add(q.y - 30, (ctx) => drawLagFish(ctx, q, t));
     }
     if (garlandOn()) addGarland(add, v, t);
     if (!festNow()) return;
@@ -689,7 +768,11 @@ const island = createTopDownScene({
   surface(sc, kind, was) {
     if ((kind === 'clag' || kind === 'cdeep') && was !== 'clag' && was !== 'cdeep') {
       emit('island', { what: 'lagoon' });
-      hintOnce('lagoonHint', '🐠 Тёплая лагуна! Здесь мелко и тихо, плавают пёстрые рыбки. Купайся сколько хочешь!', 'good');
+      hintOnce(
+        'lagoonHint',
+        '🐠 Тёплая лагуна! Здесь мелко и тихо, плавают пёстрые рыбки. Купайся сколько хочешь!',
+        'good',
+      );
     }
   },
   cold: () => false, // на острове всегда тепло
@@ -702,4 +785,9 @@ const island = createTopDownScene({
 export default island;
 /** Для тестов: где танцоры сейчас и сколько огоньков в гирлянде. */
 export const debugErupt = () => ({ on: eruptNow(), inDays: eruptIn(), crater: CRATER });
-export const debugFest = (sc) => ({ fest: festNow(), garland: garlandOn(), dancers: DANCERS.map((_, i) => dancerAt(i, G.time, sc ? danceObstacles(sc) : [])), bulbs: BULBS.list.length });
+export const debugFest = (sc) => ({
+  fest: festNow(),
+  garland: garlandOn(),
+  dancers: DANCERS.map((_, i) => dancerAt(i, G.time, sc ? danceObstacles(sc) : [])),
+  bulbs: BULBS.list.length,
+});

@@ -17,7 +17,17 @@
 //          у причала — кораблик в город).
 import { TAU } from '../core/util.js';
 import { ell, fillRR, line, poly, shade } from '../core/draw.js';
-import { T, OUT, SP, put, hash, defineTiles, defineObjects, defineArt, defineBuildings } from '../engine/topdown/index.js';
+import {
+  T,
+  OUT,
+  SP,
+  put,
+  hash,
+  defineTiles,
+  defineObjects,
+  defineArt,
+  defineBuildings,
+} from '../engine/topdown/index.js';
 import { shadow, signBoard, WOOD, WOOD_D } from './common/paint.js';
 import { crown, treeDot } from './common/objects.js';
 import { geom, baseShadow, glow } from './common/buildings.js';
@@ -58,7 +68,8 @@ function floorDeco(ctx, x, y, tx, ty, env, r) {
     ctx.quadraticCurveTo(bx + 8, by - 6, bx + 16, by + 1);
     ctx.stroke();
   }
-  if (r(30) < 0.1) ell(ctx, x + 6 + r(31) * 36, y + 6 + r(32) * 36, 2, 2, ['#ff8fab', '#ffd43b', '#fff'][Math.floor(r(33) * 3)]);
+  if (r(30) < 0.1)
+    ell(ctx, x + 6 + r(31) * 36, y + 6 + r(32) * 36, 2, 2, ['#ff8fab', '#ffd43b', '#fff'][Math.floor(r(33) * 3)]);
 }
 function trailDeco(ctx, x, y, tx, ty, env, r) {
   ctx.fillStyle = 'rgba(90,55,25,.22)';
@@ -253,7 +264,17 @@ function paintJTree(ctx, v) {
   TREE_CROWNS[v % 3].forEach(([x, y, rx, ry], i) => {
     for (let k = 0; k < 3; k++) {
       const a = i * 1.7 + k * 2.1 + 0.4;
-      ell(ctx, x + Math.cos(a) * rx * 0.55, y + Math.sin(a) * ry * 0.5, 7, 2.6, k % 2 ? tones[0] : tones[2], null, 1, a + 0.6);
+      ell(
+        ctx,
+        x + Math.cos(a) * rx * 0.55,
+        y + Math.sin(a) * ry * 0.5,
+        7,
+        2.6,
+        k % 2 ? tones[0] : tones[2],
+        null,
+        1,
+        a + 0.6,
+      );
     }
   });
   // лианы поверх
@@ -736,12 +757,22 @@ function paintCamp(ctx, b, snow, lit) {
   const tent = [X + 4, bot - 4, cx, top, X + W - 4, bot - 4];
   poly(ctx, tent, '#74a043', OUT, 2.6);
   poly(ctx, [cx, top, X + W - 4, bot - 4, cx + 6, bot - 4], '#5c8a36');
-  for (let k = 0.3; k < 0.95; k += 0.3) line(ctx, cx - (cx - X - 4) * k, top + (bot - 4 - top) * k, cx + (X + W - 4 - cx) * k, top + (bot - 4 - top) * k, 'rgba(40,60,20,.25)', 1.4);
+  for (let k = 0.3; k < 0.95; k += 0.3)
+    line(
+      ctx,
+      cx - (cx - X - 4) * k,
+      top + (bot - 4 - top) * k,
+      cx + (X + W - 4 - cx) * k,
+      top + (bot - 4 - top) * k,
+      'rgba(40,60,20,.25)',
+      1.4,
+    );
   // вход
   poly(ctx, [cx - 26, bot - 4, cx, top + 26, cx + 26, bot - 4], lit ? '#7a5a22' : '#3d4a22', OUT, 2);
   if (lit) glow(ctx, cx, bot - 24, 36, 0.4);
   fillRR(ctx, cx - 16, bot - 14, 32, 10, 4, '#e8590c', OUT, 1.2); // спальник
-  for (const s of [-1, 1]) poly(ctx, [cx + s * 2, top + 28, cx + s * 30, bot - 10, cx + s * 22, bot - 4], '#8fb85a', OUT, 1.6);
+  for (const s of [-1, 1])
+    poly(ctx, [cx + s * 2, top + 28, cx + s * 30, bot - 10, cx + s * 22, bot - 4], '#8fb85a', OUT, 1.6);
   // флажок на шесте
   line(ctx, cx, top, cx, top - 22, OUT, 3);
   poly(ctx, [cx, top - 22, cx + 16, top - 18, cx, top - 13], '#ffd43b', OUT, 1.2);
@@ -768,7 +799,8 @@ function paintTemple(ctx, b) {
     const w = W + 20 - i * 34,
       y = bot - (i + 1) * sh;
     fillRR(ctx, cx - w / 2, y, w, sh + 2, 3, i % 2 ? STONE_J : shade(STONE_J, -0.05), OUT, 2.2);
-    for (let x = cx - w / 2 + 18; x < cx + w / 2 - 6; x += 30) line(ctx, x, y + 2, x, y + sh, 'rgba(80,75,60,.35)', 1.4);
+    for (let x = cx - w / 2 + 18; x < cx + w / 2 - 6; x += 30)
+      line(ctx, x, y + 2, x, y + sh, 'rgba(80,75,60,.35)', 1.4);
     // мох по краю ступеней
     for (let x = cx - w / 2 + 8; x < cx + w / 2; x += 26) ell(ctx, x + (i % 2) * 9, y + 2, 8, 3, MOSS);
   }
@@ -824,12 +856,14 @@ function paintDock(ctx, b, snow, lit) {
   if (lit) glow(ctx, cx, bot - 22, 34, 0.35);
   // крыша из листьев
   poly(ctx, [X - 8, top + 26, cx, top - 18, X + W + 8, top + 26], '#9ab54a', OUT, 2.4);
-  for (let x = X - 4; x < X + W + 4; x += 14) poly(ctx, [x, top + 22, x + 7, top + 34, x + 14, top + 22], '#7fa03a', OUT, 1);
+  for (let x = X - 4; x < X + W + 4; x += 14)
+    poly(ctx, [x, top + 22, x + 7, top + 34, x + 14, top + 22], '#7fa03a', OUT, 1);
   signBoard(ctx, b.signText ? b.signText() : '⛵ В город', cx, top + 44, 84, 18, 'wood');
   // спасательный круг на стене
   ell(ctx, X + W - 18, bot - 30, 9, 9, '#fff', OUT, 1.6);
   ell(ctx, X + W - 18, bot - 30, 4, 4, '#d8c27a', OUT, 1.2);
-  for (const a of [0.4, 2, 3.6, 5.2]) ell(ctx, X + W - 18 + Math.cos(a) * 6.5, bot - 30 + Math.sin(a) * 6.5, 2.6, 2.6, '#fa5252');
+  for (const a of [0.4, 2, 3.6, 5.2])
+    ell(ctx, X + W - 18 + Math.cos(a) * 6.5, bot - 30 + Math.sin(a) * 6.5, 2.6, 2.6, '#fa5252');
 }
 defineBuildings({
   camp: {

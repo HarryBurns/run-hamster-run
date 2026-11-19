@@ -85,7 +85,15 @@ export function createTitleArt(S) {
       c.fillStyle = 'rgba(255,255,255,.75)';
       for (let i = 0; i < 9; i++) {
         c.beginPath();
-        c.ellipse(rs() * S.W, S.sy + (0.25 + rs() * 0.75) * (S.H - S.sy), (40 + rs() * 60) * S.k, (7 + rs() * 8) * S.k, 0, 0, TAU);
+        c.ellipse(
+          rs() * S.W,
+          S.sy + (0.25 + rs() * 0.75) * (S.H - S.sy),
+          (40 + rs() * 60) * S.k,
+          (7 + rs() * 8) * S.k,
+          0,
+          0,
+          TAU,
+        );
         c.fill();
       }
     }
@@ -777,5 +785,24 @@ export function createTitleArt(S) {
     }
     if (q >= 0.3 && q < 3.6) label(S.star.x, S.star.y + 70 * S.k, '🌠 Загадай желание!', 19 * Math.max(S.k, 0.75), clamp((3.6 - q) * 2, 0, 1) * clamp((q - 0.3) * 4, 0, 1)); // prettier-ignore
   }
-  return { paintBg, label, drawSea, drawFish, drawShip, drawCloud, drawPalm, drawNut, drawCrab, drawGull, drawShell, drawSnowman, drawKite, drawStrokes, drawHam, drawFly, drawWeather, drawNightSky };
+  return {
+    paintBg,
+    label,
+    drawSea,
+    drawFish,
+    drawShip,
+    drawCloud,
+    drawPalm,
+    drawNut,
+    drawCrab,
+    drawGull,
+    drawShell,
+    drawSnowman,
+    drawKite,
+    drawStrokes,
+    drawHam,
+    drawFly,
+    drawWeather,
+    drawNightSky,
+  };
 }

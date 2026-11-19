@@ -37,12 +37,50 @@ const CHAMBERS = {
 };
 // ходы между залами: ломаные [x, y] и полуширина r
 const TUNNELS = [
-  { r: 1.3, pts: [[17.5, 24], [17.5, 19.5]] },
-  { r: 1.15, pts: [[13, 17.2], [9.5, 17]] },
-  { r: 1.15, pts: [[22.5, 17.2], [27, 18.5]] },
-  { r: 1.15, pts: [[19, 13.5], [21, 11], [22.5, 9]] },
-  { r: 1.15, pts: [[6.5, 12.5], [7, 9]] },
-  { r: 1.1, pts: [[12.5, 6.5], [15, 5.6], [18, 6]] },
+  {
+    r: 1.3,
+    pts: [
+      [17.5, 24],
+      [17.5, 19.5],
+    ],
+  },
+  {
+    r: 1.15,
+    pts: [
+      [13, 17.2],
+      [9.5, 17],
+    ],
+  },
+  {
+    r: 1.15,
+    pts: [
+      [22.5, 17.2],
+      [27, 18.5],
+    ],
+  },
+  {
+    r: 1.15,
+    pts: [
+      [19, 13.5],
+      [21, 11],
+      [22.5, 9],
+    ],
+  },
+  {
+    r: 1.15,
+    pts: [
+      [6.5, 12.5],
+      [7, 9],
+    ],
+  },
+  {
+    r: 1.1,
+    pts: [
+      [12.5, 6.5],
+      [15, 5.6],
+      [18, 6],
+    ],
+  },
 ];
 const LAKE = [7.5, 18.4, 4, 2.6]; // вода — овал внутри зала с озером
 export const AT = {
@@ -113,7 +151,8 @@ function build(m) {
       if (Object.values(CHAMBERS).some((c) => inChamber(x, y, c, wob)) || nearTunnel(x, y)) floor.add(x + ',' + y);
     }
   // выход к свету: ряды 26–29 посередине — всегда пол
-  for (let y = 26; y < H; y++) for (let x = 15; x <= 20; x++) if (y < H - 1 || (x >= AT.exit[0] && x <= AT.exit[2])) floor.add(x + ',' + y);
+  for (let y = 26; y < H; y++)
+    for (let x = 15; x <= 20; x++) if (y < H - 1 || (x >= AT.exit[0] && x <= AT.exit[2])) floor.add(x + ',' + y);
   // ряд с рисунками — скала, под ним — пол; жила в шахте — так же
   for (let x = AT.paint[0] - 1; x <= AT.paint[2] + 1; x++) {
     floor.delete(x + ',' + AT.paint[1]);
@@ -141,9 +180,12 @@ function build(m) {
       if (!face(x, y)) continue;
       const ends = (face(x - 1, y) ? 0 : 1) | (face(x + 1, y) ? 0 : 2);
       const r = rnd();
-      if (y === AT.paint[1] && x >= AT.paint[0] && x <= AT.paint[2])
-        m.add('paintWall', x, y, { p: x - AT.paint[0] });
-      else m.add('caveFace', x, y, { v: x === AT.vein[0] && y === AT.vein[1] ? 2 : r < 0.35 ? 1 : r < 0.5 ? 2 : r < 0.65 ? 3 : 0, ends });
+      if (y === AT.paint[1] && x >= AT.paint[0] && x <= AT.paint[2]) m.add('paintWall', x, y, { p: x - AT.paint[0] });
+      else
+        m.add('caveFace', x, y, {
+          v: x === AT.vein[0] && y === AT.vein[1] ? 2 : r < 0.35 ? 1 : r < 0.5 ? 2 : r < 0.65 ? 3 : 0,
+          ends,
+        });
     }
   // 4. особые места: что где стоит
   for (const x of [AT.paint[0], AT.paint[2]]) keepAround(x, AT.paint[1] + 1);
@@ -205,7 +247,6 @@ function build(m) {
     }
 }
 
-
 // ---------- летучие мыши: висят под сводом галереи, вспархивают, когда подходишь ----------
 let bats = [];
 /** Летучие мыши — на «лицах» скалы галереи, кроме рисунков (зовётся, когда карта построена). */
@@ -263,7 +304,12 @@ function batPos(b, t) {
     if (k <= 0) return { x: b.hx, y: b.hy, wing: 0 };
     if (k >= 1) return null;
     // вниз по галерее к выходу, покачиваясь, с каждым взмахом дальше
-    return { x: b.hx + Math.sin(k * 9 + b.ph) * 60 * k, y: b.hy + k * 520 - Math.sin(k * Math.PI) * 60, wing: Math.floor(t * 10 + b.ph) % 2 ? 1 : 2, a: 1 - k };
+    return {
+      x: b.hx + Math.sin(k * 9 + b.ph) * 60 * k,
+      y: b.hy + k * 520 - Math.sin(k * Math.PI) * 60,
+      wing: Math.floor(t * 10 + b.ph) % 2 ? 1 : 2,
+      a: 1 - k,
+    };
   }
   if (b.fly <= 0) return { x: b.hx, y: b.hy, wing: 0 };
   const k = 1 - b.fly / BAT_FLY,
@@ -335,10 +381,23 @@ const caves = createTopDownScene({
       stand: [AT.hole[0] - 0.5, AT.hole[1] + 0.6],
       act: 'way:deep',
       key: false,
-      map: { icon: '🪜', at: [AT.hole[0] + 0.5, AT.hole[1] + 0.5], label: '🪜 Лестница вниз', lock: () => !landOpen('deep') },
+      map: {
+        icon: '🪜',
+        at: [AT.hole[0] + 0.5, AT.hole[1] + 0.5],
+        label: '🪜 Лестница вниз',
+        lock: () => !landOpen('deep'),
+      },
     },
     // кирка Камушкина (задание «Счастливая кирка»): видна, пока её не нашли
-    { id: 'pick', at: AT.pick, hit: { r: 40 }, stand: [AT.pick[0] + 0.5, AT.pick[1] + 1.4], when: pickHidden, act: 'caves:pick', key: false },
+    {
+      id: 'pick',
+      at: AT.pick,
+      hit: { r: 40 },
+      stand: [AT.pick[0] + 0.5, AT.pick[1] + 1.4],
+      when: pickHidden,
+      act: 'caves:pick',
+      key: false,
+    },
     ...SHROOMS.map(([x, y], i) => ({
       id: 'shroom' + i,
       at: [x, y],
@@ -412,7 +471,8 @@ const caves = createTopDownScene({
       if (!shroomOn(i)) return;
       const px = (x + 0.5) * T,
         py = (y + 0.5) * T;
-      if (px > v.x0 && px < v.x1 && py > v.y0 && py < v.y1) add(py + 4, () => put('shroomBig', px, py + 8 + Math.sin(t * 2 + i) * 1.2));
+      if (px > v.x0 && px < v.x1 && py > v.y0 && py < v.y1)
+        add(py + 4, () => put('shroomBig', px, py + 8 + Math.sin(t * 2 + i) * 1.2));
     });
     // кирка Камушкина
     if (pickHidden()) {
@@ -441,7 +501,9 @@ const caves = createTopDownScene({
     updateBats(sc, dt);
   },
   buttons: () =>
-    hasLamp() ? [{ id: 'lamp', icon: '🔦', label: lampOn() ? 'Фонарик' : 'Включить', on: lampOn(), fn: () => toggleLamp() }] : [],
+    hasLamp()
+      ? [{ id: 'lamp', icon: '🔦', label: lampOn() ? 'Фонарик' : 'Включить', on: lampOn(), fn: () => toggleLamp() }]
+      : [],
   cold: () => false, // под землёй прохладно, но не мороз
   /** Что слышно: своя музыка, капли; у озера — тихий плеск, у выхода — ветер с горы. */
   sound(sc) {

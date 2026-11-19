@@ -38,4 +38,8 @@ export function enterInside(id, ctx = {}) {
   return true;
 }
 
-register('inside', (p, ctx) => enterInside(p.arg, ctx), 'войти в дом «тайного места»: inside:<id дома>; ctx.back — место у двери');
+register(
+  'inside',
+  (p, ctx) => enterInside(p.arg, ctx),
+  'войти в дом «тайного места»: inside:<id дома>; ctx.back — место у двери',
+);

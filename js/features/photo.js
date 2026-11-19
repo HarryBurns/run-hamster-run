@@ -290,14 +290,27 @@ export function openPhotoMode() {
     requestAnimationFrame(() => requestAnimationFrame(() => flash.classList.remove('on')));
     root.classList.add('hidebar');
     const c = cal();
-    const photo = { day: G.state.day, date: `${c.monthName}, день ${c.dom}`, place: placeName(), caption: caption.trim(), src: res.src };
+    const photo = {
+      day: G.state.day,
+      date: `${c.monthName}, день ${c.dom}`,
+      place: placeName(),
+      caption: caption.trim(),
+      src: res.src,
+    };
     await afterShot(photo);
     if (open) root.classList.remove('hidebar');
     return photo;
   }
   shot.onclick = () => shoot();
 
-  open = { root, shoot, close, addDecor: (e, fx = 0.5, fy = 0.5) => addDecor(e, fx, fy), setFrame: (f) => rowF.querySelector(`[data-frame="${f}"]`).click(), setCaption: (t) => ((cap.value = t), cap.oninput()) };
+  open = {
+    root,
+    shoot,
+    close,
+    addDecor: (e, fx = 0.5, fy = 0.5) => addDecor(e, fx, fy),
+    setFrame: (f) => rowF.querySelector(`[data-frame="${f}"]`).click(),
+    setCaption: (t) => ((cap.value = t), cap.oninput()),
+  };
   return open;
 }
 
@@ -310,7 +323,11 @@ async function afterShot(photo) {
       icon: '📸',
       cls: 'wide',
       html,
-      buttons: [{ text: '💾 В фотоальбом', cls: 'green' }, { text: '⬇️ Скачать файлом', cls: 'blue' }, { text: '📷 Снять ещё', cls: 'ghost' }],
+      buttons: [
+        { text: '💾 В фотоальбом', cls: 'green' },
+        { text: '⬇️ Скачать файлом', cls: 'blue' },
+        { text: '📷 Снять ещё', cls: 'ghost' },
+      ],
     });
     if (i === 1) {
       downloadPhoto(photo.src, `foto-${photo.day}`);
@@ -323,7 +340,10 @@ async function afterShot(photo) {
         title: 'Альбом полон',
         icon: '📖',
         html: `<p class="center">В фотоальбоме уже ${PHOTO.max} снимков. Заменить самый старый новым?</p><p class="center muted">Можно и удалить ненужные снимки в альбоме: 📖 Альбом → 📷 Фото.</p>`,
-        buttons: [{ text: 'Да, заменить', cls: 'green' }, { text: 'Нет', cls: 'ghost' }],
+        buttons: [
+          { text: 'Да, заменить', cls: 'green' },
+          { text: 'Нет', cls: 'ghost' },
+        ],
       });
       if (q !== 0) continue;
       r = await addPhoto(photo, { replaceOldest: true });
@@ -357,7 +377,11 @@ export async function renderPhotos(body, panel) {
   );
   const grid = el('div', 'ph-grid');
   for (const p of list.slice().reverse()) {
-    const card = el('button', 'ph-card', `<img src="${p.src}" alt=""><div>${esc(p.caption || p.place || 'Снимок')}</div><div class="sub">${esc(p.date || '')}</div>`);
+    const card = el(
+      'button',
+      'ph-card',
+      `<img src="${p.src}" alt=""><div>${esc(p.caption || p.place || 'Снимок')}</div><div class="sub">${esc(p.date || '')}</div>`,
+    );
     card.onclick = async () => {
       sfx('tap');
       const i = await message({
@@ -365,7 +389,11 @@ export async function renderPhotos(body, panel) {
         icon: '📷',
         cls: 'wide',
         html: `<img class="ph-pic" src="${p.src}" alt="Снимок"><p class="center muted">${esc(p.place || '')}${p.date ? ' · ' + esc(p.date) : ''}</p>`,
-        buttons: [{ text: '⬇️ Скачать', cls: 'blue' }, { text: '🗑️ Удалить', cls: 'ghost' }, { text: 'Закрыть', cls: 'ghost' }],
+        buttons: [
+          { text: '⬇️ Скачать', cls: 'blue' },
+          { text: '🗑️ Удалить', cls: 'ghost' },
+          { text: 'Закрыть', cls: 'ghost' },
+        ],
       });
       if (i === 0) downloadPhoto(p.src, `foto-${p.day || ''}`);
       if (i === 1) {
@@ -373,7 +401,10 @@ export async function renderPhotos(body, panel) {
           title: 'Удалить снимок?',
           icon: '🗑️',
           html: '<p class="center">Снимок пропадёт из альбома насовсем.</p>',
-          buttons: [{ text: 'Удалить', cls: 'yellow' }, { text: 'Оставить', cls: 'ghost' }],
+          buttons: [
+            { text: 'Удалить', cls: 'yellow' },
+            { text: 'Оставить', cls: 'ghost' },
+          ],
         });
         if (ok === 0) {
           await removePhoto(p.id);
@@ -387,6 +418,10 @@ export async function renderPhotos(body, panel) {
   body.appendChild(grid);
 }
 
-register('photo', () => openPhotoMode(), 'фото-режим: спрятать интерфейс, рамка, наклейки, подпись, снимок в фотоальбом');
+register(
+  'photo',
+  () => openPhotoMode(),
+  'фото-режим: спрятать интерфейс, рамка, наклейки, подпись, снимок в фотоальбом',
+);
 /** Для тестов: открытый фото-режим или null. */
 export const photoMode = () => open;

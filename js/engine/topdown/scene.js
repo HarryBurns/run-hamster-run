@@ -677,7 +677,8 @@ export function createTopDownScene(desc) {
           oy = p.y;
         if (canStand(pass, p.x + kx * k, p.y)) p.x += kx * k;
         if (canStand(pass, p.x, p.y + ky * k)) p.y += ky * k;
-        if (p.ride && p.ride.bump && p.x === ox && p.y === oy) p.ride.bump(sc, tileOf(p.x + kx * T * 0.6), tileOf(p.y + ky * T * 0.6));
+        if (p.ride && p.ride.bump && p.x === ox && p.y === oy)
+          p.ride.bump(sc, tileOf(p.x + kx * T * 0.6), tileOf(p.y + ky * T * 0.6));
         if (!p.ride && !canSwim()) {
           // упёрлась в воду — подсказать, почему не идёт
           const wx = tileOf(p.x + kx * T * 0.6),

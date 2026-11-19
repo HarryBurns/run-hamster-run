@@ -75,7 +75,15 @@ async function test(name, fn) {
     console.log('  ✓ ' + name);
   } catch (e) {
     failed++;
-    console.log('  ✗ ' + name + '\n      ' + String((e && e.stack) || e).split('\n').slice(0, 4).join('\n      '));
+    console.log(
+      '  ✗ ' +
+        name +
+        '\n      ' +
+        String((e && e.stack) || e)
+          .split('\n')
+          .slice(0, 4)
+          .join('\n      '),
+    );
   }
   console.warn = warn;
 }
@@ -93,7 +101,14 @@ const eq = (a, b, msg) => ok(JSON.stringify(a) === JSON.stringify(b), msg, { got
   const { BUILD } = await import(url('data/index.js'));
   const { G } = S;
   const VER = S.saveVersion();
-  const pic = (n) => ({ id: 'p' + n, day: n, place: 'Город', date: 'Июнь', caption: 'Снимок ' + n, src: 'data:image/jpeg;base64,AAAA' + n });
+  const pic = (n) => ({
+    id: 'p' + n,
+    day: n,
+    place: 'Город',
+    date: 'Июнь',
+    caption: 'Снимок ' + n,
+    src: 'data:image/jpeg;base64,AAAA' + n,
+  });
   /** Начать игру с именем и «поиграть»: монеты отличают игры друг от друга. */
   const play = (name, money) => {
     eq(Gm.createGame(name), null, 'игра не создалась');
@@ -112,9 +127,16 @@ const eq = (a, b, msg) => ok(JSON.stringify(a) === JSON.stringify(b), msg, { got
       ok(r.ok && !r.problem && !r.lost.length, 'не открылось', r);
       const s = G.state;
       eq([s.v, s.build, s.name], [VER, BUILD, was.name], 'версия, сборка, имя');
-      ok(was.clothes.every((c) => s.clothes.includes(c)), 'пропала одежда');
+      ok(
+        was.clothes.every((c) => s.clothes.includes(c)),
+        'пропала одежда',
+      );
       if (v < VER) eq(ls.getItem(BACKUP), raw, 'перед переносом нет копии');
-      ok(typeof s.gid === 'string' && index().active === s.gid && index().games.length === 1, 'старое сохранение не стало первой игрой', index());
+      ok(
+        typeof s.gid === 'string' && index().active === s.gid && index().games.length === 1,
+        'старое сохранение не стало первой игрой',
+        index(),
+      );
       // второй раз — то же самое: починка ничего не портит
       ok(S.save(), 'не сохранилось');
       const once = ls.getItem(KEY);
@@ -122,20 +144,37 @@ const eq = (a, b, msg) => ok(JSON.stringify(a) === JSON.stringify(b), msg, { got
     });
   await test('repair: мусор в полях чинится, неизвестные id уходят, игра открывается', () => {
     const s = JSON.parse(sample(5));
-    Object.assign(s, { money: 'много', clothes: ['tee_heart', 'нет_такой', 42], villa: 'дом', friends: null, pos: { scene: 5 }, gid: 'плохой id!', day: NaN, stickers: 7 });
+    Object.assign(s, {
+      money: 'много',
+      clothes: ['tee_heart', 'нет_такой', 42],
+      villa: 'дом',
+      friends: null,
+      pos: { scene: 5 },
+      gid: 'плохой id!',
+      day: NaN,
+      stickers: 7,
+    });
     s.storage = { нет_такой_мебели: 3 };
     ls.setItem(KEY, JSON.stringify(s));
     ok(Gm.openActive().ok, 'не открылось');
     const g = G.state;
     ok(Number.isFinite(g.money) && Number.isFinite(g.day), 'числа не починены', [g.money, g.day]);
-    ok(Array.isArray(g.villa) && Array.isArray(g.stickers) && g.friends && typeof g.friends === 'object', 'поля не починены');
-    ok(g.clothes.includes('tee_heart') && !g.clothes.includes('нет_такой') && !g.clothes.includes(42), 'одежда не почищена', g.clothes);
+    ok(
+      Array.isArray(g.villa) && Array.isArray(g.stickers) && g.friends && typeof g.friends === 'object',
+      'поля не починены',
+    );
+    ok(
+      g.clothes.includes('tee_heart') && !g.clothes.includes('нет_такой') && !g.clothes.includes(42),
+      'одежда не почищена',
+      g.clothes,
+    );
     ok(!('нет_такой_мебели' in g.storage), 'неизвестная мебель осталась');
     ok(g.pos && typeof g.pos.scene === 'string', 'позиция не починена', g.pos);
     ok(/^[\w-]{1,24}$/.test(g.gid), 'gid не починен', g.gid);
   });
   await test('checkSave: не сохранение — broken; версия или сборка новее кода — newer, и оно не меняется', () => {
-    for (const bad of [null, 5, 'строка', [], {}, { v: 0 }, { v: 'пять' }, { v: 1.5 }]) eq(S.checkSave(bad), 'broken', 'ожидался broken');
+    for (const bad of [null, 5, 'строка', [], {}, { v: 0 }, { v: 'пять' }, { v: 1.5 }])
+      eq(S.checkSave(bad), 'broken', 'ожидался broken');
     const a = { ...JSON.parse(sample(5)), v: VER + 1 },
       b = { ...JSON.parse(sample(5)), build: BUILD + 1 };
     const was = JSON.stringify(b);
@@ -161,7 +200,12 @@ const eq = (a, b, msg) => ok(JSON.stringify(a) === JSON.stringify(b), msg, { got
       b = play('Кнопка', 222),
       c = play('Плюша', 333);
     eq([Gm.listGames().length, Gm.listGames()[0].name], [3, 'Плюша'], 'игр три, последняя — первая в списке');
-    for (const [id, money] of [[a, 111], [b, 222], [c, 333], [a, 111]]) {
+    for (const [id, money] of [
+      [a, 111],
+      [b, 222],
+      [c, 333],
+      [a, 111],
+    ]) {
       ok(Gm.switchGame(id), 'не переключилось');
       eq([G.state.gid, G.state.money, Gm.activeGame(), live().gid], [id, money, id, id], 'открылась не та игра');
     }
@@ -223,15 +267,27 @@ const eq = (a, b, msg) => ok(JSON.stringify(a) === JSON.stringify(b), msg, { got
     await P.addPhoto(pic(3));
     eq(Gm.trashInfo(), null, 'корзина не пуста');
     ok(Gm.deleteGame(a), 'не удалилось');
-    eq(Gm.listGames().map((g) => g.id), [b], 'список после удаления');
+    eq(
+      Gm.listGames().map((g) => g.id),
+      [b],
+      'список после удаления',
+    );
     eq([Gm.trashInfo().name, Gm.trashInfo().money], ['Ириска', 111], 'корзина');
     eq((await P.loadPhotos(a)).length, 0, 'снимки удалённой игры остались под её id');
     eq((await P.loadPhotos('trash')).length, 2, 'снимки не ушли в корзину');
     const r = await Gm.restoreTrash();
     ok(r.ok && r.id !== a && r.id !== b && r.name === 'Ириска', 'не вернулась', r);
     eq([Gm.trashInfo(), Gm.listGames().length, Gm.activeGame()], [null, 2, b], 'после возврата');
-    eq((await P.loadPhotos(r.id)).map((p) => p.id), ['p1', 'p2'], 'снимки не вернулись');
-    eq((await P.loadPhotos(b)).map((p) => p.id), ['p3'], 'снимки другой игры');
+    eq(
+      (await P.loadPhotos(r.id)).map((p) => p.id),
+      ['p1', 'p2'],
+      'снимки не вернулись',
+    );
+    eq(
+      (await P.loadPhotos(b)).map((p) => p.id),
+      ['p3'],
+      'снимки другой игры',
+    );
     ok(Gm.switchGame(r.id) && G.state.money === 111 && G.state.gid === r.id, 'возвращённая игра не открылась');
     eq((await Gm.restoreTrash()).why, 'none', 'корзина вернулась дважды');
   });
@@ -241,7 +297,11 @@ const eq = (a, b, msg) => ok(JSON.stringify(a) === JSON.stringify(b), msg, { got
     ok(Gm.deleteGame(b), 'не удалилось');
     eq([Gm.activeGame(), live().gid, live().money], [a, a, 111], 'живая игра после удаления активной');
     ok(Gm.deleteGame(a), 'не удалилось');
-    eq([Gm.listGames().length, ls.getItem(KEY), Gm.trashInfo().name], [0, null, 'Ириска'], 'после удаления единственной');
+    eq(
+      [Gm.listGames().length, ls.getItem(KEY), Gm.trashInfo().name],
+      [0, null, 'Ириска'],
+      'после удаления единственной',
+    );
   });
   await test(`снимки: не больше ${P.PHOTO.max}, «заменить самый старый», удаление, мусор не читается`, async () => {
     play('Ириска', 1);
@@ -252,7 +312,11 @@ const eq = (a, b, msg) => ok(JSON.stringify(a) === JSON.stringify(b), msg, { got
     eq([list.length, list[0].id, list[list.length - 1].id], [P.PHOTO.max, 'p1', 'p99'], 'список снимков');
     await P.removePhoto('p99');
     eq((await P.loadPhotos()).length, P.PHOTO.max - 1, 'снимок не удалился');
-    eq(P.cleanPhotos([null, 5, { src: 'http://чужое' }, { src: 'data:image/png;base64,AA', caption: 7 }, 'x']).length, 1, 'мусор в снимках');
+    eq(
+      P.cleanPhotos([null, 5, { src: 'http://чужое' }, { src: 'data:image/png;base64,AA', caption: 7 }, 'x']).length,
+      1,
+      'мусор в снимках',
+    );
     eq(P.cleanPhotos('не json'), [], 'мусор вместо списка');
     ok(!/data:image/.test(ls.getItem(KEY)), 'снимок попал в сохранение');
   });
@@ -270,7 +334,13 @@ const eq = (a, b, msg) => ok(JSON.stringify(a) === JSON.stringify(b), msg, { got
     ok(r.ok && r.restored === 'Ириска' && !r.lost.length, 'не открылась из копии', r);
     eq([G.state.gid, G.state.money], [a, 111], 'открылась не копия с полки');
     eq(ls.getItem(BACKUP), broken, 'испорченное сохранение не отложено');
-    eq(Gm.listGames().map((g) => g.id).sort(), [a, b].sort(), 'список игр');
+    eq(
+      Gm.listGames()
+        .map((g) => g.id)
+        .sort(),
+      [a, b].sort(),
+      'список игр',
+    );
   });
   await test('не читается ни игра, ни её копия — ничего не стирается: строка на полке, игра среди «отложенных», открывается следующая', async () => {
     const a = play('Ириска', 111);
@@ -282,12 +352,23 @@ const eq = (a, b, msg) => ok(JSON.stringify(a) === JSON.stringify(b), msg, { got
     ok(r.ok && r.lost.length === 1 && r.lost[0] === 'Кнопка' && !r.restored, 'итог открытия', r);
     eq([G.state.gid, G.state.money], [a, 111], 'не открылась следующая игра');
     eq(ls.getItem('rhr-game-' + b), junk, 'нечитаемая строка не осталась на полке');
-    eq(Gm.listGames().map((g) => g.id), [a], 'список игр');
-    eq(Gm.lostGames().map((l) => [l.id, l.name]), [[b, 'Кнопка']], 'отложенные');
+    eq(
+      Gm.listGames().map((g) => g.id),
+      [a],
+      'список игр',
+    );
+    eq(
+      Gm.lostGames().map((l) => [l.id, l.name]),
+      [[b, 'Кнопка']],
+      'отложенные',
+    );
     eq((await P.loadPhotos(b)).length, 1, 'снимки отложенной игры пропали');
     // её можно выгрузить в файл (как есть) и попробовать открыть снова — пока не читается, остаётся отложенной
     const f = await Gm.exportGame(b);
-    ok(f && JSON.parse(f.text).raw === junk && JSON.parse(f.text).photos.length === 1, 'отложенная игра не выгрузилась');
+    ok(
+      f && JSON.parse(f.text).raw === junk && JSON.parse(f.text).photos.length === 1,
+      'отложенная игра не выгрузилась',
+    );
     eq(Gm.retryLost(b), false, 'нечитаемая «открылась»');
     eq(Gm.lostGames().length, 1, 'отложенная пропала');
     // новая игра не занимает id отложенной
@@ -312,7 +393,11 @@ const eq = (a, b, msg) => ok(JSON.stringify(a) === JSON.stringify(b), msg, { got
     S.MIGRATIONS[3] = m3;
     ok(r.ok && r.lost[0] === 'Ириска', 'итог открытия', r);
     eq(ls.getItem('rhr-game-' + a), bad, 'сохранение не отложено как есть');
-    eq(Gm.lostGames().map((l) => l.id), [a], 'отложенные');
+    eq(
+      Gm.lostGames().map((l) => l.id),
+      [a],
+      'отложенные',
+    );
     // «ошибку исправили»: то же сохранение теперь читается
     ok(Gm.retryLost(a), 'после исправления не вернулась в список');
     eq([Gm.lostGames().length, Gm.listGames().length], [0, 2], 'списки после возврата');
@@ -331,7 +416,11 @@ const eq = (a, b, msg) => ok(JSON.stringify(a) === JSON.stringify(b), msg, { got
       idxNow.lost.forEach((l, k) => (l.at = k + 1)); // «время» — по порядку, а не по часам теста
       ls.setItem(INDEX, JSON.stringify(idxNow));
     }
-    eq(Gm.lostGames().map((l) => l.id), ids.slice(-Gm.LOST_MAX).reverse(), 'какие сохранения отложены');
+    eq(
+      Gm.lostGames().map((l) => l.id),
+      ids.slice(-Gm.LOST_MAX).reverse(),
+      'какие сохранения отложены',
+    );
     for (const id of ids.slice(0, 2)) eq(ls.getItem('rhr-game-' + id), null, 'самое старое отложенное не убрано');
     eq([Gm.listGames().map((g) => g.id), G.state.money], [[keep], 1], 'главная игра');
     const shelves = [...store.data.keys()].filter((k) => k.startsWith('rhr-game-') && k !== TRASH);
@@ -356,14 +445,22 @@ const eq = (a, b, msg) => ok(JSON.stringify(a) === JSON.stringify(b), msg, { got
     const f = await Gm.exportGame(a);
     ok(/^Пушистая жизнь - Ириска - \d{4}-\d\d-\d\d\.json$/.test(f.name), 'имя файла', f.name);
     const file = JSON.parse(f.text);
-    eq([file.app, file.format, file.build, file.name, file.save.money, file.photos.length], ['rhr-game', 1, BUILD, 'Ириска', 4321, 2], 'что в файле');
+    eq(
+      [file.app, file.format, file.build, file.name, file.save.money, file.photos.length],
+      ['rhr-game', 1, BUILD, 'Ириска', 4321, 2],
+      'что в файле',
+    );
     const before = snapshot();
     const r = await Gm.importGame(f.text);
     ok(r.ok && r.name === 'Ириска' && r.photos === 2 && r.id !== a && r.id !== b, 'не загрузилась', r);
     for (const k of [KEY, 'rhr-game-' + a, 'rhr-photos-' + a, 'rhr-photos-' + b])
       eq(ls.getItem(k), JSON.parse(before).find((e) => e[0] === k)?.[1] ?? null, 'загрузка тронула ' + k);
     eq([Gm.listGames().length, Gm.activeGame(), G.state.gid], [3, b, b], 'список и активная игра');
-    eq((await P.loadPhotos(r.id)).map((p) => p.caption), ['Снимок 1', 'Снимок 2'], 'снимки из файла');
+    eq(
+      (await P.loadPhotos(r.id)).map((p) => p.caption),
+      ['Снимок 1', 'Снимок 2'],
+      'снимки из файла',
+    );
     ok(Gm.switchGame(r.id), 'загруженная игра не открылась');
     const mine = { ...G.state },
       orig = { ...file.save };
@@ -386,7 +483,11 @@ const eq = (a, b, msg) => ok(JSON.stringify(a) === JSON.stringify(b), msg, { got
     const o = Gm.openActive();
     ok(o.ok && G.state.money === 4321 && G.state.gid === r.id, 'не открылась', o);
     const old = await Gm.importGame(sample(1)); // строка из хранилища версии 1, без обёртки
-    ok(old.ok && Gm.switchGame(old.id) && G.state.v === VER && G.state.name === JSON.parse(sample(1)).name, 'старое сохранение файлом', old);
+    ok(
+      old.ok && Gm.switchGame(old.id) && G.state.v === VER && G.state.name === JSON.parse(sample(1)).name,
+      'старое сохранение файлом',
+      old,
+    );
     eq(Gm.listGames().length, 2, 'игр не две');
   });
   await test('плохие файлы: понятная причина, хранилище не меняется', async () => {
@@ -395,7 +496,7 @@ const eq = (a, b, msg) => ok(JSON.stringify(a) === JSON.stringify(b), msg, { got
     const before = snapshot();
     const tries = {
       '': 'bad',
-      'привет': 'bad',
+      привет: 'bad',
       '[1,2,3]': 'bad',
       '{"фото":"кота"}': 'bad',
       [good.slice(0, good.length / 2)]: 'bad',
@@ -405,7 +506,8 @@ const eq = (a, b, msg) => ok(JSON.stringify(a) === JSON.stringify(b), msg, { got
       [JSON.stringify({ ...JSON.parse(good), build: BUILD + 1 })]: 'newer',
       [JSON.stringify({ ...JSON.parse(sample(5)), v: VER + 3 })]: 'newer',
     };
-    for (const [text, why] of Object.entries(tries)) eq((await Gm.importGame(text)).why, why, 'файл: ' + text.slice(0, 40));
+    for (const [text, why] of Object.entries(tries))
+      eq((await Gm.importGame(text)).why, why, 'файл: ' + text.slice(0, 40));
     eq((await Gm.importGame(null)).why, 'bad', 'не строка');
     eq(snapshot(), before, 'плохой файл изменил хранилище');
     // места нет
@@ -418,8 +520,20 @@ const eq = (a, b, msg) => ok(JSON.stringify(a) === JSON.stringify(b), msg, { got
     eq(snapshot(), b2, 'неудачная загрузка изменила хранилище');
   });
   await test('файл с подвохом: длинное имя, чужие поля, мусор в снимках — чинится, как любое сохранение', async () => {
-    const s = { ...JSON.parse(sample(5)), name: 'Я'.repeat(500), money: -1e99, clothes: ['нет_такой'], gid: 'чужой id' };
-    const file = { app: 'rhr-game', format: 1, build: 1, save: s, photos: [{ src: 'javascript:alert(1)' }, pic(1), { src: 'data:image/png;base64,' + 'A'.repeat(7e5) }] };
+    const s = {
+      ...JSON.parse(sample(5)),
+      name: 'Я'.repeat(500),
+      money: -1e99,
+      clothes: ['нет_такой'],
+      gid: 'чужой id',
+    };
+    const file = {
+      app: 'rhr-game',
+      format: 1,
+      build: 1,
+      save: s,
+      photos: [{ src: 'javascript:alert(1)' }, pic(1), { src: 'data:image/png;base64,' + 'A'.repeat(7e5) }],
+    };
     const r = await Gm.importGame(JSON.stringify(file));
     ok(r.ok && r.name.length === 14 && r.photos === 1, 'итог', r);
     ok(Gm.switchGame(r.id) && G.state.gid === r.id && !G.state.clothes.includes('нет_такой'), 'не починилось');
@@ -460,7 +574,11 @@ const eq = (a, b, msg) => ok(JSON.stringify(a) === JSON.stringify(b), msg, { got
     ls.setItem(OWNER, `новая:${BUILD + 1}:${Date.now()}`);
     ls.setItem(KEY, JSON.stringify({ ...JSON.parse(sample(5)), build: BUILD + 1, money: 77 }));
     tab3.G.state.money = 20;
-    eq([tab3.save(), live().money, live().build, lost, tab3.saveLost()], [false, 77, BUILD + 1, ['newer'], 'newer'], 'старая страница перезаписала новое сохранение');
+    eq(
+      [tab3.save(), live().money, live().build, lost, tab3.saveLost()],
+      [false, 77, BUILD + 1, ['newer'], 'newer'],
+      'старая страница перезаписала новое сохранение',
+    );
     eq(tab3.claimSave(), false, 'потерявшая игру вкладка снова объявила себя хозяйкой');
     off();
   });

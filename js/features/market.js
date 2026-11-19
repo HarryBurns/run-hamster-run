@@ -16,7 +16,23 @@ import { emit } from '../core/events.js';
 import { register } from '../core/registry.js';
 import { G, cal, hasClothes } from '../core/state.js';
 import { el, fmtMoney } from '../core/util.js';
-import { INGREDIENTS, DISHES, MARKET, CAVES, DESERT, JUNGLE, COVE, ISLAND, FIND_BY_ID, VENDORS, vendorLook, isSeasonal, inSeason, sellPrice, isSunHat } from '../data/index.js';
+import {
+  INGREDIENTS,
+  DISHES,
+  MARKET,
+  CAVES,
+  DESERT,
+  JUNGLE,
+  COVE,
+  ISLAND,
+  FIND_BY_ID,
+  VENDORS,
+  vendorLook,
+  isSeasonal,
+  inSeason,
+  sellPrice,
+  isSunHat,
+} from '../data/index.js';
 import { clothesIcon, furnIcon } from '../ui/icons.js';
 import { openPanel } from '../ui/panel.js';
 import { toast } from '../ui/toast.js';

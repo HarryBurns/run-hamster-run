@@ -113,7 +113,10 @@ const SPOT_NAMES = {
   villadoor: 'Двор виллы, у двери',
 };
 const sizes = opt('sizes', 'desktop,phone').split(','),
-  spots = opt('spots', 'palms,forest,square,sea,embank,woods,peak,slope,hall,mine,oasis,dunes,jcamp,jbridge,cbeach,clagoon,ivillage,ivolcano,hlobby,hroof').split(',');
+  spots = opt(
+    'spots',
+    'palms,forest,square,sea,embank,woods,peak,slope,hall,mine,oasis,dunes,jcamp,jbridge,cbeach,clagoon,ivillage,ivolcano,hlobby,hroof',
+  ).split(',');
 const seasons = opt('seasons', 'winter,summer').split(',');
 // лето — 3 июля (день 20): 1 июля (день 18) — Иван Купала с костром на пляже, его меряют отдельно (--day=18)
 const SEASON = { winter: { day: 0, weather: 'snow' }, summer: { day: 20, weather: 'sun' } };
@@ -153,7 +156,18 @@ const SEASON = { winter: { day: 0, weather: 'snow' }, summer: { day: 20, weather
     await page.evaluate(() => {
       const B = (window.__bench = { on: false, frames: [], draw: [], cmd: null, cmdFrames: 0 });
       const S = window.__dev.scenes;
-      for (const sc of [S.world, S.forest, S.mountain, S.caves, S.desert, S.jungle, S.cove, S.island, S.hotel, S.villa].filter(Boolean)) {
+      for (const sc of [
+        S.world,
+        S.forest,
+        S.mountain,
+        S.caves,
+        S.desert,
+        S.jungle,
+        S.cove,
+        S.island,
+        S.hotel,
+        S.villa,
+      ].filter(Boolean)) {
         const d0 = sc.draw;
         sc.draw = function (c) {
           if (B.cmd) B.inDraw = true;

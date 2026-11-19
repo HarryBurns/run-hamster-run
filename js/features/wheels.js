@@ -135,9 +135,11 @@ function drawRider(ctx, ent, t, look) {
   const id = c.id,
     rider = c.look,
     d = ent.dir >= 0 ? 1 : -1,
-    fr = ent.moving ? Math.floor((ent.walkT * 1.6) % 1 * FRAMES) % FRAMES : 0,
+    fr = ent.moving ? Math.floor(((ent.walkT * 1.6) % 1) * FRAMES) % FRAMES : 0,
     shut = blinkAt(t, 0) > 0.5 ? 1 : 0;
-  const s = SP.get(`wh:${id}:${c.lk}:${d}:${fr}:${shut}`, WHEELS_ART[id].box, (g) => paintRider(g, id, d, fr, rider, shut, PS));
+  const s = SP.get(`wh:${id}:${c.lk}:${d}:${fr}:${shut}`, WHEELS_ART[id].box, (g) =>
+    paintRider(g, id, d, fr, rider, shut, PS),
+  );
   SP.draw(s, ent.x, ent.y + 10);
 }
 

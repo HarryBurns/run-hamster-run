@@ -60,7 +60,16 @@ export function clearGround() {
   cache.clear();
 }
 /** Для тестов и отладки: сколько кусков и пикселей в кэше земли. */
-export const groundStats = () => ({ count: cache.map.size, pixels: cache.pixels, built, buildMs, chunk: CH, late, edge, view });
+export const groundStats = () => ({
+  count: cache.map.size,
+  pixels: cache.pixels,
+  built,
+  buildMs,
+  chunk: CH,
+  late,
+  edge,
+  view,
+});
 
 // ---------- край слоя ----------
 /**

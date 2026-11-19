@@ -44,7 +44,13 @@ function ownedFurn(id) {
 function renderFestShelf(body, panel, hid) {
   const h = HOLIDAY_BY_ID[hid],
     grid = el('div', 'grid fest-shelf');
-  body.appendChild(el('p', 'muted', `${h.icon} Скоро ${h.name}! Украшения к празднику — только эти дни. Купленное ляжет в кладовку: дома нажми 🔨 и поставь, оно будет радовать круглый год.`));
+  body.appendChild(
+    el(
+      'p',
+      'muted',
+      `${h.icon} Скоро ${h.name}! Украшения к празднику — только эти дни. Купленное ляжет в кладовку: дома нажми 🔨 и поставь, оно будет радовать круглый год.`,
+    ),
+  );
   for (const f of FURNITURE.filter((q) => q.shop === 'fest' && q.fest === hid)) {
     const card = el('div', 'card fest-' + f.id);
     card.appendChild(furnIcon(f, 112));
@@ -90,7 +96,11 @@ function openHomeMall() {
       if (tab === 'tools') {
         // инструменты (сумка finds, вид tool): есть всегда, нужен один — второй не продаём
         body.appendChild(
-          el('p', 'muted', 'Всё для походов и приключений. Фонарик пригодится там, где темно, — например, в пещерах под горой.'),
+          el(
+            'p',
+            'muted',
+            'Всё для походов и приключений. Фонарик пригодится там, где темно, — например, в пещерах под горой.',
+          ),
         );
         for (const [id, price] of Object.entries(PRICES.tools)) {
           const f = FIND_BY_ID[id],

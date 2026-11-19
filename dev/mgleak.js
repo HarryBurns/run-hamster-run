@@ -109,7 +109,9 @@ async function launch(page, id) {
     window.__dev.actions.mutate((s) => {
       s.sick = null;
     });
-    window.__dev.F.playMinigame(id).then((r) => (window.__r = r === null ? 'null' : r)).catch((e) => (window.__r = 'ERR ' + e));
+    window.__dev.F.playMinigame(id)
+      .then((r) => (window.__r = r === null ? 'null' : r))
+      .catch((e) => (window.__r = 'ERR ' + e));
   }, id);
   await page.waitForSelector('#mg .mg-card .btn', { timeout: 6000 });
   await page.waitForTimeout(900);
@@ -179,7 +181,8 @@ async function closeMg(page) {
       const flags = [];
       if (diff.length) flags.push('СЛУШАТЕЛИ ' + diff.join(' '));
       if (after.styles !== before.styles) flags.push('STYLE ' + (after.styles - before.styles));
-      if (after.body !== before.body) flags.push('BODY ' + (after.body - before.body) + ' [' + after.bodyList + ' | было ' + before.bodyList + ']');
+      if (after.body !== before.body)
+        flags.push('BODY ' + (after.body - before.body) + ' [' + after.bodyList + ' | было ' + before.bodyList + ']');
       if (rate > 0) flags.push('КАДРЫ ИГРЫ ПОСЛЕ ЗАКРЫТИЯ ' + rate);
       if (after.mgpend > before.mgpend) flags.push('ТАЙМЕРЫ ИГРЫ +' + (after.mgpend - before.mgpend));
       if (errs.length > e0) flags.push('ОШИБКИ ' + errs.slice(e0).join(' | '));

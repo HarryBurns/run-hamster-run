@@ -8,7 +8,36 @@ const lib = require('./lib.js');
 
 module.exports = async function caves(ctx) {
   const L = lib(ctx);
-  const { page, step, ev, wait, closeAll, until, untilScene, untilPanel, frames, go, sel, T, norm, expect, near, state, dialogText, panelText, toasts, clearToasts, where, watch, unwatch, MG_START, tap, mgGo, mgDone, mgClose } = L;
+  const {
+    page,
+    step,
+    ev,
+    wait,
+    closeAll,
+    until,
+    untilScene,
+    untilPanel,
+    frames,
+    go,
+    sel,
+    T,
+    norm,
+    expect,
+    near,
+    state,
+    dialogText,
+    panelText,
+    toasts,
+    clearToasts,
+    where,
+    watch,
+    unwatch,
+    MG_START,
+    tap,
+    mgGo,
+    mgDone,
+    mgClose,
+  } = L;
   const fresh = () => L.fresh(); // 1 июня, без вводной цепочки
   /** В пещеры (открыв лес, гору и пещеры действием openLand), с фонариком; полдень. */
   const toCaves = async (tx = 17, ty = 20, lamp = true) => {
@@ -37,105 +66,138 @@ module.exports = async function caves(ctx) {
   /** Поговорить с Камушкиным; если он предлагает задание — «Потом». */
   const talkK = async () => {
     await L.run('miner', 500);
-    if (await ev(() => !!document.querySelector('.dialog') && /Помогу/.test(document.querySelector('.dialog').textContent))) {
+    if (
+      await ev(
+        () => !!document.querySelector('.dialog') && /Помогу/.test(document.querySelector('.dialog').textContent),
+      )
+    ) {
       await tap('.dialog .btn >> text=Потом', 450);
     }
   };
-  await step('пещеры: задание Профессора Орешкина «Свет под горой» — вход закрыт, урок, фонарик, сдача, пещеры открыты', async () => {
-    await fresh();
-    // гора открыта, пещеры — нет: на горе вход с досками, окно — про Профессора
-    await ev(() => {
-      const d = window.__dev;
-      d.actions.openLand('forest');
-      d.actions.openLand('mountain');
-      d.actions.mutate((s) => {
-        s.dayFlags = {};
-        s.minutes = 12 * 60;
-        s.plays.teacher = 0;
-        delete s.finds.flashlight;
+  await step(
+    'пещеры: задание Профессора Орешкина «Свет под горой» — вход закрыт, урок, фонарик, сдача, пещеры открыты',
+    async () => {
+      await fresh();
+      // гора открыта, пещеры — нет: на горе вход с досками, окно — про Профессора
+      await ev(() => {
+        const d = window.__dev;
+        d.actions.openLand('forest');
+        d.actions.openLand('mountain');
+        d.actions.mutate((s) => {
+          s.dayFlags = {};
+          s.minutes = 12 * 60;
+          s.plays.teacher = 0;
+          delete s.finds.flashlight;
+        });
+        d.go('mountain');
+        d.locations.mountain.debugTeleport(29, 7);
       });
-      d.go('mountain');
-      d.locations.mountain.debugTeleport(29, 7);
-    });
-    await untilScene('mountain');
-    await frames(2);
-    await L.run('way:caves', 500);
-    expect(/Пещеры/.test(await panelText()) && /Орешкин/.test(await panelText()), 'окно у закрытого входа', await panelText());
-    await closeAll();
-    expect((await where()).scene === 'mountain', 'закрытый вход пустил в пещеры');
-    await watch();
-    await go('world');
-    const now = () => ev(() => window.__dev.QuestState.questNow('cave_light'));
-    expect((await ev(() => window.__dev.QuestState.questBadge('prof'))) === '!', 'над Профессором нет «!»');
-    await L.run('npc:prof', 500);
-    expect(/пещеры/.test(await dialogText()) && /фонарик/.test(await dialogText()), 'Профессор не предлагает задание', await dialogText());
-    await tap('.dialog .btn.green', 400);
-    await tap('.dialog .btn.green', 400);
-    let w = await now();
-    expect(w.status === 'active' && w.i === 0, 'задание не взято', w);
-    // звёздочка — к школе
-    const tg = await ev(() => {
-      const d = window.__dev;
-      return { t: d.World.target(), door: d.World.doorOf('school') };
-    });
-    expect(tg.t && Math.abs(tg.t.x - tg.door.x) < 3, 'звёздочка не у школы', tg);
-    // урок в школе (событие мини-игры — как после настоящего урока)
-    await ev(() => window.__dev.emit('minigame', { id: 'teacher', stars: 2 }));
-    await frames(2);
-    w = await now();
-    expect(w.i === 1, 'урок не засчитан', w);
-    // фонарик — в ТЦ «Уютный дом», вкладка «Для походов»
-    const m0 = (await state()).money;
-    await L.run('home-mall', 500);
-    await tap('.overlay .tabs >> text=Для походов', 300);
-    expect(/Фонарик/.test(await panelText()), 'нет фонарика на вкладке', await panelText());
-    await tap('.overlay .card.tool-flashlight .btn', 400);
-    let s = await state();
-    expect(s.finds.flashlight === 1 && s.money === m0 - 300, 'фонарик не куплен', [s.finds, m0 - s.money]);
-    expect(/Уже в рюкзаке/.test(await panelText()) && !(await ev(() => !!document.querySelector('.overlay .card.tool-flashlight .btn'))), 'второй фонарик продают');
-    await closeAll();
-    w = await now();
-    expect(w.i === 2 && (await ev(() => window.__dev.QuestState.questBadge('prof'))) === '?', 'после фонарика — к Профессору «?»', w);
-    const s0 = await state();
-    await L.run('npc:prof', 500);
-    await tap('.dialog .btn.green', 500);
-    await tap('.dialog .btn.green', 1500);
-    const t = await panelText();
-    expect(/Задание выполнено/.test(t) && /Юный спелеолог/.test(t) && /Пещеры открыты/.test(t), 'праздничное окно', t);
-    await closeAll();
-    await unwatch();
-    s = await state();
-    expect(
-      s.quests.cave_light.done === s.day && Number.isFinite(s.lands.caves) && s.money === s0.money + 700 && s.stickers.includes('q_caves'),
-      'награда за задание Профессора',
-      [s.quests.cave_light, s.lands, s.money - s0.money],
-    );
-    // урок уже был и фонарик уже есть — оба шага засчитываются сразу, как взяли задание (поле already)
-    await ev(() =>
-      window.__dev.actions.mutate((st) => {
-        delete st.quests.cave_light;
-        st.plays.teacher = 1;
-      }),
-    );
-    await L.run('npc:prof', 500);
-    await tap('.dialog .btn.green', 400);
-    await closeAll();
-    expect((await now()).i === 2, 'урок и фонарик «уже были» — не засчитаны сразу', await now());
-    // вход на горе открыт: досок нет, way:caves ведёт в пещеры, ко входу gate
-    await ev(() => {
-      const d = window.__dev;
-      d.go('mountain');
-      d.locations.mountain.debugTeleport(29, 7);
-    });
-    await untilScene('mountain');
-    await frames(2);
-    expect(await ev(() => window.__dev.locations.mountain.map.objs.find((o) => o.type === 'caveRock').open()), 'скала у входа нарисована с досками');
-    await L.run('way:caves', 600);
-    const r = await where();
-    expect(r.scene === 'caves' && near(r, { x: 17.5 * T, y: 27.6 * T }, 30), 'вошли не ко входу пещер', r);
-    const saved = await ev(() => JSON.parse(localStorage.getItem('rhr-save-v1')).pos);
-    expect(saved.scene === 'caves', 'позиция в сохранении после входа', saved);
-  });
+      await untilScene('mountain');
+      await frames(2);
+      await L.run('way:caves', 500);
+      expect(
+        /Пещеры/.test(await panelText()) && /Орешкин/.test(await panelText()),
+        'окно у закрытого входа',
+        await panelText(),
+      );
+      await closeAll();
+      expect((await where()).scene === 'mountain', 'закрытый вход пустил в пещеры');
+      await watch();
+      await go('world');
+      const now = () => ev(() => window.__dev.QuestState.questNow('cave_light'));
+      expect((await ev(() => window.__dev.QuestState.questBadge('prof'))) === '!', 'над Профессором нет «!»');
+      await L.run('npc:prof', 500);
+      expect(
+        /пещеры/.test(await dialogText()) && /фонарик/.test(await dialogText()),
+        'Профессор не предлагает задание',
+        await dialogText(),
+      );
+      await tap('.dialog .btn.green', 400);
+      await tap('.dialog .btn.green', 400);
+      let w = await now();
+      expect(w.status === 'active' && w.i === 0, 'задание не взято', w);
+      // звёздочка — к школе
+      const tg = await ev(() => {
+        const d = window.__dev;
+        return { t: d.World.target(), door: d.World.doorOf('school') };
+      });
+      expect(tg.t && Math.abs(tg.t.x - tg.door.x) < 3, 'звёздочка не у школы', tg);
+      // урок в школе (событие мини-игры — как после настоящего урока)
+      await ev(() => window.__dev.emit('minigame', { id: 'teacher', stars: 2 }));
+      await frames(2);
+      w = await now();
+      expect(w.i === 1, 'урок не засчитан', w);
+      // фонарик — в ТЦ «Уютный дом», вкладка «Для походов»
+      const m0 = (await state()).money;
+      await L.run('home-mall', 500);
+      await tap('.overlay .tabs >> text=Для походов', 300);
+      expect(/Фонарик/.test(await panelText()), 'нет фонарика на вкладке', await panelText());
+      await tap('.overlay .card.tool-flashlight .btn', 400);
+      let s = await state();
+      expect(s.finds.flashlight === 1 && s.money === m0 - 300, 'фонарик не куплен', [s.finds, m0 - s.money]);
+      expect(
+        /Уже в рюкзаке/.test(await panelText()) &&
+          !(await ev(() => !!document.querySelector('.overlay .card.tool-flashlight .btn'))),
+        'второй фонарик продают',
+      );
+      await closeAll();
+      w = await now();
+      expect(
+        w.i === 2 && (await ev(() => window.__dev.QuestState.questBadge('prof'))) === '?',
+        'после фонарика — к Профессору «?»',
+        w,
+      );
+      const s0 = await state();
+      await L.run('npc:prof', 500);
+      await tap('.dialog .btn.green', 500);
+      await tap('.dialog .btn.green', 1500);
+      const t = await panelText();
+      expect(
+        /Задание выполнено/.test(t) && /Юный спелеолог/.test(t) && /Пещеры открыты/.test(t),
+        'праздничное окно',
+        t,
+      );
+      await closeAll();
+      await unwatch();
+      s = await state();
+      expect(
+        s.quests.cave_light.done === s.day &&
+          Number.isFinite(s.lands.caves) &&
+          s.money === s0.money + 700 &&
+          s.stickers.includes('q_caves'),
+        'награда за задание Профессора',
+        [s.quests.cave_light, s.lands, s.money - s0.money],
+      );
+      // урок уже был и фонарик уже есть — оба шага засчитываются сразу, как взяли задание (поле already)
+      await ev(() =>
+        window.__dev.actions.mutate((st) => {
+          delete st.quests.cave_light;
+          st.plays.teacher = 1;
+        }),
+      );
+      await L.run('npc:prof', 500);
+      await tap('.dialog .btn.green', 400);
+      await closeAll();
+      expect((await now()).i === 2, 'урок и фонарик «уже были» — не засчитаны сразу', await now());
+      // вход на горе открыт: досок нет, way:caves ведёт в пещеры, ко входу gate
+      await ev(() => {
+        const d = window.__dev;
+        d.go('mountain');
+        d.locations.mountain.debugTeleport(29, 7);
+      });
+      await untilScene('mountain');
+      await frames(2);
+      expect(
+        await ev(() => window.__dev.locations.mountain.map.objs.find((o) => o.type === 'caveRock').open()),
+        'скала у входа нарисована с досками',
+      );
+      await L.run('way:caves', 600);
+      const r = await where();
+      expect(r.scene === 'caves' && near(r, { x: 17.5 * T, y: 27.6 * T }, 30), 'вошли не ко входу пещер', r);
+      const saved = await ev(() => JSON.parse(localStorage.getItem('rhr-save-v1')).pos);
+      expect(saved.scene === 'caves', 'позиция в сохранении после входа', saved);
+    },
+  );
 
   await step('пещеры: всё важное достижимо пешком, карта пещер, спрайты, темнота и фонарик', async () => {
     await toCaves();
@@ -154,7 +216,8 @@ module.exports = async function caves(ctx) {
           [0, 1],
           [0, -1],
         ].some(([dx, dy]) => reach(tx + dx, ty + dy));
-      for (const pl of sc.places) if (pl.stand && !reach(Math.floor(pl.stand[0]), Math.floor(pl.stand[1]))) out.push('место ' + pl.id);
+      for (const pl of sc.places)
+        if (pl.stand && !reach(Math.floor(pl.stand[0]), Math.floor(pl.stand[1]))) out.push('место ' + pl.id);
       for (const n of sc.npcs) if (!reachNear(Math.floor(n.x / 48), Math.floor(n.y / 48))) out.push('житель ' + n.id);
       for (const id of ['grotto', 'hall']) {
         const p = sc.spot(id);
@@ -179,7 +242,11 @@ module.exports = async function caves(ctx) {
     await untilPanel();
     const t = await panelText();
     expect(
-      /Карта пещер/.test(t) && /Древние рисунки/.test(t) && /Кристальная жила/.test(t) && /Подземное озеро/.test(t) && /светящихся грибов/.test(t),
+      /Карта пещер/.test(t) &&
+        /Древние рисунки/.test(t) &&
+        /Кристальная жила/.test(t) &&
+        /Подземное озеро/.test(t) &&
+        /светящихся грибов/.test(t),
       'карта пещер',
       t,
     );
@@ -214,7 +281,9 @@ module.exports = async function caves(ctx) {
     expect(lit.sky && lit.r > 200, 'темнота и большой круг света с фонариком', lit);
     expect(/Фонарик/.test(await ev(() => document.querySelector('#hud').textContent)), 'нет кнопки фонарика');
     await page.click('.hud-btns.left .rbtn >> text=Фонарик');
-    await until(() => /Включить/.test(document.querySelector('#hud').textContent), undefined, { timeout: 2000 }).catch(() => {});
+    await until(() => /Включить/.test(document.querySelector('#hud').textContent), undefined, { timeout: 2000 }).catch(
+      () => {},
+    );
     const off = await ev(() => {
       const sc = window.__dev.locations.caves;
       return { r: sc.desc.gloom(sc).hero[0], hud: document.querySelector('#hud').textContent };
@@ -240,78 +309,104 @@ module.exports = async function caves(ctx) {
     expect(a < 120, 'темнота осталась в городе', a);
   });
 
-  await step('пещеры: светящиеся грибы, рисунки, озеро, летучие мыши, шкатулка и ночник, самоцветы на рынке — только действия', async () => {
-    await toCaves(8, 7);
-    await watch();
-    // светящиеся грибы: сегодня CAVES.shrooms мест; каждый — один раз
-    const today = await ev(async () => (await import('/js/locations/caves.js')).shroomsToday());
-    expect(today.length === 2, 'сегодня не два гриба', today);
-    for (const i of today)
-      await ev((i) => {
-        window.__dev.run('caves:shroom:' + i);
-        window.__dev.run('caves:shroom:' + i);
-      }, i);
-    await wait(200);
-    let s = await state();
-    expect(s.finds.glow_shroom === 2, 'светящиеся грибы: по одному с места', s.finds);
-    expect(
-      !(await ev((today) => window.__dev.locations.caves.places.filter((p) => /^shroom/.test(p.id) && p.when()).length, today)),
-      'сорванный гриб всё ещё виден',
-    );
-    // древние рисунки: окно с картинкой, наклейка
-    await L.run('caves:paint', 500);
-    expect(/Древние рисунки/.test(await panelText()) && (await ev(() => !!document.querySelector('.overlay canvas'))), 'окно рисунков');
-    await closeAll();
-    // озеро
-    await clearToasts();
-    await L.run('caves:lake', 200);
-    expect(/Подземное озеро/.test(await toasts()), 'озеро', await toasts());
-    // летучие мыши: подошли под свод галереи — вспорхнули, наклейка
-    await ev(() => window.__dev.locations.caves.debugTeleport(19, 4));
-    await frames(3);
-    s = await state();
-    expect(s.stickers.includes('x_cavepaint') && s.stickers.includes('x_bats'), 'наклейки рисунков и летучих мышей', s.stickers);
-    // шкатулка самоцветов: один каждого вида; ночник — из трёх грибов
-    await ev(() => {
-      const a = window.__dev.actions;
-      for (const id of ['gem_crystal', 'gem_topaz', 'gem_sapphire', 'gem_ruby']) a.addItem('finds', id, 1);
-      a.addItem('finds', 'gem_ruby', 2);
-      a.addItem('finds', 'glow_shroom', 1);
-      window.__dev.locations.caves.debugTeleport(28, 19);
-    });
-    await talkK();
-    await tap('.dialog .btn >> text=Шкатулка самоцветов', 400);
-    await tap('.dialog .btn >> text=Грибной ночник', 400);
-    await closeAll();
-    s = await state();
-    expect(
-      s.storage.gem_geode === 1 && s.storage.shroom_lamp === 1 && !s.finds.gem_crystal && s.finds.gem_ruby === 2 && !s.finds.glow_shroom && s.stickers.includes('x_gems'),
-      'шкатулка и ночник',
-      [s.storage, s.finds],
-    );
-    // самоцветы берёт рынок (кошелёк торговца — общий)
-    const sold = await ev(() => {
-      const F = window.__dev.F,
-        g = F.sellable().find((q) => q.id === 'gem_ruby');
-      if (!g) return null;
-      const m0 = window.__dev.G.state.money;
-      F.sellGoods(g, 2);
-      return { sell: g.sell, got: window.__dev.G.state.money - m0, left: window.__dev.G.state.finds.gem_ruby || 0 };
-    });
-    expect(sold && sold.sell === 70 && sold.got === 140 && !sold.left, 'рубины на рынке', sold);
-    expect(!(await ev(() => window.__dev.F.sellable().some((q) => q.id === 'flashlight'))), 'фонарик продаётся на рынке');
-    await unwatch();
-  });
+  await step(
+    'пещеры: светящиеся грибы, рисунки, озеро, летучие мыши, шкатулка и ночник, самоцветы на рынке — только действия',
+    async () => {
+      await toCaves(8, 7);
+      await watch();
+      // светящиеся грибы: сегодня CAVES.shrooms мест; каждый — один раз
+      const today = await ev(async () => (await import('/js/locations/caves.js')).shroomsToday());
+      expect(today.length === 2, 'сегодня не два гриба', today);
+      for (const i of today)
+        await ev((i) => {
+          window.__dev.run('caves:shroom:' + i);
+          window.__dev.run('caves:shroom:' + i);
+        }, i);
+      await wait(200);
+      let s = await state();
+      expect(s.finds.glow_shroom === 2, 'светящиеся грибы: по одному с места', s.finds);
+      expect(
+        !(await ev(
+          (today) => window.__dev.locations.caves.places.filter((p) => /^shroom/.test(p.id) && p.when()).length,
+          today,
+        )),
+        'сорванный гриб всё ещё виден',
+      );
+      // древние рисунки: окно с картинкой, наклейка
+      await L.run('caves:paint', 500);
+      expect(
+        /Древние рисунки/.test(await panelText()) && (await ev(() => !!document.querySelector('.overlay canvas'))),
+        'окно рисунков',
+      );
+      await closeAll();
+      // озеро
+      await clearToasts();
+      await L.run('caves:lake', 200);
+      expect(/Подземное озеро/.test(await toasts()), 'озеро', await toasts());
+      // летучие мыши: подошли под свод галереи — вспорхнули, наклейка
+      await ev(() => window.__dev.locations.caves.debugTeleport(19, 4));
+      await frames(3);
+      s = await state();
+      expect(
+        s.stickers.includes('x_cavepaint') && s.stickers.includes('x_bats'),
+        'наклейки рисунков и летучих мышей',
+        s.stickers,
+      );
+      // шкатулка самоцветов: один каждого вида; ночник — из трёх грибов
+      await ev(() => {
+        const a = window.__dev.actions;
+        for (const id of ['gem_crystal', 'gem_topaz', 'gem_sapphire', 'gem_ruby']) a.addItem('finds', id, 1);
+        a.addItem('finds', 'gem_ruby', 2);
+        a.addItem('finds', 'glow_shroom', 1);
+        window.__dev.locations.caves.debugTeleport(28, 19);
+      });
+      await talkK();
+      await tap('.dialog .btn >> text=Шкатулка самоцветов', 400);
+      await tap('.dialog .btn >> text=Грибной ночник', 400);
+      await closeAll();
+      s = await state();
+      expect(
+        s.storage.gem_geode === 1 &&
+          s.storage.shroom_lamp === 1 &&
+          !s.finds.gem_crystal &&
+          s.finds.gem_ruby === 2 &&
+          !s.finds.glow_shroom &&
+          s.stickers.includes('x_gems'),
+        'шкатулка и ночник',
+        [s.storage, s.finds],
+      );
+      // самоцветы берёт рынок (кошелёк торговца — общий)
+      const sold = await ev(() => {
+        const F = window.__dev.F,
+          g = F.sellable().find((q) => q.id === 'gem_ruby');
+        if (!g) return null;
+        const m0 = window.__dev.G.state.money;
+        F.sellGoods(g, 2);
+        return { sell: g.sell, got: window.__dev.G.state.money - m0, left: window.__dev.G.state.finds.gem_ruby || 0 };
+      });
+      expect(sold && sold.sell === 70 && sold.got === 140 && !sold.left, 'рубины на рынке', sold);
+      expect(
+        !(await ev(() => window.__dev.F.sellable().some((q) => q.id === 'flashlight'))),
+        'фонарик продаётся на рынке',
+      );
+      await unwatch();
+    },
+  );
 
   await step('пещеры: «Кристаллы» у Камушкина — до конца, добыча за первые две игры дня', async () => {
     await toCaves(28, 19);
-    await ev(() => window.__dev.actions.mutate((s) => (s.quests.lucky_pick = { day: s.day, n: {}, got: {}, done: s.day })));
+    await ev(() =>
+      window.__dev.actions.mutate((s) => (s.quests.lucky_pick = { day: s.day, n: {}, got: {}, done: s.day })),
+    );
     const s0 = await state();
     await talkK();
     await tap('.dialog .btn >> text=Добывать кристаллы', 1200);
     const intro = norm(await ev(() => document.querySelector('#mg').textContent));
     expect(
-      /Зелёное/.test(intro) && /Серединка/.test(intro) && (await ev(() => document.querySelectorAll('#mg .cr-col img').length)) === 3 && /Добыча Камушкина/.test(intro),
+      /Зелёное/.test(intro) &&
+        /Серединка/.test(intro) &&
+        (await ev(() => document.querySelectorAll('#mg .cr-col img').length)) === 3 &&
+        /Добыча Камушкина/.test(intro),
       'правило картинкой',
       intro,
     );
@@ -324,7 +419,8 @@ module.exports = async function caves(ctx) {
         const q = c.__crystals();
         if (q.left <= 0) return;
         const mid = (q.g0 + q.g1) / 2;
-        if (q.ready && Math.abs(q.pos - mid) < (q.g1 - q.g0) * 0.35) window.dispatchEvent(new KeyboardEvent('keydown', { code: 'Space' }));
+        if (q.ready && Math.abs(q.pos - mid) < (q.g1 - q.g0) * 0.35)
+          window.dispatchEvent(new KeyboardEvent('keydown', { code: 'Space' }));
         requestAnimationFrame(loop);
       };
       requestAnimationFrame(loop);
@@ -334,9 +430,16 @@ module.exports = async function caves(ctx) {
     expect(/Добыто кристаллов/.test(end) && /⭐/.test(end), 'итог игры', end);
     await mgDone();
     const s1 = await state();
-    const gems = ['gem_crystal', 'gem_topaz', 'gem_sapphire', 'gem_ruby'].reduce((a, id) => a + (s1.finds[id] || 0) - (s0.finds[id] || 0), 0);
+    const gems = ['gem_crystal', 'gem_topaz', 'gem_sapphire', 'gem_ruby'].reduce(
+      (a, id) => a + (s1.finds[id] || 0) - (s0.finds[id] || 0),
+      0,
+    );
     expect(
-      s1.plays.crystals === 1 && s1.best.crystals === 3 && s1.dayFlags.caves.digs === 1 && gems === 3 && s1.money === s0.money + 120,
+      s1.plays.crystals === 1 &&
+        s1.best.crystals === 3 &&
+        s1.dayFlags.caves.digs === 1 &&
+        gems === 3 &&
+        s1.money === s0.money + 120,
       'игра записана, добыча на 3★ выдана',
       [s1.plays, s1.best, s1.dayFlags.caves, gems, s1.money - s0.money],
     );
@@ -345,7 +448,10 @@ module.exports = async function caves(ctx) {
       window.__dev.F.crystalDig();
     });
     await page.waitForSelector(MG_START);
-    expect(/ещё 1 игра/.test(norm(await ev(() => document.querySelector('#mg').textContent))), 'на заставке — сколько игр с добычей');
+    expect(
+      /ещё 1 игра/.test(norm(await ev(() => document.querySelector('#mg').textContent))),
+      'на заставке — сколько игр с добычей',
+    );
     await mgClose();
     expect((await state()).money === s1.money, 'закрыли игру — а добыча пришла');
     // две игры уже были — третья для удовольствия
@@ -354,7 +460,10 @@ module.exports = async function caves(ctx) {
       window.__dev.F.crystalDig();
     });
     await page.waitForSelector(MG_START);
-    expect(/для удовольствия/.test(norm(await ev(() => document.querySelector('#mg').textContent))), 'третья игра — без добычи');
+    expect(
+      /для удовольствия/.test(norm(await ev(() => document.querySelector('#mg').textContent))),
+      'третья игра — без добычи',
+    );
     await mgClose();
     await closeAll();
   });
@@ -391,7 +500,11 @@ module.exports = async function caves(ctx) {
     await ev(() => window.__dev.emit('minigame', { id: 'crystals', stars: 1 }));
     await frames(2);
     w = await now();
-    expect(w.i === 2 && (await ev(() => window.__dev.QuestState.questBadge('kamushkin'))) === '?', 'после «Кристаллов» — к Камушкину «?»', w);
+    expect(
+      w.i === 2 && (await ev(() => window.__dev.QuestState.questBadge('kamushkin'))) === '?',
+      'после «Кристаллов» — к Камушкину «?»',
+      w,
+    );
     const s0 = await state();
     await ev(() => {
       window.__dev.locations.caves.debugTeleport(28, 19);
@@ -406,7 +519,10 @@ module.exports = async function caves(ctx) {
     await unwatch();
     const s = await state();
     expect(
-      s.quests.lucky_pick.done === s.day && s.money === s0.money + 600 && s.stickers.includes('q_miner') && s.clothes.includes('helmet_lamp'),
+      s.quests.lucky_pick.done === s.day &&
+        s.money === s0.money + 600 &&
+        s.stickers.includes('q_miner') &&
+        s.clothes.includes('helmet_lamp'),
       'награда за задание Камушкина',
       [s.quests.lucky_pick, s.money - s0.money],
     );
@@ -445,6 +561,10 @@ module.exports = async function caves(ctx) {
     await page.click('.hud-btns.left .rbtn:last-child');
     await page.click('.panel-foot .btn.green');
     await untilScene('villa').catch(() => {});
-    expect((await ev(() => window.__dev.sceneName)) === 'villa', 'кнопка «Домой» из пещер', await ev(() => window.__dev.sceneName));
+    expect(
+      (await ev(() => window.__dev.sceneName)) === 'villa',
+      'кнопка «Домой» из пещер',
+      await ev(() => window.__dev.sceneName),
+    );
   });
 };

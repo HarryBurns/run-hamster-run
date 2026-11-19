@@ -126,7 +126,12 @@ export default {
       if (key === 'tuft') {
         const { canvas, ctx: c } = domCanvas(40, 40);
         const base = defaultLook();
-        drawPortrait(c, 20, 22, 40, { ...base, spots: null, outfit: {}, beauty: { ...base.beauty, tuft: o.v, hair: '#a8703f' } });
+        drawPortrait(c, 20, 22, 40, {
+          ...base,
+          spots: null,
+          outfit: {},
+          beauty: { ...base.beauty, tuft: o.v, hair: '#a8703f' },
+        });
         return canvas;
       }
       const s = document.createElement('span');
@@ -312,13 +317,27 @@ export default {
       host.drawHamster(ctx, gx, gy, 1.05, styled(phase === 'enter' ? {} : cur), pose);
       // мастер слева: с расчёской, щёлкает ножницами
       const cut = now - snip < 0.5;
-      host.drawHamster(ctx, 62, 192, 1.1, me, { time: now, blink, dir: 1, talk: phase === 'look', happy: phase === 'happy', armsUp: cut });
+      host.drawHamster(ctx, 62, 192, 1.1, me, {
+        time: now,
+        blink,
+        dir: 1,
+        talk: phase === 'look',
+        happy: phase === 'happy',
+        armsUp: cut,
+      });
       if (cut) {
         const k = (now - snip) / 0.5;
         ctx.globalAlpha = 1 - k;
         for (let i = 0; i < 5; i++) {
           const a = i * 1.3 + now * 3;
-          star(ctx, gx + Math.cos(a) * (20 + k * 26), gy - 70 + Math.sin(a) * (14 + k * 18), 4 + (i % 2) * 2, '#ffd43b', null);
+          star(
+            ctx,
+            gx + Math.cos(a) * (20 + k * 26),
+            gy - 70 + Math.sin(a) * (14 + k * 18),
+            4 + (i % 2) * 2,
+            '#ffd43b',
+            null,
+          );
         }
         ctx.globalAlpha = 1;
         ctx.font = '22px system-ui';
@@ -335,20 +354,29 @@ export default {
     });
 
     // dev-хуки для автотеста
-    if (DEV) cv.canvas.__hair = () => ({ i: v.idx, total: CLIENTS, phase: v.phase, want: { ...want }, cur: { ...cur }, hints, shelves: shelves.map((s) => s.key) });
-    if (DEV) cv.canvas.__hairSolve = (wrongFirst) => {
-      if (v.phase !== 'wait') return false;
-      if (wrongFirst) {
-        const k = shelves[0].key,
-          other = shelves[0].list.find((o) => o.v !== want[k]);
-        cur[k] = other.v;
-      } else Object.assign(cur, want);
-      markOn();
-      ready();
-      return true;
-    };
+    if (DEV)
+      cv.canvas.__hair = () => ({
+        i: v.idx,
+        total: CLIENTS,
+        phase: v.phase,
+        want: { ...want },
+        cur: { ...cur },
+        hints,
+        shelves: shelves.map((s) => s.key),
+      });
+    if (DEV)
+      cv.canvas.__hairSolve = (wrongFirst) => {
+        if (v.phase !== 'wait') return false;
+        if (wrongFirst) {
+          const k = shelves[0].key,
+            other = shelves[0].list.find((o) => o.v !== want[k]);
+          cur[k] = other.v;
+        } else Object.assign(cur, want);
+        markOn();
+        ready();
+        return true;
+      };
 
     startClient();
-
   },
 };

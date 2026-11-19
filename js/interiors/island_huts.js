@@ -21,7 +21,8 @@ function mask(ctx, x, y, c, v) {
   ell(ctx, x + 10, y - 8, 3, 3, OUT);
   if (v) fillRR(ctx, x - 12, y + 12, 24, 8, 4, '#fff', OUT, 1.5);
   else ell(ctx, x, y + 16, 10, 6, '#c92a2a', OUT, 1.5);
-  for (let i = -2; i <= 2; i++) line(ctx, x + i * 9, y - 34, x + i * 13, y - 52, ['#ffd43b', '#ff6b6b', '#51cf66'][(i + 3) % 3], 4);
+  for (let i = -2; i <= 2; i++)
+    line(ctx, x + i * 9, y - 34, x + i * 13, y - 52, ['#ffd43b', '#ff6b6b', '#51cf66'][(i + 3) % 3], 4);
 }
 function masks(ctx, x, y, t, k) {
   ctx.save();
@@ -37,7 +38,16 @@ function drums(ctx, x, y, t, k) {
   const drum = (dx, w, h, c, ph) => {
     const yy = y - j(ph);
     fillRR(ctx, x + dx - w / 2, yy - h, w, h, 8, c, OUT, 2);
-    for (let i = 0; i < 4; i++) line(ctx, x + dx - w / 2 + 6 + i * ((w - 12) / 3), yy - h + 6, x + dx - w / 2 + 6 + ((i + 0.5) * (w - 12)) / 3, yy - 6, '#f3e0b5', 2);
+    for (let i = 0; i < 4; i++)
+      line(
+        ctx,
+        x + dx - w / 2 + 6 + i * ((w - 12) / 3),
+        yy - h + 6,
+        x + dx - w / 2 + 6 + ((i + 0.5) * (w - 12)) / 3,
+        yy - 6,
+        '#f3e0b5',
+        2,
+      );
     ell(ctx, x + dx, yy - h, w / 2, 8, '#f3e0b5', OUT, 2);
   };
   drum(-46, 50, 70, '#a8703f', 0);
@@ -58,7 +68,8 @@ function bedMat(ctx, x, y, t, k) {
   ell(ctx, x - 78, y - 30, 30, 13, '#8ce99a', OUT, 2);
   fillRR(ctx, x - 40, y - 38, 140, 22, 10, '#ff8fab', OUT, 2);
   for (let i = 0; i < 4; i++) ell(ctx, x - 20 + i * 34, y - 27, 5, 5, '#fff3bf');
-  if (k > 0) for (let i = 0; i < 3; i++) ell(ctx, x + 10 + i * 18, y - 60 - i * 14 - k * 10, 5, 5, 'rgba(255,255,255,.7)');
+  if (k > 0)
+    for (let i = 0; i < 3; i++) ell(ctx, x + 10 + i * 18, y - 60 - i * 14 - k * 10, 5, 5, 'rgba(255,255,255,.7)');
 }
 /** Записка на столике: где хозяин. */
 const note = (ctx, x, y, t, k) => {
@@ -92,7 +103,8 @@ function basket(ctx, x, y, t, k) {
     [-10, '#fff'],
     [12, '#ff922b'],
   ]) {
-    for (let p = 0; p < 5; p++) ell(ctx, x + dx + Math.cos(p * 1.26) * 6, y - 48 + Math.sin(p * 1.26) * 6 - (dx % 2 ? 8 : 0), 4, 4, c, OUT, 0.8);
+    for (let p = 0; p < 5; p++)
+      ell(ctx, x + dx + Math.cos(p * 1.26) * 6, y - 48 + Math.sin(p * 1.26) * 6 - (dx % 2 ? 8 : 0), 4, 4, c, OUT, 0.8);
     ell(ctx, x + dx, y - 48 - (dx % 2 ? 8 : 0), 3, 3, '#ffd43b');
   }
   ctx.restore();
@@ -104,7 +116,10 @@ export const chief = {
   name: 'Хижина вождя',
   owner: 'kokos',
   hello: '🌴 Хижина Вождя Кокоса! Маски предков, большие барабаны и тотем. Алоха!',
-  greet: ['Кокос: «Алоха! Входи, гостья. Барабаны любят, когда их гладят.»', 'Кокос: «Садись на циновку — сейчас расскажу про вулкан!»'],
+  greet: [
+    'Кокос: «Алоха! Входи, гостья. Барабаны любят, когда их гладят.»',
+    'Кокос: «Садись на циновку — сейчас расскажу про вулкан!»',
+  ],
   floors: 1,
   width: 1250,
   maxZoom: 1.1,
@@ -112,7 +127,20 @@ export const chief = {
   ambience: { sea: 0.25 },
   door: { f: 0, x: 100 },
   shell: { ...SHELL, ground: 'sand', wall: '#b07a3e' },
-  rooms: [{ id: 'hall', f: 0, x0: 0, x1: 1250, name: 'Хижина вождя', wall: '#d6a96a', paper: 'reed', floor: 'mat', win: 900, view: 'sea' }],
+  rooms: [
+    {
+      id: 'hall',
+      f: 0,
+      x0: 0,
+      x1: 1250,
+      name: 'Хижина вождя',
+      wall: '#d6a96a',
+      paper: 'reed',
+      floor: 'mat',
+      win: 900,
+      view: 'sea',
+    },
+  ],
   lamps: [{ f: 0, x: 620, h: 190, r: 300, c: '255,190,110' }],
   built: [
     { id: 'door', type: 'door', f: 0, x: 100, look: 'curtain', c: '#8fae4a', sky: '#d0ebff', ground: '#ffe8a1' },
@@ -125,9 +153,22 @@ export const chief = {
       h: 240,
       up: 110,
       draw: masks,
-      say: ['Маски предков: весёлая, мудрая и смелая. Вождь надевает их на праздник огней 🎭', 'Зелёная маска — мудрая. Говорят, она знает, когда проснётся вулкан!'],
+      say: [
+        'Маски предков: весёлая, мудрая и смелая. Вождь надевает их на праздник огней 🎭',
+        'Зелёная маска — мудрая. Говорят, она знает, когда проснётся вулкан!',
+      ],
     },
-    { id: 'lamp', type: 'prop', f: 0, x: 620, w: 60, h: 250, up: 170, draw: cocoLamp, say: 'Фонарик из кокосовой скорлупы. Ночью сквозь дырочки светят звёздочки ✨' },
+    {
+      id: 'lamp',
+      type: 'prop',
+      f: 0,
+      x: 620,
+      w: 60,
+      h: 250,
+      up: 170,
+      draw: cocoLamp,
+      say: 'Фонарик из кокосовой скорлупы. Ночью сквозь дырочки светят звёздочки ✨',
+    },
     {
       id: 'drums',
       type: 'prop',
@@ -138,10 +179,19 @@ export const chief = {
       draw: drums,
       fx: 'note',
       sfx: 'thud',
-      say: ['Бум-бум-тук! Большой барабан вождя — самый громкий на острове 🥁', 'Тук-тук-БУМ! Вождь кивает в такт: «Ты прирождённая барабанщица!»'],
+      say: [
+        'Бум-бум-тук! Большой барабан вождя — самый громкий на острове 🥁',
+        'Тук-тук-БУМ! Вождь кивает в такт: «Ты прирождённая барабанщица!»',
+      ],
     },
   ],
-  furniture: { fixed: [['rug_craft', 0, 640], ['mini_totem', 0, 780], ['plant_palm', 0, 220]] },
+  furniture: {
+    fixed: [
+      ['rug_craft', 0, 640],
+      ['mini_totem', 0, 780],
+      ['plant_palm', 0, 220],
+    ],
+  },
   actors: [{ npc: 'kokos', f: 0, x: 560, roam: [240, 960], act: 'chief' }],
 };
 
@@ -149,7 +199,8 @@ export const chief = {
 export const guest = {
   id: 'hut_guest',
   name: 'Хижина для гостей',
-  hello: '🛏️ Хижина для гостей — на сваях над лагуной! Вечером, после 19:00, нажми на циновку, чтобы лечь спать: утро будет здесь же, на острове.',
+  hello:
+    '🛏️ Хижина для гостей — на сваях над лагуной! Вечером, после 19:00, нажми на циновку, чтобы лечь спать: утро будет здесь же, на острове.',
   floors: 1,
   width: 1000,
   maxZoom: 1.1,
@@ -157,14 +208,43 @@ export const guest = {
   ambience: { sea: 0.45 },
   door: { f: 0, x: 100 },
   shell: { ...STILTS, wall: '#c08a4a' },
-  rooms: [{ id: 'room', f: 0, x0: 0, x1: 1000, name: 'Хижина для гостей', wall: '#e0b77c', paper: 'reed', floor: 'mat', win: 470, view: 'sea', main: true }],
+  rooms: [
+    {
+      id: 'room',
+      f: 0,
+      x0: 0,
+      x1: 1000,
+      name: 'Хижина для гостей',
+      wall: '#e0b77c',
+      paper: 'reed',
+      floor: 'mat',
+      win: 470,
+      view: 'sea',
+      main: true,
+    },
+  ],
   lamps: [{ f: 0, x: 300, h: 190, r: 260, c: '255,190,110' }],
   built: [
     { id: 'door', type: 'door', f: 0, x: 100, look: 'curtain', c: '#ff8fab', sky: '#d0ebff', ground: '#3bc9db' },
-    { id: 'lamp', type: 'prop', f: 0, x: 300, w: 60, h: 250, up: 170, draw: cocoLamp, say: 'Фонарик из кокоса. Ночью он светит тёплыми точками — совсем не страшно 🌙' },
+    {
+      id: 'lamp',
+      type: 'prop',
+      f: 0,
+      x: 300,
+      w: 60,
+      h: 250,
+      up: 170,
+      draw: cocoLamp,
+      say: 'Фонарик из кокоса. Ночью он светит тёплыми точками — совсем не страшно 🌙',
+    },
     { id: 'bed', type: 'prop', f: 0, x: 790, w: 230, h: 90, draw: bedMat, sfx: 'tap', run: 'island:sleep' },
   ],
-  furniture: { fixed: [['hammock', 0, 470], ['plant_palm', 0, 960]] },
+  furniture: {
+    fixed: [
+      ['hammock', 0, 470],
+      ['plant_palm', 0, 960],
+    ],
+  },
 };
 
 // ---------- домики Бума и Лагуны ----------
@@ -179,10 +259,33 @@ export const bum = {
   ambience: { sea: 0.4 },
   door: { f: 0, x: 100 },
   shell: { ...STILTS, wall: '#a8703f' },
-  rooms: [{ id: 'room', f: 0, x0: 0, x1: 1000, name: 'Домик Бума', wall: '#d6a96a', paper: 'reed', floor: 'mat', win: 560, view: 'sea' }],
+  rooms: [
+    {
+      id: 'room',
+      f: 0,
+      x0: 0,
+      x1: 1000,
+      name: 'Домик Бума',
+      wall: '#d6a96a',
+      paper: 'reed',
+      floor: 'mat',
+      win: 560,
+      view: 'sea',
+    },
+  ],
   built: [
     { id: 'door', type: 'door', f: 0, x: 100, look: 'curtain', c: '#4dabf7', sky: '#d0ebff', ground: '#3bc9db' },
-    { id: 'note', type: 'prop', f: 0, x: 330, w: 110, h: 80, draw: note, sfx: 'paper', say: '📝 Записка: «Ушёл к костру стучать в барабан! Приходи — постучим вместе. Бум»' },
+    {
+      id: 'note',
+      type: 'prop',
+      f: 0,
+      x: 330,
+      w: 110,
+      h: 80,
+      draw: note,
+      sfx: 'paper',
+      say: '📝 Записка: «Ушёл к костру стучать в барабан! Приходи — постучим вместе. Бум»',
+    },
     {
       id: 'drums',
       type: 'prop',
@@ -193,7 +296,10 @@ export const bum = {
       draw: drums,
       fx: 'note',
       sfx: 'thud',
-      say: ['Тук-тук! Барабаны Бума — маленький, средний и самый большой 🥁', 'Бум-бум! Кажется, где-то у костра Бум услышал и ответил: «Бум!»'],
+      say: [
+        'Тук-тук! Барабаны Бума — маленький, средний и самый большой 🥁',
+        'Бум-бум! Кажется, где-то у костра Бум услышал и ответил: «Бум!»',
+      ],
     },
   ],
   furniture: { fixed: [['hammock', 0, 560]] },
@@ -210,7 +316,20 @@ export const laguna = {
   ambience: { sea: 0.4 },
   door: { f: 0, x: 100 },
   shell: { ...STILTS, wall: '#c98b5a' },
-  rooms: [{ id: 'room', f: 0, x0: 0, x1: 1000, name: 'Домик Лагуны', wall: '#f0c98f', paper: 'reed', floor: 'mat', win: 600, view: 'sea' }],
+  rooms: [
+    {
+      id: 'room',
+      f: 0,
+      x0: 0,
+      x1: 1000,
+      name: 'Домик Лагуны',
+      wall: '#f0c98f',
+      paper: 'reed',
+      floor: 'mat',
+      win: 600,
+      view: 'sea',
+    },
+  ],
   built: [
     { id: 'door', type: 'door', f: 0, x: 100, look: 'curtain', c: '#e64980', sky: '#d0ebff', ground: '#3bc9db' },
     {
@@ -223,10 +342,38 @@ export const laguna = {
       up: 150,
       draw: shells,
       sfx: 'clink',
-      say: ['Ракушки на верёвочке звенят от ветра: дзинь-дзинь 🐚', 'Розовую ракушку Лагуна нашла у камня русалочки… ой, нет, на этом острове!'],
+      say: [
+        'Ракушки на верёвочке звенят от ветра: дзинь-дзинь 🐚',
+        'Розовую ракушку Лагуна нашла у камня русалочки… ой, нет, на этом острове!',
+      ],
     },
-    { id: 'note', type: 'prop', f: 0, x: 600, w: 110, h: 80, draw: note, sfx: 'paper', say: '📝 Записка: «Я у пляжа — плету гирлянды из цветов. Заходи в гости! Лагуна 🌺»' },
-    { id: 'basket', type: 'prop', f: 0, x: 840, w: 100, h: 80, draw: basket, fx: 'heart', say: ['Корзинка с цветами для гирлянд. Пахнет летом! 🌺', 'Из таких цветов Вождь плетёт лею — нужны три разных.'] },
+    {
+      id: 'note',
+      type: 'prop',
+      f: 0,
+      x: 600,
+      w: 110,
+      h: 80,
+      draw: note,
+      sfx: 'paper',
+      say: '📝 Записка: «Я у пляжа — плету гирлянды из цветов. Заходи в гости! Лагуна 🌺»',
+    },
+    {
+      id: 'basket',
+      type: 'prop',
+      f: 0,
+      x: 840,
+      w: 100,
+      h: 80,
+      draw: basket,
+      fx: 'heart',
+      say: ['Корзинка с цветами для гирлянд. Пахнет летом! 🌺', 'Из таких цветов Вождь плетёт лею — нужны три разных.'],
+    },
   ],
-  furniture: { fixed: [['plant_flowers', 0, 470], ['shell_frame', 0, 840, 190]] },
+  furniture: {
+    fixed: [
+      ['plant_flowers', 0, 470],
+      ['shell_frame', 0, 840, 190],
+    ],
+  },
 };

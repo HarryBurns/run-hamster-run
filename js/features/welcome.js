@@ -60,11 +60,21 @@ async function talk(q) {
   if (fr && !fr.met) meetFriend(q.npc);
   for (const [bag, id, n = 1] of (q.visit && q.visit.give) || []) addItem(bag, id, n);
   const say = (text, options, happy) => dialog({ look: npcLook(q.npc), name: npc.name, text, options, happy });
-  const i = await say(q.lines.offer, first ? [{ text: `${q.icon} Спасибо!`, cls: 'green' }, { text: 'Я уже всё умею' }] : [{ text: `${q.icon} Спасибо!`, cls: 'green' }], true);
+  const i = await say(
+    q.lines.offer,
+    first
+      ? [{ text: `${q.icon} Спасибо!`, cls: 'green' }, { text: 'Я уже всё умею' }]
+      : [{ text: `${q.icon} Спасибо!`, cls: 'green' }],
+    true,
+  );
   if (first && i === 1) {
     // опытный игрок: подсказки не нужны — цепочка выключается, сосед остаётся в гостях
     setFlag('intro', 2);
-    await say('Ой, так ты уже всё знаешь! Тогда просто живи и радуйся. А если что — журнал 📖 всегда в альбоме.', [{ text: 'Хорошо!', cls: 'green' }], true);
+    await say(
+      'Ой, так ты уже всё знаешь! Тогда просто живи и радуйся. А если что — журнал 📖 всегда в альбоме.',
+      [{ text: 'Хорошо!', cls: 'green' }],
+      true,
+    );
     return;
   }
   if (!startQuest(q.id)) return;

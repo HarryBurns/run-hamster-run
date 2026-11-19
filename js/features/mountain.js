@@ -82,7 +82,8 @@ export const { talk: talkVershinkin } = landNpc({
       id: 'edelweiss',
       need: MOUNTAIN.frame,
       title: '🖼️ Эдельвейсы в рамке',
-      lack: (n) => `Для рамки нужно ${MOUNTAIN.frame} эдельвейса, а у тебя ${n}. Летом ищи их на лугах — по одному в день!`,
+      lack: (n) =>
+        `Для рамки нужно ${MOUNTAIN.frame} эдельвейса, а у тебя ${n}. Летом ищи их на лугах — по одному в день!`,
       give: ['storage', 'edelweiss_frame'],
       sticker: 'x_edelweiss',
       event: ['mountain', 'frame'],

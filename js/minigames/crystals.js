@@ -124,7 +124,10 @@ export default {
     const ctx = cv.ctx;
     const level = host.level || 0;
     // у жилы хомячок всегда в каске шахтёра (только на время игры — наряд не меняется)
-    const look = { ...host.look, outfit: { ...host.look.outfit, head: { kind: 'helmet', c: '#ffd43b', c2: '#e8a400' } } };
+    const look = {
+      ...host.look,
+      outfit: { ...host.look.outfit, head: { kind: 'helmet', c: '#ffd43b', c2: '#e8a400' } },
+    };
     let t = 0,
       over = false,
       left = STRIKES,
@@ -274,9 +277,26 @@ export default {
       ctx.lineWidth = 3 * s;
       ctx.stroke();
       fillRR(ctx, bx - 36 * s, by - 34 * s, 72 * s, 38 * s, 10 * s, '#c98b5a', OUT, 2);
-      for (let i = 1; i < 3; i++) line(ctx, bx - 34 * s, by - 34 * s + i * 12 * s, bx + 34 * s, by - 34 * s + i * 12 * s, 'rgba(74,55,40,.35)', 1.5);
+      for (let i = 1; i < 3; i++)
+        line(
+          ctx,
+          bx - 34 * s,
+          by - 34 * s + i * 12 * s,
+          bx + 34 * s,
+          by - 34 * s + i * 12 * s,
+          'rgba(74,55,40,.35)',
+          1.5,
+        );
       for (let i = 0; i < Math.min(got, 12); i++)
-        crystal(ctx, bx - 28 * s + (i % 6) * 11 * s, by - 32 * s + Math.floor(i / 6) * 4 * s, 18 * s, ((i % 3) - 1) * 0.3, GEMS[i % 4], 4 * s);
+        crystal(
+          ctx,
+          bx - 28 * s + (i % 6) * 11 * s,
+          by - 32 * s + Math.floor(i / 6) * 4 * s,
+          18 * s,
+          ((i % 3) - 1) * 0.3,
+          GEMS[i % 4],
+          4 * s,
+        );
       // хомячок с киркой
       const hx = v.x - 170 * s,
         hy = v.y + 14 * s;

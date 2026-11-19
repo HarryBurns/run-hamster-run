@@ -86,7 +86,8 @@ function pitDeco(ctx, x, y, tx, ty, env, r) {
   ctx.moveTo(x + 1, y);
   ctx.lineTo(x + 1, y + T);
   ctx.stroke();
-  for (let i = 0; i < 3; i++) ell(ctx, x + 8 + r(i) * 32, y + 8 + r(i + 3) * 32, 2.2, 1.6, '#b98a55', 'rgba(74,55,40,.35)', 0.7);
+  for (let i = 0; i < 3; i++)
+    ell(ctx, x + 8 + r(i) * 32, y + 8 + r(i + 3) * 32, 2.2, 1.6, '#b98a55', 'rgba(74,55,40,.35)', 0.7);
   // следы кисточки
   ctx.strokeStyle = 'rgba(255,230,190,.45)';
   ctx.lineWidth = 2;
@@ -217,7 +218,8 @@ function paintSaguaro(ctx, v) {
   for (let i = 0; i < 8; i++) ctx.fillRect((i % 2 ? 7 : -8) - 0.7, -h + 8 + i * (h / 9), 1.6, 1.6);
   if (v % 3 === 1) {
     // цветок на макушке
-    for (let i = 0; i < 5; i++) ell(ctx, Math.cos(i * 1.26) * 4, -h - 2 + Math.sin(i * 1.26) * 3, 3, 2.4, '#ffffff', OUT, 0.8);
+    for (let i = 0; i < 5; i++)
+      ell(ctx, Math.cos(i * 1.26) * 4, -h - 2 + Math.sin(i * 1.26) * 3, 3, 2.4, '#ffffff', OUT, 0.8);
     ell(ctx, 0, -h - 2, 2, 2, '#ffd43b');
   }
 }
@@ -481,7 +483,15 @@ function paintMirage(ctx) {
     ctx.fillRect(x - 2 * s, -38 * s - 6, 4 * s, 34 * s);
     for (let k = 0; k < 5; k++) {
       ctx.beginPath();
-      ctx.ellipse(x + Math.cos(k * 1.25 + 3.6) * 12 * s, -44 * s - 6 + Math.sin(k * 1.25 + 3.6) * 5 * s, 13 * s, 4 * s, k * 1.25 + 3.6, 0, TAU);
+      ctx.ellipse(
+        x + Math.cos(k * 1.25 + 3.6) * 12 * s,
+        -44 * s - 6 + Math.sin(k * 1.25 + 3.6) * 5 * s,
+        13 * s,
+        4 * s,
+        k * 1.25 + 3.6,
+        0,
+        TAU,
+      );
       ctx.fill();
     }
     ctx.fillStyle = 'rgba(70,140,110,.25)';
@@ -615,7 +625,26 @@ function paintTent(ctx, b, snow, lit) {
       [cx, Y + 2],
       [X + W * 0.84, Y + 14],
     ],
-    roof = [L - 4, Y + 44, peaks[0][0], peaks[0][1], (peaks[0][0] + cx) / 2, Y + 20, cx, peaks[1][1], (cx + peaks[2][0]) / 2, Y + 20, peaks[2][0], peaks[2][1], R + 4, Y + 44, R, Y + 52, L, Y + 52];
+    roof = [
+      L - 4,
+      Y + 44,
+      peaks[0][0],
+      peaks[0][1],
+      (peaks[0][0] + cx) / 2,
+      Y + 20,
+      cx,
+      peaks[1][1],
+      (cx + peaks[2][0]) / 2,
+      Y + 20,
+      peaks[2][0],
+      peaks[2][1],
+      R + 4,
+      Y + 44,
+      R,
+      Y + 52,
+      L,
+      Y + 52,
+    ];
   const roofPath = () => {
     ctx.beginPath();
     ctx.moveTo(roof[0], roof[1]);
@@ -646,7 +675,13 @@ function paintTent(ctx, b, snow, lit) {
     ell(ctx, px, py - 10, 2.6, 2.6, '#ffd43b', OUT, 1);
   }
   // открытый вход: полог поднят на двух шестах навесом, внутри — тёплый свет и подушки
-  poly(ctx, [cx - 36, bot - 4, cx - 32, Y + 54, cx + 32, Y + 54, cx + 36, bot - 4], lit ? '#7a4a22' : '#2b211d', OUT, 2);
+  poly(
+    ctx,
+    [cx - 36, bot - 4, cx - 32, Y + 54, cx + 32, Y + 54, cx + 36, bot - 4],
+    lit ? '#7a4a22' : '#2b211d',
+    OUT,
+    2,
+  );
   if (lit) glow(ctx, cx, bot - 28, 44, 0.4);
   ell(ctx, cx - 14, bot - 16, 10, 6, '#c2255c', OUT, 1.2);
   ell(ctx, cx + 14, bot - 16, 10, 6, '#f59f00', OUT, 1.2);
@@ -659,7 +694,12 @@ function paintTent(ctx, b, snow, lit) {
   // ковры у входа: большой красный с узором и маленький синий наискосок
   poly(ctx, [cx - 52, bot - 6, cx + 52, bot - 6, cx + 60, bot + 10, cx - 60, bot + 10], '#c92a2a', OUT, 1.6);
   poly(ctx, [cx - 44, bot - 3, cx + 44, bot - 3, cx + 50, bot + 7, cx - 50, bot + 7], null, '#ffd43b', 1.4);
-  for (let i = -2; i <= 2; i++) poly(ctx, [cx + i * 18, bot - 1, cx + i * 18 + 5, bot + 2, cx + i * 18, bot + 5, cx + i * 18 - 5, bot + 2], '#ffd43b');
+  for (let i = -2; i <= 2; i++)
+    poly(
+      ctx,
+      [cx + i * 18, bot - 1, cx + i * 18 + 5, bot + 2, cx + i * 18, bot + 5, cx + i * 18 - 5, bot + 2],
+      '#ffd43b',
+    );
   poly(ctx, [cx + 64, bot - 10, cx + 96, bot - 14, cx + 100, bot + 2, cx + 68, bot + 6], '#1971c2', OUT, 1.4);
   // фонарик у входа
   const lx = cx - 76;
@@ -750,7 +790,8 @@ function paintStop(ctx, b, snow, lit) {
   for (let x = X - 6; x < X + W + 6; x += 24) ctx.fillRect(x, top - 6, 12, 28);
   ctx.restore();
   poly(ctx, [X - 6, top + 20, X + 8, top - 4, X + W - 8, top - 4, X + W + 6, top + 20], null, OUT, 2.2);
-  for (let x = X - 2; x < X + W; x += 12) poly(ctx, [x, top + 20, x + 6, top + 27, x + 12, top + 20], '#e8590c', OUT, 1);
+  for (let x = X - 2; x < X + W; x += 12)
+    poly(ctx, [x, top + 20, x + 6, top + 27, x + 12, top + 20], '#e8590c', OUT, 1);
   // табличка и расписание
   signBoard(ctx, b.signText ? b.signText() : '🏙️ В город', cx, top + 44, 92, 20, 'wood');
   fillRR(ctx, X + W - 30, bot - 58, 20, 24, 2, '#fff', OUT, 1.3);

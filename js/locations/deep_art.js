@@ -206,7 +206,14 @@ export function drawRowboat(ctx, x, y, dir, t, look, moving) {
   ell(ctx, 46, -49, 3.5, 4, '#fff9db', null);
   ctx.restore();
   if (look)
-    drawHamster(ctx, x - dir * 4, y + 6 + bob, 0.82, look, { dir, time: t, clipBelow: -22, shadow: false, blink: blinkAt(t), happy: true });
+    drawHamster(ctx, x - dir * 4, y + 6 + bob, 0.82, look, {
+      dir,
+      time: t,
+      clipBelow: -22,
+      shadow: false,
+      blink: blinkAt(t),
+      happy: true,
+    });
   ctx.save();
   ctx.translate(x, y + bob);
   ctx.scale(dir, 1);

@@ -59,7 +59,9 @@ function hotelSlide(ctx, x0, top, bot, snow) {
   const [ex, ey] = pts[72];
   fillRR(ctx, ex - 34, bot - 24, 72, 22, 10, '#e7f5ff', OUT, 2);
   fillRR(ctx, ex - 29, bot - 20, 62, 13, 6, snow ? '#d0ebff' : '#4dabf7');
-  if (!snow) for (let i = 0; i < 3; i++) ell(ctx, ex - 12 + i * 12, Math.min(ey, bot - 26) - (i % 2) * 6, 3.4, 3.4, '#e7f5ff', OUT, 1);
+  if (!snow)
+    for (let i = 0; i < 3; i++)
+      ell(ctx, ex - 12 + i * 12, Math.min(ey, bot - 26) - (i % 2) * 6, 3.4, 3.4, '#e7f5ff', OUT, 1);
   // площадка наверху
   fillRR(ctx, x0 + 2, top - 6, 48, 12, 3, '#fff8ec', OUT, 1.8);
 }

@@ -40,7 +40,9 @@ export const D_FEST = {
       [-88, 28, 40],
       [-112, 18, 36],
     ];
-    for (const [y, hw, ht] of tiers) poly(c, [-hw, y, 0, y - ht, hw, y], '#2b8a3e', OUT, 1.8), poly(c, [-hw * 0.5, y - 2, 0, y - ht, hw * 0.1, y - 2], shade('#2b8a3e', 0.2));
+    for (const [y, hw, ht] of tiers)
+      (poly(c, [-hw, y, 0, y - ht, hw, y], '#2b8a3e', OUT, 1.8),
+        poly(c, [-hw * 0.5, y - 2, 0, y - ht, hw * 0.1, y - 2], shade('#2b8a3e', 0.2)));
     const on = st.on !== false;
     for (let i = 0; i < 14; i++) {
       const q = i / 14,
@@ -96,7 +98,9 @@ export const D_FEST = {
   },
   // праздничные флажки (на стену) — 1 Мая
   festflags(c, d, w, h) {
-    swag(c, w, h, 9, (x, y, i) => poly(c, [x - 8, y, x + 8, y, x, y + 18], i % 2 ? '#e03131' : BULBS[(i + 1) % BULBS.length], OUT, 1.1));
+    swag(c, w, h, 9, (x, y, i) =>
+      poly(c, [x - 8, y, x + 8, y, x, y + 18], i % 2 ? '#e03131' : BULBS[(i + 1) % BULBS.length], OUT, 1.1),
+    );
   },
   // купальский венок из цветов и папоротника с лентами (на стену)
   festkupala(c, d, w, h) {
@@ -132,6 +136,12 @@ export const D_FEST = {
     const eye = on ? (f ? '#ffe066' : '#ffd43b') : '#5c3d2e';
     poly(c, [-14, -h * 0.62, -6, -h * 0.62, -10, -h * 0.74], eye, OUT, 1);
     poly(c, [6, -h * 0.62, 14, -h * 0.62, 10, -h * 0.74], eye, OUT, 1);
-    poly(c, [-14, -h * 0.4, -7, -h * 0.34, 0, -h * 0.4, 7, -h * 0.34, 14, -h * 0.4, 8, -h * 0.26, -8, -h * 0.26], eye, OUT, 1);
+    poly(
+      c,
+      [-14, -h * 0.4, -7, -h * 0.34, 0, -h * 0.4, 7, -h * 0.34, 14, -h * 0.4, 8, -h * 0.26, -8, -h * 0.26],
+      eye,
+      OUT,
+      1,
+    );
   },
 };

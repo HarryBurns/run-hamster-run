@@ -21,7 +21,8 @@ import { holidayDoor, holidayTalk, holidayStep, stepDoneFor, stepWanted } from '
 import { prizeGame } from './minigames.js';
 
 const S = () => G.state;
-export const holidaySay = (id, text, options, happy = false) => dialog({ look: npcLookNow(id), name: NPC_BY_ID[id].name, text, options, happy });
+export const holidaySay = (id, text, options, happy = false) =>
+  dialog({ look: npcLookNow(id), name: NPC_BY_ID[id].name, text, options, happy });
 
 /**
  * Окно-сценка с картинкой и кнопкой «действия»: каждое нажатие (на картинку, кнопку, пробел или Enter) — шаг; после
@@ -99,7 +100,8 @@ export function tapScene({ title, icon, steps, btn, btns, lastBtn, hint, hints, 
 }
 
 /** Короткая сценка без нажатий (колядки, карусель, парад): затемнение с картинкой на ms миллисекунд. */
-export const playScene = (text, paint, ms = 2600) => fadeScene({ cls: 'hol-fade', text, paint, ms, w: 520, ratio: 0.58 });
+export const playScene = (text, paint, ms = 2600) =>
+  fadeScene({ cls: 'hol-fade', text, paint, ms, w: 520, ratio: 0.58 });
 
 /** Ночное небо со снежинками или звёздами (фон сценок). snow: false — мерцающие звёзды. */
 export function nightSky(ctx, w, h, t, top = '#1b2a5a', bot = '#4a5a9a', snow = true) {
@@ -137,7 +139,11 @@ export function doorRound({ holiday, step, title, icon, ask, go, scene, treats, 
     const was = stepDoneFor(holiday, step, npc);
     if (hours() && where === 'out' && (was || !stepWanted(holiday, step))) {
       const n = NPC_BY_ID[npc];
-      toast(was ? `${n.name} уже угощал${n.fem ? 'а' : ''} тебя сегодня — вон, машет у двери! 👋` : `${n.name} стоит у двери и встречает гостей — поздоровайся! 👋`);
+      toast(
+        was
+          ? `${n.name} уже угощал${n.fem ? 'а' : ''} тебя сегодня — вон, машет у двери! 👋`
+          : `${n.name} стоит у двери и встречает гостей — поздоровайся! 👋`,
+      );
       return true;
     }
     if (!stepWanted(holiday, step) || stepDoneFor(holiday, step, npc)) return false;
@@ -151,7 +157,10 @@ export function doorRound({ holiday, step, title, icon, ask, go, scene, treats, 
       title,
       icon,
       html: ask(NPC_BY_ID[npc].name),
-      buttons: [{ text: go, cls: 'green' }, { text: where === 'home' ? '🚪 Просто зайти в гости' : 'Не сейчас', cls: 'ghost' }],
+      buttons: [
+        { text: go, cls: 'green' },
+        { text: where === 'home' ? '🚪 Просто зайти в гости' : 'Не сейчас', cls: 'ghost' },
+      ],
     });
     if (i !== 0) return where !== 'home'; // «просто в гости» — обычный визит (если хозяин дома)
     await treat(npc);
@@ -161,7 +170,11 @@ export function doorRound({ holiday, step, title, icon, ask, go, scene, treats, 
   // в разговоре с жителем — кнопка «колядовать» / «сладость или гадость»
   holidayTalk(holiday, async (npc, text) => {
     if (!hours() || !stepWanted(holiday, step) || stepDoneFor(holiday, step, npc)) return null;
-    const i = await holidaySay(npc, text, [{ text: talkBtn, cls: 'green' }, { text: '💬 Поболтать', cls: 'blue' }, { text: 'Пока!' }]);
+    const i = await holidaySay(npc, text, [
+      { text: talkBtn, cls: 'green' },
+      { text: '💬 Поболтать', cls: 'blue' },
+      { text: 'Пока!' },
+    ]);
     if (i === 2) return { end: true };
     if (i === 1) return { text: pickLine(holiday) };
     await treat(npc);
@@ -183,7 +196,8 @@ export function doorRound({ holiday, step, title, icon, ask, go, scene, treats, 
     toast(`+1 ${d.e} ${d.name} — в рюкзаке`, 'good');
   }
 }
-const pickLine = (holiday) => (holiday === 'xmas' ? 'С Рождеством! Как тебе свечи в окнах?' : 'С Хеллоуином! Нравится мой костюм?');
+const pickLine = (holiday) =>
+  holiday === 'xmas' ? 'С Рождеством! Как тебе свечи в окнах?' : 'С Хеллоуином! Нравится мой костюм?';
 
 /**
  * Мини-игра праздника с призом (общий prizeGame — minigames.js): за первые cfg.paid игр в день — монеты cfg.coins

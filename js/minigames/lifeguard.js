@@ -71,7 +71,20 @@ export default {
       missed = 0,
       nextCall = 2.2,
       flash = null; // { text, t } — надпись посреди моря
-    const swimmers = SLOTS.map(([x, y], i) => ({ i, x, y, hx: x, hy: y, ph: i * 1.7, f: nextFriend(), st: 'swim', st0: 0, kind: null, item: null, wave: -9 }));
+    const swimmers = SLOTS.map(([x, y], i) => ({
+      i,
+      x,
+      y,
+      hx: x,
+      hy: y,
+      ph: i * 1.7,
+      f: nextFriend(),
+      st: 'swim',
+      st0: 0,
+      kind: null,
+      item: null,
+      wave: -9,
+    }));
     const rings = []; // летящие круги: { from, to, t0, s }
     // хомячок-спасатель: на вышке, плывёт к вещи, к хозяину, обратно
     const rescuer = { x: TOWER[0], y: TOWER[1], st: 'tower', target: null, carry: null, queue: [] };
@@ -262,13 +275,22 @@ export default {
       }
       if (R.st === 'tower' && !R.queue.length && Math.hypot(R.x - TOWER[0], R.y - TOWER[1]) > 1) R.st = 'back';
       // всё сделано: все просьбы отработаны, никто не ждёт
-      if (!over && calls >= CALLS && swimmers.every((s) => ['swim', 'rest', 'happy'].includes(s.st)) && R.st !== 'toItem' && R.st !== 'toOwner') {
+      if (
+        !over &&
+        calls >= CALLS &&
+        swimmers.every((s) => ['swim', 'rest', 'happy'].includes(s.st)) &&
+        R.st !== 'toItem' &&
+        R.st !== 'toOwner'
+      ) {
         over = true;
         host.later(() => {
           const stars = helped >= STARS[1] ? 3 : helped >= STARS[0] ? 2 : 1;
           host.finish({
             stars,
-            text: helped === CALLS ? `Ты помогла всем ${CALLS} купальщикам! На пляже спокойно и весело.` : `Ты помогла сама ${helped} купальщикам из ${CALLS}. Смена прошла спокойно!`,
+            text:
+              helped === CALLS
+                ? `Ты помогла всем ${CALLS} купальщикам! На пляже спокойно и весело.`
+                : `Ты помогла сама ${helped} купальщикам из ${CALLS}. Смена прошла спокойно!`,
             extra: { helped, missed },
           });
         }, 1200);
@@ -344,7 +366,8 @@ export default {
       line(ctx, x + 22, y - 92, x + 22, y - 4, OUT, 2.5);
       line(ctx, x - 22, y - 92, x - 22, y - 4, OUT, 2.5);
       poly(ctx, [x - 32, y - 90, x + 32, y - 90, x + 22, y - 106, x - 22, y - 106], '#ff6b6b', OUT, 2);
-      for (const dx of [-12, 8]) poly(ctx, [x + dx, y - 90, x + dx + 8, y - 90, x + dx + 6, y - 106, x + dx + 1, y - 106], '#fff', null);
+      for (const dx of [-12, 8])
+        poly(ctx, [x + dx, y - 90, x + dx + 8, y - 90, x + dx + 6, y - 106, x + dx + 1, y - 106], '#fff', null);
       // круг на вышке, флажок
       ell(ctx, x - 20, y + 14, 7, 7, null, '#ff6b6b', 4);
       line(ctx, x, y - 106, x, y - 126, OUT, 2);
@@ -382,14 +405,21 @@ export default {
         ctx.rect(x - 40, y - 60, 80, 60);
         ctx.clip();
       }
-      host.drawHamster(ctx, x, y + (onSand ? 0 : 16), sc, { ...s.f.look, outfit: { ...s.f.look.outfit, head: null } }, {
-        time: t,
-        blink: (t + s.ph) % 3.3 < 0.13,
-        armsUp: call || t - s.wave < 1 || s.st === 'happy',
-        happy: s.st === 'happy' || s.st === 'rest' || t - s.wave < 1,
-        sit: onSand,
-        shadow: onSand,
-      });
+      host.drawHamster(
+        ctx,
+        x,
+        y + (onSand ? 0 : 16),
+        sc,
+        { ...s.f.look, outfit: { ...s.f.look.outfit, head: null } },
+        {
+          time: t,
+          blink: (t + s.ph) % 3.3 < 0.13,
+          armsUp: call || t - s.wave < 1 || s.st === 'happy',
+          happy: s.st === 'happy' || s.st === 'rest' || t - s.wave < 1,
+          sit: onSand,
+          shadow: onSand,
+        },
+      );
       if (!onSand) {
         ctx.restore();
         // вода вокруг
@@ -430,7 +460,12 @@ export default {
     function drawRescuer() {
       const R = rescuer;
       if (R.st === 'tower' || (R.st === 'back' && Math.hypot(R.x - TOWER[0], R.y - TOWER[1]) < 4)) {
-        host.drawHamster(ctx, TOWER[0], TOWER[1] - 2, 0.62, me, { time: t, blink: t % 3.1 < 0.13, dir: 1, armsUp: rings.some((r) => t - r.t0 < 0.25) });
+        host.drawHamster(ctx, TOWER[0], TOWER[1] - 2, 0.62, me, {
+          time: t,
+          blink: t % 3.1 < 0.13,
+          dir: 1,
+          armsUp: rings.some((r) => t - r.t0 < 0.25),
+        });
         return;
       }
       const x = R.x,
@@ -482,23 +517,29 @@ export default {
 
     // dev-хуки
     const callers = () => swimmers.filter((s) => s.st === 'call');
-    if (DEV) cv.canvas.__guard = () => ({
-      calls,
-      total: CALLS,
-      helped,
-      missed,
-      over,
-      active: callers().map((s) => ({ kind: s.kind.id, x: s.x, y: s.y, item: s.item ? { x: s.item.x, y: s.item.y } : null })),
-      view: { ...view, W, H },
-    });
-    if (DEV) cv.canvas.__guardHelp = () => {
-      const s = callers()[0];
-      if (!s) return false;
-      help(s, true);
-      return true;
-    };
+    if (DEV)
+      cv.canvas.__guard = () => ({
+        calls,
+        total: CALLS,
+        helped,
+        missed,
+        over,
+        active: callers().map((s) => ({
+          kind: s.kind.id,
+          x: s.x,
+          y: s.y,
+          item: s.item ? { x: s.item.x, y: s.item.y } : null,
+        })),
+        view: { ...view, W, H },
+      });
+    if (DEV)
+      cv.canvas.__guardHelp = () => {
+        const s = callers()[0];
+        if (!s) return false;
+        help(s, true);
+        return true;
+      };
     /** Нажать в точку мира (x, y) — как пальцем. */
     if (DEV) cv.canvas.__guardTap = (x, y) => tap(x, y);
-
   },
 };

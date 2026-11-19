@@ -225,7 +225,8 @@ export default {
     function pressFloor(b) {
       if (over || move || opened || i >= N) return;
       host.sfx('tap');
-      if (b.k === at) return say(at < 0 ? 'Ты в холле. Нажми этаж с бирки!' : `Ты уже на ${b.f}-м этаже — нажми дверь!`);
+      if (b.k === at)
+        return say(at < 0 ? 'Ты в холле. Нажми этаж с бирки!' : `Ты уже на ${b.f}-м этаже — нажми дверь!`);
       pressed = { f: b.f, t: 0 };
       go(ridePts(b.k), () => {
         at = b.k;
@@ -243,7 +244,11 @@ export default {
     function tapDoor(hit) {
       if (lift && hit.k !== at) {
         host.sfx('tap');
-        say(at < 0 ? 'Сначала — в лифт! Нажми кнопку этажа слева 🛗' : `Эта дверь на ${floors[hit.k]}-м этаже — поезжай туда на лифте 🛗`);
+        say(
+          at < 0
+            ? 'Сначала — в лифт! Нажми кнопку этажа слева 🛗'
+            : `Эта дверь на ${floors[hit.k]}-м этаже — поезжай туда на лифте 🛗`,
+        );
         return;
       }
       host.sfx('tap');
@@ -254,7 +259,9 @@ export default {
       if (over || move || opened) return;
       const b = buttons().find((q) => Math.hypot(px - q.x, py - q.y) < q.r + 8);
       if (b) return pressFloor(b);
-      const hit = doors().find((d) => px > d.x - d.w / 2 - 6 && px < d.x + d.w / 2 + 6 && py > d.y - d.h - 6 && py < d.y + 6);
+      const hit = doors().find(
+        (d) => px > d.x - d.w / 2 - 6 && px < d.x + d.w / 2 + 6 && py > d.y - d.h - 6 && py < d.y + 6,
+      );
       if (hit) tapDoor(hit);
     }
     const down = (e) => {
@@ -285,19 +292,20 @@ export default {
     host.on(window, 'keydown', kd);
     // для автотеста (dev/smoke_hotel.js, dev/smoke_games.js): номер на бирке, двери и кнопки лифта (CSS-пиксели
     // канвы), где хомячок (at: 1 — холл, иначе номер этажа), сколько довезено и ошибок
-    if (DEV) cv.canvas.__porter = () => ({
-      tag: bags[i] ? bags[i].n : null,
-      done: i,
-      mistakes,
-      floorMiss,
-      lift,
-      at: at < 0 ? 1 : floors[at],
-      busy: !!(move || opened),
-      w: cv.w,
-      h: cv.h,
-      doors: doors().map((d) => ({ n: d.n, x: d.x, y: d.y - d.h / 2 })),
-      buttons: buttons().map((b) => ({ f: b.f, x: b.x, y: b.y })),
-    });
+    if (DEV)
+      cv.canvas.__porter = () => ({
+        tag: bags[i] ? bags[i].n : null,
+        done: i,
+        mistakes,
+        floorMiss,
+        lift,
+        at: at < 0 ? 1 : floors[at],
+        busy: !!(move || opened),
+        w: cv.w,
+        h: cv.h,
+        doors: doors().map((d) => ({ n: d.n, x: d.x, y: d.y - d.h / 2 })),
+        buttons: buttons().map((b) => ({ f: b.f, x: b.x, y: b.y })),
+      });
 
     function arrive(d) {
       const bag = bags[i];
@@ -313,7 +321,9 @@ export default {
         tries++;
         host.sfx('bad');
         opened = { door: d, t: 0, ok: false };
-        say(`Здесь ${d.n}, а на бирке ${bag.n}. ${Math.floor(d.n / 100) !== Math.floor(bag.n / 100) ? `Нужен ${Math.floor(bag.n / 100)}-й этаж!` : bag.n > d.n ? 'Дальше вправо →' : '← Левее'}`);
+        say(
+          `Здесь ${d.n}, а на бирке ${bag.n}. ${Math.floor(d.n / 100) !== Math.floor(bag.n / 100) ? `Нужен ${Math.floor(bag.n / 100)}-й этаж!` : bag.n > d.n ? 'Дальше вправо →' : '← Левее'}`,
+        );
       }
     }
     function update(dt) {
@@ -419,7 +429,14 @@ export default {
         fillRR(ctx, d.x - d.w / 2, d.y - d.h, d.w, d.h, 4, '#8d5524', OUT, 1.8);
         if (open && opened.ok) {
           fillRR(ctx, d.x - d.w / 2 + 3, d.y - d.h + 3, d.w - 6, d.h - 3, 3, '#fff3bf');
-          host.drawHamster(ctx, d.x, d.y - 2, clamp(d.h / 190, 0.32, 0.6), host.friends.length ? host.friends[(i + d.n) % host.friends.length].look : host.look, { time: t, happy: true, armsUp: Math.sin(t * 10) > 0 });
+          host.drawHamster(
+            ctx,
+            d.x,
+            d.y - 2,
+            clamp(d.h / 190, 0.32, 0.6),
+            host.friends.length ? host.friends[(i + d.n) % host.friends.length].look : host.look,
+            { time: t, happy: true, armsUp: Math.sin(t * 10) > 0 },
+          );
         } else {
           const shake = open && !opened.ok ? Math.sin(t * 50) * 3 : 0;
           fillRR(ctx, d.x - d.w / 2 + 3 + shake, d.y - d.h + 3, d.w - 6, d.h - 3, 3, DOOR_COLORS[d.d], OUT, 1.2);
@@ -454,7 +471,16 @@ export default {
         ctx.textBaseline = 'middle';
         ctx.fillText('🛗', g.px + g.panelW / 2, y0 + r * 0.95);
         const waiting = !move && !opened && i < N && (at < 0 || floors[at] !== Math.floor(want / 100));
-        for (const b of bs) liftButton(ctx, b.x, b.y, b.r, String(b.f), !!(pressed && pressed.f === b.f), waiting && tries >= 2 && b.k === wantK && Math.sin(t * 8) > 0);
+        for (const b of bs)
+          liftButton(
+            ctx,
+            b.x,
+            b.y,
+            b.r,
+            String(b.f),
+            !!(pressed && pressed.f === b.f),
+            waiting && tries >= 2 && b.k === wantK && Math.sin(t * 8) > 0,
+          );
         if (waiting && at < 0) {
           // подсказка «нажми этаж» — над панелью, мигает
           const fs = Math.round(clamp(r * 0.62, 11, 15));
@@ -482,8 +508,14 @@ export default {
       line(ctx, px + 4 * s, hero.y - 8, px + 4 * s, hero.y - 70 * s, '#f59f00', 4 * s);
       fillRR(ctx, px, hero.y - 14 * s, pw, 8 * s, 3, '#ffd43b', OUT, 1.4);
       for (const dx of [12, 58]) ell(ctx, px + dx * s, hero.y - 4 * s, 6 * s, 6 * s, '#495057', OUT, 1.2);
-      if (i < N && !(opened && opened.ok) && !back) suitcase(ctx, px + pw * 0.55, hero.y - 14 * s, 46 * s, 40 * s, bags[i].col);
-      host.drawHamster(ctx, hero.x - 10 * s, hero.y, s, host.look, { time: t, dir: 1, walk: move ? t * 3 : null, happy: !!(opened && opened.ok) });
+      if (i < N && !(opened && opened.ok) && !back)
+        suitcase(ctx, px + pw * 0.55, hero.y - 14 * s, 46 * s, 40 * s, bags[i].col);
+      host.drawHamster(ctx, hero.x - 10 * s, hero.y, s, host.look, {
+        time: t,
+        dir: 1,
+        walk: move ? t * 3 : null,
+        happy: !!(opened && opened.ok),
+      });
       // подсказка
       if (hint && i < N) {
         const fs = Math.round(clamp(W / 26, 13, 17));

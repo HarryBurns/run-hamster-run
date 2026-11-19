@@ -178,9 +178,7 @@ function build(m) {
       water.add(x + ',' + y);
     }
   const free = (x, y) =>
-    !path.has(x + ',' + y) &&
-    !water.has(x + ',' + y) &&
-    !['skiRun', 'logBridge', 'hotSpring'].includes(m.at(x, y));
+    !path.has(x + ',' + y) && !water.has(x + ',' + y) && !['skiRun', 'logBridge', 'hotSpring'].includes(m.at(x, y));
   // 4. ельник, луга, камни: по краю — стеной (скалы и ели), внутри — по поясам высоты
   for (let y = 0; y < H; y++)
     for (let x = 0; x < W; x++) {
@@ -263,12 +261,12 @@ function build(m) {
   m.put1('signpost', 23, 40, { text: '🔭 Вершина', text2: '♨️ Источник' });
   m.put1('signpost', 22, 13, { text: '⛄ Поляна', text2: '💎 Пещеры' });
   // под указателем — ни ёлок, ни камней: на телефоне ёлка закрывала доску «Пещеры»
-  for (let y = 14; y <= 15; y++) for (let x = 19; x <= 23; x++) if (!['y', 'snowPath'].includes(m.at(x, y))) m.clear(x, y);
+  for (let y = 14; y <= 15; y++)
+    for (let x = 19; x <= 23; x++) if (!['y', 'snowPath'].includes(m.at(x, y))) m.clear(x, y);
   // перед зданиями — свободно (там двери)
   for (const b of [AT.station, AT.chalet])
     for (let x = b.x - 1; x <= b.x + b.w; x++) for (let y = b.y; y <= b.y + b.h + 1; y++) m.clear(x, y);
 }
-
 
 // ---------- облака ниже вершины (в слое неба) ----------
 const CLOUDS = Array.from({ length: 6 }, (_, i) => ({
@@ -350,11 +348,14 @@ function drawSnowmanAndSteam(sc, add, v) {
     const mx = (MITTEN[0] + 0.5) * T,
       my = (MITTEN[1] + 0.5) * T;
     if (mx > v.x0 && mx < v.x1 && my > v.y0 && my < v.y1)
-      add(my, (ctx, _v, t) => put('mitten', mx, my + 6 + (Math.sin(t * 3) > 0.7 ? -2 : 0), Math.round(Math.sin(t * 2) * 2)));
+      add(my, (ctx, _v, t) =>
+        put('mitten', mx, my + 6 + (Math.sin(t * 3) > 0.7 ? -2 : 0), Math.round(Math.sin(t * 2) * 2)),
+      );
   }
   const sx = SPRING_C[0] * T,
     sy = SPRING_C[1] * T;
-  if (sx > v.x0 && sx < v.x1 + 100 && sy > v.y0 && sy < v.y1) add(sy - 30, (ctx, _v, t) => drawSteam(ctx, sx, sy - 20, t));
+  if (sx > v.x0 && sx < v.x1 + 100 && sy > v.y0 && sy < v.y1)
+    add(sy - 30, (ctx, _v, t) => drawSteam(ctx, sx, sy - 20, t));
 }
 function drawCows(sc, add, v) {
   if (!cowsOut()) return;
@@ -445,7 +446,15 @@ const mountain = createTopDownScene({
       map: { icon: '💎', at: [29.5, 5.2], label: '💎 Вход в пещеры', lock: () => !landOpen('caves') },
     },
     // варежка Вершинкина (задание «Потерянная варежка»): видна, пока её не нашли
-    { id: 'mitten', at: MITTEN, hit: { r: 40 }, stand: [MITTEN[0] + 0.5, MITTEN[1] + 1.4], when: mittenHidden, act: 'mountain:mitten', key: false },
+    {
+      id: 'mitten',
+      at: MITTEN,
+      hit: { r: 40 },
+      stand: [MITTEN[0] + 0.5, MITTEN[1] + 1.4],
+      when: mittenHidden,
+      act: 'mountain:mitten',
+      key: false,
+    },
     // старт трассы для санок: «Спуск с горы» (та же мини-игра, что у Вершинкина)
     {
       id: 'sled',
@@ -513,7 +522,10 @@ const mountain = createTopDownScene({
       fall = Math.hypot(tx - FALL[0] - 1, ty - FALL[1] - 1);
     return {
       day: 'mountain',
-      sea: ty > FALL[1] ? clamp(0.35 - Math.min(fall * 0.04, Math.abs(tx - streamX(Math.floor(ty)) - 1) * 0.06), 0, 0.35) : 0,
+      sea:
+        ty > FALL[1]
+          ? clamp(0.35 - Math.min(fall * 0.04, Math.abs(tx - streamX(Math.floor(ty)) - 1) * 0.06), 0, 0.35)
+          : 0,
       rain: 1,
       birds: !highUp(sc),
       crickets: true,

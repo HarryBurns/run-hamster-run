@@ -7,7 +7,35 @@ const lib = require('./lib.js');
 
 module.exports = async function forest(ctx) {
   const L = lib(ctx);
-  const { page, step, ev, wait, closeAll, until, untilScene, untilPanel, frames, go, sel, T, norm, expect, near, state, dialogText, panelText, toasts, clearToasts, where, watch, unwatch, MG_START, tap, mgDone, mgClose } = L;
+  const {
+    page,
+    step,
+    ev,
+    wait,
+    closeAll,
+    until,
+    untilScene,
+    untilPanel,
+    frames,
+    go,
+    sel,
+    T,
+    norm,
+    expect,
+    near,
+    state,
+    dialogText,
+    panelText,
+    toasts,
+    clearToasts,
+    where,
+    watch,
+    unwatch,
+    MG_START,
+    tap,
+    mgDone,
+    mgClose,
+  } = L;
   /** Новая игра с чистого листа. */
   const fresh = () => L.fresh(); // 1 июня, без вводной цепочки
   /** День (номер — месяц × 3), полдень, солнце; в лес (открыв его действием openLand). */
@@ -372,7 +400,9 @@ module.exports = async function forest(ctx) {
     await clearToasts();
     const h = await ev(() => window.__dev.locations.forest.debugScreen(42.5 * 48, 14.5 * 48 - 20));
     await page.mouse.click(h.x, h.y);
-    await until(() => /мёд уже собран/.test(document.querySelector('#toasts').textContent), undefined, { timeout: 5000 }).catch(() => {});
+    await until(() => /мёд уже собран/.test(document.querySelector('#toasts').textContent), undefined, {
+      timeout: 5000,
+    }).catch(() => {});
     expect(/мёд уже собран/.test(await toasts()), 'нажатие на улей', await toasts());
     // венок у Шишкина из 4 еловых веточек
     await ev(() => {

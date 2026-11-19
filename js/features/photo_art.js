@@ -78,7 +78,13 @@ export function drawFrame(ctx, w, h, frame, caption, k = 1) {
         for (let a = 0; a < 5; a++) {
           ctx.fillStyle = c;
           ctx.beginPath();
-          ctx.arc(x + Math.cos((a * Math.PI * 2) / 5) * e * 0.17, y + Math.sin((a * Math.PI * 2) / 5) * e * 0.17, e * 0.14, 0, Math.PI * 2);
+          ctx.arc(
+            x + Math.cos((a * Math.PI * 2) / 5) * e * 0.17,
+            y + Math.sin((a * Math.PI * 2) / 5) * e * 0.17,
+            e * 0.14,
+            0,
+            Math.PI * 2,
+          );
           ctx.fill();
         }
         ctx.fillStyle = '#fff3bf';

@@ -25,7 +25,18 @@ import { sceneName } from '../core/loop.js';
 import { register, run } from '../core/registry.js';
 import { G, darkness, ownsHome, canSwim, isSick, hotelRoomGuest } from '../core/state.js';
 import { el, esc, pick, fmtMoney } from '../core/util.js';
-import { NPC_BY_ID, DISH_BY_ID, HOTEL, HOTEL_ROOMS, GUEST_ROOM, BUFFET, HOME_BY_ID, SICK_TEXT, animatorNow, npcLook } from '../data/index.js';
+import {
+  NPC_BY_ID,
+  DISH_BY_ID,
+  HOTEL,
+  HOTEL_ROOMS,
+  GUEST_ROOM,
+  BUFFET,
+  HOME_BY_ID,
+  SICK_TEXT,
+  animatorNow,
+  npcLook,
+} from '../data/index.js';
 import { HX, rentedRoom } from '../interiors/hotel.js';
 import { DOORMAN } from '../locations/town_buildings.js';
 import { go } from '../core/loop.js';
@@ -51,7 +62,8 @@ function timeLine(id) {
   if (m >= 18 * 60) return pick(L.evening);
   return pick(L.day);
 }
-const sayAs = (id, text, options, happy = false) => dialog({ look: npcLook(id), name: NPC_BY_ID[id].name, text, options, happy });
+const sayAs = (id, text, options, happy = false) =>
+  dialog({ look: npcLook(id), name: NPC_BY_ID[id].name, text, options, happy });
 const coinsText = (n) => `🪙 ${fmtMoney(n)}`;
 
 // ---------- ресепшен: Администратор Звёздочка ----------
@@ -72,8 +84,16 @@ async function reception() {
     const opts = [
       rented
         ? { text: `🔑 Мой номер ${rented.no}`, cls: 'green', go: 'room' }
-        : { text: `🛏️ Снять номер на ночь — от ${coinsText(Math.min(...HOTEL_ROOMS.map((r) => r.price)))}`, cls: 'green', go: 'rent' },
-      { text: ownsHome('suite') ? '🏨 Мой люкс' : `🏨 Номер-люкс — ${coinsText(suite.price)}`, cls: 'yellow', go: 'suite' },
+        : {
+            text: `🛏️ Снять номер на ночь — от ${coinsText(Math.min(...HOTEL_ROOMS.map((r) => r.price)))}`,
+            cls: 'green',
+            go: 'rent',
+          },
+      {
+        text: ownsHome('suite') ? '🏨 Мой люкс' : `🏨 Номер-люкс — ${coinsText(suite.price)}`,
+        cls: 'yellow',
+        go: 'suite',
+      },
       { text: '💬 Что есть в отеле?', cls: 'blue', go: 'about' },
       { text: 'Пока!', go: 'bye' },
     ];
@@ -82,10 +102,18 @@ async function reception() {
     if (o.go === 'rent') {
       // номера разных классов (От2): дешевле — окно во двор, дороже — свой балкон над морем
       const ro = [
-        ...HOTEL_ROOMS.map((r) => ({ text: `${r.icon} ${r.name} · ${r.no} — ${r.view} — ${coinsText(r.price)}`, cls: r.id === 'std' ? 'green' : 'blue', room: r })),
+        ...HOTEL_ROOMS.map((r) => ({
+          text: `${r.icon} ${r.name} · ${r.no} — ${r.view} — ${coinsText(r.price)}`,
+          cls: r.id === 'std' ? 'green' : 'blue',
+          room: r,
+        })),
         { text: 'Подумаю' },
       ];
-      const j = await sayAs('zvezdochka', 'Какой номер хочешь? Эконом — уютный, окошко во двор. Стандарт — с окном на море. А с балконом — свой балкон над морем и большая кровать!', ro);
+      const j = await sayAs(
+        'zvezdochka',
+        'Какой номер хочешь? Эконом — уютный, окошко во двор. Стандарт — с окном на море. А с балконом — свой балкон над морем и большая кровать!',
+        ro,
+      );
       const r = (ro[j] || {}).room;
       if (!r) {
         text = 'Конечно, подумай! Номера ждут до самой ночи.';
@@ -136,7 +164,14 @@ on('wake', () => {
   setDayFlag('slept', 1, 'hotel'); // отметка нового дня: завтрак за счёт отеля
   emit('hotel', { what: 'night' });
   award('x_hotel_night', { delay: 2600 });
-  setTimeout(() => toast(`🌅 Доброе утро в отеле! ${eco ? 'Во дворе чирикают воробьи' : 'За окном шумит море'}. Завтрак на первом этаже — для гостей отеля даром!`, 'good'), 1400);
+  setTimeout(
+    () =>
+      toast(
+        `🌅 Доброе утро в отеле! ${eco ? 'Во дворе чирикают воробьи' : 'За окном шумит море'}. Завтрак на первом этаже — для гостей отеля даром!`,
+        'good',
+      ),
+    1400,
+  );
 });
 
 // ---------- двери номеров и люкс ----------
@@ -155,7 +190,9 @@ function knock(n) {
   if (mine && mine.no === no && mine.id !== 'std') {
     sfx('door');
     go('hotel_' + no, { back });
-    toast(`🔑 Номер ${no}, «${mine.name}». ${mine.id === 'balcony' ? 'Балкон — справа!' : 'Уютно!'} Кровать уже застелена.`);
+    toast(
+      `🔑 Номер ${no}, «${mine.name}». ${mine.id === 'balcony' ? 'Балкон — справа!' : 'Уютно!'} Кровать уже застелена.`,
+    );
     return true;
   }
   const who = no === GUEST_ROOM && hotelRoomGuest();
@@ -242,7 +279,8 @@ async function spa() {
   sfx('tap');
   let text = timeLine('penka');
   if (isSick())
-    text = 'Ой, у тебя насморк… Спа простуду не лечит — к доктору Витаминкину в больницу! Но маска из огурчиков поднимет настроение — хочешь?';
+    text =
+      'Ой, у тебя насморк… Спа простуду не лечит — к доктору Витаминкину в больницу! Но маска из огурчиков поднимет настроение — хочешь?';
   const opts = [
     { text: `💆 Массаж лапок — ${coinsText(HOTEL.spa)}`, cls: 'green', what: 'massage' },
     { text: `🥒 Маска из огурчиков — ${coinsText(HOTEL.spa)}`, cls: 'yellow', what: 'mask' },
@@ -275,7 +313,10 @@ async function spa() {
         : '✨ Лапки отдохнули — можно снова бегать весь день!',
     'good',
   );
-  toast(`💆 Бодрость! Следующая смена на работе (сегодня или завтра) — на ${Math.round(HOTEL.spaBoost * 100)}% дороже. Значок 💆 — рядом с датой.`, 'good');
+  toast(
+    `💆 Бодрость! Следующая смена на работе (сегодня или завтра) — на ${Math.round(HOTEL.spaBoost * 100)}% дороже. Значок 💆 — рядом с датой.`,
+    'good',
+  );
 }
 
 // ---------- швейцар у входа (От3): с ним можно поздороваться ----------
@@ -286,7 +327,10 @@ const DOORMAN_LINES = {
     'Рад вас видеть! Чемоданы? Ах, вы налегке — тем лучше!',
     'Привет-привет! Мастер Пенка в спа сегодня в прекрасном настроении 💆',
   ],
-  night: ['Доброй ночи! Тсс… гости уже спят. Если нужен номер — Звёздочка на ресепшене не спит 🌙', 'Поздно уже! Звёзды над морем сегодня яркие — загляните на террасу ✨'],
+  night: [
+    'Доброй ночи! Тсс… гости уже спят. Если нужен номер — Звёздочка на ресепшене не спит 🌙',
+    'Поздно уже! Звёзды над морем сегодня яркие — загляните на террасу ✨',
+  ],
 };
 async function doorman() {
   sfx('tap');
@@ -296,12 +340,25 @@ async function doorman() {
   if (i !== 0) return;
   sfx('heart');
   emit('hotel', { what: 'doorman' });
-  await dialog({ look: DOORMAN, name: 'Швейцар Пуговкин', text: pick(['И вам здравствуйте! *приподнимает фуражку* 🎩', 'Как вежливо! Заходите — двери всегда открыты!', 'Здравствуйте, здравствуйте! Хорошего дня!']), options: [{ text: 'Спасибо!' }], happy: true });
+  await dialog({
+    look: DOORMAN,
+    name: 'Швейцар Пуговкин',
+    text: pick([
+      'И вам здравствуйте! *приподнимает фуражку* 🎩',
+      'Как вежливо! Заходите — двери всегда открыты!',
+      'Здравствуйте, здравствуйте! Хорошего дня!',
+    ]),
+    options: [{ text: 'Спасибо!' }],
+    happy: true,
+  });
 }
 
 /** Нажали на значок 💆 у даты: что такое бодрость после спа (От7). */
 export function showBoostHelp() {
-  toast(`💆 Бодрость после спа! Следующая смена на работе — на ${Math.round(HOTEL.spaBoost * 100)}% дороже. Действует сегодня и завтра — до первой смены.`, 'good');
+  toast(
+    `💆 Бодрость после спа! Следующая смена на работе — на ${Math.round(HOTEL.spaBoost * 100)}% дороже. Действует сегодня и завтра — до первой смены.`,
+    'good',
+  );
 }
 
 // ---------- аниматор Хлопушка ----------
@@ -317,7 +374,12 @@ async function animator() {
   const text = morning
     ? 'Доброе утро! Зарядка у бассейна! Лапки вверх, хвостик вбок — повторяй за мной!'
     : 'Дискотека у бассейна! Музыка, огоньки — танцуют все! Покажешь свой лучший танец?';
-  const i = await sayAs('hlopushka', text, [{ text: morning ? '🤸 Делать зарядку!' : '🪩 Танцевать!', cls: 'green' }, { text: 'Потом' }], true);
+  const i = await sayAs(
+    'hlopushka',
+    text,
+    [{ text: morning ? '🤸 Делать зарядку!' : '🪩 Танцевать!', cls: 'green' }, { text: 'Потом' }],
+    true,
+  );
   if (i !== 0 || busy) return;
   // «Повтори движение» (От9): Хлопушка показывает танец, хомячок повторяет кнопками
   busy = true;
@@ -432,6 +494,13 @@ register(
 
 // первый вход в отель: наклейка и подсказка, куда идти
 on('scene', ({ name }) => {
-  if (name === 'hotel' && hintOnce('hotelHint', '🏨 Добро пожаловать в отель «Морская звезда»! Ресепшен — прямо по курсу. Лифт справа: 2-й этаж — номера, 3-й — бассейн с горками.', 'good'))
+  if (
+    name === 'hotel' &&
+    hintOnce(
+      'hotelHint',
+      '🏨 Добро пожаловать в отель «Морская звезда»! Ресепшен — прямо по курсу. Лифт справа: 2-й этаж — номера, 3-й — бассейн с горками.',
+      'good',
+    )
+  )
     award('x_hotel', { delay: 900 });
 });

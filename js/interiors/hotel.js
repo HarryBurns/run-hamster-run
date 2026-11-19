@@ -73,7 +73,17 @@ function plantPot(ctx, x, y, s = 1) {
   fillRR(ctx, x - 16 * s, y - 30 * s, 32 * s, 30 * s, 5, '#e8590c', OUT, 2);
   for (let i = 0; i < 5; i++) {
     const a = -Math.PI / 2 + (i - 2) * 0.5;
-    ell(ctx, x + Math.cos(a) * 22 * s, y - 40 * s + Math.sin(a) * 22 * s, 16 * s, 7 * s, i % 2 ? '#40c057' : '#2f9e44', OUT, 1.5, a);
+    ell(
+      ctx,
+      x + Math.cos(a) * 22 * s,
+      y - 40 * s + Math.sin(a) * 22 * s,
+      16 * s,
+      7 * s,
+      i % 2 ? '#40c057' : '#2f9e44',
+      OUT,
+      1.5,
+      a,
+    );
   }
 }
 function lounger(ctx, x, y, col) {
@@ -174,7 +184,8 @@ function drawSpaBack(ctx) {
   plate(ctx, '🧖 Спа «Пенка»', 1600, y - 222, 190, '#12b886', 15);
   // полка с полотенцами и свечи
   fillRR(ctx, 1380, y - 186, 120, 10, 3, '#c98b5a', OUT, 1.5);
-  for (let i = 0; i < 3; i++) fillRR(ctx, 1388 + i * 36, y - 210, 30, 24, 6, ['#ffd8e4', '#c3fae8', '#fff3bf'][i], OUT, 1.5);
+  for (let i = 0; i < 3; i++)
+    fillRR(ctx, 1388 + i * 36, y - 210, 30, 24, 6, ['#ffd8e4', '#c3fae8', '#fff3bf'][i], OUT, 1.5);
   for (const cx of CANDLES) fillRR(ctx, cx - 5, y - 134, 10, 18, 2, '#fff', OUT, 1.2);
   fillRR(ctx, 1516, y - 118, 56, 8, 3, '#c98b5a', OUT, 1.5);
   // массажный стол с подушкой-валиком и огуречными масками в мисочке
@@ -315,7 +326,11 @@ function drawDisco(ctx, t) {
     for (let i = 0; i < 5; i++) {
       const a = t * 1.5 + (i * TAU) / 5;
       ctx.globalAlpha = 0.18;
-      poly(ctx, [sx, y - 196, sx + Math.cos(a) * 220 - 20, y - 10, sx + Math.cos(a) * 220 + 20, y - 10], ['#ff6b9d', '#ffd43b', '#63e6be', '#74c0fc', '#b197fc'][i]);
+      poly(
+        ctx,
+        [sx, y - 196, sx + Math.cos(a) * 220 - 20, y - 10, sx + Math.cos(a) * 220 + 20, y - 10],
+        ['#ff6b9d', '#ffd43b', '#63e6be', '#74c0fc', '#b197fc'][i],
+      );
       ctx.globalAlpha = 1;
     }
   }
@@ -354,11 +369,57 @@ export default {
   shell: { wall: '#fff4e6', roof: '#1098ad', flat: true, chimneyX: null, bushes: true, trees: 'palm', ground: 'sand' },
   rooms: [
     { id: 'lobby', f: 0, x0: 0, x1: 780, name: 'Холл', wall: '#fff3bf', paper: 'diamonds', floor: 'check', win: null },
-    { id: 'buffet', f: 0, x0: 780, x1: 1340, name: 'Шведский стол', wall: '#ffe8cc', paper: 'stripes', floor: 'wood', win: 1050, winW: 200, view: 'sea' },
+    {
+      id: 'buffet',
+      f: 0,
+      x0: 780,
+      x1: 1340,
+      name: 'Шведский стол',
+      wall: '#ffe8cc',
+      paper: 'stripes',
+      floor: 'wood',
+      win: 1050,
+      winW: 200,
+      view: 'sea',
+    },
     { id: 'spa', f: 0, x0: 1340, x1: W, name: 'Спа', wall: '#e6fcf5', paper: 'waves', floor: 'tile', win: null },
-    { id: 'hall', f: 1, x0: 0, x1: 1300, name: 'Коридор номеров', wall: '#fff0f6', paper: 'stripes', floor: 'wood', win: null },
-    { id: 'room', f: 1, x0: 1300, x1: W, name: `Номер ${HOTEL_ROOM}`, wall: '#e7f5ff', paper: 'dots', floor: 'wood', win: 1460, winW: 160, view: 'sea', main: true },
-    { id: 'roof', f: 2, x0: 0, x1: W, name: 'Бассейн на крыше', wall: '#c9ecff', paper: 'open', floor: 'deck', win: null, view: 'sea' },
+    {
+      id: 'hall',
+      f: 1,
+      x0: 0,
+      x1: 1300,
+      name: 'Коридор номеров',
+      wall: '#fff0f6',
+      paper: 'stripes',
+      floor: 'wood',
+      win: null,
+    },
+    {
+      id: 'room',
+      f: 1,
+      x0: 1300,
+      x1: W,
+      name: `Номер ${HOTEL_ROOM}`,
+      wall: '#e7f5ff',
+      paper: 'dots',
+      floor: 'wood',
+      win: 1460,
+      winW: 160,
+      view: 'sea',
+      main: true,
+    },
+    {
+      id: 'roof',
+      f: 2,
+      x0: 0,
+      x1: W,
+      name: 'Бассейн на крыше',
+      wall: '#c9ecff',
+      paper: 'open',
+      floor: 'deck',
+      win: null,
+      view: 'sea',
+    },
   ],
   built: [
     { id: 'door', type: 'door', f: 0, x: HX.door, c: '#1098ad' },
@@ -367,7 +428,15 @@ export default {
     { id: 'buffet', type: 'zone', f: 0, x: HX.buffet, w: 360, h: 140, act: 'hotel:buffet' },
     { id: 'massage', type: 'zone', f: 0, x: HX.massage, w: 180, h: 120, act: 'hotel:spa' },
     { id: 'jacuzzi', type: 'jacuzzi', f: 0, x: HX.jacuzzi },
-    ...HX.doors.map((x, i) => ({ id: 'door' + HOTEL_DOORS[i], type: 'zone', f: 1, x, w: 90, h: 186, act: 'hotel:knock:' + HOTEL_DOORS[i] })),
+    ...HX.doors.map((x, i) => ({
+      id: 'door' + HOTEL_DOORS[i],
+      type: 'zone',
+      f: 1,
+      x,
+      w: 90,
+      h: 186,
+      act: 'hotel:knock:' + HOTEL_DOORS[i],
+    })),
     { id: 'suite', type: 'zone', f: 1, x: HX.suite, w: 104, h: 200, act: 'hotel:suite' },
     { id: 'bed', type: 'zone', f: 1, x: HX.bed, w: 220, h: 120, act: 'hotel:bed' },
     { id: 'pool', type: 'pool', f: 2, x: HX.pool },
@@ -391,7 +460,14 @@ export default {
     { npc: 'zvezdochka', f: 0, x: HX.desk, act: 'hotel:reception' },
     { npc: 'telezhkin', f: 0, x: HX.cart - 100, roam: [600, 660], act: 'hotel:porter' },
     { npc: 'penka', f: 0, x: 1560, act: 'hotel:spa' },
-    { npc: 'hlopushka', f: 2, x: HX.stage, roam: [HX.stage - 70, HX.stage + 70], act: 'hotel:animator', when: () => !!G.state && !!animatorNow(G.state.minutes) },
+    {
+      npc: 'hlopushka',
+      f: 2,
+      x: HX.stage,
+      roam: [HX.stage - 70, HX.stage + 70],
+      act: 'hotel:animator',
+      when: () => !!G.state && !!animatorNow(G.state.minutes),
+    },
     // друзья у бассейна (От4): утром и днём — одни, вечером — другие, иногда вдвоём; у каждого своё место у воды
     ...[...POOL_GUESTS, ...ROOM_GUESTS].map((id, i) => {
       const x = [HX.loungers[1] - 60, HX.loungers[0] - 70, 1460, 1290][i % 4];
@@ -410,7 +486,8 @@ export default {
         sc.still('spa', [1350, -240, 1700, 2], drawSpaBack);
         drawCandleFlames(ctx, t);
       }
-      if (on(1, 0, 1300)) sc.still('corridor:' + (ownsHome('suite') ? 'mine' : 'shut'), [10, -510, 1270, -268], drawCorridor);
+      if (on(1, 0, 1300))
+        sc.still('corridor:' + (ownsHome('suite') ? 'mine' : 'shut'), [10, -510, 1270, -268], drawCorridor);
       if (on(1, 1300, W)) sc.still('room:' + (roomRented() ? 'rented' : 'free'), [1340, -514, 1700, -350], drawRoom);
       if (on(2, 900, 1300)) sc.still('slide', [960, -812, 1290, -538], drawSlide);
       if (on(2, 1250, W)) {
@@ -421,7 +498,8 @@ export default {
     },
     mid(ctx, sc) {
       if (seen(sc.view, 0, HX.desk - 130, HX.desk + 130)) sc.still('desk', [295, -96, 545, 3], drawDesk);
-      if (seen(sc.view, 0, HX.buffet - 190, HX.buffet + 190)) sc.still('counter', [865, -120, 1235, 3], drawBuffetCounter);
+      if (seen(sc.view, 0, HX.buffet - 190, HX.buffet + 190))
+        sc.still('counter', [865, -120, 1235, 3], drawBuffetCounter);
     },
   },
 };

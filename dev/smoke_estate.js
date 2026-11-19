@@ -10,7 +10,30 @@ const lib = require('./lib.js');
 
 module.exports = async function estate(ctx) {
   const L = lib(ctx);
-  const { page, step, ev, wait, closeAll, norm, expect, state, toasts, clearToasts, text, scene, enter, run, press, putSave, until, untilScene, untilPanel, frames, cont, sel } = L;
+  const {
+    page,
+    step,
+    ev,
+    wait,
+    closeAll,
+    norm,
+    expect,
+    state,
+    toasts,
+    clearToasts,
+    text,
+    scene,
+    enter,
+    run,
+    press,
+    putSave,
+    until,
+    untilScene,
+    untilPanel,
+    frames,
+    cont,
+    sel,
+  } = L;
   const setTime = (h) => ev((m) => window.__dev.actions.mutate((s) => (s.minutes = m)), Math.round(h * 60));
   const setMoney = (n) => ev((n) => window.__dev.actions.mutate((s) => (s.money = n)), n);
   const lastOv = () => page.locator('.overlay').last();
@@ -712,11 +735,12 @@ module.exports = async function estate(ctx) {
       await page.click('text=Убрать в кладовку');
       await wait(300);
       s = await state();
-      expect(
-        s.storage[lamp.id] === had + 1 && s.homes[id].length === ids.length - 1,
-        'предмет не убрался в кладовку',
-        [id, lamp.id, had, s.storage[lamp.id]],
-      );
+      expect(s.storage[lamp.id] === had + 1 && s.homes[id].length === ids.length - 1, 'предмет не убрался в кладовку', [
+        id,
+        lamp.id,
+        had,
+        s.storage[lamp.id],
+      ]);
       await page.click(`.decor-tray .tray-item`);
       await wait(300);
       s = await state();
@@ -735,7 +759,10 @@ module.exports = async function estate(ctx) {
   await step('жильё: «Мои дома», основной дом, «Домой», пентхаус из лифта башни, гости, перезагрузка', async () => {
     // своя игра со всеми четырьмя домами (не опираться на покупки прошлого шага)
     await newGame();
-    await ev((ids) => ids.forEach((id) => window.__dev.actions.addHome(id)), HOMES.map((h) => h[0]));
+    await ev(
+      (ids) => ids.forEach((id) => window.__dev.actions.addHome(id)),
+      HOMES.map((h) => h[0]),
+    );
     // «Мои дома» — из меню
     await ev(() => {
       window.__dev.F.openSettings();
@@ -849,102 +876,105 @@ module.exports = async function estate(ctx) {
     else await page.click('.overlay .panel-foot .btn:has-text("заведение")');
     await wait(450);
   };
-  await step('жильё: лесной домик — продаётся, когда лес открыт; покупка, дверь в лесу, «мой дом», «Домой»', async () => {
-    await newGame();
-    await ev(() => window.__dev.go('world'));
-    await wait(300);
-    const card = '.overlay .home-card:has(.ttl:has-text("Лесной домик"))';
-    // лес закрыт: в агентстве домик «скоро» — дорогу покажет Мята, купить нельзя
-    await setMoney(100000);
-    await enter('realtor');
-    expect(
-      (await page.locator(card + '.soon').count()) === 1 && (await text(card)).includes('Мята'),
-      'лесной домик до открытия леса',
-      await text(card),
-    );
-    expect((await page.locator(card + ' .btn').count()) === 0, 'лесной домик можно купить, пока лес закрыт');
-    await closeAll();
-    // лес открыт: дверь домика в лесу — окно риелтора с подсказкой «…продаётся!»
-    await ev(() => {
-      const d = window.__dev;
-      d.actions.openLand('forest');
-      d.go('forest');
-    });
-    await wait(300);
-    const enterCabin = () =>
-      ev(() => {
-        const sc = window.__dev.locations.forest;
-        sc.enterBuilding(sc.map.bById.cabin);
+  await step(
+    'жильё: лесной домик — продаётся, когда лес открыт; покупка, дверь в лесу, «мой дом», «Домой»',
+    async () => {
+      await newGame();
+      await ev(() => window.__dev.go('world'));
+      await wait(300);
+      const card = '.overlay .home-card:has(.ttl:has-text("Лесной домик"))';
+      // лес закрыт: в агентстве домик «скоро» — дорогу покажет Мята, купить нельзя
+      await setMoney(100000);
+      await enter('realtor');
+      expect(
+        (await page.locator(card + '.soon').count()) === 1 && (await text(card)).includes('Мята'),
+        'лесной домик до открытия леса',
+        await text(card),
+      );
+      expect((await page.locator(card + ' .btn').count()) === 0, 'лесной домик можно купить, пока лес закрыт');
+      await closeAll();
+      // лес открыт: дверь домика в лесу — окно риелтора с подсказкой «…продаётся!»
+      await ev(() => {
+        const d = window.__dev;
+        d.actions.openLand('forest');
+        d.go('forest');
       });
-    await clearToasts();
-    await enterCabin();
-    await wait(450);
-    expect(
-      (await scene()) === 'forest' &&
-        (await toasts()).includes('Лесной домик продаётся') &&
-        (await page.locator(card + ' .btn').count()) === 1,
-      'дверь некупленного лесного домика',
-      await toasts(),
-    );
-    await ev(() => {
-      window.__stopWatchCabin = window.__dev.watchState();
-    });
-    await page.click(card + ' .btn');
-    await wait(400);
-    await lastOv().locator('.panel-foot .btn.green').click();
-    await wait(700);
-    expect(await page.locator('text=С новосельем!').count(), 'нет поздравления (лесной домик)');
-    let s = await state();
-    expect(s.homesOwned.includes('cabin') && s.money === 55000, 'покупка лесного домика', [s.homesOwned, s.money]);
-    await closeAll();
-    // через дверь в лесу — внутрь: три бревенчатые комнаты, кровать и шкаф на месте
-    await enterCabin();
-    await wait(500);
-    expect((await scene()) === 'cabin', 'через дверь в лесу не вошли в домик', await scene());
-    const inside = await ev(() => {
-      const sc = window.__dev.scene;
-      return { rooms: sc.desc.rooms.map((r) => r.paper), items: window.__dev.houseItems('cabin').map((i) => i.id) };
-    });
-    expect(
-      inside.rooms.length === 3 &&
-        inside.rooms.every((p) => p === 'logs') &&
-        inside.items.some((q) => q.startsWith('bed_')) &&
-        inside.items.includes('wardrobe') &&
-        inside.items.includes('fireplace'),
-      'внутри лесного домика',
-      inside,
-    );
-    // дверь изнутри — обратно в лес, к двери домика; на домике — табличка «мой дом»
-    await leaveByDoor();
-    const out = await ev(() => {
-      const d = window.__dev,
-        sc = d.locations.forest,
-        door = sc.doorOf('cabin'),
-        n = [];
-      sc.desc.things(sc, (y, f) => n.push(f), { x0: 0, y0: 0, x1: 1e6, y1: 1e6 });
-      return { scene: d.sceneName, dx: Math.abs(sc.p.x - door.x), dy: Math.abs(sc.p.y - door.y), plates: n.length };
-    });
-    expect(out.scene === 'forest' && out.dx < 2 && out.dy < 2 && out.plates >= 1, 'выход из лесного домика', out);
-    const bad = await ev(() => window.__stopWatchCabin());
-    expect(!bad.length, 'лесной домик: запись в состояние мимо действий', bad.slice(0, 3));
-    // основной дом — лесной домик: «Домой» из города ведёт в него, его дверь — в лес
-    await ev(() => {
-      const d = window.__dev;
-      d.actions.setMainHome('cabin');
-      d.go('world');
-    });
-    await wait(300);
-    await ev(() => {
-      window.__dev.F.askGoHome();
-    });
-    await wait(400);
-    await page.click('.overlay .panel-foot .btn.green');
-    await wait(500);
-    expect((await scene()) === 'cabin', '«Домой» не привело в лесной домик', await scene());
-    await leaveByDoor();
-    expect((await scene()) === 'forest', 'дверь лесного домика после «Домой» ведёт не в лес', await scene());
-    await ev(() => window.__dev.actions.setMainHome('villa'));
-  });
+      await wait(300);
+      const enterCabin = () =>
+        ev(() => {
+          const sc = window.__dev.locations.forest;
+          sc.enterBuilding(sc.map.bById.cabin);
+        });
+      await clearToasts();
+      await enterCabin();
+      await wait(450);
+      expect(
+        (await scene()) === 'forest' &&
+          (await toasts()).includes('Лесной домик продаётся') &&
+          (await page.locator(card + ' .btn').count()) === 1,
+        'дверь некупленного лесного домика',
+        await toasts(),
+      );
+      await ev(() => {
+        window.__stopWatchCabin = window.__dev.watchState();
+      });
+      await page.click(card + ' .btn');
+      await wait(400);
+      await lastOv().locator('.panel-foot .btn.green').click();
+      await wait(700);
+      expect(await page.locator('text=С новосельем!').count(), 'нет поздравления (лесной домик)');
+      let s = await state();
+      expect(s.homesOwned.includes('cabin') && s.money === 55000, 'покупка лесного домика', [s.homesOwned, s.money]);
+      await closeAll();
+      // через дверь в лесу — внутрь: три бревенчатые комнаты, кровать и шкаф на месте
+      await enterCabin();
+      await wait(500);
+      expect((await scene()) === 'cabin', 'через дверь в лесу не вошли в домик', await scene());
+      const inside = await ev(() => {
+        const sc = window.__dev.scene;
+        return { rooms: sc.desc.rooms.map((r) => r.paper), items: window.__dev.houseItems('cabin').map((i) => i.id) };
+      });
+      expect(
+        inside.rooms.length === 3 &&
+          inside.rooms.every((p) => p === 'logs') &&
+          inside.items.some((q) => q.startsWith('bed_')) &&
+          inside.items.includes('wardrobe') &&
+          inside.items.includes('fireplace'),
+        'внутри лесного домика',
+        inside,
+      );
+      // дверь изнутри — обратно в лес, к двери домика; на домике — табличка «мой дом»
+      await leaveByDoor();
+      const out = await ev(() => {
+        const d = window.__dev,
+          sc = d.locations.forest,
+          door = sc.doorOf('cabin'),
+          n = [];
+        sc.desc.things(sc, (y, f) => n.push(f), { x0: 0, y0: 0, x1: 1e6, y1: 1e6 });
+        return { scene: d.sceneName, dx: Math.abs(sc.p.x - door.x), dy: Math.abs(sc.p.y - door.y), plates: n.length };
+      });
+      expect(out.scene === 'forest' && out.dx < 2 && out.dy < 2 && out.plates >= 1, 'выход из лесного домика', out);
+      const bad = await ev(() => window.__stopWatchCabin());
+      expect(!bad.length, 'лесной домик: запись в состояние мимо действий', bad.slice(0, 3));
+      // основной дом — лесной домик: «Домой» из города ведёт в него, его дверь — в лес
+      await ev(() => {
+        const d = window.__dev;
+        d.actions.setMainHome('cabin');
+        d.go('world');
+      });
+      await wait(300);
+      await ev(() => {
+        window.__dev.F.askGoHome();
+      });
+      await wait(400);
+      await page.click('.overlay .panel-foot .btn.green');
+      await wait(500);
+      expect((await scene()) === 'cabin', '«Домой» не привело в лесной домик', await scene());
+      await leaveByDoor();
+      expect((await scene()) === 'forest', 'дверь лесного домика после «Домой» ведёт не в лес', await scene());
+      await ev(() => window.__dev.actions.setMainHome('villa'));
+    },
+  );
   await step('бизнес: покупка каждого заведения у хозяина, вывеска, наклейки', async () => {
     await newGame();
     await ev(() => window.__dev.go('world'));
@@ -1299,7 +1329,10 @@ module.exports = async function estate(ctx) {
     for (const b of ['salon', 'boutique']) {
       await enter(b);
       const foot = await page.locator('.overlay .panel-foot .btn').allInnerTexts();
-      expect(foot.filter((t) => !t.includes('Поработать парикмахером')).length === 1, 'в чужом заведении есть работа', [b, foot]);
+      expect(foot.filter((t) => !t.includes('Поработать парикмахером')).length === 1, 'в чужом заведении есть работа', [
+        b,
+        foot,
+      ]);
       await closeAll();
     }
     await ev(() => {
@@ -1437,7 +1470,10 @@ module.exports = async function estate(ctx) {
     for (const k of ['name', 'storage', 'stickers', 'day', 'ledger'])
       expect(JSON.stringify(s[k]) === JSON.stringify(old[k]), `после переноса изменилось «${k}»`);
     // вещи: всё, что было, и шлёпанцы в подарок (У2)
-    expect(JSON.stringify(s.clothes) === JSON.stringify([...old.clothes, 'flip_pink']), 'после переноса изменилось «clothes»');
+    expect(
+      JSON.stringify(s.clothes) === JSON.stringify([...old.clothes, 'flip_pink']),
+      'после переноса изменилось «clothes»',
+    );
     // рецепты: всё, что было, на месте; в конец дописаны только новые рецепты «с начала игры» (repair; список —
     // START_RECIPES из data/food.js: рецепты с отметкой start, их добавляют новые этапы)
     const startRecipes = await ev(async () => (await import('./js/data/food.js')).START_RECIPES);

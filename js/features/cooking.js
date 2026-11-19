@@ -48,10 +48,13 @@ export function openCooking(opts = {}) {
         el(
           'p',
           'muted',
-          opts.note || 'Выбери рецепт. Продукты — в ТЦ «Вкусный», на грядках и на рыбалке; ягоды и грибы — в городе. Под рецептом написано, чего не хватает и где это взять.',
+          opts.note ||
+            'Выбери рецепт. Продукты — в ТЦ «Вкусный», на грядках и на рыбалке; ягоды и грибы — в городе. Под рецептом написано, чего не хватает и где это взять.',
         ),
       );
-      const known = DISHES.filter((d) => d.needs && S().recipes.includes(d.id) && (!opts.only || opts.only.includes(d.id)));
+      const known = DISHES.filter(
+        (d) => d.needs && S().recipes.includes(d.id) && (!opts.only || opts.only.includes(d.id)),
+      );
       known.sort((a, b) => canCook(b) - canCook(a));
       for (const d of known) {
         const ok = canCook(d);

@@ -11,7 +11,15 @@ import { ROOM_GUESTS } from '../data/index.js';
 import { wob } from './inside_art.js';
 
 const OUT = '#4a3728';
-const SHELL = { wall: '#fff4e6', roof: '#1098ad', flat: true, chimneyX: null, bushes: true, trees: 'palm', ground: 'sand' };
+const SHELL = {
+  wall: '#fff4e6',
+  roof: '#1098ad',
+  flat: true,
+  chimneyX: null,
+  bushes: true,
+  trees: 'palm',
+  ground: 'sand',
+};
 
 function label(ctx, str, x, y, size = 13, col = OUT) {
   ctx.font = `800 ${size}px ui-rounded, "Trebuchet MS", sans-serif`;
@@ -78,14 +86,49 @@ export const roomEco = {
   music: 'town',
   door: { f: 0, x: 100 },
   shell: SHELL,
-  rooms: [{ id: 'room', f: 0, x0: 0, x1: 820, name: 'Номер 201', wall: '#fff9db', paper: 'dots', floor: 'wood', win: 440, view: 'city', main: true }],
+  rooms: [
+    {
+      id: 'room',
+      f: 0,
+      x0: 0,
+      x1: 820,
+      name: 'Номер 201',
+      wall: '#fff9db',
+      paper: 'dots',
+      floor: 'wood',
+      win: 440,
+      view: 'city',
+      main: true,
+    },
+  ],
   built: [
     { id: 'door', type: 'door', f: 0, x: 100, c: '#ffd8a8' },
     { id: 'plate', type: 'prop', f: 0, x: 100, draw: plateArt(201, 'Эконом') },
     { id: 'bed', type: 'zone', f: 0, x: 640, w: 220, h: 120, act: 'hotel:bed:eco' },
-    { id: 'tea', type: 'prop', f: 0, x: 300, w: 110, h: 110, draw: teaTray, sfx: 'clink', fx: 'steam', say: ['Чайник и печенье — для гостей номера. Скромно, зато уютно! ☕', 'В окно видно двор отеля: там сушатся полотенца и мурлычет кот.'] },
+    {
+      id: 'tea',
+      type: 'prop',
+      f: 0,
+      x: 300,
+      w: 110,
+      h: 110,
+      draw: teaTray,
+      sfx: 'clink',
+      fx: 'steam',
+      say: [
+        'Чайник и печенье — для гостей номера. Скромно, зато уютно! ☕',
+        'В окно видно двор отеля: там сушатся полотенца и мурлычет кот.',
+      ],
+    },
   ],
-  furniture: { fixed: [['rug_pink', 0, 640], ['bed_green', 0, 640], ['chair', 0, 440], ['pic_flowers', 0, 640, 190]] },
+  furniture: {
+    fixed: [
+      ['rug_pink', 0, 640],
+      ['bed_green', 0, 640],
+      ['chair', 0, 440],
+      ['pic_flowers', 0, 640, 190],
+    ],
+  },
 };
 
 export const roomBalcony = {
@@ -99,8 +142,30 @@ export const roomBalcony = {
   door: { f: 0, x: 100 },
   shell: SHELL,
   rooms: [
-    { id: 'room', f: 0, x0: 0, x1: 640, name: 'Номер 202', wall: '#e7f5ff', paper: 'waves', floor: 'wood', win: null, main: true },
-    { id: 'balcony', f: 0, x0: 640, x1: 1000, name: 'Балкон', wall: '#c9ecff', paper: 'open', floor: 'deck', win: null, view: 'sea' },
+    {
+      id: 'room',
+      f: 0,
+      x0: 0,
+      x1: 640,
+      name: 'Номер 202',
+      wall: '#e7f5ff',
+      paper: 'waves',
+      floor: 'wood',
+      win: null,
+      main: true,
+    },
+    {
+      id: 'balcony',
+      f: 0,
+      x0: 640,
+      x1: 1000,
+      name: 'Балкон',
+      wall: '#c9ecff',
+      paper: 'open',
+      floor: 'deck',
+      win: null,
+      view: 'sea',
+    },
   ],
   lamps: [{ f: 0, x: 820, h: 230, r: 200, c: '255,214,140' }],
   built: [
@@ -116,10 +181,21 @@ export const roomBalcony = {
       h: 90,
       draw: balconyLounger,
       fx: 'heart',
-      say: ['Свой балкон над морем! Шезлонг, апельсиновый сок и шум волн 🌅', 'Отсюда видно, как вдали плывут кораблики. А вечером — закат!'],
+      say: [
+        'Свой балкон над морем! Шезлонг, апельсиновый сок и шум волн 🌅',
+        'Отсюда видно, как вдали плывут кораблики. А вечером — закат!',
+      ],
     },
   ],
-  furniture: { fixed: [['rug_rainbow', 0, 400], ['bed_royal', 0, 400], ['nightstand', 0, 560], ['armchair_blue', 0, 240], ['pic_sea', 0, 400, 195]] },
+  furniture: {
+    fixed: [
+      ['rug_rainbow', 0, 400],
+      ['bed_royal', 0, 400],
+      ['nightstand', 0, 560],
+      ['armchair_blue', 0, 240],
+      ['pic_sea', 0, 400, 195],
+    ],
+  },
 };
 
 export const roomGuest = {
@@ -131,7 +207,20 @@ export const roomGuest = {
   music: 'town',
   door: { f: 0, x: 100 },
   shell: SHELL,
-  rooms: [{ id: 'room', f: 0, x0: 0, x1: 900, name: 'Номер 203', wall: '#f3f0ff', paper: 'flowers', floor: 'wood', win: 470, view: 'sea' }],
+  rooms: [
+    {
+      id: 'room',
+      f: 0,
+      x0: 0,
+      x1: 900,
+      name: 'Номер 203',
+      wall: '#f3f0ff',
+      paper: 'flowers',
+      floor: 'wood',
+      win: 470,
+      view: 'sea',
+    },
+  ],
   built: [
     { id: 'door', type: 'door', f: 0, x: 100, c: '#d0bfff' },
     { id: 'plate', type: 'prop', f: 0, x: 100, draw: plateArt(203, 'гости') },
@@ -143,9 +232,26 @@ export const roomGuest = {
       w: 100,
       h: 120,
       draw: suitcase,
-      say: ['Чемодан с наклейками из путешествий: остров, горы, пустыня! 🧳', 'На чемодане — шляпа от солнца. Кто-то собрался на пляж!'],
+      say: [
+        'Чемодан с наклейками из путешествий: остров, горы, пустыня! 🧳',
+        'На чемодане — шляпа от солнца. Кто-то собрался на пляж!',
+      ],
     },
   ],
-  furniture: { fixed: [['rug_blue', 0, 700], ['bed_blue', 0, 700], ['plant_flowers', 0, 560], ['pic_hamster', 0, 700, 195]] },
-  actors: ROOM_GUESTS.map((id) => ({ npc: id, f: 0, x: 470, roam: [220, 560], act: 'npc:' + id, when: () => !!G.state && hotelRoomGuest() === id })),
+  furniture: {
+    fixed: [
+      ['rug_blue', 0, 700],
+      ['bed_blue', 0, 700],
+      ['plant_flowers', 0, 560],
+      ['pic_hamster', 0, 700, 195],
+    ],
+  },
+  actors: ROOM_GUESTS.map((id) => ({
+    npc: id,
+    f: 0,
+    x: 470,
+    roam: [220, 560],
+    act: 'npc:' + id,
+    when: () => !!G.state && hotelRoomGuest() === id,
+  })),
 };
