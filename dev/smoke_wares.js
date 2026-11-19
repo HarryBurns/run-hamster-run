@@ -9,30 +9,13 @@ const SAVE_V3 = fs.readFileSync(path.join(__dirname, 'saves', 'v3.json'), 'utf8'
 const DAY = { winter: 0, spring: 9, summer: 18, autumn: 27 };
 const BEACH = { do: 'clothes-shop', vendor: 'beach', shops: ['beach'], title: 'Пляжный магазинчик' };
 
-module.exports = async function wares({ page, step, ev, wait, closeAll }) {
-  const state = () => ev(() => JSON.parse(JSON.stringify(window.__dev.G.state)));
-  const norm = (t) => t.replace(/[\u00a0\u202f\u2009]/g, ' ');
-  const text = async (sel) => norm(await page.locator(sel).first().innerText());
-  const expect = (ok, msg, data) => {
-    if (!ok) throw new Error(msg + (data === undefined ? '' : ': ' + JSON.stringify(data)));
-  };
-  /** Новая игра с чистого листа (шаг не зависит от того, что было до него). */
-  const fresh = async () => {
-    await ev(() => {
-      window.__dev.G.state = null;
-      localStorage.clear();
-    });
-    await page.reload();
-    await wait(400);
-    await page.click('text=Играть!');
-    await page.click('text=Пропустить'); // вступительная сценка новой игры (этап 10)
-    await page.evaluate(() => window.__dev.actions.setFlag('intro', 0)); // вводная цепочка заданий — в своих шагах (dev/smoke_start.js)
-    await wait(400);
-    await page.click('text=Поехали!');
-    await wait(500);
-    await ev(() => window.__dev.go('world'));
-    await wait(400);
-  };
+const lib = require('./lib.js');
+
+module.exports = async function wares(ctx) {
+  const L = lib(ctx);
+  const { page, step, ev, wait, closeAll, until, untilPanel, frames, norm, text, expect, state } = L;
+  /** Новая игра с чистого листа (шаг не зависит от того, что было до него): 1 июня, в городе. */
+  const fresh = () => L.fresh({ scene: 'world' });
   /** Перенестись в день day (утро, отметки дня чистые) и положить монет. */
   const setDay = (day, money = 20000) =>
     ev(
@@ -74,38 +57,21 @@ module.exports = async function wares({ page, step, ev, wait, closeAll }) {
       btn: await c.locator('.btn').count(),
     };
   };
-  const enter = async (id) => {
-    await ev((id) => {
-      window.__dev.enterBuilding(id);
-    }, id);
-    await wait(450);
-  };
-  const run = async (act) => {
-    await ev((act) => {
-      window.__dev.run(act);
-    }, act);
-    await wait(450);
-  };
+  /** Войти в здание / действие из реестра; ждём отклика (окно, диалог, сцена), но не дольше 450 мс. */
+  const enter = (id) => L.enter(id, 450);
+  const run = (a) => L.run(a, 450);
   const tab = async (name) => {
     await page.click(`.overlay .tab >> text=${name}`);
-    await wait(300);
+    await frames(2);
   };
-  /** Дождаться, пока закроются все окна «Задание выполнено» и сюрпризы (они встают в очередь и всплывают по одному). */
+  /** Закрыть окна «Задание выполнено» и сюрпризы: они встают в очередь и всплывают по одному — до тишины. */
   const settle = async () => {
-    for (let quiet = 0, i = 0; quiet < 2 && i < 12; i++) {
-      await wait(500);
-      const open = await ev(() => document.querySelectorAll('.overlay, .dialog').length);
-      quiet = open ? 0 : quiet + 1;
-      if (open) await closeAll();
-    }
+    await frames(2);
+    await L.drain();
   };
   const reload = async () => {
-    await ev(() => window.dispatchEvent(new Event('pagehide')));
-    await page.reload();
-    await wait(500);
-    await page.click('text=Продолжить');
-    await wait(900);
-    await closeAll();
+    await L.reload();
+    await L.drain();
   };
 
   await step(
@@ -170,7 +136,7 @@ module.exports = async function wares({ page, step, ev, wait, closeAll }) {
       );
       // серую карточку не примерить и не купить; все одиннадцать пар обуви (с шлёпанцами, У2) видны — ничего не спрятано
       await card('Жёлтые сандалии').click();
-      await wait(250);
+      await frames(2);
       expect((await page.locator('.overlay .card.sel').count()) === 0, 'вещь, которой нет, примерилась');
       expect((await page.locator('.overlay .card').count()) === 11, 'в отделе обуви видны не все вещи');
       c = await cardInfo('Белые кроссовки');
@@ -190,15 +156,13 @@ module.exports = async function wares({ page, step, ev, wait, closeAll }) {
         window.__dev.actions.nextDay();
         window.__dev.F.newDayMail();
       });
-      await wait(300);
-      await closeAll();
+      await settle();
       const next = await snapshot();
       expect(JSON.stringify(next.shelf) !== JSON.stringify(before.shelf), 'наутро витрина та же самая');
       expect(next.shelf['mall:ugg_beige'][0] && next.shelf['mall:sn_white'][0], 'сезонное и базовое есть и назавтра');
 
       // день, когда сандалии привезли: «Не сезон», цена обычная; купленное остаётся на витрине со значком «Есть ✓»
-      await ev(() => window.__dev.go('world'));
-      await wait(300);
+      await L.go('world');
       await setDay(year.sandals.here[0]);
       await enter('mall_fashion');
       await tab('Обувь');
@@ -206,7 +170,7 @@ module.exports = async function wares({ page, step, ev, wait, closeAll }) {
       expect(!c.away && c.badge === 'Не сезон' && c.btn === 1 && c.text.includes('250'), 'сандалии «не сезон»', c);
       let s0 = await state();
       await card('Жёлтые сандалии').locator('.btn').click();
-      await wait(300);
+      await frames(2);
       let s1 = await state();
       expect(
         s1.clothes.includes('sand_yellow') && s0.money - s1.money === 250 && s1.look.outfit.feet === 'sand_yellow',
@@ -231,7 +195,7 @@ module.exports = async function wares({ page, step, ev, wait, closeAll }) {
       expect(c.badge === 'Скидка −30 %' && c.text.includes('420') && c.text.includes('600'), 'угги на распродаже', c);
       s0 = await state();
       await card('Угги').locator('.btn').click();
-      await wait(300);
+      await frames(2);
       s1 = await state();
       expect(
         s1.clothes.includes('ugg_beige') && s0.money - s1.money === 420,
@@ -250,12 +214,12 @@ module.exports = async function wares({ page, step, ev, wait, closeAll }) {
       // лето: купленные зимой угги лежат в шкафу и надеваются — сезон касается только прилавка
       await setDay(DAY.summer + 1);
       await ev(() => window.__dev.F.openWardrobe());
-      await wait(400);
+      await untilPanel();
       await tab('Обувь');
       await card('Жёлтые сандалии').click();
-      await wait(250);
+      await frames(2);
       await card('Угги').click();
-      await wait(250);
+      await frames(2);
       s1 = await state();
       expect(s1.look.outfit.feet === 'ugg_beige', 'зимняя вещь летом не надевается', s1.look.outfit);
       await closeAll();
@@ -331,7 +295,7 @@ module.exports = async function wares({ page, step, ev, wait, closeAll }) {
     expect(!c.away && c.badge === 'Скидка −30 %' && c.text.includes('180') && c.text.includes('250'), 'гирлянда', c);
     const s0 = await state();
     await card('Гирлянда-огоньки').locator('.btn').click();
-    await wait(300);
+    await frames(2);
     const s1 = await state();
     expect(
       (s1.storage.garland || 0) === (s0.storage.garland || 0) + 1 && s0.money - s1.money === 180,
@@ -448,7 +412,7 @@ module.exports = async function wares({ page, step, ev, wait, closeAll }) {
           // праздничная полка (этап 15) — свои дни около праздника
           if (['Семена', 'Для походов', 'Для двора', 'Колёса', 'К празднику'].some((t) => tabs[i].includes(t))) continue;
           await page.locator('.overlay .tab').nth(i).click();
-          await wait(200);
+          await frames(2);
           const n = await ev(() => ({
             all: document.querySelectorAll('.overlay .card').length,
             buy: document.querySelectorAll('.overlay .card:not(.away) .btn').length,
@@ -528,8 +492,7 @@ module.exports = async function wares({ page, step, ev, wait, closeAll }) {
       snap.trinkets,
       again.trinkets,
     ]);
-    await ev(() => window.__dev.go('world'));
-    await wait(300);
+    await L.go('world');
     // вязаный шарф зимой — «Сезон!»; покупка: вещь в шкафу, на карточке «Есть ✓»
     await setDay(year.scarfDay);
     await run('market:buy');
@@ -537,7 +500,7 @@ module.exports = async function wares({ page, step, ev, wait, closeAll }) {
     expect(c.badge === 'Сезон!' && c.text.includes('700'), 'вязаный шарф зимой', c);
     const s0 = await state();
     await card('Вязаный шарф ручной работы').locator('.btn').click();
-    await wait(300);
+    await frames(2);
     const s1 = await state();
     expect(s1.clothes.includes('scarf_knit') && s0.money - s1.money === 700, 'шарф с рынка не куплен', s1.money);
     c = await cardInfo('Вязаный шарф ручной работы');
@@ -566,7 +529,7 @@ module.exports = async function wares({ page, step, ev, wait, closeAll }) {
           furn: d.F.waresHere('home').map((q) => q.def.name.toLowerCase()),
         };
       });
-      await wait(350);
+      await untilPanel();
       let letter = await text('.overlay .panel-body');
       await closeAll();
       expect(tip.season === sea, 'не тот сезон', [sea, tip.season]);
@@ -579,7 +542,7 @@ module.exports = async function wares({ page, step, ev, wait, closeAll }) {
       await enter('mall_fashion');
       const first = norm(await page.locator('.overlay .card:not(.away) .nm').first().innerText());
       await page.click('.overlay .card:not(.away) .btn.green');
-      await wait(300);
+      await frames(2);
       await closeAll();
       let s = await state();
       expect(s.mail.done && s.clothes.length > 12, `${sea}: «Обновка» не выполнена покупкой (${first})`, s.mail);
@@ -591,7 +554,7 @@ module.exports = async function wares({ page, step, ev, wait, closeAll }) {
         d.actions.readMail();
         d.F.showLetter();
       });
-      await wait(350);
+      await untilPanel();
       letter = await text('.overlay .panel-body');
       await closeAll();
       named = (letter.match(/точно есть: (.*?) — и ещё/) || [])[1];
@@ -603,13 +566,13 @@ module.exports = async function wares({ page, step, ev, wait, closeAll }) {
       await enter('mall_home');
       const before = await state();
       await page.click('.overlay .card:not(.away) .btn.green');
-      await wait(300);
+      await frames(2);
       await closeAll();
       s = await state();
       const got = Object.keys(s.storage).find((id) => (s.storage[id] || 0) > (before.storage[id] || 0));
       expect(got && s.money < before.money, `${sea}: мебель не куплена`, s.storage);
       await ev((id) => window.__dev.actions.placeFurn('villa', id, 0, 400, 0), got);
-      await wait(300);
+      await frames(2);
       s = await state();
       expect(s.mail.done, `${sea}: «Уют на вилле» не выполнено`, s.mail);
       await settle();
@@ -705,7 +668,7 @@ module.exports = async function wares({ page, step, ev, wait, closeAll }) {
     // покупка в своём бутике — по обычной цене, как у всех
     const s0 = await state();
     await card('Пушистый халат').locator('.btn').click();
-    await wait(300);
+    await frames(2);
     let s = await state();
     expect(s.clothes.includes('robe') && s0.money - s.money === 2500, 'покупка в своём бутике', s0.money - s.money);
     await closeAll();
@@ -729,10 +692,9 @@ module.exports = async function wares({ page, step, ev, wait, closeAll }) {
       localStorage.setItem('rhr-save-v1', raw);
     }, SAVE_V3);
     await page.reload();
-    await wait(500);
-    await page.click('text=Продолжить');
-    await wait(900);
-    await closeAll();
+    await page.waitForSelector(L.sel('continue'));
+    await L.cont();
+    await settle();
     s = await state();
     expect(
       s.v === 5 &&
@@ -750,8 +712,7 @@ module.exports = async function wares({ page, step, ev, wait, closeAll }) {
       return d.G.state.look.outfit;
     });
     expect(worn.body === 'jw_blue' && worn.head === 'beanie_red', 'зимние вещи летом не надеваются', worn);
-    await ev(() => window.__dev.go('villa'));
-    await wait(400);
+    await L.go('villa');
   });
 
   // У2: шлёпанцы. На песке пляжа и на пирсе (клетки с beach: true) не зимой хомячок нарисована в шлёпанцах, если они
@@ -766,7 +727,7 @@ module.exports = async function wares({ page, step, ev, wait, closeAll }) {
       /** Поставить хомячка на клетку и посмотреть, в чём она нарисована: { surf, feet, worn }. */
       const at = async (x, y) => {
         await ev(([x, y]) => window.__dev.World.debugTeleport(x, y), [x, y]);
-        await wait(250);
+        await frames(3);
         return ev(() => {
           const W = window.__dev.World;
           return {
@@ -808,11 +769,8 @@ module.exports = async function wares({ page, step, ev, wait, closeAll }) {
       // старое сохранение (v3): подарок появляется один раз, с подсказкой; при следующем входе — не повторяется
       const old = JSON.parse(SAVE_V3);
       const load = async () => {
-        await ev(() => window.dispatchEvent(new Event('pagehide')));
-        await page.reload();
-        await wait(500);
-        await page.click('text=Продолжить');
-        await wait(4200);
+        await L.reload();
+        await wait(4000); // подарок подсказкой приходит через 3,5 с после загрузки (main.js) — проверяем, что не пришёл
       };
       await ev((raw) => {
         window.__dev.G.state = null;
@@ -820,9 +778,9 @@ module.exports = async function wares({ page, step, ev, wait, closeAll }) {
         localStorage.setItem('rhr-save-v1', raw);
       }, SAVE_V3);
       await page.reload();
-      await wait(500);
-      await page.click('text=Продолжить');
-      await wait(4200);
+      await page.waitForSelector(L.sel('continue'));
+      await L.cont();
+      await until(() => /шлёпанцы/.test(document.querySelector('#toasts').textContent), undefined, { timeout: 7000 }).catch(() => {}); // подарок — через 3,5 с
       const toast = () => ev(() => (document.querySelector('#toasts') || {}).textContent || '');
       let t = await toast();
       s = await state();
@@ -835,8 +793,7 @@ module.exports = async function wares({ page, step, ev, wait, closeAll }) {
       s = await state();
       expect(once(s) && !t.includes('шлёпанцы'), 'v3: подарок второй раз', [s.clothes, t]);
       await closeAll();
-      await ev(() => window.__dev.go('villa'));
-      await wait(400);
+      await L.go('villa');
     },
   );
 };
