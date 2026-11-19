@@ -77,6 +77,7 @@ const buildSteps = require('./smoke_build.js'); // этап 25: метки ве�
 const tfix = require('./smoke_tfix.js'); // Т-пункты BACKLOG и мелкие правки: звёздочка к колесу, дом на iPad лёжа, холл башни, repair имён, подсказки, двор, вагонетка
 const side = require('./smoke_side.js'); // движок домов: лифт не застревает между этажами, кто ходит мимо ванны — перед ней
 const screen = require('./smoke_screen.js'); // этап 20: проблемы на экране — дом на iPad стоя (В12), кнопка места с морским путём (В14)
+const drawFixes = require('./smoke_draw.js'); // правки рисунка: часы не на окне, пруд и грядки во дворе, лежак, значок сахара
 const holidays = require('./smoke_holidays.js'); // П.13: праздники — Новый год, Рождество, Китайский Новый год, Масленица
 
 // Размер (этап 8): переменная SMOKE_SIZE=desktop|phone или аргумент size:desktop / size:phone — только этот размер
@@ -2890,6 +2891,7 @@ const runParallel = () => {
     await screen({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
     await tfix({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
     await side({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
+    await drawFixes({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
     await buildSteps({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
     await estate({ page, step: (n, f, o) => step(n, f, { ...o, extra: true, estate: true }), ev, wait, closeAll });
     if (tag === 'desktop')
