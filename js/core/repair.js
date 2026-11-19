@@ -75,6 +75,43 @@ export const MIGRATIONS = {
 };
 export const saveVersion = () => 1 + Object.keys(MIGRATIONS).length;
 
+/**
+ * Часы виллы в старых играх. Раньше часы в начале игры висели в гостиной на x 660 (высота 185) — на раме окна
+ * (x 640); в новой игре они над телевизором (x 800, высота 190; START_VILLA в core/save.js). Здесь — то же для уже
+ * начатых игр: часы, которые так и висят на старом месте (игрок их не трогал — после перетаскивания координаты
+ * дробные), переезжают на новое место, а если оно занято другим настенным предметом — на ближайшее свободное место
+ * стены первого этажа без окна. Окна и перегородки первого этажа — как в interiors/villa.js (сюда, в core, описание
+ * дома не попадает); рама окна — x ± 52, от 104 до 208 над полом (engine/side/rooms.js, windowAt).
+ */
+const VILLA_CLOCK = { floor: 0, old: [660, 185], spot: [800, 190], wins: [640, 1500], walls: [220, 920], w: 1600 };
+function moveVillaClock(villa) {
+  const c = VILLA_CLOCK,
+    clock = villa.find((i) => i.id === 'clock' && i.floor === c.floor && i.x === c.old[0] && i.y === c.old[1]);
+  if (!clock) return;
+  const d = FURN_BY_ID.clock,
+    y = c.spot[1];
+  const free = (x) =>
+    x - d.w / 2 >= 6 &&
+    x + d.w / 2 <= c.w - 6 &&
+    c.wins.every((wx) => Math.abs(x - wx) >= d.w / 2 + 52 || y - d.h / 2 >= 208 || y + d.h / 2 <= 104) &&
+    c.walls.every((wx) => Math.abs(x - wx) >= d.w / 2 + 12) &&
+    villa.every(
+      (o) =>
+        o === clock ||
+        o.floor !== c.floor ||
+        !FURN_BY_ID[o.id].wall ||
+        Math.abs(o.x - x) >= (FURN_BY_ID[o.id].w + d.w) / 2 ||
+        Math.abs(o.y - y) >= (FURN_BY_ID[o.id].h + d.h) / 2,
+    );
+  for (let k = 0; k <= c.w; k += 10)
+    for (const x of [c.spot[0] - k, c.spot[0] + k])
+      if (free(x)) {
+        clock.x = x;
+        clock.y = y;
+        return;
+      }
+}
+
 /** Учёт денег за два дня: in — доход по источникам (work, market, task…), out — траты. */
 export const newLedger = () => ({ today: { in: {}, out: 0 }, yesterday: { in: {}, out: 0 } });
 
@@ -251,6 +288,7 @@ export function repair(s) {
     return out;
   };
   s.villa = fixItems(s.villa);
+  moveVillaClock(s.villa);
   for (const k of Object.keys(s.homes)) s.homes[k] = fixItems(s.homes[k]);
   s.uid = Math.max(
     Number.isFinite(s.uid) ? s.uid : 1,

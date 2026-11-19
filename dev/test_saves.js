@@ -172,6 +172,33 @@ const eq = (a, b, msg) => ok(JSON.stringify(a) === JSON.stringify(b), msg, { got
     ok(g.pos && typeof g.pos.scene === 'string', 'позиция не починена', g.pos);
     ok(/^[\w-]{1,24}$/.test(g.gid), 'gid не починен', g.gid);
   });
+  await test('часы виллы со старого места (на окне гостиной) переезжают; занято — ближайшее свободное; переставленные не трогаются', () => {
+    const clockOf = (s) => s.villa.find((i) => i.id === 'clock');
+    const open = (s) => {
+      ls.setItem(KEY, JSON.stringify(s));
+      ok(Gm.openActive().ok, 'не открылось');
+      return G.state;
+    };
+    // образцы v2–v5: часы на x 660 — после открытия над телевизором
+    for (const v of [2, 5]) {
+      const c = clockOf(open(JSON.parse(sample(v))));
+      eq([c.floor, c.x, c.y], [0, 800, 190], `v${v}: часы не переехали с окна`);
+    }
+    // место над телевизором занято картиной — часы рядом, не на окне (x 640 ± 52) и не на картине
+    let s = JSON.parse(sample(5));
+    s.villa.push({ uid: 900, id: 'pic_sun', floor: 0, x: 800, y: 190 });
+    let c = clockOf(open(s));
+    ok(
+      c.x !== 660 && Math.abs(c.x - 640) >= 28 + 52 && Math.abs(c.x - 800) >= 28 + 40,
+      'часы не нашли свободное место',
+      c,
+    );
+    // игрок сам повесил часы рядом с окном — остаются, где были
+    s = JSON.parse(sample(5));
+    Object.assign(clockOf(s), { x: 663.5, y: 181.25 });
+    c = clockOf(open(s));
+    eq([c.x, c.y], [663.5, 181.25], 'переставленные игроком часы сдвинулись');
+  });
   await test('checkSave: не сохранение — broken; версия или сборка новее кода — newer, и оно не меняется', () => {
     for (const bad of [null, 5, 'строка', [], {}, { v: 0 }, { v: 'пять' }, { v: 1.5 }])
       eq(S.checkSave(bad), 'broken', 'ожидался broken');
