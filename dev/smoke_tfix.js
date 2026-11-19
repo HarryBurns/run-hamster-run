@@ -5,12 +5,13 @@
 //   подсказки не ложатся на окно «Игра открыта дважды» (оно важнее);
 //   кораблик, который плывёт сам (кнопка места на карте), не подсказывает «Нажимай на воду»;
 //   «Мой двор»: точки свободных клеток — из запомненного списка, он обновляется, когда предмет поставили;
+//   вагонетка в пещерах стоит на полу, рельсы начинаются рядом с ней;
 //   Т8 — на iPad лёжа вилла видна целиком, отель — все этажи по высоте (а не масштаб 1,05, как на телефоне).
 // Подключается из dev/smoke.js. Только эти шаги:  node dev/smoke.js <url> "step:исправления"
 const lib = require('./lib.js');
 
 module.exports = async function tfix(ctx) {
-  const { page, step, ev, wait, closeAll, expect, fresh: newGame, frames, go, until, teleport, toasts } = lib(ctx);
+  const { page, step, ev, wait, closeAll, expect, fresh: newGame, frames, go, until, teleport, toasts, toPlace } = lib(ctx);
   const fresh = () => newGame({ day: 18, minutes: 12 * 60, weather: 'sun', dayFlags: true }); // июль, полдень
 
   await step('исправления Т7: колесо и пианино в квартире — письмо и звёздочка ведут в квартиру, а не к вилле', async () => {
@@ -238,5 +239,18 @@ module.exports = async function tfix(ctx) {
     await frames(2);
     const b = await ev(() => window.__dev.F.yardDebug());
     expect(b.free < a.free && b.freeFresh, 'после того, как поставили скамейку, список свободных клеток не обновился', { a, b });
+  });
+
+  await step('исправления: вагонетка в пещерах — на полу, рельсы от неё вправо', async () => {
+    await fresh();
+    await toPlace('caves');
+    const r = await ev(() => {
+      const m = window.__dev.locations.caves.map,
+        cart = m.objs.find((o) => o.type === 'minecart'),
+        rails = m.objs.filter((o) => o.type === 'rails' && o.ty === cart.ty).map((o) => o.tx);
+      return { x: cart.tx, y: cart.ty, under: m.at(cart.tx, cart.ty), rails };
+    });
+    expect(r.under === 'caveFloor', 'вагонетка стоит не на полу', r);
+    expect(r.rails.length >= 3 && r.rails.includes(r.x + 1), 'рельсы не начинаются у вагонетки', r);
   });
 };

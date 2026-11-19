@@ -874,12 +874,11 @@ function target(sc) {
   return s ? { ...s, icon: '⭐' } : null;
 }
 
-/** Выход из города в тайное место: в его сцену из LANDS, если она уже есть, — и только когда место открыто. */
-function landExit(id, area, to, entry) {
+/** Выход из города в тайное место: в его сцену и ко входу из LANDS (data/places.js) — и только когда место открыто. */
+function landExit(id, area) {
   const land = LAND_BY_ID[id];
-  if (!land.scene) return { id, area, to, entry, off: true };
   // своя дорога (go — пустыня: караван-автобус везёт картинкой): за шлагбаумом выполняется действие, а не переход
-  return { id, area, to: land.scene, entry: land.entry || entry, when: () => landOpen(id), ...(land.go ? { act: land.go } : null) };
+  return { id, area, to: land.scene, entry: land.entry, when: () => landOpen(id), ...(land.go ? { act: land.go } : null) };
 }
 
 const town = createTopDownScene({
@@ -913,7 +912,7 @@ const town = createTopDownScene({
   // Выезды в тайные места. Сцена места и вход в неё — в LANDS (data/places.js): пока сцены нет, выход закрыт
   // (off), и у ворот — окно действия way:<место> (features/quests.js). Есть сцена — выход открыт, как только место
   // открыто (when): тропа в лес ведёт в лес (locations/forest.js), пока он закрыт — ворота заперты.
-  exits: [landExit('forest', [1, 0, 2, 0], 'forest', 'gate'), landExit('desert', [95, 26, 95, 27], 'desert', 'bus')],
+  exits: [landExit('forest', [1, 0, 2, 0]), landExit('desert', [95, 26, 95, 27])],
   // где разбрасывать предметы заданий: на пляже и в городе (не во дворе виллы и только там, куда можно дойти с улицы)
   zones: {
     beach: { y: [50, WORLD_SEA.shallowY - 1], tiles: ['s'] },

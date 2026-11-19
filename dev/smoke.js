@@ -72,7 +72,7 @@ const saves = require('./smoke_saves.js'); // этап 19: фото в IndexedDB
 const fixes = require('./smoke_fixes.js'); // В-пункты BACKLOG: стрелка к цели в фото-режиме, транспорт у воды, тёплая вода у острова
 const holidaysWide = require('./smoke_holidays_wide.js'); // этап 15: праздники шире площади — наряды жителей, празднуют вместе, места, украшения за городом и в домах, полка в ТЦ, клумбы
 const buildSteps = require('./smoke_build.js'); // этап 25: метки версий модулей (карта импортов ?v=BUILD)
-const tfix = require('./smoke_tfix.js'); // Т-пункты BACKLOG и ревью: звёздочка к колесу в своём доме, …
+const tfix = require('./smoke_tfix.js'); // Т-пункты BACKLOG и мелкие правки: звёздочка к колесу, дом на iPad лёжа, холл башни, repair имён, подсказки, двор, вагонетка
 const screen = require('./smoke_screen.js'); // этап 20: проблемы на экране — дом на iPad стоя (В12), кнопка места с морским путём (В14)
 const holidays = require('./smoke_holidays.js'); // П.13: праздники — Новый год, Рождество, Китайский Новый год, Масленица
 
