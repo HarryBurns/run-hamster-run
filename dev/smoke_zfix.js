@@ -1,12 +1,29 @@
 // Шаги автотеста по багам от заказчика (после третьего обновления):
 //   показ мод — после показа (крестик, итог, перезагрузка посреди показа) на хомячке её собственный наряд;
-//   звёздочка задания «покажись жителю» — там, где житель на самом деле (в гостях, дома, в отеле, в городе).
+//   звёздочка задания «покажись жителю» — там, где житель на самом деле (в гостях, дома, в отеле, в городе);
+//   тексты «где житель» (журнал, «Всё готово!», «Новое задание!», дверь домика) — там, где он на самом деле.
 // Подключается из dev/smoke.js. Только эти шаги:  node dev/smoke.js <url> "step:заказчик:"
 const lib = require('./lib.js');
 
 module.exports = async function zfix(ctx) {
-  const { page, step, ev, until, expect, fresh, frames, mgGo, mgDone, mgClose, reload, closeAll, untilPanel } =
-    lib(ctx);
+  const {
+    page,
+    step,
+    ev,
+    until,
+    expect,
+    fresh,
+    frames,
+    mgGo,
+    mgDone,
+    mgClose,
+    reload,
+    closeAll,
+    untilPanel,
+    toasts,
+    clearToasts,
+    enter,
+  } = lib(ctx);
 
   // ---------- показ мод: наряд игрока не меняется ----------
   const outfit = () => ev(() => JSON.stringify(window.__dev.G.state.look.outfit));
@@ -201,6 +218,59 @@ module.exports = async function zfix(ctx) {
       await ev(() => window.__dev.actions.inviteGuest('myata', 'villa'));
       r = await star('myata', 'villa');
       expect(atDoor(r), 'Мята в гостях на вилле, а звёздочка не у виллы', r);
+    },
+  );
+
+  // ---------- тексты «где житель» — там, где он на самом деле ----------
+  const journal = async () => {
+    await ev(() => window.__dev.F.openAlbum('quests'));
+    await untilPanel();
+    const j = await ev(() => document.querySelector('.overlay').textContent);
+    await closeAll();
+    return j;
+  };
+
+  await step(
+    'заказчик: где житель — «Новоселье»: Плюша у детской площадки, а не у пруда; в гостях — так и сказано',
+    async () => {
+      // в описаниях вводной цепочки и журнала нет жёстких «гуляет у пруда» у Плюши, у шагов «поговори» с жителями
+      // города нет своих подсказок (журнал говорит сам)
+      const bad = await ev(async () => {
+        const D = await import('/js/data/index.js');
+        return D.QUESTS.flatMap((q) => [
+          ...(q.npc === 'plusha' && /пруд/.test(JSON.stringify(q.lines || {})) ? [q.id + ': реплика'] : []),
+          ...q.steps.filter((st) => st.talk && D.NPC_HOME[st.talk] && st.hint).map((st) => q.id + ': ' + st.hint),
+        ]);
+      });
+      expect(!bad.length, 'в заданиях остались жёсткие «где гуляет» у жителей города', bad);
+      await fresh({ day: 18, minutes: 12 * 60, weather: 'sun', dayFlags: true });
+      await talkStep('intro_home', 12 * 60);
+      let j = await journal();
+      expect(
+        /Плюша гуляет в парке у детской площадки/.test(j),
+        'днём журнал не говорит, что Плюша у детской площадки',
+        j.slice(0, 500),
+      );
+      expect(!/пруд/.test(j), 'журнал говорит про пруд', j.slice(0, 500));
+      // в гостях на вилле
+      await ev(() => window.__dev.actions.inviteGuest('plusha', 'villa'));
+      j = await journal();
+      expect(
+        /Сейчас Плюша у тебя в гостях, на вилле/.test(j),
+        'журнал не говорит, что Плюша в гостях на вилле',
+        j.slice(0, 500),
+      );
+      // вечером — у домика, ночью спит
+      await ev(() => {
+        const a = window.__dev.actions;
+        a.removeGuest('plusha');
+        a.mutate((s) => (s.minutes = 20 * 60));
+      });
+      j = await journal();
+      expect(/Сейчас Плюша у своего домика/.test(j), 'вечером журнал не говорит, что Плюша у домика', j.slice(0, 500));
+      await ev(() => window.__dev.actions.mutate((s) => (s.minutes = 23 * 60)));
+      j = await journal();
+      expect(/Плюша уже спит/.test(j), 'ночью журнал не говорит, что Плюша спит', j.slice(0, 500));
     },
   );
 };

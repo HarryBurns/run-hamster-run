@@ -26,7 +26,7 @@ import { sfx } from '../core/audio.js';
 import { on, emit } from '../core/events.js';
 import { go } from '../core/loop.js';
 import { register, run } from '../core/registry.js';
-import { G, questNow, landOpen, npcSpot } from '../core/state.js';
+import { G, questNow, landOpen, npcSpot, invitedToday } from '../core/state.js';
 import { el, esc, fmtMoney } from '../core/util.js';
 import {
   QUESTS,
@@ -41,6 +41,7 @@ import {
   DISH_BY_ID,
   HOME_SCENE,
   HOME_BY_ID,
+  NPC_HOME,
   SEED_BY_ID,
   ING_BY_ID,
 } from '../data/index.js';
@@ -157,20 +158,36 @@ const LOC_WORDS = {
   island: 'на удалённом острове',
 };
 /**
- * Подсказка в журнале «где житель сейчас», когда он не там, где обычно (не на улице и не у своего домика): в гостях у
- * хомячка, у бассейна или в номере отеля. null — обычная подсказка шага (hint).
+ * Где житель города сейчас, если не там, где обычно (не на улице и не у своего домика), — словами после имени или
+ * «она / он»: «у тебя в гостях, на вилле 🏡», «в отеле «Морская звезда» у бассейна 🏨», «… в номере 203 🏨».
+ * null — житель на своём месте (или не житель города). Где он — npcSpot (core/queries.js).
  */
-function spotHint(id) {
-  const sp = npcSpot(id),
-    npc = NPC_BY_ID[id];
+export function npcAwayWords(id) {
+  const sp = npcSpot(id);
   if (!sp) return null;
   if (sp.at === 'guest') {
     const h = HOME_BY_ID[sp.home];
-    return `Сейчас ${npc.name} у тебя в гостях: ${h.icon} ${h.name}`;
+    return `у тебя в гостях, ${h.atWords} ${h.icon}`;
   }
-  if (sp.at === 'pool') return `Сейчас ${npc.name} отдыхает у бассейна в отеле «Морская звезда» 🏨`;
-  if (sp.at === 'room') return `Сейчас ${npc.name} гостит в отеле «Морская звезда», в номере 203 🏨`;
+  if (sp.at === 'pool') return 'в отеле «Морская звезда» у бассейна 🏨';
+  if (sp.at === 'room') return 'в отеле «Морская звезда», в номере 203 🏨';
   return null;
+}
+/**
+ * Подсказка в журнале «где житель сейчас» (шаг «поговори с …»): в гостях, в отеле, спит, ждёт дома, у домика или на
+ * своём месте днём (NPC_HOME[id].away — data/visits.js). null — не житель города: обычная подсказка шага (hint).
+ */
+function npcHint(id) {
+  const sp = npcSpot(id),
+    npc = NPC_BY_ID[id],
+    home = NPC_HOME[id];
+  if (!sp || !home) return null;
+  const away = npcAwayWords(id);
+  if (away) return `Сейчас ${npc.name} ${away}`;
+  if (sp.at === 'asleep') return `${npc.name} уже спит 😴 Утром ${npc.fem ? 'она' : 'он'} будет у своего домика`;
+  if (sp.at === 'home' && invitedToday(id)) return `${npc.name} ждёт тебя у себя дома — постучись в дверь домика 🚪`;
+  if (sp.at === 'home') return `Сейчас ${npc.name} у своего домика, а днём ${home.away}`;
+  return `${npc.name} ${home.away}, а утром и вечером — у своего домика`;
 }
 /** Показать задание на карте (звёздочкой). false — сейчас показать нечего (сегодня всё собрано и т. п.). */
 export function showQuestOnMap(id) {
@@ -532,7 +549,7 @@ export function renderJournal(body, panel) {
       const x = w.steps[i],
         cur = i === w.i;
       const prog = x.need > 1 ? ` <b>${x.have}/${x.need}</b>` : '';
-      const hint = cur && ((step.talk && spotHint(step.talk)) || step.hint);
+      const hint = cur && ((step.talk && npcHint(step.talk)) || step.hint);
       const li = el(
         'li',
         x.ok ? 'ok' : cur ? 'cur' : 'todo',
