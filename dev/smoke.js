@@ -70,6 +70,7 @@ const sleepSteps = require('./smoke_sleep.js'); // этап 18: сон толь�
 const core = require('./smoke_core.js'); // ревью основы: клавиша E, окна и сон при ошибке, сохранение при нехватке места, нечитаемая игра
 const saves = require('./smoke_saves.js'); // этап 19: фото в IndexedDB, игра файлом, вторая вкладка и старая сборка
 const fixes = require('./smoke_fixes.js'); // В-пункты BACKLOG: стрелка к цели в фото-режиме, транспорт у воды, тёплая вода у острова
+const zfix = require('./smoke_zfix.js'); // баги от заказчика: наряд после показа мод, звёздочка к жителю там, где он сейчас
 const holidaysWide = require('./smoke_holidays_wide.js'); // этап 15: праздники шире площади — наряды жителей, празднуют вместе, места, украшения за городом и в домах, полка в ТЦ, клумбы
 const buildSteps = require('./smoke_build.js'); // этап 25: метки версий модулей (карта импортов ?v=BUILD)
 const tfix = require('./smoke_tfix.js'); // Т-пункты BACKLOG и мелкие правки: звёздочка к колесу, дом на iPad лёжа, холл башни, repair имён, подсказки, двор, вагонетка
@@ -2878,6 +2879,7 @@ const runParallel = () => {
     await buddy({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
     await jobs({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
     await fixes({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
+    await zfix({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
     await rfix({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
     await core({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
     await saves({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });

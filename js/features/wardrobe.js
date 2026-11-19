@@ -17,14 +17,17 @@ const S = () => G.state;
 
 /**
  * Окно с одеждой. mode: 'shop' (покупка + примерка) или 'wardrobe' (свои вещи).
- * opts: { title, portrait, shops:[...], foot, onClose, sticky, hint }
+ * opts: { title, portrait, shops:[...], foot, onClose, sticky, hint, outfit }
+ * outfit — свой наряд (слот → id) вместо надетого: шкаф показа мод меняет его, а не одежду хомячка (wear не зовётся).
  */
 export function clothesPanel(mode, opts = {}) {
   const st = hamsterStage(150, 168, 1.6);
   let tryOn = {}; // примерка в магазине: slot → id
+  const own = opts.outfit; // наряд показа мод: живёт только в окне
+  const outfitNow = () => own || S().look.outfit;
   const lookNow = () => {
     const l = S().look;
-    return resolveLook({ ...l, outfit: { ...l.outfit, ...tryOn } });
+    return resolveLook({ ...l, outfit: { ...outfitNow(), ...tryOn } });
   };
   let raf = 0;
   const t0 = performance.now();
@@ -81,7 +84,7 @@ export function clothesPanel(mode, opts = {}) {
         );
       for (const it of items) {
         const owned = hasClothes(it.id),
-          worn = S().look.outfit[it.slot] === it.id,
+          worn = outfitNow()[it.slot] === it.id,
           trying = tryOn[it.slot] === it.id;
         if (mode === 'shop' && !owned && !wareToday(it).here) {
           // сегодня не привезли: карточка на месте, но серая — с подписью, когда будет и когда сезон
@@ -125,7 +128,8 @@ export function clothesPanel(mode, opts = {}) {
           if (worn) card.appendChild(el('span', 'badge', 'Надето'));
           card.onclick = () => {
             sfx('pop');
-            wear(it.slot, worn ? null : it.id);
+            if (own) own[it.slot] = worn ? null : it.id;
+            else wear(it.slot, worn ? null : it.id);
             panel.refresh();
           };
         }
@@ -157,9 +161,9 @@ register(
   'магазин одежды: { vendor, shops: [...], title? }',
 );
 
-/** Оценка наряда по теме: 0..10 */
-export function scoreOutfit(theme) {
-  const o = S().look.outfit;
+/** Оценка наряда по теме: 0..10 (outfit — слот → id; по умолчанию надетое). */
+export function scoreOutfit(theme, outfit) {
+  const o = outfit || S().look.outfit;
   let score = 0;
   const body = o.body && CLOTHES_BY_ID[o.body];
   const fullBody = body && ['dress', 'princess', 'swim', 'pajama', 'robe'].includes(body.kind);

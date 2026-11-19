@@ -27,6 +27,7 @@ import {
   BIZ_BY_ID,
   BIZ_RULES,
   HOTEL,
+  resolveLook,
 } from '../data/index.js';
 import { runMinigame } from '../minigames/host.js';
 import { openLayer } from '../ui/modals.js';
@@ -76,7 +77,32 @@ export const MG_NAMES = {
 
 // Чем занятия делятся с мини-играми (сами мини-игры features/ не импортируют — всё приходит через host.info).
 const TOOLS = {
-  fashion: () => ({ fashion: { clothesPanel, scoreOutfit, themes: FASHION_THEMES, getLook: playerLook } }),
+  fashion: () => {
+    // Наряд для подиума — копия надетого: шкаф показа меняет только его. Одежда хомячка не меняется вовсе, поэтому
+    // после показа (крестик, итог, ошибка, перезагрузка посреди показа) на ней снова то, что было надето до него.
+    const outfit = { ...S().look.outfit };
+    let key = '',
+      base = null,
+      look = null;
+    const getLook = () => {
+      const k = JSON.stringify(outfit),
+        b = playerLook(); // свой мех, причёска, простуда — как всегда; одежда — с подиума
+      if (k !== key || b !== base) {
+        key = k;
+        base = b;
+        look = { ...b, outfit: resolveLook({ outfit }).outfit };
+      }
+      return look;
+    };
+    return {
+      fashion: {
+        clothesPanel: (mode, o = {}) => clothesPanel(mode, { ...o, outfit }),
+        scoreOutfit: (theme) => scoreOutfit(theme, outfit),
+        themes: FASHION_THEMES,
+        getLook,
+      },
+    };
+  },
 };
 
 // ---------- работа: зарплата по звёздам, PAID_SHIFTS оплачиваемых смен в день на каждом месте ----------
