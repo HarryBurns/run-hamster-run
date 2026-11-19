@@ -186,6 +186,23 @@ export function isParty(sc) {
     );
 }
 
+/** Знак «нельзя»: красный круг с чертой, центр x, y. */
+function noSign(ctx, x, y) {
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(x, y, 14, 0, Math.PI * 2);
+  ctx.fillStyle = '#fff';
+  ctx.fill();
+  ctx.lineWidth = 4;
+  ctx.strokeStyle = '#e03131';
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(x - 9, y - 9);
+  ctx.lineTo(x + 9, y + 9);
+  ctx.stroke();
+  ctx.restore();
+}
+
 /** Нарисовать всю мебель (и рамку вокруг выбранного предмета в режиме обустройства). */
 export function drawItems(ctx, sc, t) {
   const minutes = G.state.minutes,
@@ -196,17 +213,20 @@ export function drawItems(ctx, sc, t) {
       v = sc.view; // что видно на экране (scene.js): предметы за краем не рисуем
     if (v && (it.x + d.w / 2 + 40 < v.x0 || it.x - d.w / 2 - 40 > v.x1 || y - 300 > v.y1 || y + 40 < v.y0)) continue;
     const on = isOn(sc, it, d);
-    if (sel && sel.uid === it.uid) {
-      const r = furnRect(d, it.x, y, it.y);
+    const r = sel && sel.uid === it.uid ? furnRect(d, it.x, y, it.y) : null;
+    // красная рамка и знак «нельзя» — предмет сейчас там, где его оставить нельзя (настенный на окне, decor.js)
+    const bad = r && sc.decor.drag && sc.decor.drag.bad;
+    if (r) {
       ctx.save();
       ctx.setLineDash([8, 6]);
       ctx.lineDashOffset = -t * 20;
       rr(ctx, r.x - 6, r.y - 6, r.w + 12, r.h + 12, 10);
-      ctx.strokeStyle = '#ff6b9d';
+      ctx.strokeStyle = bad ? '#e03131' : '#ff6b9d';
       ctx.lineWidth = 4;
       ctx.stroke();
       ctx.restore();
     }
     drawFurn(ctx, d, it.x, d.wall ? y - it.y : y, { t, on, minutes });
+    if (bad) noSign(ctx, r.x + r.w + 4, r.y - 4);
   }
 }

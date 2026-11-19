@@ -79,8 +79,33 @@ function placeFromStorage(sc, id) {
     { W } = sc.geo;
   const c = sc.cam.toWorld(G.view.w / 2, G.view.h / 2);
   const f = sc.geo.floorAt(c.y, 40);
-  sc.decor.sel = placeFurn(sc.houseKey, id, f, clamp(c.x, d.w / 2 + 6, W - d.w / 2 - 6), d.wall ? 160 : 0);
+  const x = clamp(c.x, d.w / 2 + 6, W - d.w / 2 - 6);
+  // настенный предмет посередине экрана мог попасть на окно — тогда рядом, на стене без окна
+  sc.decor.sel = placeFurn(sc.houseKey, id, f, d.wall ? freeWallX(sc, d, x, f, 160) : x, d.wall ? 160 : 0);
   buildTray(sc);
+}
+
+// ---------- окна: настенное на них не вешается ----------
+/**
+ * Налезает ли настенный предмет d (центр x, высота y над полом этажа floor) на окно дома. Рама окна — как её рисует
+ * engine/side/rooms.js (windowAt): x ± (половина стекла + 8), от 104 до 208 над полом; стекло — winW комнаты или 88.
+ */
+export function onWindow(sc, d, x, floor, y) {
+  if (!d.wall || y - d.h / 2 >= 208 || y + d.h / 2 <= 104) return false;
+  for (const r of sc.desc.rooms) {
+    if (r.f !== floor || !r.win) continue;
+    const hw = (r.winW || 88) / 2 + 8;
+    for (const wx of [].concat(r.win)) if (Math.abs(x - wx) < d.w / 2 + hw) return true;
+  }
+  return false;
+}
+/** Ближайший к x центр настенного предмета на этом этаже, где он не на окне (не нашлось — сам x). */
+function freeWallX(sc, d, x, floor, y) {
+  const W = sc.geo.W;
+  for (let k = 0; k <= W; k += 8)
+    for (const nx of [x - k, x + k])
+      if (nx >= d.w / 2 + 6 && nx <= W - d.w / 2 - 6 && !onWindow(sc, d, nx, floor, y)) return nx;
+  return x;
 }
 function stash(sc, it) {
   const d = FURN_BY_ID[it.id];
@@ -100,7 +125,8 @@ export function decorDown(sc, sx, sy) {
   const it = hitItem(sc, w.x, w.y, true);
   if (it) {
     dc.sel = it;
-    dc.drag = { it, dx: w.x - it.x, moved: false };
+    // ok — последнее место, где предмет можно оставить (настенный — не на окне); bad — сейчас он на окне
+    dc.drag = { it, dx: w.x - it.x, moved: false, ok: { x: it.x, floor: it.floor, y: it.y }, bad: false };
     buildTray(sc);
   } else {
     // мимо мебели — двигаем камеру
@@ -120,12 +146,13 @@ export function decorMove(sc, sx, sy) {
       d = FURN_BY_ID[it.id];
     dc.drag.moved = true;
     const f = sc.geo.floorAt(w.y, d.wall ? 0 : 30);
-    moveFurn(
-      it,
-      clamp(w.x - dc.drag.dx, d.w / 2 + 6, W - d.w / 2 - 6),
-      f,
-      d.wall ? clamp(fy(f) - w.y, d.h / 2 + 60, RH - d.h / 2 - 8) : undefined,
-    );
+    const x = clamp(w.x - dc.drag.dx, d.w / 2 + 6, W - d.w / 2 - 6),
+      y = d.wall ? clamp(fy(f) - w.y, d.h / 2 + 60, RH - d.h / 2 - 8) : undefined;
+    moveFurn(it, x, f, y);
+    // на окне предмет идёт за пальцем, но рамка красная («сюда нельзя»), а отпущенный он вернётся на последнее
+    // хорошее место (decorUp)
+    dc.drag.bad = onWindow(sc, d, x, f, y);
+    if (!dc.drag.bad) dc.drag.ok = { x, floor: f, y: it.y };
   } else if (dc.pan) {
     sc.cam.x = dc.pan.cx - (sx - dc.pan.sx) / sc.cam.zoom;
     sc.cam.y = dc.pan.cy - (sy - dc.pan.sy) / sc.cam.zoom;
@@ -135,7 +162,13 @@ export function decorMove(sc, sx, sy) {
 export function decorUp(sc) {
   const dc = sc.decor;
   if (dc.drag && dc.drag.moved) {
-    sfx('pop');
+    const { it, ok, bad } = dc.drag;
+    if (bad) {
+      const d = FURN_BY_ID[it.id];
+      moveFurn(it, freeWallX(sc, d, ok.x, ok.floor, ok.y), ok.floor, ok.y);
+      sfx('bad');
+      toast('На окно не повесить — закроет вид. Повесь рядом, на стену!');
+    } else sfx('pop');
     touchState();
   }
   dc.drag = null;
