@@ -20,6 +20,10 @@
 //                     видимых клеток этого вида (n чисел) — рисуй всё одним путём
 // Вид без z (по-старому, с одним draw) рисуется в кусок квадратом поверх слоёв; anim: true — каждый кадр.
 // Крюк локации paintGround(ctx, env, x0, y0, x1, y1) дорисовывает в кусок неподвижное (разметку, бортики).
+// Слой K лежит не под всеми клетками выше себя, а только под теми, что «стоят на нём»: до них от клеток K можно дойти
+// по соседним клеткам, не спускаясь ниже (layerMask). Иначе пруд, до которого рядом (в запасе куска) есть плитка
+// у бассейна, ложился бы на плитку — и её светлые углы выглядывали из-под волнистого берега, а грядка рядом с прудом
+// лежала бы в луже.
 //
 // Память (Т1): держим куски на экране и те куски за его краем, что вот-вот покажутся: до края экрана меньше
 // KEEP_NEAR куска. Их готовим заранее, когда до края меньше PRE_NEAR куска, — по одному за кадр, ближние и по ходу
@@ -165,6 +169,73 @@ export function regionPath(inside, x0, y0, x1, y1, r, wob, seed) {
   return path;
 }
 
+// ---------- под какими клетками лежит слой ----------
+const masks = new WeakMap(); // m.kinds → Map(z → Uint8Array)
+/**
+ * Под какими клетками карты лежит слой высоты z: клетки этого слоя и все, до которых от них можно дойти по соседним
+ * (и наискосок) клеткам, не спускаясь ниже (высота по пути не убывает). Тропинка, ведущая к пирсу, лежит и под пирсом;
+ * пруд посреди травы — не на плитке, которая есть в паре клеток от него. Карта клеток не меняется — считается один
+ * раз на слой.
+ */
+function layerMask(m, z) {
+  let byZ = masks.get(m.kinds);
+  if (!byZ) masks.set(m.kinds, (byZ = new Map()));
+  let mask = byZ.get(z);
+  if (mask) return mask;
+  const { w, h, kinds } = m;
+  const zOf = (i) => {
+    const q = kinds[(i / w) | 0][i % w].z;
+    return q === undefined ? Infinity : q;
+  };
+  mask = new Uint8Array(w * h);
+  const queue = [];
+  for (let i = 0; i < w * h; i++)
+    if (zOf(i) === z) {
+      mask[i] = 1;
+      queue.push(i);
+    }
+  while (queue.length) {
+    const i = queue.pop(),
+      x = i % w,
+      y = (i / w) | 0,
+      zi = zOf(i);
+    for (let dy = -1; dy <= 1; dy++)
+      for (let dx = -1; dx <= 1; dx++) {
+        const nx = x + dx,
+          ny = y + dy;
+        if (nx < 0 || ny < 0 || nx >= w || ny >= h) continue;
+        const j = ny * w + nx;
+        if (mask[j]) continue;
+        const zj = zOf(j);
+        if (zj >= zi && zj !== Infinity) {
+          mask[j] = 1;
+          queue.push(j);
+        }
+      }
+  }
+  byZ.set(z, mask);
+  return mask;
+}
+/** Условие для regionPath: клетка (x, y) внутри слоя z (за краем карты — как ближайшая клетка карты). */
+function layerInside(m, z) {
+  const mask = layerMask(m, z),
+    { w, h, kinds } = m;
+  return (x, y) => {
+    const cx = x < 0 ? 0 : x >= w ? w - 1 : x,
+      cy = y < 0 ? 0 : y >= h ? h - 1 : y,
+      q = kinds[cy][cx].z;
+    if (q === undefined) return true; // клетка «по-старому» закрывает собой всё: под ней — любой слой
+    return q >= z && mask[cy * w + cx] === 1;
+  };
+}
+
+/** Для автотеста: высоты слоёв, которые лежат под клеткой (tx, ty), снизу вверх. */
+export function layersUnder(m, tx, ty) {
+  const zs = new Set();
+  for (const row of m.kinds) for (const k of row) if (k.z !== undefined) zs.add(k.z);
+  return [...zs].sort((a, b) => a - b).filter((z) => layerInside(m, z)(tx, ty));
+}
+
 // ---------- рисование куска ----------
 function paintChunk(c, sc, env, cx, cy) {
   const m = sc.map,
@@ -188,10 +259,6 @@ function paintChunk(c, sc, env, cx, cy) {
       if (!levels.some((l) => l.z === k.z)) levels.push({ z: k.z, kind: k });
     }
   levels.sort((a, b) => a.z - b.z);
-  const zAt = (x, y) => {
-    const z = kindAt(x, y).z;
-    return z === undefined ? Infinity : z; // клетка «по-старому» закрывает собой всё: под ней — верхний слой
-  };
   const X = x0 * T,
     Y = y0 * T,
     S = CH * T;
@@ -203,7 +270,7 @@ function paintChunk(c, sc, env, cx, cy) {
     let path = null;
     if (li > 0) {
       path = regionPath(
-        (x, y) => zAt(x, y) >= lv.z,
+        layerInside(m, lv.z),
         wx0,
         wy0,
         wx1,
@@ -263,10 +330,6 @@ export function paintGroundMap(ctx, sc, env) {
       if (k.z !== undefined && !levels.some((l) => l.z === k.z)) levels.push({ z: k.z, kind: k });
     }
   levels.sort((a, b) => a.z - b.z);
-  const zAt = (x, y) => {
-    const z = kinds[y < 0 ? 0 : y >= h ? h - 1 : y][x < 0 ? 0 : x >= w ? w - 1 : x].z;
-    return z === undefined ? Infinity : z;
-  };
   ctx.save();
   ctx.beginPath();
   ctx.rect(0, 0, w * T, h * T);
@@ -281,7 +344,7 @@ export function paintGroundMap(ctx, sc, env) {
       return;
     }
     const path = regionPath(
-      (x, y) => zAt(x, y) >= lv.z,
+      layerInside(m, lv.z),
       -1,
       -1,
       w + 1,

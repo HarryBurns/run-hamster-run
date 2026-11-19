@@ -107,7 +107,7 @@ import { T, SP, TILES, OBJECTS, BUILDING_KINDS, tileOf } from './kinds.js';
 import { createMap, mapSize } from './map.js';
 import { moveAlong, faceTo, canStand, makeResidents, settleResidents, updateResidents, hitResident } from './actors.js';
 import { drawFrame, drawMiniMapBase, drawMiniMapPlayer, initWeather, updateWeather, hideSky } from './render.js';
-import { groundStats } from './ground.js';
+import { groundStats, layersUnder } from './ground.js';
 
 // ---------- локации игры ----------
 /** Все локации: имя сцены → сцена. */
@@ -803,6 +803,7 @@ export function createTopDownScene(desc) {
     doorOf: (id) => ensure().doorPx(map.bById[id]),
     debugSprites: () => SP.stats(),
     debugGround: () => groundStats(),
+    debugLayers: (tx, ty) => layersUnder(ensure(), tx, ty), // высоты слоёв земли под клеткой (ground.js)
     debugScreen: (wx, wy) => sc.cam.toScreen(wx, wy),
     debugNpc(id) {
       const n = sc.npcs.find((q) => q.id === id);

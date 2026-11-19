@@ -53,4 +53,23 @@ module.exports = async function draw(ctx) {
     expect(r.checked > 10, 'настенных предметов почти нет — проверка не годится', r);
     expect(!r.bad.length, 'настенный предмет на окне', r.bad);
   });
+
+  await step('рисунок: под прудом двора нет плитки, под грядкой нет воды; песок под пирсом остаётся', async () => {
+    await newGame({ minutes: 12 * 60, weather: 'sun', scene: 'world' });
+    const r = await ev(() => {
+      const W = window.__dev.World;
+      return {
+        pond: W.debugLayers(22, 18), // середина пруда во дворе виллы
+        pondEdge: W.debugLayers(19, 19),
+        bed: W.debugLayers(23, 12), // нижняя грядка (рядом в запасе куска — пруд)
+        pier: W.debugLayers(63, 56), // пирс над морем
+      };
+    });
+    for (const k of ['pond', 'pondEdge']) {
+      expect(r[k].includes(10), `${k}: нет слоя воды — проверка не годится`, r);
+      expect(!r[k].includes(8) && !r[k].includes(5), `${k}: под прудом лежит плитка или тропинка`, r);
+    }
+    expect(r.bed.includes(12) && !r.bed.includes(10), 'под грядкой лежит вода пруда', r);
+    expect(r.pier.includes(2), 'под пирсом пропал песок пляжа', r);
+  });
 };
