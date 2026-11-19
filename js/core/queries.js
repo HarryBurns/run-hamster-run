@@ -177,6 +177,8 @@ export function houseItems(key) {
   const s = G.state;
   return key === 'villa' ? s.villa : s.homes[key] || [];
 }
+/** В каких своих домах стоит вещь id (колесо, пианино) — не в кладовке; по порядку ownedHomes. */
+export const homesWith = (id) => ownedHomes().filter((h) => houseItems(h).some((i) => i.id === id));
 
 // ---------- сюжетные задания и новые места (этап 5; только чтение) ----------
 // Описания — data/quests.js, места — LANDS в data/places.js; ход задания по событиям считает features/quests.js.

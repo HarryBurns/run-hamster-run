@@ -3,7 +3,7 @@ import { award, earn, setMail, readMail, mailCount, mailGot, finishTask } from '
 import { sfx } from '../core/audio.js';
 import { on, emit } from '../core/events.js';
 import { register } from '../core/registry.js';
-import { G, cal, hasClothes, ownedHomes, houseItems } from '../core/state.js';
+import { G, cal, hasClothes, homesWith } from '../core/state.js';
 import { esc, fmtMoney, pick } from '../core/util.js';
 import {
   CLOTHES_BY_ID,
@@ -23,6 +23,7 @@ import {
   coldDay,
   NPC_BY_ID,
   guestHosts,
+  HOME_BY_ID,
 } from '../data/index.js';
 import { getLocation, homeLocation } from '../engine/topdown/index.js';
 import { celebrate } from '../ui/celebrate.js';
@@ -38,7 +39,7 @@ const FIRST_TASKS = ['buy_clothes', 'swim', 'treat', 'market'];
 export const taskCoins = (id) => TASK_COINS[id] || TASK_COINS_DEFAULT;
 
 /** Есть ли вещь (колесо, пианино) в каком-нибудь из своих домов — не в кладовке. */
-const atHome = (id) => ownedHomes().some((h) => houseItems(h).some((i) => i.id === id));
+const atHome = (id) => homesWith(id).length > 0;
 
 export function newDayMail() {
   const s = S(),
@@ -148,7 +149,11 @@ function letterHtml() {
     t = TASK_BY_ID[m.task],
     c = cal(),
     tip = m.done ? '' : hostsTip(t) || seasonTip(t);
-  const where = PLACES[t.where] || (t.where === 'beach' ? 'Пляж' : t.where === 'town' ? 'Город' : '');
+  // колесо и пианино — в том доме (или домах), где они стоят
+  const homes = t.thing ? homesWith(t.thing).map((h) => HOME_BY_ID[h].name) : [];
+  const where = homes.length
+    ? homes.join(' или ')
+    : PLACES[t.where] || (t.where === 'beach' ? 'Пляж' : t.where === 'town' ? 'Город' : '');
   // первое письмо новой игры (1 июня): городок здоровается с новой соседкой
   const hello = S().startDay && S().day === S().startDay ? '<p>С приездом в <b>Ореховую Гавань</b>! Весь городок рад новой соседке. 🌰</p>' : '';
   return `<div class="letter"><h3>${t.sticker} ${t.title}</h3><p>Дорогая ${esc(S().name)}!</p>${hello}<p>${t.text}</p>${tip ? `<p class="tip">${tip}</p>` : ''}
