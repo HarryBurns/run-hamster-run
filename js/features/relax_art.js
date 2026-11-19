@@ -4,17 +4,26 @@
 import { TAU } from '../core/util.js';
 import { line, fillRR, emoji } from '../core/draw.js';
 import { drawHamster, blinkAt } from '../art/hamster.js';
-import { RELAX } from '../data/index.js';
+import { RELAX, CLOTHES_BY_ID } from '../data/index.js';
 import { PS, SP, OUT } from '../engine/topdown/kinds.js';
 
 const HB = [-46, -100, 46, 12]; // рамка кадра хомячка (единицы мира)
-const TOWELS = ['#ff8fab', '#74c0fc', '#ffd43b', '#63e6be', '#b197fc']; // цвета пляжных полотенец (common/props.js)
 /** Кадр хомячка из кэша: key — что в нём меняется, pose — поза drawHamster, k — размер (1 — как на ходу), rot — наклон. */
 function frame(key, look, pose, k = 1, rot = 0) {
   return SP.get(key, HB, (c) => {
     if (rot) c.rotate(rot);
     drawHamster(c, 0, 0, PS * k, look, pose);
   });
+}
+const FACE = ['glasses', 'sunglasses', 'skigoggles'];
+/**
+ * Внешность для лежака: в тёмных очках, если на мордочке ничего другого нет (без аксессуара или в очках). Свои
+ * солнечные очки остаются; шарф, бусы, рюкзачок — тоже (тогда без очков).
+ */
+function sunLook(look) {
+  const acc = look.outfit && look.outfit.acc;
+  if (acc && (acc.kind === 'sunglasses' || !FACE.includes(acc.kind))) return null;
+  return { ...look, outfit: { ...look.outfit, acc: CLOTHES_BY_ID.sung_yellow } };
 }
 const shutAt = (t, ph) => (blinkAt(t, ph) > 0.5 ? 1 : 0);
 const bez = (u, a, b, c, d) => {
@@ -42,27 +51,24 @@ export function drawSitter(ctx, how, look, lk, x, y, t, ph, o, spot, dir, ct) {
     return;
   }
   if (how === 'lie') {
-    // лежак (полотенце) сверху: хомячок на спинке, головой к изголовью, ноги укрыты краем полотенца того же цвета;
-    // задремал — глазки закрыты
+    // загорает: хомячок лежит на спинке ПОВЕРХ полотенца (у лежака оно постелено на нём, на пляже — на песке):
+    // головой на подушке, лапки за головой, в тёмных очках; полотенце видно из-под него по бокам и у лапок.
+    // Задремал — лапки вдоль тела, глазки закрыты («z-z-z» рисует drawRestExtras)
     const doze = ct > RELAX.dozeAfter ? 1 : 0;
     const br = Math.floor(((Math.sin(t * 1.6 + ph) + 1) / 2) * 3.99);
-    const cov = o.type === 'towel' ? TOWELS[(o.v === undefined ? o.tx : o.v) % 5] : '#ff8fab';
-    const s = SP.get(`rx:${lk}:lie:${cov}:${doze}:${br}:${doze ? 1 : shut}`, HB, (c) => {
-      c.save();
+    const sun = sunLook(look);
+    const s = SP.get(`rx:${lk}:lie:${doze}:${br}:${doze ? 1 : shut}`, HB, (c) => {
+      c.translate(0, -9);
       c.scale(1, 0.84);
-      drawHamster(c, 0, 0, PS * 0.74, look, {
+      drawHamster(c, 0, 0, PS * 0.58, sun || look, {
         sit: true,
         shadow: false,
         sleep: !!doze,
         happy: !doze,
+        armsUp: !doze,
         blink: doze ? 1 : shut,
         time: br * 0.3,
       });
-      c.restore();
-      const top = -15 - br * 0.4;
-      fillRR(c, -13, top, 26, 17 + br * 0.4, 4, '#fff8ec', OUT, 1.6);
-      c.fillStyle = cov;
-      for (let i = 0; i < 2; i++) c.fillRect(-11, top + 3 + i * 7, 22, 4);
     });
     SP.draw(s, x, y);
     return;
