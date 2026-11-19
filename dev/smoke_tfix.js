@@ -4,6 +4,7 @@
 //   repair (ревью Б4) — имя хомячка, питомца и название заведения обрезаются до длины поля ввода на любом пути;
 //   подсказки не ложатся на окно «Игра открыта дважды» (оно важнее);
 //   кораблик, который плывёт сам (кнопка места на карте), не подсказывает «Нажимай на воду»;
+//   «Мой двор»: точки свободных клеток — из запомненного списка, он обновляется, когда предмет поставили;
 //   Т8 — на iPad лёжа вилла видна целиком, отель — все этажи по высоте (а не масштаб 1,05, как на телефоне).
 // Подключается из dev/smoke.js. Только эти шаги:  node dev/smoke.js <url> "step:исправления"
 const lib = require('./lib.js');
@@ -216,5 +217,26 @@ module.exports = async function tfix(ctx) {
     const r = await ev(() => ({ flag: !!window.__dev.G.state.flags.boatHint }));
     const t = await toasts();
     expect(!/Нажимай на воду/.test(t) && !r.flag, 'кораблик плывёт сам, а подсказка «Нажимай на воду» есть', { t, r });
+  });
+
+  await step('исправления: «Мой двор» — свободные клетки запомнены и верны до и после того, как поставили предмет', async () => {
+    await fresh();
+    await ev(() => {
+      const d = window.__dev;
+      d.actions.addYardItem('y_bench');
+    });
+    await go('world');
+    await closeAll();
+    await teleport(18, 12);
+    await page.click('#hud button:has-text("Мой двор")');
+    await until(() => window.__dev.F.yardDebug().mode === 'villa' && document.querySelector('.yard-tray .tray-item'));
+    await frames(2);
+    const a = await ev(() => window.__dev.F.yardDebug());
+    expect(a.free > 10 && a.freeFresh, 'свободные клетки двора до', a);
+    await page.click('.yard-tray .tray-item.yard-y_bench');
+    await until(() => (window.__dev.state.yard.at.villa || []).length === 1);
+    await frames(2);
+    const b = await ev(() => window.__dev.F.yardDebug());
+    expect(b.free < a.free && b.freeFresh, 'после того, как поставили скамейку, список свободных клеток не обновился', { a, b });
   });
 };

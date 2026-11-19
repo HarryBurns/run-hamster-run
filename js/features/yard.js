@@ -190,6 +190,27 @@ function keepsWay(sc, y, tx, ty, skip) {
   wayBlocked = !ok;
   return ok;
 }
+/**
+ * Свободные клетки двора для точек в режиме (Т: canPlace каждый кадр по всем клеткам перебирал все предметы города —
+ * ~2–4 мс за кадр). Список считается заново, только когда что-то поменялось: сверка карты с сохранением (wayVer —
+ * поставили, переставили, убрали), число предметов карты, клетка хомячка, предметы задания и находки на земле.
+ */
+const freeMemo = { key: '', cells: [] };
+function freeCells(sc, y) {
+  const m = sc.map;
+  let left = 0;
+  for (const it of sc.taskItems()) if (!it.got) left++;
+  const key = `${sc.name}|${y.id}|${wayVer}|${m.objs.length}|${tileOf(sc.p.x)},${tileOf(sc.p.y)}|${left}|${sc.pickups.length}`;
+  if (key !== freeMemo.key) {
+    const [ax0, ay0, ax1, ay1] = y.area,
+      cells = [];
+    for (let ty = ay0; ty <= ay1; ty++) for (let tx = ax0; tx <= ax1; tx++) if (canPlace(sc, y, tx, ty)) cells.push(tx, ty);
+    freeMemo.key = key;
+    freeMemo.cells = cells;
+    wayBlocked = false; // перебор клеток — не попытка поставить: подсказка «будет не пройти» не о нём
+  }
+  return freeMemo.cells;
+}
 /** Поставить на карту предмет двора по записи сохранения. */
 function addToMap(sc, y, it) {
   const def = YARD_BY_ID[it.id];
@@ -432,23 +453,18 @@ addWorldPart({
     const c = cur;
     if (!c || c.sc !== sc) return;
     const v = sc.cam.visible ? sc.cam.visible(T) : null,
-      [ax0, ay0, ax1, ay1] = c.y.area;
-    const x0 = v ? Math.max(ax0, tileOf(v.x0)) : ax0,
-      x1 = v ? Math.min(ax1, tileOf(v.x1)) : ax1,
-      y0 = v ? Math.max(ay0, tileOf(v.y0)) : ay0,
-      y1 = v ? Math.min(ay1, tileOf(v.y1)) : ay1;
+      cells = freeCells(sc, c.y);
     ctx.fillStyle = 'rgba(255,255,255,.85)';
     ctx.strokeStyle = 'rgba(74,55,40,.28)';
     ctx.lineWidth = 1.5;
     ctx.beginPath();
-    for (let ty = y0; ty <= y1; ty++)
-      for (let tx = x0; tx <= x1; tx++)
-        if (canPlace(sc, c.y, tx, ty)) {
-          const px = (tx + 0.5) * T,
-            py = (ty + 0.5) * T;
-          ctx.moveTo(px + 4.5, py);
-          ctx.arc(px, py, 4.5, 0, Math.PI * 2);
-        }
+    for (let i = 0; i < cells.length; i += 2) {
+      const px = (cells[i] + 0.5) * T,
+        py = (cells[i + 1] + 0.5) * T;
+      if (v && (px < v.x0 || px > v.x1 || py < v.y0 || py > v.y1)) continue;
+      ctx.moveTo(px + 4.5, py);
+      ctx.arc(px, py, 4.5, 0, Math.PI * 2);
+    }
     ctx.fill();
     ctx.stroke();
     if (c.sel) {
@@ -506,7 +522,17 @@ export const yardDebug = () => ({
   sel: cur && cur.sel ? { id: cur.sel.it.id, tx: cur.sel.tx, ty: cur.sel.ty } : null,
   inYard: inYard ? inYard.id : '',
   focus: cur ? { ...cur.mode.focus } : null,
+  // точки свободных клеток в режиме: сколько и совпадает ли запомненный список с честным перебором canPlace
+  free: cur ? freeMemo.cells.length / 2 : 0,
+  freeFresh: cur ? freeFresh(cur.sc, cur.y) : true,
 });
+function freeFresh(sc, y) {
+  const got = freeCells(sc, y).join(),
+    [ax0, ay0, ax1, ay1] = y.area,
+    all = [];
+  for (let ty = ay0; ty <= ay1; ty++) for (let tx = ax0; tx <= ax1; tx++) if (canPlace(sc, y, tx, ty)) all.push(tx, ty);
+  return got === all.join();
+}
 export const yardCanPlace = (yardId, tx, ty) => {
   const y = YARDS.find((q) => q.id === yardId);
   return !!y && canPlace(getLocation(y.loc), y, tx, ty);
