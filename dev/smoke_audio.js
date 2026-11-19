@@ -2,10 +2,11 @@
 // записи звуков загружаются, музыка играет из файла по месту и времени суток, выключение музыки и звуков в меню,
 // окно «Авторы» (каждый трек и набор звуков — автор и лицензия), нет файла — играет сочинённая мелодия.
 // Подключается из dev/smoke.js. Только эти шаги:  node dev/smoke.js <url> step:звук:  (с двоеточием — иначе зацепит и шаг острова «… погода и звук»)
-module.exports = async function audio({ page, step, ev, wait, closeAll }) {
-  const expect = (ok, msg, data) => {
-    if (!ok) throw new Error(msg + (data === undefined ? '' : ': ' + JSON.stringify(data)));
-  };
+const lib = require('./lib.js');
+
+module.exports = async function audio(ctx) {
+  const L = lib(ctx);
+  const { page, step, ev, wait, closeAll, untilPanel, expect } = L;
   const A = () =>
     ev(() => {
       const a = window.__dev.Audio;
@@ -16,7 +17,7 @@ module.exports = async function audio({ page, step, ev, wait, closeAll }) {
     const t0 = Date.now();
     let a = await A();
     while (!cond(a) && Date.now() - t0 < ms) {
-      await wait(250);
+      await wait(100);
       a = await A();
     }
     return a;
@@ -35,17 +36,9 @@ module.exports = async function audio({ page, step, ev, wait, closeAll }) {
   const ensureGame = async () => {
     await closeAll();
     if (await ev(() => !!(window.__dev && window.__dev.G.state && window.__dev.sceneName))) return;
-    const cont = await page.$('text=Продолжить');
-    if (cont) await cont.click();
-    else {
-      await page.click('text=Играть!');
-      await page.click('text=Пропустить');
-      await ev(() => window.__dev.oldStart());
-      await wait(400);
-      await page.click('text=Поехали!');
-    }
-    await wait(700);
-    await closeAll();
+    if (await L.hasAct('continue')) await L.cont();
+    else await L.fresh(); // 1 июня, без вводной цепочки
+    await L.drain();
   };
   const toWorld = (minutes) =>
     ev((m) => {
@@ -95,8 +88,8 @@ module.exports = async function audio({ page, step, ev, wait, closeAll }) {
     await toWorld(23 * 60);
     a = await until((a) => a.lvl.track === 'night' && a.lvl.file);
     expect(a.lvl.track === 'night' && a.lvl.file, 'ночью не ночная музыка', a.lvl);
-    await wait(2200);
-    a = await A();
+    // плавный переход: старый проигрыватель затихает и встаёт
+    a = await until((a) => a.dbg.decks.filter((d) => d.busy && !d.paused).length === 1, 5000);
     expect(
       a.dbg.decks.filter((d) => d.busy && !d.paused).length === 1,
       'после перехода играет не один трек',
@@ -113,7 +106,7 @@ module.exports = async function audio({ page, step, ev, wait, closeAll }) {
   await step('звук: выключить музыку и звуки в меню — и включить обратно', async () => {
     await ensureGame();
     await ev(() => window.__dev.F.openSettings());
-    await wait(300);
+    await untilPanel();
     await page.click('.overlay .panel button:has-text("Музыка включена")');
     let a = await until((a) => !a.lvl.track && a.dbg.decks.every((d) => d.paused || !d.busy), 4000);
     expect(!a.on && !a.lvl.track, 'музыка не выключилась', a.lvl);
@@ -138,9 +131,9 @@ module.exports = async function audio({ page, step, ev, wait, closeAll }) {
   await step('звук: меню «Авторы» — все треки и наборы звуков с автором и лицензией', async () => {
     await ensureGame();
     await ev(() => window.__dev.F.openSettings());
-    await wait(300);
+    await untilPanel();
     await page.click('.overlay .panel button:has-text("Авторы")');
-    await wait(300);
+    await L.frames(3);
     const r = await ev(async () => {
       const c = await import('./js/data/credits.js');
       const p = document.querySelector('.overlay .panel.credits');
@@ -166,11 +159,9 @@ module.exports = async function audio({ page, step, ev, wait, closeAll }) {
       try {
         // тот же трек с начала: «забыть» уже открытые файлы — перезагрузить страницу
         await page.reload();
-        await wait(600);
-        const cont = await page.$('text=Продолжить');
-        if (cont) await cont.click();
-        await wait(600);
-        await closeAll();
+        await page.waitForSelector(L.sel('continue') + ',' + L.sel('play'));
+        if (await L.hasAct('continue')) await L.cont();
+        await L.drain();
         await tapCanvas();
         await toWorld(12 * 60);
         const a = await until((a) => a.lvl && a.lvl.track && a.lvl.synth, 9000);
@@ -181,11 +172,9 @@ module.exports = async function audio({ page, step, ev, wait, closeAll }) {
         await page.unroute('**/assets/audio/music/*.mp3');
       }
       await page.reload();
-      await wait(600);
-      const c2 = await page.$('text=Продолжить');
-      if (c2) await c2.click();
-      await wait(600);
-      await closeAll();
+      await page.waitForSelector(L.sel('continue') + ',' + L.sel('play'));
+      if (await L.hasAct('continue')) await L.cont();
+      await L.drain();
     },
     { expectErrors: '404' },
   );
