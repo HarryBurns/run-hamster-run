@@ -358,7 +358,9 @@ async function shoot(src, OUT, only = []) {
   fs.mkdirSync(OUT, { recursive: true });
   for (const f of fs.readdirSync(OUT)) if (f.endsWith('.png')) fs.rmSync(path.join(OUT, f));
   console.log(`снимаю ${S.name} → ${OUT}`);
-  const b = await chromium.launch();
+  // без «частичной перерисовки»: иначе Chromium дорисовывает в плитку из прошлого кадра только изменённый кусок,
+  // и края кругов (крестик в шапке, углы подносов) сглаживаются на 1–2 px по-разному от снимка к снимку
+  const b = await chromium.launch({ args: ['--disable-partial-raster'] });
   const res = {};
   for (const [name, G] of Object.entries(GAMES)) {
     if (only.length && !only.includes(name) && !only.includes(G.g || name)) continue;
