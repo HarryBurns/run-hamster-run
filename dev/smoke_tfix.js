@@ -2,6 +2,7 @@
 //   Т7 — звёздочка писем «Беги, хомячок» и «Маленький концерт» ведёт в дом, где стоит колесо / пианино;
 //   Т2 — холл Хомяк-Тауэра вечером темнеет (свет ламп), к празднику украшен;
 //   repair (ревью Б4) — имя хомячка, питомца и название заведения обрезаются до длины поля ввода на любом пути;
+//   подсказки не ложатся на окно «Игра открыта дважды» (оно важнее);
 //   Т8 — на iPad лёжа вилла видна целиком, отель — все этажи по высоте (а не масштаб 1,05, как на телефоне).
 // Подключается из dev/smoke.js. Только эти шаги:  node dev/smoke.js <url> "step:исправления"
 const lib = require('./lib.js');
@@ -172,5 +173,28 @@ module.exports = async function tfix(ctx) {
     expect(r.pet.length === r.max[1], 'имя питомца', r);
     expect(r.biz.length === r.max[2], 'название заведения', r);
     expect(r.empty[0] === 'Хомка' && r.empty[1] && !r.empty[2], 'пустые имена', r);
+  });
+
+  await step('исправления: подсказки не ложатся на окно «Игра открыта дважды», после обычного окна — снова видны', async () => {
+    await fresh();
+    const seen = () =>
+      ev(() => {
+        const b = document.getElementById('toasts');
+        return !!b && getComputedStyle(b).visibility !== 'hidden' && !!b.querySelector('.toast');
+      });
+    await ev(() => window.__dev.emit('saveLost', { why: 'tab' }));
+    await until(() => [...document.querySelectorAll('.panel-head')].some((h) => h.textContent.includes('дважды')));
+    await ev(() => window.__dev.ui.toast('🎹 Подсказка поверх окна'));
+    expect(!(await seen()), 'подсказка видна поверх окна «Игра открыта дважды»');
+    // окно закрыли («Играть здесь» перезагружает страницу): подсказки снова видны поверх обычных окон
+    await page.click('[data-act="ok"]');
+    await page.waitForSelector('[data-act="continue"], [data-act="play"]', { timeout: 8000 });
+    await fresh();
+    await ev(() => {
+      window.__dev.ui.message({ title: 'Обычное окно', html: '<p>Текст</p>' });
+      window.__dev.ui.toast('Подсказка');
+    });
+    expect(await seen(), 'над обычным окном подсказок не видно');
+    await closeAll();
   });
 };

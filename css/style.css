@@ -109,6 +109,8 @@ body.win-open #toasts { gap: 4px; }
 body.win-open .toast { font-size: 14px; padding: 5px 14px; line-height: 1.25; opacity: .94; }
 body.win-open .toast.out { opacity: 0; }
 body.win-open .toast:nth-last-child(n + 3) { display: none; }
+/* важное окно («Игра открыта дважды», ui/panel.js quiet) — подсказки не видны совсем */
+body.win-quiet #toasts { visibility: hidden; }
 @media (max-height: 520px) and (orientation: landscape) {
   body.win-open #toasts { width: min(92vw, 720px); }
   body.win-open .toast { font-size: 13px; padding: 4px 12px; line-height: 1.25; }

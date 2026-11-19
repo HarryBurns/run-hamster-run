@@ -16,10 +16,19 @@ const markOpen = (d) => {
   document.body.classList.toggle('win-open', openPanels > 0);
   placeToasts();
 };
+// Важное окно (quiet: «Игра открыта дважды», «Что-то сломалось»): пока оно на экране, подсказок не видно совсем —
+// они не ложатся на его текст (класс win-quiet у body).
+let quietPanels = 0;
+const markQuiet = (d) => {
+  quietPanels += d;
+  document.body.classList.toggle('win-quiet', quietPanels > 0);
+};
 
 /**
- * openPanel({ title, icon, cls, money, tabs:[{id,name}], tab, render(body, tabId, panel), foot:[{text, cls, fn, act}], onClose })
- * act — метка кнопки для автотеста (data-act), на вид и поведение не влияет.
+ * openPanel({ title, icon, cls, money, tabs:[{id,name}], tab, render(body, tabId, panel), foot:[{text, cls, fn, act}], onClose,
+ *   sticky, quiet })
+ * act — метка кнопки для автотеста (data-act), на вид и поведение не влияет. sticky — не закрывается нажатием мимо окна;
+ * quiet — важное окно: пока открыто, подсказки (ui/toast.js) спрятаны.
  * Возвращает { close(), refresh(), setTab(id), body, tab }
  */
 export function openPanel(o) {
@@ -75,6 +84,7 @@ export function openPanel(o) {
       api.closed = true;
       ov.remove();
       markOpen(-1);
+      if (o.quiet) markQuiet(-1);
       if (dropAnchor) dropAnchor();
       closeLayer();
       if (o.onClose) o.onClose();
@@ -133,6 +143,7 @@ export function openPanel(o) {
     if (e.target === ov && !o.sticky && performance.now() - born > TAP_GUARD) api.close();
   });
   markOpen(1); // до refresh(): закрытие окна всегда снимает ровно одну отметку «открыто»
+  if (o.quiet) markQuiet(1);
   api.refresh();
   return api;
 }
@@ -148,6 +159,7 @@ export function message({
   buttons = [{ text: 'Хорошо' }],
   cls = 'narrow',
   sticky = false,
+  quiet = false,
 }) {
   return new Promise((resolve) => {
     let done = false;
@@ -162,6 +174,7 @@ export function message({
       icon,
       cls,
       sticky,
+      quiet,
       render: (b) => {
         b.innerHTML = html;
       },
