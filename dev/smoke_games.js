@@ -159,16 +159,36 @@ module.exports = async function games(ctx) {
     expect(st && st.picking && !st.ride, 'нет выбора «санки или лыжи»', st);
     expect((await ev(() => document.querySelectorAll('#mg .sl-pick button img').length)) === 2, 'у выбора нет картинок');
     await page.click('#mg .sl-pick button[data-ride="ski"]');
-    // едем к воротам: держим лыжи посередине ближайших ворот
-    const t0 = Date.now();
-    while (Date.now() - t0 < 14000) {
-      st = await hook('__sled');
-      const gate = st.gates.filter((g) => g.y < st.y + 5).sort((a, b) => b.y - a.y)[0];
-      const target = gate ? gate.x : 0.5;
-      const r = await box();
-      await page.mouse.move(r.x + (st.x0 + target * st.lw) * (r.w / st.w), r.y + r.h * 0.8);
-      await wait(90);
-    }
+    // едем к воротам: руль — в самой странице, каждый кадр мышью на середину ближайших ворот (под нагрузкой
+    // кадров меньше, но и руль не отстаёт); ждём по состоянию игры — 6 ворот позади и 4 из них пройдены (или игра
+    // почти кончилась), а не по часам
+    await ev(() => {
+      const cv = [...document.querySelectorAll('#mg canvas')].find((q) => q.__sled);
+      const steer = () => {
+        if (!cv.isConnected || window.__skiStop) return;
+        const st = cv.__sled();
+        const gate = st.gates.filter((g) => g.y < st.y + 5).sort((a, b) => b.y - a.y)[0];
+        const b = cv.getBoundingClientRect();
+        const x = b.left + ((st.x0 + (gate ? gate.x : 0.5) * st.lw) / st.w) * b.width;
+        cv.dispatchEvent(new PointerEvent('pointermove', { clientX: x, clientY: b.top + b.height * 0.8, pointerType: 'mouse', bubbles: true }));
+        requestAnimationFrame(steer);
+      };
+      window.__skiStop = false;
+      requestAnimationFrame(steer);
+      window.__dev.fastGames(true); // вчетверо быстрее (Т3): руль по-прежнему каждый кадр
+    });
+    await L.until(
+      () => {
+        const st = [...document.querySelectorAll('#mg canvas')].find((q) => q.__sled).__sled();
+        return (st.gatesAll - st.gates.length >= 6 && st.gatesOk >= 4) || st.t > 40;
+      },
+      undefined,
+      { timeout: 90000, poll: 200, msg: 'шесть ворот позади' },
+    );
+    await ev(() => {
+      window.__skiStop = true;
+      window.__dev.fastGames(false);
+    });
     st = await hook('__sled');
     expect(st.ride === 'ski' && st.gatesAll >= 6 && st.gatesOk >= 4 && st.got >= st.gatesOk * 2, 'ворота не проходятся', st);
     await ev(() => [...document.querySelectorAll('#mg canvas')].find((q) => q.__sledSkip).__sledSkip(1));
