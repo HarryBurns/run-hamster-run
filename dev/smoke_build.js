@@ -7,7 +7,7 @@ const lib = require('./lib.js');
 const ROOT = require('./root.js'); // папка над dev/ или текущая — шаг работает и из копии dev/
 
 module.exports = async function build(ctx) {
-  const { page, step, ev, expect, fresh, go, closeAll, frames } = lib(ctx);
+  const { page, step, ev, expect, fresh, go, closeAll, frames, wait } = lib(ctx);
 
   await step(
     'сборка: все модули и стили грузятся с меткой версии ?v=BUILD, ни один файл не загружен дважды',
@@ -48,6 +48,29 @@ module.exports = async function build(ctx) {
         map.length === files.length && files.every((f) => map.some((u) => u.endsWith('/' + f))),
         'карта импортов не совпадает с js/modules.json',
       );
+    },
+  );
+
+  await step(
+    'память: земля (Т1) — в кэше только куски на экране и у самого его края, по ходу их готовят заранее',
+    async () => {
+      await fresh();
+      await go('world');
+      await ev(() => window.__dev.World.debugTeleport(40, 14));
+      await frames(30);
+      const g = () => ev(() => window.__dev.World.debugGround());
+      const a = await g();
+      expect(a.view > 0 && a.count === a.view + a.edge, 'в кэше земли лишние куски (не на экране и не у края)', a);
+      // идём вправо, вниз, влево: куски, что показываются, построены заранее — ни одного «на ходу»
+      for (const key of ['ArrowRight', 'ArrowDown', 'ArrowLeft']) {
+        await page.keyboard.down(key);
+        await wait(1500);
+        await page.keyboard.up(key);
+      }
+      await frames(10);
+      const b = await g();
+      expect(b.late === a.late, 'кусок земли строился уже на экране (не успели заранее)', [a, b]);
+      expect(b.count === b.view + b.edge && b.built > a.built, 'кэш земли после ходьбы', b);
     },
   );
 

@@ -21,14 +21,22 @@
 // Вид без z (по-старому, с одним draw) рисуется в кусок квадратом поверх слоёв; anim: true — каждый кадр.
 // Крюк локации paintGround(ctx, env, x0, y0, x1, y1) дорисовывает в кусок неподвижное (разметку, бортики).
 //
-// Память: держим только куски на экране и вокруг него; лишние вытесняются. Куски за краем экрана готовятся
-// заранее, по одному за кадр, чтобы при ходьбе не было рывков.
+// Память (Т1): держим куски на экране и те куски за его краем, что вот-вот покажутся: до края экрана меньше
+// KEEP_NEAR куска. Их готовим заранее, когда до края меньше PRE_NEAR куска, — по одному за кадр, ближние и по ходу
+// камеры раньше, чтобы при ходьбе не было рывков. Остальные выбрасываются сразу (раньше держалось всё кольцо
+// в кусок вокруг экрана — на iPad это больше половины памяти земли). Рисунок от этого не меняется: кусок один и тот
+// же, когда бы его ни нарисовали.
 import { PixelCache } from '../../core/pixcache.js';
 import { T, hash } from './kinds.js';
 
 /** Сторона куска в клетках. */
 export const CH = 4;
 const MARGIN = 2; // запас вокруг куска при расчёте краёв слоёв, клеток
+// Куски за краем экрана: строить заранее, если до края меньше PRE_NEAR куска; держать, пока меньше KEEP_NEAR (запас
+// между ними — чтобы, топчась у границы, не строить один и тот же кусок снова и снова). При ходьбе за кадр камера
+// сдвигается на 1–2 % куска, на машинке — до 4 %: ряд кусков успевает построиться, пока до него ещё треть куска.
+const PRE_NEAR = 1 / 3,
+  KEEP_NEAR = 1 / 2;
 
 // ключ → { c, w, h, seen }; память — общая со всеми кэшами картинок (core/pixcache.js): куски локации, из которой
 // хомячок ушёл, вытесняются, когда памяти мало
@@ -41,6 +49,9 @@ let cacheK = 0,
   frame = 0,
   built = 0,
   buildMs = 0,
+  late = 0, // кусков, построенных, когда они уже на экране (не успели заранее), — для автотеста
+  edge = 0, // сколько кусков за краем экрана держится сейчас
+  view = 0, // сколько кусков на экране
   lastCam = null;
 
 /** Выбросить все куски (сменился масштаб, сезон дорисуется сам — он входит в ключ). */
@@ -49,7 +60,7 @@ export function clearGround() {
   cache.clear();
 }
 /** Для тестов и отладки: сколько кусков и пикселей в кэше земли. */
-export const groundStats = () => ({ count: cache.map.size, pixels: cache.pixels, built, buildMs, chunk: CH });
+export const groundStats = () => ({ count: cache.map.size, pixels: cache.pixels, built, buildMs, chunk: CH, late, edge, view });
 
 // ---------- край слоя ----------
 /**
@@ -346,6 +357,7 @@ export function drawGround(ctx, sc, env, k, ox, oy, cw, chh) {
   const pre = `${m.id}:${env.season}:`;
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   let fresh = 0;
+  view = (cx1 - cx0 + 1) * (cy1 - cy0 + 1);
   for (let cy = cy0; cy <= cy1; cy++)
     for (let cx = cx0; cx <= cx1; cx++) {
       const key = pre + cx + ':' + cy;
@@ -353,48 +365,56 @@ export function drawGround(ctx, sc, env, k, ox, oy, cw, chh) {
       if (!e) {
         e = buildChunk(sc, env, cx, cy, key, k);
         fresh++;
+        late++;
       }
       e.seen = frame;
       ctx.drawImage(e.c, cx * cp - ox, cy * cp - oy);
     }
-  // заранее — один кусок из кольца вокруг экрана, сначала по ходу движения камеры
-  if (!fresh) {
-    const mvx = lastCam ? ox - lastCam.ox : 0,
-      mvy = lastCam ? oy - lastCam.oy : 0;
-    let best = null,
-      bs = 1e9;
-    for (let cy = cy0 - 1; cy <= cy1 + 1; cy++)
-      for (let cx = cx0 - 1; cx <= cx1 + 1; cx++) {
-        if (cx >= cx0 && cx <= cx1 && cy >= cy0 && cy <= cy1) continue;
-        if (cx < 0 || cy < 0 || cx >= ncx || cy >= ncy) continue;
-        const key = pre + cx + ':' + cy,
-          e = cache.peek(key);
-        if (e) {
-          e.seen = frame;
-          continue;
-        }
-        // чем больше «по ходу», тем раньше
-        const dx = cx < cx0 ? -1 : cx > cx1 ? 1 : 0,
-          dy = cy < cy0 ? -1 : cy > cy1 ? 1 : 0;
-        const s = -(dx * Math.sign(mvx) + dy * Math.sign(mvy)) + (dx && dy ? 0.5 : 0);
-        if (s < bs) {
-          bs = s;
-          best = [cx, cy, key];
-        }
+  // заранее — один кусок из тех, что вот-вот покажутся (до края экрана меньше PRE_NEAR куска): сначала ближний,
+  // по ходу движения камеры — раньше. Те, что за краем ближе KEEP_NEAR, держим; остальные выбрасываем ниже
+  const mvx = lastCam ? ox - lastCam.ox : 0,
+    mvy = lastCam ? oy - lastCam.oy : 0;
+  let best = null,
+    bs = 1e9;
+  edge = 0;
+  for (let cy = cy0 - 1; cy <= cy1 + 1; cy++)
+    for (let cx = cx0 - 1; cx <= cx1 + 1; cx++) {
+      if (cx >= cx0 && cx <= cx1 && cy >= cy0 && cy <= cy1) continue;
+      if (cx < 0 || cy < 0 || cx >= ncx || cy >= ncy) continue;
+      // насколько кусок за краем экрана, px: столько камере ехать, пока он покажется
+      const gap = Math.max(cx * cp - (ox + cw), ox - (cx + 1) * cp, cy * cp - (oy + chh), oy - (cy + 1) * cp, 0);
+      if (gap >= cp * KEEP_NEAR) continue;
+      const key = pre + cx + ':' + cy,
+        e = cache.peek(key);
+      if (e) {
+        e.seen = frame;
+        edge++;
+        continue;
       }
-    if (best) buildChunk(sc, env, best[0], best[1], best[2], k);
+      if (fresh || gap >= cp * PRE_NEAR) continue;
+      // ближний — раньше; по ходу движения — ещё раньше
+      const dx = cx < cx0 ? -1 : cx > cx1 ? 1 : 0,
+        dy = cy < cy0 ? -1 : cy > cy1 ? 1 : 0;
+      const s = gap / cp - (dx * Math.sign(mvx) + dy * Math.sign(mvy)) * 0.5;
+      if (s < bs) {
+        bs = s;
+        best = [cx, cy, key];
+      }
+    }
+  if (best) {
+    buildChunk(sc, env, best[0], best[1], best[2], k);
+    edge++;
   }
   lastCam = { ox, oy };
-  // вытесняем давно не нужные куски: держим экран, кольцо вокруг и небольшой запас
-  const keep = (cx1 - cx0 + 3) * (cy1 - cy0 + 3) + 6;
-  if (cache.map.size > keep) {
-    const old = [...cache.map.entries()].filter((q) => q[1].seen < frame).sort((a, b) => a[1].seen - b[1].seen);
-    for (const [key, e] of old) {
-      if (cache.map.size <= keep) break;
+  // выбрасываем всё, что не на экране и не у самого его края (и куски других мест)
+  let seen = 0;
+  for (const e of cache.map.values()) if (e.seen === frame) seen++;
+  if (cache.map.size > seen)
+    for (const [key, e] of [...cache.map.entries()]) {
+      if (e.seen === frame) continue;
       cache.drop(key);
       if (pool.length < 8) pool.push(e.c);
     }
-  }
   // «живое»: вода, грядки — по видам, одним вызовом на вид
   ctx.setTransform(k, 0, 0, k, -ox, -oy);
   const tx0 = Math.max(0, Math.floor(ox / tp)),
