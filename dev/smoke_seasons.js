@@ -8,37 +8,13 @@ const SAVE_V3 = fs.readFileSync(path.join(__dirname, 'saves', 'v3.json'), 'utf8'
 // первый день месяца: январь (зима), апрель (весна), июль (лето), октябрь (осень); в месяце 3 дня
 const DAY = { winter: 0, spring: 9, summer: 18, autumn: 27 };
 
-module.exports = async function seasons({ page, step, ev, wait, closeAll }) {
-  const state = () => ev(() => JSON.parse(JSON.stringify(window.__dev.G.state)));
-  const norm = (t) => t.replace(/[  ]/g, ' ');
-  const text = async (sel) => norm(await page.locator(sel).first().innerText());
-  const toasts = async () =>
-    norm(await ev(() => (document.querySelector('#toasts') || { textContent: '' }).textContent));
-  const clearToasts = () =>
-    ev(() => {
-      const t = document.querySelector('#toasts');
-      if (t) t.innerHTML = '';
-    });
-  const expect = (ok, msg, data) => {
-    if (!ok) throw new Error(msg + (data === undefined ? '' : ': ' + JSON.stringify(data)));
-  };
-  /** Новая игра с чистого листа (шаг не зависит от того, что было до него). */
-  const fresh = async () => {
-    await ev(() => {
-      window.__dev.G.state = null;
-      localStorage.clear();
-    });
-    await page.reload();
-    await wait(400);
-    await page.click('text=Играть!');
-    await page.click('text=Пропустить'); // вступительная сценка новой игры (этап 10)
-    await page.evaluate(() => window.__dev.actions.setFlag('intro', 0)); // вводная цепочка заданий — в своих шагах (dev/smoke_start.js)
-    await wait(400);
-    await page.click('text=Поехали!');
-    await wait(500);
-    await ev(() => window.__dev.go('world'));
-    await wait(400);
-  };
+const lib = require('./lib.js');
+
+module.exports = async function seasons(ctx) {
+  const L = lib(ctx);
+  const { page, step, ev, wait, closeAll, until, untilPanel, frames, norm, text, toasts, clearToasts, expect, state } = L;
+  /** Новая игра с чистого листа (шаг не зависит от того, что было до него): 1 июня, в городе. */
+  const fresh = () => L.fresh({ scene: 'world' });
   /** Перенестись в день day (утро, отметки дня чистые) и положить монет. */
   const setDay = (day, money = 20000) =>
     ev(
@@ -80,18 +56,9 @@ module.exports = async function seasons({ page, step, ev, wait, closeAll }) {
       .locator('.overlay')
       .last()
       .locator('.card', { has: page.locator('.nm', { hasText: new RegExp('^' + name + '$') }) });
-  const enter = async (id) => {
-    await ev((id) => {
-      window.__dev.enterBuilding(id);
-    }, id);
-    await wait(450);
-  };
-  const run = async (act) => {
-    await ev((act) => {
-      window.__dev.run(act);
-    }, act);
-    await wait(450);
-  };
+  /** Войти в здание / действие из реестра; ждём отклика (окно, диалог, сцена), но не дольше 450 мс. */
+  const enter = (id) => L.enter(id, 450);
+  const run = (a) => L.run(a, 450);
 
   await step(
     'сезонность: ТЦ «Вкусный» — в сезон есть и дешевле, не в сезон мало и кончается, перезагрузка',
@@ -142,7 +109,7 @@ module.exports = async function seasons({ page, step, ev, wait, closeAll }) {
       expect((await mango.locator('.badge.season').count()) === 1, 'у манго летом нет значка «Сезон!»');
       expect(norm(await mango.innerText()).includes(String(T.mango.priceIn)), 'цена манго в сезон');
       await mango.locator('.btn.blue').click(); // +5
-      await wait(250);
+      await frames(2);
       let s = await state();
       expect(
         (s.ing.mango || 0) === (s0.ing.mango || 0) + 5 &&
@@ -165,7 +132,7 @@ module.exports = async function seasons({ page, step, ev, wait, closeAll }) {
       const m1 = (await state()).money;
       for (let i = 0; i < n; i++) {
         await card(T[x].name).locator('.btn').click();
-        await wait(220);
+        await frames(2);
       }
       s = await state();
       expect(
@@ -211,9 +178,8 @@ module.exports = async function seasons({ page, step, ev, wait, closeAll }) {
       expect(before[x][2] === 'sold', 'раскупленное не помечено', before[x]);
       await ev(() => window.dispatchEvent(new Event('pagehide')));
       await page.reload();
-      await wait(500);
-      await page.click('text=Продолжить');
-      await wait(900);
+      await page.waitForSelector(L.sel('continue'));
+      await L.cont();
       await closeAll();
       const after = await snapshot();
       expect(JSON.stringify(after) === JSON.stringify(before), 'после перезагрузки ассортимент дня изменился', {
@@ -224,7 +190,7 @@ module.exports = async function seasons({ page, step, ev, wait, closeAll }) {
         window.__dev.actions.nextDay();
         window.__dev.F.newDayMail();
       });
-      await wait(300);
+      await L.drain();
       await closeAll();
       const next = await snapshot();
       s = await state();
@@ -337,7 +303,7 @@ module.exports = async function seasons({ page, step, ev, wait, closeAll }) {
     expect(ct.includes(`Осталось ${found.left} шт.`) && ct.includes(String(found.price)), 'карточка редкости', ct);
     for (let i = 0; i < found.left; i++) {
       await card(found.name).locator('.btn').click();
-      await wait(220);
+      await frames(2);
     }
     const s = await state();
     expect(
@@ -418,7 +384,7 @@ module.exports = async function seasons({ page, step, ev, wait, closeAll }) {
     );
     await clearToasts();
     await pumpkin.click();
-    await wait(250);
+    await frames(2);
     let s = await state();
     expect(
       !s.garden[0].seed && s.seeds.seed_pumpkin === 1 && (await page.locator('.overlay').count()) === 1,
@@ -426,7 +392,7 @@ module.exports = async function seasons({ page, step, ev, wait, closeAll }) {
     );
     expect((await toasts()).includes('Тыкву сажают осенью'), 'нет подсказки в окне грядки');
     await card('Семена морковки').click();
-    await wait(300);
+    await frames(2);
     s = await state();
     expect(
       s.garden[0].seed === 'seed_carrot' && !s.seeds.seed_carrot && (await page.locator('.overlay').count()) === 0,
@@ -452,7 +418,7 @@ module.exports = async function seasons({ page, step, ev, wait, closeAll }) {
         bed2: d.G.state.garden[2],
       };
     });
-    await wait(300);
+    await frames(2);
     await closeAll();
     expect(
       w.carrot === false && w.lettuce === true && w.bed2.seed === 'seed_lettuce' && w.bed2.age === 1,
@@ -463,7 +429,7 @@ module.exports = async function seasons({ page, step, ev, wait, closeAll }) {
     // семена в ТЦ «Уютный дом»: видно, что пора сажать, а что — в другой сезон; купить впрок можно
     await enter('mall_home');
     await page.click('.overlay .tabs >> text=Семена');
-    await wait(300);
+    await frames(2);
     expect(
       (await card('Семена салата').locator('.badge.season').count()) === 1,
       'у семян салата зимой нет «Пора сажать!»',
@@ -474,9 +440,9 @@ module.exports = async function seasons({ page, step, ev, wait, closeAll }) {
     await closeAll();
     // рюкзак: у семян написано, пора ли сажать
     await ev(() => window.__dev.F.openBackpack());
-    await wait(300);
+    await untilPanel();
     await page.click('.overlay .tabs >> text=Семена');
-    await wait(250);
+    await frames(2);
     t = await text('.overlay .panel-body');
     expect(t.includes('тыкву сажают осенью') && t.includes('в свой сезон'), 'рюкзак: семена', t);
     await closeAll();
@@ -526,7 +492,7 @@ module.exports = async function seasons({ page, step, ev, wait, closeAll }) {
     expect(ct.includes('Сегодня!') && ct.includes(`Осталось ${cake[has].left} шт.`), 'торт дня', ct);
     for (let i = 0; i < cake[has].left; i++) {
       await card('Шоколадный торт').locator('.btn.green').click();
-      await wait(220);
+      await frames(2);
     }
     const s1 = await state();
     c = card('Шоколадный торт');
@@ -548,7 +514,7 @@ module.exports = async function seasons({ page, step, ev, wait, closeAll }) {
       a.addItem('ing', 'mango', 1);
       window.__dev.F.openCooking();
     });
-    await wait(350);
+    await untilPanel();
     const item = (name) => page.locator('.overlay .list-item', { has: page.locator('.ttl', { hasText: name }) });
     ct = norm(await item('Тарелка «Тропики»').innerText());
     expect(
@@ -615,7 +581,7 @@ module.exports = async function seasons({ page, step, ev, wait, closeAll }) {
           season: G.cal().season,
         };
       });
-      await wait(350);
+      await untilPanel();
       const letter = await text('.overlay .panel-body');
       await closeAll();
       expect(r.season === sea, 'не тот сезон', [sea, r.season, day]);
@@ -639,7 +605,7 @@ module.exports = async function seasons({ page, step, ev, wait, closeAll }) {
         a.readMail();
         window.__dev.F.showLetter();
       });
-      await wait(350);
+      await untilPanel();
       const cookLetter = await text('.overlay .panel-body');
       await closeAll();
       expect(
@@ -660,9 +626,8 @@ module.exports = async function seasons({ page, step, ev, wait, closeAll }) {
       localStorage.setItem('rhr-save-v1', raw);
     }, JSON.stringify(old));
     await page.reload();
-    await wait(500);
-    await page.click('text=Продолжить');
-    await wait(900);
+    await page.waitForSelector(L.sel('continue'));
+    await L.cont();
     await closeAll();
     let s = await state();
     // Э1 версию не меняла; с Ф1 (болезнь) сохранение v3 переносится в v4 — остальное то же
@@ -697,7 +662,7 @@ module.exports = async function seasons({ page, step, ev, wait, closeAll }) {
         bed: d.G.state.garden[0].seed,
       };
     });
-    await wait(400);
+    await frames(2);
     await closeAll();
     expect(
       r.carrot === 5 && r.still === 'seed_pumpkin' && r.pumpkin === 4 && !r.bed,
@@ -706,7 +671,6 @@ module.exports = async function seasons({ page, step, ev, wait, closeAll }) {
     );
     s = await state();
     expect(s.seeds.seed_carrot === old.seeds.seed_carrot, 'семена из старого сохранения пропали', s.seeds);
-    await ev(() => window.__dev.go('villa'));
-    await wait(400);
+    await L.go('villa');
   });
 };
