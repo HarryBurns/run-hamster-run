@@ -6,6 +6,7 @@
 // «вид сверху» (PS = 0,78). Значок для магазина — rideIcon(id, размер).
 import { TAU } from '../core/util.js';
 import { ell, fillRR, line, poly, shade, makeCanvas } from '../core/draw.js';
+import { drawHamster } from './hamster.js';
 
 const OUT = '#4a3728';
 
@@ -145,4 +146,18 @@ export function rideIcon(id, size = 112) {
   art.back(c, 1, 0);
   art.front(c, 1, 0);
   return canvas;
+}
+
+/**
+ * Хомячок (look) на транспорте id — кадр для кэша спрайтов (features/wheels.js): d — куда едет, fr — кадр колёс,
+ * shut — глазки закрыты (1), ps — размер хомячка (PS движка локаций).
+ */
+export function paintRider(g, id, d, fr, look, shut, ps) {
+  const art = WHEELS_ART[id];
+  g.lineCap = 'round';
+  art.back(g, d, fr);
+  const st = art.seat(d);
+  drawHamster(g, st.x, st.y, ps, look, { ...st.pose, blink: shut, time: 0 });
+  art.front(g, d, fr);
+  g.lineCap = 'butt';
 }

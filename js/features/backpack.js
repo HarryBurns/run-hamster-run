@@ -2,11 +2,11 @@
 // Продают лишнее на рынке — у прилавков на площади.
 import { G } from '../core/state.js';
 import { el } from '../core/util.js';
-import { FURN_BY_ID, ING_BY_ID, SEED_BY_ID, FIND_BY_ID, ICON } from '../data/index.js';
+import { FURN_BY_ID, ING_BY_ID, SEED_BY_ID, FIND_BY_ID, ICON, PIECES } from '../data/index.js';
 import { furnIcon } from '../ui/icons.js';
 import { openPanel, message } from '../ui/panel.js';
 import { sfx } from '../core/audio.js';
-import { PIECES, piecesFound, treasureMapImage } from './cove.js';
+import { piecesFound, treasureMapImage } from './cove.js';
 import { eat, dishGrid, ingGrid } from './cooking.js';
 import { canPlantNow, sowHint } from './garden.js';
 

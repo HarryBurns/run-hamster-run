@@ -31,7 +31,10 @@ js/
                      праздники: общий механизм (holidays.js), общие приёмы (holidays_scenes.js), занятия зимних праздников
                      (holidays_winter.js), 1 Мая, Купалы и Хеллоуина (holidays_summer.js), день рождения (holidays_bday.js) — раздел 22;
                      рисунки отдельно от логики (*_art.js): заставка (title_art.js), поездки (trips_art.js), картинки
-                     окон занятий (pictures_art.js), праздничные сценки (holidays_scenes_art.js)
+                     окон занятий (pictures_art.js), праздничные сценки (holidays_scenes_art.js), питомец (pet_art.js),
+                     отдых (relax_art.js), рамки фото (photo_art.js), чай и телескоп в гостях (visits_art.js), болезнь
+                     и доктор (health_art.js); хомячок на транспорте — paintRider в art/wheels.js. Числа и списки, нужные
+                     и рисунку, и правилам (CANDLES, FLOWERS, CARVE, LANTERNS, PIECES, PHOTO_FRAMES, DOCTOR_STAGES), — в data/
   locations/         МЕСТА «вид сверху» — ОПИСАНИЯ для движка локаций
     town.js            город, двор виллы и пляж: здания (BUILDINGS), особые места, жители, выходы
     town_map.js        план города: постройка карты по кварталам (buildTown), размер, ворота, грядки, плодовые растения

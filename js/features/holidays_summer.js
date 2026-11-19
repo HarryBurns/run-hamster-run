@@ -15,13 +15,13 @@ import { sfx } from '../core/audio.js';
 import { emit } from '../core/events.js';
 import { G, darkness } from '../core/state.js';
 import { pick } from '../core/util.js';
-import { HOLIDAY, holidayOffset, holidayYear, HOLIDAY_BY_ID } from '../data/index.js';
+import { HOLIDAY, holidayOffset, holidayYear, HOLIDAY_BY_ID, FLOWERS, CARVE } from '../data/index.js';
 import { MAY_BEDS } from '../locations/holidays_art.js';
 import { T, getLocation } from '../engine/topdown/index.js';
 import { toast } from '../ui/toast.js';
 import { holidayActs, holidayStep, holidayWhere, stepDoneFor } from './holidays.js';
 import { tapScene, playScene, doorRound, holidayPrize } from './holidays_scenes.js';
-import { paintPlant, paintParade, FLOWERS, paintWreath, CARVE, paintCarve, paintTrick } from './holidays_scenes_art.js';
+import { paintPlant, paintParade, paintWreath, paintCarve, paintTrick } from './holidays_scenes_art.js';
 
 const S = () => G.state;
 /** Сколько дней от праздника id (−1 — канун, 0 — праздник). */

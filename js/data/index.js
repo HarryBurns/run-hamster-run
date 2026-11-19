@@ -28,3 +28,4 @@ export * from './holidays.js';
 export * from './credits.js';
 export * from './relax.js';
 export * from './buddy.js';
+export * from './photo.js';

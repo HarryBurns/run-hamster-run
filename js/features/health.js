@@ -9,13 +9,12 @@
 // Числа и тексты — data/health.js и DOCTOR_FEE в data/economy.js; состояние меняют fallSick / recoverSick.
 import { fallSick, recoverSick, setDayFlag, spend, award } from '../core/actions.js';
 import { sfx } from '../core/audio.js';
-import { makeCanvas, ell, fillRR, line, star, emoji } from '../core/draw.js';
+import { makeCanvas } from '../core/draw.js';
 import { on, emit } from '../core/events.js';
 import { scene, sceneName } from '../core/loop.js';
 import { register, run } from '../core/registry.js';
 import { G, playerLook, isSick } from '../core/state.js';
 import { el, esc, fmtMoney } from '../core/util.js';
-import { drawHamster, blinkAt } from '../art/hamster.js';
 import {
   HEALTH,
   CARELESS,
@@ -31,11 +30,13 @@ import {
   dressedForRain,
   coldDay,
   vendorLook,
+  DOCTOR_STAGES,
 } from '../data/index.js';
 import { dialog } from '../ui/dialog.js';
 import { enqueue } from '../ui/modals.js';
 import { openPanel, message } from '../ui/panel.js';
 import { toast, hintToday } from '../ui/toast.js';
+import { paintSick, paintDoctor } from './health_art.js';
 
 const S = () => G.state;
 const careless = () => S().dayFlags.careless || {};
@@ -66,27 +67,7 @@ function sickPicture(W = 240, H = 150) {
   let raf = 0;
   const t0 = performance.now();
   const loop = () => {
-    const t = (performance.now() - t0) / 1000,
-      sn = (t % 4.2) - 1.6;
-    ctx.clearRect(0, 0, W, H);
-    ctx.fillStyle = '#d0ebff';
-    ctx.fillRect(0, H - 18, W, 18);
-    drawHamster(ctx, W / 2, H - 20, 1.25, playerLook(), {
-      time: t,
-      blink: blinkAt(t),
-      sneeze: sn >= 0 && sn < 1.1 ? sn / 1.1 : null,
-      shadow: false,
-    });
-    // кружка с тёплым чаем рядом
-    ell(ctx, W / 2 + 94, H - 30, 5, 6, null, '#4a3728', 1.5);
-    fillRR(ctx, W / 2 + 70, H - 42, 22, 24, 6, '#fff', '#4a3728', 1.5);
-    ell(ctx, W / 2 + 81, H - 30, 4, 4, '#ff8fab');
-    for (let i = 0; i < 2; i++) {
-      const p = (t * 0.5 + i * 0.5) % 1;
-      ctx.globalAlpha = 0.7 * (1 - p);
-      ell(ctx, W / 2 + 77 + i * 8 + Math.sin(p * 6 + i) * 3, H - 48 - p * 24, 4, 4, '#a5d8ff');
-    }
-    ctx.globalAlpha = 1;
+    paintSick(ctx, W, H, (performance.now() - t0) / 1000, playerLook());
     raf = requestAnimationFrame(loop);
   };
   loop();
@@ -325,11 +306,6 @@ function doctorScene(paid) {
     H = 180;
   const { canvas, ctx } = makeCanvas(W, H);
   canvas.style.cssText += ';display:block;margin:0 auto 8px;border-radius:18px;background:#e6fcf5;max-width:100%';
-  const STAGES = [
-    '🌡️ «Сначала градусник… Так-так: 37,2. Немножко простыла!»',
-    '👄 «А теперь открой ротик и скажи: А-а-а!» Горлышко красненькое — это скоро пройдёт.',
-    '🍬 «Вот тебе витаминка и тёплый чай с мёдом. Вот и всё — будь здорова!»',
-  ];
   let stage = 0,
     cured = false,
     raf = 0;
@@ -341,71 +317,7 @@ function doctorScene(paid) {
   };
   const loop = () => {
     const t = (performance.now() - t0) / 1000;
-    ctx.clearRect(0, 0, W, H);
-    // кабинет: плакат с крестиком, кушетка
-    fillRR(ctx, 18, 16, 46, 46, 8, '#fff', '#4a3728', 1.5);
-    ctx.fillStyle = '#fa5252';
-    ctx.fillRect(36, 24, 10, 30);
-    ctx.fillRect(26, 34, 30, 10);
-    ctx.fillStyle = '#c3fae8';
-    ctx.fillRect(0, H - 20, W, 20);
-    // кушетка: спинка, сиденье, ножки
-    fillRR(ctx, 34, H - 92, 112, 50, 10, '#ffd8e4', '#4a3728', 1.5);
-    for (const lx of [44, 132]) fillRR(ctx, lx, H - 36, 6, 18, 2, '#adb5bd', '#4a3728', 1.2);
-    fillRR(ctx, 30, H - 48, 120, 14, 6, '#fff', '#4a3728', 1.5);
-    const happy = stage === 2;
-    drawHamster(ctx, 92, H - 44, 1.2, playerLook(), {
-      time: t,
-      dir: 1,
-      sit: true,
-      blink: blinkAt(t),
-      talk: stage === 1,
-      happy,
-      armsUp: happy && Math.sin(t * 8) > 0.3,
-      shadow: false,
-    });
-    const dx = W - 72,
-      dy = H - 20,
-      ds = 1.25;
-    drawHamster(ctx, dx, dy, ds, vendorLook('doctor'), {
-      time: t + 1.3,
-      dir: -1,
-      blink: blinkAt(t, 1.3),
-      talk: t % 3 < 1.4,
-      shadow: false,
-    });
-    // зеркальце доктора на лбу и трубка-стетоскоп на шее
-    line(ctx, dx - 26 * ds, dy - 66 * ds, dx + 26 * ds, dy - 66 * ds, '#868e96', 2.5);
-    ell(ctx, dx - 6 * ds, dy - 67 * ds, 7, 7, '#e9ecef', '#4a3728', 1.5);
-    ell(ctx, dx - 6 * ds, dy - 67 * ds, 3, 3, '#fff');
-    ctx.strokeStyle = '#495057';
-    ctx.lineWidth = 2.5;
-    ctx.beginPath();
-    ctx.moveTo(dx - 12 * ds, dy - 30 * ds);
-    ctx.quadraticCurveTo(dx - 16 * ds, dy - 14 * ds, dx - 4 * ds, dy - 12 * ds);
-    ctx.stroke();
-    ell(ctx, dx - 3 * ds, dy - 12 * ds, 4, 4, '#adb5bd', '#4a3728', 1.2);
-    if (stage === 1) {
-      // фонарик: лучик к ротику
-      ctx.fillStyle = 'rgba(255,224,102,.45)';
-      ctx.beginPath();
-      ctx.moveTo(dx - 34, dy - 50);
-      ctx.lineTo(112, H - 104);
-      ctx.lineTo(112, H - 88);
-      ctx.closePath();
-      ctx.fill();
-      fillRR(ctx, dx - 44, dy - 56, 14, 8, 3, '#ffd43b', '#4a3728', 1.2);
-    }
-    if (stage === 2) {
-      emoji(ctx, '🍬', 150 + Math.sin(t * 3) * 3, 70, 22);
-      emoji(ctx, '🍵', 176, H - 56, 22);
-      for (let i = 0; i < 3; i++) {
-        const p = (t * 0.4 + i / 3) % 1;
-        ctx.globalAlpha = 1 - p;
-        star(ctx, 60 + i * 50 + Math.sin(p * 5) * 8, 70 - p * 30, 5, '#ffd43b');
-      }
-      ctx.globalAlpha = 1;
-    }
+    paintDoctor(ctx, W, H, t, stage, playerLook(), vendorLook('doctor'));
     raf = requestAnimationFrame(loop);
   };
   loop();
@@ -417,7 +329,7 @@ function doctorScene(paid) {
       cls: 'narrow',
       render(body) {
         body.appendChild(canvas);
-        say = el('p', 'center', `<b>${VENDORS.doctor.name}:</b> ${STAGES[stage]}`);
+        say = el('p', 'center', `<b>${VENDORS.doctor.name}:</b> ${DOCTOR_STAGES[stage]}`);
         body.appendChild(say);
         if (stage === 0)
           body.appendChild(

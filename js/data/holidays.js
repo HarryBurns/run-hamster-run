@@ -403,3 +403,14 @@ export const holidayYear = (day) => yearOfDay(day);
 export const holidayGifts = (h) => [h.gift, ...(h.more || [])].filter(Boolean);
 /** Подставить имя хомячка в реплику и «-а» для жительниц: «купил{а}». */
 export const holidayLine = (text, name, fem) => text.replace(/\{name\}/g, name).replace(/\{а\}/g, fem ? 'а' : '');
+
+// ---------- праздничные сценки: сколько шагов (правила — features/holidays_*.js, рисунок — holidays_scenes_art.js) ----------
+/** Торт на день рождения: столько свечек, задуть за BLOWS раз (по две свечки). */
+export const CANDLES = 6,
+  BLOWS = 3;
+/** Иван Купала: столько цветов вплести в венок, потом — пустить его по воде. */
+export const FLOWERS = 6;
+/** Хеллоуин: шаги вырезания тыквы — по кнопке на шаг. */
+export const CARVE = ['👀 Вырезать глазик', '👀 И второй глазик', '🔺 Носик', '😁 Весёлая улыбка', '🕯️ Зажечь свечку'];
+/** Китайский Новый год: столько небесных фонариков запустить. */
+export const LANTERNS = 3;

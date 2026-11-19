@@ -14,7 +14,7 @@ import { makeCanvas } from '../core/draw.js';
 import { on } from '../core/events.js';
 import { scene } from '../core/loop.js';
 import { G } from '../core/state.js';
-import { HOLIDAY, HOLIDAY_BY_ID, HOME_BY_ID, NPCS, NPC_BY_ID, DISH_BY_ID, ING_BY_ID, SEED_BY_ID } from '../data/index.js';
+import { HOLIDAY, HOLIDAY_BY_ID, HOME_BY_ID, NPCS, NPC_BY_ID, DISH_BY_ID, ING_BY_ID, SEED_BY_ID, BLOWS } from '../data/index.js';
 import { addSidePart } from '../engine/side/scene.js';
 import { paintBdayRoom } from '../locations/holidays_art.js';
 import { enqueue } from '../ui/modals.js';
@@ -23,7 +23,7 @@ import { toast } from '../ui/toast.js';
 import { addPts, talkHooks } from './friends.js';
 import { holidayActs, holidayStep, holidayToday, holidayWhere, stepWanted, stepDoneFor } from './holidays.js';
 import { tapScene, holidaySay } from './holidays_scenes.js';
-import { BLOWS, paintCake } from './holidays_scenes_art.js';
+import { paintCake } from './holidays_scenes_art.js';
 
 const S = () => G.state;
 const HF = () => S().dayFlags.holiday || {};

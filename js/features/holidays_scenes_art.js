@@ -1,12 +1,12 @@
 // КАРТИНКИ ПРАЗДНИЧНЫХ СЦЕНОК — что видно в окне сценки (features/holidays_scenes.js: tapScene, playScene):
 // торт со свечами на день рождения (holidays_bday.js); рассада, парад, венок, тыквы и «сладость или гадость»
 // (holidays_summer.js); каток, колядки, небесные фонарики и карусель (holidays_winter.js). Здесь только рисование;
-// когда и что показывать, решают сами праздники. Рядом — константы, которые нужны и рисунку, и правилам
-// (CANDLES, FLOWERS, CARVE, LANTERNS).
+// когда и что показывать, решают сами праздники. Сколько шагов у сценок (CANDLES, BLOWS, FLOWERS, CARVE, LANTERNS) —
+// в data/holidays.js: это нужно и рисунку, и правилам.
 import { ell, fillRR, line, star, poly } from '../core/draw.js';
 import { G, playerLook } from '../core/state.js';
 import { drawHamster } from '../art/hamster.js';
-import { NPCS, npcLook } from '../data/index.js';
+import { NPCS, npcLook, CANDLES, BLOWS, FLOWERS, CARVE, LANTERNS } from '../data/index.js';
 import { balloon, paintMayBed, jackFace, wreathRing, skyLantern, lantern } from '../locations/holidays_art.js';
 import { nightSky } from './holidays_scenes.js';
 import { TAU } from '../core/util.js';
@@ -16,9 +16,6 @@ const S = () => G.state;
 
 // ════════ из holidays_bday.js ════════
 // ---------- торт ----------
-export const CANDLES = 6,
-  BLOWS = 3; // три раза дунуть — по две свечки
-
 export function paintCake(ctx, w, h, n, a, t) {
   // комната: обои в горошек, гирлянда, стол
   ctx.fillStyle = '#ffe3ec';
@@ -189,8 +186,6 @@ export function paintParade(ctx, w, h, k, look, t) {
 }
 
 // ==================== ИВАН КУПАЛА ====================
-export const FLOWERS = 6; // столько цветов вплести, потом — пустить по воде
-
 export function paintWreath(ctx, w, h, n, a, t) {
   // вечереет: розовое небо, море, песок
   const g = ctx.createLinearGradient(0, 0, 0, h);
@@ -226,8 +221,6 @@ export function paintWreath(ctx, w, h, n, a, t) {
 }
 
 // ==================== ХЕЛЛОУИН ====================
-export const CARVE = ['👀 Вырезать глазик', '👀 И второй глазик', '🔺 Носик', '😁 Весёлая улыбка', '🕯️ Зажечь свечку'];
-
 export function paintCarve(ctx, w, h, n, a, t) {
   nightSky(ctx, w, h, t, '#2b1d4a', '#6a3d8a', false);
   ell(ctx, w * 0.16, h * 0.14, 20, 20, '#fff3bf');
@@ -395,8 +388,6 @@ export function paintCarol(ctx, w, h, k, look, t) {
 }
 
 // ==================== КИТАЙСКИЙ НОВЫЙ ГОД ====================
-export const LANTERNS = 3;
-
 export function paintLanterns(ctx, w, h, n, a, t) {
   nightSky(ctx, w, h, t, '#1a1440', '#7a3a5a');
   // море и луна

@@ -944,3 +944,6 @@ export const QUESTS = [
   },
 ];
 export const QUEST_BY_ID = Object.fromEntries(QUESTS.map((q) => [q.id, q]));
+
+/** Кусочки карты по порядку шагов задания «Карта сокровищ Зефирки» (treasure_map; рисунок — features/pictures_art.js). */
+export const PIECES = ['tower', 'ship', 'isle'];

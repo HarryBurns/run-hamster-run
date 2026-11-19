@@ -19,9 +19,8 @@ import { register } from '../core/registry.js';
 import { scene } from '../core/loop.js';
 import { sfx } from '../core/audio.js';
 import { dist, el, esc, clamp } from '../core/util.js';
-import { ell, heart, line } from '../core/draw.js';
 import { blinkAt } from '../art/hamster.js';
-import { drawPet, petIcon, PET_BOX } from '../art/pets.js';
+import { petIcon, PET_BOX } from '../art/pets.js';
 import { PETS, PET_BY_ID, PET, PET_GOODS, PET_LINES, vendorLook, VENDORS } from '../data/index.js';
 import { T, SP, tileOf, label, addWorldPart, locations } from '../engine/topdown/index.js';
 import { canStand } from '../engine/topdown/actors.js';
@@ -31,6 +30,7 @@ import { openPanel } from '../ui/panel.js';
 import { dialog } from '../ui/dialog.js';
 import { toast } from '../ui/toast.js';
 import { buy, priceTag, buyBtn } from './purchase.js';
+import { paintPet, drawProps, drawBubble, drawHearts } from './pet_art.js';
 
 const S = () => G.state;
 const pet = () => (S() ? S().pet : null);
@@ -281,7 +281,7 @@ function updateFx(e, dt, sc) {
 }
 const petTop = (e, side) => (side ? e.sc.geo.fy(e.f) - 62 : e.y - PET_BY_ID[pet().kind].size - 6);
 
-// ---------- рисунок ----------
+// ---------- рисунок (сами рисунки — pet_art.js) ----------
 const WALK_FRAMES = 6;
 /** Кадр питомца: что в нём меняется — в ключе. */
 function frameOf(e, t) {
@@ -296,67 +296,6 @@ function frameOf(e, t) {
     key: `pet:${pt.kind}:${e.dir}:${fr}:${wag}:${mood}:${shut}:${eat}`,
     pose: { walk: fr < 0 ? null : (fr + 0.5) / WALK_FRAMES, wag: wag / 4, mood, blink: shut, eat },
   };
-}
-function paintPet(c, kind, dir, pose, k = 1) {
-  c.save();
-  c.scale(dir * k, k);
-  drawPet(c, kind, pose);
-  c.restore();
-}
-/** Миска с кормом и мячик — рядом с питомцем. */
-function drawProps(ctx, e, x, y, k) {
-  const fx = e.fx;
-  if (!fx) return;
-  if (fx.kind === 'feed') {
-    const bx = x + e.dir * 19 * k;
-    ell(ctx, bx, y - 3 * k, 8 * k, 4 * k, '#74c0fc', '#4a3728', 1.6);
-    if (fx.t / fx.dur < 0.75) ell(ctx, bx, y - 5 * k, 5.6 * k, 2.4 * k, '#c98b5a');
-  } else if (fx.kind === 'play') {
-    const q = fx.t / fx.dur;
-    let bx, by, up;
-    if (q < 0.3) {
-      // летит от хомячка к месту
-      const a = q / 0.3,
-        from = e === h ? { x: e.sc.p.x, y: 0 } : { x: e.sc.p.x, y: e.sc.p.y };
-      bx = from.x + (fx.to.x - from.x) * a;
-      by = (e === h ? y : from.y + (fx.to.y - from.y) * a) - 4 * k;
-      up = Math.sin(a * Math.PI) * 46 * k;
-    } else if (q < 0.6) {
-      bx = fx.to.x;
-      by = (e === h ? y : fx.to.y) - 4 * k;
-      up = 0;
-    } else {
-      bx = x + e.dir * 13 * k;
-      by = y - 12 * k;
-      up = 0;
-    }
-    ell(ctx, bx, y - 1 + (e === h ? 0 : by - y + 4 * k), 5 * k, 2 * k, 'rgba(52,38,70,.17)');
-    ell(ctx, bx, by - up, 4.6 * k, 4.6 * k, '#c0eb75', '#4a3728', 1.5);
-    ctx.strokeStyle = '#fff';
-    ctx.lineWidth = 1.2;
-    ctx.beginPath();
-    ctx.arc(bx - 3 * k, by - up, 4 * k, -0.7, 0.7);
-    ctx.stroke();
-  }
-}
-function drawBubble(ctx, x, y, t) {
-  const by = y + Math.sin(t * 3) * 2;
-  ell(ctx, x + 14, by - 12, 13, 11, '#fff', '#4a3728', 1.8);
-  ell(ctx, x + 5, by + 1, 3, 3, '#fff', '#4a3728', 1.4);
-  ell(ctx, x + 14, by - 10, 7, 3.4, '#74c0fc', '#4a3728', 1.3);
-  ell(ctx, x + 14, by - 11.4, 4.8, 1.8, '#fff8ec');
-  line(ctx, x + 11, by - 17, 11.6 + x, by - 19.5, '#4a3728', 1);
-  line(ctx, x + 14, by - 17.5, 14 + x, by - 20.5, '#4a3728', 1);
-  line(ctx, x + 17, by - 17, 16.4 + x, by - 19.5, '#4a3728', 1);
-}
-function drawHearts(ctx, side) {
-  for (const q of hearts) {
-    if (q.side !== side || q.t < 0) continue;
-    const k = q.t / 1.2;
-    ctx.globalAlpha = Math.max(0, Math.min(1, (1 - k) * 1.8));
-    heart(ctx, q.x + Math.sin(q.t * 5 + q.x) * 4, q.y - k * 46 * (side ? 1.5 : 1), (side ? 9 : 6) + k * 2, '#ff5c8a');
-  }
-  ctx.globalAlpha = 1;
 }
 on('step', ({ dt }) => {
   for (const q of hearts) q.t += dt;
@@ -392,7 +331,7 @@ addWorldPart({
   },
   over(ctx, sc, t) {
     if (!w || w.sc !== sc || !walks() || w.hidden) return;
-    drawHearts(ctx, false);
+    drawHearts(ctx, hearts, false);
     const size = PET_BY_ID[pet().kind].size;
     if (petHungry() && !w.fx) drawBubble(ctx, w.x, w.y - size - 4, t);
     else if (dist(sc.p.x, sc.p.y, w.x, w.y) < T * 1.6 && !sc.p.moving && !w.moving && !w.fx)
@@ -411,7 +350,7 @@ function drawWorldPet(ctx, e, t) {
   const s = SP.get(f.key, PET_BOX, (c) => paintPet(c, kind, dir, f.pose));
   SP.draw(s, e.x, e.y - hop);
   SP.world();
-  drawProps(ctx, e, e.x, e.y, 1);
+  drawProps(ctx, e, e.x, e.y, 1, false);
 }
 
 // ---------- дома ----------
@@ -451,8 +390,8 @@ addSidePart({
       dir = h.dir,
       b = PET_BOX.map((v) => v * HK);
     sc.sprite('h' + f.key, b, (c) => paintPet(c, kind, dir, f.pose, HK), h.x, y);
-    drawProps(ctx, h, h.x, y, HK);
-    drawHearts(ctx, true);
+    drawProps(ctx, h, h.x, y, HK, true);
+    drawHearts(ctx, hearts, true);
     if (petHungry() && !h.fx) drawBubble(ctx, h.x + 8, y - PET_BY_ID[kind].size * HK - 6, t);
   },
   tap(sc, pt) {

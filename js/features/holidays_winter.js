@@ -21,7 +21,7 @@ import { sfx } from '../core/audio.js';
 import { emit } from '../core/events.js';
 import { G, friendHearts } from '../core/state.js';
 import { pick } from '../core/util.js';
-import { HOLIDAY, holidayOffset, HOLIDAY_BY_ID, BLINI, DISH_BY_ID, NPCS, npcLook } from '../data/index.js';
+import { HOLIDAY, holidayOffset, HOLIDAY_BY_ID, BLINI, DISH_BY_ID, NPCS, npcLook, LANTERNS } from '../data/index.js';
 import { teamHelp } from '../minigames/tug.js';
 import { message } from '../ui/panel.js';
 import { toast } from '../ui/toast.js';
@@ -30,7 +30,7 @@ import { openCooking } from './cooking.js';
 import { playMinigame } from './minigames.js';
 import { holidayActs, holidayTalk, holidayStep, stepDoneFor, stepWanted } from './holidays.js';
 import { tapScene, playScene, doorRound, holidayPrize, holidaySay as say } from './holidays_scenes.js';
-import { paintRink, paintCarol, LANTERNS, paintLanterns, paintCarousel } from './holidays_scenes_art.js';
+import { paintRink, paintCarol, paintLanterns, paintCarousel } from './holidays_scenes_art.js';
 
 const S = () => G.state;
 const HF = () => S().dayFlags.holiday || {};

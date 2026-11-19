@@ -6,15 +6,12 @@ import { ell, fillRR, line, poly, star } from '../core/draw.js';
 import { drawHamster } from '../art/hamster.js';
 import { ART } from '../engine/topdown/index.js';
 import { VIEW_LAYERS, viewEnv, renderViewLayer } from '../interiors/tower_view.js';
-import { npcLook } from '../data/index.js';
+import { npcLook, PIECES } from '../data/index.js';
 
 const OUT = '#4a3728';
 
 // ════════ из cove.js ════════
 // ---------- карта сокровищ Зефирки ----------
-/** Кусочки карты по порядку шагов задания «Карта сокровищ Зефирки». */
-export const PIECES = ['tower', 'ship', 'isle'];
-
 /** Карта сокровищ (картинка кодом): три кусочка; ненайденные — пунктиром со знаком вопроса. */
 export function paintTreasureMap(ctx, w, h, have) {
   ctx.clearRect(0, 0, w, h);
