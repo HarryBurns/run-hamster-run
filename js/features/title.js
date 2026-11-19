@@ -25,6 +25,7 @@ import { sfx, unlockAudio } from '../core/audio.js';
 import { openPanel, message } from '../ui/panel.js';
 import { downloadText, pickTextFile } from '../ui/files.js';
 import { createTitleScene } from './title_scene.js';
+import { installButton, onInstallChange, needMoveHint } from './install.js';
 
 export const GAME_NAME = 'Пушистая жизнь';
 const HOLD_MS = 1300; // сколько держать «Да, удалить»
@@ -115,6 +116,7 @@ export function openTitle({ start }) {
       }
     }
     claimSave(); // с этой минуты живое сохранение пишет эта вкладка (core/state.js)
+    offInstall();
     scene.destroy();
     current = null;
     t.remove();
@@ -124,6 +126,19 @@ export function openTitle({ start }) {
   }
 
   // ---------- кнопки ----------
+  // «📲 Как приложение» (features/install.js): маленькая, под остальными; браузер может разрешить установку не сразу —
+  // тогда кнопка появляется, когда он пришлёт событие
+  const appSlot = el('div', 't-app');
+  const fillApp = () => {
+    appSlot.innerHTML = '';
+    const b = installButton('📲 Как приложение');
+    if (b) appSlot.appendChild(b);
+    appSlot.hidden = !b;
+  };
+  const offInstall = onInstallChange(() => {
+    fillApp();
+    if (scene) scene.relayout();
+  });
   function render(mode) {
     menu.innerHTML = '';
     const games = listGames();
@@ -155,11 +170,25 @@ export function openTitle({ start }) {
       menu.append(inp, b);
       if (!games.length) {
         // браузер стёр данные сайта, а игра была сохранена в файл — вернуть её можно прямо отсюда
-        const imp = el('button', 'btn ghost small t-import', '📂 Загрузить игру из файла');
+        const move = needMoveHint(); // приложение на iPhone и iPad: игры из Safari сюда сами не переходят
+        const imp = el(
+          'button',
+          move ? 'btn blue t-import' : 'btn ghost small t-import',
+          move ? '📂 Загрузить из файла' : '📂 Загрузить игру из файла',
+        );
+        imp.dataset.act = 'import';
         imp.onclick = () => {
           sfx('tap');
           askImport();
         };
+        if (move)
+          menu.appendChild(
+            el(
+              'div',
+              'sub t-move',
+              '<small><b>Перенести игру из Safari?</b> У приложения своя память — игры оттуда сами не приходят. В Safari: «Мои игры» → ⋯ → «Сохранить в файл», а здесь:</small>',
+            ),
+          );
         menu.appendChild(imp);
       }
       if (games.length) {
@@ -223,6 +252,8 @@ export function openTitle({ start }) {
       row.append(b2, b3);
       menu.appendChild(row);
     }
+    fillApp();
+    menu.appendChild(appSlot);
     showScene();
   }
   /** После удаления или неудачи: заново открыть последнюю игру и перерисовать кнопки. */

@@ -3,11 +3,19 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover, user-scalable=no">
-  <meta name="theme-color" content="#ffd43b">
+  <!-- игра как приложение на экране «Домой» (docs/ARCHITECTURE.md, «Игра как приложение»): все пути относительные -->
+  <meta name="theme-color" content="#8fd3ff">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Хомячок">
+  <meta name="application-name" content="Пушистая жизнь">
+  <!-- во весь экран: игра заходит под строку состояния, кнопки отступают на env(safe-area-inset-*) (css/style.css) -->
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>Пушистая жизнь — большая жизнь маленького хомячка</title>
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🐹</text></svg>">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" type="image/png" sizes="32x32" href="assets/icons/favicon-32.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="assets/icons/icon-192.png">
+  <link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png">
   <script>
     // Запуск игры с метками версий (docs/ARCHITECTURE.md, «Выкладка и метки версий»). Номер сборки BUILD читается
     // из js/data/build.js мимо кэша; по списку js/modules.json строится карта импортов: каждый модуль грузится

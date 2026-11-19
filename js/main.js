@@ -210,6 +210,7 @@ function startGame(fresh) {
   else go(s.pos && scenes[s.pos.scene] ? s.pos.scene : HOME, { pos: s.pos });
   updateHud();
   setTimeout(preloadMinigames, 5000); // в простое, не мешая началу игры
+  F.startInstallHint(); // через время игры — подсказка взрослым «поставить на экран „Домой“» (features/install.js)
   // пианино в подарок (один раз), чтобы было на чём играть
   if (!s.flags.pianoGift) {
     setFlag('pianoGift');
@@ -254,6 +255,7 @@ every(20, persist);
 // Отладочные хуки window.__dev (dev/smoke.js, dev/bench.js, консоль) — только на своём компьютере (localhost) или
 // с ?dev в адресе (core/dev.js); в выложенной игре их нет. F — все функции занятий (features/index.js: devAll).
 if (DEV) installDevHooks({ F: F.devAll() });
+F.registerOffline(); // service worker: сеть сначала, кэш — если сети нет (sw.js, features/install.js)
 migrateAllPhotos(); // снимки альбома, оставшиеся в localStorage, — в IndexedDB (один раз; освобождает место под игры)
 // новая игра: сначала вступительная сценка — переезд в Ореховую Гавань (features/intro.js), потом сама игра
 openTitle({

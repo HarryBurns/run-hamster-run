@@ -56,6 +56,7 @@ import * as photo from './photo.js';
 import * as piano from './piano.js';
 import * as settings from './settings.js';
 import * as soundscape from './soundscape.js';
+import * as install from './install.js';
 
 // ---------- что нужно main.js ----------
 export { showBankLetter } from './bank.js';
@@ -73,6 +74,7 @@ export { openAlbum } from './album.js';
 export { openPhotoMode } from './photo.js';
 export { openSettings, showHelp } from './settings.js';
 export { updateSound } from './soundscape.js';
+export { registerOffline, startInstallHint } from './install.js';
 
 /** Все функции занятий одним объектом (как прежний «export *»; одинаковых имён у занятий нет). */
 export const devAll = () =>
@@ -128,5 +130,6 @@ export const devAll = () =>
     photo,
     piano,
     settings,
+    install,
     soundscape,
   );

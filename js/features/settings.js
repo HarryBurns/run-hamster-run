@@ -1,4 +1,5 @@
-// Меню: музыка и звуки, «Как играть», «Авторы» (кто сочинил музыку и звуки), «Выйти на заставку».
+// Меню: музыка и звуки, «Как играть», «Авторы» (кто сочинил музыку и звуки), «Поставить на экран „Домой“»,
+// «Выйти на заставку».
 import { G, cal } from '../core/state.js';
 import { persist } from '../core/loop.js';
 import { el, esc } from '../core/util.js';
@@ -6,6 +7,7 @@ import { sfx, isMuted, setMuted, isMusicOn, setMusicOn, getMusicVolume, setMusic
 import { run } from '../core/registry.js';
 import { MUSIC_CREDITS, SFX_CREDITS, SYNTH_NOTE } from '../data/credits.js';
 import { openPanel, message } from '../ui/panel.js';
+import { installButton } from './install.js';
 
 export function openSettings() {
   openPanel({
@@ -77,7 +79,11 @@ export function openSettings() {
         location.reload();
       };
       const col = el('div', 'set-col'); // лёжа на телефоне — в два столбца (css/style.css)
-      col.append(own, mus, vol, snd, help, authors, exit);
+      col.append(own, mus, vol, snd, help, authors);
+      // игра как приложение на экране «Домой» (features/install.js); уже приложение — пункта нет
+      const app = installButton('📲 Поставить на экран «Домой»', 'btn ghost');
+      if (app) col.appendChild(app);
+      col.appendChild(exit);
       body.appendChild(col);
     },
   });

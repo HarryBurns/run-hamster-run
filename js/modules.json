@@ -97,6 +97,7 @@
 "js/features/hotel.js",
 "js/features/index.js",
 "js/features/inside.js",
+"js/features/install.js",
 "js/features/intro.js",
 "js/features/island.js",
 "js/features/jungle.js",

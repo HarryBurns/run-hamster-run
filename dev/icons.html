@@ -1,0 +1,111 @@
+<!doctype html>
+<meta charset="utf-8" />
+<title>Значки приложения</title>
+<body style="margin:0;background:#888;display:flex;flex-wrap:wrap;gap:12px;padding:12px;align-items:flex-start">
+<script type="module">
+  // Значки игры для экрана «Домой» (manifest.webmanifest, apple-touch-icon) — рисуются кодом из рисунков игры:
+  // хомячок с заставки (шляпа от солнца, морское платье) на фоне неба, моря и песка. PNG из них делает dev/icons.js.
+  import { drawPortrait } from '../js/art/hamster.js';
+  import { resolveLook, defaultLook } from '../js/data/index.js';
+
+  const d = defaultLook();
+  const look = resolveLook({
+    ...d,
+    outfit: { ...d.outfit, head: 'sunhat', body: 'dress_sea' },
+    beauty: { ...d.beauty, bow: '#ff5c8a' },
+  });
+
+  /** Фон: небо, солнце, облачко, море с волнами, песок. */
+  function scene(c, S) {
+    let g = c.createLinearGradient(0, 0, 0, S * 0.6);
+    g.addColorStop(0, '#4fb4ff');
+    g.addColorStop(1, '#cdeeff');
+    c.fillStyle = g;
+    c.fillRect(0, 0, S, S);
+    // солнце с тёплым ореолом
+    const sx = S * 0.8,
+      sy = S * 0.2;
+    g = c.createRadialGradient(sx, sy, S * 0.04, sx, sy, S * 0.22);
+    g.addColorStop(0, 'rgba(255,243,176,.95)');
+    g.addColorStop(1, 'rgba(255,243,176,0)');
+    c.fillStyle = g;
+    c.fillRect(0, 0, S, S);
+    c.fillStyle = '#ffe066';
+    c.beginPath();
+    c.arc(sx, sy, S * 0.085, 0, Math.PI * 2);
+    c.fill();
+    // облачко
+    c.fillStyle = 'rgba(255,255,255,.9)';
+    for (const [x, y, r] of [
+      [0.16, 0.2, 0.06],
+      [0.24, 0.17, 0.075],
+      [0.32, 0.21, 0.055],
+    ]) {
+      c.beginPath();
+      c.arc(S * x, S * y, S * r, 0, Math.PI * 2);
+      c.fill();
+    }
+    // море
+    const sea = S * 0.56,
+      sand = S * 0.76;
+    g = c.createLinearGradient(0, sea, 0, sand);
+    g.addColorStop(0, '#2f8fd8');
+    g.addColorStop(1, '#7fe3e2');
+    c.fillStyle = g;
+    c.fillRect(0, sea, S, sand - sea);
+    c.strokeStyle = 'rgba(255,255,255,.75)';
+    c.lineWidth = Math.max(1.5, S * 0.012);
+    c.lineCap = 'round';
+    for (const [x, y] of [
+      [0.08, 0.62],
+      [0.62, 0.6],
+      [0.3, 0.69],
+      [0.8, 0.7],
+    ]) {
+      c.beginPath();
+      c.moveTo(S * x, S * y);
+      c.quadraticCurveTo(S * (x + 0.04), S * (y - 0.025), S * (x + 0.08), S * y);
+      c.stroke();
+    }
+    // песок с волной прибоя
+    g = c.createLinearGradient(0, sand, 0, S);
+    g.addColorStop(0, '#ffe6a8');
+    g.addColorStop(1, '#f4c97c');
+    c.fillStyle = g;
+    c.beginPath();
+    c.moveTo(0, sand);
+    for (let i = 0; i <= 8; i++) c.quadraticCurveTo(S * (i / 8 - 1 / 16), sand - S * 0.02, S * (i / 8), sand);
+    c.lineTo(S, S);
+    c.lineTo(0, S);
+    c.closePath();
+    c.fill();
+  }
+  /** Значок size×size. kind: any — со скруглёнными углами; maskable — во весь квадрат, хомячок в безопасном круге
+   *  (80% размера: Android вырезает из значка круг, каплю или квадрат); apple — во весь квадрат (iOS скругляет
+   *  углы сам), без прозрачности. */
+  function icon(size, kind) {
+    const cv = document.createElement('canvas');
+    cv.width = cv.height = size;
+    cv.dataset.name = kind + '-' + size;
+    const c = cv.getContext('2d');
+    c.save();
+    if (kind === 'any') {
+      c.beginPath();
+      c.roundRect(0, 0, size, size, size * 0.2);
+      c.clip();
+    }
+    scene(c, size);
+    c.restore();
+    const p = kind === 'maskable' ? 0.7 : 0.82; // доля размера под портрет
+    const cy = kind === 'maskable' ? size * 0.57 : size * 0.59; // туловище доходит до нижнего края
+    drawPortrait(c, size / 2, cy, size * p, look);
+    document.body.appendChild(cv);
+  }
+  icon(512, 'any');
+  icon(192, 'any');
+  icon(512, 'maskable');
+  icon(180, 'apple');
+  icon(32, 'any');
+  window.iconsReady = true;
+</script>
+</body>
