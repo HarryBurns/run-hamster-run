@@ -6,8 +6,8 @@
 // заданий, точки входа и выхода — и свои виды клеток и предметов (грядка, почтовый ящик, лунка, табличка).
 import { clamp } from '../core/util.js';
 import { ell, fillRR, line, poly, emoji } from '../core/draw.js';
-import { NPCS, ING_BY_ID, SEED_BY_ID, TASK_BY_ID, LAND_BY_ID, BIZ_BY_ID, HOME_BY_ID } from '../data/index.js';
-import { G, cal, ownsHome, homesWith, landOpen, guestsWaiting, stepWaits, hotelPoolGuests, hotelRoomGuest } from '../core/state.js';
+import { NPCS, ING_BY_ID, SEED_BY_ID, TASK_BY_ID, LAND_BY_ID, BIZ_BY_ID } from '../data/index.js';
+import { G, cal, ownsHome, landOpen, guestsWaiting, stepWaits, hotelPoolGuests, hotelRoomGuest } from '../core/state.js';
 import { T, OUT, SP, put, defineTiles, defineObjects } from '../engine/topdown/kinds.js';
 import { createTopDownScene } from '../engine/topdown/scene.js';
 import { run } from '../core/registry.js';
@@ -854,17 +854,7 @@ function target(sc) {
     return doors.length ? { x: doors[0].x, y: doors[0].y - T, icon: '⭐' } : null;
   }
   if (wh === 'town') return null;
-  if (t.thing) {
-    // колесо, пианино: к двери ближайшего своего дома, где вещь стоит; дом в другом месте (лесной домик) — к дороге туда
-    const homes = homesWith(t.thing).map((h) => HOME_BY_ID[h]),
-      doors = homes
-        .filter((h) => !h.loc && sc.map.bById[h.building])
-        .map((h) => sc.map.doorPx(sc.map.bById[h.building]))
-        .sort((a, b) => Math.hypot(a.x - sc.p.x, a.y - sc.p.y) - Math.hypot(b.x - sc.p.x, b.y - sc.p.y));
-    if (doors.length) return { x: doors[0].x, y: doors[0].y - T, icon: '⭐' };
-    const away = homes.find((h) => h.loc);
-    if (away) return sc.wayTo(away.loc);
-  }
+  // колесо, пианино (thing задания) — к дому, где вещь стоит: общая звёздочка движка (thingTarget в engine/topdown/scene.js)
   const b = sc.map.bById[wh];
   if (b) {
     const d = sc.map.doorPx(b);

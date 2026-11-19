@@ -1,5 +1,6 @@
 // Шаги автотеста мелких исправлений «Замечено в третьем обновлении» (BACKLOG, Т-пункты) и ревью, где меняется поведение:
-//   Т7 — звёздочка писем «Беги, хомячок» и «Маленький концерт» ведёт в дом, где стоит колесо / пианино;
+//   Т7 — звёздочка писем «Беги, хомячок» и «Маленький концерт» ведёт в дом, где стоит колесо / пианино (и в лесу —
+//   к двери лесного домика);
 //   Т2 — холл Хомяк-Тауэра вечером темнеет (свет ламп), к празднику украшен;
 //   repair (ревью Б4) — имя хомячка, питомца и название заведения обрезаются до длины поля ввода на любом пути;
 //   подсказки не ложатся на окно «Игра открыта дважды» (оно важнее);
@@ -51,6 +52,49 @@ module.exports = async function tfix(ctx) {
     const txt = await ev(() => (document.querySelector('.letter') || {}).textContent || '');
     expect(/Квартира/.test(txt) && !/Куда идти: Вилла/.test(txt), 'в письме «Куда идти» — не квартира', txt);
     await closeAll();
+  });
+
+  await step('исправления: колесо и пианино в лесном домике — в лесу звёздочка у двери домика, в городе — к дороге в лес', async () => {
+    await fresh();
+    await toPlace('forest');
+    await closeAll();
+    for (const [task, thing] of [
+      ['wheel', 'wheel'],
+      ['piano', 'piano'],
+    ]) {
+      const r = await ev(
+        ([task, thing]) => {
+          const d = window.__dev;
+          d.actions.mutate((s) => {
+            if (!s.homesOwned.includes('cabin')) s.homesOwned.push('cabin');
+            s.villa = s.villa.filter((i) => i.id !== thing);
+            for (const h of Object.keys(s.homes)) s.homes[h] = s.homes[h].filter((i) => i.id !== thing);
+            s.homes.cabin = [...(s.homes.cabin || []), { uid: 91000 + thing.length, id: thing, floor: 0, x: 200, y: 0 }];
+          });
+          d.actions.setMail(task);
+          d.actions.readMail();
+          const f = d.locations.forest,
+            door = f.map.doorPx(f.map.bById.cabin);
+          return { scene: d.sceneName, t: f.target(), door, town: d.World.target() };
+        },
+        [task, thing],
+      );
+      expect(r.scene === 'forest', 'не в лесу (проверка не годится)', r);
+      expect(!!r.t && Math.hypot(r.t.x - r.door.x, r.t.y - (r.door.y - 48)) < 10, `«${task}»: в лесу звёздочка не у двери домика`, r);
+      expect(!!r.town && r.town.next === 'forest', `«${task}»: в городе звёздочка не к дороге в лес`, r);
+    }
+    // колесо только на вилле: в лесу звёздочка ведёт к дороге в город
+    const r = await ev(() => {
+      const d = window.__dev;
+      d.actions.mutate((s) => {
+        s.homes.cabin = s.homes.cabin.filter((i) => i.id !== 'wheel');
+        s.villa = [...s.villa, { uid: 91100, id: 'wheel', floor: 0, x: 300, y: 0 }];
+      });
+      d.actions.setMail('wheel');
+      d.actions.readMail();
+      return d.locations.forest.target();
+    });
+    expect(!!r && r.next === 'world', 'колесо на вилле: в лесу звёздочка не к дороге в город', r);
   });
 
   await step('исправления Т8: на iPad лёжа вилла видна целиком, в отеле — все этажи, камера видит хомячка', async () => {

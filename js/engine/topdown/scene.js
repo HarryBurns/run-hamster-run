@@ -92,7 +92,7 @@
 // Способ передвижения героя (кораблик): sc.p.ride = { speed, pass(tx, ty), step: { sfx, pause }, moved(sc),
 // draw(ctx, sc, p, t, look), drop(sc), bump(sc, tx, ty) } — пока он задан, герой ходит по его правилам; null — пешком.
 // bump — с клавиатуры упёрлись в клетку (tx, ty), куда ему нельзя (самокат у воды — слезает сам).
-import { G, darkness, cal, playerLook, beachLook, walkK, canSwim, landOpen } from '../../core/state.js';
+import { G, darkness, cal, playerLook, beachLook, walkK, canSwim, landOpen, homesWith } from '../../core/state.js';
 import { addItem, setFlag, setDayFlag, collectMailItem, markVisited } from '../../core/actions.js';
 import { emit } from '../../core/events.js';
 import { run } from '../../core/registry.js';
@@ -102,7 +102,7 @@ import { Camera } from '../../core/camera.js';
 import { clamp, dist, seeded } from '../../core/util.js';
 import { sfx } from '../../core/audio.js';
 import { toast } from '../../ui/toast.js';
-import { TASK_BY_ID, SICK_TEXT, routeTo, landOf } from '../../data/index.js';
+import { TASK_BY_ID, SICK_TEXT, routeTo, landOf, HOME_BY_ID } from '../../data/index.js';
 import { T, SP, TILES, OBJECTS, BUILDING_KINDS, tileOf } from './kinds.js';
 import { createMap, mapSize } from './map.js';
 import { moveAlong, faceTo, canStand, makeResidents, settleResidents, updateResidents, hitResident } from './actors.js';
@@ -218,6 +218,8 @@ export function createTopDownScene(desc) {
     target() {
       const hk = targetHook && targetHook(sc);
       if (hk) return hk;
+      const th = thingTarget();
+      if (th) return th;
       const tg = sc.first('target', sc);
       if (tg) return tg;
       let away = null;
@@ -839,6 +841,30 @@ export function createTopDownScene(desc) {
     // не больше 14 клеток по короткой стороне и 26 по длинной.
     z = Math.max(z, Math.min(w, h) / (T * 14), Math.max(w, h) / (T * 26));
     sc.cam.setTileZoom(z, T); // клетка — целое чётное число пикселей устройства: спрайты из кэша ложатся 1:1
+  }
+  /**
+   * Письмо «сделай вещью у себя дома» (thing задания: колесо, пианино): звёздочка к двери ближайшего своего дома
+   * в этом месте, где вещь стоит (город — квартира или вилла, лес — лесной домик), а если такие дома в других
+   * местах — к дороге туда («карта мира»). null — письма такого нет, оно не прочитано или вещи нет ни в одном доме.
+   */
+  function thingTarget() {
+    const m = G.state.mail,
+      t = m && m.read && !m.done && TASK_BY_ID[m.task];
+    if (!t || !t.thing) return null;
+    const homes = homesWith(t.thing).map((h) => HOME_BY_ID[h]);
+    if (!homes.length) return null;
+    const mp = ensure(),
+      doors = homes
+        .filter((h) => (h.loc || homeLocation().name) === sc.name && mp.bById[h.building])
+        .map((h) => mp.doorPx(mp.bById[h.building]))
+        .sort((a, b) => dist(a.x, a.y, sc.p.x, sc.p.y) - dist(b.x, b.y, sc.p.x, sc.p.y));
+    if (doors.length) return { x: doors[0].x, y: doors[0].y - T, icon: '⭐' };
+    // дома в других местах: к тому, куда дорога короче
+    const ways = homes
+      .map((h) => routeTo(sc.name, h.loc || homeLocation().name, landOpen))
+      .filter(Boolean)
+      .sort((a, b) => a.path.length - b.path.length);
+    return ways.length ? sc.wayTo(ways[0].path[ways[0].path.length - 1]) : null;
   }
   /** Идти к особому месту: на его stand, а если его нет — к клетке рядом с нажатой. */
   function toPlace(pl, tx, ty) {
