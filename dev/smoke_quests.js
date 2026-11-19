@@ -335,8 +335,11 @@ module.exports = async function quests(ctx) {
       'перенос',
       [s.v, s.quests],
     );
-    for (const k of ['name', 'money', 'stickers', 'day', 'biz', 'homesOwned', 'villa', 'sick'])
+    for (const k of ['name', 'money', 'stickers', 'day', 'biz', 'homesOwned', 'sick'])
       expect(JSON.stringify(s[k]) === JSON.stringify(old[k]), `после переноса изменилось «${k}»`);
+    // часы виллы на старом месте repair переносит с окна (З8) — их не сравниваем
+    const noClock = (v) => JSON.stringify((v || []).filter((i) => i.id !== 'clock'));
+    expect(noClock(s.villa) === noClock(old.villa), 'после переноса изменилось «villa» (кроме часов)');
     expect(s.flags.questsEarly === 1 && (await status()) === 'ready', 'в старом сохранении задание Мяты — сразу', [
       s.flags,
       await status(),

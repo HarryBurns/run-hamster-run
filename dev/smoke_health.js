@@ -447,8 +447,11 @@ module.exports = async function health(ctx) {
     await openSave(SAVE_V3);
     let s = await state();
     expect(s.v === 5 && s.sick === null && s.immuneUntil === old.day + 3, 'перенос', [s.v, s.sick, s.immuneUntil]);
-    for (const k of ['name', 'money', 'stickers', 'day', 'biz', 'homesOwned', 'homes', 'villa'])
+    for (const k of ['name', 'money', 'stickers', 'day', 'biz', 'homesOwned', 'homes'])
       expect(JSON.stringify(s[k]) === JSON.stringify(old[k]), `после переноса изменилось «${k}»`);
+    // часы виллы на старом месте repair переносит с окна (З8) — их не сравниваем
+    const noClock = (v) => JSON.stringify((v || []).filter((i) => i.id !== 'clock'));
+    expect(noClock(s.villa) === noClock(old.villa), 'после переноса изменилось «villa» (кроме часов)');
     // вещи: всё, что было, и шлёпанцы в подарок (У2)
     expect(JSON.stringify(s.clothes) === JSON.stringify([...old.clothes, 'flip_pink']), 'вещи после переноса');
     const backup = JSON.parse(await ev(() => localStorage.getItem('rhr-save-backup')));
