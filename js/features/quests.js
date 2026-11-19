@@ -147,6 +147,13 @@ export function starScene() {
 setMapGoal(starScene);
 /** Где искать того, кто дал задание: «в городе» или «в лесу» (поле loc задания — локация, где оно идёт). */
 const placeOf = (q) => (q.loc ? LOC_WORDS[q.loc] || 'в другом месте' : 'в городе');
+/** Карточка «Новое задание!»: где искать того, кто его даёт, — «найди её в городе…» или «сейчас она у тебя в гостях…». */
+function readyWhere(q) {
+  const npc = NPC_BY_ID[q.npc],
+    away = !q.npcAt && npcAwayWords(q.npc);
+  if (away) return `сейчас ${npc.fem ? 'она' : 'он'} ${away}. Над головой у ${hisOf(q.npc)} «!».`;
+  return `найди ${npc.fem ? 'её' : 'его'} ${placeOf(q)}. Над головой у ${hisOf(q.npc)} «!».`;
+}
 const LOC_WORDS = {
   world: 'в городе',
   forest: 'в лесу',
@@ -188,6 +195,11 @@ function npcHint(id) {
   if (sp.at === 'home' && invitedToday(id)) return `${npc.name} ждёт тебя у себя дома — постучись в дверь домика 🚪`;
   if (sp.at === 'home') return `Сейчас ${npc.name} у своего домика, а днём ${home.away}`;
   return `${npc.name} ${home.away}, а утром и вечером — у своего домика`;
+}
+/** «у неё над головой «?»» — или где житель, если его не видно на улице: «она у тебя в гостях, на вилле 🏡». */
+function lookFor(id, badge) {
+  const away = npcAwayWords(id);
+  return away ? `${NPC_BY_ID[id].fem ? 'она' : 'он'} ${away}` : `у ${hisOf(id)} над головой «${badge}»`;
 }
 /** Показать задание на карте (звёздочкой). false — сейчас показать нечего (сегодня всё собрано и т. п.). */
 export function showQuestOnMap(id) {
@@ -281,7 +293,7 @@ function refresh(quiet = false) {
       cur = q.steps[w.i];
     if (w.i > wi) {
       sfx('ok');
-      if (cur && cur.talk) toast(`${q.icon} Всё готово! ${cur.text} — у ${hisOf(cur.talk)} над головой «?»`, 'good');
+      if (cur && cur.talk) toast(`${q.icon} Всё готово! ${cur.text} — ${lookFor(cur.talk, '?')}`, 'good');
       else if (cur) toast(`✅ Сделано! Дальше: ${cur.text}`, 'good');
     } else if (w.i === wi && cur && w.steps[w.i].need > 1)
       toast(`${q.icon} ${q.title}: ${w.steps[w.i].have} из ${w.steps[w.i].need}`);
@@ -304,7 +316,7 @@ function hintNew() {
     if (q.intro || s.flags['questHint:' + q.id] || questNow(q.id).status !== 'ready') continue; // вводное приносят домой
     setFlag('questHint:' + q.id);
     const npc = NPC_BY_ID[q.npc];
-    enqueue(() => toast(`❗ ${npc.name} хочет о чём-то тебя попросить — у ${hisOf(q.npc)} над головой «!»`, 'good'), {
+    enqueue(() => toast(`❗ ${npc.name} хочет о чём-то тебя попросить — ${lookFor(q.npc, '!')}`, 'good'), {
       delay: 2500,
     });
   }
@@ -570,7 +582,7 @@ export function renderJournal(body, panel) {
       el(
         'div',
         'q-head',
-        `<span class="q-ic">❗</span><div><div class="ttl">Новое задание!</div><div class="sub">${npc.name} хочет о чём-то попросить — найди ${npc.fem ? 'её' : 'его'} ${placeOf(q)}. Над головой у ${hisOf(q.npc)} «!».</div></div>`,
+        `<span class="q-ic">❗</span><div><div class="ttl">Новое задание!</div><div class="sub">${npc.name} хочет о чём-то попросить — ${readyWhere(q)}</div></div>`,
       ),
     );
     card.appendChild(mapBtn(w));

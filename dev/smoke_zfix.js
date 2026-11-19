@@ -273,4 +273,45 @@ module.exports = async function zfix(ctx) {
       expect(/Плюша уже спит/.test(j), 'ночью журнал не говорит, что Плюша спит', j.slice(0, 500));
     },
   );
+
+  await step(
+    'заказчик: где житель — «Всё готово! Покажись Плюше» и «Новое задание!», когда житель в гостях',
+    async () => {
+      await fresh({ day: 18, minutes: 12 * 60, weather: 'sun', dayFlags: true });
+      await ev(() => {
+        const d = window.__dev,
+          a = d.actions;
+        a.mutate((s) => {
+          s.guests = [];
+          s.guestsAt = 'villa';
+        });
+        a.takeQuest('intro_home');
+        a.questCount('intro_home', 0);
+        a.questCount('intro_home', 1);
+        d.emit('quest'); // журнал запомнил «шаг 3 из 4»
+        a.inviteGuest('plusha', 'villa');
+      });
+      await clearToasts();
+      await ev(() => window.__dev.emit('wear', {}));
+      let t = await toasts();
+      expect(
+        /Всё готово! Покажись Плюше — она у тебя в гостях, на вилле/.test(t),
+        'подсказка «Всё готово» не говорит, что Плюша в гостях',
+        t,
+      );
+      // карточка «Новое задание!»: Мята даёт гербарий, а сама сидит у нас в гостях
+      await ev(() => {
+        const a = window.__dev.actions;
+        a.removeGuest('plusha');
+        a.setFlag('questsEarly', true);
+        a.inviteGuest('myata', 'villa');
+      });
+      const j = await journal();
+      expect(
+        /Мята хочет о чём-то попросить — сейчас она у тебя в гостях, на вилле/.test(j),
+        'карточка «Новое задание!» не говорит, что Мята в гостях',
+        j.slice(0, 600),
+      );
+    },
+  );
 };
