@@ -34,6 +34,7 @@
 //  сон только вечером, этап 18 — dev/smoke_sleep.js:  node dev/smoke.js <url> "step:сон вечером")
 // Скорость проверяется отдельно:  node dev/bench.js [url] --spots=forest --sizes=desktop --max-forest=45
 const { MG_START } = require('./selectors.js'); // кнопка «Начать!» мини-игры — по метке, а не по тексту
+const lib = require('./lib.js'); // общие помощники шагов (этап 21): ожидания условий вместо пауз, метки data-act
 const { chromium } = require('playwright');
 const fs = require('fs');
 const path = require('path');
@@ -120,6 +121,7 @@ const townOk = () => {
 
 // ---------- сохранения-образцы, живучесть цикла, очередь окон (один раз, на настольном размере) ----------
 async function extra({ page, step, ev, wait, closeAll, hold }) {
+  const L = lib({ page, step, ev, wait });
   // подложить сохранение и перезагрузить страницу (state = null — чтобы уходящая страница его не перезаписала)
   const putSave = async (raw) => {
     await ev((raw) => {
@@ -138,8 +140,7 @@ async function extra({ page, step, ev, wait, closeAll, hold }) {
     if (await ev(() => window.__dev.G.state.flags.bankLetter === 1)) {
       await page.waitForSelector('text=Письмо из Хомяк-Банка');
       await wait(400);
-      await page.click('.overlay .panel-foot .btn');
-      await wait(350);
+      await L.tap('.overlay .panel-foot .btn', 350);
     }
   };
   const stored = () =>
@@ -178,10 +179,7 @@ async function extra({ page, step, ev, wait, closeAll, hold }) {
       await wait(300);
       await closeAll();
     }
-    await ev(() => {
-      window.__dev.go('villa');
-    });
-    await wait(400);
+    await L.go('villa');
   });
   await step('образец: неизвестные id', async () => {
     await putSave(
@@ -231,10 +229,7 @@ async function extra({ page, step, ev, wait, closeAll, hold }) {
       await wait(300);
       await closeAll();
     }
-    await ev(() => {
-      window.__dev.go('villa');
-    });
-    await wait(400);
+    await L.go('villa');
     await hold('ArrowRight', 300);
   });
   await step('образец: вкладка умерла сразу после выхода из виллы', async () => {
@@ -338,10 +333,7 @@ async function extra({ page, step, ev, wait, closeAll, hold }) {
   await step(
     'ошибка в кадре не останавливает игру',
     async () => {
-      await ev(() => {
-        window.__dev.go('world');
-      });
-      await wait(300);
+      await L.go('world');
       await ev(() => {
         const sc = window.__dev.scenes.world;
         sc._draw = sc.draw;
@@ -374,8 +366,7 @@ async function extra({ page, step, ev, wait, closeAll, hold }) {
     await wait(500);
     await page.click('text=Угостить');
     await wait(500);
-    await page.click('.overlay .card .btn');
-    await wait(2000);
+    await L.tap('.overlay .card .btn', 2000);
     let d = await ev(() => ({
       dialog: document.querySelectorAll('.dialog').length,
       overlay: document.querySelectorAll('.overlay').length,
@@ -385,8 +376,7 @@ async function extra({ page, step, ev, wait, closeAll, hold }) {
     await page.mouse.click(30, 30);
     await wait(300); // нажатие мимо диалога с выбором его не закрывает
     if (!(await page.locator('.dialog').count())) throw new Error('диалог закрылся от нажатия мимо');
-    await page.click('.dialog .btn:last-child');
-    await wait(900);
+    await L.tap('.dialog .btn:last-child', 900);
     d = await ev(() => ({
       dialog: document.querySelectorAll('.dialog').length,
       overlay: document.querySelectorAll('.overlay').length,
@@ -449,10 +439,7 @@ async function extra({ page, step, ev, wait, closeAll, hold }) {
       throw new Error('направление не видно по мордочке: ' + JSON.stringify([eye(-1), eye(undefined), eye(1)]));
   });
   await step('кэш спрайтов: все сезоны, ночь, смена размера окна', async () => {
-    await ev(() => {
-      window.__dev.go('world');
-    });
-    await wait(300);
+    await L.go('world');
     for (const day of [0, 6, 18, 24])
       for (const minutes of [12 * 60, 21.5 * 60]) {
         for (const [tx, ty] of [
@@ -528,8 +515,7 @@ async function extra({ page, step, ev, wait, closeAll, hold }) {
     let r = await st();
     if (r.dialogs !== 1 || r.titles.length || r.queued !== 2)
       throw new Error('окно не дождалось диалога: ' + JSON.stringify(r));
-    await page.click('.dialog .btn:last-child');
-    await wait(120);
+    await L.tap('.dialog .btn:last-child', 120);
     r = await st();
     if (r.titles.length) throw new Error('окно открылось сразу, без паузы после диалога: ' + JSON.stringify(r));
     await wait(500);
@@ -540,8 +526,7 @@ async function extra({ page, step, ev, wait, closeAll, hold }) {
     r = await st();
     if (r.titles.join() !== 'Первое')
       throw new Error('второе окно не дождалось закрытия первого: ' + JSON.stringify(r));
-    await page.click('.overlay .xbtn');
-    await wait(600);
+    await L.tap('.overlay .xbtn', 600);
     r = await st();
     if (r.titles.join() !== 'Второе' || r.queued !== 0)
       throw new Error('ожидалось окно «Второе»: ' + JSON.stringify(r));
@@ -562,8 +547,7 @@ async function extra({ page, step, ev, wait, closeAll, hold }) {
   });
   // ---------- каркас: сцены, события, действия ----------
   await step('переход между сценами — между кадрами', async () => {
-    await ev(() => window.__dev.go('world'));
-    await wait(300);
+    await L.go('world');
     // go() изнутри update(): сцена меняется только после того, как старая сцена закончила свой шаг
     await ev(() => {
       const d = window.__dev,
@@ -657,7 +641,7 @@ async function extra({ page, step, ev, wait, closeAll, hold }) {
     await ev(() => {
       window.__dev.F.openCooking();
     });
-    await wait(400);
+    await L.untilPanel();
     await click('.overlay .btn.green');
     await wait(400);
     await click('text=Снять с плиты');
@@ -665,7 +649,7 @@ async function extra({ page, step, ev, wait, closeAll, hold }) {
     await ev(() => {
       window.__dev.F.openFridge();
     });
-    await wait(400);
+    await L.untilPanel();
     await click('.overlay .card .btn');
     await closeAll();
     // друзья, почта, сад
@@ -684,7 +668,7 @@ async function extra({ page, step, ev, wait, closeAll, hold }) {
     await ev(() => {
       window.__dev.F.openMailbox();
     });
-    await wait(400);
+    await L.untilPanel();
     await closeAll();
     await ev(() => {
       window.__dev.F.gardenBed(2);
@@ -698,7 +682,7 @@ async function extra({ page, step, ev, wait, closeAll, hold }) {
     await wait(300);
     const bs = await ev(() => window.__dev.World.debugScreen(65.5 * 48, 61.2 * 48));
     await page.mouse.click(bs.x, bs.y);
-    await wait(2200);
+    await L.until(() => window.__dev.World.isBoating() && !window.__dev.World.p.path.length, undefined, { timeout: 5000 }).catch(() => {});
     await closeAll();
     await hold('ArrowDown', 1200);
     await ev(() => {
@@ -748,10 +732,7 @@ async function extra({ page, step, ev, wait, closeAll, hold }) {
       window.__dev.evening(); // спать можно только вечером, с 19:00 (этап 18)
       window.__dev.F.askSleep();
     });
-    await wait(400);
-    await click('.panel-foot .btn.green');
-    await wait(3600);
-    await closeAll();
+    await L.confirmSleep();
     const bad = await ev(() => window.__stopWatch());
     if (bad.length)
       throw new Error(
@@ -867,11 +848,10 @@ async function extra({ page, step, ev, wait, closeAll, hold }) {
     await closeAll();
     // окно карты показывает эту локацию и ведёт к её месту
     await ev(() => window.__dev.F.openMap());
-    await wait(350);
+    await L.untilPanel();
     if (!(await page.locator('.overlay:has-text("Полянка")').count()))
       throw new Error('карта показывает не эту локацию');
-    await page.click('.overlay .opt:has-text("Валун")');
-    await wait(3200); // идти через всю полянку
+    await L.tap('.overlay .opt:has-text("Валун")', 3200); // идти через всю полянку
     if (!(await page.locator('.overlay:has-text("Подзорная труба")').count()))
       throw new Error('карта не довела до особого места');
     await closeAll();
@@ -1011,13 +991,11 @@ async function extra({ page, step, ev, wait, closeAll, hold }) {
     r = await where();
     if (r.scene !== 'world') throw new Error('после возвращения хомячка затянуло обратно');
     // стоим на клетке выхода в момент входа — он не срабатывает, пока не сойдём с неё и не вернёмся
-    await ev(() => window.__dev.go('forest', { at: [10.5, 39.5] }));
-    await wait(400);
+    await L.go('forest', { at: [10.5, 39.5] });
     r = await where();
     if (r.scene !== 'forest') throw new Error('выход сработал сразу при входе на его клетку');
     // пробная полянка по-прежнему ведёт в город, к тропе
-    await ev(() => window.__dev.go('demo_meadow', { at: [10.5, 12.5] }));
-    await wait(200);
+    await L.go('demo_meadow', { at: [10.5, 12.5] });
     await send('demo_meadow', 10.5, 13.5);
     await wait(1200);
     r = await where();
@@ -1033,6 +1011,7 @@ async function extra({ page, step, ev, wait, closeAll, hold }) {
 
 // ---------- экономика: деньги, цены, зарплата, рынок, банк, перенос сохранений (на обоих размерах) ----------
 async function economy({ page, step, ev, wait, closeAll }) {
+  const L = lib({ page, step, ev, wait });
   const state = () =>
     ev(() => {
       const s = window.__dev.G.state;
@@ -1109,13 +1088,10 @@ async function economy({ page, step, ev, wait, closeAll }) {
     expect(prices.bad === 0 && prices.min >= 10 && prices.max <= 100000, 'цены', prices);
   });
   await step('экономика: покупка, нехватка монет', async () => {
-    await ev(() => window.__dev.go('world'));
-    await wait(400);
-    await ev(() => window.__dev.enterBuilding('mall_fashion'));
-    await wait(450);
+    await L.go('world');
+    await L.enter('mall_fashion', 450);
     const s0 = await state();
-    await page.click('.overlay .card .btn.green');
-    await wait(300);
+    await L.tap('.overlay .card .btn.green', 300);
     const s1 = await state();
     const cost = s0.money - s1.money;
     expect(cost >= 100 && cost <= 2000, 'цена обновки', cost);
@@ -1125,11 +1101,9 @@ async function economy({ page, step, ev, wait, closeAll }) {
     expect(fly > 0, 'нет отклика на покупку рядом с числом монет');
     await closeAll();
     // бутик: дорогое видно, но не по карману — монеты не уходят, подсказка говорит, сколько не хватает
-    await ev(() => window.__dev.enterBuilding('boutique'));
-    await wait(450);
+    await L.enter('boutique', 450);
     expect((await page.locator('.overlay .card .pr.far .lack').count()) > 0, 'недоступные по цене вещи не отмечены');
-    await page.click('.overlay .card .btn.ghost');
-    await wait(300);
+    await L.tap('.overlay .card .btn.ghost', 300);
     const toast = norm(await ev(() => document.querySelector('#toasts').textContent));
     const s2 = await state();
     expect(/не хватает [\d ]+ монет/.test(toast) && !toast.includes('как так'), 'подсказка о нехватке', toast);
@@ -1151,19 +1125,16 @@ async function economy({ page, step, ev, wait, closeAll }) {
     // пройти игру от заставки до экрана результата; вернуть текст заставки и результата
     const play = async (close) => {
       const intro = await text('#mg .mg-card');
-      await page.click(MG_START);
-      await wait(450);
+      await L.mgGo();
       const result = await text('#mg .mg-card');
       await page.click(close === 'x' ? '#mg .xbtn' : '#mg >> text=Ура!');
       await wait(450);
       return { intro, result };
     };
     const viaDoor = async () => {
-      await ev(() => window.__dev.enterBuilding('school'));
-      await wait(450);
+      await L.enter('school', 450);
       const say = await text('.dialog .say');
-      await page.click('.dialog .btn.green');
-      await wait(600);
+      await L.tap('.dialog .btn.green', 600);
       return say;
     };
     const m0 = (await state()).money;
@@ -1247,8 +1218,7 @@ async function economy({ page, step, ev, wait, closeAll }) {
     await page.waitForSelector('text=Задание выполнено!');
     const done = await text('.overlay .panel-body');
     expect(done.includes('+300'), 'в окне «Задание выполнено» нет монет', done);
-    await page.click('.overlay .panel-foot .btn');
-    await wait(500);
+    await L.tap('.overlay .panel-foot .btn', 500);
     await closeAll();
     // у каждого задания есть награда в пределах 300–600
     const bad = await ev(async () => {
@@ -1328,13 +1298,11 @@ async function economy({ page, step, ev, wait, closeAll }) {
     // в кошельке осталось меньше цены рыбки и жемчужины — кнопки продажи выключены; монеты кончились совсем —
     // кошелёк показан пустым
     const allOff = () => ev(() => [...document.querySelectorAll('.overlay .card .btn')].every((b) => b.disabled));
-    await ev(() => window.__dev.run('market'));
-    await wait(400);
+    await L.run('market', 400);
     expect(r.left < r.price && (await allOff()), 'торговцу не хватает монет, а кнопки продажи активны', r.left);
     await closeAll();
     await ev((purse) => window.__dev.actions.setDayFlag('marketPaid', purse), r.purse);
-    await ev(() => window.__dev.run('market'));
-    await wait(400);
+    await L.run('market', 400);
     expect(
       (await allOff()) && (await page.locator('.overlay .purse.empty').count()) === 1,
       'при пустом кошельке кнопки продажи активны',
@@ -1354,25 +1322,22 @@ async function economy({ page, step, ev, wait, closeAll }) {
     });
     expect(p.n === 1 && p.got === 400 && p.pearls === 2 && p.found === 3 && p.left === 1600, 'жемчуг', p);
     // редкости: вещицы дня; под ними — раздел «Не по сезону» (что в нём бывает — шаги «сезонность», smoke_seasons.js)
-    await ev(() => window.__dev.run('market:buy'));
-    await wait(450);
+    await L.run('market:buy', 450);
     const cards = await page.locator('.overlay .card').count();
     expect(cards >= 3, 'мало редкостей', cards);
     expect((await text('.overlay .panel-body')).includes('Не по сезону'), 'на рынке нет раздела «Не по сезону»');
     await closeAll();
     // в ТЦ «Вкусный» зимой часть продуктов не привезли — карточки серые, но на месте; рынок — только у прилавков
     // на площади (кнопок в ТЦ и в рюкзаке нет)
-    await ev(() => window.__dev.enterBuilding('mall_food'));
-    await wait(450);
+    await L.enter('mall_food', 450);
     expect((await page.locator('.overlay .card.away').count()) > 0, 'в ТЦ «Вкусный» нет серых карточек «сегодня нет»');
     expect((await page.locator('.overlay .panel-foot .btn').count()) === 0, 'в ТЦ «Вкусный» осталась кнопка рынка');
     await closeAll();
-    await ev(() => window.__dev.enterBuilding('market'));
-    await wait(450);
+    await L.enter('market', 450);
     expect((await titles()) === 'Рынок', 'у прилавков на площади рынок не открылся', await titles());
     await closeAll();
     await ev(() => window.__dev.F.openBackpack());
-    await wait(400);
+    await L.untilPanel();
     expect((await titles()) === 'Рюкзак', 'рюкзак не открылся', await titles());
     expect((await page.locator('.overlay .panel-foot .btn').count()) === 0, 'в рюкзаке осталась кнопка «Продать»');
     await closeAll();
@@ -1428,31 +1393,20 @@ async function economy({ page, step, ev, wait, closeAll }) {
       window.__stopWatch = d.watchState();
     });
     // продажа (и задание «Базарный день» с наградой), покупка редкости, зарплата, банк, ночь
-    await ev(() => window.__dev.run('market'));
-    await wait(400);
-    await page.click('.overlay .card .btn.green');
-    await wait(250);
-    await page.click('.overlay .card .btn.yellow');
-    await wait(250);
-    await page.click('.overlay .tab:nth-child(2)');
-    await wait(300);
-    await page.click('.overlay .card .btn');
-    await wait(250);
+    await L.run('market', 400);
+    await L.tap('.overlay .card .btn.green', 250);
+    await L.tap('.overlay .card .btn.yellow', 250);
+    await L.tap('.overlay .tab:nth-child(2)', 300);
+    await L.tap('.overlay .card .btn', 250);
     await closeAll();
     await page.waitForSelector('text=Задание выполнено!');
-    await page.click('.overlay .panel-foot .btn');
-    await wait(500);
+    await L.tap('.overlay .panel-foot .btn', 500);
     await closeAll();
-    await ev(() => window.__dev.enterBuilding('school'));
-    await wait(450);
-    await page.click('.dialog .btn.green');
-    await wait(600);
-    await page.click(MG_START);
-    await wait(450);
-    await page.click('#mg >> text=Ура!');
-    await wait(450);
-    await ev(() => window.__dev.enterBuilding('bank'));
-    await wait(400);
+    await L.enter('school', 450);
+    await L.tap('.dialog .btn.green', 600);
+    await L.mgGo();
+    await L.mgDone();
+    await L.enter('bank', 400);
     await closeAll();
     await ev(() => {
       window.__dev.actions.nextDay();
@@ -1505,11 +1459,10 @@ async function economy({ page, step, ev, wait, closeAll }) {
     expect(JSON.stringify(s.look.outfit) === JSON.stringify(old.look.outfit), 'наряд изменился');
     const backup = JSON.parse(await ev(() => localStorage.getItem('rhr-save-backup')));
     expect(backup.v === 1 && backup.money > 20000, 'нет копии старого сохранения', backup.money);
-    await page.click('.overlay .panel-foot .btn');
-    await wait(400);
+    await L.tap('.overlay .panel-foot .btn', 400);
     // альбом: прежняя наклейка «Потратила миллион» видна, счёт сходится
     await ev(() => window.__dev.F.openAlbum());
-    await wait(350);
+    await L.untilPanel();
     const album = await text('.overlay .panel-body');
     expect(
       album.includes('Потратила миллион') && album.includes(`Собрано ${s.stickers.length} из`),
@@ -1518,11 +1471,7 @@ async function economy({ page, step, ev, wait, closeAll }) {
     );
     await closeAll();
     // второй вход: письма больше нет, деньги те же
-    await ev(() => window.dispatchEvent(new Event('pagehide')));
-    await page.reload();
-    await wait(500);
-    await page.click('text=Продолжить');
-    await wait(2200);
+    await L.reload(); // записать, перезагрузить, «Продолжить»
     s = await state();
     expect((await page.locator('text=Письмо из Хомяк-Банка').count()) === 0, 'письмо банка показано второй раз');
     expect(s.money === 20000 && s.v === 5 && s.flags.bankLetter === 2, 'после второго входа', [s.money, s.flags]);
@@ -1559,7 +1508,7 @@ async function economy({ page, step, ev, wait, closeAll }) {
     }
     // в новой игре альбом не показывает наклейку прежней игры
     await ev(() => window.__dev.F.openAlbum());
-    await wait(300);
+    await L.untilPanel();
     expect(!(await text('.overlay .panel-body')).includes('Потратила миллион'), 'старая наклейка в альбоме');
     await closeAll();
   });
@@ -1653,20 +1602,9 @@ const runParallel = () => {
       console.log(`${errors.length === before ? 'ok  ' : 'FAIL'} [${tag}] ${name}${sec}`);
       if (errors.length > before && process.env.SMOKE_VERBOSE) console.log('     ' + errors.slice(before).join('\n     '));
     };
-    // закрыть все окна и диалоги
-    const closeAll = async () => {
-      for (let i = 0; i < 5; i++) {
-        const n = await ev(() => {
-          const els = [
-            ...document.querySelectorAll('.dialog .btn:last-child, .overlay .xbtn, #mg .xbtn, #piano .xbtn'),
-          ];
-          els.forEach((x) => x.click());
-          return els.length;
-        });
-        await wait(200);
-        if (!n) break;
-      }
-    };
+    // помощники lib (этап 21); closeAll — закрыть все окна и диалоги: ждёт, только если было что закрывать
+    const L = lib({ page, step, ev, wait });
+    const closeAll = L.closeAll;
     const hold = async (key, ms) => {
       await page.keyboard.down(key);
       await wait(ms);
@@ -1675,16 +1613,9 @@ const runParallel = () => {
 
     await step('новая игра', async () => {
       await page.goto(BASE + '/index.html');
-      await wait(300);
-      await ev(() => localStorage.clear());
-      await page.reload();
-      await wait(400);
-      await page.click('text=Играть!');
-      await page.click('text=Пропустить'); // вступительная сценка новой игры (этап 10)
-      await page.evaluate(() => window.__dev.oldStart()); // как до этапа 10: 1 января, без вводной цепочки (начало игры — dev/smoke_start.js)
-      await wait(400);
-      await page.click('text=Поехали!');
-      await wait(500);
+      await page.waitForSelector(L.sel('play') + ',' + L.sel('continue'));
+      // как до этапа 10: 1 января, без вводной цепочки — на этом начале написаны шаги ниже (начало игры — dev/smoke_start.js)
+      await L.fresh({ start: 'old' });
       if ((await ev(() => window.__dev.sceneName)) !== 'villa') throw new Error('ожидалась вилла');
     });
     for (const fn of [
@@ -1699,10 +1630,9 @@ const runParallel = () => {
       'showLetter',
     ]) {
       await step('окно ' + fn, async () => {
-        await ev((f) => {
+        await L.react((f) => {
           window.__dev.F[f]();
-        }, fn);
-        await wait(350);
+        }, fn, 350);
         await closeAll();
       });
     }
@@ -1710,15 +1640,11 @@ const runParallel = () => {
       await ev(() => {
         window.__dev.F.openMap();
       });
-      await wait(350);
-      await page.click('.overlay .opt:nth-child(4)');
-      await wait(500);
+      await L.untilPanel();
+      await L.tap('.overlay .opt:nth-child(4)', 500);
       const r = await ev(() => ({ scene: window.__dev.sceneName, open: document.querySelectorAll('.overlay').length }));
       if (r.scene !== 'world' || r.open) throw new Error('карта не отправила хомячка в город: ' + JSON.stringify(r));
-      await ev(() => {
-        window.__dev.go('villa');
-      });
-      await wait(300);
+      await L.go('villa');
     });
     await step('вилла: ходьба и режим обустройства', async () => {
       await hold('ArrowRight', 500);
@@ -1748,8 +1674,7 @@ const runParallel = () => {
         await wait(450);
         const t = await open();
         if (t !== title) throw new Error(`ожидалось окно «${title}», открыто: «${t}»`);
-        await page.click('.overlay .panel-foot .btn:last-child, .overlay .xbtn');
-        await wait(300);
+        await L.tap('.overlay .panel-foot .btn:last-child, .overlay .xbtn', 300);
         await closeAll();
       }
     });
@@ -1780,10 +1705,7 @@ const runParallel = () => {
       });
     });
     await step('город: ходьба', async () => {
-      await ev(() => {
-        window.__dev.go('world');
-      });
-      await wait(500);
+      await L.go('world');
       await hold('ArrowDown', 900);
       await hold('ArrowRight', 900);
       for (const [x, y] of [
@@ -1893,8 +1815,7 @@ const runParallel = () => {
       if (bad.length) throw new Error(bad.join('; '));
     });
     await step('город: что растёт и когда плодоносит — кокосы на четырёх пальмах, сбор только в сезон (У3)', async () => {
-      await ev(() => window.__dev.go('world'));
-      await wait(400);
+      await L.go('world');
       await closeAll();
       // шаг меняет день и собирает плоды: в конце возвращаем всё как было, чтобы не мешать следующим шагам
       await ev(() => {
@@ -2059,11 +1980,9 @@ const runParallel = () => {
       if (food.clipped.length) throw new Error('спрайты не поместились в рамку: ' + food.clipped.join(', '));
       const b0 = await have('blueberry');
       await ev(() => window.__dev.F.openBackpack());
-      await wait(300);
-      await page.click('.overlay .tabs >> text=Продукты');
-      await wait(250);
-      await page.click('.overlay .card:has-text("Черника") .btn');
-      await wait(300);
+      await L.untilPanel();
+      await L.tap('.overlay .tabs >> text=Продукты', 250);
+      await L.tap('.overlay .card:has-text("Черника") .btn', 300);
       if ((await have('blueberry')) !== b0 - 1) throw new Error('чернику из рюкзака не съесть');
       await closeAll();
       await ev(() => {
@@ -2115,10 +2034,9 @@ const runParallel = () => {
         });
       await fromVillaArea();
       await ev(() => window.__dev.F.openMap());
-      await wait(400);
+      await L.untilPanel();
       if (await page.locator('.overlay .opt.been').count()) throw new Error('в новой игре на карте есть «уже была» ⚡');
-      await page.click('.overlay .opt >> text=Морская звезда');
-      await wait(1200);
+      await L.tap('.overlay .opt >> text=Морская звезда', 1200);
       let r = await at();
       const walking = await ev(() => window.__dev.World.p.path.length > 0);
       if (r.scene !== 'world' || r.fade || !walking) throw new Error('к месту, где не была, — не пешком: ' + JSON.stringify(r));
@@ -2142,7 +2060,7 @@ const runParallel = () => {
       });
       await wait(300);
       await ev(() => window.__dev.F.openMap());
-      await wait(400);
+      await L.untilPanel();
       const btn = page.locator('.overlay .opt.been');
       if ((await btn.count()) !== 1 || !(await btn.innerText()).includes('⚡')) throw new Error('на кнопке отеля нет ⚡');
       const t0 = Date.now();
@@ -2162,9 +2080,8 @@ const runParallel = () => {
         W.debugTeleport(Math.floor(door.x / 48) - 3, Math.floor(door.y / 48) + 1);
       });
       await ev(() => window.__dev.F.openMap());
-      await wait(400);
-      await page.click('.overlay .opt.been');
-      await wait(250);
+      await L.untilPanel();
+      await L.tap('.overlay .opt.been', 250);
       if ((await at()).fade) throw new Error('быстрый переход на короткой дороге');
       await wait(2500);
       await closeAll();
@@ -2188,8 +2105,7 @@ const runParallel = () => {
       const lights = await ev(() => window.__dev.World.lights.length);
       if (!night.on || night.w < 50 || night.w > 400) throw new Error('ночью нет слоя неба: ' + JSON.stringify(night));
       if (!(lights >= 10)) throw new Error('ночью нет пятен света от фонарей и окон: ' + lights);
-      await ev(() => window.__dev.go('villa'));
-      await wait(300);
+      await L.go('villa');
       if ((await sky()).on) throw new Error('слой неба остался поверх виллы');
       await ev(() => {
         const d = window.__dev;
@@ -2282,8 +2198,7 @@ const runParallel = () => {
         window.__dev.go('world');
       });
       await wait(400);
-      await ev(() => window.__dev.enterBuilding('market'));
-      await wait(450);
+      await L.enter('market', 450);
       if (!(await title()).includes('Рынок')) throw new Error('у прилавков рынок не открылся: ' + (await title()));
       await closeAll();
       // агентство и двери некупленного жилья открывают окно риелтора
@@ -2298,13 +2213,11 @@ const runParallel = () => {
       // курортный отель открыт с начала игры (П.17): дверь ведёт в его сцену, заглушки «Скоро открытие!» больше нет
       {
         await ev(() => document.querySelectorAll('#toasts .toast').forEach((t) => t.remove()));
-        await ev(() => window.__dev.enterBuilding('hotel'));
-        await wait(300);
+        await L.enter('hotel', 300);
         const t = await ev(() => (document.querySelector('#toasts') || {}).textContent || '');
         if (t.includes('Скоро открытие')) throw new Error('отель: подсказка «Скоро открытие!»: ' + t);
         if ((await ev(() => window.__dev.sceneName)) !== 'hotel') throw new Error('дверь отеля не ведёт в отель');
-        await ev(() => window.__dev.go('world'));
-        await wait(300);
+        await L.go('world');
       }
       // выезды в лес и пустыню — не «скоро», а тайные места: доброе окно «кто знает дорогу»
       for (const [key, who] of [
@@ -2373,8 +2286,7 @@ const runParallel = () => {
       const s0 = await st();
       await page.click('.overlay .opt >> text=Кудряшки');
       await page.click('.overlay .opt >> text=Хвостики');
-      await page.click('.overlay .opt >> text=Розовый');
-      await wait(200);
+      await L.tap('.overlay .opt >> text=Розовый', 200);
       let s = await st();
       if (s.money !== s0.money || s.b.tuft !== 0 || s.b.hair !== null)
         throw new Error('примерка списала монеты или поменяла внешность: ' + JSON.stringify(s));
@@ -2396,11 +2308,9 @@ const runParallel = () => {
         d.enterBuilding('salon');
       });
       await wait(400);
-      await page.click('.overlay .opt >> text=Ирокез');
-      await wait(200);
+      await L.tap('.overlay .opt >> text=Ирокез', 200);
       if (!(await page.locator('.overlay .salon-pay .btn.ghost').count())) throw new Error('при нехватке кнопка не бледная');
-      await page.click('.overlay .salon-pay .btn');
-      await wait(250);
+      await L.tap('.overlay .salon-pay .btn', 250);
       s = await st();
       if (s.money !== 100 || s.b.tuft !== 4) throw new Error('при нехватке что-то списалось: ' + JSON.stringify(s));
       if (!(await ev(() => document.getElementById('toasts').innerText)).includes('не хватает'))
@@ -2457,7 +2367,7 @@ const runParallel = () => {
       await closeAll();
       await ev(() => window.__dev.ui.toast('Подсказка перед окном'));
       await ev(() => window.__dev.F.openBackpack());
-      await wait(300);
+      await L.untilPanel();
       const c = await box();
       if (!c.head || c.top < c.head.bottom - 17 || c.onTitle || c.onX) throw new Error('подсказка не переехала под шапку: ' + JSON.stringify(c));
       await closeAll();
@@ -2471,8 +2381,7 @@ const runParallel = () => {
           window.__dev.F.playMinigame(g, { spot: 'pier' });
         }, g);
         await wait(700);
-        await page.click(MG_START);
-        await wait(1500);
+        await L.mgGo();
         await page.click('#mg .xbtn');
         await wait(400);
         await closeAll();
@@ -2488,18 +2397,12 @@ const runParallel = () => {
       await closeAll();
     });
     await step('башня: холл и площадка', async () => {
-      await ev(() => {
-        window.__dev.go('tower');
-      });
-      await wait(400);
+      await L.go('tower');
       await hold('ArrowRight', 500);
       await ev(() => window.__dev.Tower.debugDeck());
       await wait(400);
       await hold('ArrowRight', 600);
-      await ev(() => {
-        window.__dev.go('world');
-      });
-      await wait(400);
+      await L.go('world');
     });
     await step('башня: панорама слоями, без пустых краёв, город как на карте (У1)', async () => {
       await ev(() => {
@@ -2530,10 +2433,7 @@ const runParallel = () => {
         ];
       });
       if (diff.length) throw new Error('вид с башни отстал от карты города (VIEW_TOWN): ' + diff.join(', '));
-      await ev(() => {
-        window.__dev.go('world');
-      });
-      await wait(400);
+      await L.go('world');
     });
     await step('башня: шарики-мишени есть только в режиме прицела (Б2)', async () => {
       const st = () =>
@@ -2558,10 +2458,7 @@ const runParallel = () => {
       await wait(1300);
       const after = await st();
       if (after.state === 'aim' || after.n) throw new Error('шарики остались после прицела: ' + JSON.stringify(after));
-      await ev(() => {
-        window.__dev.go('world');
-      });
-      await wait(400);
+      await L.go('world');
     });
     await step('башня: вход через дверь здания и выход обратно к двери', async () => {
       await ev(() => {
@@ -2585,10 +2482,7 @@ const runParallel = () => {
       await page.click('.panel-foot .btn.green');
       await wait(400);
       if ((await ev(() => window.__dev.sceneName)) !== 'villa') throw new Error('кнопка «Домой» не привела на виллу');
-      await ev(() => {
-        window.__dev.go('world');
-      });
-      await wait(300);
+      await L.go('world');
     });
     await step('море: плавание и ныряние', async () => {
       // сам встаёт в город (не опираться на прошлый шаг: в одиночку хомячок на вилле, и «Всплыть» вело домой)
@@ -2599,10 +2493,7 @@ const runParallel = () => {
       await ev(() => window.__dev.World.debugTeleport(40, 65));
       await wait(400);
       await hold('ArrowDown', 600);
-      await ev(() => {
-        window.__dev.go('dive');
-      });
-      await wait(600);
+      await L.go('dive');
       await hold('ArrowDown', 1200);
       await hold('ArrowRight', 600);
       await page.click('text=Всплыть');
@@ -2618,17 +2509,17 @@ const runParallel = () => {
       await wait(400);
       const s = await ev(() => window.__dev.World.debugScreen(65.5 * 48, 61.2 * 48));
       await page.mouse.click(s.x, s.y);
-      await wait(2200);
+      await L.until(() => window.__dev.World.isBoating() && !window.__dev.World.p.path.length, undefined, { timeout: 5000 }).catch(() => {});
       await closeAll();
       if (!(await ev(() => window.__dev.World.isBoating()))) throw new Error('не сели на кораблик');
       // этап 8: нажали на пирс прямо у борта — сразу сошли (раньше путь был пустой, и ничего не происходило)
       const pier = await ev(() => window.__dev.World.debugScreen(64.5 * 48, 61.5 * 48));
       await page.mouse.click(pier.x, pier.y);
-      await wait(600);
+      await L.until(() => !window.__dev.World.isBoating(), undefined, { timeout: 2000 }).catch(() => {});
       if (await ev(() => window.__dev.World.isBoating())) throw new Error('нажатие на пирс у борта не сняло с кораблика');
       const s2 = await ev(() => window.__dev.World.debugScreen(65.5 * 48, 61.2 * 48)); // камера ушла за хомячком
       await page.mouse.click(s2.x, s2.y);
-      await wait(2200);
+      await L.until(() => window.__dev.World.isBoating() && !window.__dev.World.p.path.length, undefined, { timeout: 5000 }).catch(() => {});
       await closeAll();
       if (!(await ev(() => window.__dev.World.isBoating()))) throw new Error('не сели на кораблик второй раз');
       // этап 9 (Ф3): нажали на мокрый песок у кромки (клетка мелководья h у берега) — подплыть и сойти на берег
@@ -2638,7 +2529,7 @@ const runParallel = () => {
       });
       if (wet.at !== 'h') throw new Error('у пирса нет мокрого песка (h): ' + wet.at);
       await page.mouse.click(wet.s.x, wet.s.y);
-      await wait(3200);
+      await L.until(() => !window.__dev.World.isBoating() && !window.__dev.World.p.path.length, undefined, { timeout: 6000 }).catch(() => {});
       const off = await ev(() => {
         const W = window.__dev.World;
         return { boat: W.isBoating(), y: W.p.y / 48, c: W.map.at(Math.floor(W.p.x / 48), Math.floor(W.p.y / 48)) };
@@ -2651,7 +2542,7 @@ const runParallel = () => {
         return window.__dev.World.debugScreen(b.x, b.y - 10);
       });
       await page.mouse.click(s3.x, s3.y);
-      await wait(2200);
+      await L.until(() => window.__dev.World.isBoating() && !window.__dev.World.p.path.length, undefined, { timeout: 5000 }).catch(() => {});
       await closeAll();
       if (!(await ev(() => window.__dev.World.isBoating()))) throw new Error('не сели на кораблик у берега');
       const far = await ev(() => window.__dev.World.debugScreen(70.5 * 48, 58.7 * 48));
@@ -2845,20 +2736,14 @@ const runParallel = () => {
         window.__dev.evening(); // спать можно только вечером, с 19:00 (этап 18)
         window.__dev.F.askSleep();
       });
-      await wait(400);
-      await page.click('.panel-foot .btn.green');
-      await wait(3600);
-      await closeAll();
+      await L.confirmSleep();
       r = await flat();
       const bedX = await ev(() => window.__dev.G.state.homes.demo_flat.find((i) => i.id === 'bed_green').x);
       if (r.scene !== 'demo_flat' || r.day !== before.day + 1 || Math.abs(r.x - (bedX + 30)) > 1)
         throw new Error('после сна: ' + JSON.stringify({ scene: r.scene, day: r.day, x: r.x, bedX }));
       if (r.villa !== before.villa)
         throw new Error('мебель виллы изменилась: ' + JSON.stringify([before.villa, r.villa]));
-      await ev(() => {
-        window.__dev.go('villa');
-      });
-      await wait(300);
+      await L.go('villa');
     });
     await step('сон и новый день', async () => {
       const day0 = await ev(() => window.__dev.G.state.day);
@@ -2867,19 +2752,12 @@ const runParallel = () => {
         window.__dev.evening(); // спать можно только вечером, с 19:00 (этап 18)
         window.__dev.F.askSleep();
       });
-      await wait(400);
-      await page.click('.panel-foot .btn.green');
-      await wait(3600);
-      await closeAll();
+      await L.confirmSleep();
       if ((await ev(() => window.__dev.G.state.day)) !== day0 + 1) throw new Error('день не сменился');
     });
     await step('сохранение и продолжение', async () => {
       const day0 = await ev(() => window.__dev.G.state.day);
-      await ev(() => window.dispatchEvent(new Event('pagehide')));
-      await page.reload();
-      await wait(500);
-      await page.click('text=Продолжить');
-      await wait(600);
+      await L.reload(); // записать, перезагрузить, «Продолжить»
       if ((await ev(() => window.__dev.G.state.day)) !== day0) throw new Error('сохранение не загрузилось');
     });
     await economy({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
