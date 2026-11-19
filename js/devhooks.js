@@ -17,6 +17,7 @@ import { OWN as demoOwn } from './interiors/demo_house.js';
 import town, { sea, BUILDINGS } from './locations/town.js';
 import * as topdown from './engine/topdown/index.js';
 import { pixStats } from './core/pixcache.js';
+import { devGames } from './core/dev.js';
 import { PLANTS, hasFruit, plantInSeason, gather } from './locations/common/plants.js';
 import * as Tower from './interiors/tower.js';
 import { debugDecor, debugFireworks } from './locations/holidays.js';
@@ -182,6 +183,15 @@ export function installDevHooks({ F }) {
       });
       events.emit('hud');
       return G.state.minutes;
+    },
+    /**
+     * Для автотеста (Т3): мини-игры по времени идут быстрее — fastGames(true) в 4 раза, fastGames(8) — в 8, false —
+     * как обычно. Игра та же самая (minigames/kit.js: шаги обычной длины, только несколько за кадр), короче лишь
+     * настоящее время ожидания. Перезагрузка страницы возвращает обычную скорость. Возвращает скорость.
+     */
+    fastGames(on = true) {
+      devGames.speed = on === true ? 4 : Math.max(1, Math.round(+on || 1));
+      return devGames.speed;
     },
     /** Войти в здание города по его id — так же, как если бы хомячок дошёл до двери. */
     enterBuilding: (id) => town.enterBuilding(BUILDINGS.find((b) => b.id === id)),

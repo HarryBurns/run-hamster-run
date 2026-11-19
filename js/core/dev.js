@@ -4,3 +4,9 @@
 const loc = typeof location !== 'undefined' ? location : null;
 export const DEV =
   !!loc && (['localhost', '127.0.0.1', '[::1]'].includes(loc.hostname) || new URLSearchParams(loc.search).has('dev'));
+/**
+ * Только для автотеста (__dev.fastGames, js/devhooks.js): во сколько раз быстрее идёт время мини-игр. 1 — как обычно;
+ * больше — цикл кадра мини-игры (minigames/kit.js: loop) делает за кадр столько шагов обычной длины, поэтому игра
+ * та же самая (те же шаги, столкновения и звёзды), только короче по настоящему времени. Вне DEV не читается.
+ */
+export const devGames = { speed: 1 };

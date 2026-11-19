@@ -12,6 +12,7 @@
 //     dispose()                    снять всё это
 // Хост (host.js) кладёт это в объект host — игре ничего не надо снимать в stop() самой.
 import { el } from '../core/util.js';
+import { DEV, devGames } from '../core/dev.js';
 
 /**
  * Картинка для правил (data: URL в <img>). o.cap — круглые концы линий, o.join: false — без круглых углов,
@@ -123,8 +124,14 @@ export function makeKit(onCrash) {
       const raw = Math.max(0, (ts - L.last) / 1000);
       L.last = ts;
       L.time += raw;
+      // автотест (__dev.fastGames): n шагов обычной длины за кадр — игра та же, только идёт в n раз быстрее
+      const n = DEV ? devGames.speed : 1;
       try {
         fn(Math.min(0.05, raw), L.time, ts);
+        for (let i = 1; i < n && !dead && L.on; i++) {
+          L.time += Math.min(0.05, raw);
+          fn(Math.min(0.05, raw), L.time, ts);
+        }
         L.errs = 0;
       } catch (e) {
         // ошибка в кадре не валит страницу: пишем в консоль; если кадр падает снова и снова — игру закрывает хост

@@ -392,6 +392,7 @@ module.exports = async function holidays(ctx) {
     await L.react(() => { window.__dev.run('holiday:tug'); }, undefined, 800);
     const intro = norm(await ev(() => document.querySelector('#mg').textContent));
     expect(intro.includes('Тяни') && intro.includes('Приз ярмарки') && (await ev(() => document.querySelectorAll('#mg .tg-col img').length)) === 3, 'правило картинками', intro.slice(0, 200));
+    await ev(() => window.__dev.fastGames(2)); // Т3: вдвое быстрее — в ритм ещё успеваем нажимать (core/dev.js)
     await mgGo();
     for (let i = 0; i < 1400; i++) {
       const g = await ev(() => {
@@ -414,9 +415,11 @@ module.exports = async function holidays(ctx) {
     await unwatch();
     // без нажатий проиграть нельзя: игра доходит до конца, одна звезда
     await L.react(() => { window.__dev.run('holiday:tug'); }, undefined, 800);
+    await ev(() => window.__dev.fastGames(8)); // без нажатий ждать нечего — те же раунды в 8 раз быстрее
     await page.click(MG_START);
     // игра идёт до конца сама — до итога
     await page.waitForSelector(L.sel('done', '#mg'), { timeout: 90000 });
+    await ev(() => window.__dev.fastGames(false));
     const res2 = norm(await ev(() => document.querySelector('#mg').textContent));
     expect(/Выиграно раундов: 0/.test(res2) && res2.includes('Хорошо'), 'без нажатий — одна звезда, без наказания', res2.slice(0, 200));
     await mgDone();
@@ -646,6 +649,7 @@ module.exports = async function holidays(ctx) {
 
   /** Сыграть в «Водяную битву»: aim — брызгать в того, кто выглянул; иначе — без нажатий. */
   const splashGame = async (aim) => {
+    await ev((aim) => window.__dev.fastGames(aim ? 2 : 8), aim); // Т3: та же игра быстрее (меткая — вдвое, без нажатий — в 8 раз)
     await mgGo();
     const KEYS = ['ArrowLeft', 'ArrowUp', 'ArrowRight'];
     for (let i = 0; i < 2000; i++) {
@@ -662,6 +666,7 @@ module.exports = async function holidays(ctx) {
       await wait(40);
     }
     await page.waitForSelector(L.sel('done', '#mg'), { timeout: 90000 });
+    await ev(() => window.__dev.fastGames(false));
     return norm(await ev(() => document.querySelector('#mg').textContent));
   };
 

@@ -369,6 +369,7 @@ module.exports = async function mountain(ctx) {
       'правило картинкой',
       intro,
     );
+    await ev(() => window.__dev.fastGames(true)); // Т3: те же 45 с спуска — вчетверо быстрее (core/dev.js)
     await mgGo(); // кнопка, а не строка правил «…выберешь после «Начать!»»
     await page.click('#mg .sl-pick button[data-ride="sled"]'); // санки или лыжи (Г4) — санки
     const t0 = Date.now();
@@ -397,6 +398,7 @@ module.exports = async function mountain(ctx) {
     const end = norm(await ev(() => document.querySelector('#mg').textContent));
     expect(/На счету/.test(end) && /Приз/.test(end), 'итог спуска', end);
     await mgDone();
+    await ev(() => window.__dev.fastGames(false));
     const s1 = await state();
     expect(moves > 10 && s1.plays.sled === 1 && s1.dayFlags.mountain.sleds === 1 && s1.money > s0.money, 'спуск записан, приз выдан', [
       moves,

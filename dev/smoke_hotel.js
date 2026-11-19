@@ -261,6 +261,7 @@ module.exports = async function hotel(ctx) {
     await page.waitForSelector('#mg .sd-rules img');
     let t = norm(await ev(() => document.querySelector('#mg').textContent));
     expect(/Горка/.test(t) && /Рули/.test(t) && /Приз отеля/.test(t) && (await ev(() => document.querySelectorAll('#mg .sd-rules img').length)) >= 4, 'заставка «Горки»', t);
+    await ev(() => window.__dev.fastGames(true)); // Т3: те же 40 с игры — вчетверо быстрее (core/dev.js)
     await page.click('#mg .btn.green');
     await page.waitForSelector('#mg .sd-pick button img');
     await frames(2);
@@ -294,6 +295,7 @@ module.exports = async function hotel(ctx) {
     const end = norm(await ev(() => document.querySelector('#mg').textContent));
     expect(/бассейн/.test(end) && /\+/.test(end), 'итог спуска', end);
     await mgDone();
+    await ev(() => window.__dev.fastGames(false));
     const s1 = await state();
     expect(moves > 10 && s1.plays.slide === 1 && s1.dayFlags.hotel.slides === 1 && s1.money > s0.money && s1.stickers.includes('x_slide'), 'спуск записан, приз выдан', [moves, s1.plays, s1.dayFlags.hotel, s1.money - s0.money]);
     // простуженной на горку нельзя — добрая подсказка
@@ -319,6 +321,7 @@ module.exports = async function hotel(ctx) {
     await page.waitForSelector(MG_START);
     const intro = norm(await ev(() => document.querySelector('#mg').textContent));
     expect(/Носильщица/.test(intro) && /Зарплата/.test(intro) && /бирк/.test(intro), 'заставка «Носильщицы»', intro);
+    await ev(() => window.__dev.fastGames(true)); // Т3: лифт и тележка вчетверо быстрее
     await page.click('#mg .btn.green');
     await until(() => {
       const c = document.querySelector('#mg canvas');
@@ -341,12 +344,13 @@ module.exports = async function hotel(ctx) {
         await page.mouse.click(r.x + d.x * (r.w / st.w), r.y + d.y * (r.h / st.h));
       }
       if (await ev(() => /Ура!/.test(document.querySelector('#mg').textContent))) break;
-      await wait(250);
+      await wait(70);
     }
     await page.waitForSelector('#mg >> text=Ура!', { timeout: 8000 });
     const end = norm(await ev(() => document.querySelector('#mg').textContent));
     expect(/чемоданов на месте/.test(end) && /Зарплата/.test(end) && /ошибок дверью — 1/.test(end), 'итог смены', end);
     await mgDone();
+    await ev(() => window.__dev.fastGames(false));
     // зарплата и окна задания — из очереди
     await until(() => window.__dev.G.state.mail && window.__dev.G.state.mail.done, undefined, { timeout: 3000 }).catch(() => {});
     await L.drain();

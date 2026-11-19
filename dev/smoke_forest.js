@@ -399,6 +399,7 @@ module.exports = async function forest(ctx) {
       'правило «можно / нельзя»',
       intro,
     );
+    await ev(() => window.__dev.fastGames(true)); // Т3: те же 40 с охоты — вчетверо быстрее (core/dev.js)
     await page.click(MG_START);
     const t0 = Date.now();
     let clicks = 0;
@@ -418,12 +419,13 @@ module.exports = async function forest(ctx) {
         clicks++;
       }
       if (await ev(() => /Ура!/.test(document.querySelector('#mg').textContent))) break;
-      await wait(220);
+      await wait(55);
     }
     await page.waitForSelector('#mg >> text=Ура!', { timeout: 8000 });
     const end = norm(await ev(() => document.querySelector('#mg').textContent));
     expect(/В корзинке/.test(end) && /Награда/.test(end), 'итог охоты', end);
     await mgDone();
+    await ev(() => window.__dev.fastGames(false));
     const s1 = await state();
     expect(clicks > 5 && s1.plays.mushrooms === 1 && s1.dayFlags.forest.hunts === 1, 'охота записана', [
       clicks,

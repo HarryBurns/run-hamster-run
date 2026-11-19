@@ -119,6 +119,7 @@ module.exports = async function games(ctx) {
     await wait(300);
     st = await hook('__porter');
     expect(st.at === 1 && st.mistakes === 0 && !st.busy, 'дверь из холла сработала', st);
+    await ev(() => window.__dev.fastGames(true)); // Т3: лифт и тележка вчетверо быстрее (core/dev.js)
     let wrongFloor = false;
     for (let k = 0; k < 400; k++) {
       st = await hook('__porter');
@@ -135,8 +136,9 @@ module.exports = async function games(ctx) {
         }
       }
       if (/Ура!/.test(await mgText())) break;
-      await wait(200);
+      await wait(60);
     }
+    await ev(() => window.__dev.fastGames(false));
     const end = await ura();
     expect(/чемоданов на месте/.test(end) && /этажом в лифте — 1/.test(end) && /ошибок дверью — 0/.test(end), 'итог смены с лифтом', end);
     const s1 = await state();
@@ -233,12 +235,14 @@ module.exports = async function games(ctx) {
     expect(Math.abs(g.help - 0.35) < 1e-6 && g.team.every((h) => h === 5), 'друзья не помогают', g);
     const d1 = await tugPull();
     expect(d0 > 0.12 && d1 > d0 * 1.2 && d1 < d0 * 1.5, 'рывок с друзьями не сильнее', [d0, d1]);
-    // без нажатий не выиграть даже с друзьями: первый раунд уходит другой команде
-    for (let i = 0; i < 40; i++) {
+    // без нажатий не выиграть даже с друзьями: первый раунд уходит другой команде (Т3: ждём в 8 раз быстрее)
+    await ev(() => window.__dev.fastGames(8));
+    for (let i = 0; i < 160; i++) {
       g = await hook('__tug');
       if (g.lost || g.wins) break;
-      await wait(500);
+      await wait(60);
     }
+    await ev(() => window.__dev.fastGames(false));
     expect(g.lost === 1 && g.wins === 0, 'без нажатий раунд выигран', g);
     await closeMg();
   });
