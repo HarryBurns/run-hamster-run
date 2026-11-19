@@ -7,7 +7,8 @@
 //   кораблик, который плывёт сам (кнопка места на карте), не подсказывает «Нажимай на воду»;
 //   «Мой двор»: точки свободных клеток — из запомненного списка, он обновляется, когда предмет поставили;
 //   вагонетка в пещерах стоит на полу, рельсы начинаются рядом с ней;
-//   Т8 — на iPad лёжа вилла видна целиком, отель — все этажи по высоте (а не масштаб 1,05, как на телефоне).
+//   Т8 — на iPad лёжа вилла видна целиком, отель — все этажи по высоте (а не масштаб 1,05, как на телефоне);
+//   на компьютере отель — тоже все этажи по высоте (Т8б), остальные дома как были.
 // Подключается из dev/smoke.js. Только эти шаги:  node dev/smoke.js <url> "step:исправления"
 const lib = require('./lib.js');
 
@@ -97,7 +98,7 @@ module.exports = async function tfix(ctx) {
     expect(!!r && r.next === 'world', 'колесо на вилле: в лесу звёздочка не к дороге в город', r);
   });
 
-  await step('исправления Т8: на iPad лёжа вилла видна целиком, в отеле — все этажи, камера видит хомячка', async () => {
+  await step('исправления Т8: на iPad лёжа вилла видна целиком, в отеле (и на компьютере) — все этажи, камера видит хомячка', async () => {
     const size = page.viewportSize();
     await fresh();
     try {
@@ -144,13 +145,36 @@ module.exports = async function tfix(ctx) {
           else expect(r.z < 0.85 && r.x1 - r.x0 > r.W * 0.6, `${tag}: отель крупный, как на телефоне`, r);
         }
       }
-      // компьютер 16:9 — как было: отель крупно (1,05), камера следит
-      await page.setViewportSize({ width: 1280, height: 720 });
-      await wait(300);
-      await ev(() => window.__dev.go('hotel', { pos: { scene: 'hotel', floor: 1, x: 600 } }));
-      await wait(600);
-      const z = await ev(() => +window.__dev.scene.cam.zoom.toFixed(2));
-      expect(z === 1.05, 'на компьютере масштаб отеля изменился', z);
+      // компьютер 16:9 и 16:10 (Т8б): отель — все этажи по высоте, видно больше 3/4 ширины (было 1,05 и 57 %), хомячок
+      // на экране; вилла — как была (целиком); телефон лёжа — как был (0,83)
+      for (const [w, h, id, want] of [
+        [1280, 720, 'hotel', 'floors'],
+        [1366, 768, 'hotel', 'floors'],
+        [1280, 800, 'hotel', 'floors'],
+        [1280, 720, 'villa', 0.68],
+        [1920, 1080, 'villa', 1.02],
+        [844, 390, 'hotel', 0.83],
+      ]) {
+        await page.setViewportSize({ width: w, height: h });
+        await wait(300);
+        await ev((id) => window.__dev.go(id, { pos: { scene: id, floor: 1, x: 600 } }), id);
+        await wait(700);
+        const r = await ev(() => {
+          const s = window.__dev.scene,
+            v = s.cam.visible(0),
+            q = s.cam.toScreen(s.p.x, s.geo.fy(s.p.f) - 60),
+            top = s.cam.toScreen(0, s.geo.fy(s.geo.floors - 1) - s.geo.FH),
+            bot = s.cam.toScreen(0, s.geo.fy(0));
+          return { name: s.name, z: +s.cam.zoom.toFixed(2), part: (v.x1 - v.x0) / s.geo.WTOT, hx: q.x, top: top.y, bot: bot.y, w: innerWidth, h: innerHeight };
+        });
+        const tag = `${w}×${h} ${id}`;
+        expect(r.name === id, `${tag}: не та сцена (проверка не годится)`, r);
+        if (want === 'floors') {
+          expect(r.z < 0.8 && r.part > 0.75 && r.part < 1, `${tag}: отель на компьютере не «все этажи по высоте»`, r);
+          expect(r.top >= -4 && r.bot <= r.h + 4, `${tag}: видны не все этажи`, r);
+          expect(r.hx > 60 && r.hx < r.w - 60, `${tag}: хомячок не на экране`, r);
+        } else expect(r.z === want, `${tag}: масштаб изменился`, r);
+      }
     } finally {
       await page.setViewportSize(size);
       await wait(300);
