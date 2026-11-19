@@ -1,6 +1,9 @@
 // Мини-игра «Доктор»: подбери правильное лечение каждому пациенту.
+// Ход смены (пациенты по очереди: вошёл → ждёт → рад → ушёл, итог) — общий, makeVisits из orders.js;
+// здесь — своё: что болит и чем лечить, кабинет.
 import { el, shuffle, clamp } from '../core/util.js';
-import { makeCanvas, fillRR, heart } from '../core/draw.js';
+import { fillRR, heart } from '../core/draw.js';
+import { makeVisits, visitCss, domCanvas } from './orders.js';
 
 const TOTAL = 8;
 
@@ -67,12 +70,10 @@ const CASES = [
   },
 ];
 
-const CSS = `
-.doc{position:absolute;inset:0;display:flex;flex-direction:column;overflow:hidden;background:#d3f9f1;--cv:320px}
-.doc-top{flex:none;display:flex;align-items:center;gap:8px;padding:8px 12px 6px}
-.doc-count,.doc-miss{font-weight:900;background:rgba(255,255,255,.9);border-radius:12px;padding:4px 10px;font-size:15px;white-space:nowrap;
-  box-shadow:0 2px 0 rgba(74,55,40,.15)}
-.doc-miss{margin-left:auto}
+const CSS =
+  visitCss('doc') +
+  `
+.doc{background:#d3f9f1;--cv:320px}
 .doc-main{flex:1;min-height:0;display:flex;flex-direction:column;gap:8px;padding:0 12px calc(12px + env(safe-area-inset-bottom))}
 .doc.wide .doc-main{flex-direction:row;gap:14px;align-items:stretch}
 .doc-left{flex:1 1 0;min-height:0;min-width:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px}
@@ -103,7 +104,6 @@ const CSS = `
 .doc.short .doc-bubble{min-height:50px;padding:5px 10px}
 .doc.short .doc-bubble .em{font-size:30px}
 .doc.short .doc-bubble .tx{font-size:14px}
-.doc.short .doc-top{padding:5px 12px 3px}
 `;
 
 const CW = 340,
@@ -117,19 +117,16 @@ export default {
     'К тебе пришли пациенты. Послушай, что болит у каждого, и выбери, что ему поможет. Если ошибёшься — получишь подсказку и сможешь выбрать ещё раз.',
 
   start(host) {
-    const root = host.root;
     const optCount = (host.level || 0) >= 2 ? 6 : 4;
-    const { later } = host;
 
     const cases = shuffle(CASES).slice(0, TOTAL);
-    const fallback = [{ id: 'me', name: 'Пациент', look: host.look }];
-    const patients = shuffle(host.friends && host.friends.length ? host.friends : fallback);
+    // шаги пациента (v.phase): enter | wait | wrong | happy | exit
+    const v = makeVisits(host, { p: 'doc', total: TOTAL, noun: 'Пациент', who: 'Пациент', start: startPatient, finish });
     const docLook = { ...host.look, outfit: { ...(host.look.outfit || {}), head: null } };
 
     const wrap = el('div', 'doc');
     host.css(CSS);
     wrap.innerHTML = `
-      <div class="doc-top"><div class="doc-count"></div><div class="doc-miss"></div></div>
       <div class="doc-main">
         <div class="doc-left">
           <div class="doc-bubble hide"><div class="em"></div><div><div class="nm"></div><div class="tx"></div></div></div>
@@ -140,38 +137,24 @@ export default {
           <div class="doc-btns${optCount === 6 ? ' six' : ''}"></div>
         </div>
       </div>`;
+    wrap.prepend(v.header);
     host.add(wrap);
     const $ = (s) => wrap.querySelector(s);
-    const countEl = $('.doc-count'),
-      missEl = $('.doc-miss');
     const bubble = $('.doc-bubble'),
       hintEl = $('.doc-hint'),
       btnsEl = $('.doc-btns');
-    const cv = makeCanvas(CW, CH);
-    cv.canvas.className = 'doc-cv';
-    cv.canvas.style.width = '';
-    cv.canvas.style.height = '';
+    const cv = domCanvas(CW, CH, 'doc-cv');
     $('.doc-left').prepend(cv.canvas);
     const ctx = cv.ctx;
 
-    // --- состояние
-    let idx = 0,
-      mistakes = 0,
-      now = 0;
-    let phase = 'enter'; // enter | wait | wrong | happy | exit
-    let phaseAt = 0;
-
-    const setPhase = (p) => {
-      phase = p;
-      phaseAt = now;
-    };
+    let mistakes = 0;
     const updTop = () => {
-      countEl.textContent = `Пациент ${Math.min(idx + 1, TOTAL)} из ${TOTAL}`;
-      missEl.textContent = mistakes ? `Ошибок: ${mistakes}` : 'Без ошибок 💚';
+      v.count();
+      v.miss(mistakes ? `Ошибок: ${mistakes}` : 'Без ошибок 💚');
     };
 
     function buildButtons() {
-      const c = cases[idx];
+      const c = cases[v.idx];
       const others = shuffle(Object.keys(CURES).filter((k) => k !== c.cure)).slice(0, optCount - 1);
       const opts = shuffle([c.cure, ...others]);
       btnsEl.innerHTML = '';
@@ -188,29 +171,25 @@ export default {
       });
 
     function startPatient() {
-      const c = cases[idx],
-        p = patients[idx % patients.length];
+      const c = cases[v.idx];
       updTop();
       hintEl.textContent = '';
       bubble.classList.add('hide');
       buildButtons();
       lockButtons(true);
-      setPhase('enter');
-      later(() => {
+      v.arrive(550, () => {
         bubble.querySelector('.em').textContent = c.e;
-        bubble.querySelector('.nm').textContent = p.name;
+        bubble.querySelector('.nm').textContent = v.guest.name;
         bubble.querySelector('.tx').textContent = c.say;
         bubble.classList.remove('hide');
-        setPhase('wait');
         lockButtons(false);
-        host.sfx('pop');
-      }, 550);
+      });
     }
 
     function choose(k, btn) {
-      if (phase === 'wrong') setPhase('wait'); // во время «мотания головой» тоже можно выбирать
-      if (phase !== 'wait') return;
-      const c = cases[idx];
+      if (v.phase === 'wrong') v.set('wait'); // во время «мотания головой» тоже можно выбирать
+      if (v.phase !== 'wait') return;
+      const c = cases[v.idx];
       if (k === c.cure) {
         btn.classList.add('good');
         lockButtons(true);
@@ -218,26 +197,14 @@ export default {
         hintEl.textContent = '';
         bubble.querySelector('.em').textContent = '😊';
         bubble.querySelector('.tx').textContent = 'Спасибо, доктор! Мне уже лучше!';
-        setPhase('happy');
-        later(() => {
-          bubble.classList.add('hide');
-          setPhase('exit');
-          later(() => {
-            idx++;
-            if (idx >= TOTAL) return finish();
-            startPatient();
-          }, 480);
-        }, 1300);
+        v.leave(1300, 480, () => bubble.classList.add('hide'));
       } else {
         mistakes++;
         updTop();
         btn.classList.add('bad');
         host.sfx('bad');
         hintEl.textContent = '💡 ' + c.hint;
-        setPhase('wrong');
-        later(() => {
-          if (phase === 'wrong') setPhase('wait');
-        }, 600);
+        v.retry('wrong', 600);
       }
     }
     function finish() {
@@ -250,20 +217,13 @@ export default {
     }
 
     // --- подгонка размеров
-    const fit = () => {
-      const r = root.getBoundingClientRect();
-      const wide = r.width > r.height * 1.25;
-      const short = r.height < 420;
-      wrap.classList.toggle('wide', wide);
-      wrap.classList.toggle('short', short);
+    v.fit(wrap, (r, wide, short) => {
       const rows = optCount === 6 ? 2 : 2;
       let w;
       if (wide) w = Math.min(r.width * 0.5 - 30, (r.height - (short ? 150 : 190)) * (CW / CH));
       else w = Math.min(r.width - 24, (r.height - 190 - rows * (short ? 66 : 86)) * (CW / CH));
       wrap.style.setProperty('--cv', clamp(w, 150, 460) + 'px');
-    };
-    fit();
-    host.onResize(fit);
+    });
 
     // --- сцена
     function drawRoom() {
@@ -294,9 +254,8 @@ export default {
       ctx.fillRect(x - 7 * s, y - 83.5 * s, 14 * s, 5 * s);
     }
 
-    host.loop((_, time) => {
-      now = time; // время игры: на скрытой вкладке стоит вместе с таймерами
-      const dt = now - phaseAt;
+    v.loop((dt, now) => {
+      const phase = v.phase;
       const blink = now % 3.1 < 0.13;
       ctx.clearRect(0, 0, CW, CH);
       drawRoom();
@@ -309,7 +268,7 @@ export default {
       });
       drawCap(70, 182 - Math.sin(now * 2.2) * 0.7 * 1.15, 1.15);
       // пациент
-      const p = patients[idx % patients.length];
+      const p = v.guest;
       let px = 258,
         py = 150,
         pose = { time: now, blink, dir: -1 };

@@ -1,6 +1,8 @@
 // Мини-игра «Шеф-повар»: запомни заказ и собери блюдо в нужном порядке.
+// Ход смены (гости по очереди, отметки, итог) — общий, makeVisits из orders.js; здесь — своё: заказ надо запомнить.
 import { el, shuffle, pick, clamp } from '../core/util.js';
-import { makeCanvas, fillRR, ell } from '../core/draw.js';
+import { fillRR, ell } from '../core/draw.js';
+import { makeVisits, visitCss, domCanvas, counterGuest } from './orders.js';
 
 const ORDERS = 5;
 
@@ -44,15 +46,10 @@ const DISHES = [
   { e: '🎂', name: 'Торт', acc: 'торт', seq: ['egg', 'milk', 'choco', 'nuts', 'cherry', 'strawberry'] },
 ];
 
-const CSS = `
-.chf{position:absolute;inset:0;display:flex;flex-direction:column;overflow:hidden;
-  background:linear-gradient(#fff4e0 0,#fff4e0 58%,#f4c98b 58%,#eab676 100%);--u:1}
-.chf-top{flex:none;display:flex;align-items:center;gap:8px;padding:8px 12px 6px}
-.chf-count{font-weight:900;background:rgba(255,255,255,.9);border-radius:12px;padding:4px 10px;font-size:15px;white-space:nowrap;
-  box-shadow:0 2px 0 rgba(74,55,40,.15)}
-.chf-marks{display:flex;gap:4px}
-.chf-mark{width:24px;height:24px;border-radius:50%;background:#fff;border:2px solid #e0cfae;font-size:14px;line-height:1;display:grid;place-items:center}
-.chf-mark.cur{border-color:#ff6b9d;box-shadow:0 0 0 2px #ffd0de}
+const CSS =
+  visitCss('chf') +
+  `
+.chf{background:linear-gradient(#fff4e0 0,#fff4e0 58%,#f4c98b 58%,#eab676 100%);--u:1}
 .chf-main{flex:1;min-height:0;display:flex;flex-direction:column;gap:6px;padding:0 12px calc(12px + env(safe-area-inset-bottom))}
 .chf.wide .chf-main{flex-direction:row;gap:14px}
 .chf-left{flex:1 1 0;min-height:0;min-width:0;display:flex;flex-direction:column;gap:6px;justify-content:space-evenly}
@@ -95,7 +92,6 @@ const CSS = `
 @keyframes chf-shake{25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
 .chf.short .chf-b .em{font-size:26px}
 .chf.short .chf-b{padding:4px 2px 3px;font-size:10.5px}
-.chf.short .chf-top{padding:5px 12px 3px}
 .chf.short .chf-msg{font-size:15px}
 `;
 
@@ -107,19 +103,32 @@ export default {
     'Гость делает заказ. <b>Запомни</b>, какие продукты и в каком порядке нужны, — табличка скоро спрячется! Потом собери блюдо, нажимая продукты на полке по порядку.',
 
   start(host) {
-    const root = host.root;
     const level = host.level || 0;
     const { later, cancel } = host;
-
-    const fallback = [{ id: 'me', name: 'Гость', look: host.look }];
-    const guests = shuffle(host.friends && host.friends.length ? host.friends : fallback);
+    const v = makeVisits(host, {
+      p: 'chf',
+      total: ORDERS,
+      noun: 'Заказ',
+      marks: true,
+      start: startOrder,
+      finish() {
+        const stars = perfect >= 4 ? 3 : perfect >= 2 ? 2 : 1;
+        host.finish({
+          stars,
+          text:
+            perfect === ORDERS
+              ? 'Все заказы собраны по памяти! Ты лучший шеф-повар города!'
+              : `Все ${ORDERS} заказов готовы! Без подсказок: ${perfect}.`,
+          extra: { perfect },
+        });
+      },
+    });
     const dishes = shuffle(DISHES).slice(0, ORDERS);
     const chefLook = { ...host.look, outfit: { ...(host.look.outfit || {}), head: null } };
 
     const wrap = el('div', 'chf');
     host.css(CSS);
     wrap.innerHTML = `
-      <div class="chf-top"><div class="chf-count"></div><div class="chf-marks"></div></div>
       <div class="chf-main">
         <div class="chf-left">
           <div class="chf-guestrow">
@@ -135,10 +144,9 @@ export default {
           <div class="chf-shelf"></div>
         </div>
       </div>`;
+    wrap.prepend(v.header);
     host.add(wrap);
     const $ = (s) => wrap.querySelector(s);
-    const countEl = $('.chf-count'),
-      marksEl = $('.chf-marks');
     const ttlEl = $('.chf-order .ttl'),
       seqEl = $('.chf-seq'),
       timerBar = $('.chf-timer i'),
@@ -148,35 +156,18 @@ export default {
       skipBtn = $('.chf-skip'),
       shelfEl = $('.chf-shelf');
 
-    const gcv = makeCanvas(130, 130);
-    gcv.canvas.className = 'chf-cv chf-guest';
-    gcv.canvas.style.width = '';
-    gcv.canvas.style.height = '';
+    const gcv = domCanvas(130, 130, 'chf-cv chf-guest');
     $('.chf-guestrow').prepend(gcv.canvas);
-    const mcv = makeCanvas(120, 140);
-    mcv.canvas.className = 'chf-cv chf-me';
-    mcv.canvas.style.width = '';
-    mcv.canvas.style.height = '';
+    const mcv = domCanvas(120, 140, 'chf-cv chf-me');
     $('.chf-platerow').prepend(mcv.canvas);
 
-    const marks = [];
-    for (let i = 0; i < ORDERS; i++) {
-      const m = el('div', 'chf-mark');
-      marksEl.appendChild(m);
-      marks.push(m);
-    }
-
-    // --- состояние
-    let idx = 0,
-      perfect = 0,
-      now = 0;
+    // --- состояние; шаги гостя (v.phase): show — показывает заказ, build — ждёт блюдо, peek — подсказка, yum — доволен
+    let perfect = 0;
     let seq = [],
       pos = 0,
       hinted = false;
-    let phase = 'show'; // show | build | peek | yum
     let enterAt = 0,
       hideTimer = 0,
-      yumAt = 0,
       barFrom = 0, // полоска времени: когда пошла и сколько секунд
       barLen = 0;
 
@@ -213,21 +204,19 @@ export default {
     // полоска убывает в кадре (по времени игры), а не CSS-переходом: на скрытой вкладке стоит вместе с таймером
     function runTimer(ms) {
       timerEl.style.visibility = 'visible';
-      barFrom = now;
+      barFrom = v.now;
       barLen = ms / 1000;
     }
 
     function startOrder() {
-      const d = dishes[idx],
-        g = guests[idx % guests.length];
-      seq = makeSeq(d, orderLen(idx));
+      const d = dishes[v.idx];
+      seq = makeSeq(d, orderLen(v.idx));
       pos = 0;
       hinted = false;
-      phase = 'show';
-      enterAt = now;
-      countEl.textContent = `Заказ ${idx + 1} из ${ORDERS}`;
-      marks.forEach((m, i) => m.classList.toggle('cur', i === idx));
-      ttlEl.innerHTML = `<small>${g.name} просит:</small>${d.e} «Мне, пожалуйста, ${d.acc}!»`;
+      v.set('show');
+      enterAt = v.now;
+      v.count();
+      ttlEl.innerHTML = `<small>${v.guest.name} просит:</small>${d.e} «Мне, пожалуйста, ${d.acc}!»`;
       stackEl.innerHTML = '';
       // полка: нужные продукты + случайные до 8
       const need = [...new Set(seq)];
@@ -250,9 +239,9 @@ export default {
     }
 
     function beginBuild() {
-      if (phase !== 'show' && phase !== 'peek') return;
+      if (v.phase !== 'show' && v.phase !== 'peek') return;
       cancel(hideTimer);
-      phase = 'build';
+      v.set('build');
       timerEl.style.visibility = 'hidden';
       skipBtn.style.visibility = 'hidden';
       renderSeq(false);
@@ -261,7 +250,7 @@ export default {
     }
 
     function tap(k, btn) {
-      if (phase !== 'build') return;
+      if (v.phase !== 'build') return;
       if (k === seq[pos]) {
         pos++;
         host.sfx('pop');
@@ -276,7 +265,7 @@ export default {
         btn.classList.remove('shake');
         void btn.offsetWidth;
         btn.classList.add('shake');
-        phase = 'peek';
+        v.set('peek');
         lockShelf(true);
         renderSeq(true);
         setMsg('Ой, не то! Посмотри ещё раз', 'bad');
@@ -286,54 +275,30 @@ export default {
     }
 
     function orderDone() {
-      phase = 'yum';
-      yumAt = now;
+      v.set('yum');
       lockShelf(true);
       renderSeq(true);
       if (!hinted) perfect++;
-      marks[idx].classList.remove('cur');
-      marks[idx].textContent = hinted ? '👌' : '⭐';
+      v.mark(hinted ? '👌' : '⭐');
       host.sfx('ok');
       setMsg(hinted ? 'Готово! Гость доволен 😋' : 'Идеально! Ням-ням! 😋', 'good');
-      later(() => {
-        idx++;
-        if (idx >= ORDERS) {
-          const stars = perfect >= 4 ? 3 : perfect >= 2 ? 2 : 1;
-          host.finish({
-            stars,
-            text:
-              perfect === ORDERS
-                ? 'Все заказы собраны по памяти! Ты лучший шеф-повар города!'
-                : `Все ${ORDERS} заказов готовы! Без подсказок: ${perfect}.`,
-            extra: { perfect },
-          });
-          return;
-        }
-        startOrder();
-      }, 1500);
+      later(v.next, 1500);
     }
 
     skipBtn.onclick = () => {
-      if (phase === 'show') {
+      if (v.phase === 'show') {
         host.sfx('tap');
         beginBuild();
       }
     };
 
     // --- подгонка размеров
-    const fit = () => {
-      const r = root.getBoundingClientRect();
-      const wide = r.width > r.height * 1.25;
-      const short = r.height < 420;
-      wrap.classList.toggle('wide', wide);
-      wrap.classList.toggle('short', short);
+    v.fit(wrap, (r, wide) => {
       const u = wide
         ? clamp(Math.min((r.height - 40) / 330, r.width / 2 / 400), 0.6, 1.25)
         : clamp(Math.min(r.width / 400, (r.height - 290) / 400), 0.62, 1.3);
       wrap.style.setProperty('--u', u.toFixed(3));
-    };
-    fit();
-    host.onResize(fit);
+    });
 
     // --- хомячки
     function drawToque(ctx, x, y, s) {
@@ -341,26 +306,11 @@ export default {
       for (const dx of [-13, 0, 13]) ell(ctx, x + dx * s, y - 92 * s, 10 * s, 10 * s, '#fff', '#4a3728', 2);
       ell(ctx, x, y - 90 * s, 14 * s, 7 * s, '#fff');
     }
-    host.loop((_, time) => {
-      now = time; // время игры: на скрытой вкладке стоит вместе с таймерами
+    v.loop((_, now) => {
       if (barLen) timerBar.style.width = `${clamp(1 - (now - barFrom) / barLen, 0, 1) * 100}%`;
       const blink = now % 3.3 < 0.13;
-      const yum = phase === 'yum';
-      // гость
-      const g = guests[idx % guests.length];
-      const c1 = gcv.ctx;
-      c1.clearRect(0, 0, 130, 130);
-      const k = clamp((now - enterAt) / 0.4, 0, 1);
-      const slide = -(1 - k) * (1 - k) * 130;
-      const hop = yum ? Math.abs(Math.sin((now - yumAt) * 9)) * 6 : 0;
-      host.drawHamster(c1, 65 + slide, 124 - hop, 1.12, g.look, {
-        time: now,
-        blink,
-        happy: yum,
-        armsUp: yum,
-        talk: phase === 'show',
-        walk: k < 1 ? (now * 3) % 1 : null,
-      });
+      const yum = v.phase === 'yum';
+      counterGuest(host, gcv.ctx, v, enterAt, yum, v.phase === 'show', 1.12);
       // шеф (игрок)
       const c2 = mcv.ctx;
       c2.clearRect(0, 0, 120, 140);

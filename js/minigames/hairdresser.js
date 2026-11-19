@@ -3,8 +3,10 @@
 // Выбираешь на полках — в зеркале сразу видно, что получается; «Готово!» — гость смотрится в зеркало. Не так —
 // добрая подсказка (сначала «сравни …», потом прямо, что на картинке), можно поправить. Без таймера.
 // Звёзды — по числу подсказок за всю смену. Dev-хуки на канве: __hair() — что сейчас, __hairSolve() — сделать как надо.
-import { el, shuffle, clamp, pick } from '../core/util.js';
-import { makeCanvas, fillRR, heart, ell, star } from '../core/draw.js';
+// Ход смены (гости по очереди: вошла → ждёт → рада → ушла, итог) — общий, makeVisits из orders.js.
+import { el, clamp, pick } from '../core/util.js';
+import { fillRR, heart, ell, star } from '../core/draw.js';
+import { makeVisits, visitCss, domCanvas } from './orders.js';
 import { drawPortrait } from '../art/hamster.js';
 import { BEAUTY, defaultLook } from '../data/index.js';
 import { DEV } from '../core/dev.js';
@@ -24,11 +26,10 @@ const nameOf = (key, v) => {
 };
 const WHAT = { tuft: 'причёску', hair: 'цвет', bow: 'бантик' };
 
-const CSS = `
-.hd{position:absolute;inset:0;display:flex;flex-direction:column;overflow:hidden;background:linear-gradient(#ffe3ec,#fff0f6);--cv:300px}
-.hd-top{flex:none;display:flex;align-items:center;gap:8px;padding:8px 12px 6px}
-.hd-count,.hd-miss{font-weight:900;background:rgba(255,255,255,.9);border-radius:12px;padding:4px 10px;font-size:15px;white-space:nowrap;box-shadow:0 2px 0 rgba(74,55,40,.15)}
-.hd-miss{margin-left:auto}
+const CSS =
+  visitCss('hd') +
+  `
+.hd{background:linear-gradient(#ffe3ec,#fff0f6);--cv:300px}
 .hd-main{flex:1;min-height:0;display:flex;flex-direction:column;gap:6px;padding:0 12px calc(10px + env(safe-area-inset-bottom))}
 .hd.wide .hd-main{flex-direction:row;gap:14px;align-items:stretch}
 .hd-left{flex:1 1 0;min-height:0;min-width:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px}
@@ -55,7 +56,6 @@ const CSS = `
 .hd.short .hd-b canvas{width:32px;height:32px}
 .hd.short .hd-b .dot{width:20px;height:20px}
 .hd.short .hd-say{font-size:13px;min-height:2.2em;padding:4px 10px}
-.hd.short .hd-top{padding:5px 12px 3px}
 `;
 
 const CW = 300,
@@ -69,70 +69,62 @@ export default {
     'В салон приходят жители и показывают <b>картинку</b> — какую причёску они хотят. Выбери на полках причёску, цвет и бантик: в зеркале сразу видно, что получается. Нажми <b>«Готово!»</b>. Если что-то не так — подскажу, и можно поправить. Торопиться некуда!',
 
   start(host) {
-    const root = host.root;
     const level = host.level || 0;
     const shelves = SHELVES.filter((s) => level >= s.from);
-    const { later } = host;
-    const fallback = [{ id: 'me', name: 'Гостья', look: host.look }];
-    const clients = shuffle(host.friends && host.friends.length ? host.friends : fallback);
+    // шаги гостьи (v.phase): enter | wait | look | happy | exit
+    const v = makeVisits(host, {
+      p: 'hd',
+      total: CLIENTS,
+      noun: 'Гость',
+      who: 'Гостья',
+      wide: 1.2,
+      short: (r) => r.height < 430,
+      start: startClient,
+      finish,
+    });
     // мастер — хомячок игрока без шляпы (её не видно за креслом, зато видно причёску)
     const me = { ...host.look, outfit: { ...(host.look.outfit || {}), head: null } };
 
     const wrap = el('div', 'hd');
     host.css(CSS);
     wrap.innerHTML = `
-      <div class="hd-top"><div class="hd-count"></div><div class="hd-miss"></div></div>
       <div class="hd-main">
         <div class="hd-left"><div class="hd-stage"><div class="hd-pic">📋 Как на картинке</div></div><div class="hd-say"></div></div>
         <div class="hd-right"></div>
       </div>`;
+    wrap.prepend(v.header);
     host.add(wrap);
     const $ = (s) => wrap.querySelector(s);
-    const cv = makeCanvas(CW, CH);
-    cv.canvas.className = 'hd-cv';
-    cv.canvas.style.width = '';
-    cv.canvas.style.height = '';
+    const cv = domCanvas(CW, CH, 'hd-cv');
     $('.hd-stage').prepend(cv.canvas);
     const ctx = cv.ctx;
-    const pic = makeCanvas(110, 110);
-    pic.canvas.style.width = '';
-    pic.canvas.style.height = '';
+    const pic = domCanvas(110, 110);
     $('.hd-pic').appendChild(pic.canvas);
     const say = $('.hd-say'),
       right = $('.hd-right');
 
     // --- состояние
-    let idx = 0,
-      hints = 0,
+    let hints = 0,
       tries = 0, // сколько раз гостья уже говорила «не так» (первая подсказка — мягкая, вторая — прямая)
-      now = 0,
-      phase = 'enter', // enter | wait | look | happy | exit
-      phaseAt = 0,
       snip = -9; // когда щёлкнули ножницы (для искорок)
     let want = {},
       cur = {};
-    const setPhase = (p) => {
-      phase = p;
-      phaseAt = now;
-    };
-    const client = () => clients[idx % clients.length];
+    const client = () => v.guest;
     /** Внешность гостьи с причёской b: без шляпы, остальное — как у неё. */
     const styled = (b) => {
       const c = client().look;
       return { ...c, outfit: { ...c.outfit, head: null }, beauty: { ...c.beauty, ...b } };
     };
     const updTop = () => {
-      $('.hd-count').textContent = `Гость ${Math.min(idx + 1, CLIENTS)} из ${CLIENTS}`;
-      $('.hd-miss').textContent = hints ? `Подсказок: ${hints}` : 'Без подсказок 💚';
+      v.count();
+      v.miss(hints ? `Подсказок: ${hints}` : 'Без подсказок 💚');
     };
 
     // --- полки
     const btns = {};
     const iconOf = (key, o) => {
       if (key === 'tuft') {
-        const { canvas, ctx: c } = makeCanvas(40, 40);
-        canvas.style.width = '';
-        canvas.style.height = '';
+        const { canvas, ctx: c } = domCanvas(40, 40);
         const base = defaultLook();
         drawPortrait(c, 20, 22, 40, { ...base, spots: null, outfit: {}, beauty: { ...base.beauty, tuft: o.v, hair: '#a8703f' } });
         return canvas;
@@ -190,40 +182,29 @@ export default {
       lock(true);
       drawPic();
       say.innerHTML = '';
-      setPhase('enter');
-      later(() => {
+      v.arrive(700, () => {
         say.innerHTML = `<span><b>${c.name}:</b> ${pick(['«Сделай мне, пожалуйста, вот так!»', '«Хочу как на картинке!»', '«Вот такую причёску можно?»'])}</span>`;
-        setPhase('wait');
         lock(false);
-        host.sfx('pop');
-      }, 700);
+      });
     }
 
-    function choose(key, v) {
-      if (phase !== 'wait') return;
-      cur[key] = v;
-      snip = now;
+    function choose(key, val) {
+      if (v.phase !== 'wait') return;
+      cur[key] = val;
+      snip = v.now;
       markOn();
       host.sfx(key === 'tuft' ? 'tap' : 'pop');
     }
 
     function ready() {
-      if (phase !== 'wait') return;
+      if (v.phase !== 'wait') return;
       const wrong = shelves.map((s) => s.key).filter((k) => cur[k] !== want[k]);
       const c = client();
       if (!wrong.length) {
         lock(true);
         host.sfx('ok');
         say.innerHTML = `<span><b>${c.name}:</b> ${pick(['«Ой, как красиво! Точь-в-точь! Спасибо!»', '«Ура! Я самая красивая в городе!»', '«Как на картинке! Ты настоящий мастер!»'])}</span>`;
-        setPhase('happy');
-        later(() => {
-          setPhase('exit');
-          later(() => {
-            idx++;
-            if (idx >= CLIENTS) return finish();
-            startClient();
-          }, 600);
-        }, 1600);
+        v.leave(1600, 600);
         return;
       }
       // не так: добрая подсказка, без наказания (только звёзды чуть меньше)
@@ -231,7 +212,6 @@ export default {
       tries++;
       updTop();
       host.sfx('bad');
-      setPhase('look');
       const k = wrong[0];
       const text =
         tries < 2
@@ -240,9 +220,7 @@ export default {
             ? 'Подсказка: на картинке <b>без бантика</b> 💡'
             : `Подсказка: на картинке ${k === 'tuft' ? 'причёска' : k === 'hair' ? 'цвет' : 'бантик'} — <b>${nameOf(k, want[k])}</b> 💡`;
       say.innerHTML = `<span>${text}</span>`;
-      later(() => {
-        if (phase === 'look') setPhase('wait');
-      }, 700);
+      v.retry('look', 700);
     }
 
     function finish() {
@@ -254,20 +232,13 @@ export default {
     }
 
     // --- подгонка размеров
-    const fit = () => {
-      const r = root.getBoundingClientRect();
-      const wide = r.width > r.height * 1.2;
-      const short = r.height < 430;
-      wrap.classList.toggle('wide', wide);
-      wrap.classList.toggle('short', short);
+    v.fit(wrap, (r, wide, short) => {
       const rows = shelves.length;
       let w;
       if (wide) w = Math.min(r.width * 0.52 - 30, (r.height - (short ? 120 : 150)) * (CW / CH));
       else w = Math.min(r.width - 24, (r.height - 150 - rows * (short ? 58 : 70) - 56) * (CW / CH));
       wrap.style.setProperty('--cv', clamp(w, 150, 480) + 'px');
-    };
-    fit();
-    host.onResize(fit);
+    });
 
     // --- рисунки
     function drawPic() {
@@ -309,9 +280,8 @@ export default {
       fillRR(ctx, 134, 186, 52, 8, 4, '#adb5bd', '#4a3728', 2);
     }
 
-    host.loop((_, time) => {
-      now = time; // время игры: на скрытой вкладке стоит вместе с таймерами
-      const dt = now - phaseAt;
+    v.loop((dt, now) => {
+      const phase = v.phase;
       const blink = now % 3.1 < 0.13;
       ctx.clearRect(0, 0, CW, CH);
       drawRoom();
@@ -365,9 +335,9 @@ export default {
     });
 
     // dev-хуки для автотеста
-    if (DEV) cv.canvas.__hair = () => ({ i: idx, total: CLIENTS, phase, want: { ...want }, cur: { ...cur }, hints, shelves: shelves.map((s) => s.key) });
+    if (DEV) cv.canvas.__hair = () => ({ i: v.idx, total: CLIENTS, phase: v.phase, want: { ...want }, cur: { ...cur }, hints, shelves: shelves.map((s) => s.key) });
     if (DEV) cv.canvas.__hairSolve = (wrongFirst) => {
-      if (phase !== 'wait') return false;
+      if (v.phase !== 'wait') return false;
       if (wrongFirst) {
         const k = shelves[0].key,
           other = shelves[0].list.find((o) => o.v !== want[k]);

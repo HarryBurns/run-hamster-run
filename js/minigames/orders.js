@@ -12,19 +12,139 @@
 //                 (keys — весь заказ) и «что получается» (keys — уже выбранное). Тогда заказ читают по картинке.
 //   ask           что говорит гость;  serve — подпись над полками;  noun — «заказ», «причёска», «витрина»
 //   doneAll, doneSome(n)   итог: всё чисто / n чистых заказов
+//
+// Ниже — общий ход смены makeVisits: «пришёл гость → показал, чего хочет → ты выполняешь → оценка → следующий».
+// На нём стоят и orderGame, и игры со своей механикой выполнения: «Шеф-повар» (запомнить порядок), «Доктор»
+// (выбрать лечение), «Парикмахер» (сделать по картинке), «Учительница» (верно или ошибка).
 import { el, shuffle, pick, clamp } from '../core/util.js';
 import { makeCanvas } from '../core/draw.js';
 
 export const ORDERS = 6;
 
-const CSS = `
-.brs{position:absolute;inset:0;display:flex;flex-direction:column;overflow:hidden;--u:1}
-.brs-top{flex:none;display:flex;align-items:center;gap:8px;padding:8px 12px 6px}
-.brs-count{font-weight:900;background:rgba(255,255,255,.9);border-radius:12px;padding:4px 10px;font-size:15px;white-space:nowrap;
+/** Общий стиль смены с приставкой p: рамка игры, верхняя строка — плашка «N из M», кружки-отметки или счётчик ошибок. */
+export const visitCss = (p) => `
+.${p}{position:absolute;inset:0;display:flex;flex-direction:column;overflow:hidden}
+.${p}-top{flex:none;display:flex;align-items:center;gap:8px;padding:8px 12px 6px}
+.${p}-count,.${p}-miss{font-weight:900;background:rgba(255,255,255,.9);border-radius:12px;padding:4px 10px;font-size:15px;white-space:nowrap;
   box-shadow:0 2px 0 rgba(74,55,40,.15)}
-.brs-marks{display:flex;gap:4px}
-.brs-mark{width:24px;height:24px;border-radius:50%;background:#fff;border:2px solid #e0cfae;font-size:14px;line-height:1;display:grid;place-items:center}
-.brs-mark.cur{border-color:#ff6b9d;box-shadow:0 0 0 2px #ffd0de}
+.${p}-miss{margin-left:auto}
+.${p}-marks{display:flex;gap:4px}
+.${p}-mark{width:24px;height:24px;border-radius:50%;background:#fff;border:2px solid #e0cfae;font-size:14px;line-height:1;display:grid;place-items:center}
+.${p}-mark.cur{border-color:#ff6b9d;box-shadow:0 0 0 2px #ffd0de}
+.${p}.short .${p}-top{padding:5px 12px 3px}
+`;
+
+/** Канва-картинка в разметке игры: рисуем в w×h, размер на экране задаёт CSS класса cls. */
+export function domCanvas(w, h, cls) {
+  const cv = makeCanvas(w, h);
+  if (cls) cv.canvas.className = cls;
+  cv.canvas.style.width = '';
+  cv.canvas.style.height = '';
+  return cv;
+}
+
+/**
+ * Ход смены. o: p — приставка классов CSS; total — сколько гостей; noun — «Заказ», «Пациент»…; who — как зовут гостя,
+ * если друзей нет; marks — кружки-отметки в верхней строке (иначе — счётчик ошибок v.miss); крюки игры:
+ * start(v) — пришёл следующий гость, finish(v) — смена кончилась.
+ * v: guest — кто сейчас; idx — номер гостя с нуля; now — время игры (с); phase, since — шаг и сколько секунд он идёт;
+ *   set(phase), header (верхняя строка — положить в разметку), count() — обновить плашку и текущий кружок,
+ *   mark(text, cls) — отметить гостя, miss(text), fit(wrap, fn), loop(fn), next(),
+ *   arrive(ms, fn), retry(phase, ms), leave(tHappy, tExit, fn) — шаги «вошёл → ждёт → (не то) → рад → ушёл → следующий».
+ */
+export function makeVisits(host, o) {
+  const { later } = host,
+    p = o.p;
+  const guests = shuffle(host.friends && host.friends.length ? host.friends : [{ id: 'me', name: o.who || 'Гость', look: host.look }]);
+  const header = el('div', `${p}-top`, `<div class="${p}-count"></div><div class="${o.marks ? `${p}-marks` : `${p}-miss`}"></div>`);
+  const marks = [];
+  for (let i = 0; o.marks && i < o.total; i++) marks.push(header.lastChild.appendChild(el('div', `${p}-mark`)));
+  const v = {
+    guests,
+    header,
+    idx: 0,
+    now: 0,
+    phase: '',
+    at: 0,
+    get guest() {
+      return guests[v.idx % guests.length];
+    },
+    get since() {
+      return v.now - v.at;
+    },
+    set(phase) {
+      v.phase = phase;
+      v.at = v.now;
+    },
+    count() {
+      header.firstChild.textContent = `${o.noun} ${Math.min(v.idx + 1, o.total)} из ${o.total}`;
+      marks.forEach((m, i) => m.classList.toggle('cur', i === v.idx));
+    },
+    mark(text, cls) {
+      const m = marks[v.idx];
+      m.classList.remove('cur');
+      if (cls) m.classList.add(cls);
+      m.textContent = text;
+    },
+    miss: (text) => (header.lastChild.textContent = text),
+    /** Подгонка под размер рамки: классы wide (широкая) и short (низкая), дальше — fn(r, wide, short). */
+    fit(wrap, fn) {
+      const f = () => {
+        const r = host.root.getBoundingClientRect();
+        const wide = r.width > r.height * (o.wide || 1.25);
+        const short = o.short ? o.short(r, wide) : r.height < 420;
+        wrap.classList.toggle('wide', wide);
+        wrap.classList.toggle('short', short);
+        fn(r, wide, short);
+      };
+      f();
+      host.onResize(f);
+    },
+    /** Кадр: fn(since, time); время игры на скрытой вкладке стоит вместе с таймерами. */
+    loop: (fn) =>
+      host.loop((_, time) => {
+        v.now = time;
+        fn(v.since, time);
+      }),
+    /** Следующий гость — или конец смены. */
+    next() {
+      v.idx++;
+      if (v.idx >= o.total) o.finish(v);
+      else o.start(v);
+    },
+    /** Гость входит (шаг enter); через ms он на месте: fn() — показать, чего он хочет, шаг wait. */
+    arrive(ms, fn) {
+      v.set('enter');
+      later(() => {
+        fn();
+        v.set('wait');
+        host.sfx('pop');
+      }, ms);
+    },
+    /** Не то: шаг phase на ms, потом снова wait (если игрок не успел выбрать раньше). */
+    retry(phase, ms) {
+      v.set(phase);
+      later(() => {
+        if (v.phase === phase) v.set('wait');
+      }, ms);
+    },
+    /** Гость рад (шаг happy, tHappy мс), уходит (exit, tExit мс; fn — что убрать перед уходом) — и следующий. */
+    leave(tHappy, tExit, fn) {
+      v.set('happy');
+      later(() => {
+        if (fn) fn();
+        v.set('exit');
+        later(v.next, tExit);
+      }, tHappy);
+    },
+  };
+  return v;
+}
+
+const CSS =
+  visitCss('brs') +
+  `
+.brs{--u:1}
 .brs-main{flex:1;min-height:0;display:flex;flex-direction:column;gap:6px;padding:0 12px calc(12px + env(safe-area-inset-bottom))}
 .brs.wide .brs-main{flex-direction:row;gap:14px}
 .brs-left{flex:1 1 0;min-height:0;min-width:0;display:flex;flex-direction:column;gap:6px;justify-content:space-evenly}
@@ -73,28 +193,34 @@ const CSS = `
 .brs.short .brs-b .em canvas{width:32px;height:32px}
 .brs.short .brs-b .em .dot{width:24px;height:24px}
 .brs.short .brs-b{padding:3px 2px 2px;font-size:10.5px;min-height:40px}
-.brs.short .brs-top{padding:5px 12px 3px}
 .brs.short .brs-msg{font-size:15px}
 `;
 
 /** Запустить игру «собери по заказу» с настройкой cfg. Снимать нечего — всё снимает хост (kit.js). */
 export function orderGame(host, cfg) {
-  const root = host.root;
   const level = host.level || 0;
   const pic = cfg.picture || null;
   const noun = cfg.noun || 'Заказ';
   const byKey = {};
   for (const sh of cfg.shelves) for (const it of sh.items) byKey[it.k] = { ...it, shelf: sh.id };
   const { later, cancel } = host;
-
-  const fallback = [{ id: 'me', name: 'Гость', look: host.look }];
-  const guests = shuffle(host.friends && host.friends.length ? host.friends : fallback);
+  const v = makeVisits(host, {
+    p: 'brs',
+    total: ORDERS,
+    noun,
+    marks: true,
+    short: (r, wide) => r.height < 460 || (!wide && r.height < 640),
+    start: startOrder,
+    finish() {
+      const stars = perfect >= 5 ? 3 : perfect >= 3 ? 2 : 1;
+      host.finish({ stars, text: perfect === ORDERS ? cfg.doneAll : cfg.doneSome(perfect), extra: { perfect } });
+    },
+  });
 
   const wrap = el('div', 'brs');
   wrap.style.background = cfg.bg;
   host.css(CSS);
   wrap.innerHTML = `
-    <div class="brs-top"><div class="brs-count"></div><div class="brs-marks"></div></div>
     <div class="brs-main">
       <div class="brs-left">
         <div class="brs-guestrow">
@@ -109,11 +235,10 @@ export function orderGame(host, cfg) {
         <div class="brs-shelves"></div>
       </div>
     </div>`;
+  wrap.prepend(v.header);
   host.add(wrap);
   const $ = (s) => wrap.querySelector(s);
-  const countEl = $('.brs-count'),
-    marksEl = $('.brs-marks'),
-    ttlEl = $('.brs-order .ttl'),
+  const ttlEl = $('.brs-order .ttl'),
     wantEl = $('.brs-want'),
     timerBar = $('.brs-timer i'),
     trayEl = $('.brs-tray'),
@@ -121,10 +246,7 @@ export function orderGame(host, cfg) {
     shelvesEl = $('.brs-shelves');
 
   const side = (w, h, parent) => {
-    const cv = makeCanvas(w, h);
-    cv.canvas.className = 'brs-cv';
-    cv.canvas.style.width = '';
-    cv.canvas.style.height = '';
+    const cv = domCanvas(w, h, 'brs-cv');
     parent.prepend(cv.canvas);
     return cv;
   };
@@ -135,10 +257,7 @@ export function orderGame(host, cfg) {
     trayPic = null;
   if (pic) {
     const mk = (parent) => {
-      const cv = makeCanvas(pic.w || 120, pic.h || 120);
-      cv.canvas.className = 'brs-pic';
-      cv.canvas.style.width = '';
-      cv.canvas.style.height = '';
+      const cv = domCanvas(pic.w || 120, pic.h || 120, 'brs-pic');
       parent.appendChild(cv.canvas);
       return cv;
     };
@@ -147,12 +266,6 @@ export function orderGame(host, cfg) {
     $('.brs-traybox .cap').textContent = cfg.trayCap || 'Получается:';
   }
 
-  const marks = [];
-  for (let i = 0; i < ORDERS; i++) {
-    const m = el('div', 'brs-mark');
-    marksEl.appendChild(m);
-    marks.push(m);
-  }
   const buttons = {};
   for (const sh of cfg.shelves) {
     const row = el('div', 'brs-shelf');
@@ -169,15 +282,11 @@ export function orderGame(host, cfg) {
   }
 
   // --- состояние
-  let idx = 0,
-    perfect = 0,
-    now = 0;
+  let perfect = 0;
   let want = [], // ключи заказа
     got = new Set(),
     clean = true, // без ошибок и вовремя
-    phase = 'order', // order | yum
-    enterAt = 0,
-    yumAt = 0,
+    enterAt = 0, // когда пришёл гость
     lateTimer = 0,
     waitFor = 1; // терпение этого гостя, с
 
@@ -213,16 +322,15 @@ export function orderGame(host, cfg) {
   // полоска терпения убывает в кадре (по времени игры): на скрытой вкладке гость ждёт вместе с ней
   const runTimer = (ms) => (waitFor = ms / 1000);
 
+  // шаги гостя: order — ждёт заказ, yum — доволен
   function startOrder() {
-    const g = guests[idx % guests.length];
-    want = cfg.order(idx, level);
+    want = cfg.order(v.idx, level);
     got = new Set();
     clean = true;
-    phase = 'order';
-    enterAt = now;
-    countEl.textContent = `${noun} ${idx + 1} из ${ORDERS}`;
-    marks.forEach((m, i) => m.classList.toggle('cur', i === idx));
-    ttlEl.innerHTML = `<small>${g.name} просит:</small>${pick(cfg.ask)}`;
+    v.set('order');
+    enterAt = v.now;
+    v.count();
+    ttlEl.innerHTML = `<small>${v.guest.name} просит:</small>${pick(cfg.ask)}`;
     renderWant();
     renderTray();
     lock(false);
@@ -233,7 +341,7 @@ export function orderGame(host, cfg) {
     host.sfx('pop');
     cancel(lateTimer);
     lateTimer = later(() => {
-      if (phase !== 'order') return;
+      if (v.phase !== 'order') return;
       clean = false;
       setMsg('Гость заждался… Ничего, он подождёт ещё!', 'bad');
       // подсказка: подсветить то, чего не хватает
@@ -242,7 +350,7 @@ export function orderGame(host, cfg) {
   }
 
   function tap(k, btn) {
-    if (phase !== 'order') return;
+    if (v.phase !== 'order') return;
     if (want.includes(k) && !got.has(k)) {
       got.add(k);
       host.sfx('pop');
@@ -263,62 +371,33 @@ export function orderGame(host, cfg) {
   }
 
   function orderDone() {
-    phase = 'yum';
-    yumAt = now;
+    v.set('yum');
     cancel(lateTimer);
     lock(true);
     Object.values(buttons).forEach((b) => b.classList.remove('hint'));
     timerBar.style.width = '0%';
     if (clean) perfect++;
-    marks[idx].classList.remove('cur');
-    marks[idx].textContent = clean ? '⭐' : '👌';
+    v.mark(clean ? '⭐' : '👌');
     host.sfx('ok');
     setMsg(clean ? 'Быстро и точно! Гость в восторге 😋' : 'Готово! Гость доволен 🙂', 'good');
-    later(() => {
-      idx++;
-      if (idx >= ORDERS) {
-        const stars = perfect >= 5 ? 3 : perfect >= 3 ? 2 : 1;
-        host.finish({ stars, text: perfect === ORDERS ? cfg.doneAll : cfg.doneSome(perfect), extra: { perfect } });
-        return;
-      }
-      startOrder();
-    }, 1300);
+    later(v.next, 1300);
   }
 
   // --- подгонка размеров
-  const fit = () => {
-    const r = root.getBoundingClientRect();
-    const wide = r.width > r.height * 1.25;
-    wrap.classList.toggle('wide', wide);
-    wrap.classList.toggle('short', r.height < 460 || (!wide && r.height < 640));
+  v.fit(wrap, (r, wide) => {
     const u = wide
       ? clamp(Math.min((r.height - 40) / (pic ? 400 : 330), r.width / 2 / 400), 0.6, 1.25)
       : clamp(Math.min(r.width / 400, (r.height - 330) / (pic ? 460 : 380)), 0.55, 1.3);
     wrap.style.setProperty('--u', u.toFixed(3));
-  };
-  fit();
-  host.onResize(fit);
+  });
 
   // --- хомячки: гость и героиня за работой; картинки заказа
-  host.loop((dt, time) => {
-    now = time;
-    if (phase === 'order') timerBar.style.width = `${clamp(1 - (now - enterAt) / waitFor, 0, 1) * 100}%`;
+  v.loop((since, now) => {
+    const yum = v.phase === 'yum',
+      g = v.guest;
+    if (!yum) timerBar.style.width = `${clamp(1 - since / waitFor, 0, 1) * 100}%`;
     const blink = now % 3.3 < 0.13;
-    const yum = phase === 'yum';
-    const g = guests[idx % guests.length];
-    const c1 = gcv.ctx;
-    c1.clearRect(0, 0, 130, 130);
-    const k = clamp((now - enterAt) / 0.4, 0, 1);
-    const slide = -(1 - k) * (1 - k) * 130;
-    const hop = yum ? Math.abs(Math.sin((now - yumAt) * 9)) * 6 : 0;
-    host.drawHamster(c1, 65 + slide, 124 - hop, 1.12 * (g.small ? 0.82 : 1), g.look, {
-      time: now,
-      blink,
-      happy: yum,
-      armsUp: yum,
-      talk: phase === 'order' && now - enterAt < 1.6,
-      walk: k < 1 ? (now * 3) % 1 : null,
-    });
+    counterGuest(host, gcv.ctx, v, enterAt, yum, !yum && since < 1.6, 1.12 * (g.small ? 0.82 : 1));
     const c2 = mcv.ctx;
     c2.clearRect(0, 0, 120, 140);
     host.drawHamster(c2, 60, 134, 1.1, host.look, { time: now, blink, happy: yum });
@@ -333,4 +412,24 @@ export function orderGame(host, cfg) {
   });
 
   startOrder();
+}
+
+/**
+ * Гость у прилавка (канва 130×130): въезжает слева за 0,4 с (enterAt — когда пришёл), говорит (talk),
+ * радуется и подпрыгивает (yum — шаг «доволен», он идёт уже v.since секунд).
+ */
+export function counterGuest(host, ctx, v, enterAt, yum, talk, scale) {
+  const now = v.now;
+  ctx.clearRect(0, 0, 130, 130);
+  const k = clamp((now - enterAt) / 0.4, 0, 1);
+  const slide = -(1 - k) * (1 - k) * 130;
+  const hop = yum ? Math.abs(Math.sin(v.since * 9)) * 6 : 0;
+  host.drawHamster(ctx, 65 + slide, 124 - hop, scale, v.guest.look, {
+    time: now,
+    blink: now % 3.3 < 0.13,
+    happy: yum,
+    armsUp: yum,
+    talk,
+    walk: k < 1 ? (now * 3) % 1 : null,
+  });
 }

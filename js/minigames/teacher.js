@@ -1,21 +1,20 @@
 // Мини-игра «Учительница»: проверяем примеры в тетрадках — верно или ошибка.
+// Ход смены (ученики по очереди, отметки, итог) — общий, makeVisits из orders.js; здесь — своё: примеры и доска.
 import { el, pick, shuffle, irnd, clamp } from '../core/util.js';
-import { makeCanvas, fillRR, line } from '../core/draw.js';
+import { fillRR, line } from '../core/draw.js';
+import { makeVisits, visitCss, domCanvas } from './orders.js';
 
 const TOTAL = 10;
 
-const CSS = `
-.tch{position:absolute;inset:0;display:flex;flex-direction:column;overflow:hidden;
-  background:linear-gradient(#fdf1cf 0,#fdf1cf 70%,#d9b384 70%,#cfa574 100%);--stu:150px;--tea:120px;--ex:44px;--bl:36px}
-.tch-top{flex:none;display:flex;align-items:center;gap:8px;padding:8px 12px 6px;flex-wrap:wrap}
-.tch-count{font-weight:900;background:rgba(255,255,255,.9);border-radius:12px;padding:4px 10px;font-size:15px;white-space:nowrap;
-  box-shadow:0 2px 0 rgba(74,55,40,.15)}
-.tch-marks{display:flex;gap:3px}
-.tch-mark{width:20px;height:20px;border-radius:50%;background:#fff;border:2px solid #e0cfae;font-size:12px;line-height:1;
-  display:grid;place-items:center;color:#fff;font-weight:900}
+const CSS =
+  visitCss('tch') +
+  `
+.tch{background:linear-gradient(#fdf1cf 0,#fdf1cf 70%,#d9b384 70%,#cfa574 100%);--stu:150px;--tea:120px;--ex:44px;--bl:36px}
+.tch-top{flex-wrap:wrap}
+.tch-marks{gap:3px}
+.tch-mark{width:20px;height:20px;font-size:12px;color:#fff;font-weight:900}
 .tch-mark.ok{background:#51cf66;border-color:#2f9e44}
 .tch-mark.no{background:#ff6b6b;border-color:#c92a2a}
-.tch-mark.cur{border-color:#ff6b9d;box-shadow:0 0 0 2px #ffd0de}
 .tch-mid{flex:1;min-height:0;display:flex;flex-direction:column;gap:8px;padding:0 12px}
 .tch.wide .tch-mid{flex-direction:row;gap:14px;width:100%;max-width:1040px;margin:0 auto}
 .tch-boardwrap{flex:0 1 230px;min-height:0;display:flex;align-items:flex-end;gap:4px}
@@ -51,7 +50,6 @@ const CSS = `
 .tch-btns .btn.no:active{box-shadow:0 1px 0 #c92a2a}
 .tch.wide .tch-btns{padding-top:6px;padding-bottom:calc(8px + env(safe-area-inset-bottom))}
 .tch.short .tch-btns .btn{padding:9px 20px;font-size:19px}
-.tch.short .tch-top{padding:5px 12px 3px}
 `;
 
 function makeProblem(level) {
@@ -101,7 +99,6 @@ export default {
     'Ученики приносят тетрадки с примерами. Посмотри на пример и реши: он решён <b>верно</b> или в нём <b>ошибка</b>? Всего 10 тетрадок.',
 
   start(host) {
-    const root = host.root;
     const level = host.level || 0;
     const { later } = host;
 
@@ -118,14 +115,29 @@ export default {
       seen.add(p.key);
       return { ...p, shown: isWrong ? wrongAnswer(p) : p.ans, isWrong };
     });
-    const fallback = [{ id: 'me', name: 'Ученик', look: host.look }];
-    const students = shuffle(host.friends && host.friends.length ? host.friends : fallback);
+    // шаги (v.phase): ask — ждём ответа, react — показываем, как на самом деле, done — конец
+    const v = makeVisits(host, {
+      p: 'tch',
+      total: TOTAL,
+      noun: 'Тетрадка',
+      who: 'Ученик',
+      marks: true,
+      start: showTask,
+      finish() {
+        v.set('done');
+        const stars = correct >= 9 ? 3 : correct >= 6 ? 2 : 1;
+        host.finish({
+          stars,
+          text: `Ты правильно проверила ${correct} из ${TOTAL} тетрадок!` + (stars === 3 ? ' Ученики в восторге!' : ''),
+          extra: { correct },
+        });
+      },
+    });
 
     // --- разметка
     const wrap = el('div', 'tch tall');
     host.css(CSS);
     wrap.innerHTML = `
-      <div class="tch-top"><div class="tch-count"></div><div class="tch-marks"></div></div>
       <div class="tch-mid">
         <div class="tch-boardwrap">
           <div class="tch-board"><div class="tch-b-title"></div><div class="tch-b-line"></div><div class="tch-b-sub"></div></div>
@@ -136,10 +148,9 @@ export default {
         <button class="btn big green tch-yes">✔ Верно</button>
         <button class="btn big no tch-no">✘ Ошибка</button>
       </div>`;
+    wrap.prepend(v.header);
     host.add(wrap);
     const $ = (s) => wrap.querySelector(s);
-    const countEl = $('.tch-count'),
-      marksEl = $('.tch-marks');
     const bTitle = $('.tch-b-title'),
       bLine = $('.tch-b-line'),
       bSub = $('.tch-b-sub');
@@ -147,45 +158,28 @@ export default {
     const btnYes = $('.tch-yes'),
       btnNo = $('.tch-no');
 
-    const tea = makeCanvas(130, 140);
-    tea.canvas.className = 'tch-tea';
-    tea.canvas.style.width = '';
-    tea.canvas.style.height = '';
+    const tea = domCanvas(130, 140, 'tch-tea');
     $('.tch-boardwrap').appendChild(tea.canvas);
-    const stu = makeCanvas(150, 140);
-    stu.canvas.className = 'tch-stu';
-    stu.canvas.style.width = '';
-    stu.canvas.style.height = '';
+    const stu = domCanvas(150, 140, 'tch-stu');
     desk.appendChild(stu.canvas);
     let note = null;
 
-    const marks = [];
-    for (let i = 0; i < TOTAL; i++) {
-      const m = el('div', 'tch-mark');
-      marksEl.appendChild(m);
-      marks.push(m);
-    }
-
     // --- состояние
-    let idx = 0,
-      correct = 0,
-      phase = 'ask'; // ask | react | done
+    let correct = 0;
     let react = null; // 'happy' | 'oops' | null — реакция ученика
     let teacherTalk = false;
     let enterAt = 0; // время появления ученика (для анимации)
-    let now = 0;
 
     const exText = (t, v) => `${t.a} ${t.op === '-' ? '−' : t.op} ${t.b} = ${v}`;
 
     function showTask() {
-      const t = tasks[idx],
-        s = students[idx % students.length];
-      phase = 'ask';
+      const t = tasks[v.idx],
+        s = v.guest;
+      v.set('ask');
       react = null;
       teacherTalk = false;
-      enterAt = now;
-      countEl.textContent = `Тетрадка ${idx + 1} из ${TOTAL}`;
-      marks.forEach((m, i) => m.classList.toggle('cur', i === idx));
+      enterAt = v.now;
+      v.count();
       bTitle.textContent = 'Проверь тетрадку!';
       bLine.textContent = '✔ или ✘ ?';
       bSub.textContent = '';
@@ -201,14 +195,12 @@ export default {
     }
 
     function answer(saysCorrect) {
-      if (phase !== 'ask') return;
-      const t = tasks[idx];
+      if (v.phase !== 'ask') return;
+      const t = tasks[v.idx];
       const right = saysCorrect === !t.isWrong;
-      phase = 'react';
+      v.set('react');
       btnYes.disabled = btnNo.disabled = true;
-      marks[idx].classList.remove('cur');
-      marks[idx].classList.add(right ? 'ok' : 'no');
-      marks[idx].textContent = right ? '✔' : '✘';
+      v.mark(right ? '✔' : '✘', right ? 'ok' : 'no');
       // оценка в тетрадке — как на самом деле
       const exEl = note.querySelector('.tch-ex');
       if (t.isWrong)
@@ -229,22 +221,7 @@ export default {
         bSub.textContent = t.isWrong ? 'В тетрадке была ошибка.' : 'Этот пример был решён верно.';
         react = t.isWrong ? 'oops' : 'happy';
       }
-      later(next, right ? 1500 : 2600);
-    }
-
-    function next() {
-      idx++;
-      if (idx >= TOTAL) {
-        phase = 'done';
-        const stars = correct >= 9 ? 3 : correct >= 6 ? 2 : 1;
-        host.finish({
-          stars,
-          text: `Ты правильно проверила ${correct} из ${TOTAL} тетрадок!` + (stars === 3 ? ' Ученики в восторге!' : ''),
-          extra: { correct },
-        });
-        return;
-      }
-      showTask();
+      later(v.next, right ? 1500 : 2600);
     }
 
     btnYes.onclick = () => answer(true);
@@ -263,12 +240,8 @@ export default {
     host.on(window, 'keydown', onKey);
 
     // --- подгонка размеров
-    const fit = () => {
-      const r = root.getBoundingClientRect();
-      const wide = r.width > r.height * 1.25;
-      wrap.classList.toggle('wide', wide);
+    v.fit(wrap, (r, wide) => {
       wrap.classList.toggle('tall', !wide);
-      wrap.classList.toggle('short', r.height < 420);
       const stuW = wide ? clamp(r.height * 0.4, 90, 190) : clamp(r.height * 0.2, 100, 190);
       const teaW = wide ? clamp(r.height * 0.36, 80, 170) : clamp(r.height * 0.15, 76, 140);
       const ex = wide ? clamp(Math.min(r.height * 0.13, r.width * 0.05), 24, 56) : clamp(r.width * 0.115, 28, 58);
@@ -278,13 +251,10 @@ export default {
       // строка с примером на доске должна помещаться по ширине доски
       const boardW = (wide ? Math.min(r.width, 1040) / 2 - 19 : r.width - 24) - teaW - 40;
       wrap.style.setProperty('--bl', clamp(Math.min(ex * 0.85, boardW / 8), 14, 50) + 'px');
-    };
-    fit();
-    host.onResize(fit);
+    });
 
     // --- анимация хомячков
-    host.loop((_, time) => {
-      now = time; // время игры: на скрытой вкладке стоит вместе с таймерами
+    v.loop((_, now) => {
       const blink = now % 3.4 < 0.13;
       // учительница
       const c1 = tea.ctx;
@@ -294,7 +264,7 @@ export default {
       // ученик за партой
       const c2 = stu.ctx;
       c2.clearRect(0, 0, 150, 140);
-      const s = students[idx % students.length];
+      const s = v.guest;
       const k = clamp((now - enterAt) / 0.35, 0, 1);
       const slide = (1 - k) * (1 - k) * 150;
       const hop = react === 'happy' ? Math.abs(Math.sin(now * 9)) * 6 : 0;
