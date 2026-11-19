@@ -13,7 +13,7 @@
 const lib = require('./lib.js');
 
 module.exports = async function tfix(ctx) {
-  const { page, step, ev, wait, closeAll, expect, fresh: newGame, frames, go, until, teleport, toasts, toPlace } = lib(ctx);
+  const { page, step, ev, wait, closeAll, expect, fresh: newGame, frames, go, until, teleport, toasts, toPlace, putSave, cont } = lib(ctx);
   const fresh = () => newGame({ day: 18, minutes: 12 * 60, weather: 'sun', dayFlags: true }); // июль, полдень
 
   await step('исправления Т7: колесо и пианино в квартире — письмо и звёздочка ведут в квартиру, а не к вилле', async () => {
@@ -320,5 +320,45 @@ module.exports = async function tfix(ctx) {
     });
     expect(r.under === 'caveFloor', 'вагонетка стоит не на полу', r);
     expect(r.rails.length >= 3 && r.rails.includes(r.x + 1), 'рельсы не начинаются у вагонетки', r);
+  });
+
+  await step('исправления: старое сохранение, где хомячок стоит на клетке вагонетки, — встаёт рядом и ходит', async () => {
+    await fresh();
+    await toPlace('caves');
+    await closeAll();
+    await ev(() => window.dispatchEvent(new Event('pagehide')));
+    const raw = await ev(() => {
+      const m = window.__dev.locations.caves.map,
+        cart = m.objs.find((o) => o.type === 'minecart'),
+        s = JSON.parse(localStorage.getItem('rhr-save-v1'));
+      s.pos = { scene: 'caves', x: (cart.tx + 0.5) * 48, y: (cart.ty + 0.5) * 48 }; // как в старом сохранении: там, где теперь вагонетка
+      return JSON.stringify(s);
+    });
+    await putSave(raw);
+    await cont();
+    await closeAll();
+    const a = await ev(() => {
+      const d = window.__dev,
+        c = d.locations.caves,
+        cart = c.map.objs.find((o) => o.type === 'minecart'),
+        p = c.p,
+        tx = Math.floor(p.x / 48),
+        ty = Math.floor(p.y / 48);
+      return { scene: d.sceneName, tx, ty, cart: [cart.tx, cart.ty], ok: c.pass()(tx, ty), solid: !c.pass()(cart.tx, cart.ty) };
+    });
+    expect(a.scene === 'caves' && a.solid, 'загрузилась не в пещерах или вагонетка проходима (проверка не годится)', a);
+    expect(a.ok && (a.tx !== a.cart[0] || a.ty !== a.cart[1]) && Math.abs(a.tx - a.cart[0]) + Math.abs(a.ty - a.cart[1]) <= 3, 'хомячок не встал рядом с вагонеткой', a);
+    // и уходит оттуда: к входу в пещеры есть дорога
+    const ok = await ev(() => {
+      const c = window.__dev.locations.caves,
+        p = c.p;
+      window.__libFrom = { x: p.x, y: p.y };
+      return c.walkTo(p.x, p.y + 4 * 48) || c.walkTo(p.x - 4 * 48, p.y) || c.walkTo(p.x + 4 * 48, p.y);
+    });
+    expect(ok, 'от вагонетки хомячку некуда идти');
+    await until(() => {
+      const p = window.__dev.locations.caves.p;
+      return Math.hypot(p.x - window.__libFrom.x, p.y - window.__libFrom.y) > 60;
+    }, undefined, 'хомячок не сдвинулся с места у вагонетки');
   });
 };
