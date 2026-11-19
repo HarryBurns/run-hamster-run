@@ -643,13 +643,19 @@ export function createSideScene(desc) {
     for (const b of drawOrder)
       if (b.def.back && floorSeen(b.f)) b.def.back(ctx, b.x - (b.def.ref || 0), fy(b.f), t, sc, b);
     drawItems(ctx, sc, t);
+    // Передняя стенка ванны, джакузи, бассейна закрывает хомячка, только пока он в них сидит (плавает). Кто просто
+    // проходит мимо (хомячок, жители, гости, питомец), идёт по полу перед ними — как мимо шкафа или холодильника.
+    // У предмета без своего состояния (реквизит с front) передний рисунок — всегда поверх: так задумано в описании.
+    const over = (b) => !b.def.state || sc.using(b);
+    for (const b of drawOrder)
+      if (b.def.front && !over(b) && floorSeen(b.f)) b.def.front(ctx, b.x - (b.def.ref || 0), fy(b.f), t, sc, b);
     for (const part of SIDE_PARTS) if (part.front) part.front(ctx, sc, t);
     drawActors(ctx, sc, t);
     for (const part of SIDE_PARTS) if (part.draw) part.draw(ctx, sc, t);
     if (desc.art && desc.art.mid) desc.art.mid(ctx, sc, t);
     drawPlayer(ctx, t);
     for (const b of drawOrder)
-      if (b.def.front && floorSeen(b.f)) b.def.front(ctx, b.x - (b.def.ref || 0), fy(b.f), t, sc, b);
+      if (b.def.front && over(b) && floorSeen(b.f)) b.def.front(ctx, b.x - (b.def.ref || 0), fy(b.f), t, sc, b);
     if (desc.art && desc.art.front) desc.art.front(ctx, sc, t);
     drawParts(ctx);
     drawLight(ctx, sc, view);

@@ -1,7 +1,9 @@
 // Шаги автотеста «движка домов» (engine/side) — баги от заказчика:
 //   лифт — нажатие во время поездки не выводит хомячка из кабины между этажами: лифт поворачивает к этажу новой
 //   цели и там хомячок выходит (вилла, отель, пентхаус, дом Профессора); стрелки и E во время поездки, «Обустроить»
-//   посреди поездки, сохранение посреди поездки.
+//   посреди поездки, сохранение посреди поездки;
+//   порядок рисования — кто просто ходит мимо ванны, джакузи, бассейна (хомячок и житель), рисуется перед ними,
+//   а в ванне — за передней стенкой.
 // Подключается из dev/smoke.js. Только эти шаги:  node dev/smoke.js <url> "step:движок домов"
 const lib = require('./lib.js');
 
@@ -171,4 +173,77 @@ module.exports = async function side(ctx) {
     onFloor({ ...r, bad: [] }, 'загрузка после поездки');
     expect(r.f === 0, 'после загрузки — не тот этаж', r);
   });
+
+  await step(
+    'движок домов: порядок рисования — хомячок и житель у ванны, джакузи и бассейна — перед ними',
+    async () => {
+      await fresh({ day: 18, minutes: 12 * 60, weather: 'sun', dayFlags: true });
+      await go('villa');
+      /**
+       * Нарисовать кадр дважды (камера на месте): кто-то стоит у предмета — и ушёл; сравнить кусочек экрана у его ног.
+       * Совпали — значит, его закрыла передняя стенка предмета.
+       */
+      const differs = (id, who) =>
+        ev(
+          ([id, who]) => {
+            const sc = window.__dev.scene,
+              b = sc.fixtures.find((q) => q.id === id),
+              p = sc.p,
+              y = sc.geo.fy(b.f),
+              canvas = document.getElementById('game'),
+              c = canvas.getContext('2d'),
+              dpr = window.__dev.G.view.dpr || 1;
+            sc.standUp();
+            p.path = [];
+            p.f = b.f;
+            p.x = b.x - 300;
+            p.dir = 1;
+            sc.liftY = y;
+            const g = { id: 'plusha', act: 'npc:plusha', ph: 1, x: b.x, f: b.f, tx: b.x, wait: 99, dir: 1, walkT: 0 };
+            g.happy = 0;
+            g.roam = null;
+            sc.cam.snap(b.x, y - 110);
+            const shot = (here) => {
+              if (who === 'player') p.x = here ? b.x : b.x - 300;
+              sc.actors = sc.actors.filter((q) => q !== g);
+              if (who === 'actor' && here) sc.actors.push(g);
+              c.setTransform(dpr, 0, 0, dpr, 0, 0);
+              sc.draw(c);
+              const a = sc.debugScreen(b.x - 14, y - 58),
+                z = sc.debugScreen(b.x + 14, y - 22);
+              return c.getImageData(
+                Math.round(a.x * dpr),
+                Math.round(a.y * dpr),
+                Math.max(1, Math.round((z.x - a.x) * dpr)),
+                Math.max(1, Math.round((z.y - a.y) * dpr)),
+              ).data;
+            };
+            const A = shot(true),
+              B = shot(false);
+            sc.actors = sc.actors.filter((q) => q !== g);
+            let n = 0;
+            for (let i = 0; i < A.length; i += 4)
+              if (Math.abs(A[i] - B[i]) + Math.abs(A[i + 1] - B[i + 1]) + Math.abs(A[i + 2] - B[i + 2]) > 30) n++;
+            return n / (A.length / 4);
+          },
+          [id, who],
+        );
+      for (const id of ['bathtub', 'jacuzzi', 'pool'])
+        for (const who of ['player', 'actor']) {
+          const k = await differs(id, who);
+          expect(k > 0.3, `${id}: ${who === 'player' ? 'хомячок' : 'житель'} рисуется за передней стенкой`, k);
+        }
+      // в ванне — за передней стенкой, как и задумано: пена и борт поверх
+      const inside = await ev(() => {
+        const sc = window.__dev.scene,
+          b = sc.fixtures.find((q) => q.id === 'bathtub');
+        sc.p.f = b.f;
+        b.def.use(sc, b);
+        return sc.using(b);
+      });
+      expect(inside, 'хомячок не сел в ванну');
+      await frames(3);
+      await ev(() => window.__dev.scene.standUp());
+    },
+  );
 };
