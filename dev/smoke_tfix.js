@@ -1,11 +1,12 @@
 // Шаги автотеста мелких исправлений «Замечено в третьем обновлении» (BACKLOG, Т-пункты) и ревью, где меняется поведение:
 //   Т7 — звёздочка писем «Беги, хомячок» и «Маленький концерт» ведёт в дом, где стоит колесо / пианино;
+//   Т2 — холл Хомяк-Тауэра вечером темнеет (свет ламп), к празднику украшен;
 //   Т8 — на iPad лёжа вилла видна целиком, отель — все этажи по высоте (а не масштаб 1,05, как на телефоне).
 // Подключается из dev/smoke.js. Только эти шаги:  node dev/smoke.js <url> "step:исправления"
 const lib = require('./lib.js');
 
 module.exports = async function tfix(ctx) {
-  const { page, step, ev, wait, closeAll, expect, fresh: newGame, frames, go } = lib(ctx);
+  const { page, step, ev, wait, closeAll, expect, fresh: newGame, frames, go, until } = lib(ctx);
   const fresh = () => newGame({ day: 18, minutes: 12 * 60, weather: 'sun', dayFlags: true }); // июль, полдень
 
   await step('исправления Т7: колесо и пианино в квартире — письмо и звёздочка ведут в квартиру, а не к вилле', async () => {
@@ -105,5 +106,41 @@ module.exports = async function tfix(ctx) {
       await page.setViewportSize(size);
       await wait(300);
     }
+  });
+
+  await step('исправления Т2: холл Хомяк-Тауэра ночью темнее, чем днём, а в канун Рождества украшен', async () => {
+    await fresh();
+    // яркость стены холла (средняя по полосе над диваном и стойкой) в полдень и в 23:00
+    const wall = async (minutes) => {
+      await ev((m) => {
+        const d = window.__dev;
+        d.actions.mutate((s) => (s.minutes = m));
+        if (d.sceneName !== 'world') d.go('world');
+      }, minutes);
+      await frames(2);
+      await ev(() => window.__dev.enterBuilding('tower'));
+      await until(() => window.__dev.sceneName === 'tower');
+      await closeAll();
+      await ev(() => window.__dev.Tower.debugAt(560));
+      await frames(3);
+      return ev(() => {
+        const T = window.__dev.Tower.debugState(),
+          c = document.getElementById('game'),
+          x = c.getContext('2d'),
+          y = Math.round(c.height * 0.45),
+          px = x.getImageData(0, y, c.width, 1).data;
+        let sum = 0;
+        for (let i = 0; i < px.length; i += 4) sum += px[i] + px[i + 1] + px[i + 2];
+        return { light: Math.round(sum / (px.length / 4) / 3), level: T.level, decor: T.hallDecor };
+      });
+    };
+    const day = await wall(12 * 60),
+      night = await wall(23 * 60);
+    expect(day.level === 'lobby' && night.level === 'lobby', 'не в холле (проверка не годится)', [day, night]);
+    expect(night.light < day.light - 25, 'ночью в холле так же светло, как днём', [day, night]);
+    await ev(() => window.__dev.holiday.to('xmas', 'eve'));
+    await closeAll();
+    const xmas = await wall(20 * 60);
+    expect(['newyear', 'xmas'].includes(xmas.decor), 'в канун Рождества холл не украшен', xmas); // ёлка Нового года стоит и в Рождество
   });
 };

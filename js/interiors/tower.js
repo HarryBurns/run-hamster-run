@@ -24,6 +24,8 @@ import {
   paintViewLive,
   cloud,
 } from './tower_view.js';
+import { drawLight } from '../engine/side/light.js';
+import { hallHoliday, drawHallGarland, drawHallFloor } from './holidays_rooms.js';
 
 const OUT = '#4a3728',
   HS = 1.45;
@@ -105,6 +107,7 @@ export function debugState() {
     balloons: S.balloons.map((b) => ({ ...sc(b.x, b.y), vx: b.vx, vy: b.vy, out: !!b.out })),
     pops: G.state.flags.balloons || 0,
     zoom: z,
+    hallDecor: S.hallDecor || '', // праздник, к которому украшен холл (Т2)
   };
 }
 /** Для тестов: поставить хомячка в точку x (у лифта, у выхода). */
@@ -604,6 +607,13 @@ function drawLobby(ctx, t) {
       );
     line(ctx, x, -240, x, -110, '#fff', 5);
   }
+  // праздник: гирлянда под потолком (по обе стороны вывески)
+  const holiday = (S.hallDecor = hallHoliday());
+  if (holiday) {
+    drawHallGarland(ctx, holiday, 0, 420, -330);
+    drawHallGarland(ctx, holiday, 760, LOBBY_W, -330);
+  }
+  for (const x of LAMPS_X) hallLamp(ctx, x, d);
   // вывеска
   fillRR(ctx, 430, -318, 320, 46, 14, '#ffd43b', OUT, 2.5);
   text(ctx, 'ХОМЯК-ТАУЭР · 101 этаж', 590, -294, 22, OUT);
@@ -643,8 +653,28 @@ function drawLobby(ctx, t) {
     text(ctx, mark, 610, by + 1, 24, OUT);
   }
   liftDoors(ctx, 940, 0, '▲ 101');
+  if (holiday) drawHallFloor(ctx, holiday, 785, 0); // ёлка, фонарик… — между стойкой и лифтом
   drawPlayer(ctx, t);
+  // вечером и ночью — темнее, у ламп тёплый свет (тот же механизм, что в домах: engine/side/light.js)
+  if (d > 0.03) drawLight(ctx, HALL, S.cam.visible(0));
   ctx.restore();
+}
+/** Холл для света домов (engine/side/light.js): одна «комната» во весь холл, свет — от подвесных ламп и лифта. */
+const LAMPS_X = [120, 330, 810, 1060];
+const HALL = {
+  desc: {
+    rooms: [{ f: 0, x0: -400, x1: LOBBY_W + 400, lamp: false }],
+    lamps: [...LAMPS_X.map((x) => ({ x, h: 220, r: 400 })), { x: 940, h: 120, r: 220 }],
+  },
+  geo: { RH: 330, SLAB: 400, fy: () => 0 },
+  items: () => [],
+};
+/** Подвесная лампа под потолком холла: вечером горит. */
+function hallLamp(ctx, x, d) {
+  line(ctx, x, -330, x, -300, OUT, 2);
+  if (d > 0.2) ell(ctx, x, -282, 20, 14, `rgba(255,224,140,${Math.min(0.6, d).toFixed(2)})`);
+  poly(ctx, [x - 18, -280, x + 18, -280, x + 9, -302, x - 9, -302], '#fff3bf', OUT, 2);
+  ell(ctx, x, -279, 6, 4, d > 0.2 ? '#ffe066' : '#fff9db', OUT, 1.2);
 }
 
 function drawDeck(ctx, t) {

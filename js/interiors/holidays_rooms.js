@@ -143,5 +143,28 @@ export function setupRoomDecor(o) {
   paintString = o.paintString;
   addSidePart({ back: drawGarlands, front: drawDoorDecor });
 }
+
+// ---------- холл Хомяк-Тауэра (interiors/tower.js — не на движке домов, Т2) ----------
+/** Праздник, который сейчас украшает холл башни, или ''. */
+export const hallHoliday = () => (G.state ? Object.keys(ROOM).find(decorNow) || '' : '');
+const hallPics = new Map(); // «праздник:x0:x1» → картинка гирлянды
+/** Гирлянда праздника id под потолком холла: от x0 до x1, потолок на высоте top. */
+export function drawHallGarland(ctx, id, x0, x1, top) {
+  const key = `${id}:${x0}:${x1}`;
+  let pic = hallPics.get(key);
+  if (!pic) {
+    if (hallPics.size > 4) hallPics.clear(); // праздник сменился — старые картинки не нужны
+    hallPics.set(key, (pic = roomPic(id, x0, x1, STRING_H)));
+  }
+  ctx.drawImage(pic, x0, top, x1 - x0, STRING_H);
+}
+/** Украшение праздника id на полу холла в точке x (пол — y). */
+export function drawHallFloor(ctx, id, x, y) {
+  const pic = floorArt(id);
+  if (!pic.canvas) return;
+  const [l, t, w, h] = pic.box;
+  ctx.drawImage(pic.canvas, x + l, y - 2 + t, w, h);
+}
+
 /** Для тестов: какой праздник украшает дома и сколько комнат уже нарисовано. */
 export const debugRoomDecor = () => ({ holiday: picsFor, rooms: pics.size });
