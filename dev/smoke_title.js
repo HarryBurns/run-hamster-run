@@ -401,10 +401,25 @@ module.exports = async function title(ctx) {
         await page.mouse.click(p.x, p.y);
         await wait(120);
       };
+      // бабочка летает над пляжем: нажатие рядом с ней достаётся тому, кто под пальцем, а точно по ней — ей.
+      // Перед нажатием ждём, пока она не над целью и не летит садиться на хомячка (тогда она быстрая)
+      const away = async (key) => {
+        await until(
+          (key) => {
+            const d = window.__dev.title.debug();
+            const R = 30 * Math.max(d.k, 0.7);
+            return d.fly.st !== 'go' && Math.hypot(d.fly.x - d[key].x, d.fly.y - d[key].y) > R * 2;
+          },
+          key,
+          { timeout: 15000, msg: 'бабочка улетела от «' + key + '»' },
+        );
+        return (await dbg())[key];
+      };
       let d = await dbg();
-      await tap(d.ham);
+      await tap(await away('ham'));
       expect(await has('jump'), 'хомячок не прыгнул');
       await wait(1300);
+      d.ham = await away('ham');
       await page.mouse.move(d.ham.x, d.ham.y);
       await page.mouse.down();
       await wait(800);
@@ -420,18 +435,18 @@ module.exports = async function title(ctx) {
       await wait(2600);
       d = await dbg();
       expect(d.nuts[0].y > d.palm.y + 60, 'кокос не долетел до песка', d.nuts[0]);
-      await tap(d.crab);
+      await tap(await away('crab'));
       expect(await has('crab'), 'краб не побежал');
       await wait(1500);
       expect((await dbg()).crab.st === 'in', 'краб не спрятался в норку', (await dbg()).crab.st);
-      await tap(d.gull);
+      await tap(await away('gull'));
       d = await dbg();
       expect(
         d.log.includes('gull') && d.gull.st === 'away' && d.gull.feathers === 1,
         'чайка не улетела или не уронила пёрышко',
         d.gull,
       );
-      await tap(d.shell);
+      await tap(await away('shell'));
       await wait(900);
       d = await dbg();
       expect(d.log.includes('shell') && d.ham.st === 'listen', 'хомячок не слушает ракушку', d.ham.st);

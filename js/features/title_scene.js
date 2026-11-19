@@ -195,8 +195,10 @@ export function createTitleScene(canvas, o) {
 
   function down(x, y) {
     const R = 30 * Math.max(k, 0.7); // палец толще мышки: все цели не меньше этого
-    // бабочка или светлячки
-    if ((night || (!rain && !snow)) && near(x, y, fly.x, fly.y, R * 1.2)) {
+    // бабочка или светлячки. Точно по ней — ей; рядом — сначала тому, кто под пальцем (бабочка пролетает над
+    // чайкой: нажатие по чайке не достаётся бабочке), а если там никого — всё же бабочке
+    const flyNear = (r) => (night || (!rain && !snow)) && near(x, y, fly.x, fly.y, r);
+    const flyTap = () => {
       if (fly.st === 'sit') {
         fly.st = 'roam';
         fly.next = T + rnd(8, 14);
@@ -205,8 +207,8 @@ export function createTitleScene(canvas, o) {
         note(night ? 'fireflies' : 'butterfly');
         sfx('ding');
       }
-      return;
-    }
+    };
+    if (flyNear(R * 0.6)) return flyTap();
     // хомячок: короткое нажатие — привет, долгое — танец
     if (Math.abs(x - ham.x) < 34 * ham.s && y < ham.y + 8 * ham.s && y > hamTop()) {
       ham.press = T;
@@ -250,6 +252,7 @@ export function createTitleScene(canvas, o) {
         return;
       }
     }
+    if (flyNear(R * 1.2)) return flyTap();
     // пальма: потянуть — качнуть, нажать на крону — упадёт кокос
     for (const p of palms) {
       const [cx, cy] = crown(p);
