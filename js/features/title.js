@@ -20,7 +20,7 @@ import {
 import { el, esc, fmtMoney } from '../core/util.js';
 import { makeCanvas } from '../core/draw.js';
 import { drawPortrait } from '../art/hamster.js';
-import { resolveLook, defaultLook, monthOfDay, SEASON_OF_MONTH } from '../data/index.js';
+import { resolveLook, defaultLook, monthOfDay, SEASON_OF_MONTH, NAME_MAX } from '../data/index.js';
 import { sfx, unlockAudio } from '../core/audio.js';
 import { openPanel, message } from '../ui/panel.js';
 import { downloadText, pickTextFile } from '../ui/files.js';
@@ -139,7 +139,7 @@ export function openTitle({ start }) {
         );
       menu.appendChild(el('div', 'sub', 'Как зовут твою хомячку?'));
       const inp = el('input');
-      inp.maxLength = 14;
+      inp.maxLength = NAME_MAX;
       inp.value = 'Хомка';
       inp.setAttribute('aria-label', 'Имя');
       const b = el('button', 'btn big green', 'Играть! ▶');

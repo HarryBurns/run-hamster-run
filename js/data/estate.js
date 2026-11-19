@@ -69,6 +69,9 @@ const HOME_LIST = [
     perks: ['🌇 панорамные окна', '🔭 терраса', '🫧 джакузи', '🛗 свой лифт'],
   },
 ];
+/** Самое длинное название заведения на вывеске (поле «Вывеска», repair). */
+export const BIZ_TITLE_MAX = 22;
+
 export const HOMES = HOME_LIST.map((h) => ({ ...h, price: HOME_PRICES[h.id] || 0 }));
 export const HOME_BY_ID = Object.fromEntries(HOMES.map((h) => [h.id, h]));
 

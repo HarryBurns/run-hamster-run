@@ -27,6 +27,7 @@ import {
   JOBS,
   VENDORS,
   vendorLook,
+  BIZ_TITLE_MAX,
 } from '../data/index.js';
 import { openPanel, message, confirmBox } from '../ui/panel.js';
 import { toast } from '../ui/toast.js';
@@ -306,7 +307,7 @@ export function openBizOffice(id) {
       const sign = el('div', 'biz-signedit');
       sign.appendChild(el('div', 'muted', 'Вывеска: название и цвет'));
       const inp = el('input');
-      inp.maxLength = 22;
+      inp.maxLength = BIZ_TITLE_MAX;
       inp.value = bizTitle(id);
       inp.setAttribute('aria-label', 'Название заведения');
       inp.onchange = () => {

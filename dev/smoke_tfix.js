@@ -1,6 +1,7 @@
 // Шаги автотеста мелких исправлений «Замечено в третьем обновлении» (BACKLOG, Т-пункты) и ревью, где меняется поведение:
 //   Т7 — звёздочка писем «Беги, хомячок» и «Маленький концерт» ведёт в дом, где стоит колесо / пианино;
 //   Т2 — холл Хомяк-Тауэра вечером темнеет (свет ламп), к празднику украшен;
+//   repair (ревью Б4) — имя хомячка, питомца и название заведения обрезаются до длины поля ввода на любом пути;
 //   Т8 — на iPad лёжа вилла видна целиком, отель — все этажи по высоте (а не масштаб 1,05, как на телефоне).
 // Подключается из dev/smoke.js. Только эти шаги:  node dev/smoke.js <url> "step:исправления"
 const lib = require('./lib.js');
@@ -142,5 +143,34 @@ module.exports = async function tfix(ctx) {
     await closeAll();
     const xmas = await wall(20 * 60);
     expect(['newyear', 'xmas'].includes(xmas.decor), 'в канун Рождества холл не украшен', xmas); // ёлка Нового года стоит и в Рождество
+  });
+
+  await step('исправления repair: длинные имя хомячка, питомца и название заведения обрезаются, пустые — по умолчанию', async () => {
+    await fresh();
+    const r = await ev(async () => {
+      const st = await import('/js/core/state.js'),
+        D = await import('/js/data/index.js');
+      const s = JSON.parse(JSON.stringify(window.__dev.G.state));
+      s.name = '  Очень-очень-длинное имя хомячка  ';
+      s.pet = { kind: D.PETS[0].id, name: 'Пушистик-Разбойник-Второй', love: 0, food: 0 };
+      s.biz = { cafe: { day: 0, till: 0, total: 0, last: 0, title: 'Самое лучшее кафе на всём белом свете' } };
+      st.repair(s);
+      const e = JSON.parse(JSON.stringify(window.__dev.G.state));
+      e.name = '   ';
+      e.pet = { kind: D.PETS[0].id, name: 42 };
+      e.biz = { cafe: { day: 0, till: 0, total: 0, last: 0, title: '  ' } };
+      st.repair(e);
+      return {
+        name: s.name,
+        pet: s.pet.name,
+        biz: s.biz.cafe.title,
+        max: [D.NAME_MAX, D.PET.nameMax, D.BIZ_TITLE_MAX],
+        empty: [e.name, e.pet.name, 'title' in e.biz.cafe],
+      };
+    });
+    expect(r.name === 'Очень-очень-дл' && r.name.length === r.max[0], 'имя хомячка', r);
+    expect(r.pet.length === r.max[1], 'имя питомца', r);
+    expect(r.biz.length === r.max[2], 'название заведения', r);
+    expect(r.empty[0] === 'Хомка' && r.empty[1] && !r.empty[2], 'пустые имена', r);
   });
 };

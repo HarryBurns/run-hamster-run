@@ -22,6 +22,8 @@ import {
   PARROT_WORD_BY_ID,
   PARROT_MEMORY,
   PET,
+  NAME_MAX,
+  BIZ_TITLE_MAX,
   PET_BY_ID,
   RIDE_BY_ID,
   YARD_BY_ID,
@@ -131,8 +133,8 @@ export function repair(s) {
     const pt = s.pet;
     if (!pt || typeof pt !== 'object' || !PET_BY_ID[pt.kind]) s.pet = null;
     else {
-      if (typeof pt.name !== 'string' || !pt.name.trim()) pt.name = PET_BY_ID[pt.kind].names[0];
-      pt.name = pt.name.slice(0, PET.nameMax);
+      // имя — без пробелов по краям и не длиннее поля ввода (как бы ни попало в сохранение: файл, старая игра)
+      pt.name = (typeof pt.name === 'string' && pt.name.trim().slice(0, PET.nameMax)) || PET_BY_ID[pt.kind].names[0];
       for (const k of ['love', 'food']) if (!Number.isFinite(pt[k]) || pt[k] < 0) pt[k] = 0;
       pt.love = Math.min(pt.love, PET.heart * PET.hearts);
       for (const k of ['fed', 'feedDay', 'pet', 'play']) if (!Number.isFinite(pt[k])) pt[k] = -1;
@@ -177,6 +179,12 @@ export function repair(s) {
     }
     for (const k of ['day', 'till', 'total', 'last']) if (!Number.isFinite(b[k]) || b[k] < 0) b[k] = 0;
     if (b.special && !DISH_BY_ID[b.special]) delete b.special;
+    // своё название на вывеске — строка не длиннее поля «Вывеска»; пустое — название по умолчанию
+    if ('title' in b) {
+      const t = typeof b.title === 'string' ? b.title.trim().slice(0, BIZ_TITLE_MAX) : '';
+      if (t) b.title = t;
+      else delete b.title;
+    }
   }
   obj(s, 'visits');
   for (const id of Object.keys(s.visits)) if (!NPC_BY_ID[id] || !(s.visits[id] > 0)) delete s.visits[id];
@@ -207,7 +215,7 @@ export function repair(s) {
   num('tasksDone', 0);
   num('pearls', 0);
   s.pearlsSold = Math.max(0, Math.min(s.pearlsSold, s.pearls)); // продано не больше, чем найдено
-  if (typeof s.name !== 'string' || !s.name) s.name = 'Хомка';
+  s.name = (typeof s.name === 'string' && s.name.trim().slice(0, NAME_MAX)) || 'Хомка';
   // внешность
   if (!s.look || typeof s.look !== 'object') s.look = defaultLook();
   obj(s.look, 'outfit');

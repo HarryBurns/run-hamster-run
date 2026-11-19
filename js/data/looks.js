@@ -4,6 +4,9 @@ import { CLOTHES_BY_ID } from './clothes.js';
 import { NPC_BY_ID, VENDORS } from './npcs.js';
 import { holidayDress } from './holidays.js';
 
+/** Самое длинное имя хомячка (поле на заставке, загрузка файлом, repair). */
+export const NAME_MAX = 14;
+
 /** Хомячок по умолчанию: белый с пятнышком, без одежды. */
 export function defaultLook() {
   return {

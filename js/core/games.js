@@ -18,7 +18,7 @@
 // становится первой игрой).
 import { G, KEY, BACKUP_KEY, newGame, load, unload, loadProblem, checkSave, claimSave } from './state.js';
 import { dropPhotos, movePhotos, loadPhotos, savePhotos, cleanPhotos } from './photos.js';
-import { BUILD } from '../data/index.js';
+import { BUILD, NAME_MAX } from '../data/index.js';
 
 export const MAX_GAMES = 6;
 export const LOST_MAX = 3; // сколько нечитаемых сохранений лежит про запас; самое старое сверх этого убирается
@@ -450,7 +450,7 @@ export async function importGame(text) {
   const why = checkSave(s);
   if (why) return { why: why === 'newer' ? 'newer' : 'bad' };
   if (idx.games.length >= MAX_GAMES) return { why: 'full' };
-  s.name = (typeof s.name === 'string' && s.name.trim().slice(0, 14)) || 'Хомка';
+  s.name = (typeof s.name === 'string' && s.name.trim().slice(0, NAME_MAX)) || 'Хомка';
   const id = newId();
   s.gid = id;
   if (!put(slot(id), JSON.stringify(s))) {
