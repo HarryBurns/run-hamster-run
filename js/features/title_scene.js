@@ -68,9 +68,15 @@ export function createTitleScene(canvas, o) {
   const kite = { loop: -9 };
   const snowman = { x: 0, y: 0, t: -9 };
   const wave = { t: -9, depth: 0, auto: 0 }; // большая волна на песок
-  const strokes = []; // рисунок на песке: массивы точек
+  // рисунок на песке: штрихи — массивы точек { x, y, j }; j — «отсюда линия начинается заново» (палец уходил с песка
+  // или волна смыла кусок). Точки не реже чем через INK_STEP: быстрый росчерк мышью — всё равно сплошная линия
+  const strokes = [];
+  const INK_STEP = 6,
+    INK_MAX = 4000; // всего точек на песке — потом волна всё равно смоет
   let drawing = null,
-    lastDraw = -99;
+    lastDraw = -99,
+    inkV = 0; // меняется, когда меняется рисунок: art перерисовывает свой кэш
+
   const star = { t: -9, x: 0, y: 0, auto: rnd(16, 26) };
   const stars = [];
   const drops = []; // дождь, снег, лепестки, листья
@@ -127,6 +133,7 @@ export function createTitleScene(canvas, o) {
     }
     nuts.length = 0;
     strokes.length = 0;
+    inkV++;
     drops.length = 0;
     const n = Math.round(((W * H) / 9000) * (rain ? 1.1 : snow ? 0.8 : windy ? 0.28 : 0));
     for (let i = 0; i < Math.min(n, 220); i++) drops.push(newDrop(true));
@@ -311,9 +318,10 @@ export function createTitleScene(canvas, o) {
       return;
     }
     // песок: рисуем
-    drawing = [{ x, y }];
+    drawing = [{ x, y, j: 1 }];
     strokes.push(drawing);
-    grab = { kind: 'draw' };
+    inkV++;
+    grab = { kind: 'draw', x, y, off: false };
     lastDraw = T;
     note('draw');
   }
@@ -323,13 +331,37 @@ export function createTitleScene(canvas, o) {
       const dx = x - grab.x0;
       if (Math.abs(dx) > 8) grab.moved = true;
       if (grab.moved) grab.p.bend = clamp(grab.bend0 + dx / (grab.p.h * 0.6), -0.75, 0.75);
-    } else if (grab.kind === 'draw' && drawing) {
-      const q = drawing[drawing.length - 1];
-      if (Math.hypot(x - q.x, y - q.y) > 5 && y > shoreY(x, 0) + 18 * k && drawing.length < 400) {
-        drawing.push({ x, y });
-        lastDraw = T;
+    } else if (grab.kind === 'draw' && drawing) inkTo(x, y);
+  }
+  // ведём линию от прошлого положения пальца до нового: как бы быстро ни двигали, между событиями — отрезок,
+  // нарезанный на точки. Вне песка (вода, край экрана) линию не рисуем, а вернулись на песок — продолжаем
+  const onSand = (x, y) => x >= 0 && x <= W && y <= H - 2 && y > shoreY(x, 0) + 18 * k;
+  function inkTo(x, y) {
+    const g = grab,
+      dx = x - g.x,
+      dy = y - g.y;
+    const n = Math.max(1, Math.ceil(Math.hypot(dx, dy) / INK_STEP));
+    let total = 0;
+    for (const st of strokes) total += st.length;
+    for (let i = 1; i <= n && total < INK_MAX; i++) {
+      const px = g.x + (dx * i) / n,
+        py = g.y + (dy * i) / n;
+      if (!onSand(px, py)) {
+        g.off = true;
+        continue;
       }
+      const q = drawing[drawing.length - 1];
+      if (g.off || !q) {
+        drawing.push({ x: px, y: py, j: 1 });
+        g.off = false;
+      } else if (Math.hypot(px - q.x, py - q.y) >= INK_STEP * 0.7) drawing.push({ x: px, y: py, j: 0 });
+      else continue;
+      total++;
+      inkV++;
+      lastDraw = T;
     }
+    g.x = x;
+    g.y = y;
   }
   function up() {
     const g = grab;
@@ -412,8 +444,23 @@ export function createTitleScene(canvas, o) {
     // большая волна: смывает рисунок, хомячок отпрыгивает
     const sg = surge();
     if (sg > 0) {
-      for (const st of strokes)
-        for (let i = st.length - 1; i >= 0; i--) if (st[i].y < shoreY(st[i].x, sg) + 6 * k) st.splice(i, 1);
+      for (const st of strokes) {
+        // смытые точки убираем; линия после смытого куска начинается заново
+        let cut = false,
+          n = 0;
+        for (const q of st) {
+          if (q.y < shoreY(q.x, sg) + 6 * k) cut = true;
+          else {
+            if (cut) q.j = 1;
+            cut = false;
+            st[n++] = q;
+          }
+        }
+        if (n < st.length) {
+          st.length = n;
+          inkV++;
+        }
+      }
       for (let i = strokes.length - 1; i >= 0; i--)
         if (!strokes[i].length && strokes[i] !== drawing) strokes.splice(i, 1);
       if (ham.st !== 'hop' && sg > (ham.y - sy) * 0.66 && T - wave.t < 1) {
@@ -669,6 +716,9 @@ export function createTitleScene(canvas, o) {
     get hy() {
       return hy;
     },
+    get inkV() {
+      return inkV;
+    },
     get k() {
       return k;
     },
@@ -778,7 +828,10 @@ export function createTitleScene(canvas, o) {
     e.preventDefault();
   };
   const onMove = (e) => {
-    if (e.pointerId === pid) move(...pt(e));
+    if (e.pointerId !== pid) return;
+    // между кадрами браузер склеивает движения в одно событие — берём их все: так быстрый росчерк точнее
+    const all = grab && grab.kind === 'draw' && e.getCoalescedEvents ? e.getCoalescedEvents() : [];
+    for (const c of all.length ? all : [e]) move(...pt(c));
   };
   const onUp = (e) => {
     if (e.pointerId !== pid) return;
@@ -848,6 +901,11 @@ export function createTitleScene(canvas, o) {
         fly: { ...P(fly.x, fly.y), st: fly.st },
         dolphin: { on: dolphin.t >= 0, ...P(dolphin.x, hy + 14 * k) },
         drawn: strokes.reduce((n, st) => n + st.length, 0),
+        // сколько кусков у рисунка (линия начинается заново) и самый большой шаг между точками внутри куска
+        ink: strokes.map((st) => ({
+          pieces: st.filter((q) => q.j).length,
+          gap: Math.round(Math.max(0, ...st.map((q, i) => (i && !q.j ? Math.hypot(q.x - st[i - 1].x, q.y - st[i - 1].y) : 0)))), // prettier-ignore
+        })),
         jumps: jumps.length,
         wave: T - wave.t < 3.4,
         star: starShown,

@@ -580,29 +580,48 @@ export function createTitleArt(S) {
     S.ctx.stroke();
     S.ctx.restore();
   }
+  // рисунок на песке лежит в своём кэше: перерисовываем его, только когда он поменялся (S.inkV)
+  let ink = null,
+    inkV = -1;
   function drawStrokes() {
-    S.ctx.lineCap = 'round';
-    S.ctx.lineJoin = 'round';
-    for (const [col, lw, dy] of [
-      ['rgba(255,255,255,.55)', 7, 2],
-      ['rgba(150,100,45,.6)', 6, 0],
-    ]) {
-      // prettier-ignore
-      S.ctx.strokeStyle = col;
-      S.ctx.lineWidth = lw * Math.max(S.k, 0.7);
-      for (const st of S.strokes) {
-        if (!st.length) continue;
-        S.ctx.beginPath();
-        S.ctx.moveTo(st[0].x, st[0].y + dy);
-        for (let i = 1; i < st.length; i++) {
-          // точку смыло — дальше новая чёрточка
-          if (Math.hypot(st[i].x - st[i - 1].x, st[i].y - st[i - 1].y) > 30) S.ctx.moveTo(st[i].x, st[i].y + dy);
-          else S.ctx.lineTo(st[i].x, st[i].y + dy);
-        }
-        if (st.length === 1) S.ctx.lineTo(st[0].x + 0.1, st[0].y + dy);
-        S.ctx.stroke();
+    if (!S.strokes.length) return;
+    if (!ink || ink.width !== S.canvas.width || ink.height !== S.canvas.height) {
+      ink = document.createElement('canvas');
+      ink.width = S.canvas.width;
+      ink.height = S.canvas.height;
+      inkV = -1;
+    }
+    if (inkV !== S.inkV) {
+      inkV = S.inkV;
+      const c = ink.getContext('2d');
+      c.setTransform(1, 0, 0, 1, 0, 0);
+      c.clearRect(0, 0, ink.width, ink.height);
+      c.setTransform(S.dpr, 0, 0, S.dpr, 0, 0);
+      c.lineCap = 'round';
+      c.lineJoin = 'round';
+      for (const [col, lw, dy] of [
+        ['rgba(255,255,255,.55)', 7, 2],
+        ['rgba(150,100,45,.6)', 6, 0],
+      ]) {
+        c.strokeStyle = col;
+        c.lineWidth = lw * Math.max(S.k, 0.7);
+        c.beginPath();
+        for (const st of S.strokes)
+          for (let i = 0; i < st.length; i++) {
+            const q = st[i];
+            if (q.j || !i) {
+              // линия начинается заново (с песка уходили или волна смыла кусок); одна точка — тоже видна
+              c.moveTo(q.x, q.y + dy);
+              if (!st[i + 1] || st[i + 1].j) c.lineTo(q.x + 0.1, q.y + dy);
+            } else c.lineTo(q.x, q.y + dy);
+          }
+        c.stroke();
       }
     }
+    S.ctx.save();
+    S.ctx.setTransform(1, 0, 0, 1, 0, 0);
+    S.ctx.drawImage(ink, 0, 0);
+    S.ctx.restore();
   }
   function drawHam() {
     const s = S.ham.s,

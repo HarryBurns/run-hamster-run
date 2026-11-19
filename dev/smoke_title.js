@@ -487,6 +487,51 @@ module.exports = async function title(ctx) {
     },
   );
 
+  await step(
+    'заставка: быстрый росчерк по песку — сплошная линия мышью и пальцем; с воды обрывается, на песке продолжается',
+    async () => {
+      await put(null);
+      await wait(400);
+      let d = await dbg();
+      const s = d.sand,
+        w = d.free.w,
+        amp = Math.min(40 * d.k, (s.y - d.shore.y) * 0.45);
+      // зигзаг большими шагами: одно событие на шаг, как когда ребёнок дёргает мышку. Начало — там, где на песке
+      // никого нет (точка sand)
+      const zigFrom = (s) => [s].concat([1, 2, 3, 4, 5, 6, 7, 8].map((i) => ({ x: s.x - w * 0.2 + i * w * 0.04, y: s.y + (i % 2 ? -amp : amp) }))); // prettier-ignore
+      let zig = zigFrom(s);
+      const last = (st) => (st.ink.length ? st.ink[st.ink.length - 1] : {});
+      await page.mouse.move(zig[0].x, zig[0].y);
+      await page.mouse.down();
+      for (const p of zig.slice(1)) await page.mouse.move(p.x, p.y, { steps: 1 });
+      d = await dbg();
+      const len = zig.reduce((n, p, i) => n + (i ? Math.hypot(p.x - zig[i - 1].x, p.y - zig[i - 1].y) : 0), 0);
+      expect(last(d).pieces === 1 && last(d).gap <= 9, 'быстрый зигзаг мышью порвался', last(d));
+      expect(d.drawn > len / 10, 'в быстром зигзаге мало точек', { drawn: d.drawn, len });
+      // в море — линия обрывается; обратно на песок — тот же штрих продолжается
+      await page.mouse.move(d.sea.x, d.sea.y, { steps: 1 });
+      await page.mouse.move(s.x + w * 0.15, s.y, { steps: 1 });
+      await page.mouse.move(s.x + w * 0.2, s.y + amp, { steps: 1 });
+      await page.mouse.up();
+      d = await dbg();
+      expect(d.ink.length === 1 && last(d).pieces === 2 && last(d).gap <= 9, 'с воды на песок — не так', d.ink);
+      // пальцем: те же быстрые рывки событиями касания
+      zig = zigFrom((await dbg()).sand);
+      await ev((zig) => {
+        const c = document.querySelector('#title .t-scene');
+        const o = (p) => ({ pointerId: 5, pointerType: 'touch', clientX: p.x, clientY: p.y, bubbles: true, isPrimary: true, buttons: 1 }); // prettier-ignore
+        c.dispatchEvent(new PointerEvent('pointerdown', o(zig[0])));
+        for (const p of zig.slice(1)) c.dispatchEvent(new PointerEvent('pointermove', o(p)));
+        c.dispatchEvent(new PointerEvent('pointerup', o(zig[zig.length - 1])));
+      }, zig);
+      d = await dbg();
+      expect(d.ink.length === 2 && last(d).pieces === 1 && last(d).gap <= 9, 'быстрый зигзаг пальцем порвался', d.ink);
+      // рисунок полежал — волна смывает и его
+      await until(() => window.__dev.title.debug().drawn === 0, null, { timeout: 14000, msg: 'волна смыла рисунок' });
+      noErrors();
+    },
+  );
+
   await step('заставка: ночью — одна падающая звезда за запуск; касание пальцем работает как мышь', async () => {
     await put(sample((s) => Object.assign(s, { minutes: 22 * 60 + 30, weather: 'sun', day: 16 })));
     await wait(400);
