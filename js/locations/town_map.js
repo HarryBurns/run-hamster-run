@@ -399,7 +399,8 @@ function westYards(k) {
 function park(k) {
   const { keep, put1 } = k;
   // ---- парк ----
-  put1('signpost', 41, 29, { text: '🌳 Парк', here: true }); // табличка «здесь»: вход в парк
+  // табличка «здесь» у входа в парк — сбоку дорожки (x 40): проход в парк в две клетки свободен
+  put1('signpost', 42, 29, { text: '🌳 Парк', here: true });
   put1('lamp', 39, 30);
   put1('lamp', 33, 37);
   put1('lamp', 47, 39);

@@ -335,6 +335,8 @@ export function toggleLamp() {
 }
 
 const gloomLights = [];
+let signs = [],
+  signsOf = null; // указатели пещеры (светятся в темноте) и карта, с которой их собрали
 const caves = createTopDownScene({
   id: 'caves', // имя сцены лежит в сохранениях: { scene: 'caves', x, y } — не менять
   title: 'Карта пещер',
@@ -434,6 +436,9 @@ const caves = createTopDownScene({
       if (shroomOn(i)) gloomLights.push([(x + 0.5) * T, (y + 0.4) * T, 70, 60, 1]);
     });
     if (pickHidden()) gloomLights.push([(AT.pick[0] + 0.5) * T, (AT.pick[1] + 0.5) * T, 34, 30, 0.5]);
+    // указатели написаны светящейся краской: доски чуть видны и без фонарика (слабое пятно, темнота остаётся)
+    if (signsOf !== sc.map) [signsOf, signs] = [sc.map, sc.map.objs.filter((o) => o.type === 'signpost')];
+    for (const o of signs) gloomLights.push([o.x, o.y - 47, 96, 34, 0.42]);
     return {
       tint: [10, 8, 26, 0.9],
       hero: on ? [310, 270, 1] : [100, 88, 0.95],
