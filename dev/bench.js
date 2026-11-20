@@ -17,7 +17,8 @@
 //                           hlobby, hrooms, hroof — курортный отель (П.17, сцена движка домов): холл с ресепшеном,
 //                           коридор номеров, бассейн с горкой на крыше — для них x — точка на этаже, y — этаж;
 //                           villa — первый этаж виллы, для сравнения с отелем)
-//   --seasons=winter,summer зима со снегом и лето без осадков
+//   --seasons=winter,summer зима со снегом и лето без осадков; ещё rain, downpour, storm, blizzard — дождик, ливень,
+//                           гроза и метель
 //   --sec=4                 сколько секунд идёт один замер
 //   --minutes=1320          время суток в минутах (720 — полдень; 1320 — ночь со светом фонарей и окон)
 //   --day=35                день игры вместо дня сезона (праздники, П.13: 35 — Новый год с ёлкой и фейерверком ночью,
@@ -119,7 +120,15 @@ const sizes = opt('sizes', 'desktop,phone').split(','),
   ).split(',');
 const seasons = opt('seasons', 'winter,summer').split(',');
 // лето — 3 июля (день 20): 1 июля (день 18) — Иван Купала с костром на пляже, его меряют отдельно (--day=18)
-const SEASON = { winter: { day: 0, weather: 'snow' }, summer: { day: 20, weather: 'sun' } };
+// погода («Погода по всему миру»): rain — летний дождик, downpour — ливень, storm — гроза, blizzard — метель
+const SEASON = {
+  winter: { day: 0, weather: 'snow' },
+  summer: { day: 20, weather: 'sun' },
+  rain: { day: 20, weather: 'rain' },
+  downpour: { day: 20, weather: 'rain', strong: 'rain2' },
+  storm: { day: 20, weather: 'rain', strong: 'rain3' },
+  blizzard: { day: 0, weather: 'snow', strong: 'snow2' },
+};
 
 (async () => {
   const browser = await chromium.launch();
@@ -226,6 +235,7 @@ const SEASON = { winter: { day: 0, weather: 'snow' }, summer: { day: 20, weather
             st.day = day !== null ? +day : s.day;
             st.dayFlags = {};
             st.weather = s.weather;
+            st.wxStrong = s.strong || '';
             st.minutes = minutes;
             if (d.locations[where]) {
               if (d.sceneName !== where) d.go(where);

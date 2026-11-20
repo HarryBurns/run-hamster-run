@@ -69,7 +69,9 @@ export function updateSound() {
   const wx = sc.wx ? sc.wx() : weatherNow(),
     rain = wx.kind === 'rain',
     hard = rain && wx.force >= 2 ? 1.5 : 1;
-  thunder(rain && wx.force >= 3, sc.wx ? 1 : 0.45);
+  // гром: на улице — в полную (тихую) силу, в доме — глуше, под землёй (локация без неба) не слышен
+  const under = !!sc.wx && sc.desc && sc.desc.sky === false;
+  thunder(rain && wx.force >= 3 && !under, sc.wx ? 1 : 0.45);
   setAmbience({
     sea: mg ? 0 : s.sea || 0,
     rain: rain && !mg ? Math.min(1, (s.rain === undefined ? 0.3 : s.rain) * hard) : 0,
