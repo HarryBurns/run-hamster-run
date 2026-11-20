@@ -22,7 +22,7 @@ import { ell, emoji } from '../core/draw.js';
 import { sfx } from '../core/audio.js';
 import { seeded } from '../core/util.js';
 import { HOLIDAY_BY_ID, HOLIDAY, HOME_BY_ID, decorOn, holidayOffset, holidayOn, holidayYear } from '../data/index.js';
-import { T, SP, put, defineTiles, TILES } from '../engine/topdown/kinds.js';
+import { T, SP, put, defineTiles, defineObjects, TILES } from '../engine/topdown/kinds.js';
 import { houseGeom } from './common/buildings.js';
 import { FIR_BULBS, FIR_SCALE, MAY_BEDS, STREAK_DIRS, paintString } from './holidays_art.js';
 import { createCrowd } from './holidays_crowd.js';
@@ -82,6 +82,16 @@ const STRINGS = (() => {
 // Предметы праздника: [вид рисунка, x, y (точка основания в клетках), параметр рисунка]. Параметр-функция — считается
 // каждый кадр (наряжена ли ёлка, кадр мигания).
 const blink = (n, speed = 2) => Math.floor(G.time * speed) % n;
+/**
+ * Ледяная горка у катка (Новый год, В4): с неё съезжают, как с горки на детской площадке, — отдых «горка»
+ * (features/relax.js: relaxAt(sc, ICE_SLIDE)). ICE_SLIDE — «предмет» для отдыха (на карте его нет: рисует украшение
+ * hIceSlide в той же точке, середина клетки 51, 33), вид iceSlide знает место: сверху по жёлобу вниз, встаёт хомячок
+ * на клетку 52, 34 (ICE_SPOT — как seat.spots у горки площадки: та же кривая жёлоба).
+ */
+const ICE_SPOT = [-13, -46, 42, 31];
+export const ICE_SLIDE = { type: 'iceSlide', x: 51.5 * T, y: 33.5 * T };
+defineObjects({ iceSlide: { seat: { how: 'slide', spots: [ICE_SPOT] } } });
+
 export const DECOR = {
   newyear: {
     things: [
@@ -100,6 +110,8 @@ export const DECOR = {
       ['hSnowman', 11.5, 13, 2],
       // каток на замёрзшем пруду в парке (этап 15): табличка и снеговик у дорожки
       ['hPostSign', 47.5, 35.2, '⛸️ Каток'],
+      // ледяная горка рядом с катком (В4): съехать — как с горки на площадке (features/relax.js)
+      ['hIceSlide', ICE_SLIDE.x / T, ICE_SLIDE.y / T],
     ],
     strings: 'ny',
     fireworks: true,
@@ -194,6 +206,9 @@ const BLOCK = [
   [47, 24, 'newyear'],
   [34, 32, 'newyear'],
   [11, 12, 'newyear'],
+  [50, 33, 'newyear'], // ледяная горка у катка
+  [51, 33, 'newyear'],
+  [52, 33, 'newyear'],
   [53, 22, 'xmas'],
   [54, 22, 'xmas'],
   [47, 52, 'cny'], // столик с фонариками на пляже
@@ -359,6 +374,17 @@ export const HOLIDAY_PLACES = [
     reach: 2,
     when: () => decorNow('halloween'),
     act: 'holiday:pumpkins',
+  },
+  // ледяная горка у катка (Новый год, В4): съехать с неё (отдых «горка» — features/relax.js)
+  {
+    id: 'iceslide',
+    at: [51, 33],
+    hit: { dx: 54, up: 84, down: 22 },
+    stand: [(ICE_SLIDE.x + ICE_SPOT[2]) / T, (ICE_SLIDE.y + ICE_SPOT[3]) / T],
+    mark: [51, 31.6],
+    reach: 1.6,
+    when: () => decorNow('newyear'),
+    act: 'holiday:iceslide',
   },
   // каток на замёрзшем пруду в парке (Новый год, этап 15): прокатиться на коньках
   {

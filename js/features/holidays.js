@@ -350,7 +350,7 @@ register(
     if (fn) return fn(p, ctx);
     console.error('Неизвестное праздничное действие: holiday:' + p.arg);
   },
-  'праздники (П.13): holiday:<что> — tree, crib, lanterns, envelope, dragon, carousel, effigy, blini, tug (features/holidays_winter.js); plant, parade, wreath, bonfire, splash, pumpkins, ghost (features/holidays_summer.js); cake (features/holidays_bday.js)',
+  'праздники (П.13): holiday:<что> — tree, iceslide, crib, lanterns, envelope, dragon, carousel, effigy, blini, tug (features/holidays_winter.js); plant, parade, wreath, bonfire, splash, pumpkins, ghost (features/holidays_summer.js); cake (features/holidays_bday.js)',
 );
 
 // ---------- звёздочка-указатель ----------

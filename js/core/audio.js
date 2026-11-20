@@ -402,6 +402,12 @@ const SOUNDS = {
     tone(90, 0, 0.25, 'sine', 0.05, 50);
     [1568, 2093, 1760, 2637].forEach((f, i) => tone(f, 0.14 + i * 0.05, 0.12, 'sine', 0.02));
   },
+  // салют издалека (с площадки Хомяк-Тауэра и в подзорную трубу, В4): тихий глухой хлопок и чуть слышные искры
+  boomFar: () => {
+    noise(0, 0.35, 0.022, 200, 'lowpass');
+    tone(70, 0, 0.22, 'sine', 0.022, 42);
+    [1568, 2093, 1760].forEach((f, i) => tone(f, 0.2 + i * 0.06, 0.1, 'sine', 0.007));
+  },
   thud: () => {
     tone(160, 0, 0.09, 'triangle', 0.08, 90);
     noise(0, 0.06, 0.04, 900, 'lowpass');
@@ -447,7 +453,12 @@ export function playNote(midi, inst = 'piano') {
   }
 }
 
+/** Последние звуки, которые игра просила сыграть (для автотеста: debugHeard()). */
+const heard = [];
+export const debugHeard = () => heard.slice();
 export function sfx(name, arg) {
+  heard.push(name);
+  if (heard.length > 40) heard.shift();
   if (muted || document.hidden) return; // отложенный звук не должен будить звук в фоновой вкладке
   if (!ac || ac.state !== 'running') {
     if (ac) ac.resume();

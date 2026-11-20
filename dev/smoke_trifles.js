@@ -1,5 +1,6 @@
 // Шаги автотеста «Мелочи» (пачка 20 ноября): полезный компас (О5) — стрелка к цели задания журнала, к дороге
-// в другое место, на кораблике без цели — на юг, к острову, без цели — на север.
+// в другое место, на кораблике без цели — на юг, к острову, без цели — на север; салют с башни и в подзорную
+// трубу с тихими хлопками (В4); ледяная горка у катка на Новый год (В4).
 // Подключается из dev/smoke.js. Только эти шаги:  node dev/smoke.js <url> step:мелочи
 const lib = require('./lib.js');
 
@@ -121,4 +122,82 @@ module.exports = async function trifles(ctx) {
       expect(/на юг — к острову/.test(r.text), 'на кораблике без цели — не «на юг»', r);
     },
   );
+
+  /** Праздник id: день его, minutes, перейти в scene. */
+  const toHoliday = async (id, minutes, scene) => {
+    await closeAll();
+    await ev(
+      ([id, minutes, scene]) => {
+        const d = window.__dev;
+        d.holiday.to(id, 'day', 1, minutes);
+        d.go(scene);
+      },
+      [id, minutes, scene],
+    );
+    await wait(500);
+    await closeAll();
+  };
+  const booms = () => ev(() => window.__dev.Audio.debugHeard().filter((n) => n === 'boomFar').length);
+
+  await step(
+    'мелочи: салют с площадки Хомяк-Тауэра и в подзорную трубу — с тихими хлопками, днём — тишина',
+    async () => {
+      await L.fresh();
+      await toHoliday('newyear', 21 * 60 + 30, 'tower');
+      await ev(() => window.__dev.Tower.debugDeck());
+      let b0 = await booms();
+      await wait(3500); // залпы — по 0,42 в секунду у каждого из четырёх
+      expect((await booms()) > b0, 'на площадке салют без хлопков');
+      // подзорная труба «город»: картинка живая, хлопки идут и при открытом окне (мир на паузе)
+      await ev(() => {
+        window.__dev.run('panorama');
+      });
+      await untilPanel();
+      b0 = await booms();
+      await wait(3500);
+      expect((await booms()) > b0, 'в подзорной трубе салют без хлопков');
+      await closeAll();
+      // днём салюта нет — и хлопков нет
+      await toHoliday('newyear', 12 * 60, 'tower');
+      await ev(() => window.__dev.Tower.debugDeck());
+      b0 = await booms();
+      await wait(2500);
+      expect((await booms()) === b0, 'днём на площадке хлопает салют');
+    },
+  );
+
+  await step('мелочи: ледяная горка у катка на Новый год — хомячок съезжает и встаёт внизу', async () => {
+    await L.fresh();
+    await toHoliday('newyear', 12 * 60, 'world');
+    const W = await ev(() => {
+      const d = window.__dev,
+        m = d.World.map;
+      return { free: m.foot(52, 34), blocked: !m.foot(51, 33) };
+    });
+    expect(W.free && W.blocked, 'горка: клетки под ней и место внизу', W);
+    await ev(() => window.__dev.locations.world.debugTeleport(52, 36));
+    await frames(3);
+    // нажать на горку на экране
+    const p = await ev(() => window.__dev.World.debugScreen(51.5 * 48, 33.5 * 48 - 30));
+    await L.page.mouse.click(p.x, p.y);
+    let r = null;
+    const t0 = Date.now();
+    while (Date.now() - t0 < 6000) {
+      r = await ev(() => window.__dev.F.relaxNow());
+      if (r && r.type === 'iceSlide') break;
+      await wait(120);
+    }
+    expect(r && r.type === 'iceSlide' && r.how === 'slide', 'с ледяной горки не съехала', r);
+    await L.until(() => window.__dev.F.relaxNow() === null, undefined, { timeout: 4000 });
+    const s = await L.state();
+    const at = await ev(() => {
+      const q = window.__dev.World.p;
+      return { tx: Math.floor(q.x / 48), ty: Math.floor(q.y / 48), ride: !!q.ride };
+    });
+    expect(at.tx === 52 && at.ty === 34 && !at.ride, 'внизу горки хомячок стоит не там', at);
+    expect((s.dayFlags.holiday || {}).iceSlide === 1, 'первая горка за день не отмечена', s.dayFlags);
+    // в обычный день горки нет
+    await toHoliday('mayday', 12 * 60, 'world');
+    expect(await ev(() => window.__dev.World.map.foot(51, 33)), 'горка осталась после Нового года');
+  });
 };

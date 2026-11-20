@@ -1162,6 +1162,64 @@ function paintXmasPost(ctx, frame) {
   poly(ctx, [-14, -104, 0, -114, 14, -104], '#c92a2a', OUT, 1.6);
   star(ctx, 0, -120, 7, GOLD, OUT, 1.4);
 }
+/**
+ * Ледяная горка в парке у катка (Новый год, В4): снежный холм со ступеньками, площадка и ледяной жёлоб. Жёлоб — той же
+ * кривой, что у горки на детской площадке (common/props.js): по ней съезжает отдыхающая хомячок (features/relax_art.js).
+ */
+function paintIceSlide(ctx) {
+  shadow(ctx, 2, 16, 52, 7);
+  // снежный холм под горкой и ступеньки, вырезанные в снегу
+  ctx.beginPath();
+  ctx.moveTo(-50, 16);
+  ctx.quadraticCurveTo(-46, -30, -26, -44);
+  ctx.lineTo(-2, -44);
+  ctx.quadraticCurveTo(18, -14, 30, 16);
+  ctx.closePath();
+  ctx.fillStyle = '#f4faff';
+  ctx.fill();
+  ctx.strokeStyle = OUT;
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  ell(ctx, -18, -2, 16, 18, 'rgba(160,190,225,.3)');
+  for (let i = 0; i < 4; i++) {
+    const y = 8 - i * 13,
+      x = -44 + i * 5;
+    fillRR(ctx, x, y - 4, 14, 6, 2, '#dbe9f7', 'rgba(74,55,40,.55)', 1.2);
+  }
+  // площадка с бортиком изо льда
+  fillRR(ctx, -26, -50, 26, 7, 3, '#d0ebff', OUT, 1.8);
+  for (const x of [-24, -4]) fillRR(ctx, x - 2, -62, 4, 13, 2, '#a5d8ff', OUT, 1.4);
+  line(ctx, -24, -61, -4, -61, OUT, 4);
+  line(ctx, -24, -61, -4, -61, '#e7f5ff', 2);
+  snowCap(ctx, -14, -63, 24, 4);
+  // ледяной жёлоб (кривая — как у горки площадки)
+  ctx.beginPath();
+  ctx.moveTo(-6, -46);
+  ctx.quadraticCurveTo(14, -40, 22, -4);
+  ctx.quadraticCurveTo(26, 10, 40, 10);
+  ctx.lineTo(40, 17);
+  ctx.quadraticCurveTo(18, 19, 12, 0);
+  ctx.quadraticCurveTo(6, -30, -6, -38);
+  ctx.closePath();
+  ctx.fillStyle = '#a5d8ff';
+  ctx.fill();
+  ctx.strokeStyle = OUT;
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  // блики на льду и сосульки под жёлобом
+  line(ctx, -2, -42, 17, -10, 'rgba(255,255,255,.85)', 2.4);
+  line(ctx, 22, 4, 34, 11, 'rgba(255,255,255,.7)', 1.8);
+  for (const [x, y, l] of [
+    [10, -1, 7],
+    [16, 9, 5],
+    [6, -14, 6],
+  ])
+    poly(ctx, [x - 2, y, x + 2, y, x, y + l], '#e7f5ff', 'rgba(74,55,40,.5)', 0.8);
+  // снежок на холме и флажок
+  ell(ctx, -36, -18, 6, 3, '#fff');
+  line(ctx, -26, -50, -26, -76, OUT, 2);
+  poly(ctx, [-26, -76, -12, -71, -26, -66], '#ff6b6b', OUT, 1.2);
+}
 /** Столбик с двумя красными фонариками (Китайский Новый год). */
 function paintLanternPost(ctx) {
   shadow(ctx, 0, 3, 18, 5);
@@ -1178,6 +1236,7 @@ defineArt({
   hXmasPost: [[-30, -132, 30, 8], (ctx, f) => paintXmasPost(ctx, f || 0)],
   hLanternPost: [[-40, -100, 40, 8], (ctx) => paintLanternPost(ctx)],
   hPostSign: [[-70, -78, 70, 8], (ctx, text) => paintPostSign(ctx, text || '')],
+  hIceSlide: [[-56, -82, 46, 26], (ctx) => paintIceSlide(ctx)],
   hDrops: [[-30, -42, 30, 8], (ctx, f) => paintDrops(ctx, f || 0)],
   hPuddle: [[-36, -14, 36, 14], (ctx, v) => paintPuddle(ctx, v || 0)],
   hFloatWreath: [[-34, -24, 34, 16], (ctx, f) => paintFloatWreath(ctx, f || 0)],

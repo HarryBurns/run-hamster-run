@@ -22,6 +22,7 @@ import {
   viewSky,
   renderViewLayer,
   paintViewLive,
+  fireworksPops,
   cloud,
 } from './tower_view.js';
 import { drawLight } from '../engine/side/light.js';
@@ -389,6 +390,7 @@ export function update(dt) {
   const p = S.p;
   layout();
   if (p.happy > 0) p.happy -= dt;
+  if (S.level === 'deck') fireworksPops(G.time); // новогодний салют над городом — с тихими хлопками (В4)
   if (S.level === 'ride') {
     const r = S.ride;
     r.t += dt;

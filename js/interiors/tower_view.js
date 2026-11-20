@@ -16,6 +16,7 @@ import { clamp, TAU } from '../core/util.js';
 import { ell, fillRR, line, poly, mix, shade } from '../core/draw.js';
 import { G, darkness } from '../core/state.js';
 import { holidayOn } from '../data/index.js';
+import { sfx } from '../core/audio.js';
 
 export const VIEW_H = 600;
 const HZ = 152, // линия горизонта
@@ -862,6 +863,23 @@ export function viewFireworks() {
   return !!h && h.id === 'newyear' && darkness() > 0.3;
 }
 const FW = ['#ff6b6b', '#ffd43b', '#69db7c', '#4dabf7', '#da77f2', '#ff922b'];
+const FW_N = 4, // залпов одновременно (paintFireworks)
+  FW_RATE = 0.42; // залпов в секунду у каждого
+const popped = Array(FW_N).fill(-9);
+/**
+ * Хлопки салюта (В4): каждый залп paintFireworks раскрывается с тихим «бум» издалека. Зовут шаг площадки башни
+ * (interiors/tower.js) и окно подзорной трубы «город» (features/panorama.js), t — то же время, что у картинки.
+ */
+export function fireworksPops(t) {
+  if (!viewFireworks()) return;
+  for (let i = 0; i < FW_N; i++) {
+    const u = t * FW_RATE + i / FW_N,
+      n = Math.floor(u);
+    if (u - n < 0.2 || popped[i] === n) continue;
+    if (n - popped[i] === 1) sfx('boomFar'); // после перерыва (ушла с площадки) — без пачки хлопков сразу
+    popped[i] = n;
+  }
+}
 /**
  * Салют с площадки башни и в подзорную трубу (Пр7, Пр22): залпы над городом у горизонта — шары искр раскрываются,
  * падают и гаснут; ракета-точка взлетает снизу. Залпы считаются от времени (без состояния), режим lighter.
@@ -869,8 +887,8 @@ const FW = ['#ff6b6b', '#ffd43b', '#69db7c', '#4dabf7', '#da77f2', '#ff922b'];
 function paintFireworks(ctx, L, t) {
   ctx.save();
   ctx.globalCompositeOperation = 'lighter';
-  for (let i = 0; i < 4; i++) {
-    const u = t * 0.42 + i / 4,
+  for (let i = 0; i < FW_N; i++) {
+    const u = t * FW_RATE + i / FW_N,
       n = Math.floor(u),
       q = u % 1,
       seed = (n * 7 + i * 13) % 17,

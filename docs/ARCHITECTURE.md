@@ -2172,8 +2172,12 @@ dev/smoke_holidays.js        автотест (step:праздники);  dev/ba
                                 столик с фонариками — на пляже; венки на воде (Купала), лужицы и капельки после «Водяной битвы»
                                 (dayFlags.holiday.wet / wetWho, HOLIDAY.wet минут), клумбы субботника после праздника (bedKept: клетка
                                 закрыта, пока цветёт — номер клумбы в BLOCK), игрушки из «Нарядим ёлку!» на большой ёлке
-                                (dayFlags.holiday.treeToys — строка treeLayout из minigames/tree.js), салют на мини-карте
-  js/interiors/tower_view.js    viewFireworks(), салют в слое неба панорамы — с площадки Хомяк-Тауэра и в подзорную трубу
+                                (dayFlags.holiday.treeToys — строка treeLayout из minigames/tree.js), салют на мини-карте;
+                                ледяная горка у катка (В4): украшение hIceSlide + место iceslide; съезжают отдыхом «горка»
+                                (relaxAt(sc, ICE_SLIDE) из features/holidays_winter.js; вид iceSlide — только seat, жёлоб той же
+                                кривой, что у горки площадки)
+  js/interiors/tower_view.js    viewFireworks(), салют в слое неба панорамы — с площадки Хомяк-Тауэра и в подзорную трубу;
+                                fireworksPops(t) — тихий хлопок boomFar на каждый залп (шаг площадки и живое окно трубы «город»)
   js/features/holidays_scenes.js  doorRound: talkBtn — колядки и «сладость или гадость» и из разговора с хозяином у двери (Пр5)
   js/art/furniture_fest.js      рисунки праздничной полки (мебель shop: 'fest', поле fest — праздник; вкладка «К празднику» — shops.js)
   dev/smoke_holidays_wide.js    автотест: node dev/smoke.js <url> "step:праздники 15"; __dev.holiday.dress / lands / rooms /

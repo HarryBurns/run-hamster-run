@@ -3,6 +3,7 @@
 // data/holidays.js; украшения и места в городе — locations/holidays.js. Здесь — сами занятия:
 //   holiday:tree       большая ёлка на площади: нарядить — мини-игра «Нарядим ёлку!» (minigames/tree.js) — Новый год
 //   (разговор)         подарить другу новогодний подарок (talkHooks через holidayTalk)              — Новый год
+//   holiday:iceslide   ледяная горка у катка: съехать (отдых «горка», features/relax.js)              — Новый год
 //   holiday:crib       домик-вертеп со звездой: посмотреть                                          — Рождество
 //   (дверь домика)     колядки вечером (HOLIDAY.carols): спеть у двери (сценка) — хозяин угощает (holidayDoor) — Рождество
 //   holiday:lanterns   столик с небесными фонариками: запустить три фонарика (сценка)               — Китайский Новый год
@@ -28,6 +29,8 @@ import { toast } from '../ui/toast.js';
 import { addPts } from './friends.js';
 import { openCooking } from './cooking.js';
 import { playMinigame } from './minigames.js';
+import { relaxAt } from './relax.js';
+import { ICE_SLIDE } from '../locations/holidays.js';
 import { holidayActs, holidayTalk, holidayStep, stepDoneFor, stepWanted } from './holidays.js';
 import { tapScene, playScene, doorRound, holidayPrize, holidaySay as say } from './holidays_scenes.js';
 import { paintRink, paintCarol, paintLanterns, paintCarousel } from './holidays_scenes_art.js';
@@ -100,6 +103,17 @@ async function rink() {
     pick(['⛸️ Как здорово кататься с друзьями! Щёчки румяные!', '⛸️ Ух! Ни разу не упала! С Новым годом!']),
     'good',
   );
+}
+
+/** Ледяная горка у катка (В4): съехать по жёлобу — отдых «горка» (features/relax.js), как на детской площадке. */
+function iceSlide(p, ctx) {
+  const sc = ctx && ctx.scene;
+  if (!sc || !relaxAt(sc, ICE_SLIDE)) return;
+  emit('holiday', { id: 'newyear', what: 'iceslide' });
+  if (!(S().dayFlags.holiday || {}).iceSlide) {
+    setDayFlag('iceSlide', 1, 'holiday');
+    toast('🛷 Вж-ж-жух — с ледяной горки! Нажми ещё раз — и снова наверх!', 'good');
+  }
 }
 
 // ==================== РОЖДЕСТВО ====================
@@ -265,6 +279,7 @@ function tug() {
 holidayActs({
   tree: () => trimTree(),
   rink: () => rink(),
+  iceslide: (p, ctx) => iceSlide(p, ctx),
   crib: () => crib(),
   lanterns: () => skyLanterns(),
   envelope: (p, ctx) => envelope(p, ctx),
