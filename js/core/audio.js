@@ -313,6 +313,43 @@ const SOUNDS = {
   },
   tick: () => tone(1200, 0, 0.03, 'sine', 0.04),
   whistle: () => tone(1400, 0, 0.3, 'sine', 0.08, 1900),
+  // самолётик на заставке: мягкое «ж-ж-ж» мотора — низкий тон за фильтром (без резких высоких), пропеллер чуть
+  // дрожит громкостью; пролетает — звук плавно нарастает, стихает и немного опускается
+  plane: () => {
+    const a = ac;
+    if (!a) return;
+    const t = a.currentTime,
+      dur = 1.4;
+    const o = a.createOscillator(),
+      lfo = a.createOscillator(),
+      depth = a.createGain(),
+      am = a.createGain(),
+      f = a.createBiquadFilter(),
+      g = a.createGain();
+    o.type = 'sawtooth';
+    o.frequency.setValueAtTime(150, t);
+    o.frequency.linearRampToValueAtTime(126, t + dur);
+    lfo.frequency.value = 22;
+    depth.gain.value = 0.35;
+    am.gain.value = 0.65;
+    f.type = 'lowpass';
+    f.frequency.value = 480;
+    f.Q.value = 0.4;
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(0.07, t + 0.3);
+    g.gain.setValueAtTime(0.07, t + dur - 0.6);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    lfo.connect(depth);
+    depth.connect(am.gain);
+    o.connect(am);
+    am.connect(f);
+    f.connect(g);
+    g.connect(softBus);
+    o.start(t);
+    lfo.start(t);
+    o.stop(t + dur + 0.05);
+    lfo.stop(t + dur + 0.05);
+  },
   bubble: () => tone(300 + Math.random() * 400, 0, 0.12, 'sine', 0.06, 900),
   note: (f = 440) => {
     tone(f, 0, 0.5, 'triangle', 0.12);

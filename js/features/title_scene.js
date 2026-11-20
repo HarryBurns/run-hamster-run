@@ -164,10 +164,12 @@ export function createTitleScene(canvas, o) {
     const band = bot - sy;
     const at = (fx, fy) => [F.x + F.w * fx, sy + band * fy];
     [ham.x, ham.y] = at(0.5, 0.66);
-    for (const p of palms) {
-      [p.x, p.y] = at(p.fx, p.fy);
-      p.h = Math.min(300 * k * p.size, p.y - F.y - 30 * k);
-    }
+    // узкий экран стоя (телефон): пальмы чуть ниже и ближе к краям — между кронами виден остров с маяком
+    const narrow = F.w < 600 && F.h > F.w * 1.1;
+    palms.forEach((p, i) => {
+      [p.x, p.y] = at(narrow ? [0.07, 0.94][i] : p.fx, p.fy);
+      p.h = Math.min(300 * k * p.size, p.y - F.y - 30 * k, narrow ? F.w * 0.56 * p.size : 1e9);
+    });
     [crab.hx, crab.hy] = at(0.74, 0.8);
     if (crab.st === 'walk') [crab.x, crab.y] = [crab.hx - 40 * k, crab.hy + 4 * k];
     [gull.hx, gull.hy] = at(0.68, 0.2);
@@ -175,9 +177,9 @@ export function createTitleScene(canvas, o) {
     if (shell.st === 'sand') [shell.x, shell.y] = at(0.27, 0.84);
     [snowman.x, snowman.y] = at(0.31, 0.42);
     isle.s = Math.min(k, (F.w * 0.3) / 240);
-    isle.x = F.x + F.w * 0.43;
-    tower.s = Math.min(k, (F.w * 0.3) / 240);
-    tower.x = F.x + F.w * 0.64;
+    isle.x = F.x + F.w * (narrow ? 0.49 : 0.43);
+    tower.s = Math.min(k, Math.max((F.w * 0.3) / 240, narrow ? 0.64 : 0)); // на телефоне маяк не мельче пальца
+    tower.x = F.x + F.w * (narrow ? 0.67 : 0.64);
     for (const c of clouds) {
       c.x = W * c.fx;
       c.y = lerp(F.y + 26 * k, hy - 46 * k, c.fy);
@@ -391,6 +393,33 @@ export function createTitleScene(canvas, o) {
     for (const sh of fleet) if (sh.lane === 'near' && onShip(sh, x, y, R)) return shipTap(sh);
     // рядом с бабочкой, а под пальцем — небо, море или песок: всё же бабочке
     if (flyNear(R * 1.2)) return flyTap();
+    // горизонт: корабль — перед островом и маяком, а они — перед облаками (облака проплывают позади, drawFar).
+    // Точно по кораблю — ему; по маяку или острову — им, даже если рядом корабль или позади облако
+    for (const sh of fleet) if (sh.lane === 'far' && onShip(sh, x, y, 0)) return shipTap(sh);
+    if (dolphin.t >= 0 && near(x, y, dolphin.x, hy + 14 * k, R * 1.6)) {
+      dolphin.hi = T;
+      note('dolphin');
+      sfx('squeak');
+      pop(dolphin.x, hy - 22 * k, '💙', 20 * Math.max(k, 0.8));
+      return;
+    }
+    if (near(x, y, tower.x, towerTop() + 16 * tower.s, Math.max(R, 34 * tower.s))) {
+      if (T - tower.beam > 2) {
+        tower.beam = T;
+        note('lighthouse');
+        sfx('ding');
+      }
+      return;
+    }
+    if (onIsle(x, y)) {
+      if (T - isle.puff > 2.5) {
+        isle.puff = T;
+        note('volcano');
+        sfx('thud');
+      }
+      return;
+    }
+    for (const sh of fleet) if (sh.lane === 'far' && onShip(sh, x, y, R)) return shipTap(sh);
     for (const c of clouds)
       if (near(x, y, c.x, c.y, 62 * k * c.size)) {
         if (rain) {
@@ -404,31 +433,6 @@ export function createTitleScene(canvas, o) {
         sfx('pop');
         return;
       }
-    for (const sh of fleet) if (sh.lane === 'far' && onShip(sh, x, y, R)) return shipTap(sh);
-    if (dolphin.t >= 0 && near(x, y, dolphin.x, hy + 14 * k, R * 1.6)) {
-      dolphin.hi = T;
-      note('dolphin');
-      sfx('squeak');
-      pop(dolphin.x, hy - 22 * k, '💙', 20 * Math.max(k, 0.8));
-      return;
-    }
-    // маяк и остров — дальше всех
-    if (near(x, y, tower.x, towerTop() + 16 * tower.s, Math.max(R, 34 * tower.s))) {
-      if (T - tower.beam > 2) {
-        tower.beam = T;
-        note('lighthouse');
-        sfx('ding');
-      }
-      return;
-    }
-    if (Math.abs(x - isle.x + 10 * isle.s) < 60 * isle.s && y > hy - 64 * isle.s && y < hy + 4 * k) {
-      if (T - isle.puff > 2.5) {
-        isle.puff = T;
-        note('volcano');
-        sfx('thud');
-      }
-      return;
-    }
     if (y < hy) {
       if (night) shootStar(x, y);
       return;
@@ -607,8 +611,8 @@ export function createTitleScene(canvas, o) {
     plane.hearts.push({ x: x - plane.dir * 34 * k, y: y + 4 * k, t: 0 });
     if (plane.hearts.length > 3) plane.hearts.shift();
     note(plane.loop ? 'plane-loop' : 'plane-wave');
-    sfx('lift');
-    setTimeout(() => !dead && sfx('whistle'), 500);
+    sfx('plane'); // «ж-ж-ж» мотора (core/audio.js), посреди фигуры — «фью»
+    setTimeout(() => !dead && sfx('whistle'), 600);
   }
   // русалочка: где голова и насколько она над водой (0 — под водой, 1 — по пояс)
   const merS = () => ham.s * 0.55;
@@ -662,13 +666,39 @@ export function createTitleScene(canvas, o) {
   }
 
   const towerTop = () => hy - 48 * tower.s; // фонарь маяка
+  // нажатие в x, y (с запасом pad) заберёт пальма: ствол или крона ближе к нам, чем море и горизонт (см. down).
+  // Гости, которые выбирают место сами (батискаф, дельфин, корабль для автотеста), за пальмой не появляются
+  const palmAt = (x, y, pad) =>
+    palms.some((p) => {
+      const [cx, cy] = crown(p);
+      const trunk = lerp(p.x, cx, clamp((p.y - y) / p.h, 0, 1));
+      return (Math.abs(x - trunk) < 22 * k + pad && y < p.y && y > cy) || near(x, y, cx, cy, p.h * 0.34 + pad);
+    });
+  // выбрать место: n попыток pick(), первое, где ok; не нашлось — запасное
+  const spot = (pick, ok, spare, n = 24) => {
+    for (let i = 0; i < n; i++) {
+      const c = pick();
+      if (ok(c)) return c;
+    }
+    return spare;
+  };
+  // остров по очертанию (paintIsle): вулкан — до 57 единиц рисунка над водой, берега — около 14; чуть с запасом
+  const onIsle = (x, y) => {
+    const u = (x - isle.x) / isle.s;
+    if (u < -124 || u > 128 || y > hy + 6 * k) return false;
+    const top = Math.max(14, 57 - Math.max(0, -25 - u, u + 9) * 1.03) + 6;
+    return y > hy - top * isle.s - 6 * k;
+  };
   function turtleGo() {
     // выползает из-за края свободного места (справа — только если там нет кнопок) и идёт наискосок к воде
     const right = F.x + F.w > W - 10 && Math.random() < 0.5,
       band = bot - sy;
+    // путь — по одну сторону от хомячка: он стоит ближе к нам в down() и забрал бы нажатие по черепашке
     const x = right ? W + 24 * k : F.x - 24 * k,
       dir = right ? -1 : 1,
-      tx = clamp(x + dir * F.w * rnd(0.3, 0.45), F.x + 30 * k, F.x + F.w - 30 * k);
+      gap = 34 * ham.s + 36 * Math.max(k, 0.7);
+    let tx = clamp(x + dir * F.w * rnd(0.3, 0.45), F.x + 30 * k, F.x + F.w - 30 * k);
+    tx = dir > 0 ? Math.min(tx, ham.x - gap) : Math.max(tx, ham.x + gap);
     Object.assign(turtle, { st: 'walk', t: 0, x, y: sy + band * rnd(0.72, 0.9), dir, tx, ty: shoreY(tx, 0) + 10 * k });
   }
   // ---------- корабли ----------
@@ -711,21 +741,13 @@ export function createTitleScene(canvas, o) {
   function subGo() {
     // не за русалочкой, хомячком и пальмой: ствол и крона ближе к нам и забрали бы нажатие по батискафу (down)
     const y = shipY('near') - 14 * k;
-    const behindPalm = (x) =>
-      palms.some((p) => {
-        const [cx, cy] = crown(p);
-        const trunk = lerp(p.x, cx, clamp((p.y - y) / p.h, 0, 1));
-        return (Math.abs(x - trunk) < 52 * k && y < p.y && y > cy) || near(x, y, cx, cy, p.h * 0.34 + 24 * k);
-      });
-    const busy = (x) => Math.abs(x - mer.x) < 80 * k || Math.abs(x - ham.x) < 34 * ham.s + 30 * k || behindPalm(x);
-    let x = F.x + F.w * 0.5;
-    for (let i = 0; i < 24; i++) {
-      const c = F.x + F.w * rnd(0.22, 0.78);
-      if (!busy(c)) {
-        x = c;
-        break;
-      }
-    }
+    const busy = (x) =>
+      Math.abs(x - mer.x) < 80 * k || Math.abs(x - ham.x) < 34 * ham.s + 30 * k || palmAt(x, y, 30 * k);
+    const x = spot(
+      () => F.x + F.w * rnd(0.22, 0.78),
+      (c) => !busy(c),
+      F.x + F.w * 0.5,
+    );
     Object.assign(sub, { t: 0, x, hi: -9 });
     rings.push({ x, y: shipY('near'), t: 0 });
     sfx('bubble');
@@ -738,15 +760,9 @@ export function createTitleScene(canvas, o) {
     setTimeout(() => !dead && sfx('bubble'), 200);
     pop(sub.x, shipY('near') - 50 * k, 'Буль-буль!', 16 * Math.max(k, 0.8));
   }
-  // для автотеста: в точке x, y у горизонта нет ничего ближе (облака, кораблика, дельфина) — нажатие достанется дальнему
-  const farSky = (x, y) => {
-    const R = 30 * Math.max(k, 0.7);
-    return (
-      clouds.every((c) => !near(x, y, c.x, c.y, 62 * k * c.size + 8)) &&
-      fleet.every((sh) => !onShip(sh, x, y, 30 * Math.max(k, 0.7) + 8)) &&
-      dolphin.t < 0
-    );
-  };
+  // для автотеста: в точке x, y у горизонта нет ничего ближе (кораблика, дельфина) — нажатие достанется дальнему.
+  // Облака — позади острова и маяка (drawFar) и нажатие у них не забирают
+  const farSky = (x, y) => fleet.every((sh) => !onShip(sh, x, y, 0)) && dolphin.t < 0;
 
   // ---------- шаг времени ----------
   function update(dt) {
@@ -964,8 +980,17 @@ export function createTitleScene(canvas, o) {
     }
     for (let i = rings.length - 1; i >= 0; i--) if ((rings[i].t += dt) > 1.6) rings.splice(i, 1);
     if (dolphin.t < 0 && T > dolphin.next && mer.st === 'off') {
+      // не за пальмой и не за кораблём: они ближе и забрали бы нажатие
+      const R = 30 * Math.max(k, 0.7),
+        y = hy + 14 * k;
       dolphin.t = 0;
-      dolphin.x = F.x + F.w * rnd(0.2, 0.8);
+      dolphin.x = spot(
+        () => F.x + F.w * rnd(0.2, 0.8),
+        (x) =>
+          !palmAt(x, y, R * 1.6) &&
+          fleet.every((sh) => Math.abs(x - sh.x) > SHIPS[sh.type].len * k * LANE_U[sh.lane] * 0.5 + R * 1.6),
+        F.x + F.w * rnd(0.2, 0.8),
+      );
     }
     if (dolphin.t >= 0 && (dolphin.t += dt) > 1.5) {
       rings.push({ x: dolphin.x + 50 * k, y: hy + 16 * k, t: 0 });
@@ -1016,16 +1041,17 @@ export function createTitleScene(canvas, o) {
     const band = bot - sy;
     if (starfish.st === 'off') {
       if ((guests || starfish.next === 0) && T > starfish.next && T - wave.t > 3.4 && !drawing) {
+        // не рядом с теми, кто в down() раньше звезды и забрал бы нажатие: хомячок, черепашка, кокосы, краб, чайка
+        // (стоит на песке на той же высоте), ракушка
+        const R = 30 * Math.max(k, 0.7);
         const ok = (x) =>
-          Math.abs(x - ham.x) > 34 * ham.s + 24 * k && Math.abs(x - crab.hx) > 50 * k && Math.abs(x - shell.x) > 40 * k;
-        let x = F.x + F.w * 0.3;
-        for (let i = 0; i < 12; i++) {
-          const c = F.x + F.w * rnd(0.12, 0.88);
-          if (ok(c)) {
-            x = c;
-            break;
-          }
-        }
+          Math.abs(x - ham.x) > 34 * ham.s + 24 * k &&
+          Math.abs(x - crab.hx) > 50 * k &&
+          Math.abs(x - shell.x) > 40 * k &&
+          Math.abs(x - gull.hx) > R * 2.4 &&
+          (turtle.st === 'off' || Math.abs(x - turtle.x) > R * 2.4) &&
+          nuts.every((n) => Math.abs(x - n.x) > R * 2.2);
+        const x = spot(() => F.x + F.w * rnd(0.12, 0.88), ok, F.x + F.w * 0.3, 40);
         Object.assign(starfish, { st: 'sand', x, y: sy + band * rnd(0.12, 0.2), born: T, t: 0 });
         bigWave(band * 0.3);
       }
@@ -1202,6 +1228,7 @@ export function createTitleScene(canvas, o) {
   };
   const {
     paintBg,
+    drawFar,
     label,
     drawSea,
     drawFish,
@@ -1244,10 +1271,11 @@ export function createTitleScene(canvas, o) {
     ctx.drawImage(bg, 0, 0);
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     const sg = surge();
+    for (const c of clouds) drawCloud(c); // облака — позади острова и маяка (drawFar)
+    drawFar();
     drawIsleSmoke();
     for (const sh of fleet) if (sh.lane === 'far') drawShip(sh);
     drawFish();
-    for (const c of clouds) drawCloud(c);
     if (!night && !rain)
       for (let i = 0; i < 2; i++) {
         // чайки вдалеке
@@ -1357,6 +1385,7 @@ export function createTitleScene(canvas, o) {
       window.removeEventListener('resize', onResize);
       releaseTitleArt(); // кадры самолётика, кораблей, русалочки… — в общем пределе памяти, в игре не нужны
       S.bg = null; // небо, море и песок — канва во весь экран
+      S.far = null; // остров и маяк — полоска у горизонта
     },
     /** Для автотеста и отладки: где что стоит (в CSS-пикселях окна) и что уже потрогали. */
     debug() {
@@ -1392,9 +1421,12 @@ export function createTitleScene(canvas, o) {
         gull: { ...P(gull.x, gull.y - 16 * k), st: gull.st, feathers: feathers.length },
         shell: { ...P(shell.x, shell.y - 6 * k), st: shell.st },
         cloud: (() => {
-          // облако, которое не прячется за кроной пальмы
+          // облако, которое не прячется за кроной пальмы, маяком или островом
+          const R = 30 * Math.max(k, 0.7);
           const far = (c) =>
-            Math.min(...palms.map((p) => Math.hypot(c.x - crown(p)[0], c.y - crown(p)[1]) - p.h * 0.34));
+            near(c.x, c.y, tower.x, towerTop() + 16 * tower.s, Math.max(R, 34 * tower.s)) || onIsle(c.x, c.y)
+              ? -1e6
+              : Math.min(...palms.map((p) => Math.hypot(c.x - crown(p)[0], c.y - crown(p)[1]) - p.h * 0.34));
           const c =
             clouds.filter((c) => c.x > 60 && c.x < F.x + F.w - 60).sort((a, b) => far(b) - far(a))[0] || clouds[0];
           return { ...P(c.x, c.y), shape: CLOUD_ORDER[c.shape] };
@@ -1438,9 +1470,10 @@ export function createTitleScene(canvas, o) {
             y = hy - 14 * isle.s;
           const xs = [-10, 10, 30, 45, -40, -60].map((dx) => isle.x + dx * isle.s);
           const x = xs.find((x) => palms.every((p) => !near(x, y, ...crown(p), p.h * 0.34 + R))) ?? xs[0];
-          return { ...P(x, y), clear: farSky(x, y), puff: T - isle.puff < 2.5 };
+          // palm — вулкан за кроной пальмы
+          return { ...P(x, y), clear: farSky(x, y), puff: T - isle.puff < 2.5, palm: palmAt(isle.x - 17 * isle.s, hy - 30 * isle.s, 0) }; // prettier-ignore
         })(),
-        tower: { ...P(tower.x, towerTop() + 16 * tower.s), clear: farSky(tower.x, towerTop() + 16 * tower.s), beam: T - tower.beam < 2 }, // prettier-ignore
+        tower: { ...P(tower.x, towerTop() + 16 * tower.s), clear: farSky(tower.x, towerTop() + 16 * tower.s), beam: T - tower.beam < 2, palm: palmAt(tower.x, towerTop(), 0) }, // prettier-ignore
         plane: (() => {
           const [x, y] = planePos();
           return { on: planeOn(), ...P(x, y), dir: plane.dir, trick: T - plane.trick < PLANE_TRICK, hearts: plane.hearts.length, top: Math.round(planeBand()[0] + r.top) }; // prettier-ignore
@@ -1465,14 +1498,26 @@ export function createTitleScene(canvas, o) {
     callShip(type) {
       const lane = SHIPS[type].lane;
       for (let i = fleet.length - 1; i >= 0; i--) if (fleet[i].lane === lane) fleet.splice(i, 1);
-      fleet.push(newShip(type, lane, 1, F.x + F.w * (lane === 'far' ? 0.5 : 0.68)));
+      // не за пальмой: её ствол и крона ближе и забрали бы нажатие
+      const R = 30 * Math.max(k, 0.7),
+        u = k * LANE_U[lane],
+        x0 = F.x + F.w * (lane === 'far' ? 0.5 : 0.68);
+      const free = (x) =>
+        [-0.4, 0, 0.4].every((d) => !palmAt(x + d * SHIPS[type].len * u, shipY(lane) - SHIPS[type].top * u * 0.35, R));
+      const xs = [0, 0.08, -0.08, 0.16, -0.16, 0.24, -0.24].map((d) => x0 + d * F.w);
+      fleet.push(newShip(type, lane, 1, xs.find(free) ?? x0));
       fleetNext = T + 1e6;
     },
-    /** Для автотеста: отогнать облака и корабли от острова и маяка (они ближе и забрали бы нажатие). */
+    /** Для автотеста: убрать корабли с горизонта (они ближе острова и маяка и забрали бы нажатие). */
     clearHorizon() {
-      clouds.forEach((c, i) => (c.x = [F.x + F.w * 0.06, F.x + F.w * 0.9, W + 60 * k][i]));
       fleet.length = 0;
       fleetNext = T + 1e6;
+    },
+    /** Для автотеста: поставить облако i серединой в точку x, y окна (облака позади острова и маяка). */
+    cloudAt(i, x, y) {
+      const r = canvas.getBoundingClientRect();
+      clouds[i].x = x - r.left;
+      clouds[i].y = y - r.top;
     },
     /** Для автотеста: хомячку сейчас наскучило — он сам находит занятие (act — какое, если оно подходит к погоде). */
     idleNow(act) {

@@ -656,16 +656,25 @@ module.exports = async function title(ctx) {
         ['tower', 'lighthouse', 'beam'],
         ['isle', 'volcano', 'puff'],
       ]) {
-        // облака и корабли ближе и забрали бы нажатие — отгоняем их
+        // корабли ближе и забрали бы нажатие — убираем их; облако ставим прямо за целью: облака проплывают позади
+        // острова и маяка и нажатие у них не забирают (раньше облако закрывало маяк ~25 с)
         await ev(() => window.__dev.title.clearHorizon());
+        let d = await dbg();
+        await ev((p) => window.__dev.title.cloudAt(1, p.x - 6, p.y - 4), d[key]);
         await wait(50);
-        expect((await dbg())[key].clear, key + ': закрыт облаком или кораблём', await dbg());
-        const d = await dbg();
+        d = await dbg();
+        expect(d[key].clear, key + ': закрыт кораблём', d);
+        // не за кроной пальмы (на телефоне остров был наполовину за левой кроной)
+        expect(!d[key].palm, key + ': за пальмой', d[key]);
         expect(d[key].y > r.head && !inMenu(d[key]) && d[key].y < d.sea.y, key + ': не на горизонте', d[key]);
         await page.mouse.click(d[key].x, d[key].y);
         await wait(150);
         const d2 = await dbg();
-        expect(d2.log.includes(name) && d2[key][flag], key + ': нажатие не сработало', { log: d2.log, [key]: d2[key] });
+        expect(d2.log.includes(name) && d2[key][flag], key + ': нажатие не сработало', {
+          log: d2.log,
+          [key]: d2[key],
+        });
+        expect(!d2.log.some((x) => x.startsWith('cloud-')), key + ': нажатие забрало облако', d2.log);
       }
     }
     noErrors();
@@ -726,6 +735,12 @@ module.exports = async function title(ctx) {
       await until(() => window.__dev.title.debug().starfish.shown, null, { timeout: 6000, msg: 'звезду вынесло на песок' }); // prettier-ignore
       let d = await dbg();
       expect(d.log.length === 0 || !d.log.includes('starfish'), 'звезда уже потрогана');
+      // волна выносит её не к чайке: чайка стоит на песке на той же высоте и забрала бы нажатие (так шаг однажды упал)
+      const R = 30 * Math.max(d.k, 0.7);
+      expect(Math.abs(d.starfish.x - d.gull.x) > R * 2.2, 'звезда рядом с чайкой', {
+        starfish: d.starfish,
+        gull: d.gull,
+      });
       // пальцем, бабочка рядом — нажатие всё равно звезде
       const touch = (key) =>
         ev((key) => {
@@ -772,6 +787,7 @@ module.exports = async function title(ctx) {
       expect(d.ham.st === 'busy' && d.ham.act === 'castle' && d.log.includes('busy-castle'), 'не лепит куличик', d.ham);
       await until(() => window.__dev.title.debug().ham.st === 'idle', null, { timeout: 6000, msg: 'куличик готов' });
       expect((await dbg()).ham.castles === 1, 'куличика нет на песке', (await dbg()).ham);
+      d = await dbg(); // свежая точка: бабочка за это время улетела в другое место и могла оказаться над старой
       await page.mouse.click(d.shore.x, d.shore.y); // волна смывает куличик
       await until(() => window.__dev.title.debug().ham.castles === 0, null, { timeout: 4000, msg: 'волна смыла куличик' }); // prettier-ignore
       // дремлет; любое нажатие (по небу) — просыпается

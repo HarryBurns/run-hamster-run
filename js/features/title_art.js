@@ -111,17 +111,35 @@ export function createTitleArt(S) {
         c.fill();
       }
     }
-    paintIsle(c, low);
-    paintTower(c, low);
+    paintFar(low);
     // норка краба
     c.fillStyle = 'rgba(120,80,40,.55)';
     c.beginPath();
     c.ellipse(S.crab.hx, S.crab.hy, 17 * S.k, 7 * S.k, 0, 0, TAU);
     c.fill();
   }
-  // ---------- вдали: остров с вулканом и маяк (рисуются один раз в кэш неба) ----------
+  // ---------- вдали: остров с вулканом и маяк ----------
+  // Рисуются один раз в свою полоску у горизонта (S.far) и в кадре идут поверх облаков (drawFar): низкие облака
+  // проплывают позади острова и маяка, а не закрывают их (и не забирают нажатие — см. down в title_scene.js).
   // haze — цвет дымки у горизонта: чем дальше, тем больше в неё уходят цвета
   const HAZE = 0.42;
+  function paintFar(haze) {
+    const top = Math.floor(S.hy - 62 * Math.max(S.isle.s, S.tower.s) - 2),
+      h = Math.ceil(S.hy + 8 * Math.max(S.isle.s, S.tower.s) + 4) - top;
+    const far = document.createElement('canvas');
+    far.width = Math.max(1, Math.round(S.W * S.dpr));
+    far.height = Math.max(1, Math.round(h * S.dpr));
+    const c = far.getContext('2d');
+    c.setTransform(S.dpr, 0, 0, S.dpr, 0, -top * S.dpr);
+    paintIsle(c, haze);
+    paintTower(c, haze);
+    S.far = { canvas: far, y: top, h };
+  }
+  /** Остров и маяк — поверх облаков, под дымком вулкана и кораблями на горизонте. */
+  function drawFar() {
+    const f = S.far;
+    if (f) S.ctx.drawImage(f.canvas, 0, f.y, S.W, f.h);
+  }
   function paintIsle(c, haze) {
     const z = (col) => mix(col, haze, HAZE),
       s = S.isle.s;
@@ -1849,6 +1867,7 @@ export function createTitleArt(S) {
   }
   return {
     paintBg,
+    drawFar,
     label,
     drawSea,
     drawFish,
