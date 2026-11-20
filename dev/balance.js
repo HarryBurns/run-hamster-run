@@ -1654,6 +1654,24 @@ const { pathToFileURL } = require('url');
     );
   }
 
+  {
+    // телевизор дома (пачка 20 ноября): передачи; «У плиты» — раз в 3–4 дня, рецепт за выпуск — только секретный
+    console.log('\nТелевизор дома');
+    const tv = D.FURN_BY_ID.tv.price,
+      days = [];
+    for (let d = 0; d < 70; d++) if (D.cookShowOn(d)) days.push(d);
+    const gaps = [...new Set(days.slice(1).map((d, i) => d - days[i]))];
+    if (gaps.some((g) => g < 3 || g > 4)) bad(`«У плиты» не раз в 3–4 дня: ${gaps}`);
+    for (const id of D.COOK_SHOW)
+      if (!D.SECRET_RECIPES.includes(id) || id === 'forest_pie') bad(`«У плиты»: ${id} — не секретный рецепт`);
+    if (!(tv > 3000 && tv < D.FURN_BY_ID.piano.price))
+      bad(`телевизор (${tv}) — дороже прежних 3 000 и дешевле пианино (${D.FURN_BY_ID.piano.price})`);
+    line('телевизор (ТЦ «Уютный дом»)', `${fmt(tv)} монет (было 3 000); 5 каналов`);
+    line(
+      '«У плиты»: выпуск раз в 3–4 дня',
+      `${D.COOK_SHOW.length} секретных рецептов по очереди, за выпуск — один (если его ещё нет)`,
+    );
+  }
   if (problems.length) {
     console.log('\nБАЛАНС НАРУШЕН:\n' + problems.map((p) => '  - ' + p).join('\n'));
     process.exit(1);

@@ -11,6 +11,12 @@ module.exports = async function tv(ctx) {
   /** Открыть окно телевизора нажатием на телевизор в доме (хомячок дойдёт и включит). */
   const tapTv = async () => {
     await closeAll();
+    // хомячок — рядом с телевизором: на узком экране камера смотрит туда же
+    await ev(() => {
+      const it = window.__dev.houseItems('villa').find((i) => i.id === 'tv');
+      if (it) window.__dev.villaAt(it.floor, it.x - 140);
+    });
+    await L.frames(3);
     const pt = await ev(() => {
       const d = window.__dev,
         sc = d.Villa,

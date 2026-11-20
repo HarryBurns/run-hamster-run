@@ -424,7 +424,12 @@ export function openTv({ item, scene } = {}) {
       [523, 659, 784].forEach((f, k) => setTimeout(() => !st.closed && sfx('note', f), 120 + k * 140));
     const c = TV_CH_BY_ID[id];
     nameEl.textContent = `${c.icon} ${c.name}`;
-    for (const b of chipsEl.children) b.classList.toggle('on', b.dataset.ch === id);
+    for (const b of chipsEl.children) {
+      b.classList.toggle('on', b.dataset.ch === id);
+      // на телефоне каналы — строкой с прокруткой: выбранный виден
+      if (b.dataset.ch === id && chipsEl.scrollWidth > chipsEl.clientWidth)
+        chipsEl.scrollLeft = Math.max(0, b.offsetLeft - chipsEl.offsetLeft - (chipsEl.clientWidth - b.offsetWidth) / 2);
+    }
     caption();
   }
   const step = (d) => {
@@ -435,7 +440,11 @@ export function openTv({ item, scene } = {}) {
   function fit() {
     if (!frame) return;
     const r = frame.getBoundingClientRect(),
-      maxH = Math.max(120, Math.min(window.innerHeight * (window.innerHeight < 560 ? 0.52 : 0.46), 420));
+      // низкий экран (телефон лёжа): экран и ◀ ▶ помещаются под шапкой окна целиком
+      maxH = Math.max(
+        110,
+        Math.min(window.innerHeight < 560 ? window.innerHeight - 236 : window.innerHeight * 0.46, 420),
+      );
     let w = Math.max(200, r.width),
       h = (w * TV_H) / TV_W;
     if (h > maxH) {

@@ -181,8 +181,16 @@ body.win-quiet #toasts { visibility: hidden; }
 @media (orientation: portrait), (max-width: 640px) {
   .tv-wrap { flex-direction: column; align-items: stretch; }
   .tv-left, .tv-side { flex: none; }
+  /* экран не уезжает, когда листаешь подпись и новости */
+  .tv-left { position: sticky; top: -14px; z-index: 1; background: var(--paper); margin: -14px -14px 0; padding: 14px 14px 6px; }
+}
+@media (max-width: 640px) {
+  /* каналы — одной строкой с прокруткой вбок */
+  .tv-chips { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 4px; -webkit-overflow-scrolling: touch; }
+  .tv-chip { flex: none; }
 }
 @media (orientation: landscape) and (max-height: 520px) {
+  .tv-left { position: sticky; top: 0; }
   .tv-frame { padding: 6px; border-radius: 16px; }
   .tv-arrow { min-height: 40px; }
   .tv-cap { font-size: 14px; }
