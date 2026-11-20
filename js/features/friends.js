@@ -410,7 +410,7 @@ function tickVisitor() {
     sc = scene();
   if (s.visitor && s.minutes >= 11 * 60 && sc && sc.canHostGuests && sc.canHostGuests()) {
     const id = takeVisitor();
-    if (s.friends[id].met && inviteGuest(id, sc.houseKey)) {
+    if (s.friends[id].met && inviteGuest(id, sc.houseKey, 'self')) {
       sfx('bell');
       toast(`Тук-тук! ${NPC_BY_ID[id].name} заглянул${NPC_BY_ID[id].fem ? 'а' : ''} в гости 🚪`, 'good');
     }

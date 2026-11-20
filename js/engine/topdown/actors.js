@@ -107,6 +107,7 @@ export function makeResidents(m) {
       inside: false, // позвал в гости и уже зашёл к себе домой
       hold: null, // занят своим: { draw(n, t) } — не гуляет, рисуется сам (присел на скамейку рядом с хомячком, этап 17а)
       goingHome: false, // позвал в гости и идёт к своей двери
+      lead: null, // { x, y } — вышел из дома вместе с хомячком и идёт туда по своим делам (walkOutWith)
     };
   });
 }
@@ -170,6 +171,17 @@ export function updateResidents(sc, dt) {
     n.wait -= dt;
     if (n.wait > 0) continue;
     n.wait = rnd(2.5, 7);
+    // вышел от хомячка по своим делам (walkOutWith): идёт туда; дошёл (или пути нет) — дальше гуляет как обычно
+    if (n.lead && !waits && at === 'out') {
+      if (
+        dist(n.x, n.y, n.lead.x, n.lead.y) < T * 1.5 ||
+        !m.route(n, n.lead.x, n.lead.y, false, m.dry) ||
+        !n.path.length
+      )
+        n.lead = null;
+      continue;
+    }
+    n.lead = null;
     const [ax, ay] = waits || (at === 'door' && n.home) ? n.home : n.hang;
     const far = waits || dist(n.x, n.y, (ax + 0.5) * T, (ay + 0.5) * T) > T * 4;
     const tx = far ? ax : tileOf(n.x) + Math.round(rnd(-2, 2)),
@@ -184,6 +196,32 @@ export function updateResidents(sc, dt) {
       else n.inside = true;
     }
   }
+}
+
+/**
+ * Гость выходит из дома вместе с хомячком (features/guests.js): житель id встаёт рядом с ней (она только что вышла
+ * из двери) и идёт к точке to ({ x, y } — его дело: например, место из его задания) или, без to, по своим делам —
+ * к своему месту (днём) или домой (вечером), как обычно. false — такого жителя в этой локации нет.
+ */
+export function walkOutWith(sc, id, to = null) {
+  const n = sc.npcs.find((q) => q.id === id);
+  if (!n) return false;
+  const p = sc.p,
+    pass = sc.pass();
+  const spot = [
+    [30, 6],
+    [-30, 6],
+    [0, 24],
+    [0, 0],
+  ].find(([dx, dy]) => canStand(pass, p.x + dx, p.y + dy)) || [0, 0];
+  n.x = p.x + spot[0];
+  n.y = p.y + spot[1];
+  n.dir = spot[0] < 0 ? 1 : -1;
+  n.inside = n.goingHome = n.moving = false;
+  n.path = [];
+  n.wait = 0.5; // постоял рядом — и пошёл
+  n.lead = to ? { x: to.x, y: to.y } : null;
+  return true;
 }
 
 /** Под пальцем ли житель (точка мира w). */

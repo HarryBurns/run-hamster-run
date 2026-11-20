@@ -89,6 +89,7 @@
 "js/features/friends.js",
 "js/features/garden.js",
 "js/features/gifts.js",
+"js/features/guests.js",
 "js/features/health.js",
 "js/features/health_art.js",
 "js/features/help.js",

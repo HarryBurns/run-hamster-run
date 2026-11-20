@@ -175,12 +175,17 @@ export const MAX_GUESTS = 3;
 /**
  * Позвать жителя в гости. home — в какой из своих домов (ключ дома); если гости уже сидят в другом доме, они
  * перебегают вместе с новым гостем. Без home — туда, где гости сейчас. false — уже в гостях или дом полон.
+ * how — как гость пришёл (когда уйдёт — features/guests.js): 'call' — позвали (по телефону, в разговоре), 'self' —
+ * сам («тук-тук»; уходит, когда хомячок выходит из дома), 'party' — гость праздника (день рождения). Лежит в отметке
+ * дня dayFlags.guestHow (без отметки — 'call'; сосед вводной цепочки получает 'self' в features/guests.js); гости
+ * и отметки дня обнуляются вместе в nextDay.
  */
-export const inviteGuest = act((id, home) => {
+export const inviteGuest = act((id, home, how = null) => {
   const s = S();
   if (s.guests.includes(id) || s.guests.length >= MAX_GUESTS) return false;
   s.guests.push(id);
   if (home) s.guestsAt = home;
+  if (how) (s.dayFlags.guestHow = s.dayFlags.guestHow || {})[id] = how;
   touch();
   emit('guests');
   return true;
@@ -189,8 +194,20 @@ export const inviteGuest = act((id, home) => {
 export const removeGuest = act((id) => {
   const s = S();
   s.guests = s.guests.filter((g) => g !== id);
+  if (s.dayFlags.guestHow) delete s.dayFlags.guestHow[id];
   touch();
   emit('guests');
+});
+/** Гости расходятся по домам: ids — кто (по умолчанию все). Возвращает, сколько ушло. */
+export const sendGuestsHome = act((ids = null) => {
+  const s = S(),
+    go = s.guests.filter((g) => !ids || ids.includes(g));
+  if (!go.length) return 0;
+  s.guests = s.guests.filter((g) => !go.includes(g));
+  if (s.dayFlags.guestHow) for (const g of go) delete s.dayFlags.guestHow[g];
+  touch();
+  emit('guests');
+  return go.length;
 });
 /** Гость, который сегодня собирался прийти сам: забрать его из «планов» (вернёт id или null). */
 export const takeVisitor = act(() => {

@@ -23,6 +23,7 @@ import * as gifts from './gifts.js';
 import * as health from './health.js';
 import * as sleep from './sleep.js';
 import * as friends from './friends.js';
+import * as guests from './guests.js';
 import * as visits from './visits.js';
 import * as homes from './homes.js';
 import * as business from './business.js';
@@ -103,6 +104,7 @@ export const devAll = () =>
     health,
     sleep,
     friends,
+    guests,
     visits,
     homes,
     business,

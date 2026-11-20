@@ -25,6 +25,7 @@ export {
   setTargetHook,
   addWorldPart,
 } from './scene.js';
+export { walkOutWith } from './actors.js';
 export { spotlight } from './render.js';
 export { inEll } from './map.js';
 export { resetGround } from './ground.js';

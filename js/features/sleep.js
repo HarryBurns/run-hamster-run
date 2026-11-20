@@ -12,6 +12,7 @@ import { message, confirmBox } from '../ui/panel.js';
 import { toast } from '../ui/toast.js';
 import { newDayMail } from './mail.js';
 import { planNight, applyNight, morningNews } from './health.js';
+import { guestsGoToBed } from './guests.js';
 
 const S = () => G.state;
 
@@ -49,6 +50,7 @@ export async function askSleep() {
     'Ещё погуляю',
   );
   if (!ok) return false;
+  guestsGoToBed(); // гости расходятся по домам
   const before = cal();
   sfx('sleep');
   const release = await fadeTo('Спокойной ночи… 💤', 1700);

@@ -168,7 +168,7 @@ function tick({ dt = 0 } = {}) {
   if (have >= (BDAY.steps[0].n || 3) || s.guests.length >= MAX_GUESTS || s.minutes < nextAt) return;
   const id = nextGuest();
   if (!id) return;
-  if (inviteGuest(id, sc.houseKey)) {
+  if (inviteGuest(id, sc.houseKey, 'party')) {
     arrive(sc, id);
     nextAt = s.minutes + HOLIDAY.bday.every;
   }

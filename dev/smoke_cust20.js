@@ -276,6 +276,85 @@ module.exports = async function cust20(ctx) {
     await L.mutate(`s.minutes = 12 * 60; s.weather = 'sun'; s.wxStrong = ''; s.dayFlags = {}; s.guests = []; ${set}`);
     await L.go('villa');
   };
+  const guests = () => ev(() => window.__dev.G.state.guests.slice());
+
+  await step('заказчик 20: гость, пришедший сам, выходит вместе с хомячком; Плюша идёт к ТЦ из задания', async () => {
+    // вводная цепочка: Плюша заходит сама (как features/welcome.js — inviteGuest без how), задание взято
+    await noon(`s.flags.intro = 1; delete s.quests.intro_home;`);
+    await ev(() => window.__dev.actions.inviteGuest('plusha', 'villa'));
+    expect(
+      (await ev(() => window.__dev.F.guestHow('plusha'))) === 'self',
+      'соседка вводной цепочки не отмечена «пришла сама»',
+    );
+    await ev(() => window.__dev.F.startQuest('intro_home'));
+    await L.closeAll();
+    expect((await guests()).includes('plusha'), 'Плюша не в гостях');
+    // вышла из дома — Плюша рядом на улице и идёт к ТЦ «Модный» (место шага «купи обновку»)
+    await L.go('world');
+    const r = await ev(() => {
+      const W = window.__dev.World,
+        n = W.npcs.find((q) => q.id === 'plusha'),
+        p = W.p,
+        mall = W.whereIs('mall_fashion');
+      return {
+        guests: window.__dev.G.state.guests,
+        hidden: n.hidden,
+        near: Math.hypot(n.x - p.x, n.y - p.y),
+        lead: n.lead,
+        mall,
+        d0: Math.hypot(n.x - mall.x, n.y - mall.y),
+      };
+    });
+    expect(!r.guests.includes('plusha'), 'Плюша осталась сидеть в пустом доме', r);
+    expect(!r.hidden && r.near < 80, 'Плюша не вышла вместе с хомячком', r);
+    expect(r.lead && Math.hypot(r.lead.x - r.mall.x, r.lead.y - r.mall.y) < 10, 'Плюша идёт не к ТЦ', r);
+    await ctx.wait(3000);
+    const d1 = await ev(() => {
+      const W = window.__dev.World,
+        n = W.npcs.find((q) => q.id === 'plusha'),
+        mall = W.whereIs('mall_fashion');
+      return Math.hypot(n.x - mall.x, n.y - mall.y);
+    });
+    expect(d1 < r.d0 - 60, 'Плюша не идёт к ТЦ', [r.d0, d1]);
+    await L.mutate('s.flags.intro = 0;');
+  });
+
+  await step('заказчик 20: позванные гости не ждут вечно, в 22:00 и перед сном расходятся', async () => {
+    // позвали по телефону — хомячок ушла: гость ждёт, но через 2 часа игры уходит
+    await noon();
+    await ev(() => window.__dev.actions.inviteGuest('myata', 'villa', 'call'));
+    await L.go('world');
+    expect((await guests()).includes('myata'), 'позванная Мята ушла сразу');
+    await L.mutate('s.minutes += 130;');
+    await ctx.wait(1400);
+    expect(!(await guests()).length, 'позванная Мята ждёт в пустом доме больше двух часов', await guests());
+    // вернулась вовремя — ждут дальше
+    await noon();
+    await ev(() => window.__dev.actions.inviteGuest('myata', 'villa', 'call'));
+    await L.go('world');
+    await L.mutate('s.minutes += 60;');
+    await L.go('villa');
+    await L.mutate('s.minutes += 100;');
+    await ctx.wait(1400);
+    expect((await guests()).includes('myata'), 'хомячок дома, а Мята ушла', await guests());
+    // поздно — все по домам
+    await L.mutate('s.minutes = 22 * 60 + 1;');
+    await ctx.wait(1400);
+    expect(!(await guests()).length, 'в 22:00 гости остались', await guests());
+    // легла спать — гости прощаются до «Спокойной ночи»
+    await noon('s.minutes = 20 * 60;');
+    await ev(() => window.__dev.actions.inviteGuest('bob', 'villa', 'call'));
+    await L.clearToasts();
+    await ev(() => {
+      window.__dev.run('sleep');
+    });
+    await L.untilPanel('Пора спать');
+    await ctx.page.click('.overlay [data-act=ok]');
+    await L.until(() => /по домам/.test(document.body.textContent), undefined, { timeout: 3000 });
+    expect(!(await guests()).length, 'после сна гости в доме', await guests());
+    await ctx.wait(2500);
+    await L.closeAll();
+  });
 
   await step('заказчик 20: житель не пропадает посреди разговора (Сеня у бассейна отеля зовёт к себе)', async () => {
     // день и час, когда Сеня у бассейна

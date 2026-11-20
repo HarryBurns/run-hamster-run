@@ -465,9 +465,9 @@ module.exports = async function start(ctx) {
         'Первая зарплата сдана: +150',
         s.money - s0.money,
       );
-      // 4. Капитан Боб: дом полон гостей (трое) — рассказывает и так, рыбка в рюкзаке
+      // 4. Капитан Боб. Соседи, что заходили сами, ушли вместе с хомячком, когда она вышла из дома (features/guests.js)
       s0 = s;
-      expect(s.guests.length === 3, 'трое соседей в гостях', s.guests);
+      expect(s.guests.length === 0, 'соседи вводной цепочки остались сидеть в доме', s.guests);
       v = await waitVisit('intro_sea');
       expect(
         v.text.includes('Капитан Боб') && v.text.includes('цвета лесного ореха'),
