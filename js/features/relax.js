@@ -136,7 +136,7 @@ function sitDown(sc, o, spot, a) {
     joinAt: RELAX.joinAfter[0] + Math.random() * (RELAX.joinAfter[1] - RELAX.joinAfter[0]),
     say: null, // { text, t } — что сказал сам хомячок («Уи-и!»)
   };
-  if (st.how === 'swing') o.busy = spot + 1;
+  if (st.how === 'swing' || st.how === 'hammock') o.busy = spot + 1; // качели и гамак прячут занятое место
   sfx(st.how === 'slide' ? 'whistle' : 'pop');
   emit('relax', { how: st.how, type: o.type });
   if (award('x_relax', { delay: 600 }))

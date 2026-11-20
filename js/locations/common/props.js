@@ -421,12 +421,14 @@ defineObjects({
     art: {
       hammock: [
         [-24, -52, 76, 22],
-        (ctx, v) => {
+        // busy — в гамаке лежат: ткань с хомячком рисует features/relax_art.js (провисает глубже), здесь — столбики
+        (ctx, v, busy) => {
           shadow(ctx, 24, 14, 34, 5);
           for (const x of [-14, 62]) {
             fillRR(ctx, x - 3, -44, 6, 58, 2, WOOD_D, OUT, 1.8);
             ell(ctx, x, -45, 4, 3, WOOD, OUT, 1.4);
           }
+          if (busy) return;
           const col = ['#ff8fab', '#74c0fc', '#ffd43b'][v % 3];
           ctx.beginPath();
           ctx.moveTo(-12, -36);
@@ -448,7 +450,7 @@ defineObjects({
       ],
     },
     draw(ctx, o, env) {
-      if (!isWinter(env)) put('hammock', o.x, o.y, o.v || 0);
+      if (!isWinter(env)) put('hammock', o.x, o.y, o.v || 0, o.busy ? 1 : 0);
     },
   },
   swing: {

@@ -2,7 +2,7 @@
 // и горке (кадры из кэша спрайтов SP), солнышко над лежаком, «z-z-z», облачко с репликой. Кто где сидит и сколько
 // уже отдыхает, решает relax.js. Лежит в features/, а не в art/: кадры кладутся в кэш спрайтов движка локаций.
 import { TAU } from '../core/util.js';
-import { line, fillRR, emoji } from '../core/draw.js';
+import { line, fillRR, emoji, ell } from '../core/draw.js';
 import { drawHamster, blinkAt } from '../art/hamster.js';
 import { RELAX, CLOTHES_BY_ID } from '../data/index.js';
 import { PS, SP, OUT } from '../engine/topdown/kinds.js';
@@ -74,27 +74,50 @@ export function drawSitter(ctx, how, look, lk, x, y, t, ph, o, spot, dir, ct) {
     return;
   }
   if (how === 'hammock') {
-    // в гамаке: лежит на боку головой к подушке, снизу — край ткани гамака (цвет — как у гамака, поле v)
+    // в гамаке (В-баг 20 ноября): хомячок лежит ВНУТРИ — ткань провисла под ним и поднимается по бокам к столбикам,
+    // голова на подушке, сверху его видно целиком; только у краёв ткань чуть прикрывает голову и лапки. Ткань
+    // пустого гамака рисует сам предмет, а занятого (o.busy) — этот кадр: под тяжестью она провисает глубже
     const br = Math.floor(((Math.sin(t * 1.6 + ph) + 1) / 2) * 3.99),
       col = ['#ff8fab', '#74c0fc', '#ffd43b'][(o.v || 0) % 3];
-    const s = SP.get(`rx:${lk}:ham:${col}:${br}`, [-60, -50, 60, 30], (c) => {
-      c.save();
-      c.translate(30, -3 - br * 0.3);
-      c.rotate(-1.45);
-      drawHamster(c, 0, 0, PS, look, { sit: true, shadow: false, sleep: true, time: br * 0.3 });
-      c.restore();
-      c.beginPath();
-      c.moveTo(-37, -20);
-      c.quadraticCurveTo(0, 23, 37, -20);
-      c.quadraticCurveTo(0, 10, -37, -20);
-      c.closePath();
+    const s = SP.get(`rx:${lk}:ham:${col}:${br}`, [-60, -60, 60, 30], (c) => {
+      const sling = (top, bot) => {
+        c.beginPath();
+        c.moveTo(-37, -21);
+        c.quadraticCurveTo(0, bot, 37, -21);
+        c.quadraticCurveTo(0, top, -37, -21);
+        c.closePath();
+      };
+      const stripes = (y0) => {
+        c.save();
+        c.clip();
+        c.fillStyle = 'rgba(255,255,255,.55)';
+        for (let i = 0; i < 6; i++) c.fillRect(-32 + i * 12, y0, 5, 50);
+        c.restore();
+      };
+      // ткань: внутренняя сторона (темнее) и подушка
+      sling(-6, 26);
       c.fillStyle = col;
       c.fill();
+      stripes(-26);
+      sling(-6, 26);
+      c.fillStyle = 'rgba(0,0,0,.12)';
+      c.fill();
+      c.strokeStyle = OUT;
+      c.lineWidth = 2;
+      c.stroke();
+      ell(c, -22, -20, 9, 6, '#fff', OUT, 1.4, -0.35);
+      // хомячок на боку, головой на подушке; чуть дышит
       c.save();
-      c.clip();
-      c.fillStyle = 'rgba(255,255,255,.55)';
-      for (let i = 0; i < 6; i++) c.fillRect(-31 + i * 12, -24, 5, 50);
+      c.translate(26, -15 - br * 0.3);
+      c.rotate(-1.5);
+      drawHamster(c, 0, 0, PS * 0.86, look, { sit: true, shadow: false, sleep: true, time: br * 0.3 });
       c.restore();
+      // передний край ткани: у столбиков поднимается и прикрывает голову и лапки, посередине — только кромка
+      sling(17, 28);
+      c.fillStyle = col;
+      c.fill();
+      stripes(-26);
+      sling(17, 28);
       c.strokeStyle = OUT;
       c.lineWidth = 2;
       c.stroke();
