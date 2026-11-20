@@ -811,17 +811,32 @@ module.exports = async function title(ctx) {
     await page.mouse.click(d.sky.x, d.sky.y);
     await wait(200);
     expect((await dbg()).log.filter((x) => x === 'star').length === 1, 'вторая звезда за запуск');
-    // касание: те же события указателя, что и у мыши
+    // касание: те же события указателя, что и у мыши. Светлячки кружат прямо над хомячком — касание всё равно
+    // ему (рой из огоньков не забирает нажатие у того, кто под пальцем), а над морем — светлячкам
+    const touch = (p, id) =>
+      ev(
+        ([p, id]) => {
+          window.__dev.title.flyAt(p.x, p.y);
+          const c = document.querySelector('#title .t-scene');
+          const o = { pointerId: id, pointerType: 'touch', clientX: p.x, clientY: p.y, bubbles: true, isPrimary: true };
+          c.dispatchEvent(new PointerEvent('pointerdown', o));
+          c.dispatchEvent(new PointerEvent('pointerup', o));
+        },
+        [p, id],
+      );
     d = await dbg();
-    await ev((p) => {
-      const c = document.querySelector('#title .t-scene');
-      const o = { pointerId: 7, pointerType: 'touch', clientX: p.x, clientY: p.y, bubbles: true, isPrimary: true };
-      c.dispatchEvent(new PointerEvent('pointerdown', o));
-      c.dispatchEvent(new PointerEvent('pointerup', o));
-    }, d.ham);
+    await touch(d.ham, 7);
     await wait(200);
     d = await dbg();
-    expect(d.log.includes('yawn') || d.log.includes('jump'), 'касание хомячка не сработало', d.log);
+    expect(
+      (d.log.includes('yawn') || d.log.includes('jump')) && !d.log.includes('fireflies'),
+      'касание хомячка не сработало',
+      d.log,
+    );
+    await touch(d.sea, 8);
+    await wait(100);
+    d = await dbg();
+    expect(d.log.includes('fireflies') && !d.log.includes('fish'), 'светлячки над морем не ответили', d.log);
     await put(null);
     noErrors();
   });
