@@ -98,6 +98,12 @@ export function createTitleScene(canvas, o) {
   const fly = { x: 0, y: 0, st: 'roam', t: 0, ph: rnd(9), next: rnd(7, 12) }; // бабочка днём, светлячки ночью
   const kite = { loop: -9 };
   const snowman = { x: 0, y: 0, t: -9 };
+  // морская звезда: иногда волна выносит её на песок; нажали — щекотно (переворачивается) и уползает к воде.
+  // st: off → sand (born — когда вынесло) → tickle → crawl → off
+  const starfish = { st: 'off', x: 0, y: 0, t: 0, born: 0, next: rnd(30, 60) };
+  // черепашка: редко выползает из-за края и ковыляет к морю; нажали — прячется в панцирь, потом ползёт дальше.
+  // st: off → walk → (hide → walk) → swim → off
+  const turtle = { st: 'off', x: 0, y: 0, t: 0, next: rnd(60, 120), dir: 1, tx: 0, ty: 0, step: 0 };
   const wave = { t: -9, depth: 0, auto: 0 }; // большая волна на песок
   // рисунок на песке: штрихи — массивы точек { x, y, j }; j — «отсюда линия начинается заново» (палец уходил с песка
   // или волна смыла кусок). Точки не реже чем через INK_STEP: быстрый росчерк мышью — всё равно сплошная линия
@@ -259,6 +265,16 @@ export function createTitleScene(canvas, o) {
       grab = { kind: 'ham' };
       return;
     }
+    // черепашка ползёт по песку перед ракушкой и крабом
+    if ((turtle.st === 'walk' || turtle.st === 'hide') && near(x, y, turtle.x, turtle.y - 12 * k, R * 1.1)) {
+      if (turtle.st === 'walk') {
+        turtle.st = 'hide';
+        turtle.t = 0;
+        note('turtle');
+        sfx('tap');
+      }
+      return;
+    }
     // упавший кокос — покатить ещё
     for (const n of nuts)
       if (n.vy === 0 && near(x, y, n.x, n.y - 9 * k, R)) {
@@ -278,6 +294,14 @@ export function createTitleScene(canvas, o) {
       shell.t = 0;
       note('shell');
       sfx('pop');
+      return;
+    }
+    if (starfish.st === 'sand' && T - starfish.born > 1.6 && near(x, y, starfish.x, starfish.y, R)) {
+      starfish.st = 'tickle';
+      starfish.t = 0;
+      note('starfish');
+      sfx('squeak');
+      pop(starfish.x, starfish.y - 34 * k, 'Хи-хи, щекотно!', 15 * Math.max(k, 0.8));
       return;
     }
     if (winter && near(x, y, snowman.x, snowman.y - 38 * k, R * 1.4)) {
@@ -589,6 +613,15 @@ export function createTitleScene(canvas, o) {
   }
 
   const towerTop = () => hy - 48 * tower.s; // фонарь маяка
+  function turtleGo() {
+    // выползает из-за края свободного места (справа — только если там нет кнопок) и идёт наискосок к воде
+    const right = F.x + F.w > W - 10 && Math.random() < 0.5,
+      band = bot - sy;
+    const x = right ? W + 24 * k : F.x - 24 * k,
+      dir = right ? -1 : 1,
+      tx = clamp(x + dir * F.w * rnd(0.3, 0.45), F.x + 30 * k, F.x + F.w - 30 * k);
+    Object.assign(turtle, { st: 'walk', t: 0, x, y: sy + band * rnd(0.72, 0.9), dir, tx, ty: shoreY(tx, 0) + 10 * k });
+  }
   // ---------- корабли ----------
   const shipY = (lane) => (lane === 'far' ? hy + 1 * k : lerp(hy, sy, 0.3)); // ватерлиния полосы
   const funnelX = (sh) => (sh.type === 'liner' ? -14 : 0) * sh.dir; // труба (откуда дымок), в единицах рисунка
@@ -907,6 +940,60 @@ export function createTitleScene(canvas, o) {
       jumps.push({ x, y, t: 0, dir: pick([-1, 1]), s: clamp((y - hy) / (sy - hy), 0.35, 1) });
       rings.push({ x, y, t: 0 });
     }
+    // морская звезда: волна выносит её на песок
+    const band = bot - sy;
+    if (starfish.st === 'off') {
+      if ((guests || starfish.next === 0) && T > starfish.next && T - wave.t > 3.4 && !drawing) {
+        const ok = (x) =>
+          Math.abs(x - ham.x) > 34 * ham.s + 24 * k && Math.abs(x - crab.hx) > 50 * k && Math.abs(x - shell.x) > 40 * k;
+        let x = F.x + F.w * 0.3;
+        for (let i = 0; i < 12; i++) {
+          const c = F.x + F.w * rnd(0.12, 0.88);
+          if (ok(c)) {
+            x = c;
+            break;
+          }
+        }
+        Object.assign(starfish, { st: 'sand', x, y: sy + band * rnd(0.12, 0.2), born: T, t: 0 });
+        bigWave(band * 0.3);
+      }
+    } else {
+      starfish.t += dt;
+      if (starfish.st === 'sand' && T - starfish.born > 45)
+        [starfish.st, starfish.t] = ['crawl', 0]; // полежала — уползает
+      else if (starfish.st === 'tickle' && starfish.t > 1) [starfish.st, starfish.t] = ['crawl', 0];
+      else if (starfish.st === 'crawl') {
+        starfish.y -= 11 * k * dt;
+        if (starfish.y < shoreY(starfish.x, 0) + 6 * k) {
+          starfish.st = 'off';
+          starfish.next = T + rnd(45, 90);
+          rings.push({ x: starfish.x, y: shoreY(starfish.x, 0) - 6 * k, t: 0 });
+        }
+      }
+    }
+    // черепашка: из-за края — наискосок к морю
+    if (turtle.st === 'off') {
+      if (guests && T > turtle.next) turtleGo();
+    } else {
+      turtle.t += dt;
+      if (turtle.st === 'walk') {
+        const dx = turtle.tx - turtle.x,
+          dy = turtle.ty - turtle.y,
+          dd = Math.hypot(dx, dy),
+          v = 13 * k * dt;
+        turtle.step += dt;
+        if (dd < v) [turtle.st, turtle.t] = ['swim', 0];
+        else {
+          turtle.x += (dx / dd) * v;
+          turtle.y += (dy / dd) * v;
+        }
+      } else if (turtle.st === 'hide' && turtle.t > 2.6) [turtle.st, turtle.t] = ['walk', 0];
+      else if (turtle.st === 'swim' && turtle.t > 1.2) {
+        turtle.st = 'off';
+        turtle.next = T + rnd(100, 200);
+        rings.push({ x: turtle.x, y: turtle.y - 4 * k, t: 0 });
+      }
+    }
     // бабочка (ночью — светлячки): летает, иногда садится на хомячка
     fly.t += dt;
     const seat = [ham.x + 17 * ham.s, hamTop() + 10 * ham.s];
@@ -973,6 +1060,9 @@ export function createTitleScene(canvas, o) {
     look,
     isle,
     tower,
+    starfish,
+    turtle,
+    wave,
     towerTop,
     mer,
     merS,
@@ -1052,6 +1142,8 @@ export function createTitleScene(canvas, o) {
     drawGull,
     drawShell,
     drawSnowman,
+    drawStarfish,
+    drawTurtle,
     drawKite,
     drawStrokes,
     drawHam,
@@ -1114,6 +1206,8 @@ export function createTitleScene(canvas, o) {
       ...nuts.map((n) => [n.floor, () => drawNut(n)]),
     ];
     if (winter) things.push([snowman.y, drawSnowman]);
+    if (starfish.st !== 'off') things.push([starfish.y - 20 * k, drawStarfish]); // плоская — под всеми, кто рядом
+    if (turtle.st !== 'off') things.push([turtle.y, drawTurtle]);
     things.sort((a, b) => a[0] - b[0]);
     for (const th of things) th[1]();
     drawPlane();
@@ -1243,6 +1337,16 @@ export function createTitleScene(canvas, o) {
         sky: P(F.x + F.w * 0.45, F.y + (hy - F.y) * 0.3),
         kite: P(...kitePos()),
         snowman: P(snowman.x, snowman.y - 38 * k),
+        starfish: {
+          st: starfish.st,
+          shown: starfish.st === 'sand' && T - starfish.born > 1.6,
+          ...P(starfish.x, starfish.y),
+        },
+        turtle: {
+          st: turtle.st,
+          ...P(turtle.x, turtle.y - 12 * k),
+          in: turtle.x > F.x + 20 && turtle.x < F.x + F.w - 20,
+        },
         fly: { ...P(fly.x, fly.y), st: fly.st },
         dolphin: { on: dolphin.t >= 0, ...P(dolphin.x, hy + 14 * k) },
         isle: (() => {
@@ -1286,6 +1390,19 @@ export function createTitleScene(canvas, o) {
       clouds.forEach((c, i) => (c.x = [F.x + F.w * 0.06, F.x + F.w * 0.9, W + 60 * k][i]));
       fleet.length = 0;
       fleetNext = T + 1e6;
+    },
+    /** Для автотеста: волна сейчас вынесет морскую звезду. */
+    callStarfish() {
+      starfish.st = 'off';
+      starfish.next = 0;
+      wave.t = -9;
+    },
+    /** Для автотеста: черепашка сразу на песке, в свободной части (ползёт к морю). */
+    callTurtle() {
+      turtleGo();
+      // там, где рядом нет ни ракушки, ни хомячка, ни краба
+      const xs = [0.4, 0.62, 0.3, 0.2].map((f) => F.x + F.w * f);
+      turtle.x = xs.find((x) => Math.abs(x - shell.x) > 50 * k && Math.abs(x - ham.x) > 34 * ham.s + 30 * k && Math.abs(x - crab.x) > 50 * k) ?? xs[0]; // prettier-ignore
     },
     /** Для автотеста: всплыть батискафу сейчас. */
     callSub() {

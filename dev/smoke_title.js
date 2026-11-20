@@ -711,6 +711,49 @@ module.exports = async function title(ctx) {
     },
   );
 
+  await step(
+    'заставка: волна выносит морскую звезду (щекотно — уползает к воде); черепашка прячется в панцирь и ползёт дальше',
+    async () => {
+      await put(null);
+      await ev(() => window.__dev.title.guests(false));
+      await ev(() => window.__dev.title.callStarfish());
+      await until(() => window.__dev.title.debug().starfish.shown, null, { timeout: 6000, msg: 'звезду вынесло на песок' }); // prettier-ignore
+      let d = await dbg();
+      expect(d.log.length === 0 || !d.log.includes('starfish'), 'звезда уже потрогана');
+      // пальцем, бабочка рядом — нажатие всё равно звезде
+      const touch = (key) =>
+        ev((key) => {
+          const t = window.__dev.title,
+            p = t.debug()[key],
+            R = 30 * Math.max(t.debug().k, 0.7);
+          t.flyAt(p.x + R * 0.9, p.y);
+          const c = document.querySelector('#title .t-scene');
+          const o = { pointerId: 11, pointerType: 'touch', clientX: p.x, clientY: p.y, bubbles: true, isPrimary: true };
+          c.dispatchEvent(new PointerEvent('pointerdown', o));
+          c.dispatchEvent(new PointerEvent('pointerup', o));
+          return t.debug().log;
+        }, key);
+      let log = await touch('starfish');
+      expect(log.includes('starfish') && !log.includes('butterfly'), 'звезда не ответила на касание', log);
+      await until(() => window.__dev.title.debug().starfish.st === 'off', null, { timeout: 15000, msg: 'звезда уползла в море' }); // prettier-ignore
+      // черепашка
+      await ev(() => window.__dev.title.callTurtle());
+      await wait(200);
+      d = await dbg();
+      expect(d.turtle.st === 'walk' && d.turtle.in, 'черепашки нет на песке', d.turtle);
+      await page.mouse.click(d.turtle.x, d.turtle.y);
+      await wait(100);
+      d = await dbg();
+      expect(d.log.includes('turtle') && d.turtle.st === 'hide', 'черепашка не спряталась', d.turtle);
+      await until(() => window.__dev.title.debug().turtle.st === 'walk', null, { timeout: 5000, msg: 'черепашка ползёт дальше' }); // prettier-ignore
+      const x0 = (await dbg()).turtle;
+      await wait(1000);
+      const x1 = (await dbg()).turtle;
+      expect(Math.hypot(x1.x - x0.x, x1.y - x0.y) > 3, 'черепашка стоит', { x0, x1 });
+      noErrors();
+    },
+  );
+
   await step('заставка: ночью — одна падающая звезда за запуск; касание пальцем работает как мышь', async () => {
     await put(sample((s) => Object.assign(s, { minutes: 22 * 60 + 30, weather: 'sun', day: 16 })));
     await wait(400);

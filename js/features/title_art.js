@@ -1216,6 +1216,130 @@ export function createTitleArt(S) {
       S.ctx.fill();
     }
   }
+  // ---------- морская звезда и черепашка ----------
+  function drawStarfish() {
+    const F0 = S.starfish,
+      ctx = S.ctx,
+      k = S.k;
+    // вынесло волной: проявляется, когда вода отступила
+    const a = F0.st === 'sand' ? clamp((S.T - F0.born - 1.2) / 0.5, 0, 1) : 1;
+    if (a <= 0) return;
+    const flip = F0.st === 'tickle' ? Math.cos(F0.t * TAU) : 1, // переворачивается от щекотки
+      wig = F0.st === 'crawl' ? Math.sin(S.T * 8) * 0.08 : 0;
+    ctx.save();
+    ctx.globalAlpha = a;
+    ctx.translate(F0.x, F0.y);
+    ctx.fillStyle = 'rgba(0,0,0,.12)';
+    ctx.beginPath();
+    ctx.ellipse(0, 3 * k, 19 * k, 5 * k, 0, 0, TAU);
+    ctx.fill();
+    ctx.scale(flip * k * 1.3, k * 0.8); // лежит на песке — сплюснута
+    ctx.rotate(0.3 + wig);
+    ctx.fillStyle = flip > 0 ? '#ff8c69' : '#ffc9a8';
+    ctx.strokeStyle = OUT;
+    ctx.lineWidth = 1.4;
+    ctx.lineJoin = 'round';
+    ctx.beginPath();
+    for (let i = 0; i < 10; i++) {
+      const an = -Math.PI / 2 + (i * Math.PI) / 5,
+        r = i % 2 ? 6 : 15 + (F0.st === 'crawl' ? Math.sin(S.T * 8 + i) * 1.5 : 0);
+      ctx.lineTo(Math.cos(an) * r, Math.sin(an) * r);
+    }
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    if (flip > 0) {
+      ctx.fillStyle = '#fff3e6';
+      for (let i = 0; i < 5; i++) {
+        const an = -Math.PI / 2 + (i * TAU) / 5;
+        for (const r of [5, 9]) {
+          ctx.beginPath();
+          ctx.arc(Math.cos(an) * r, Math.sin(an) * r, 1.2, 0, TAU);
+          ctx.fill();
+        }
+      }
+    }
+    ctx.restore();
+  }
+  // черепашка сбоку: панцирь — из кэша, ножки и голова шевелятся поверх; спряталась — только панцирь
+  function paintShell(c, u) {
+    c.scale(u, u);
+    c.lineWidth = 1.5;
+    c.strokeStyle = OUT;
+    c.fillStyle = '#2f9e44';
+    c.beginPath();
+    c.moveTo(-16, -4);
+    c.quadraticCurveTo(-15, -20, 0, -20);
+    c.quadraticCurveTo(15, -20, 16, -4);
+    c.closePath();
+    c.fill();
+    c.stroke();
+    c.fillStyle = '#69db7c';
+    for (const [x, y, r] of [
+      [-7, -10, 4],
+      [3, -13, 4.5],
+      [10, -7, 3],
+      [-12, -6, 2.5],
+    ]) {
+      // prettier-ignore
+      c.beginPath();
+      c.arc(x, y, r, 0, TAU);
+      c.fill();
+    }
+    c.fillStyle = '#c3fae8';
+    c.beginPath();
+    c.rect(-17, -5, 34, 3);
+    c.fill();
+    c.stroke();
+  }
+  function drawTurtle() {
+    const Q = S.turtle,
+      ctx = S.ctx,
+      u = S.k * 1.35,
+      d = Q.dir;
+    const hide = Q.st === 'hide' ? clamp(Math.min(Q.t / 0.25, (2.6 - Q.t) / 0.4), 0, 1) : 0,
+      fade = Q.st === 'swim' ? clamp(1 - Q.t / 1.2, 0, 1) : 1,
+      walk = Q.st === 'walk';
+    ctx.save();
+    ctx.globalAlpha = fade;
+    ctx.fillStyle = 'rgba(0,0,0,.14)';
+    ctx.beginPath();
+    ctx.ellipse(Q.x, Q.y + u, 18 * u, 4 * u, 0, 0, TAU);
+    ctx.fill();
+    const x = Q.x,
+      y = Q.y - (walk ? Math.abs(Math.sin(Q.step * 7)) * 1.2 * u : 0) + hide * 2 * u;
+    // ножки и голова (втягиваются, когда прячется)
+    const out = 1 - hide;
+    ctx.fillStyle = '#8ce99a';
+    ctx.strokeStyle = OUT;
+    ctx.lineWidth = 1.3;
+    for (const [lx, ph] of [
+      [-10, 0],
+      [-4, Math.PI],
+      [5, 0],
+      [11, Math.PI],
+    ]) {
+      // prettier-ignore
+      const sw = walk ? Math.sin(Q.step * 7 + ph) * 2.5 : 0;
+      ctx.beginPath();
+      ctx.ellipse(x + (lx + sw) * d * u, y - 2 * u * out, 3 * u, 4.5 * u * out + 0.01, 0, 0, TAU);
+      ctx.fill();
+      ctx.stroke();
+    }
+    if (out > 0.05) {
+      const hx = x + (17 + 4 * out) * d * u - 4 * d * u * (1 - out),
+        hy = y - (9 + (walk ? Math.sin(Q.step * 3.5) : 0)) * u;
+      ctx.beginPath();
+      ctx.ellipse(hx, hy, 6 * u * out, 5 * u * out, 0, 0, TAU);
+      ctx.fill();
+      ctx.stroke();
+      circle(hx + 2.5 * d * u * out, hy - 1.2 * u, 1.3 * u * out, '#222');
+      circle(hx + 3 * d * u * out, hy + 1.6 * u, 1.1 * u * out, 'rgba(255,130,160,.6)');
+    }
+    SP.setScale(S.dpr);
+    blit(SP.get(`turtle:${Math.round(u * 100)}`, [-20 * u, -24 * u, 20 * u, 2 * u], (c) => paintShell(c, u)), x, y, hide ? Math.sin(S.T * 20) * 0.04 * hide : 0); // prettier-ignore
+    ctx.restore();
+  }
   function drawFly(lit) {
     if (S.night) {
       // светлячки: пять огоньков вокруг одной точки
@@ -1644,6 +1768,8 @@ export function createTitleArt(S) {
     drawGull,
     drawShell,
     drawSnowman,
+    drawStarfish,
+    drawTurtle,
     drawKite,
     drawStrokes,
     drawHam,
