@@ -34,6 +34,7 @@ export const G = {
   sneezeAt: null, // когда простуженная хомячок последний раз чихнула (по G.time; features/health.js)
   hostVisit: null, // у кого из жителей хомячок сейчас в гостях (в его доме): пока она там, он дома (npcPlace, features/visits.js)
   talkPin: null, // с кем хомячок говорит (или только что говорила): он остаётся, где был (pinnedPlace, features/friends.js)
+  still: false, // часы игры стоят: давно ничего не нажимали (features/pause.js) — мир идёт, игровое время нет
 };
 bindGender(() => (G.state ? G.state.gender : 'f')); // род героя в текстах — core/gender.js
 

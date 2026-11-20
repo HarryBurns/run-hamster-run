@@ -184,6 +184,7 @@ function tick({ dt }) {
   const sc = scene(),
     here = sc && sc.cold ? sc.cold() : null;
   if (here === null && sceneName() !== 'world') return;
+  if (G.still) return; // часы стоят (давно без касаний) — холод и дождь тоже не копятся
   const min = dt / 0.6,
     o = playerLook().outfit,
     cf = careless();

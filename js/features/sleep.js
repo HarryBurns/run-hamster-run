@@ -91,9 +91,10 @@ export async function askSleep() {
 
 register('sleep', () => askSleep(), 'кровать: лечь спать');
 
-// Игровое время идёт, пока мир не на паузе; вечером — «теперь можно спать» (если днём пробовала лечь),
+// Игровое время идёт, пока мир не на паузе и часы не стоят (G.still — давно без касаний, features/pause.js); вечером — «теперь можно спать» (если днём пробовала лечь),
 // поздно вечером — напоминание, что пора спать.
 function tickClock({ dt }) {
+  if (G.still) return;
   const s = S();
   passTime(dt);
   if (s.minutes >= SLEEP_FROM && s.dayFlags.early && !s.dayFlags.eve) {

@@ -870,12 +870,3 @@ h4 { margin: 4px 0; font-size: 16px; }
   .inst-hint-row { flex-direction: column; align-items: stretch; }
 }
 
-/* пауза, когда ребёнок отвлёкся (features/pause.js): маленькая плашка наверху, без затемнения */
-.pause-chip {
-  position: fixed; left: 50%; top: 22%; transform: translateX(-50%); z-index: 65; /* ниже плашек HUD, над хомячком */
-  border: 3px solid #4a3728; border-radius: 18px; background: #fff8e6; color: #4a3728; font: inherit; font-weight: 900;
-  font-size: 17px; padding: 8px 16px; box-shadow: 0 4px 0 rgba(74, 55, 40, .25); cursor: pointer; white-space: nowrap;
-  animation: pause-pulse 1.6s ease-in-out infinite;
-}
-@keyframes pause-pulse { 50% { transform: translateX(-50%) scale(1.05); } }
-@media (max-width: 420px) { .pause-chip { font-size: 15px; padding: 7px 12px; } }

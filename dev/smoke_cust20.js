@@ -1,6 +1,6 @@
 // Шаги автотеста «баги заказчика 20 ноября»: гости уходят (сами пришедшие — вместе с хомячком на улицу, по телефону —
-// не сидят в пустом доме, перед сном расходятся), житель не пропадает посреди разговора, пауза, когда ребёнок
-// отвлёкся, Esc — меню, без солнышка на лежаке, «Горка» без колошматинья, мягкий шелест кустов, звезда «Садовника».
+// не сидят в пустом доме, перед сном расходятся), житель не пропадает посреди разговора, тихая пауза, когда ребёнок
+// отвлёкся (стоят часы), Esc — меню, без солнышка на лежаке, «Горка» без колошматинья, мягкий шелест кустов, звезда «Садовника».
 // Подключается из dev/smoke.js. Только эти шаги:  node dev/smoke.js <url> "step:заказчик 20:"
 const lib = require('./lib.js');
 
@@ -192,56 +192,68 @@ module.exports = async function cust20(ctx) {
     await ev(() => document.querySelector('#mg .xbtn').click());
   });
 
-  await step('заказчик 20: пауза — долго без касаний, окно без фокуса, вкладка спрятана; нажатие снимает', async () => {
+  await step('заказчик 20: тихая пауза — 30 с без касаний стоят часы, без фокуса и на спрятанной вкладке — и мир', async () => {
     await L.closeAll();
     await L.go('world');
     const mins = () => ev(() => window.__dev.G.state.minutes);
     const info = () => ev(() => window.__dev.F.pauseInfo());
     await ev(() => window.__dev.F.pauseAuto(true));
-    // 1) долго без касаний — мягкая пауза: плашка, часы стоят, музыка тише
-    await ev(() => window.__dev.F.pauseIdleFor(1000));
+    // 1) долго без касаний — стоят только часы: без плашки, мир идёт (слоя паузы нет), первое нажатие доходит до игры
+    await ev(() => window.__dev.F.pauseIdleFor(31));
     await L.until(() => window.__dev.F.pauseInfo().on, undefined, { timeout: 3000 });
     let m0 = await mins();
     await ctx.wait(1300);
-    expect((await mins()) === m0, 'на паузе часы идут', [m0, await mins()]);
-    expect(
-      (await info()).why === 'idle' &&
-        (await ev(() => !!document.querySelector('.pause-chip'))) &&
-        (await ev(() => window.__dev.Audio.musicDucked())) &&
-        !(await ev(() => !!document.querySelector('.overlay'))),
-      'мягкая пауза: плашка без окна, музыка тише',
-      await info(),
-    );
-    await ctx.page.click('.pause-chip', { force: true }); // плашка покачивается — без ожидания «замерла»
-    await ctx.wait(400);
+    expect((await mins()) === m0, 'без касаний часы идут', [m0, await mins()]);
+    let st = await info();
+    expect(st.why === 'idle' && !st.world && (await ev(() => window.__dev.G.modal === 0)), 'мир встал без касаний', st);
+    expect(!(await ev(() => !!document.querySelector('.pause-chip, .overlay'))), 'на паузе плашка или окно');
+    await ctx.page.keyboard.press('Escape'); // первое нажатие не «съедается»: Esc сразу открывает ⚙️ меню
+    await L.untilPanel('Меню');
+    expect(!(await info()).on, 'клавиша не пустила часы', await info());
+    await L.closeAll();
     m0 = await mins();
     await ctx.wait(1300);
-    expect(
-      !(await info()).on && (await mins()) > m0 && !(await ev(() => window.__dev.Audio.musicDucked())),
-      'нажатие не сняло паузу',
-      await info(),
-    );
-    // 2) окно браузера потеряло фокус — пауза; клавиша снимает (и до игры не доходит)
+    expect((await mins()) > m0, 'после нажатия часы стоят', [m0, await mins()]);
+    // 29 с без касаний — часы ещё идут
+    await ev(() => window.__dev.F.pauseIdleFor(29));
+    await ctx.wait(1200);
+    expect(!(await info()).on, 'часы встали раньше 30 с', await info());
+    // 2) окно браузера потеряло фокус — стоят часы и мир, без плашки; клавиша снимает и доходит до игры
     await ev(() => window.dispatchEvent(new Event('blur')));
-    expect((await info()).on && (await info()).why === 'blur', 'окно без фокуса — нет паузы', await info());
-    await ctx.page.keyboard.press('KeyE');
+    st = await info();
+    expect(st.on && st.world && st.why === 'blur', 'окно без фокуса — мир идёт', st);
+    expect(!(await ev(() => !!document.querySelector('.pause-chip, .overlay'))), 'без фокуса — плашка или окно');
+    m0 = await mins();
+    await ctx.wait(800);
+    expect((await mins()) === m0, 'без фокуса часы идут', [m0, await mins()]);
+    await ctx.page.keyboard.press('Escape');
+    await L.untilPanel('Меню');
     expect(!(await info()).on, 'клавиша не сняла паузу', await info());
-    // 3) вкладку спрятали — пауза
+    await L.closeAll();
+    // фокус вернулся — мир идёт сам
+    await ev(() => window.dispatchEvent(new Event('blur')));
+    await ev(() => window.dispatchEvent(new Event('focus')));
+    expect(!(await info()).on, 'фокус вернулся, а мир стоит', await info());
+    // 3) вкладку спрятали — стоят часы и мир; касание снимает
     await ev(() => {
       Object.defineProperty(document, 'hidden', { configurable: true, get: () => true });
       document.dispatchEvent(new Event('visibilitychange'));
       delete document.hidden;
     });
-    expect((await info()).on && (await info()).why === 'hidden', 'спрятанная вкладка — нет паузы', await info());
+    st = await info();
+    expect(st.on && st.world && st.why === 'hidden', 'спрятанная вкладка — мир идёт', st);
     await ctx.page.mouse.click(640, 400);
-    expect(!(await info()).on, 'касание не сняло паузу', await info());
-    // 4) под окном мир и так стоит — плашки нет
+    expect(!(await info()).on && (await ev(() => window.__dev.G.modal === 0)), 'касание не сняло паузу', await info());
+    // 4) под окном мир и так стоит — паузы нет, окно не трогаем
     await ev(() => window.__dev.F.openSettings());
     await L.untilPanel('Меню');
     await ev(() => window.dispatchEvent(new Event('blur')));
-    expect(!(await info()).on && !(await ev(() => !!document.querySelector('.pause-chip'))), 'плашка поверх окна');
+    await ev(() => window.__dev.F.pauseIdleFor(100));
+    await ctx.wait(1200);
+    expect(!(await info()).on, 'пауза поверх окна', await info());
     await L.closeAll();
     await ev(() => window.__dev.F.pauseAuto(false));
+    expect(!(await info()).on, 'после выключения пауза осталась', await info());
   });
 
   await step('заказчик 20: Esc — открытое окно закрывает, без окна — ⚙️ меню', async () => {
