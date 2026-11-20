@@ -447,6 +447,7 @@ defineTiles({
 defineTiles({
   bg: {
     like: 'b',
+    z: 12.5, // свой слой: в одном куске земли с обычными грядками у каждого вида свои борозды
     fill: () => '#8d5a3a',
     deco: (ctx, x, y, tx, ty, env) => bedDeco(ctx, x, y, tx, ty, { ...env, season: 'summer' }),
   },

@@ -104,7 +104,9 @@ module.exports = async function villa(ctx) {
         h,
       );
       expect(h.items.join() === 'bed_pink,chair,shower,table,wardrobe', 'домик: мебель', h.items);
-      expect(h.fits, 'домик не помещается на экран', h);
+      // на компьютере дом виден целиком; на телефоне камера следит за хомячком
+      const wide = await ev(() => innerWidth >= innerHeight * 1.5 && innerHeight >= 600);
+      if (wide) expect(h.fits, 'домик не помещается на экран', h);
       expect(h.up.house === 0 && !h.up.pond && !h.up.pool && !h.up.green && h.up.beds === 0, 'ступени', h.up);
       // душ: хомячок встаёт под воду — это считается за «спа»
       const spa = await ev(() => {
@@ -237,7 +239,8 @@ module.exports = async function villa(ctx) {
       expect(!h.items.includes('shower') && h.storage.shower === 1, 'душ не в кладовке', h);
       expect(h.items.join() === 'bed_pink,chair,table,wardrobe', 'остальная мебель на месте', h.items);
       expect(h.p.f === 0 && Math.abs(h.p.x - 608) < 5, 'проснулась не у кровати', h.p);
-      expect(h.fits, 'дом с пристройкой не помещается', h);
+      if (await ev(() => innerWidth >= innerHeight * 1.5 && innerHeight >= 600))
+        expect(h.fits, 'дом с пристройкой не помещается', h);
     },
   );
 
