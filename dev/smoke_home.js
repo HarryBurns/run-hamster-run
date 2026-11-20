@@ -1,11 +1,15 @@
 // Шаги автотеста «Свой дом» — хвосты «Вилла растёт» и правки дома и двора (20 ноября):
 //   снаружи дом по ступени (домик → вилла с мансардой), подписи и справка по построенному;
+//   «Мой двор» — предметы на «дикие» цветы (В6); «Обустроить» — у окна с зазором, настенное не налезает на настенное
+//   и на шкафчики кухни, напольное из кладовки — не за мебелью (З16, З21); новая игра записывается после
+//   вступительной сценки (З23).
 // Подключается из dev/smoke.js. Только эти шаги:  node dev/smoke.js <url> "step:свой дом"
 const lib = require('./lib.js');
 
 module.exports = async function home(ctx) {
-  const { page, step, ev, expect, fresh, go, closeAll, frames, panelText, drain, until, toasts, clearToasts } =
-    lib(ctx);
+  const L = lib(ctx);
+  const { page, step, ev, expect, fresh, go, closeAll, frames, panelText, drain, until, toasts, clearToasts } = L;
+  const { act, sel, untilScene } = L;
 
   /** Дом на карте города: подпись, ключи его спрайтов в кэше, не обрезан ли рисунок. */
   const outside = () =>
@@ -224,6 +228,51 @@ module.exports = async function home(ctx) {
       expect(c && c.f === 0, 'часы в пентхаусе не встали на первый этаж', c);
       expect(!cross(c, cab), 'часы из кладовки зашли на кухонные шкафчики', c);
       await ev(() => window.__dev.scene.setDecor(false));
+    },
+  );
+
+  // ---------- новая игра записывается после вступительной сценки (З23) ----------
+  await step(
+    'свой дом: «Новая игра» рядом с настоящей — во время сценки не записана (закрыли страницу — осталась прежняя); после сценки — две игры',
+    async () => {
+      await fresh({ name: 'Аня' });
+      await ev(() => window.dispatchEvent(new Event('pagehide')));
+      const games = () =>
+        ev(() => ({
+          n: window.__dev.games.listGames().length,
+          names: window.__dev.games.listGames().map((g) => g.name),
+          live: JSON.parse(localStorage.getItem('rhr-save-v1') || 'null'),
+          text: (document.querySelector('#title .t-menu') || {}).textContent || '',
+        }));
+      const toTitle = async () => {
+        await page.reload();
+        await page.waitForSelector(sel('new'));
+      };
+      // «Новая игра» → «Играть!» → закрыли страницу посреди сценки
+      await toTitle();
+      await act('new');
+      await page.fill('#title input', 'Боря');
+      await act('play');
+      await until(() => !!document.getElementById('intro'), undefined, 'сценка');
+      let g = await games();
+      expect(g.n === 1 && g.live && g.live.name === 'Аня', 'во время сценки новая игра уже записана', g);
+      await ev(() => window.dispatchEvent(new Event('pagehide')));
+      await toTitle();
+      g = await games();
+      expect(
+        g.n === 1 && g.names.join() === 'Аня' && g.text.includes('С возвращением, Аня'),
+        'после закрытия во время сценки — не прежняя игра',
+        g,
+      );
+      // ещё раз — и досмотрели сценку: теперь игр две, живая — новая
+      await act('new');
+      await page.fill('#title input', 'Боря');
+      await act('play');
+      await act('skip');
+      await act('go');
+      await untilScene('villa');
+      g = await games();
+      expect(g.n === 2 && g.live.name === 'Боря' && g.names.includes('Аня'), 'после сценки нет новой игры', g);
     },
   );
 };

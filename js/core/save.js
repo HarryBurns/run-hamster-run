@@ -243,7 +243,8 @@ if (typeof window !== 'undefined' && window.addEventListener)
   });
 
 // Пока открыта заставка, игра ещё не началась: живое сохранение не пишется совсем (что бы ни позвало save() —
-// уход со страницы, автосохранение). Новую игру записывает core/games.js: createGame — по кнопке «Играть!».
+// уход со страницы, автосохранение). Новую игру записывает core/games.js: commitGame — когда кончилась вступительная
+// сценка («Играть!» только готовит её: prepareGame; features/title.js).
 let held = false;
 /** Заставка открыта (true) или игра началась (false): пока true, save() ничего не пишет. */
 export function holdSave(on) {

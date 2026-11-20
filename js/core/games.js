@@ -357,33 +357,70 @@ export function switchGame(id) {
   return true;
 }
 
+// Новая игра записывается не по «Играть!», а когда кончилась вступительная сценка (З23): «Играть!» готовит её
+// в памяти (prepareGame), конец сценки или «Пропустить» записывает (commitGame). Закрыли страницу во время сценки —
+// в хранилище и списке игр её нет, и при следующем открытии заставка снова спрашивает имя.
+const PROBE_KEY = 'rhr-game-probe';
+/** Новая игра, приготовленная, но ещё не записанная: { id } (между «Играть!» и концом сценки). */
+let pendingNew = null;
 /**
- * Начать новую игру рядом с остальными. Возвращает null (получилось, G.state — новая игра) или причину:
- * 'full' — мест нет, 'store' — не удалось записать (хранилище переполнено); тогда всё остаётся как было.
+ * Приготовить новую игру, ничего не записывая: G.state — новая игра (с gid). Возвращает null (получилось) или
+ * причину: 'full' — мест нет, 'store' — она не поместится в хранилище (проверяется пробной записью, которая тут же
+ * стирается); тогда G.state остаётся прежним.
  */
-export function createGame(name) {
+export function prepareGame(name) {
   syncGames();
   if (idx.games.length >= MAX_GAMES) return 'full';
-  const mine = get(KEY);
-  if (!park()) return 'store';
   const keep = G.state;
   const id = newId();
   newGame(name);
   G.state.gid = id;
-  if (!put(KEY, JSON.stringify(G.state))) {
-    if (mine) put(KEY, mine);
-    else del(KEY);
-    // хранилища нет совсем (строгий частный режим): играть можно, просто игра не сохранится — как и раньше
-    if (!mine && !idx.games.length) return null;
+  const fits = put(PROBE_KEY, JSON.stringify(G.state));
+  del(PROBE_KEY);
+  // хранилища нет совсем (строгий частный режим): играть можно, просто игра не сохранится — как и раньше
+  if (!fits && (get(KEY) || idx.games.length)) {
     G.state = keep;
     return 'store';
   }
-  idx.games.push(fillMeta(blankMeta(id), G.state));
-  idx.active = id;
+  pendingNew = { id };
+  return null;
+}
+/**
+ * Записать приготовленную новую игру (prepareGame): живое сохранение прежней игры — на полку, новая — в живое
+ * сохранение и в список. Возвращает null (записалась или записывать нечего) или 'store' — не записалась; тогда
+ * прежняя игра остаётся в хранилище как была, а новая — только в памяти.
+ */
+export function commitGame() {
+  const p = pendingNew;
+  if (!p || !G.state || G.state.gid !== p.id) return null;
+  pendingNew = null;
+  syncGames(); // пока шла сценка, в другой вкладке могли создать игру
+  G.state.gid = p.id = newId(); // номер — по списку, каким он записан сейчас (prepareGame его не записывал)
+  if (idx.games.length >= MAX_GAMES) return 'full';
+  const mine = get(KEY);
+  if (!park()) return 'store';
+  if (!put(KEY, JSON.stringify(G.state))) {
+    if (mine) put(KEY, mine);
+    else del(KEY);
+    return !mine && !idx.games.length ? null : 'store';
+  }
+  idx.games.push(fillMeta(blankMeta(p.id), G.state));
+  idx.active = p.id;
   writeIndex();
   claimSave();
-  dropPhotos(id); // у новой игры альбом пуст (если список игр пропадал, под этим id могли остаться чужие снимки)
+  dropPhotos(p.id); // у новой игры альбом пуст (если список игр пропадал, под этим id могли остаться чужие снимки)
   return null;
+}
+/**
+ * Начать новую игру рядом с остальными и сразу записать её (prepareGame + commitGame; так её создают тесты).
+ * Возвращает null (получилось, G.state — новая игра) или причину: 'full' — мест нет, 'store' — не удалось записать
+ * (хранилище переполнено); тогда всё остаётся как было.
+ */
+export function createGame(name) {
+  const keep = G.state;
+  const why = prepareGame(name) || commitGame();
+  if (why) G.state = keep;
+  return why;
 }
 
 /**

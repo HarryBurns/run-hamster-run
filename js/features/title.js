@@ -1,5 +1,6 @@
 // Заставка: название, «Продолжить», «Мои игры», «Новая игра». Сцена за кнопками — features/title_scene.js,
-// хранение нескольких игр — core/games.js. Игру запускает main.js: сюда приходит start(fresh).
+// хранение нескольких игр — core/games.js. Игру запускает main.js: сюда приходит start(fresh, begin) — у новой игры
+// begin() записывает её после вступительной сценки (З23: закрыли страницу во время сценки — игры нет).
 import { G, cal, claimSave, holdSave, weatherNow } from '../core/state.js';
 import {
   MAX_GAMES,
@@ -8,7 +9,8 @@ import {
   activeGame,
   openActive,
   switchGame,
-  createGame,
+  prepareGame,
+  commitGame,
   deleteGame,
   exportGame,
   importGame,
@@ -18,6 +20,7 @@ import {
   retryLost,
   dropBlankGames,
 } from '../core/games.js';
+import { emit } from '../core/events.js';
 import { el, esc, fmtMoney } from '../core/util.js';
 import { makeCanvas } from '../core/draw.js';
 import { drawPortrait } from '../art/hamster.js';
@@ -65,7 +68,19 @@ function dateOf(g) {
 let current = null; // открытая заставка: { scene } — для автотеста (window.__dev.title)
 export const titleDebug = () => current;
 
-/** Показать заставку. start(fresh) — запустить игру, которая уже лежит в G.state. */
+/**
+ * Новая игра дошла до конца вступительной сценки (или её пропустили): записать её и разрешить сохранение (З23).
+ * Не записалась (хранилище переполнилось, пока шла сценка) — играть можно, но сохранение остаётся выключенным, чтобы
+ * не затереть прежнюю игру, а взрослым — окно «Игра не может сохраниться» (событие saveFail, main.js).
+ */
+function beginNewGame() {
+  const why = commitGame();
+  if (why) return void emit('saveFail', { quota: true });
+  holdSave(false);
+  claimSave();
+}
+
+/** Показать заставку. start(fresh, begin) — запустить игру, которая уже лежит в G.state (begin — см. beginNewGame). */
 export function openTitle({ start }) {
   const t = el('div');
   t.id = 'title';
@@ -128,15 +143,19 @@ export function openTitle({ start }) {
         return render('main');
       }
     }
-    holdSave(false); // игра началась: теперь её можно сохранять
-    claimSave(); // с этой минуты живое сохранение пишет эта вкладка (core/state.js)
+    // игра началась: теперь её можно сохранять, и живое сохранение пишет эта вкладка (core/state.js); новую игру —
+    // только после вступительной сценки (beginNewGame)
+    if (!fresh) {
+      holdSave(false);
+      claimSave();
+    }
     offInstall();
     scene.destroy();
     current = null;
     t.remove();
     unlockAudio();
     sfx('win');
-    start(fresh);
+    start(fresh, fresh ? beginNewGame : null);
   }
 
   // ---------- кнопки ----------
@@ -174,7 +193,7 @@ export function openTitle({ start }) {
       const b = el('button', 'btn big green', 'Играть! ▶');
       b.dataset.act = 'play'; // метки data-act — для автотеста (dev/lib.js)
       b.onclick = () => {
-        const why = createGame((inp.value || '').trim() || 'Хомка');
+        const why = prepareGame((inp.value || '').trim() || 'Хомка'); // запишется после сценки (beginNewGame)
         if (why) return noRoom(why);
         close(true);
       };

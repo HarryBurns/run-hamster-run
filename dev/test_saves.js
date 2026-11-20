@@ -672,6 +672,23 @@ const eq = (a, b, msg) => ok(JSON.stringify(a) === JSON.stringify(b), msg, { got
     ok(S.save() && live().money === 5, 'после начала игры не записалось');
     S.unload();
   });
+  await test('новая игра записывается после вступительной сценки: «Играть!» ничего не пишет, конец сценки — пишет (З23)', () => {
+    const a = play('Аня', 70);
+    Gm.syncGames(); // карточка игры в списке — по живому сохранению (монеты); это не новая игра
+    const before = snapshot();
+    eq(Gm.prepareGame('Боря'), null, 'новая игра не приготовилась');
+    eq([G.state.name, snapshot(), Gm.listGames().length], ['Боря', before, 1], '«Играть!» записало игру');
+    // закрыли страницу во время сценки: в памяти ничего нет — в хранилище прежняя игра
+    G.state = null;
+    Gm.syncGames();
+    eq([Gm.activeGame(), live().name, Gm.listGames().length], [a, 'Аня', 1], 'после «закрытия» — не прежняя игра');
+    eq(Gm.prepareGame('Боря'), null, 'новая игра не приготовилась');
+    eq(Gm.commitGame(), null, 'новая игра не записалась');
+    eq([live().name, Gm.listGames().length, Gm.activeGame() === a], ['Боря', 2, false], 'после сценки');
+    eq(JSON.parse(ls.getItem('rhr-game-' + a)).money, 70, 'прежняя игра не на полке');
+    eq(Gm.commitGame(), null, 'записалось дважды');
+    eq(Gm.listGames().length, 2, 'записалось дважды');
+  });
   await test('пустая игра «Хомка» убирается: игр нет, хранилище чистое, заставка спросит имя', () => {
     const id = blank();
     ok(Gm.blankGame(live()), 'новая нетронутая игра не считается пустой', live());

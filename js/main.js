@@ -259,8 +259,15 @@ every(20, persist);
 if (DEV) installDevHooks({ F: F.devAll() });
 F.registerOffline(); // service worker: сеть сначала, кэш — если сети нет (sw.js, features/install.js)
 migrateAllPhotos(); // снимки альбома, оставшиеся в localStorage, — в IndexedDB (один раз; освобождает место под игры)
-// новая игра: сначала вступительная сценка — переезд в Ореховую Гавань (features/intro.js), потом сама игра
+// новая игра: сначала вступительная сценка — переезд в Ореховую Гавань (features/intro.js), потом сама игра; записывается
+// она только теперь — begin() (features/title.js, З23)
 openTitle({
-  start: (fresh) => (fresh ? F.playIntro({ name: G.state.name }).then(() => startGame(true)) : startGame(false)),
+  start: (fresh, begin) =>
+    fresh
+      ? F.playIntro({ name: G.state.name }).then(() => {
+          begin();
+          startGame(true);
+        })
+      : startGame(false),
 });
 startLoop(canvas, { onBroken: showBroken, onGesture: unlockAudio });
