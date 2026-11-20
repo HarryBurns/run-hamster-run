@@ -34,7 +34,8 @@
 //  сон только вечером, этап 18 — dev/smoke_sleep.js:  node dev/smoke.js <url> "step:сон вечером";
 //  движок домов: лифт и порядок рисования — dev/smoke_side.js:  node dev/smoke.js <url> "step:движок домов";
 //  указатели во всех местах — dev/smoke_signs.js:  node dev/smoke.js <url> step:указатели;
-//  игра как приложение на экране «Домой» — dev/smoke_pwa.js:  node dev/smoke.js <url> step:приложение)
+//  игра как приложение на экране «Домой» — dev/smoke_pwa.js:  node dev/smoke.js <url> step:приложение;
+//  первое открытие без игр (пустая игра) — dev/smoke_phantom.js:  node dev/smoke.js <url> "step:первое открытие")
 // Скорость проверяется отдельно:  node dev/bench.js [url] --spots=forest --sizes=desktop --max-forest=45
 const { MG_START } = require('./selectors.js'); // кнопка «Начать!» мини-игры — по метке, а не по тексту
 const lib = require('./lib.js'); // общие помощники шагов (этап 21): ожидания условий вместо пауз, метки data-act
@@ -73,6 +74,7 @@ const sleepSteps = require('./smoke_sleep.js'); // этап 18: сон толь�
 const core = require('./smoke_core.js'); // ревью основы: клавиша E, окна и сон при ошибке, сохранение при нехватке места, нечитаемая игра
 const saves = require('./smoke_saves.js'); // этап 19: фото в IndexedDB, игра файлом, вторая вкладка и старая сборка
 const fixes = require('./smoke_fixes.js'); // В-пункты BACKLOG: стрелка к цели в фото-режиме, транспорт у воды, тёплая вода у острова
+const phantom = require('./smoke_phantom.js'); // баг от заказчика: до «Играть!» игра не записывается, пустые игры убираются
 const zfix = require('./smoke_zfix.js'); // баги от заказчика: наряд после показа мод, звёздочка к жителю там, где он сейчас
 const holidaysWide = require('./smoke_holidays_wide.js'); // этап 15: праздники шире площади — наряды жителей, празднуют вместе, места, украшения за городом и в домах, полка в ТЦ, клумбы
 const pwa = require('./smoke_pwa.js'); // игра как приложение: манифест, значки, окно установки на iOS и Android, service worker
@@ -2887,6 +2889,7 @@ const runParallel = () => {
     await jobs({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
     await fixes({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
     await zfix({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
+    await phantom({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
     await rfix({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
     await core({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
     await saves({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });

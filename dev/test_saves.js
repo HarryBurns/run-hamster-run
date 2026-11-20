@@ -98,7 +98,7 @@ const eq = (a, b, msg) => ok(JSON.stringify(a) === JSON.stringify(b), msg, { got
   const P = await import(url('core/photos.js'));
   const E = await import(url('core/events.js'));
   const A = await import(url('core/actions.js'));
-  const { BUILD } = await import(url('data/index.js'));
+  const { BUILD, START_MONEY: START_MONEY_ } = await import(url('data/index.js'));
   const { G } = S;
   const VER = S.saveVersion();
   const pic = (n) => ({
@@ -565,6 +565,127 @@ const eq = (a, b, msg) => ok(JSON.stringify(a) === JSON.stringify(b), msg, { got
     ok(r.ok && r.name.length === 14 && r.photos === 1, 'итог', r);
     ok(Gm.switchGame(r.id) && G.state.gid === r.id && !G.state.clothes.includes('нет_такой'), 'не починилось');
     eq((await P.loadPhotos(r.id)).length, 1, 'снимки');
+  });
+
+  console.log('Пустые игры: заставка до «Играть!»');
+  /** Нетронутая новая игра «Хомка», записанная как живое сохранение (нажали «Играть!» и закрыли во время сценки). */
+  const blank = () => {
+    eq(Gm.createGame('Хомка'), null, 'игра не создалась');
+    const id = G.state.gid;
+    S.unload();
+    return id;
+  };
+  await test('заставка открыта — save() ничего не пишет; игра началась — пишет', () => {
+    S.newGame('Хомка');
+    S.holdSave(true);
+    ok(S.save() && ls.getItem(KEY) === null, 'на заставке записалось живое сохранение');
+    A.mutate((s) => (s.money = 5));
+    S.flush();
+    ok(ls.getItem(KEY) === null, 'на заставке записалось после изменения');
+    S.holdSave(false);
+    ok(S.save() && live().money === 5, 'после начала игры не записалось');
+    S.unload();
+  });
+  await test('пустая игра «Хомка» убирается: игр нет, хранилище чистое, заставка спросит имя', () => {
+    const id = blank();
+    ok(Gm.blankGame(live()), 'новая нетронутая игра не считается пустой', live());
+    eq(Gm.dropBlankGames(), 1, 'не убралась');
+    eq(
+      [ls.getItem(KEY), ls.getItem(INDEX), ls.getItem('rhr-game-' + id), ls.getItem(OWNER), Gm.listGames().length],
+      [null, null, null, null, 0],
+      'что-то осталось',
+    );
+    ok(!Gm.openActive().ok, 'открылась игра, которой нет');
+    eq(Gm.dropBlankGames(), 0, 'второй раз что-то убралось');
+  });
+  await test('пустая игра без gid (записанная «как попало» старой страницей) тоже убирается', () => {
+    ls.setItem(KEY, JSON.stringify({ ...S.newGame('Хомка') }));
+    S.unload();
+    eq(Gm.dropBlankGames(), 1, 'не убралась');
+    eq([ls.getItem(KEY), Gm.listGames().length], [null, 0], 'осталась');
+  });
+  await test('настоящие игры не трогаются: отметка начала, подарки, монеты, время, имя, образцы v1–v5', () => {
+    const cases = {
+      'отметка начала': (s) => (s.flags.begun = 1),
+      'пианино в подарок': (s) => (s.flags.pianoGift = 1),
+      шлёпанцы: (s) => (s.flags.flipflopsGift = 1),
+      'другая отметка': (s) => (s.flags.bankLetter = 1),
+      монеты: (s) => (s.money = START_MONEY_ + 1),
+      заработано: (s) => (s.earned = 5),
+      потрачено: (s) => (s.spent = 5),
+      время: (s) => (s.minutes += 1),
+      день: (s) => (s.day += 1),
+      задания: (s) => (s.tasksDone = 1),
+      наклейка: (s) => s.stickers.push('x_first'),
+      гости: (s) => s.guests.push({ id: 'npc' }),
+      'не на вилле': (s) => (s.pos = { scene: 'world', x: 1, y: 1 }),
+      'своё имя': (s) => (s.name = 'Аня'),
+      'без сборки (старое)': (s) => delete s.build,
+    };
+    for (const [why, fn] of Object.entries(cases)) {
+      ls.clear();
+      eq(Gm.createGame('Хомка'), null, 'игра не создалась');
+      fn(G.state);
+      ok(S.save(), 'не сохранилось');
+      const raw = ls.getItem(KEY);
+      S.unload();
+      ok(!Gm.blankGame(JSON.parse(raw)), 'настоящая игра считается пустой: ' + why);
+      eq([Gm.dropBlankGames(), ls.getItem(KEY), Gm.listGames().length], [0, raw, 1], 'убрали настоящую игру: ' + why);
+    }
+    for (const v of [1, 2, 3, 4, 5]) {
+      ls.clear();
+      for (const name of [null, 'Хомка']) {
+        const s = JSON.parse(sample(v));
+        if (name) s.name = name;
+        ok(!Gm.blankGame(s), `образец v${v} считается пустым`);
+        ls.setItem(KEY, JSON.stringify(s));
+        eq(Gm.dropBlankGames(), 0, `образец v${v} убран`);
+      }
+    }
+  });
+  await test('пустая игра рядом с настоящей: пустая убирается, живой становится настоящая', () => {
+    const real = play('Аня', 777);
+    const id = blank();
+    ok(id !== real && index().active === id, 'живая — не пустая');
+    const shelf = ls.getItem('rhr-game-' + real);
+    eq(Gm.dropBlankGames(), 1, 'пустая не убралась');
+    eq(
+      [Gm.listGames().map((g) => g.id), Gm.activeGame(), live().gid, live().money, ls.getItem('rhr-game-' + real)],
+      [[real], real, real, 777, shelf],
+      'настоящая игра пострадала',
+    );
+    ok(ls.getItem('rhr-game-' + id) === null, 'полка пустой осталась');
+    ok(Gm.openActive().ok && G.state.name === 'Аня', '«Продолжить» — не настоящая игра');
+  });
+  await test('пустая игра на полке тоже убирается, настоящая живая — на месте', () => {
+    const id = blank();
+    const real = play('Аня', 5);
+    ok(ls.getItem('rhr-game-' + id), 'пустая не на полке');
+    const raw = ls.getItem(KEY);
+    S.unload();
+    eq(Gm.dropBlankGames(), 1, 'пустая на полке не убралась');
+    eq([Gm.listGames().map((g) => g.id), ls.getItem(KEY)], [[real], raw], 'настоящая игра пострадала');
+  });
+  await test('живое сохранение пустое, а копия на полке — нет: ничего не убирается', () => {
+    const id = play('Хомка', 9);
+    Gm.createGame('Боря'); // «Хомка» с монетами — на полке
+    ok(Gm.switchGame(id), 'не переключилось');
+    S.unload();
+    // живое (как будто с нетронутой копией) — пустое; на полке осталась игра с монетами
+    const s = JSON.parse(ls.getItem('rhr-game-' + id));
+    ls.setItem(KEY, JSON.stringify({ ...S.newGame('Хомка'), gid: id }));
+    S.unload();
+    ok(s.money === 9, 'на полке не та копия', s.money);
+    eq(Gm.dropBlankGames(), 0, 'убрали игру, у которой на полке есть прогресс');
+    eq(Gm.listGames().length, 2, 'игр не две');
+  });
+  await test('игра дошла до виллы (отметка begun) — больше не пустая, даже если ничего не делали', () => {
+    blank();
+    ok(Gm.openActive().ok, 'не открылась');
+    A.setFlag('begun');
+    ok(S.save(), 'не сохранилось');
+    S.unload();
+    eq([Gm.dropBlankGames(), Gm.listGames().length], [0, 1], 'начатую игру убрали');
   });
 
   console.log('Вторая вкладка и старая страница');

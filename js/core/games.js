@@ -16,9 +16,21 @@
 // разошлись (вкладку закрыли посреди переключения, игру записала старая версия страницы) — верим полю gid
 // в живом сохранении, а без него считаем, что это активная игра (так единственное старое сохранение
 // становится первой игрой).
-import { G, KEY, BACKUP_KEY, newGame, load, unload, loadProblem, checkSave, claimSave } from './state.js';
+import {
+  G,
+  KEY,
+  BACKUP_KEY,
+  OWNER_KEY,
+  START_MINUTES,
+  newGame,
+  load,
+  unload,
+  loadProblem,
+  checkSave,
+  claimSave,
+} from './state.js';
 import { dropPhotos, movePhotos, loadPhotos, savePhotos, cleanPhotos } from './photos.js';
-import { BUILD, NAME_MAX } from '../data/index.js';
+import { BUILD, NAME_MAX, START_DAY, START_MONEY } from '../data/index.js';
 
 export const MAX_GAMES = 6;
 export const LOST_MAX = 3; // сколько нечитаемых сохранений лежит про запас; самое старое сверх этого убирается
@@ -180,6 +192,64 @@ export function syncGames() {
   }
   if (JSON.stringify(idx) !== before) writeIndex();
   return listGames();
+}
+/**
+ * «Пустая» игра: её записали, но до самой игры она так и не дошла (нажали «Играть!» и закрыли страницу во время
+ * вступительной сценки; или её записала прежняя версия страницы ещё на заставке). s — разобранная строка из
+ * хранилища как есть (без починки). Признак строгий — всё сразу: имя по умолчанию «Хомка»; в отметках только intro
+ * (нет begun — main.js ставит её, когда игра началась, — и нет подарков начала игры pianoGift, flipflopsGift: их
+ * получает каждая игра, дошедшая до виллы, с 13–15 ноября; build в сохранении есть только с 18 ноября); первый день,
+ * 7:30 утра, стартовые монеты, ничего не заработано и не потрачено, ни заданий, ни наклеек, ни гостей, хомячок на
+ * вилле. Хоть что-то не так — это настоящая игра, её не трогаем.
+ */
+export function blankGame(s) {
+  if (!s || typeof s !== 'object' || Array.isArray(s) || !Number.isInteger(s.v) || !Number.isFinite(s.build))
+    return false;
+  const f = s.flags;
+  if (!f || typeof f !== 'object' || Array.isArray(f) || Object.keys(f).some((k) => k !== 'intro')) return false;
+  const empty = (a) => Array.isArray(a) && !a.length;
+  return (
+    s.name === 'Хомка' &&
+    s.day === START_DAY &&
+    s.startDay === START_DAY &&
+    s.minutes === START_MINUTES &&
+    s.money === START_MONEY &&
+    s.earned === 0 &&
+    s.spent === 0 &&
+    s.tasksDone === 0 &&
+    empty(s.stickers) &&
+    empty(s.guests) &&
+    !!s.pos &&
+    s.pos.scene === 'villa'
+  );
+}
+/**
+ * Убрать из списка «пустые» игры (blankGame) — и живую, и с полок: в них нечего терять, а заставка из-за них
+ * говорит «С возвращением!» тому, кто ещё не играл. Зовётся один раз — когда открывается заставка, до openActive().
+ * Игра убирается, только если и живое сохранение, и её копия на полке (если есть) — пустые. Возвращает,
+ * сколько игр убрано.
+ */
+export function dropBlankGames() {
+  syncGames();
+  let n = 0;
+  for (const g of [...idx.games]) {
+    const live = g.id === idx.active,
+      raws = [live ? get(KEY) : null, get(slot(g.id))].filter(Boolean);
+    if (!raws.length || !raws.every((raw) => blankGame(parse(raw)))) continue;
+    if (live) {
+      del(KEY);
+      idx.active = null;
+    }
+    del(slot(g.id));
+    idx.games = idx.games.filter((x) => x !== g);
+    n++;
+  }
+  if (!n) return 0;
+  if (!idx.games.length) del(OWNER_KEY); // играть больше не во что — и «чья вкладка играет» ни к чему
+  if (!idx.games.length && !idx.lost.length && idx.seq <= n) del(INDEX_KEY);
+  else writeIndex();
+  syncGames(); // живой становится последняя из оставшихся
+  return n;
 }
 /** Список игр: первая — та, в которую играли последней (активная), дальше — по времени. */
 export function listGames() {

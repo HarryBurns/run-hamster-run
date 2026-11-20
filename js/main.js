@@ -204,6 +204,8 @@ function startGame(fresh) {
   buildHud();
   F.initEvents();
   const s = G.state;
+  // отметка «игра началась» (до первой записи в go): без неё нетронутая игра считается пустой (core/games.js: blankGame)
+  if (!s.flags.begun) setFlag('begun');
   if (!s.mail) F.newDayMail();
   // новая игра — просыпаемся дома; продолжение — там, где остановились (если такой сцены нет — дома)
   if (fresh) go(HOME, { wake: true });

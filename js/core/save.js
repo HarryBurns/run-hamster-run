@@ -63,6 +63,9 @@ const START_VILLA = [
   ['plant_palm', 2, 1565],
 ];
 
+/** Во сколько начинается первый день новой игры (минуты от полуночи). */
+export const START_MINUTES = 7 * 60 + 30;
+
 export function newGame(name) {
   let uid = 1;
   const look = defaultLook();
@@ -77,7 +80,7 @@ export function newGame(name) {
     ledger: newLedger(), // доход по источникам и траты за сегодня и за вчера (для Хомяк-Банка)
     day: START_DAY, // новая игра начинается 1 июня (data/calendar.js); день считается от 1 января
     startDay: START_DAY, // с какого дня началась игра: от него — «Год в городе», первые письма, вводные задания
-    minutes: 7 * 60 + 30,
+    minutes: START_MINUTES,
     look,
     clothes: [...START_CLOTHES],
     storage: {}, // мебель в кладовке: id → количество
@@ -115,7 +118,9 @@ export function newGame(name) {
     best: {},
     plays: {},
     pos: { scene: 'villa', floor: 1, x: 270 },
-    flags: { intro: 1 }, // intro: 1 — идёт вводная цепочка заданий новой игры (features/welcome.js)
+    // intro: 1 — идёт вводная цепочка заданий новой игры (features/welcome.js); begun: 1 — игра дошла до самой игры
+    // (после вступительной сценки, main.js: startGame): без неё и без перемен это «пустая» игра (core/games.js: blankGame)
+    flags: { intro: 1 },
     homes: {}, // мебель в других домах (купленное жильё): ключ дома → список предметов, как в villa
     homesOwned: [], // купленное жильё: id из HOMES (вилла своя всегда и сюда не входит)
     homeMain: 'villa', // основной дом: туда ведёт кнопка «Домой»
@@ -218,13 +223,21 @@ if (typeof window !== 'undefined' && window.addEventListener)
     if (e.key === OWNER_KEY) ownerSeen(e.newValue);
   });
 
+// Пока открыта заставка, игра ещё не началась: живое сохранение не пишется совсем (что бы ни позвало save() —
+// уход со страницы, автосохранение). Новую игру записывает core/games.js: createGame — по кнопке «Играть!».
+let held = false;
+/** Заставка открыта (true) или игра началась (false): пока true, save() ничего не пишет. */
+export function holdSave(on) {
+  held = !!on;
+}
+
 /**
  * Записать сохранение прямо сейчас. Возвращает true, если записалось. Первая неудача после удачной записи
  * сообщает событием saveFail { quota } — игра показывает об этом окно (main.js). Если игру увела другая вкладка
  * (см. выше) — не пишет ничего и возвращает false.
  */
 export function save() {
-  if (!G.state) {
+  if (!G.state || held) {
     dirty = false;
     return true;
   }

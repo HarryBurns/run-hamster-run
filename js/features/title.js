@@ -1,6 +1,6 @@
 // Заставка: название, «Продолжить», «Мои игры», «Новая игра». Сцена за кнопками — features/title_scene.js,
 // хранение нескольких игр — core/games.js. Игру запускает main.js: сюда приходит start(fresh).
-import { G, cal, claimSave } from '../core/state.js';
+import { G, cal, claimSave, holdSave } from '../core/state.js';
 import {
   MAX_GAMES,
   syncGames,
@@ -16,6 +16,7 @@ import {
   restoreTrash,
   lostGames,
   retryLost,
+  dropBlankGames,
 } from '../core/games.js';
 import { el, esc, fmtMoney } from '../core/util.js';
 import { makeCanvas } from '../core/draw.js';
@@ -78,6 +79,11 @@ export function openTitle({ start }) {
   document.body.appendChild(t);
   t.addEventListener('pointerdown', unlockAudio, { passive: true });
 
+  // Пока открыта заставка, игра не началась: живое сохранение не пишется (core/save.js: holdSave), а «пустые» игры —
+  // записанные, но так и не дошедшие до самой игры (core/games.js: blankGame), — убираются: без настоящих игр
+  // заставка спрашивает имя, а не говорит «С возвращением!».
+  holdSave(true);
+  dropBlankGames();
   let res = openActive(); // { ok, problem, lost, restored }: G.state — последняя игра (если она есть и читается)
   let scene = null,
     sceneKey = '';
@@ -116,6 +122,7 @@ export function openTitle({ start }) {
         return render('main');
       }
     }
+    holdSave(false); // игра началась: теперь её можно сохранять
     claimSave(); // с этой минуты живое сохранение пишет эта вкладка (core/state.js)
     offInstall();
     scene.destroy();
