@@ -2,7 +2,7 @@
 // и горке (кадры из кэша спрайтов SP), солнышко над лежаком, «z-z-z», облачко с репликой. Кто где сидит и сколько
 // уже отдыхает, решает relax.js. Лежит в features/, а не в art/: кадры кладутся в кэш спрайтов движка локаций.
 import { TAU } from '../core/util.js';
-import { line, fillRR, emoji, ell } from '../core/draw.js';
+import { line, fillRR, ell } from '../core/draw.js';
 import { drawHamster, blinkAt } from '../art/hamster.js';
 import { RELAX, CLOTHES_BY_ID } from '../data/index.js';
 import { PS, SP, OUT } from '../engine/topdown/kinds.js';
@@ -193,15 +193,10 @@ export function drawSitter(ctx, how, look, lk, x, y, t, ph, o, spot, dir, ct) {
 }
 
 /**
- * Мелочи над отдыхающей хомячком (x, y — точка сиденья): на лежаке на солнце (sunny) — солнышко, задремала — «z-z-z»
- * (в гамаке — всегда), say — облачко с репликой. ct — сколько секунд отдыхает, t — время кадра.
+ * Мелочи над отдыхающей хомячком (x, y — точка сиденья): задремала — «z-z-z» (в гамаке — всегда), say — облачко
+ * с репликой. ct — сколько секунд отдыхает. Солнышка над загорающей на лежаке нет (просьба заказчика).
  */
-export function drawRestExtras(ctx, how, x, y, t, ct, sunny, say) {
-  if (how === 'lie' && sunny) {
-    // загорает: солнышко над лежаком тихонько пульсирует
-    const k = 1 + Math.sin(t * 2) * 0.08;
-    emoji(ctx, '☀️', x + 24, y - 58, 18 * k);
-  }
+export function drawRestExtras(ctx, how, x, y, ct, say) {
   if (how === 'lie' && ct > RELAX.dozeAfter) zzz(ctx, x - 22, y - 50, ct);
   if (how === 'hammock') zzz(ctx, x - 30, y - 34, ct);
   if (say) bubble(ctx, say, x, y - 92);

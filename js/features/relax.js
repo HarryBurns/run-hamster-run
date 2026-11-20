@@ -9,8 +9,8 @@
 // Как устроено. Отдыхающий хомячок — «способ передвижения» героя (sc.p.ride, как кораблик или горячий источник):
 // стоит на клетке рядом с предметом (место ax, ay из seat.spots — туда же и встаёт), а рисуется на сиденье — кадрами
 // из кэша спрайтов (SP: поза, фаза качелей или ног, моргание). Шаг мира (событие step) смотрит: пошла — встала.
-// Мелочи: на лежаке и полотенце днём на солнце над хомячком солнышко («загорает»), через несколько секунд — «z-z-z»
-// (в гамаке — тоже); на качелях качается выше-ниже; на скамейке болтает ногами. Посидела немного — иногда рядом
+// Мелочи: на лежаке и полотенце через несколько секунд — «z-z-z» (солнышка над загорающей больше нет — просьба
+// заказчика; в гамаке — тоже); на качелях качается выше-ниже; на скамейке болтает ногами. Посидела немного — иногда рядом
 // садится житель (на второе место того же предмета или на соседний такой же предмет), говорит реплику (RELAX_LINES)
 // и раз в день от этого чуть крепче дружба (+1). Житель на это время «занят» (n.hold, engine/topdown/actors.js).
 import { G, cal, walkK, friendHearts, npcDress } from '../core/state.js';
@@ -117,7 +117,7 @@ function sitDown(sc, o, spot, a) {
     // встаём на первом же шаге (событие step): до этого кадра хомячок идёт как пешком
     speed: ((TILES[p.surf] && TILES[p.surf].speed) || 225) * walkK(),
     pass: (tx, ty) => pass(tx, ty),
-    draw: (ctx, _sc, e, t) => drawSelf(ctx, t),
+    draw: (ctx) => drawSelf(ctx),
     drop: () => standUp(true),
   };
   p.ride = ride;
@@ -275,8 +275,8 @@ function updateMate(c, dt) {
 }
 
 // ---------- рисунок (сами рисунки — relax_art.js) ----------
-/** Хомячок на своём месте + мелочи (солнышко, «z», реплика). */
-function drawSelf(ctx, t) {
+/** Хомячок на своём месте + мелочи («z», реплика). */
+function drawSelf(ctx) {
   const c = cur;
   if (!c) return;
   const st = seatOf(c.o),
@@ -287,14 +287,7 @@ function drawSelf(ctx, t) {
   const dir = m && m.t < m.lineT - 0.5 ? (m.ax > c.ax ? 1 : -1) : 0; // пока житель говорит — смотрит на него
   drawSitter(ctx, c.how, c.look, c.lk, x, y, c.t, 0, c.o, c.spot, dir, c.t);
   SP.world();
-  const sky = c.sc.desc.sky !== false,
-    sunny =
-      sky &&
-      c.sc.wx().kind === 'sun' &&
-      !c.sc.wx().cloud &&
-      c.sc.darkness() < 0.2 &&
-      (c.sc.desc.season || cal().season) !== 'winter';
-  drawRestExtras(ctx, c.how, x, y, t, c.t, sunny, c.say && c.say.text);
+  drawRestExtras(ctx, c.how, x, y, c.t, c.say && c.say.text);
 }
 function drawMate(c, m, t) {
   const n = m.n,

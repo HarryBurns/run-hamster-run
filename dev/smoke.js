@@ -39,7 +39,8 @@
 //  первое открытие без игр (пустая игра) — dev/smoke_phantom.js:  node dev/smoke.js <url> "step:первое открытие";
 //  «Погода по всему миру» — dev/smoke_weather.js:  node dev/smoke.js <url> "step:погода:"
 //  одно правило «где житель сейчас» — dev/smoke_where.js:  node dev/smoke.js <url> "step:где житель:";
-//  мелочи после «виллы» (небо террасы, торт на столе) — dev/smoke_vlfix.js:  node dev/smoke.js <url> "step:после виллы")
+//  мелочи после «виллы» (небо террасы, торт на столе) — dev/smoke_vlfix.js:  node dev/smoke.js <url> "step:после виллы";
+//  баги заказчика 20 ноября (гости, пауза, Esc, горка…) — dev/smoke_cust20.js:  node dev/smoke.js <url> "step:заказчик 20:")
 // Скорость проверяется отдельно:  node dev/bench.js [url] --spots=forest --sizes=desktop --max-forest=45
 const { MG_START } = require('./selectors.js'); // кнопка «Начать!» мини-игры — по метке, а не по тексту
 const lib = require('./lib.js'); // общие помощники шагов (этап 21): ожидания условий вместо пауз, метки data-act
@@ -92,6 +93,7 @@ const side = require('./smoke_side.js'); // движок домов: лифт н
 const screen = require('./smoke_screen.js'); // этап 20: проблемы на экране — дом на iPad стоя (В12), кнопка места с морским путём (В14)
 const drawFixes = require('./smoke_draw.js'); // правки рисунка: часы не на окне, пруд и грядки во дворе, лежак, значок сахара
 const trifles = require('./smoke_trifles.js'); // «Мелочи» 20 ноября: полезный компас
+const cust20 = require('./smoke_cust20.js'); // баги заказчика 20 ноября: гости уходят, житель не пропадает в разговоре, пауза, Esc, лежак, горка, кусты, звезда
 const tvSteps = require('./smoke_tv.js'); // телевизор дома: каналы, прогноз = погода, «У плиты» и рецепт, животные, новости
 const rest = require('./smoke_rest.js'); // «Отдых и питомец» 20 ноября: гамак, сидит спиной за столиками, отдых в тайных местах, питомец в корзинке
 const villa = require('./smoke_villa.js'); // «Вилла растёт»: маленький домик новой игры, стройка в агентстве, ступени дома и двора, теплица, старая игра
@@ -2928,6 +2930,7 @@ const runParallel = () => {
     await vlfix({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
     await trifles({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
     await tvSteps({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
+    await cust20({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
     await rest({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
     await toastsSteps({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
     await p20({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
