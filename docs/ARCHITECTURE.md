@@ -2454,3 +2454,30 @@ js/locations/deep.js         «Подземная река» — нижний я
   у бухты, в долгом плавании к острову (`features/island.js`) и на заставке (`title_scene.js`).
 - Сохранение — версия 5 без переноса: новые поля только в `flags` (`snowmanDay`, `coveCastle`, `spaBoost`, `lagoonHint`,
   `canoeHint`) и `dayFlags`. Автотест: `node dev/smoke.js <url> step:природа` (`dev/smoke_nature.js`).
+
+## 31. Вилла растёт
+
+Замысел, ступени и цены — `docs/DESIGN.md`, раздел 8. Что построено — `state.villaUp`: `{ house: 0–4, beds: 0–2, pond,
+pool, green: 0 | 1, build: { id, day } | null }` (версия сохранения 5 не менялась; у игры без этого поля `repair` ставит
+`VILLA_UP_OLD` — всё, что было на вилле). `state.garden` — всегда `GARDEN_SIZE` мест; какие куплены — `gardenBeds()`.
+
+```
+js/data/estate.js            VILLA_UPS (ступени: kind, level, clear), bedsOf, isGreenBed; цены — VILLA_PRICES, GARDEN (economy.js)
+js/core/queries.js           villaStage, yardHas, gardenBeds / bedOwned, villaUpState, villaBuilding
+js/core/actions.js           orderVillaUp(id) — заказ; finishVillaUp() — зовётся из nextDay: утром готово
+js/interiors/villa.js        VILLA_STAGES — описание дома на каждой ступени; поле variant
+js/locations/town_yard.js    двор на карте города по ступеням: syncVillaYard(sc)
+js/features/villa_up.js      вкладка «Стройка» у риелтора (addRealtorTab), сценка строителей, утреннее окно
+dev/smoke_villa.js           автотест: node dev/smoke.js <url> "step:вилла растёт"
+```
+
+- **Дом.** Сцена `villa` одна, описаний несколько: у описания поле `variant()` — «какое описание сейчас». Движок домов
+  (`createSideScene`) собирает всё, что выводится из описания, в `setup()` и пересобирает (`sc.regrow()`) при входе
+  и по событию `villaUp`. `fitMin` в описании — при каком масштабе дом ещё показывать целиком (4 этажа на компьютере).
+- **Двор.** Карту города `town_map.js` по-прежнему строит один раз и целиком, «как было» — поэтому зелень города
+  одинаковая в любой игре. `syncVillaYard` приводит двор к построенному: `m.retile(x, y, вид)` (новое в `map.js`),
+  `m.add / m.remove` для лежаков, камышей и теплицы, потом `resetGround(m)` (`ground.js`) и событие `yard` — предметы
+  двора, оказавшиеся в воде или на грядке, уходят в сарайчик. Теплица — предмет `villaGreenhouse` над клетками `bg`.
+- **Автотест.** `fresh()` из `dev/lib.js` по умолчанию зовёт `__dev.villaFull()` — вилла целиком с прежней стартовой
+  мебелью (на неё рассчитаны прежние шаги); `fresh({ villa: 'small' })` — настоящая новая игра. `__dev.villaUp(id)` —
+  построить ступень сразу.
