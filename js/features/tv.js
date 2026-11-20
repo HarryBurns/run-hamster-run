@@ -20,6 +20,7 @@ import {
   ANIMAL_FACTS,
   ANIMAL_NAMES,
   TOWN_TRIFLES,
+  TV_RARE_STICKERS,
   COOK_SHOW,
   COOK_SHOW_SEC,
   cookShowOn,
@@ -87,12 +88,15 @@ function newsLine(n) {
     }
     case 'sticker': {
       const st = STICKER[n.id];
-      return (
-        st && {
-          icon: st.sticker,
-          text: `${name} получила редкую наклейку «${st.title.replace(/!$/, '')}». Вот это да!`,
-        }
-      );
+      if (!st) return null;
+      const t = st.title.replace(/!$/, '');
+      // «редкая» — только для настоящих редкостей (TV_RARE_STICKERS); об обычной — своими словами (П20-6)
+      return {
+        icon: st.sticker,
+        text: TV_RARE_STICKERS.has(n.id)
+          ? `${name} получила редкую наклейку «${t}». Вот это да!`
+          : `${name} приклеила в альбом новую наклейку «${t}». Поздравляем!`,
+      };
     }
     case 'home': {
       const h = HOME_BY_ID[n.id];
@@ -385,6 +389,7 @@ export function openTv({ item, scene } = {}) {
         '</ul>';
     } else html = '<p>🎵 Мультик «Мячик и хомячок». Просто смотри и отдыхай!</p>';
     capEl.innerHTML = html;
+    requestAnimationFrame(moreCap);
     if (st.ch === 'animals') {
       const b = el('button', 'btn small', '🐾 Ещё факт');
       b.dataset.act = 'tv-fact';
@@ -412,6 +417,11 @@ export function openTv({ item, scene } = {}) {
       `<b>📅 Программа передач</b><br>🍳 «У плиты» — ` +
       (show ? `<b>сегодня весь день!</b> Потом — ${w.rel}.` : `<b>${w.rel}</b> (${w.date}).`) +
       '<br>🌦️ Погода, 🐢 животные, 📰 новости и 🎵 мультики — каждый день.';
+  }
+
+  /** Подпись не помещается (компьютер: колонка высотой с экран, П20-6) — тень снизу, пока не долистали. */
+  function moreCap() {
+    if (capEl) capEl.classList.toggle('more', capEl.scrollHeight - capEl.scrollTop - capEl.clientHeight > 4);
   }
 
   function setCh(id, quiet) {
@@ -523,6 +533,7 @@ export function openTv({ item, scene } = {}) {
         chipsEl.appendChild(b);
       }
       capEl = el('div', 'tv-cap');
+      capEl.addEventListener('scroll', moreCap, { passive: true });
       progEl = el('div', 'tv-prog');
       side.append(chipsEl, capEl, progEl);
       wrap.append(left, side);

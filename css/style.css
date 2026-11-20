@@ -106,13 +106,15 @@ button { font: inherit; color: inherit; cursor: pointer; }
 .toast { pointer-events: auto; cursor: pointer; }
 #toasts.fast .toast, body.win-open .toast, .toast.out { pointer-events: none; }
 @keyframes toast-in { from { transform: translateY(-12px) scale(.9); opacity: 0; } to { transform: none; opacity: 1; } }
-/* открыто окно (класс ставит ui/panel.js): подсказки на нижнем краю шапки окна (top ставит ui/toast.js), компактнее
-   и не больше двух — заголовок и ✕ окна остаются на виду (Ф2); лёжа на телефоне — шире и мельче, чтобы длинная
-   подсказка занимала одну-две строки */
+/* открыто окно (класс ставит ui/panel.js): подсказки над окном, под ним или внизу окна над кнопками (top ставит
+   ui/toast.js, П20-6), компактнее и не больше двух — шапка, ✕ и первые строки окна остаются на виду (Ф2); на большом
+   экране и лёжа на телефоне — шире, чтобы длинная подсказка занимала одну строку и помещалась над окном */
 body.win-open #toasts { gap: 4px; }
 body.win-open .toast { font-size: 14px; padding: 5px 14px; line-height: 1.25; opacity: .94; }
 body.win-open .toast.out { opacity: 0; }
 body.win-open .toast:nth-last-child(n + 3) { display: none; }
+body.win-open .toast.tuck { display: none; }
+@media (min-width: 700px) { body.win-open #toasts { width: min(92vw, 640px); } }
 /* важное окно («Игра открыта дважды», ui/panel.js quiet) — подсказки не видны совсем */
 body.win-quiet #toasts { visibility: hidden; }
 @media (max-height: 520px) and (orientation: landscape) {
@@ -180,6 +182,18 @@ body.win-quiet #toasts { visibility: hidden; }
 .tv-news li { margin: 6px 0; }
 .tv-ni { font-size: 18px; }
 .tv-prog { font-size: 13px; line-height: 1.35; background: #fff3bf; border-radius: 14px; padding: 6px 10px; }
+/* рядом (компьютер, планшет лёжа): правая колонка ровно с экран высотой, длинная подпись и новости листаются внутри —
+   окно не прыгает по высоте, когда переключаешь канал (П20-6) */
+@media (orientation: landscape) and (min-width: 641px) and (min-height: 521px) {
+  .tv-wrap { align-items: stretch; }
+  .tv-side { contain: size; min-height: 300px; }
+  .tv-cap { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+  .tv-chips, .tv-prog { flex: none; }
+  .tv-chips { gap: 5px; }
+  .tv-chip { min-height: 36px; padding: 4px 10px; font-size: 13px; }
+  /* подпись длиннее места — снизу тень: «листай» */
+  .tv-cap.more { box-shadow: inset 0 -16px 12px -12px rgba(74, 55, 40, .35); }
+}
 @media (orientation: portrait), (max-width: 640px) {
   .tv-wrap { flex-direction: column; align-items: stretch; }
   .tv-left, .tv-side { flex: none; }

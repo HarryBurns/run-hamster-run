@@ -1,8 +1,8 @@
 // Подсказки — короткие сообщения вверху экрана, которые исчезают сами — не раньше, чем их успеет прочитать ребёнок
 // (по длине текста, toast ниже); касание убирает подсказку, мышь или палец на ней — придерживают.
-// Пока открыто окно (класс win-open у body ставит ui/panel.js), подсказки встают на нижний край шапки (и вкладок)
-// верхнего окна, компактнее и не больше двух — заголовок и ✕ окна остаются на виду, кнопки внизу окна тоже (Ф2),
-// и первая строка окна не прячется.
+// Пока открыто окно (класс win-open у body ставит ui/panel.js), подсказки компактнее, не больше двух и встают рядом
+// с верхним окном — над ним или под ним, а окну во весь экран — внизу, над кнопками (placeToasts): шапка, ✕, вкладки
+// и первые строки окна (экран телевизора) остаются на виду (Ф2, П20-6).
 import { setFlag, setDayFlag } from '../core/actions.js';
 import { el, readSec } from '../core/util.js';
 import { devToasts } from '../core/dev.js';
@@ -96,7 +96,13 @@ function fade(t, now) {
   q.gone = true;
   clearTimeout(q.tm);
   t.classList.add('out');
-  setTimeout(() => t.remove(), now ? FADE / 2 : FADE);
+  setTimeout(
+    () => {
+      t.remove();
+      if (document.body.classList.contains('win-open')) placeToasts(); // над окном: оставшаяся — вплотную к окну
+    },
+    now ? FADE / 2 : FADE,
+  );
 }
 // мышь над подсказкой — не тает. По прямоугольнику, а не по событиям самой подсказки: при открытом окне сквозь
 // подсказки можно нажимать (pointer-events: none — вкладки и ✕ под ними), а придержать мышью всё равно можно
@@ -155,28 +161,58 @@ function hudBottom() {
 }
 
 /**
- * Поставить подсказки под шапку верхнего открытого окна, а если окон нет — на обычное место, но не на плашки HUD
- * (на телефоне они в несколько рядов, и подсказка ложилась на плашку письма — З18).
+ * Поставить подсказки рядом с верхним открытым окном так, чтобы они не закрывали его шапку (заголовок, ✕, вкладки)
+ * и первые строки (экран телевизора, П20-6): над окном, если там хватает места (плашки HUD под затемнением окна можно
+ * закрыть), иначе под окном; не помещаются обе — только новая (старшая прячется, класс tuck); совсем нет места
+ * (окно во весь экран) — внизу окна, над его кнопками. Без окон — на обычное место, но не на плашки HUD (на телефоне
+ * они в несколько рядов, и подсказка ложилась на плашку письма — З18).
  */
 export function placeToasts() {
   if (!toastBox) return;
   const panels = document.querySelectorAll('.overlay > .panel'),
     p = panels[panels.length - 1];
+  for (const t of toastBox.children) t.classList.remove('tuck');
   if (!p || !document.body.classList.contains('win-open')) {
     toastBox.style.top = '';
     const b = hudBottom();
     if (b && b + 6 > toastBox.getBoundingClientRect().top) toastBox.style.top = Math.round(b + 6) + 'px';
     return;
   }
+  watchPanel(p);
   // offsetTop/offsetHeight не зависят от анимации появления окна (transform: scale)
-  const head = p.querySelector('.panel-head'),
-    tabs = p.querySelector(':scope > .tabs');
-  const top = p.parentElement.offsetTop + p.offsetTop + (head ? head.offsetHeight : 0) + (tabs ? tabs.offsetHeight : 0);
-  // подсказка «сидит» на нижнем краю шапки: верхняя половина — на шапке под заголовком (он по центру шапки, выше),
-  // нижняя — на отступе окна, первая строка окна (заголовок раздела, «Причёска» в салоне) остаётся видна; у окна
-  // с вкладками — чуть заходит на низ вкладок (надписи на них выше)
-  const first = toastBox.children[Math.max(0, toastBox.children.length - 2)], // верхняя из видимых (их не больше двух)
-    h = first ? first.offsetHeight : 28;
-  toastBox.style.top = Math.round(top - (tabs ? 10 : Math.min(16, h * 0.5))) + 'px';
+  const top = p.parentElement.offsetTop + p.offsetTop,
+    bottom = top + p.offsetHeight,
+    H = innerHeight,
+    // сверху — не под «чёлку» телефона: у окна-подложки отступ 10px + safe-area-inset-top (style.css, .overlay)
+    safe = Math.max(4, (parseFloat(getComputedStyle(p.parentElement).paddingTop) || 10) - 6),
+    GAP = 6;
+  const put = () => {
+    const h = toastBox.offsetHeight;
+    if (!h) return true;
+    if (top - GAP - h >= safe) toastBox.style.top = Math.round(top - GAP - h) + 'px';
+    else if (bottom + GAP + h <= H - 4) toastBox.style.top = Math.round(bottom + GAP) + 'px';
+    else return false;
+    return true;
+  };
+  if (put()) return;
+  // обе не помещаются — видна только новая (старшая и так скоро растает)
+  const vis = [...toastBox.children].filter((t) => getComputedStyle(t).display !== 'none');
+  for (const t of vis.slice(0, -1)) t.classList.add('tuck');
+  if (put()) return;
+  // окно во весь экран: внизу окна, над его кнопками (их и шапку не закрываем; сквозь подсказку можно нажимать)
+  const foot = p.querySelector('.panel-foot'),
+    head = p.querySelector('.panel-head'),
+    floor = foot && foot.offsetHeight ? top + foot.offsetTop : bottom - 10,
+    ceil = top + (head ? head.offsetTop + head.offsetHeight : 0) + GAP;
+  toastBox.style.top = Math.round(Math.max(ceil, floor - GAP - toastBox.offsetHeight)) + 'px';
+}
+/** Окно поменяло высоту (новый канал телевизора, другая вкладка) — подсказки переставить. */
+const watched = new WeakSet();
+let ro = null;
+function watchPanel(p) {
+  if (watched.has(p) || typeof ResizeObserver === 'undefined') return;
+  watched.add(p);
+  ro = ro || new ResizeObserver(() => placeToasts());
+  ro.observe(p);
 }
 addEventListener('resize', placeToasts);

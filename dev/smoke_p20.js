@@ -73,4 +73,78 @@ module.exports = async function p20(ctx) {
     expect(r.w >= 80, 'стол для пикника узкий — хомячок закрывает его целиком', r);
     expect(r.around.every(Boolean), 'вокруг стола для пикника не пройти', r);
   });
+
+  await step(
+    '20н: телевизор — окно не прыгает по высоте, «редкая» только у редких наклеек, подсказки не на шапке и экране',
+    async () => {
+      await L.fresh({ day: 18, minutes: 12 * 60, weather: 'sun' });
+      await ev(() => {
+        const a = window.__dev.actions;
+        for (const id of ['x_first', 'x_whale']) a.award(id);
+      });
+      await L.drain();
+      await ev(() => window.__dev.run('tv'));
+      await L.untilPanel();
+      const hs = [];
+      for (const ch of ['weather', 'cook', 'animals', 'news', 'toons', 'news']) {
+        await L.act('tv-ch-' + ch);
+        await frames(2);
+        hs.push(await ev(() => Math.round(document.querySelector('.overlay > .panel').getBoundingClientRect().height)));
+      }
+      const wide = await ev(() => innerWidth > 640 && innerWidth > innerHeight);
+      if (wide) expect(Math.max(...hs) - Math.min(...hs) <= 1, 'окно телевизора меняет высоту при смене канала', hs);
+      const news = L.norm(await ev(() => document.querySelector('.overlay .tv-cap').textContent));
+      expect(
+        /наклейку «Новоселье»/.test(news) && !/редкую наклейку «Новоселье»/.test(news),
+        'новость о «Новоселье»',
+        news,
+      );
+      expect(/редкую наклейку «Встреча с китом»/.test(news), 'новость о редкой наклейке', news);
+      await L.closeAll();
+      // подсказки при открытом окне: не на шапке (заголовок, ✕), не на первых строках и не на экране телевизора
+      await ev(() => window.__dev.fastToasts(false));
+      try {
+        for (const [name, open] of [
+          ['телевизор', () => window.__dev.run('tv')],
+          ['рюкзак', () => window.__dev.F.openBackpack()],
+          ['почта', () => window.__dev.F.openMailbox()],
+          ['альбом', () => window.__dev.F.openAlbum()],
+          ['гардероб', () => window.__dev.F.openWardrobe()],
+          ['настройки', () => window.__dev.F.openSettings()],
+          ['карта', () => window.__dev.F.openMap()],
+        ]) {
+          await L.closeAll();
+          await ev(() => document.querySelectorAll('#toasts .toast').forEach((t) => t.remove()));
+          await ev(open);
+          await L.untilPanel();
+          await ev(() => {
+            window.__dev.ui.toast('🍳 Новый рецепт — в книге рецептов! Приготовь блюдо дома на кухне.', 'good');
+            window.__dev.ui.toast('Вторая подсказка: загляни в альбом наклеек.');
+          });
+          await L.wait(450);
+          const r = await ev(() => {
+            const ts = [...document.querySelectorAll('#toasts .toast')]
+              .filter((t) => getComputedStyle(t).display !== 'none')
+              .map((t) => t.getBoundingClientRect());
+            const p = document.querySelector('.overlay > .panel').getBoundingClientRect(),
+              h = document.querySelector('.overlay .panel-head').getBoundingClientRect(),
+              scr = document.querySelector('.overlay .tv-screen');
+            const zones = [h, { left: p.left, right: p.right, top: h.bottom, bottom: h.bottom + 40 }];
+            if (scr) zones.push(scr.getBoundingClientRect());
+            const hit = ts.some((b) =>
+              zones.some((a) => b.left < a.right && b.right > a.left && b.top < a.bottom && b.bottom > a.top),
+            );
+            return { n: ts.length, hit, inScreen: ts.every((b) => b.top >= 0 && b.bottom <= innerHeight) };
+          });
+          expect(r.n >= 1 && !r.hit && r.inScreen, 'подсказка закрывает шапку или начало окна: ' + name, r);
+        }
+      } finally {
+        await ev(() => {
+          window.__dev.fastToasts(true);
+          document.querySelectorAll('#toasts .toast').forEach((t) => t.remove());
+        });
+        await L.closeAll();
+      }
+    },
+  );
 };
