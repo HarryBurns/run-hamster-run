@@ -110,4 +110,43 @@ module.exports = async function rest(ctx) {
       expect(tap && tap.how === 'hammock', 'зимой в джунглях на гамак не нажать', tap);
     },
   );
+
+  await step(
+    'отдых 20н: питомец едет в корзинке велосипеда и самоката, в кабриолете — на сиденье; слезла — идёт следом',
+    async () => {
+      await fresh();
+      await ev(() => {
+        const a = window.__dev.actions;
+        a.adoptPet('puppy', 'Бублик');
+        for (const id of ['scooter', 'bike', 'car']) a.addWheels(id);
+      });
+      await L.teleport(44, 22);
+      await L.frames(3);
+      for (const id of ['bike', 'scooter', 'car']) {
+        await ev((id) => {
+          window.__dev.actions.useWheels(id);
+          window.__dev.F.mountWheels(window.__dev.scene, id, true);
+        }, id);
+        await until(() => window.__dev.F.petInBasket() === 'puppy', undefined, { msg: `${id}: щенок не в корзинке` });
+        // кадр транспорта — с питомцем
+        await L.frames(2);
+        const key = await ev(
+          (id) =>
+            [...window.__dev.topdown.SP.map.keys()].some((k) => k.startsWith(`wh:${id}:`) && k.endsWith(':puppy')),
+          id,
+        );
+        expect(key, `${id}: нет кадра транспорта с питомцем`);
+        await ev(() => window.__dev.F.dismountWheels());
+        await until(() => window.__dev.F.petInBasket() === '', undefined, {
+          msg: `${id}: слезла — щенок остался в корзинке`,
+        });
+        const pw = await ev(() => {
+          const w = window.__dev.F.petDebug().world,
+            p = window.__dev.World.playerPos();
+          return { d: Math.hypot(w.x - p.x, w.y - p.y), away: w.away };
+        });
+        expect(pw.d > 10 && pw.d < 80 && !pw.away, `${id}: слезла — щенок не спрыгнул рядом`, pw);
+      }
+    },
+  );
 };

@@ -9,7 +9,9 @@
 //   В ЛОКАЦИЯХ — общая часть (addWorldPart): питомец не житель и не предмет карты, он идёт по СЛЕДУ хомячка —
 // точкам, где она прошла по суше (каждые STEP единиц), и останавливается в паре шагов. Поэтому он не застревает
 // и пути не мешает. Хомячок в воде, на кораблике или далеко (быстрый переход, вход в локацию) — питомец ждёт,
-// а потом «прибегает»: появляется рядом. Кадры — в кэше спрайтов SP.
+// а потом «прибегает»: появляется рядом. Кадры — в кэше спрайтов SP. Хомячок едет на транспорте — питомец в корзинке
+// велосипеда или самоката, в кабриолете — на сиденье (w.basket; рисует его кадр транспорта, art/wheels.js); слезла —
+// спрыгивает рядом и идёт следом.
 //   ДОМА (свои дома: вилла и купленное жильё) — общая часть домов (addSidePart): гуляет по этажу, где хомячок. В чужие дома,
 // магазины и мини-игры не заходит. «Подожди дома» — остаётся в основном доме (кнопка «Домой»).
 import { G } from '../core/state.js';
@@ -52,6 +54,8 @@ const STEP = 14, // шаг следа
   KEEP = 3, // сколько точек следа до хомячка питомец оставляет (идёт в паре шагов)
   FAR = T * 7; // дальше — «прибегает»
 
+/** Питомец едет в корзинке транспорта: его вид (для кадра транспорта, features/wheels.js) или ''. */
+export const petInBasket = () => (w && w.basket && walks() && scene() === w.sc ? pet().kind : '');
 /** Гуляет ли питомец с хомячком (а не ждёт дома). */
 const walks = () => !!pet() && !pet().stay;
 /** Хомячок на суше и пешком (или на колёсах): по её следу можно идти. */
@@ -142,6 +146,21 @@ function updateWorld(sc, dt) {
   const p = sc.p,
     land = heroOnLand(sc);
   if (w.fx) return updateFx(w, dt, sc);
+  // едет на транспорте — питомец в корзинке; слезла — спрыгивает рядом (popNear: подпрыгнул) и идёт следом
+  if (p.ride && p.ride.wheels) {
+    w.basket = true;
+    w.x = p.x;
+    w.y = p.y;
+    w.trail = [];
+    w.spot = null;
+    w.moving = false;
+    return;
+  }
+  if (w.basket) {
+    w.basket = false;
+    if (!popNear(sc)) w.away = true;
+    return;
+  }
   // след хомячка
   if (land) {
     if (w.away || !w.last || dist(p.x, p.y, w.last.x, w.last.y) > T * 2.5 || dist(p.x, p.y, w.x, w.y) > FAR) {
@@ -319,7 +338,12 @@ on('step', ({ dt }) => {
 
 // ---------- общая часть локаций ----------
 const hitWorld = (pt) =>
-  !!w && !w.hidden && Math.abs(pt.x - w.x) < 24 && pt.y > w.y - PET_BY_ID[pet().kind].size - 10 && pt.y < w.y + 12;
+  !!w &&
+  !w.hidden &&
+  !w.basket &&
+  Math.abs(pt.x - w.x) < 24 &&
+  pt.y > w.y - PET_BY_ID[pet().kind].size - 10 &&
+  pt.y < w.y + 12;
 addWorldPart({
   enter(sc) {
     enterWorld(sc);
@@ -335,17 +359,17 @@ addWorldPart({
     return true;
   },
   near(sc) {
-    if (!w || w.sc !== sc || !walks() || w.hidden) return null;
+    if (!w || w.sc !== sc || !walks() || w.hidden || w.basket) return null;
     const d = dist(sc.p.x, sc.p.y, w.x, w.y);
     return d < T * 0.9 ? { d: d * 1.3, pending: { fn: () => openPet() } } : null;
   },
   things(sc, add, v) {
-    if (!w || w.sc !== sc || !walks() || w.hidden) return;
+    if (!w || w.sc !== sc || !walks() || w.hidden || w.basket) return;
     if (w.x < v.x0 || w.x > v.x1 || w.y < v.y0 || w.y > v.y1) return;
     add(w.y + 9, drawWorldPet, w);
   },
   over(ctx, sc, t) {
-    if (!w || w.sc !== sc || !walks() || w.hidden) return;
+    if (!w || w.sc !== sc || !walks() || w.hidden || w.basket) return;
     drawHearts(ctx, hearts, false);
     const size = PET_BY_ID[pet().kind].size;
     if (petHungry() && !w.fx) drawBubble(ctx, w.x, w.y - size - 4, t);

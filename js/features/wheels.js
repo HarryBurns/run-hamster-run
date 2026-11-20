@@ -13,6 +13,7 @@
 //   - вошла в здание или ушла в другое место — слезает сама (ride снимается при смене сцены); вернулась в город —
 //     снова едет (транспорт «ждал у двери»), пока сама не нажала «Слезть»;
 //   - села на скамейку или кораблик (другой ride) — транспорт убран.
+// Питомец едет вместе с хомячком — в корзинке (features/pet.js, petInBasket), слезла — спрыгивает и идёт следом.
 // Быстрый переход по карте (sc.skipAlong) и звёздочка задания от транспорта не зависят: путь прокладывает движок
 // по правилу прохода текущего ride.
 import { G, walkK } from '../core/state.js';
@@ -27,6 +28,7 @@ import { RIDES, RIDE_BY_ID, ROAD_TILES } from '../data/index.js';
 import { PS, SP, TILES, addWorldPart } from '../engine/topdown/index.js';
 import { toast } from '../ui/toast.js';
 import { buy, priceTag, buyBtn } from './purchase.js';
+import { petInBasket } from './pet.js';
 
 const S = () => G.state;
 /** Сейчас едем: { sc, id, ride, lk, look } или null. */
@@ -136,9 +138,10 @@ function drawRider(ctx, ent, t, look) {
     rider = c.look,
     d = ent.dir >= 0 ? 1 : -1,
     fr = ent.moving ? Math.floor(((ent.walkT * 1.6) % 1) * FRAMES) % FRAMES : 0,
-    shut = blinkAt(t, 0) > 0.5 ? 1 : 0;
-  const s = SP.get(`wh:${id}:${c.lk}:${d}:${fr}:${shut}`, WHEELS_ART[id].box, (g) =>
-    paintRider(g, id, d, fr, rider, shut, PS),
+    shut = blinkAt(t, 0) > 0.5 ? 1 : 0,
+    pk = petInBasket(); // питомец едет в корзинке (или на сиденье кабриолета)
+  const s = SP.get(`wh:${id}:${c.lk}:${d}:${fr}:${shut}:${pk}`, WHEELS_ART[id].box, (g) =>
+    paintRider(g, id, d, fr, rider, shut, PS, pk),
   );
   SP.draw(s, ent.x, ent.y + 10);
 }

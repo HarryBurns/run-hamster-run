@@ -4,9 +4,13 @@
 // дверца); seat — где и как сидит или стоит хомячок: { x, y, pose }. (0, 0) — точка на земле под серединой;
 // d — куда едет (1 — вправо, -1 — влево); fr — кадр колёс 0..3 (спицы повёрнуты). Размер — под хомячка на карте
 // «вид сверху» (PS = 0,78). Значок для магазина — rideIcon(id, размер).
+// Питомец едет с хомячком (пачка 20 ноября): в корзинке велосипеда и самоката (front(c, d, fr, pk) рисует его до
+// передней стенки корзинки — видно голову и лапки), в кабриолете — на сиденье позади (petSeat: рисуется между
+// back и хомячком, борт закрывает низ). pk — вид питомца или '' (едет один хомячок).
 import { TAU } from '../core/util.js';
 import { ell, fillRR, line, poly, shade, makeCanvas } from '../core/draw.js';
 import { drawHamster } from './hamster.js';
+import { drawPet } from './pets.js';
 
 const OUT = '#4a3728';
 
@@ -29,6 +33,15 @@ function wheel(c, x, y, r, fr, hub = '#ffd43b') {
   }
   ell(c, x, y, r * 0.24, r * 0.24, hub, OUT, 1);
 }
+/** Питомец kind сидит в точке (x, y) и смотрит по ходу d, размер k (зверята крупнее хомячка — в корзинке меньше). */
+function petAt(c, kind, x, y, d, k) {
+  if (!kind) return;
+  c.save();
+  c.translate(x, y);
+  c.scale(d * k, k);
+  drawPet(c, kind, { walk: null, wag: 0.25, mood: 'happy', blink: 0 });
+  c.restore();
+}
 const shadow = (c, rx) => ell(c, 0, 1, rx, 5, 'rgba(52,38,70,.17)');
 /** Толстая цветная трубка с контуром. */
 function tube(c, x1, y1, x2, y2, col, w = 4) {
@@ -48,12 +61,17 @@ export const WHEELS_ART = {
       tube(c, -25 * d, -8, 16 * d, -8, '#63e6be', 5);
       tube(c, -25 * d, -8, -31 * d, -15, '#63e6be', 3); // крылышко над задним колесом
     },
-    front(c, d, fr) {
+    front(c, d, fr, pk) {
       wheel(c, 25 * d, -7, 7, fr, '#ff8fab');
       // стойка руля и ручки
       tube(c, 24 * d, -9, 17 * d, -52, '#ff8fab', 3.4);
       tube(c, 11 * d, -53, 23 * d, -51, '#4b5563', 4);
       ell(c, 11 * d, -53, 3, 3, '#ffd43b', OUT, 1.4);
+      // корзинка на руле — для питомца
+      petAt(c, pk, 26 * d, -38, d, 0.55);
+      poly(c, [19 * d, -46, 33 * d, -46, 31 * d, -35, 21 * d, -35], '#f0c987', OUT, 1.6);
+      line(c, 26 * d, -46, 26 * d, -35, 'rgba(74,55,40,.4)', 1);
+      line(c, 20 * d, -40.5, 32 * d, -40.5, 'rgba(74,55,40,.4)', 1);
     },
   },
   // ---------- велосипед: сидит на седле, впереди корзинка с цветком ----------
@@ -78,26 +96,30 @@ export const WHEELS_ART = {
       // седло
       fillRR(c, -13 * d - 9, -45, 18, 6, 3, '#e8590c', OUT, 1.6);
     },
-    front(c, d) {
+    front(c, d, fr, pk) {
       const col = '#74c0fc';
       tube(c, 29 * d, -14, 17 * d, -40, col, 3.4); // вилка
       tube(c, 17 * d, -38, 15 * d, -52, col, 3);
       tube(c, 9 * d, -54, 21 * d, -52, '#4b5563', 4); // руль
       ell(c, 9 * d, -54, 3, 3, '#ff8fab', OUT, 1.4);
-      // корзинка
+      // корзинка: в ней едет питомец (тогда цветок — сбоку, за ушком)
+      petAt(c, pk, 31 * d, -36, d, 0.7);
       poly(c, [22 * d, -46, 40 * d, -46, 37 * d, -31, 25 * d, -31], '#f0c987', OUT, 1.8);
       for (const k of [0.33, 0.66]) line(c, (22 + 18 * k) * d, -46, (25 + 12 * k) * d, -31, 'rgba(74,55,40,.4)', 1);
       line(c, 23.5 * d, -39, 38.5 * d, -39, 'rgba(74,55,40,.4)', 1);
-      line(c, 31 * d, -46, 31 * d, -54, '#2f9e44', 1.6);
+      const fx = (pk ? 38 : 31) * d;
+      line(c, fx, -46, fx, -54, '#2f9e44', 1.6);
       for (let i = 0; i < 5; i++)
-        ell(c, 31 * d + Math.cos((i * TAU) / 5) * 3.4, -56 + Math.sin((i * TAU) / 5) * 3.4, 2.4, 2.4, '#ff8fab');
-      ell(c, 31 * d, -56, 2, 2, '#ffd43b');
+        ell(c, fx + Math.cos((i * TAU) / 5) * 3.4, -56 + Math.sin((i * TAU) / 5) * 3.4, 2.4, 2.4, '#ff8fab');
+      ell(c, fx, -56, 2, 2, '#ffd43b');
     },
   },
   // ---------- кабриолет: сидит за рулём, видно по плечи ----------
   car: {
     box: [-78, -112, 78, 16],
     seat: (d) => ({ x: -7 * d, y: -19, pose: { dir: d, shadow: false, sit: true } }),
+    // питомец — на сиденье позади хомячка, из-за борта видна голова
+    petSeat: (d) => ({ x: -40 * d, y: -35, k: 0.72 }),
     back(c, d) {
       shadow(c, 60);
       // дальний борт и спинка сиденья
@@ -159,14 +181,18 @@ export function rideIcon(id, size = 112) {
 
 /**
  * Хомячок (look) на транспорте id — кадр для кэша спрайтов (features/wheels.js): d — куда едет, fr — кадр колёс,
- * shut — глазки закрыты (1), ps — размер хомячка (PS движка локаций).
+ * shut — глазки закрыты (1), ps — размер хомячка (PS движка локаций), pk — вид питомца, который едет с ней, или ''.
  */
-export function paintRider(g, id, d, fr, look, shut, ps) {
+export function paintRider(g, id, d, fr, look, shut, ps, pk = '') {
   const art = WHEELS_ART[id];
   g.lineCap = 'round';
   art.back(g, d, fr);
+  if (pk && art.petSeat) {
+    const q = art.petSeat(d);
+    petAt(g, pk, q.x, q.y, d, q.k);
+  }
   const st = art.seat(d);
   drawHamster(g, st.x, st.y, ps, look, { ...st.pose, blink: shut, time: 0 });
-  art.front(g, d, fr);
+  art.front(g, d, fr, art.petSeat ? '' : pk);
   g.lineCap = 'butt';
 }
