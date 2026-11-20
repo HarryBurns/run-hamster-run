@@ -91,6 +91,7 @@
 "js/features/gifts.js",
 "js/features/health.js",
 "js/features/health_art.js",
+"js/features/help.js",
 "js/features/holidays.js",
 "js/features/holidays_bday.js",
 "js/features/holidays_scenes.js",

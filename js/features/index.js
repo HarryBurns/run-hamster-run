@@ -57,6 +57,7 @@ import * as photo from './photo.js';
 import * as piano from './piano.js';
 import * as tv from './tv.js';
 import * as settings from './settings.js';
+import * as help from './help.js';
 import * as soundscape from './soundscape.js';
 import * as install from './install.js';
 
@@ -74,7 +75,8 @@ export { playIntro } from './intro.js';
 export { openBackpack } from './backpack.js';
 export { openAlbum } from './album.js';
 export { openPhotoMode } from './photo.js';
-export { openSettings, showHelp } from './settings.js';
+export { openSettings } from './settings.js';
+export { showHelp } from './help.js';
 export { updateSound } from './soundscape.js';
 export { registerOffline, startInstallHint } from './install.js';
 
@@ -134,6 +136,7 @@ export const devAll = () =>
     piano,
     tv,
     settings,
+    help,
     install,
     soundscape,
   );

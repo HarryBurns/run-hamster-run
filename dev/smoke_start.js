@@ -213,6 +213,53 @@ module.exports = async function start(ctx) {
   });
 
   await step(
+    'начало игры: «Как играть» — только основы, для пальца и для мыши с клавиатурой, с картинками',
+    async () => {
+      await fresh();
+      const help = async (touch) => {
+        await ev((touch) => void window.__dev.F.showHelp({ touch }), touch);
+        await untilPanel('Как играть');
+        const r = await ev(() => ({
+          pics: [...document.querySelectorAll('.howto-card')].map((c) => c.dataset.pic),
+          svgs: document.querySelectorAll('.howto-card svg').length,
+        }));
+        r.text = await panelText();
+        await closeAll();
+        return r;
+      };
+      const t = await help(true),
+        k = await help(false);
+      const common = ['coins', 'map', 'decor', 'grow'];
+      expect(
+        t.pics.join() === ['tapGo', 'tapThing', ...common].join() && t.svgs === t.pics.length,
+        'справка для пальца',
+        t.pics,
+      );
+      expect(
+        t.text.includes('Нажми на место') && !/WASD|W A S D|клавиатур|мышк/.test(t.text),
+        'для пальца — без клавиш и мыши',
+        t.text.slice(0, 300),
+      );
+      expect(
+        k.pics.slice(0, 3).join() === 'keys,keyE,mouse' && common.every((p) => k.pics.includes(p)),
+        'справка для компьютера',
+        k.pics,
+      );
+      expect(
+        k.text.includes('W A S D') && k.text.includes('мышкой'),
+        'для компьютера — клавиши и мышь',
+        k.text.slice(0, 300),
+      );
+      // только основы: ни тайных мест, ни праздников, ни работы
+      expect(
+        ![t.text, k.text].some((x) => /лес|пещер|пустын|джунгл|праздник|школ|больниц/i.test(x)),
+        'в справке лишнее',
+        k.text,
+      );
+    },
+  );
+
+  await step(
     'начало игры: вводная цепочка — четыре соседа заходят в гости, шаги по событиям, награды, наклейка «Новосёл»',
     async () => {
       await fresh();
