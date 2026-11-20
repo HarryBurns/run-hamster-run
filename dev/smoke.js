@@ -319,6 +319,7 @@ async function extra({ page, step, ev, wait, closeAll, hold }) {
     const st = await stored();
     if (st.backup !== raw) throw new Error('нет резервной копии');
     if (await page.locator('text=Продолжить').count()) throw new Error('битое сохранение предложено продолжить');
+    await page.click('[data-act="gender-f"]'); // новая игра ждёт выбора «хомячок / хомячка»
     await page.click('text=Играть!');
     await page.click('text=Пропустить'); // вступительная сценка новой игры (этап 10)
     await page.evaluate(() => window.__dev.oldStart()); // как до этапа 10: 1 января, без вводной цепочки (начало игры — dev/smoke_start.js)
@@ -1094,6 +1095,7 @@ async function economy({ page, step, ev, wait, closeAll }) {
     });
     await page.reload();
     await wait(400);
+    await page.click('[data-act="gender-f"]'); // новая игра ждёт выбора «хомячок / хомячка»
     await page.click('text=Играть!');
     await page.click('text=Пропустить'); // вступительная сценка новой игры (этап 10)
     await page.evaluate(() => window.__dev.actions.setFlag('intro', 0)); // вводная цепочка заданий — в своих шагах (dev/smoke_start.js)

@@ -138,7 +138,7 @@ export const TALES = [
 export const PARROT_MEMORY = 3;
 export const PARROT_WORDS = [
   { id: 'morning', e: '🌞', text: 'Добр-р-рое утр-р-ро, {name}!' },
-  { id: 'friend', e: '💖', text: '{name} — {лучший др-р-руг|лучшая подр-р-руга}!' },
+  { id: 'friend', e: '💖', text: '{name} — мой др-р-руг!' },
   { id: 'seed', e: '🌻', text: 'Дай семечку! Дай семечку!' },
   { id: 'good', e: '😇', text: 'Кто хор-р-роший? Я хор-р-роший!' },
   { id: 'sailor', e: '⚓', text: 'Свистать всех навер-р-рх!' },

@@ -138,7 +138,7 @@ module.exports = async function wares(ctx) {
       await card('Жёлтые сандалии').click();
       await frames(2);
       expect((await page.locator('.overlay .card.sel').count()) === 0, 'вещь, которой нет, примерилась');
-      expect((await page.locator('.overlay .card').count()) === 11, 'в отделе обуви видны не все вещи');
+      expect((await page.locator('.overlay .card').count()) === 11, 'в отделе обуви видны не все вещи', await page.locator('.overlay .card').allTextContents());
       c = await cardInfo('Белые кроссовки');
       expect(!c.away && !c.badge && c.btn === 1, 'базовая вещь — без значков и всегда на месте', c);
       await closeAll();

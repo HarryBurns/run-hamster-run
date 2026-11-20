@@ -74,6 +74,7 @@ async function openGame(b) {
   await page.goto(`${URL}/index.html`);
   await page.waitForFunction(() => window.__dev && window.__dev.locations, { timeout: 15000 });
   await page.waitForTimeout(500);
+  await page.click('[data-act="gender-f"]'); // новая игра ждёт выбора «хомячок / хомячка»
   await page.click('text=Играть!');
   await page.click('text=Пропустить');
   await page.waitForTimeout(1500);

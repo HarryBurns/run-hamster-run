@@ -149,6 +149,7 @@ const SEASON = {
     await page.evaluate(() => localStorage.clear());
     await page.reload();
     await wait(400);
+    await page.click('[data-act="gender-f"]'); // новая игра ждёт выбора «хомячок / хомячка»
     await page.click('text=Играть!');
     await page.click('text=Пропустить'); // вступительная сценка новой игры (этап 10)
     await page.evaluate(() => window.__dev.oldStart()); // как до этапа 10: 1 января, без вводной цепочки (начало игры — dev/smoke_start.js)

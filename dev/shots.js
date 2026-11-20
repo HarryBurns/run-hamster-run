@@ -134,6 +134,7 @@ const HOOKS = `window.__T = () => window.__dev;`;
       });
       await page.reload();
       await run(500);
+      await click('[data-act="gender-f"]'); // новая игра ждёт выбора «хомячок / хомячка»
       await click('text=Играть!');
       await click('text=Пропустить'); // вступительная сценка новой игры (этап 10)
       await page.evaluate(() => window.__dev.oldStart()); // как до этапа 10: 1 января, без вводной цепочки — снимки сравнимы с прежними
@@ -190,6 +191,7 @@ const HOOKS = `window.__T = () => window.__dev;`;
       await page.reload();
       await run(700);
       await shot('title');
+      await click('[data-act="gender-f"]'); // новая игра ждёт выбора «хомячок / хомячка»
       await click('text=Играть!');
       await click('text=Пропустить'); // вступительная сценка новой игры (этап 10)
       await page.evaluate(() => window.__dev.oldStart()); // как до этапа 10: 1 января, без вводной цепочки — снимки сравнимы с прежними
