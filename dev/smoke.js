@@ -743,6 +743,8 @@ async function extra({ page, step, ev, wait, closeAll, hold }) {
     await wait(400);
     await page.keyboard.press('KeyE'); // телевизор
     await wait(300);
+    await closeAll(); // телевизор теперь открывает окно с передачами (пачка 20 ноября) — закрываем, как игрок
+
     await ev(() => {
       window.__dev.Villa.setDecor(true);
     });
