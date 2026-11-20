@@ -1,7 +1,7 @@
 // Мини-игра «Садовник» (этап 17в) — работа в городском парке (зовёт Мята у садовой тележки).
 // Смена из трёх дел:
 //   💧 полить — нажимай на поникшие цветы, лейка их напоит (политый — «уже напился», просто подсказка);
-//   ✂️ подстричь куст по шаблону — на карточке фигура (сердечко, шарик, зайчик, звёздочка): нажимай или веди
+//   ✂️ подстричь куст по шаблону — на карточке фигура (сердечко, шарик, зайчик, звёздочка — SHAPES): нажимай или веди
 //      пальцем по лишним веточкам; лист из фигуры срезать нельзя — «это оставим!», он сразу отрастает;
 //   🌷 посадить цветы по схеме — выбери цвет внизу и нажми на лунку; не тот цвет — «по схеме здесь …».
 // Зимой (В5) смена — в оранжерее парка: стеклянные стены и крыша, за стёклами идёт снег; цветы — в горшках на столе,
@@ -17,11 +17,21 @@ import { DEV } from '../core/dev.js';
 
 const OUT = '#4a3728';
 const STARS = [1, 4]; // подсказок не больше: ⭐⭐⭐ / ⭐⭐
+// name — как фигура зовётся («на карточке — звёздочка»), acc — кого / что сделать из куста («сделай звёздочку»);
+// rows — сетка куста (X — оставить); у звёздочки сетка крупнее (9 × 8), иначе лучи сливаются и звезду не узнать
 export const SHAPES = {
-  heart: { name: 'сердечко', rows: ['.XX.XX.', 'XXXXXXX', 'XXXXXXX', '.XXXXX.', '..XXX..', '...X...'] },
-  ball: { name: 'шарик', rows: ['..XXX..', '.XXXXX.', 'XXXXXXX', 'XXXXXXX', '.XXXXX.', '..XXX..'] },
-  bunny: { name: 'зайчик', rows: ['.X...X.', '.X...X.', '.XXXXX.', 'XXXXXXX', 'XXXXXXX', '.XXXXX.'] },
-  star: { name: 'звёздочка', rows: ['...X...', '..XXX..', 'XXXXXXX', '.XXXXX.', '.XX.XX.', '.X...X.'] },
+  heart: {
+    name: 'сердечко',
+    acc: 'сердечко',
+    rows: ['.XX.XX.', 'XXXXXXX', 'XXXXXXX', '.XXXXX.', '..XXX..', '...X...'],
+  },
+  ball: { name: 'шарик', acc: 'шарик', rows: ['..XXX..', '.XXXXX.', 'XXXXXXX', 'XXXXXXX', '.XXXXX.', '..XXX..'] },
+  bunny: { name: 'зайчик', acc: 'зайчика', rows: ['.X...X.', '.X...X.', '.XXXXX.', 'XXXXXXX', 'XXXXXXX', '.XXXXX.'] },
+  star: {
+    name: 'звёздочка',
+    acc: 'звёздочку',
+    rows: ['....X....', '...XXX...', 'XXXXXXXXX', '.XXXXXXX.', '..XXXXX..', '..XXXXX..', '.XXX.XXX.', '.X.....X.'],
+  },
 };
 const COLORS = [
   { c: '#ff6b9d', name: 'розовый' },
@@ -108,11 +118,13 @@ export default {
     let can = null; // { x, y, t0 } — лейка над цветком
 
     // ---------- 2. куст ----------
-    const shapeId = pick(Object.keys(SHAPES)),
+    // фигура — по жребию; для автотеста и снимков её можно назвать (info.shape)
+    const shapeId = SHAPES[host.info && host.info.shape] ? host.info.shape : pick(Object.keys(SHAPES)),
       shape = SHAPES[shapeId].rows;
-    const BC = 7,
-      BR = 6,
-      CELL = 26,
+    // сетка — по фигуре (7 × 6, у звёздочки 9 × 8): куст занимает то же место, клетки мельче
+    const BC = shape[0].length,
+      BR = shape.length,
+      CELL = Math.min(26, Math.floor(189 / BC), Math.floor(168 / BR)),
       BX = tall ? W / 2 - (BC * CELL) / 2 : 140 - (BC * CELL) / 2 + 40,
       BY = tall ? 180 : 70;
     const bush = shape.map((r) => [...r].map((ch) => ({ keep: ch === 'X', cut: false, shake: -9 })));
@@ -164,7 +176,7 @@ export default {
       if (stage >= STAGES.length) return finish();
       updTop();
       host.sfx('win');
-      if (STAGES[stage].id === 'trim') say(`Сделай из куста <b>${SHAPES[shapeId].name}</b> ✂️`);
+      if (STAGES[stage].id === 'trim') say(`Сделай из куста <b>${SHAPES[shapeId].acc}</b> ✂️`);
       if (STAGES[stage].id === 'plant') {
         pal.classList.remove('hide');
         buildPalette();
@@ -456,11 +468,15 @@ export default {
     function drawTrim() {
       // карточка с фигурой
       const [cx, cy] = CARD,
-        s = 11;
+        s = Math.min(11, Math.floor(78 / BC), Math.floor(70 / BR)), // крупная сетка (звёздочка) — клеточки мельче
+        ox = cx + (90 - BC * s) / 2,
+        oy = cy + 14 + (66 - BR * s) / 2;
       drawCard(cx, cy - 6, 90, 92, '📋 Как надо');
+      // фигура — кружками, как листва куста: так она читается целиком (лучи звезды не рассыпаются на квадратики)
       shape.forEach((r, yy) =>
         [...r].forEach(
-          (ch, xx) => ch === 'X' && fillRR(ctx, cx + 6 + xx * s, cy + 14 + yy * s, s - 1, s - 1, 3, '#51cf66', null),
+          (ch, xx) =>
+            ch === 'X' && ell(ctx, ox + (xx + 0.5) * s, oy + (yy + 0.5) * s, s * 0.62, s * 0.58, '#51cf66', null),
         ),
       );
       // земля под кустом
