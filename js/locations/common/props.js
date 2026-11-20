@@ -42,6 +42,35 @@ const FLOWER_SETS = [
   ['#74c0fc', '#fff', '#b197fc'],
 ];
 const CLOTH = ['#ff8fab', '#74c0fc', '#ffd43b', '#b2f2bb', '#fff', '#b197fc'];
+/**
+ * Места за столиком кафе: [где нарисован, где стоит] — 0: спереди слева, спиной к нам (хомячок); 1: напротив, справа
+ * за столиком, лицом к нам (житель). Стулья столика стоят ровно там же (cafeChair). Где стоят (ax ±12) — внутри
+ * клетки под столиком и над ним, не задевая соседних (canStand: ±11): соседняя бочка или пальма места не закрывает.
+ */
+const CAFE_SPOTS = [
+  [-26, 20, -12, 33],
+  [24, -8, 12, -31, 'npc'],
+];
+/**
+ * Белый стульчик кафе под сидящего хомячка: (x, y) — где сидит хомячок. back — спинкой к нам (передний стул: спинка
+ * впереди сиденья); иначе лицом к нам (спинка позади). Тот же стульчик рисует кадр отдыха (relax_art.js, cafeStool).
+ */
+export function cafeChair(ctx, x, y, back) {
+  ctx.save();
+  ctx.translate(x, y);
+  if (!back) {
+    for (const sx of [-1, 1]) fillRR(ctx, sx * 10 - 1.5, -22, 3, 20, 1.5, '#fff', OUT, 1.3);
+    fillRR(ctx, -12, -24, 24, 5, 2, '#fff', OUT, 1.4);
+  }
+  line(ctx, -9, 0, -10, 14, OUT, 2);
+  line(ctx, 9, 0, 10, 14, OUT, 2);
+  fillRR(ctx, -12, -3, 24, 5, 2, '#fff', OUT, 1.4);
+  if (back) {
+    for (const sx of [-1, 1]) fillRR(ctx, sx * 10 - 1.5, -17, 3, 17, 1.5, '#fff', OUT, 1.3);
+    fillRR(ctx, -12, -18, 24, 5, 2, '#fff', OUT, 1.4);
+  }
+  ctx.restore();
+}
 const isWinter = (env) => env.season === 'winter';
 const W = (sea) => (sea === 'winter' ? 1 : 0);
 
@@ -624,77 +653,80 @@ defineObjects({
   },
   cafeTable: {
     solid: true,
-    // присесть за столик (пачка 20 ноября): хомячок — спереди, спиной к нам; житель — напротив, за столиком
-    ...seat(
-      'table',
-      [
-        [-14, 16, -14, 33],
-        [14, -6, 14, -31, 'npc'],
-      ],
-      { dx: 26, up: 40, down: 24 },
-    ),
+    // присесть за столик (пачка 20 ноября): хомячок — спереди слева, спиной к нам, на стульчике; житель — напротив,
+    // справа за столиком, лицом к нам. Столик и стулья — под рост хомячка (столешница шире его плеч); занятый стул
+    // (o.busy: 1 — передний, 2 — задний) рисует кадр отдыха вместе с хомячком (features/relax_art.js)
+    ...seat('table', CAFE_SPOTS, { dx: 30, up: 44, down: 26 }),
     art: {
-      // зонт поднят повыше: под ним видно голову того, кто сидит напротив
       cafeTable: [
-        [-40, -104, 40, 24],
-        (ctx, v, snow) => {
-          const col = ['#fa5252', '#4dabf7', '#12b886', '#f59f00', '#e64980'][v % 5];
-          shadow(ctx, 0, 14, 28, 6);
-          // стулья
-          for (const sx of [-1, 1]) {
-            fillRR(ctx, sx * 20 - 6, -6, 12, 4, 2, '#fff', OUT, 1.4);
-            line(ctx, sx * 16, -2, sx * 16, 10, OUT, 2);
-            line(ctx, sx * 24, -2, sx * 24, 10, OUT, 2);
-            fillRR(ctx, sx * 24 - 1.5, -22, 3, 18, 1.5, '#fff', OUT, 1.3);
-          }
-          // столик
-          line(ctx, 0, -8, 0, 12, OUT, 4);
-          line(ctx, 0, -8, 0, 12, '#adb5bd', 2);
-          ell(ctx, 0, 12, 7, 2.5, '#adb5bd', OUT, 1.4);
-          ell(ctx, 0, -10, 15, 6, '#fff', OUT, 1.8);
+        [-58, -146, 58, 30],
+        (ctx, a, snow) => {
+          const v = a % 10,
+            busy = Math.floor(a / 10),
+            col = ['#fa5252', '#4dabf7', '#12b886', '#f59f00', '#e64980'][v % 5],
+            [bx, by] = CAFE_SPOTS[1],
+            [fx, fy] = CAFE_SPOTS[0];
+          shadow(ctx, 0, 16, 40, 8);
+          // задний стул (лицом к нам): спинка позади сиденья
+          if (!(busy & 2)) cafeChair(ctx, bx, by, false);
+          // столик: ножка-стойка, круглая столешница
+          line(ctx, 0, -12, 0, 15, OUT, 5);
+          line(ctx, 0, -12, 0, 15, '#adb5bd', 2.6);
+          ell(ctx, 0, 15, 11, 3.6, '#adb5bd', OUT, 1.5);
+          ell(ctx, 0, -16, 27, 10.5, '#fff', OUT, 2);
+          ell(ctx, 3, -14, 20, 6.5, 'rgba(0,0,0,.05)');
           if (!snow) {
-            ell(ctx, -5, -11, 3, 2, '#ffd8a8', OUT, 1); // чашка и пирожное
-            ell(ctx, 5, -11, 3.4, 2, col, OUT, 1);
+            // чашка с блюдцем и пирожное на тарелочке
+            ell(ctx, -9, -16, 7, 2.6, '#fff', OUT, 1.1);
+            fillRR(ctx, -13, -23, 8, 7, 2.5, '#ffd8a8', OUT, 1.2);
+            ell(ctx, -9, -23, 4, 1.4, '#a0522d');
+            ell(ctx, 10, -16, 7.5, 2.8, '#fff', OUT, 1.1);
+            fillRR(ctx, 6, -22, 9, 6, 2, col, OUT, 1.2);
+            ell(ctx, 10.5, -23, 1.8, 1.8, '#fa5252', OUT, 0.8);
           }
-          // зонтик
-          line(ctx, 0, -10, 0, -84, OUT, 3.4);
-          line(ctx, 0, -10, 0, -84, '#e9ecef', 1.6);
+          // передний стул (спинкой к нам)
+          if (!(busy & 1)) cafeChair(ctx, fx, fy, true);
+          // зонтик: стойка из-под столешницы, купол над головой того, кто сидит напротив
+          line(ctx, 0, -16, 0, -112, OUT, 3.6);
+          line(ctx, 0, -16, 0, -112, '#e9ecef', 1.8);
           if (snow) {
             // зимой зонт сложен
-            poly(ctx, [-5, -44, 0, -86, 5, -44], col, OUT, 1.8);
-            snowCap(ctx, 0, -84, 10, 4);
+            poly(ctx, [-6, -60, 0, -114, 6, -60], col, OUT, 1.8);
+            snowCap(ctx, 0, -112, 12, 5);
             return;
           }
           // купол зонта дольками, с фестонами и тенью справа
+          const R = 46,
+            cy = -94;
           for (let i = 0; i < 6; i++) {
             ctx.beginPath();
-            ctx.moveTo(0, -76);
-            ctx.arc(0, -60, 32, Math.PI + (i * Math.PI) / 6, Math.PI + ((i + 1) * Math.PI) / 6);
+            ctx.moveTo(0, cy - 18);
+            ctx.arc(0, cy, R, Math.PI + (i * Math.PI) / 6, Math.PI + ((i + 1) * Math.PI) / 6);
             ctx.closePath();
             ctx.fillStyle = i % 2 ? '#fff' : col;
             ctx.fill();
           }
           ctx.save();
           ctx.beginPath();
-          ctx.arc(0, -60, 32, Math.PI, 0);
+          ctx.arc(0, cy, R, Math.PI, 0);
           ctx.closePath();
           ctx.clip();
           ctx.fillStyle = 'rgba(0,0,0,.1)';
-          ctx.fillRect(8, -94, 30, 40);
+          ctx.fillRect(12, cy - R - 2, R, R + 4);
           ctx.restore();
           ctx.beginPath();
-          ctx.arc(0, -60, 32, Math.PI, 0);
-          for (let i = 5; i >= 0; i--) ctx.arc(-32 + (i + 0.5) * (64 / 6), -60, 64 / 12, 0, Math.PI, true);
+          ctx.arc(0, cy, R, Math.PI, 0);
+          for (let i = 5; i >= 0; i--) ctx.arc(-R + (i + 0.5) * ((2 * R) / 6), cy, R / 6, 0, Math.PI, true);
           ctx.closePath();
           ctx.strokeStyle = OUT;
-          ctx.lineWidth = 2;
+          ctx.lineWidth = 2.2;
           ctx.stroke();
-          ell(ctx, 0, -93, 2.5, 2.5, col, OUT, 1.2);
+          ell(ctx, 0, cy - R - 1, 3, 3, col, OUT, 1.3);
         },
       ],
     },
     draw(ctx, o, env) {
-      put('cafeTable', o.x, o.y, o.v || 0, W(env.season));
+      put('cafeTable', o.x, o.y, (o.v || 0) + 10 * (o.busy || 0), W(env.season));
     },
   },
   crate: {

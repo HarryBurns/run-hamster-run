@@ -686,6 +686,8 @@ function greenery(k) {
     }
 }
 
+/** Что вырастает само (greenery): такое можно убрать с клетки, не трогая поставленного нарочно. */
+const GREENERY = ['tree', 'pine', 'palm', 'bush', 'flowers'];
 /** Построить карту города (build локации). sea — море города (createSea), gateOpen(id) — открыт ли выезд. */
 export function buildTown(m, { sea, gateOpen }) {
   const k = kit(m),
@@ -712,6 +714,11 @@ export function buildTown(m, { sea, gateOpen }) {
     m.clear(x, y);
     add('palm', x, y, { v });
   }
+  // ---- двор Пончика: случайная зелень вокруг стола для пикника убрана — иначе стол заперт в «кармане» между домом
+  // и забором: ни сесть на лавку, ни подсесть напротив (отдых, features/relax.js). Остальная зелень не меняется ----
+  for (let y = 42; y <= 46; y++)
+    for (const x of [79, 80])
+      for (const ob of m.objs.filter((o) => o.tx === x && o.ty === y && GREENERY.includes(o.type))) m.remove(ob);
   // ---- клетки под праздничными украшениями (П.13): пока ёлка или карусель стоят, туда не пройти ----
   blockHolidayCells(m);
 }

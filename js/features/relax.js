@@ -137,6 +137,7 @@ function sitDown(sc, o, spot, a) {
     say: null, // { text, t } — что сказал сам хомячок («Уи-и!»)
   };
   if (st.how === 'swing' || st.how === 'hammock') o.busy = spot + 1; // качели и гамак прячут занятое место
+  if (st.how === 'table') o.busy = 1 << spot; // столик кафе прячет занятый стул (его рисует кадр отдыха)
   sfx(st.how === 'slide' ? 'whistle' : 'pop');
   emit('relax', { how: st.how, type: o.type });
   if (award('x_relax', { delay: 600 }))
@@ -161,6 +162,7 @@ function releaseMate(c) {
   c.mate = null;
   if (m.o.busy && m.o !== c.o) m.o.busy = 0;
   if (m.o === c.o && c.how === 'swing') m.o.busy = 0;
+  if (m.o === c.o && c.how === 'table') m.o.busy &= ~(1 << m.spot);
   m.n.hold = null;
   m.n.path = [];
   m.n.wait = 1 + Math.random() * 2;
@@ -253,7 +255,9 @@ function updateMate(c, dt) {
     m.seated = true;
     m.t = 0;
     if (c.how === 'swing' && m.o === c.o) m.o.busy = 3; // оба сиденья заняты
-    n.hold = { draw: (nn, t) => drawMate(c, m, t) };
+    if (c.how === 'table' && m.o === c.o) m.o.busy |= 1 << m.spot;
+    // lift — на сколько поднять имя жителя: за столиком кафе — над куполом зонта (engine/topdown/actors.js, umbrellaLift)
+    n.hold = { draw: (nn, t) => drawMate(c, m, t), lift: m.o.type === 'cafeTable' ? 60 : 0 };
     const nd = NPC_BY_ID[n.id];
     const pool = RELAX_LINES[c.how] || RELAX_LINES.sit;
     let line = pool[Math.floor(Math.random() * pool.length)];
@@ -314,7 +318,9 @@ function drawMate(c, m, t) {
   );
   if (m.line && m.t < m.lineT) {
     SP.world();
-    bubble(SP.ctx, m.line, m.o.x + s[0], m.o.y + s[1] - (c.how === 'lie' ? 100 : 110));
+    // за столиком кафе имя поднято над зонтом (hold.lift) — облачко ещё выше, над именем
+    const lift = (n.hold && n.hold.lift) || 0;
+    bubble(SP.ctx, m.line, m.o.x + s[0], m.o.y + s[1] - (c.how === 'lie' ? 100 : 110) - (lift ? lift - 10 : 0));
   }
 }
 /** Для автотеста и консоли: как сейчас отдыхаем. */

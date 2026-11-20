@@ -73,10 +73,38 @@ module.exports = async function rest(ctx) {
         return { y: n.y, ty: Math.floor(n.y / 48) };
       });
       expect(mate.ty === 22, 'житель сидит не напротив (за столиком, выше по карте)', mate);
+      // занятые стулья столик прячет (их рисует кадр отдыха вместе с сидящим): 1 — передний, 2 — задний
+      const busy = () =>
+        ev(() => window.__dev.World.map.objs.find((o) => o.type === 'cafeTable' && o.tx === 55 && o.ty === 23).busy);
+      expect((await busy()) === 3, 'столик кафе не прячет занятые стулья', await busy());
       await standUp();
+      expect(!(await busy()), 'встали, а стулья столика всё ещё спрятаны', await busy());
+      // у каждого столика есть где встать — и хомячку, и тому, кто подсаживается напротив
+      const blocked = await ev(async () => {
+        const A = await import('/js/engine/topdown/actors.js'),
+          K = await import('/js/engine/topdown/kinds.js'),
+          m = window.__dev.World.map;
+        return m.objs
+          .filter((o) => o.type === 'cafeTable' || o.type === 'picnicTable')
+          .filter((o) => K.OBJECTS[o.type].seat.spots.some((q) => !A.canStand(m.dry, o.x + q[2], o.y + q[3])))
+          .map((o) => [o.type, o.tx, o.ty]);
+      });
+      expect(!blocked.length, 'у столика не встать на место (закрыто соседним)', blocked);
       await L.teleport(80, 46);
       r = await sitOn('picnicTable', 80, 44);
       expect(r.how === 'table' && r.spot === 0, 'не села за стол для пикника', r);
+      // житель подсаживается напротив и за стол для пикника (клетка над столом — свободна, не «карман» двора)
+      await ev(() => {
+        const n = window.__dev.World.npcs.find((q) => !q.hidden && !q.inside && !q.hold && !q.def.still);
+        n.x = 80 * 48 + 24;
+        n.y = 48 * 48 + 24;
+        n.path = [];
+      });
+      expect(await ev(() => window.__dev.F.relaxJoinNow()), 'никто не идёт подсесть за стол для пикника');
+      await until(() => window.__dev.F.relaxNow().mate && window.__dev.F.relaxNow().mate.seated, undefined, {
+        timeout: 15000,
+        msg: 'житель не сел напротив за стол для пикника',
+      });
       await standUp();
     },
   );

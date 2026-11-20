@@ -6,6 +6,7 @@ import { line, fillRR, emoji, ell } from '../core/draw.js';
 import { drawHamster, blinkAt } from '../art/hamster.js';
 import { RELAX, CLOTHES_BY_ID } from '../data/index.js';
 import { PS, SP, OUT } from '../engine/topdown/kinds.js';
+import { cafeChair } from '../locations/common/props.js';
 
 const HB = [-46, -100, 46, 12]; // рамка кадра хомячка (единицы мира)
 /** Кадр хомячка из кэша: key — что в нём меняется, pose — поза drawHamster, k — размер (1 — как на ходу), rot — наклон. */
@@ -129,11 +130,11 @@ export function drawSitter(ctx, how, look, lk, x, y, t, ph, o, spot, dir, ct) {
     // за столиком кафе или для пикника: хомячок (место 0) сидит спиной к нам, на стуле или на лавке; житель
     // напротив (место 1) — лицом к нам, ноги под столом (стол рисуется поверх него: житель стоит выше по карте)
     const br = Math.floor(((Math.sin(t * 1.6 + ph) + 1) / 2) * 3.99);
+    const cafe = o.type === 'cafeTable';
     if (spot === 0) {
-      const cafe = o.type === 'cafeTable';
+      // стульчик — как у столика (cafeChair в locations/common/props.js): спинка между нами и хомячком
       const s = SP.get(`rx:${lk}:back:${cafe ? 1 : 0}:${br}`, [-46, -100, 46, 18], (c) => {
         if (cafe) {
-          // стульчик как у столика: белое сиденье, ножки; спинка — между нами и хомячком
           line(c, -9, 0, -10, 14, OUT, 2);
           line(c, 9, 0, 10, 14, OUT, 2);
           fillRR(c, -12, -3, 24, 5, 2, '#fff', OUT, 1.4);
@@ -147,7 +148,13 @@ export function drawSitter(ctx, how, look, lk, x, y, t, ph, o, spot, dir, ct) {
       SP.draw(s, x, y);
       return;
     }
-    const s = frame(`rx:${lk}:tbl:${shut}:${dir}`, look, { sit: true, shadow: false, blink: shut, dir }, 0.85);
+    // напротив: у кафе — на стульчике лицом к нам (его спинка позади), у пикника — на дальней лавке
+    const s = cafe
+      ? SP.get(`rx:${lk}:tblc:${shut}:${dir}`, [-46, -100, 46, 18], (c) => {
+          cafeChair(c, 0, 0, false);
+          drawHamster(c, 0, 0, PS * 0.85, look, { sit: true, shadow: false, blink: shut, dir });
+        })
+      : frame(`rx:${lk}:tbl:${shut}:${dir}`, look, { sit: true, shadow: false, blink: shut, dir }, 0.85);
     SP.draw(s, x, y);
     return;
   }
