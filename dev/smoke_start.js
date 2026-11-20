@@ -248,7 +248,7 @@ module.exports = async function start(ctx) {
         t.text.slice(0, 300),
       );
       expect(
-        k.pics.slice(0, 3).join() === 'keys,keyE,mouse' && common.every((p) => k.pics.includes(p)),
+        k.pics.slice(0, 4).join() === 'keys,keyE,mouse,esc' && common.every((p) => k.pics.includes(p)),
         'справка для компьютера',
         k.pics,
       );
