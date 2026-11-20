@@ -60,13 +60,8 @@ async function talk(q) {
   if (fr && !fr.met) meetFriend(q.npc);
   for (const [bag, id, n = 1] of (q.visit && q.visit.give) || []) addItem(bag, id, n);
   const say = (text, options, happy) => dialog({ look: npcLook(q.npc), name: npc.name, text, options, happy });
-  const i = await say(
-    q.lines.offer,
-    first
-      ? [{ text: `${q.icon} Спасибо!`, cls: 'green' }, { text: 'Я уже всё умею' }]
-      : [{ text: `${q.icon} Спасибо!`, cls: 'green' }],
-    true,
-  );
+  const thanks = { text: q.lines.thanks || `${q.icon} Спасибо!`, cls: 'green' };
+  const i = await say(q.lines.offer, first ? [thanks, { text: 'Я уже всё умею' }] : [thanks], true);
   if (first && i === 1) {
     // опытный игрок: подсказки не нужны — цепочка выключается, сосед остаётся в гостях
     setFlag('intro', 2);
@@ -77,6 +72,8 @@ async function talk(q) {
     );
     return;
   }
+  // ещё реплики (Плюша: снимок для каталога) — мягко, по одной, прежде чем задание попадёт в журнал
+  for (const [text, btn] of q.lines.more || []) await say(text, [{ text: btn, cls: 'green' }], true);
   if (!startQuest(q.id)) return;
   sfx('bell');
   await say(q.lines.accept, [{ text: 'Хорошо!', cls: 'green' }], true);

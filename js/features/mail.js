@@ -34,7 +34,9 @@ import { waresHere, wareOrder } from './wares.js';
 
 const S = () => G.state;
 
-const FIRST_TASKS = ['buy_clothes', 'swim', 'treat', 'market'];
+// первые письма новой игры — по дню: не повторяют вводную цепочку (обновка, работа, рынок, гости, купание — это
+// показывают соседи, features/welcome.js), а зовут посмотреть городок: пляж с ракушками, пирс, башню, кораблик
+const FIRST_TASKS = ['shells', 'fish', 'tower', 'boat'];
 /** Сколько монет дают за задание (в дополнение к наклейке). */
 export const taskCoins = (id) => TASK_COINS[id] || TASK_COINS_DEFAULT;
 

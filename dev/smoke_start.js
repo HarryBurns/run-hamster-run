@@ -161,9 +161,16 @@ module.exports = async function start(ctx) {
       [s.weather, s.look.outfit, s.seeds],
     );
     expect(
-      s.flags.intro === 1 && s.mail && s.mail.task === 'buy_clothes',
-      'первое письмо — «Обновка», цепочка включена',
+      s.flags.intro === 1 && s.mail && s.mail.task === 'shells',
+      'первое письмо — «Ракушки» (не повторяет вводное задание), цепочка включена',
       [s.flags, s.mail],
+    );
+    // шкаф новой игры — только то, что надето (майка, шорты, кеды); шлёпанцы в подарок — только старым играм
+    expect(
+      [...s.clothes].sort().join() === Object.values(s.look.outfit).filter(Boolean).sort().join() &&
+        s.flags.flipflopsGift === 1,
+      'шкаф новой игры',
+      [s.clothes, s.look.outfit],
     );
     expect(s.immuneUntil === 18, 'первые дни не болеет', s.immuneUntil);
     // первое письмо здоровается с новой соседкой
@@ -171,7 +178,7 @@ module.exports = async function start(ctx) {
     await untilPanel();
     const letter = await panelText();
     expect(
-      letter.includes('С приездом в Ореховую Гавань') && letter.includes('Обновка'),
+      letter.includes('С приездом в Ореховую Гавань') && letter.includes('Ракушки'),
       'первое письмо',
       letter.slice(0, 200),
     );
@@ -285,6 +292,13 @@ module.exports = async function start(ctx) {
         v,
       );
       await reply();
+      // вторая реплика — мягкая просьба: каталог «Модного», снимок в обновке; задание ещё не в журнале
+      expect(
+        (await dialogText()).includes('каталог') && !(await state()).quests.intro_home,
+        'Плюша: про каталог',
+        await dialogText(),
+      );
+      await reply();
       expect((await dialogText()).includes('журнал'), 'Плюша: «записала в журнал»', await dialogText());
       await page.click('.dialog .btn');
       await untilVisitEnd();
@@ -303,9 +317,10 @@ module.exports = async function start(ctx) {
       await untilPanel();
       const j = await panelText();
       expect(
-        j.includes('Новоселье') &&
-          j.includes('попробуй печенье') &&
-          j.includes('Купи обновку') &&
+        j.includes('Снимок для каталога') &&
+          j.includes('каталог') &&
+          j.includes('Попробуй печенье') &&
+          j.includes('Выбери обновку') &&
           !j.includes('Своя грядка'),
         'журнал: одно вводное задание',
         j.slice(0, 300),
@@ -332,11 +347,13 @@ module.exports = async function start(ctx) {
       s = await state();
       expect(
         fin.includes('Задание выполнено') &&
-          fin.includes('Новоселье') &&
+          fin.includes('Снимок для каталога') &&
+          fin.includes('Соломенная шляпка с бантиком') &&
+          s.clothes.includes('sunhat_bow') &&
           s.quests.intro_home.done === 15 &&
           s.money === s0.money + 100,
-        'Новоселье сдано: +100',
-        [fin.slice(0, 120), s.money - s0.money],
+        'снимок для каталога сдан: плата +100 и шляпка',
+        [fin.slice(0, 160), s.money - s0.money],
       );
       // 2. Мята с рассадой
       s0 = s;
