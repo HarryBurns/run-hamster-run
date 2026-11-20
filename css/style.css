@@ -216,13 +216,37 @@ body.win-quiet #toasts { visibility: hidden; }
 img.ico { height: 1.2em; width: 1.2em; vertical-align: -0.24em; display: inline-block; user-select: none; -webkit-user-drag: none; pointer-events: none; }
 p { margin: 8px 0; line-height: 1.35; }
 
-.tabs { display: flex; gap: 6px; padding: 8px 12px 0; overflow-x: auto; flex: none; touch-action: pan-x; scrollbar-width: none; }
-.tabs::-webkit-scrollbar { display: none; }
-.tab {
-  border: 0; background: #f3e6cf; border-radius: 14px 14px 0 0; padding: 8px 14px; min-height: 44px; font-size: 15px; font-weight: 800;
-  white-space: nowrap; opacity: .75; flex: none;
+/* Вкладки окна (ui/panel.js): не уходят за край — переносятся на вторую и третью строку, каждая — крупная кнопка
+   (не ниже 44 px). Строки поровну и одной ширины (ui/panel.js, fitTabs), выбранная — белая с розовой рамкой.
+   Окно с вкладками одной высоты на всех вкладках: при переключении не прыгает ни окно, ни сами вкладки. */
+.panel.tabbed { height: min(100%, 880px); }
+.tabs {
+  display: flex; flex-wrap: wrap; gap: 6px; padding: 8px 12px; flex: none;
+  border-bottom: 2px solid var(--line);
 }
-.tab.on { background: #fff; opacity: 1; box-shadow: 0 -3px 0 var(--pink) inset; }
+.tabs::after { content: ''; flex: 1000 1 0; } /* одна строка — вкладки по своей ширине, пустое место справа */
+.tabs.even::after { display: none; } /* несколько строк поровну (ui/panel.js) — все строки во всю ширину */
+.tab {
+  border: 0; background: #f3e6cf; border-radius: 14px; padding: 8px 14px; min-height: 44px; font-size: 15px; font-weight: 800;
+  flex: 1 0 auto; color: #7a6450; line-height: 1.15; text-align: center;
+  max-width: 100%; /* вкладка шире строки (узкий экран, длинное название) — слова переносятся, а не уходят за край */
+  display: inline-flex; align-items: center; justify-content: center; gap: 5px;
+}
+.tab .ti { flex: none; }
+.tab:hover { background: #efdcbd; }
+.tab.on { background: #fff; color: var(--ink); box-shadow: inset 0 0 0 3px var(--pink), 0 3px 0 rgba(217, 72, 122, .25); }
+/* больше трёх строк (на низком экране — двух): сначала плотнее … */
+.tabs.dense { gap: 5px; padding: 6px 10px; }
+.tabs.dense .tab { font-size: 13px; padding: 4px 10px; gap: 4px; }
+/* … а если и так много — сеткой, значок над словами (телефон стоя, ТЦ «Уютный дом») */
+.tabs.compact { display: grid; grid-template-columns: repeat(auto-fill, minmax(74px, 1fr)); gap: 5px; padding: 6px 8px; }
+.tabs.compact::after { display: none; }
+.tabs.compact .tab {
+  flex-direction: column; gap: 1px; padding: 4px 2px; min-height: 48px; font-size: 12px; white-space: normal;
+  line-height: 1.05; text-align: center; hyphens: auto; -webkit-hyphens: auto;
+}
+.tabs.compact .tab .tn { max-width: 100%; }
+.tabs.compact .tab .ti { font-size: 17px; line-height: 1.1; }
 .tabs + .panel-body { background: #fff; }
 
 .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(128px, 1fr)); gap: 10px; }

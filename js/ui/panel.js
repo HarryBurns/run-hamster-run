@@ -63,6 +63,7 @@ export function openPanel(o) {
   if (o.tabs && o.tabs.length) {
     tabsEl = el('div', 'tabs');
     p.appendChild(tabsEl);
+    p.classList.add('tabbed'); // окно с вкладками — одной высоты на всех вкладках (css: .panel.tabbed)
   }
   const body = el('div', 'panel-body');
   p.appendChild(body);
@@ -83,6 +84,7 @@ export function openPanel(o) {
       if (api.closed) return;
       api.closed = true;
       ov.remove();
+      if (tabsEl) removeEventListener('resize', fitTabs);
       markOpen(-1);
       if (o.quiet) markQuiet(-1);
       if (dropAnchor) dropAnchor();
@@ -95,13 +97,14 @@ export function openPanel(o) {
       if (tabsEl) {
         tabsEl.innerHTML = '';
         for (const t of o.tabs) {
-          const b = el('button', 'tab' + (t.id === api.tab ? ' on' : ''), t.name);
+          const b = tabButton(t.name, t.id === api.tab);
           b.onclick = () => {
             sfx('tap');
             api.setTab(t.id);
           };
           tabsEl.appendChild(b);
         }
+        fitTabs();
       }
       const st = body.scrollTop;
       body.innerHTML = '';
@@ -138,6 +141,45 @@ export function openPanel(o) {
     sfx('tap');
     api.close();
   };
+  // Вкладки переносятся на новые строки (css: .tabs). Строк больше трёх (на низком экране — больше двух): сначала
+  // плотнее (dense — мельче буквы), а если и так не влезли — компактно (compact — сеткой, значок над словами).
+  // Несколько строк — ровняем (even): вкладки делятся по строкам поровну (4-4-3, а не 5-5-1), строки одной ширины
+  // посередине. Решаем один раз на размер экрана: заново — при повороте и смене размера окна.
+  function fitTabs() {
+    if (!tabsEl || api.closed) return;
+    const key = innerWidth + 'x' + innerHeight;
+    if (tabsEl.dataset.fit === key) return;
+    tabsEl.dataset.fit = key;
+    const max = innerHeight <= 520 ? 2 : 3;
+    tabsEl.classList.remove('dense', 'compact', 'even');
+    tabsEl.style.paddingLeft = tabsEl.style.paddingRight = '';
+    let rows = tabRows(tabsEl);
+    if (rows > max) {
+      tabsEl.classList.add('dense');
+      rows = tabRows(tabsEl);
+      if (rows > max) return void tabsEl.classList.replace('dense', 'compact');
+    }
+    if (rows < 2) return;
+    // поля слева и справа поровну: из нескольких ширин строк — та, где вкладок по строкам поровнее (4-4-3, а не
+    // 5-5-1), при равенстве — самая широкая; число строк при этом не растёт
+    tabsEl.classList.add('even');
+    const base = parseFloat(getComputedStyle(tabsEl).paddingLeft) || 0;
+    const pad = (x) => (tabsEl.style.paddingLeft = tabsEl.style.paddingRight = base + x + 'px');
+    const room = Math.max(0, (tabsEl.clientWidth - 2 * base) * 0.25);
+    let best = null;
+    for (let i = 0; i <= 12; i++) {
+      const x = Math.floor((room * i) / 12);
+      pad(x);
+      const n = rowCounts(tabsEl);
+      if (n.length !== rows) continue;
+      const spread = Math.max(...n) - Math.min(...n);
+      if (!best || spread < best.spread) best = { x, spread, last: n[n.length - 1], most: Math.max(...n) };
+    }
+    pad(best ? best.x : 0);
+    // последняя строка заметно короче (2-2-1) — её не растягиваем: вкладки в ней своей ширины, слева
+    if (!best || best.last < best.most - 1 || best.last < 2) tabsEl.classList.remove('even');
+  }
+  if (tabsEl) addEventListener('resize', fitTabs);
   const born = performance.now();
   ov.addEventListener('pointerdown', (e) => {
     if (e.target === ov && !o.sticky && performance.now() - born > TAP_GUARD) api.close();
@@ -147,6 +189,25 @@ export function openPanel(o) {
   api.refresh();
   return api;
 }
+
+/** Кнопка вкладки: «🛋️ Диваны и кресла» → значок и слова отдельно (в компактных вкладках значок встаёт над словами). */
+function tabButton(name, on) {
+  const b = el('button', 'tab' + (on ? ' on' : ''));
+  const m = /^(\S+)\s+(.+)$/su.exec(name);
+  if (m && !/[\p{L}\p{N}]/u.test(m[1])) {
+    b.appendChild(el('span', 'ti')).textContent = m[1];
+    b.append(' '); // текст кнопки — как прежде: «🛋️ Диваны и кресла»
+    b.appendChild(el('span', 'tn')).textContent = m[2];
+  } else b.appendChild(el('span', 'tn')).textContent = name;
+  return b;
+}
+/** Сколько вкладок в каждой строке (строки — по верхнему краю кнопок). */
+function rowCounts(bar) {
+  const rows = new Map();
+  for (const b of bar.children) rows.set(b.offsetTop, (rows.get(b.offsetTop) || 0) + 1);
+  return [...rows.values()];
+}
+const tabRows = (bar) => rowCounts(bar).length;
 
 /**
  * Простое сообщение с кнопками. Возвращает Promise с индексом кнопки (-1 — закрыли).

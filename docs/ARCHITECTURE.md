@@ -558,7 +558,10 @@ run(building.act, { building, back });         // ctx — кто вызвал
 ## 6. Окна
 
 - `ui/panel.js` — `openPanel({ title, tabs, render, foot, onClose })`, `message({...})` → Promise с номером
-  кнопки, `confirmBox(...)` → Promise<boolean>.
+  кнопки, `confirmBox(...)` → Promise<boolean>. Вкладки (`tabs: [{ id, name: '🌱 Семена' }]`) не листаются
+  вбок: переносятся на новые строки, строки поровну (`fitTabs`); больше трёх строк (на низком экране — двух) —
+  плотнее (`.tabs.dense`), а затем сеткой «значок над словом» (`.tabs.compact`). Окно с вкладками — одной высоты
+  (`.panel.tabbed`): при переключении не прыгает. Проверка — `dev/smoke_tabs.js` (`step:вкладки`).
 - `ui/dialog.js` — `dialog({ look, name, text, options })` → Promise с номером ответа.
 - `ui/toast.js` — `toast(текст, 'good')`. Подсказки сверху экрана; пока открыто окно (`openPanel` ставит у `body`
   класс `win-open`), они встают рядом с верхним окном (`placeToasts()`, П20-6): над ним (на плашки HUD под
