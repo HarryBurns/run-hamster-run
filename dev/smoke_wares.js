@@ -134,12 +134,21 @@ module.exports = async function wares(ctx) {
         'серая карточка сандалий зимой',
         c,
       );
-      // серую карточку не примерить и не купить; все одиннадцать пар обуви (с шлёпанцами, У2) видны — ничего не спрятано
+      // серую карточку не примерить и не купить; все пары обуви ТЦ (с шлёпанцами, У2) видны — ничего не спрятано
       await card('Жёлтые сандалии').click();
       await frames(2);
       expect((await page.locator('.overlay .card.sel').count()) === 0, 'вещь, которой нет, примерилась');
-      expect((await page.locator('.overlay .card').count()) === 11, 'в отделе обуви видны не все вещи', await page.locator('.overlay .card').allTextContents());
-      c = await cardInfo('Белые кроссовки');
+      // сколько пар обуви продаёт ТЦ — берём из данных (стартовые вещи переезжают в магазин и обратно)
+      const feetN = await ev(async () => {
+        const D = await import('./js/data/index.js');
+        return D.CLOTHES.filter((x) => x.slot === 'feet' && x.shop === 'mall').length;
+      });
+      expect(
+        (await page.locator('.overlay .card').count()) === feetN,
+        `в отделе обуви видны не все вещи (ждём ${feetN})`,
+        await page.locator('.overlay .card').allTextContents(),
+      );
+      c = await cardInfo('Мятные кеды');
       expect(!c.away && !c.badge && c.btn === 1, 'базовая вещь — без значков и всегда на месте', c);
       await closeAll();
 
