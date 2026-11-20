@@ -16,6 +16,28 @@ const S = () => G.state;
 
 // ════════ из holidays_bday.js ════════
 // ---------- торт ----------
+/**
+ * Праздничный торт на столе дома в «Год в городе» (holidays_bday.js): cx — середина, y — столешница, s — масштаб;
+ * lit — свечки горят (пока их не задули), t — время для огоньков. Тот же торт, что в сценке, только маленький.
+ */
+export function tableCake(ctx, cx, y, s, lit, t) {
+  fillRR(ctx, cx - 70 * s, y - 6 * s, 140 * s, 8 * s, 4 * s, '#fff', OUT, 1.4); // тарелка
+  fillRR(ctx, cx - 58 * s, y - 44 * s, 116 * s, 40 * s, 10 * s, '#ffc9de', OUT, 1.8);
+  fillRR(ctx, cx - 40 * s, y - 76 * s, 80 * s, 34 * s, 10 * s, '#fff', OUT, 1.8);
+  for (let i = 0; i < 7; i++) ell(ctx, cx - 50 * s + i * 16.6 * s, y - 44 * s, 7 * s, 5 * s, '#fff', OUT, 1);
+  for (let i = 0; i < 3; i++) ell(ctx, cx - 20 * s + i * 20 * s, y - 82 * s, 5 * s, 5 * s, '#e03131', OUT, 1);
+  const cols = ['#74c0fc', '#ffd43b', '#b197fc', '#69db7c', '#ff8fab', '#ffa94d'];
+  for (let i = 0; i < 4; i++) {
+    const x = cx - 30 * s + i * 20 * s,
+      top = y - 76 * s - 24 * s;
+    fillRR(ctx, x - 3.5 * s, top, 7 * s, 24 * s, 2 * s, cols[i % cols.length], OUT, 1);
+    if (lit) {
+      const fl = Math.sin(t * 12 + i) * 1.5 * s;
+      ell(ctx, x, top - 8 * s, 7 * s, 12 * s, 'rgba(255,212,59,.35)');
+      ell(ctx, x + fl * 0.3, top - 8 * s, 4 * s, 8 * s, '#ffd43b', '#e8590c', 1);
+    }
+  }
+}
 export function paintCake(ctx, w, h, n, a, t) {
   // комната: обои в горошек, гирлянда, стол
   ctx.fillStyle = '#ffe3ec';

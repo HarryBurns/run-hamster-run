@@ -23,7 +23,7 @@ module.exports = async function vlfix(ctx) {
           s.minutes = minutes;
         });
         d.weather(kind, force);
-        d.villaAt(3, 1100);
+        d.villaAt(3, 1480);
       },
       [day, minutes, kind, force],
     );
@@ -53,7 +53,7 @@ module.exports = async function vlfix(ctx) {
         const [R, G2, B] = px(r.x1 - 70 + dx, top + 56 + dy);
         return R > 200 && G2 > 170 && B < 150;
       });
-      const mid = px(r.x0 + 200, top + 30);
+      const mid = px(r.x1 - 160, top + 30);
       return { wx: sc.wxOut(), sun, mid, light: (mid[0] + mid[1] + mid[2]) / 3, blue: mid[2] - mid[0] };
     });
   };
@@ -80,4 +80,43 @@ module.exports = async function vlfix(ctx) {
       expect(!storm.sun && storm.blue < july.blue - 25, 'летняя гроза: серо и без солнца', { july, storm });
     },
   );
+
+  /** Цвет посередине нижнего яруса торта над обеденным столом (крем торта — розовый #ffc9de) и есть ли стол. */
+  const cakePixel = () =>
+    ev(() => {
+      const d = window.__dev,
+        sc = d.scenes.villa,
+        it = sc.items().find((i) => i.id === 'table');
+      if (!it) return { table: false };
+      const p = sc.debugScreen(it.x, sc.geo.fy(it.floor) - 74 - 12),
+        cv = document.getElementById('game'),
+        k = cv.width / cv.getBoundingClientRect().width,
+        c = cv.getContext('2d').getImageData(Math.round(p.x * k), Math.round(p.y * k), 1, 1).data;
+      return { table: true, rgb: [c[0], c[1], c[2]], pink: c[0] > 235 && c[1] > 180 && c[1] < 220 && c[2] > 205 };
+    });
+
+  await step('после виллы: «Год в городе» — праздничный торт стоит на столе дома (и в начальном домике)', async () => {
+    for (const villa of ['full', 'small']) {
+      await fresh({ villa });
+      for (const [when, want] of [
+        ['eve', false],
+        ['day', true],
+      ]) {
+        await ev(
+          ([w, x]) => {
+            const d = window.__dev;
+            d.holiday.to('birthday', w, 2, 10 * 60);
+            d.villaAt(0, x);
+          },
+          [when, villa === 'small' ? 700 : 1420],
+        );
+        await frames(3);
+        await closeAll();
+        await frames(2);
+        const c = await cakePixel();
+        expect(c.table, `${villa}: на вилле есть обеденный стол`, c);
+        expect(c.pink === want, `${villa}, ${when}: торт на столе ${want ? 'есть' : 'не стоит накануне'}`, c);
+      }
+    }
+  });
 };

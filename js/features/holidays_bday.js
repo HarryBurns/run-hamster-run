@@ -7,7 +7,8 @@
 // тоже гость праздника и тоже дарит подарок. Три гостя — «Все гости в сборе!»: торт со свечами (сценка — задуть
 // свечи), и праздник сделан (монеты, вещь года, наклейка, окно). Если окно с тортом закрыли — «🎂 Задуть свечи!»
 // есть в разговоре с гостем (talkHooks.guest). В доме — гирлянда «Год в Ореховой Гавани!» и шарики (addSidePart движка
-// домов), в городе — шарики у двери дома (locations/holidays.js). Состояние — только отметки дня (ход шагов, asked).
+// домов), на обеденном столе (нет его — на журнальном столике) весь день стоит торт, свечки горят, пока их не задули;
+// в городе — шарики у двери дома (locations/holidays.js). Состояние — только отметки дня (ход шагов, asked).
 import { addItem, earn, meetFriend, setDayFlag, inviteGuest, MAX_GUESTS } from '../core/actions.js';
 import { sfx } from '../core/audio.js';
 import { makeCanvas } from '../core/draw.js';
@@ -24,6 +25,7 @@ import {
   ING_BY_ID,
   SEED_BY_ID,
   BLOWS,
+  FURN_BY_ID,
 } from '../data/index.js';
 import { addSidePart } from '../engine/side/scene.js';
 import { paintBdayRoom } from '../locations/holidays_art.js';
@@ -33,7 +35,7 @@ import { toast } from '../ui/toast.js';
 import { addPts, talkHooks } from './friends.js';
 import { holidayActs, holidayStep, holidayToday, holidayWhere, stepWanted, stepDoneFor } from './holidays.js';
 import { tapScene, holidaySay } from './holidays_scenes.js';
-import { paintCake } from './holidays_scenes_art.js';
+import { paintCake, tableCake } from './holidays_scenes_art.js';
 
 const S = () => G.state;
 const HF = () => S().dayFlags.holiday || {};
@@ -192,7 +194,9 @@ on('holiday', ({ id, what } = {}) => {
       message({
         title: 'Все гости в сборе!',
         icon: '🎂',
-        html: '<div class="center big-emoji">🎂</div><p class="center">Друзья пришли, подарки подарены — а на столе уже стоит праздничный торт со свечами! Загадаешь желание?</p>',
+        html: `<div class="center big-emoji">🎂</div><p class="center">Друзья пришли, подарки подарены — ${
+          cakeTable(scene()) ? 'а на столе уже стоит' : 'а вот и'
+        } праздничный торт со свечами! Загадаешь желание?</p>`,
         buttons: [{ text: '🎂 Задуть свечи!', cls: 'green' }, { text: 'Чуть позже' }],
       }).then((i) => {
         if (i === 0) return cake();
@@ -267,6 +271,25 @@ function drawBdayRoom(ctx, sc) {
   }
   ctx.drawImage(roomPic.canvas, x0, top, x1 - x0, y - top + 12);
 }
-addSidePart({ back: drawBdayRoom });
+
+/**
+ * Стол, на котором в «Год в городе» стоит торт: обеденный стол основного дома (в начальном домике он есть), если его
+ * нет — журнальный столик; { x, f, top } — середина, этаж, высота столешницы над полом. Нет стола — null (тогда и
+ * окно «Все гости в сборе!» не говорит про стол).
+ */
+function cakeTable(sc) {
+  if (!sc || !sc.items || sc.houseKey !== (S().homeMain || 'villa')) return null;
+  const tables = sc.items().filter((i) => FURN_BY_ID[i.id] && FURN_BY_ID[i.id].kind === 'table');
+  const it = tables.find((i) => i.id === 'table') || tables[0];
+  return it ? { x: it.x, f: it.floor, top: FURN_BY_ID[it.id].h } : null;
+}
+/** Торт на столе — весь день праздника; свечки горят, пока их не задули. */
+function drawBdayCake(ctx, sc, t) {
+  if (!isBday()) return;
+  const tb = cakeTable(sc);
+  if (!tb) return;
+  tableCake(ctx, tb.x, sc.geo.fy(tb.f) - tb.top, 0.48, !stepDoneFor('birthday', 'cake'), t);
+}
+addSidePart({ back: drawBdayRoom, front: drawBdayCake });
 
 holidayActs({ cake: () => cake() });
