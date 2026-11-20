@@ -209,21 +209,16 @@ module.exports = async function weather(ctx) {
     expect(!/Гроза/.test(await toasts()), 'подсказка про грозу показана второй раз');
     // в доме слышно погоду места, где он стоит: в хижине на острове городской грозы нет (там тёплый дождик),
     // в отеле в городе — гроза; на вилле (без места снаружи) — погода города
-    const heard = async () =>
-      ev(async () => {
-        const S = await import('/js/features/soundscape.js'),
-          o = S.outdoorOf(window.__dev.scene);
-        return { at: o ? o.name : null, force: (o ? o.wx() : window.__dev.Weather.now()).force };
-      });
+    const heard = () => ev(async () => (await import('/js/features/soundscape.js')).soundWx(window.__dev.scene));
     await toPlace('island');
     await go('hut_guest');
     let h = await heard();
-    expect(h.at === 'island' && h.force < 3, 'в хижине на острове слышно городскую грозу', h);
+    expect(h.force < 3, 'в хижине на острове слышно городскую грозу', h);
     await go('world');
     await ev(() => window.__dev.enterBuilding('hotel'));
     await until(() => window.__dev.sceneName && window.__dev.scene.name === 'hotel', null, 'не вошли в отель');
     h = await heard();
-    expect(h.at === 'world' && h.force === 3, 'в отеле в городе не слышно городской грозы', h);
+    expect(h.force === 3, 'в отеле в городе не слышно городской грозы', h);
     await go('villa');
     h = await heard();
     expect(h.force === 3, 'на вилле не слышно городской грозы', h);

@@ -1,7 +1,7 @@
 // Что звучит: фоновая музыка и окружение (море, дождь, птицы, сверчки) — по сцене, времени суток и погоде.
 import { G, cal, darkness, weatherNow } from '../core/state.js';
 import { lightningNo } from '../engine/topdown/render.js';
-import { scene, scenes } from '../core/loop.js';
+import { scene } from '../core/loop.js';
 import { setMusic, setAmbience, sfx } from '../core/audio.js';
 
 // Сцена сама говорит, что в ней слышно: scene.sound() → { force, day, sea, rain, birds, crickets }.
@@ -25,17 +25,10 @@ function thunder(storm, vol) {
   setTimeout(() => sfx('thunder', vol), 700 + ((n * 37) % 9) * 100);
 }
 /**
- * Где стоит дом, в котором мы сейчас: локация снаружи (по цепочке «откуда вошли» — sc.back; номер отеля → отель →
- * набережная). Без неё (вилла, вход кнопкой «Домой» без двери) — null: тогда слышно погоду города.
+ * Какую погоду слышно в сцене sc: в локации — её (sc.wx), в доме — места, где он стоит (sc.wxOut: хижина на острове
+ * не слышит городской грозы, вилла — погода города, под землёй — тихо).
  */
-export function outdoorOf(sc) {
-  for (let s = sc, i = 0; s && i < 5; i++) {
-    if (s.wx) return s;
-    const b = s.back;
-    s = b && typeof b.scene === 'string' && scenes[b.scene] !== s ? scenes[b.scene] : null;
-  }
-  return null;
-}
+export const soundWx = (sc) => (sc.wx ? sc.wx() : sc.wxOut ? sc.wxOut() : weatherNow());
 export function updateSound() {
   const sc = scene();
   const playing = G.state && sc && !document.getElementById('title');
@@ -77,14 +70,11 @@ export function updateSound() {
               ? s.day
               : 'villa',
   );
-  // погода этого места (sc.wx — локации; под крышей — погоду места, где стоит дом: бунгало на острове не слышит
-  // городскую грозу; дом без места снаружи — погоду города): дождь, ливень, гроза
-  const out = sc.wx ? sc : outdoorOf(sc),
-    wx = out ? out.wx() : weatherNow(),
+  const wx = soundWx(sc),
     rain = wx.kind === 'rain',
     hard = rain && wx.force >= 2 ? 1.5 : 1;
   // гром: на улице — в полную (тихую) силу, в доме — глуше, под землёй (локация без неба) не слышен
-  const under = !!out && out.desc && out.desc.sky === false;
+  const under = !!sc.wx && sc.desc && sc.desc.sky === false;
   thunder(rain && wx.force >= 3 && !under, sc.wx ? 1 : 0.45);
   setAmbience({
     sea: mg ? 0 : s.sea || 0,
