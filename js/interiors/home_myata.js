@@ -1,5 +1,6 @@
 // Дом Мяты: комната в цветах и большая теплица под стеклянной крышей — рассада, пальма, подсолнух и лейка.
 // Дом жителя: мебель из описания, хозяйка внутри; вход — 'home-of:myata'.
+import { npcAtHome } from '../core/state.js'; // дома ли хозяин сейчас (одно правило «где житель» — core/queries.js)
 export default {
   id: 'home_myata',
   name: 'Домик Мяты',
@@ -46,5 +47,5 @@ export default {
       ['plant_ficus', 0, 1400],
     ],
   },
-  actors: [{ npc: 'myata', f: 0, x: 480, roam: [200, 1360], act: 'host:myata' }],
+  actors: [{ npc: 'myata', f: 0, x: 480, roam: [200, 1360], act: 'host:myata', when: () => npcAtHome('myata') }],
 };

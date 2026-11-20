@@ -116,3 +116,25 @@ export const NPC_HOME = {
     tea: { e: '🧁', name: 'кукольное чаепитие', text: 'Чур, я разливаю! Тебе — настоящий сок, а куклам — понарошку.' },
   },
 };
+
+/**
+ * Хозяева тайных мест (этап 13): у каждого свой дом в его локации. Где он сейчас — npcPlace (core/queries.js), по тем же
+ * правилам, что и у жителей города, но со своими часами: днём — у своего дела на улице, утром до LAND_VISIT.morningEnd
+ * и вечером с evening (часы) — у себя дома; иногда днём обедает дома (жребий дня — LAND_VISIT.lunch). Ночью хозяева
+ * тайных мест не спят: сидят дома (чай, огонь, звёзды) и рады гостям — путь к ним далёкий.
+ *   house — сцена дома (interiors/), door — здание у входа (id в описании локации), evening — с какого часа дома,
+ *   inWords — где он, когда дома (журнал, подсказки: «Бархан у себя в шатре ⛺»).
+ * У кого здесь нет строки (Камушкин, Жемчужинка, работники отеля и башни) — всегда на своём месте.
+ */
+export const LAND_HOME = {
+  shishkin: { house: 'hut_shishkin', door: 'hut', evening: 19, inWords: 'у себя в избушке 🛖' },
+  vershinkin: { house: 'chalet_vershinkin', door: 'chalet', evening: 19, inWords: 'у себя в шале 🏔️' },
+  barkhan: { house: 'tent_barkhan', door: 'tent', evening: 19, inWords: 'у себя в шатре ⛺' },
+  liana: { house: 'tent_liana', door: 'camp', evening: 19, inWords: 'у себя в палатке ⛺' },
+  // на острове вечером (19–22) — праздник огней у костра: островитяне там, домой — после
+  kokos: { house: 'hut_kokos', door: 'chief', evening: 22, inWords: 'у себя в хижине 🌴' },
+  bum: { house: 'hut_bum', door: 'bumhut', evening: 22, inWords: 'у себя в домике 🛖' },
+  laguna: { house: 'hut_laguna', door: 'laguna', evening: 22, inWords: 'у себя в домике 🛖' },
+};
+/** Часы хозяев тайных мест: утром дома до morningEnd; обед дома — с lunch.from до lunch.to в доле дней lunch.p. */
+export const LAND_VISIT = { morningEnd: 9 * 60, lunch: { from: 13 * 60, to: 14 * 60, p: 0.35 } };

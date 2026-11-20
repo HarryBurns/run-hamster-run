@@ -1,5 +1,6 @@
 // Дом Плюши: тепло и уютно — кресло-качалка с пледом, камин, чайный столик, на кухне всегда пахнет пирогом.
 // Дом жителя: мебель стоит как в описании (переставить нельзя), хозяйка внутри; вход — 'home-of:plusha'.
+import { npcAtHome } from '../core/state.js'; // дома ли хозяин сейчас (одно правило «где житель» — core/queries.js)
 export default {
   id: 'home_plusha',
   name: 'Домик Плюши',
@@ -69,5 +70,5 @@ export default {
       ['plant_flowers', 0, 1340],
     ],
   },
-  actors: [{ npc: 'plusha', f: 0, x: 470, roam: [200, 1220], act: 'host:plusha' }],
+  actors: [{ npc: 'plusha', f: 0, x: 470, roam: [200, 1220], act: 'host:plusha', when: () => npcAtHome('plusha') }],
 };

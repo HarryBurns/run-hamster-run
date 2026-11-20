@@ -7,16 +7,17 @@
 //   act     действие из реестра, когда хомячок подошёл (по умолчанию 'npc:<id>' — разговор)
 //   always  true — не уходит спать ночью (иначе с 22:00 до 6:30 жителя на улице нет)
 //   still   true — не гуляет, всегда на своём месте (русалочка на камне в воде — секретный пляж)
-// Где житель (часы — VISIT в data/visits.js, те же, что у двери его домика):
-//   днём (9:00–19:00) гуляет возле своего места at;
-//   утром и вечером, когда к нему можно зайти в гости, — у себя во дворе, возле двери (а не на другом конце города);
-//   позвал в гости («Заходи ко мне сегодня!», письмо «день гостей» — invitedToday) — идёт домой и ждёт внутри:
-//   дошёл до двери — и на улице его нет до конца дня;
-//   в гостях у хомячка дома или ночью — на улице его нет.
-import { G, invitedToday, questBadge, npcDress } from '../../core/state.js';
+// Где житель — одно правило для всех мест, npcPlace (core/queries.js; часы — VISIT и LAND_HOME в data/visits.js):
+//   на улице ('out') — гуляет возле своего места at (хозяин тайного места — у своего дела);
+//   дома ('home' — утром, вечером, позвал в гости, обедает; 'asleep' — спит) — идёт к своей двери и заходит: дошёл
+//   до двери — и на улице его нет, пока он дома (внутри его дома он есть — interiors/, when: npcAtHome);
+//   хомячок пришла в локацию (или вышла из его дома) — кто дома, тот уже внутри (settleResidents);
+//   в гостях у хомячка, в отеле — на улице его нет; праздник в городе — locations/holidays_crowd.js (n.hold);
+//   ночью (с 22:00 до 6:30) на улице нет никого, кроме always.
+import { G, npcPlace, questBadge, npcDress } from '../../core/state.js';
 import { rnd, dist } from '../../core/util.js';
 import { ell } from '../../core/draw.js';
-import { NPC_BY_ID, VISIT, npcLook } from '../../data/index.js';
+import { NPC_BY_ID, npcLook } from '../../data/index.js';
 import { drawHamster, blinkAt } from '../../art/hamster.js';
 import { T, PS, OUT, SP, OBJECTS, tileOf, doorX } from './kinds.js';
 
@@ -110,26 +111,34 @@ export function makeResidents(m) {
   });
 }
 
-/** Утро или вечер: хозяева у себя (к ним можно зайти в гости). */
-const homeTime = (min) => min >= VISIT.eveningStart || min < VISIT.morningEnd;
+/** Где житель сейчас по общему правилу (npcPlace, core/queries.js): 'out' — у кого нет расписания (всегда на месте). */
+const placeOf = (n) => {
+  const p = npcPlace(n.id);
+  return p ? p.at : 'out';
+};
+/** Дома (зашёл к себе или спит): на улице его нет — если есть дом, он идёт к своей двери и заходит. */
+const atHome = (at) => at === 'home' || at === 'asleep';
+/** Не здесь вовсе: в гостях у хомячка, в отеле. */
+const awayNow = (at) => at === 'guest' || at === 'pool' || at === 'room';
 const cellDist = (n, c) => dist(n.x, n.y, (c[0] + 0.5) * T, (c[1] + 0.5) * T);
 
 /**
- * Расставить жителей по местам, когда хомячок входит в локацию (его здесь не было — могло пройти полдня):
- * кто ждёт гостей — уже дома; утром и вечером — у своей двери; днём — у своего места.
+ * Расставить жителей по местам, когда хомячок входит в локацию (её здесь не было — могло пройти полдня, или она
+ * только что вышла из его дома): кто дома — уже внутри (на улице его нет), на празднике у своей двери — у двери,
+ * на улице — у своего места.
  */
 export function settleResidents(sc) {
-  const min = G.state.minutes;
   for (const n of sc.npcs) {
     if (!n.home) continue;
-    n.inside = invitedToday(n.id);
-    const c = homeTime(min) || n.inside ? n.home : n.hang;
+    const at = placeOf(n);
+    n.inside = atHome(at);
+    n.goingHome = false;
+    const c = (n.inside && !n.def.still) || at === 'door' ? n.home : n.hang; // still — всегда на своём месте
     if (cellDist(n, c) <= T * 4) continue; // уже рядом — пусть стоит, где стоял
     n.x = (c[0] + 0.5) * T;
     n.y = (c[1] + 0.5) * T;
     n.path = [];
     n.moving = false;
-    n.goingHome = false;
   }
 }
 
@@ -139,14 +148,19 @@ export function updateResidents(sc, dt) {
     min = G.state.minutes,
     night = min >= 22 * 60 || min < 6.5 * 60;
   for (const n of sc.npcs) {
-    // позвал в гости: идёт домой, у двери «заходит» — и больше не стоит на улице, пока ждёт
-    const waits = !!n.home && invitedToday(n.id);
+    // дома (утро, вечер, позвал в гости, обедает): идёт домой, у двери «заходит» — и на улице его нет, пока он дома
+    const at = placeOf(n),
+      waits = !!n.home && atHome(at);
     if (!waits) n.inside = n.goingHome = false;
-    else if (!n.inside && cellDist(n, n.home) < T * 1.2) n.inside = true;
-    // away(id) в описании жителя — он сейчас не здесь (житель отдыхает у бассейна отеля — locations/town.js)
+    else if (!n.inside && (n.def.still || cellDist(n, n.home) < T * 1.2)) n.inside = true;
     n.hidden =
-      (night && !n.def.always) || G.state.guests.includes(n.id) || n.inside || (!!n.def.away && n.def.away(n.id));
-    // hold — житель занят своим (присел рядом с хомячком на скамейку — features/rest.js): стоит на месте, рисует его hold.draw
+      (night && !n.def.always) ||
+      awayNow(at) ||
+      n.inside ||
+      (atHome(at) && !n.home) ||
+      (!!n.def.away && n.def.away(n.id)); // away(id) в описании жителя — своё «сейчас не здесь» у локации
+    // hold — житель занят своим (присел рядом с хомячком на скамейку — features/relax.js, празднует —
+    // locations/holidays_crowd.js): стоит на месте или его водят там
     if (n.hidden || G.modal || n.def.still || n.hold) continue;
     if (n.path.length) {
       if (moveAlong(m, n, 90, dt) && n.goingHome) n.inside = true; // дошёл до своей двери
@@ -156,7 +170,7 @@ export function updateResidents(sc, dt) {
     n.wait -= dt;
     if (n.wait > 0) continue;
     n.wait = rnd(2.5, 7);
-    const [ax, ay] = n.home && (waits || homeTime(min)) ? n.home : n.hang;
+    const [ax, ay] = waits || (at === 'door' && n.home) ? n.home : n.hang;
     const far = waits || dist(n.x, n.y, (ax + 0.5) * T, (ay + 0.5) * T) > T * 4;
     const tx = far ? ax : tileOf(n.x) + Math.round(rnd(-2, 2)),
       ty = far ? ay : tileOf(n.y) + Math.round(rnd(-2, 2));

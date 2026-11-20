@@ -10,8 +10,9 @@
 // не водит, а здесь он сначала идёт по пути к своему месту (moveAlong), потом встаёт в круг: по кругу (ring, skate,
 // parade) его ведёт эллипс — место в кругу едет со временем, житель «догоняет» его; танцоры (dance) прыгают на месте —
 // свой кадр из кэша спрайтов (руки вверх). Кончилось время — n.hold снят, житель снова гуляет сам.
-// Кто не празднует: кого не видно (ночь, в гостях у хомячка, позвал к себе, у бассейна отеля), кто занят другим
-// (сидит рядом с хомячком на скамейке — n.hold от features/relax.js).
+// Кто празднует — решает общее правило «где житель сейчас» (npcPlace в core/queries.js: 'fest' или 'door' — по
+// таблице HOLIDAY_GATHER в data/holidays.js); не празднует, кто в гостях у хомячка, позвал к себе, у бассейна отеля,
+// у кого хомячок сейчас в гостях, и кто занят другим (сидит рядом с хомячком на скамейке — n.hold от features/relax.js).
 //
 // GATHER — по празднику: [{ from, to (часы), kind, c: [x, y] центр (клетки), r: [rx, ry] (клетки), speed, spots }]
 //   ring    хоровод по эллипсу (шагом);  skate — то же, но скользят (кадры «стоит», как на коньках)
@@ -19,87 +20,20 @@
 //   dance   танцоры на своих местах spots — прыгают, руки вверх
 //   crowd   стоят на своих местах spots лицом к центру c, иногда радуются
 //   doors   стоят у двери своего домика (n.home)
-import { G, invitedToday, npcDress } from '../core/state.js';
+import { G, npcPlace, npcDress } from '../core/state.js';
 import { dist } from '../core/util.js';
-import { NPC_BY_ID, npcLook } from '../data/index.js';
+import { NPC_BY_ID, npcLook, HOLIDAY_GATHER, gatherOn } from '../data/index.js';
 import { drawHamster, blinkAt } from '../art/hamster.js';
 import { T, PS, SP, tileOf } from '../engine/topdown/kinds.js';
 import { moveAlong, faceTo } from '../engine/topdown/actors.js';
 
 const S = () => G.state;
-/** Где и когда празднуют (клетки города; часы — с from до to). */
-export const GATHER = {
-  newyear: [
-    { from: 11, to: 16, kind: 'skate', c: [40.5, 38.6], r: [3.1, 1.25], speed: 0.42, where: 'каток в парке' },
-    { from: 17, to: 22, kind: 'ring', c: [44.5, 23.15], r: [2.45, 1.15], speed: 0.3, where: 'хоровод у ёлки' },
-  ],
-  xmas: [
-    {
-      from: 11,
-      to: 15,
-      kind: 'crowd',
-      c: [54, 23],
-      spots: [
-        [52.4, 24.6],
-        [55.6, 24.2],
-        [53.3, 25.5],
-        [54.8, 25.7],
-        [51.3, 23.9],
-        [56.8, 23.6],
-        [51.9, 25.8],
-        [56.6, 25.4],
-      ],
-      where: 'у вертепа',
-    },
-    { from: 16, to: 22, kind: 'doors', where: 'у своих дверей' },
-  ],
-  cny: [
-    {
-      from: 11,
-      to: 18,
-      kind: 'dance',
-      c: [45.5, 23.3],
-      spots: [
-        [42.9, 25.3],
-        [44.3, 25.7],
-        [47.6, 25.6],
-        [49.1, 25.2],
-        [50.3, 24.4],
-        [41.7, 24.5],
-        [48.6, 21.6],
-        [42.5, 21.5],
-      ],
-      where: 'танцуют у дракона',
-    },
-  ],
-  maslenitsa: [
-    {
-      from: 11,
-      to: 17,
-      kind: 'crowd',
-      c: [50, 24],
-      spots: [
-        [42.6, 24.6],
-        [47.4, 24.4],
-        [57.8, 26.1],
-        [61.7, 26.4],
-        [49.6, 25.7],
-        [53.6, 25.9],
-        [56.3, 24.1],
-        [47.2, 22.3],
-      ],
-      where: 'на ярмарке',
-    },
-  ],
-  mayday: [{ from: 10, to: 14, kind: 'parade', c: [40.5, 38.5], r: [6, 5], speed: 0.16, where: 'парад вокруг пруда' }],
-  kupala: [{ from: 18, to: 22, kind: 'ring', c: [49.5, 53.3], r: [2.7, 1.3], speed: 0.34, where: 'хоровод у костра' }],
-  halloween: [{ from: 16, to: 22, kind: 'doors', where: 'у своих дверей' }],
-};
+/** Где и когда празднуют — таблица HOLIDAY_GATHER (data/holidays.js): по ней и npcPlace (core/queries.js) знает,
+ * что житель сейчас на празднике. */
+export const GATHER = HOLIDAY_GATHER;
 /** Что сейчас по таблице для праздника id (или null). */
 export function gatherNow(id) {
-  if (!S() || !id) return null;
-  const h = S().minutes / 60;
-  return (GATHER[id] || []).find((g) => h >= g.from && h < g.to) || null;
+  return S() ? gatherOn(id, S().minutes) : null;
 }
 
 const CIRCLE = { ring: 1, skate: 1, parade: 1 };
@@ -126,8 +60,10 @@ export function createCrowd() {
     crew.clear();
   }
   /** Может ли житель праздновать сейчас. */
-  const free = (n) =>
-    !n.hidden && !n.inside && !n.goingHome && !invitedToday(n.id) && (!n.hold || n.hold.crowd) && !!NPC_BY_ID[n.id];
+  const free = (n) => {
+    const p = npcPlace(n.id); // на празднике ли он по общему правилу (core/queries.js): 'fest' или «у своей двери»
+    return !!p && (p.at === 'fest' || p.at === 'door') && !n.hidden && !n.inside && (!n.hold || n.hold.crowd);
+  };
   /** Куда встать жителю (единицы мира). */
   function placeOf(sc, g, n, slot, total, t) {
     if (CIRCLE[g.kind]) return circleAt(g, slot, total, t);

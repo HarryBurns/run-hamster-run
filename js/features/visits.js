@@ -1,7 +1,7 @@
 // В гости к жителям: дверь домика (открыта или нет), хозяин у себя дома (поболтать, чай, угощение),
 // «изюминки» домов — телескоп, гигантский холодильник, духовка.
 //
-// Когда можно войти (часы — VISIT в data/visits.js, расчёт — npcWhere() в core/state.js):
+// Когда можно войти (часы — VISIT в data/visits.js, расчёт — npcPlace() в core/queries.js — одно правило «где житель»):
 //   утром до 9:00 и вечером после 19:00 хозяин дома; после 22:00 спит; днём гуляет — дверь закрыта;
 //   если он сегодня позвал («Заходи ко мне сегодня!» — в разговоре, в ответ на угощение, письмо «день гостей»),
 //   дверь открыта весь день.
@@ -10,13 +10,13 @@
 import { addItem, award, countVisit, markFriendToday, meetFriend, setDayFlag, spendMinutes } from '../core/actions.js';
 import { sfx } from '../core/audio.js';
 import { makeCanvas } from '../core/draw.js';
-import { emit } from '../core/events.js';
+import { emit, on } from '../core/events.js';
 import { go } from '../core/loop.js';
 import { register, run } from '../core/registry.js';
-import { G, darkness, npcWhere, playerLook, guestsWaiting } from '../core/state.js';
+import { G, darkness, npcPlace, npcWhere, playerLook, guestsWaiting } from '../core/state.js';
 import { el, esc, pick } from '../core/util.js';
 import { DISH_BY_ID, NPCS, NPC_BY_ID, NPC_HOME, VISIT, npcLook } from '../data/index.js';
-import { npcHomeScene } from '../interiors/houses.js';
+import { npcHomeScene, HOUSE_BY_ID } from '../interiors/houses.js';
 import { dialog } from '../ui/dialog.js';
 import { openPanel, message } from '../ui/panel.js';
 import { toast } from '../ui/toast.js';
@@ -43,6 +43,7 @@ export async function visitHome(id, ctx = {}) {
   const npc = NPC_BY_ID[id],
     home = NPC_HOME[id],
     fr = S().friends[id],
+    place = npcPlace(id), // одно правило «где житель сейчас» (core/queries.js)
     where = npcWhere(id);
   if (where === 'guest') {
     toast(`Здесь живёт ${npc.name}. А сейчас ${pron(npc)} ${npcAwayWords(id)}!`);
@@ -54,6 +55,11 @@ export async function visitHome(id, ctx = {}) {
     return;
   }
   if (doorHooks.knock && (await doorHooks.knock(id, ctx, where))) return;
+  if (where === 'out' && place.at === 'fest') {
+    sfx('pop');
+    toast(`Дома никого: ${npc.name} сейчас ${npcAwayWords(id)} Беги туда — там весело!`);
+    return;
+  }
   if (where === 'out') {
     sfx('pop');
     // «день гостей»: подсказать, кто сегодня ждёт дома (письмо назвало их по именам)
@@ -89,6 +95,14 @@ export async function visitHome(id, ctx = {}) {
   emit('visit', { place: 'home_' + id, npc: id });
   setTimeout(() => toast(`${npc.name}: «${pick(home.hello)}»`), 500);
 }
+
+// Хомячок в доме жителя (город или тайное место): пока она там, хозяин дома — не уходит гулять, в отель или спать
+// посреди разговора (G.hostVisit — npcPlace в core/queries.js). Только если он был дома, когда она вошла.
+on('scene', ({ name }) => {
+  const owner = (HOUSE_BY_ID[name] || {}).owner || null;
+  G.hostVisit = null;
+  if (owner && ['home', 'door'].includes((npcPlace(owner) || {}).at)) G.hostVisit = owner;
+});
 
 register(
   'home-of',

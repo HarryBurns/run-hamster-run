@@ -11,7 +11,7 @@ import { sfx } from '../core/audio.js';
 import { emit } from '../core/events.js';
 import { go } from '../core/loop.js';
 import { register } from '../core/registry.js';
-import { G } from '../core/state.js';
+import { G, npcAtHome } from '../core/state.js';
 import { pick } from '../core/util.js';
 import { LAND_HOUSES, HOUSE_BY_ID } from '../interiors/houses.js';
 import { toast } from '../ui/toast.js';
@@ -37,6 +37,17 @@ export function enterInside(id, ctx = {}) {
   } else if (h.greet) setTimeout(() => toast(pick(h.greet)), 500);
   return true;
 }
+
+// Записка хозяина в его доме (домики Бума и Лагуны): нет дома — «ушёл к костру» (say), дома — sayHome.
+// Где хозяин — одно правило npcAtHome (core/queries.js).
+register(
+  'note',
+  (p, ctx) => {
+    const b = ctx.fixture || {};
+    toast(npcAtHome(p.arg) && b.sayHome ? b.sayHome : pick([].concat(b.say || '')));
+  },
+  'записка хозяина в его доме: note:<житель>; у предмета say — его нет дома, sayHome — он дома',
+);
 
 register(
   'inside',

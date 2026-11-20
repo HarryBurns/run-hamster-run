@@ -260,14 +260,21 @@ module.exports = async function zfix(ctx) {
         'журнал не говорит, что Плюша в гостях на вилле',
         j.slice(0, 500),
       );
-      // вечером — у домика, ночью спит
+      // вечером (день 18 — Иван Купала) — на празднике у костра, в обычный вечер — дома; ночью спит
       await ev(() => {
         const a = window.__dev.actions;
         a.removeGuest('plusha');
         a.mutate((s) => (s.minutes = 20 * 60));
       });
       j = await journal();
-      expect(/Сейчас Плюша у своего домика/.test(j), 'вечером журнал не говорит, что Плюша у домика', j.slice(0, 500));
+      expect(
+        /Сейчас Плюша на празднике: хоровод у костра/.test(j),
+        'вечером на Купалу журнал не говорит, что Плюша на празднике',
+        j.slice(0, 500),
+      );
+      await ev(() => window.__dev.actions.mutate((s) => (s.day = 19)));
+      j = await journal();
+      expect(/Сейчас Плюша дома/.test(j), 'вечером журнал не говорит, что Плюша дома', j.slice(0, 500));
       await ev(() => window.__dev.actions.mutate((s) => (s.minutes = 23 * 60)));
       j = await journal();
       expect(/Плюша уже спит/.test(j), 'ночью журнал не говорит, что Плюша спит', j.slice(0, 500));

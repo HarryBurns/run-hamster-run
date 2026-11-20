@@ -5,6 +5,7 @@
 //    фонарик из кокоса.
 //  - Домики Бума и Лагуны (на сваях): хозяева гуляют (Бум стучит в барабан у костра, Лагуна плетёт гирлянды у пляжа) —
 //    на столе записка, где их найти; барабаны Бума и ракушки, корзинки и цветы Лагуны можно потрогать.
+import { npcAtHome } from '../core/state.js'; // дома ли хозяин сейчас (одно правило «где житель» — core/queries.js)
 import { ell, fillRR, line, poly } from '../core/draw.js';
 import { wob, flame } from './inside_art.js';
 
@@ -192,7 +193,7 @@ export const chief = {
       ['plant_palm', 0, 220],
     ],
   },
-  actors: [{ npc: 'kokos', f: 0, x: 560, roam: [240, 960], act: 'chief' }],
+  actors: [{ npc: 'kokos', f: 0, x: 560, roam: [240, 960], act: 'chief', when: () => npcAtHome('kokos') }],
 };
 
 // ---------- хижина для гостей ----------
@@ -251,6 +252,7 @@ export const guest = {
 export const bum = {
   id: 'hut_bum',
   name: 'Домик Бума',
+  owner: 'bum',
   hello: '🥁 Домик барабанщика Бума! Барабаны повсюду — даже кровать похожа на барабан. Сам Бум стучит у костра.',
   floors: 1,
   width: 1000,
@@ -285,6 +287,9 @@ export const bum = {
       draw: note,
       sfx: 'paper',
       say: '📝 Записка: «Ушёл к костру стучать в барабан! Приходи — постучим вместе. Бум»',
+      // записка хозяина (features/inside.js): Бум дома — say дома, нет — say
+      run: 'note:bum',
+      sayHome: '📝 Записка: «Ушёл к костру стучать в барабан!» Но сейчас Бум дома — вон он, поздоровайся 🥁',
     },
     {
       id: 'drums',
@@ -303,10 +308,13 @@ export const bum = {
     },
   ],
   furniture: { fixed: [['hammock', 0, 560]] },
+  // Бум дома — утром, в обед и после праздника огней (LAND_HOME в data/visits.js)
+  actors: [{ npc: 'bum', f: 0, x: 620, roam: [240, 700], act: 'islander:bum', when: () => npcAtHome('bum') }],
 };
 
 export const laguna = {
   id: 'hut_laguna',
+  owner: 'laguna',
   name: 'Домик Лагуны',
   hello: '🌺 Домик Лагуны! Ракушки на верёвочке, корзинки с цветами. Сама Лагуна плетёт гирлянды у пляжа.',
   floors: 1,
@@ -357,6 +365,8 @@ export const laguna = {
       draw: note,
       sfx: 'paper',
       say: '📝 Записка: «Я у пляжа — плету гирлянды из цветов. Заходи в гости! Лагуна 🌺»',
+      run: 'note:laguna',
+      sayHome: '📝 Записка: «Я у пляжа — плету гирлянды». Но сейчас Лагуна дома — вон она, поздоровайся 🌺',
     },
     {
       id: 'basket',
@@ -376,4 +386,6 @@ export const laguna = {
       ['shell_frame', 0, 840, 190],
     ],
   },
+  // Лагуна дома — утром, в обед и после праздника огней (LAND_HOME в data/visits.js)
+  actors: [{ npc: 'laguna', f: 0, x: 720, roam: [240, 900], act: 'islander:laguna', when: () => npcAtHome('laguna') }],
 };

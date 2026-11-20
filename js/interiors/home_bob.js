@@ -1,5 +1,6 @@
 // Дом Капитана Боба: кают-компания со штурвалом, сетью и аквариумом и каюта с гамаком и морской картой.
 // За окнами — море. Дом жителя: мебель из описания, хозяин внутри; вход — 'home-of:bob'.
+import { npcAtHome } from '../core/state.js'; // дома ли хозяин сейчас (одно правило «где житель» — core/queries.js)
 export default {
   id: 'home_bob',
   name: 'Домик Капитана Боба',
@@ -52,5 +53,5 @@ export default {
       ['lifebuoy', 0, 1290, 200],
     ],
   },
-  actors: [{ npc: 'bob', f: 0, x: 560, roam: [200, 1240], act: 'host:bob' }],
+  actors: [{ npc: 'bob', f: 0, x: 560, roam: [200, 1240], act: 'host:bob', when: () => npcAtHome('bob') }],
 };

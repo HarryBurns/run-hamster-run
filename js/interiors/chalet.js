@@ -1,6 +1,7 @@
 // Шале инструктора Вершинкина на горе (Г2): прихожая с лыжами и санками, гостиная у камина — кресло-качалка, кубки,
 // эдельвейсы, кружки какао; за окнами — горы в снегу. Дом «тайного места»: вход — дверь шале ('inside:chalet_vershinkin',
 // locations/mountain.js), дверь изнутри — назад к двери снаружи. Хозяин внутри — 'instructor' (задание, «Спуск с горы»).
+import { npcAtHome } from '../core/state.js'; // дома ли хозяин сейчас (одно правило «где житель» — core/queries.js)
 import { ell, fillRR, line, poly } from '../core/draw.js';
 import { wob } from './inside_art.js';
 
@@ -197,5 +198,7 @@ export default {
       ['cup', 0, 1260],
     ],
   },
-  actors: [{ npc: 'vershinkin', f: 0, x: 700, roam: [260, 1120], act: 'instructor' }],
+  actors: [
+    { npc: 'vershinkin', f: 0, x: 700, roam: [260, 1120], act: 'instructor', when: () => npcAtHome('vershinkin') },
+  ],
 };

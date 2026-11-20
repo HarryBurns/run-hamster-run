@@ -42,6 +42,7 @@ import {
   HOME_SCENE,
   HOME_BY_ID,
   NPC_HOME,
+  LAND_HOME,
   SEED_BY_ID,
   ING_BY_ID,
 } from '../data/index.js';
@@ -150,7 +151,7 @@ const placeOf = (q) => (q.loc ? LOC_WORDS[q.loc] || 'в другом месте'
 /** Карточка «Новое задание!»: где искать того, кто его даёт, — «найди её в городе…» или «сейчас она у тебя в гостях…». */
 function readyWhere(q) {
   const npc = NPC_BY_ID[q.npc],
-    away = !q.npcAt && npcAwayWords(q.npc);
+    away = !q.npcAt && whereWords(q.npc);
   if (away) return `сейчас ${npc.fem ? 'она' : 'он'} ${away}. Над головой у ${hisOf(q.npc)} «!».`;
   return `найди ${npc.fem ? 'её' : 'его'} ${placeOf(q)}. Над головой у ${hisOf(q.npc)} «!».`;
 }
@@ -178,7 +179,18 @@ export function npcAwayWords(id) {
   }
   if (sp.at === 'pool') return 'в отеле «Морская звезда» у бассейна 🏨';
   if (sp.at === 'room') return 'в отеле «Морская звезда», в номере 203 🏨';
+  if (sp.at === 'fest') return `на празднике: ${sp.fest} 🎉`;
+  // хозяин тайного места у себя дома — разговор и задание там (дверь его дома)
+  if (sp.at === 'home' && LAND_HOME[id]) return LAND_HOME[id].inWords;
   return null;
+}
+/** Где житель, если его не видно на улице: npcAwayWords, а житель города у себя дома — «у себя дома — постучись…». */
+function whereWords(id) {
+  const away = npcAwayWords(id),
+    sp = npcSpot(id);
+  if (away || !sp || !NPC_HOME[id]) return away;
+  if (sp.at === 'asleep') return 'дома и уже спит 😴';
+  return sp.at === 'home' ? 'у себя дома — постучись в дверь домика 🚪' : null;
 }
 /**
  * Подсказка в журнале «где житель сейчас» (шаг «поговори с …»): в гостях, в отеле, спит, ждёт дома, у домика или на
@@ -188,17 +200,21 @@ function npcHint(id) {
   const sp = npcSpot(id),
     npc = NPC_BY_ID[id],
     home = NPC_HOME[id];
+  if (sp && LAND_HOME[id] && sp.at === 'home')
+    return `Сейчас ${npc.name} ${LAND_HOME[id].inWords} — заходи к ${npc.fem ? 'ней' : 'нему'} в гости`;
   if (!sp || !home) return null;
   const away = npcAwayWords(id);
   if (away) return `Сейчас ${npc.name} ${away}`;
-  if (sp.at === 'asleep') return `${npc.name} уже спит 😴 Утром ${npc.fem ? 'она' : 'он'} будет у своего домика`;
+  if (sp.at === 'door') return `${npc.name} стоит у двери своего домика и встречает гостей 🚪`;
+  if (sp.at === 'asleep')
+    return `${npc.name} уже спит 😴 Утром ${npc.fem ? 'она' : 'он'} будет дома, а днём ${home.away}`;
   if (sp.at === 'home' && invitedToday(id)) return `${npc.name} ждёт тебя у себя дома — постучись в дверь домика 🚪`;
-  if (sp.at === 'home') return `Сейчас ${npc.name} у своего домика, а днём ${home.away}`;
-  return `${npc.name} ${home.away}, а утром и вечером — у своего домика`;
+  if (sp.at === 'home') return `Сейчас ${npc.name} дома — постучись в дверь домика 🚪 А днём ${home.away}`;
+  return `${npc.name} ${home.away}, а утром и вечером — дома`;
 }
 /** «у неё над головой «?»» — или где житель, если его не видно на улице: «она у тебя в гостях, на вилле 🏡». */
 function lookFor(id, badge) {
-  const away = npcAwayWords(id);
+  const away = whereWords(id);
   return away ? `${NPC_BY_ID[id].fem ? 'она' : 'он'} ${away}` : `у ${hisOf(id)} над головой «${badge}»`;
 }
 /** Показать задание на карте (звёздочкой). false — сейчас показать нечего (сегодня всё собрано и т. п.). */

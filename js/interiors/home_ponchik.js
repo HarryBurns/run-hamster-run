@@ -1,5 +1,6 @@
 // Дом Пончика: почти весь дом — кухня. Гигантский холодильник, духовка, кастрюли на стене и большой стол.
 // Дом жителя: мебель из описания, хозяин внутри; вход — 'home-of:ponchik'.
+import { npcAtHome } from '../core/state.js'; // дома ли хозяин сейчас (одно правило «где житель» — core/queries.js)
 export default {
   id: 'home_ponchik',
   name: 'Домик Пончика',
@@ -57,5 +58,5 @@ export default {
       ['clock', 0, 808, 205],
     ],
   },
-  actors: [{ npc: 'ponchik', f: 0, x: 600, roam: [220, 1330], act: 'host:ponchik' }],
+  actors: [{ npc: 'ponchik', f: 0, x: 600, roam: [220, 1330], act: 'host:ponchik', when: () => npcAtHome('ponchik') }],
 };

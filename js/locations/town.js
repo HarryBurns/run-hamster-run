@@ -7,18 +7,7 @@
 import { clamp } from '../core/util.js';
 import { ell, fillRR, line, poly, emoji } from '../core/draw.js';
 import { NPCS, ING_BY_ID, SEED_BY_ID, TASK_BY_ID, LAND_BY_ID, BIZ_BY_ID } from '../data/index.js';
-import {
-  G,
-  cal,
-  ownsHome,
-  landOpen,
-  guestsWaiting,
-  stepWaits,
-  hotelPoolGuests,
-  hotelRoomGuest,
-  bedOwned,
-  yardHas,
-} from '../core/state.js';
+import { G, cal, ownsHome, landOpen, guestsWaiting, stepWaits, bedOwned, yardHas } from '../core/state.js';
 import { T, OUT, SP, put, defineTiles, defineObjects } from '../engine/topdown/kinds.js';
 import { createTopDownScene } from '../engine/topdown/scene.js';
 import { run } from '../core/registry.js';
@@ -240,15 +229,12 @@ const HANG = {
   bob: [63, 58], // пирс
   zefirka: [40, 53], // пляж
 };
-// away — житель сейчас не в городе: днём через день кто-то из друзей отдыхает у бассейна отеля (hotelPoolGuest) или
-// гостит в номере 203 (hotelRoomGuest, От1) — core/state.js; там же — кто остаётся в городе: ждёт гостей, позвал к себе,
-// у него дело по журналу
-const awayAtHotel = (id) => hotelPoolGuests().includes(id) || hotelRoomGuest() === id;
+// Где житель сейчас (на улице, дома, в гостях, в отеле, на празднике) — одно правило npcPlace (core/queries.js):
+// по нему движок (engine/topdown/actors.js) прячет его с улицы и ведёт домой.
 const ACTORS = NPCS.map((n) => ({
   npc: n.id,
   at: HANG[n.id],
   home: BUILDINGS.find((b) => b.npc === n.id).id,
-  away: awayAtHotel,
 }));
 
 // ---------- выезды из города ----------

@@ -636,9 +636,10 @@ const island = createTopDownScene({
     { id: 'bumhut', kind: 'stiltHut', ...AT.bum, v: 2, name: 'Домик Бума', icon: '🛖', act: 'inside:hut_bum' },
   ],
   actors: [
-    { npc: 'kokos', at: [18, 18], always: true, act: 'chief' },
-    { npc: 'bum', at: [23, 15], still: true, always: true, act: 'islander:bum' },
-    { npc: 'laguna', at: [11, 27], act: 'islander:laguna' },
+    // дома (утром, обедают, после праздника огней) — у себя в хижинах: LAND_HOME (data/visits.js), npcPlace
+    { npc: 'kokos', at: [18, 18], home: 'chief', always: true, act: 'chief' },
+    { npc: 'bum', at: [23, 15], home: 'bumhut', still: true, always: true, act: 'islander:bum' },
+    { npc: 'laguna', at: [11, 27], home: 'laguna', always: true, act: 'islander:laguna' },
   ],
   places: [
     {

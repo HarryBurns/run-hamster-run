@@ -232,7 +232,8 @@ module.exports = async function inside(ctx) {
     await step(`внутри: ${H.name} — вход, хозяин, потрогать, выход к двери`, async () => {
       if (H === HOUSES[0]) await L.fresh(); // 1 июня; места открывает toLoc
       await closeAll();
-      await toLoc(H.loc, H.land, H.at[0], H.at[1]);
+      // хозяин дома утром (до 9:00 — LAND_VISIT в data/visits.js), днём — на улице у своего дела
+      await toLoc(H.loc, H.land, H.at[0], H.at[1], H.host ? 8 * 60 : 12 * 60);
       await enterHouse(H.loc, H.b, H.id);
       expect((await sceneName()) === H.id, 'дверь не ведёт внутрь', await sceneName());
       const flag = await ev((id) => window.__dev.G.state.flags['in:' + id], H.id);
@@ -281,9 +282,16 @@ module.exports = async function inside(ctx) {
       await frames(2);
       const r = await ev((H) => {
         const d = window.__dev,
-          sc = d.locations[H.loc];
-        return { scene: d.sceneName, p: sc.p && { x: sc.p.x, y: sc.p.y }, door: sc.map.doorPx(sc.map.bById[H.b]) };
+          sc = d.locations[H.loc],
+          n = H.host && sc.npcs.find((q) => q.id === H.host);
+        return {
+          scene: d.sceneName,
+          p: sc.p && { x: sc.p.x, y: sc.p.y },
+          door: sc.map.doorPx(sc.map.bById[H.b]),
+          hostOut: !!n && !n.hidden,
+        };
       }, H);
+      expect(!r.hostOut, 'хозяин был дома, а вышла — он и на улице', r);
       expect(
         r.scene === H.loc && Math.hypot(r.p.x - r.door.x, r.p.y - r.door.y) < T,
         'дверь изнутри не вывела к двери снаружи',

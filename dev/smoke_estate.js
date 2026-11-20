@@ -467,7 +467,7 @@ module.exports = async function estate(ctx) {
     },
   );
 
-  await step('гости: кто ждёт дома — не гуляет по городу; утром и вечером жители у своих дверей', async () => {
+  await step('гости: кто ждёт дома — не гуляет по городу; утром и вечером жители дома, а не на улице', async () => {
     // где житель: [id, клеток до двери своего дома, клеток до дневного места, спрятан, «зашёл домой»]
     const where = (id) =>
       ev((id) => {
@@ -491,13 +491,13 @@ module.exports = async function estate(ctx) {
     await reenter(13);
     let r = await where('plusha');
     expect(r.hidden && r.inside, 'позвала в гости, а гуляет по городу', r);
-    // остальные днём — у своих мест, утром и вечером — у своих дверей
+    // остальные днём — у своих мест, утром и вечером — дома (одно правило «где житель» — npcPlace): на улице их нет
     r = await where('myata');
     expect(!r.hidden && r.hang <= 4, 'днём жительница не у своего места', r);
     for (const h of [8, 19.5]) {
       await reenter(h);
       r = await where('myata');
-      expect(!r.hidden && r.home <= 4, h + ':00 — жительница далеко от дома', r);
+      expect(r.hidden && r.inside, h + ':00 — жительница дома, а гуляет по улице', r);
     }
     // позвали прямо на улице: житель идёт к своей двери и «заходит»
     await reenter(13);
@@ -542,13 +542,13 @@ module.exports = async function estate(ctx) {
           out: npcs.filter((n) => !n.hidden).map((n) => n.id),
         };
       });
-    for (const h of [8.3, 12]) {
+    for (const h of [12]) {
       await reenter(h);
       const r = await streets();
       expect(r.out.length === 8, `«день гостей», ${h}:00, письмо не прочитано — кто-то уже сидит дома`, r);
     }
     await ev(() => window.__dev.actions.readMail());
-    for (const h of [8.3, 12]) {
+    for (const h of [12]) {
       await reenter(h);
       const r = await streets();
       expect(r.hosts.length === 3 && r.waiting, `«день гостей», ${h}:00: хозяева дня не ждут дома`, r);

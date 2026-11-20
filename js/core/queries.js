@@ -23,6 +23,12 @@ import {
   VILLA_UPS,
   VILLA_UP_BY_ID,
   bedsOf,
+  NPC_HOME,
+  NPC_BY_ID,
+  LAND_HOME,
+  LAND_VISIT,
+  gatherOn,
+  dayRoll,
 } from '../data/index.js';
 
 // ---------- внешность игрока ----------
@@ -117,39 +123,88 @@ export function guestsWaiting() {
   return m && m.read ? guestHosts(TASK_BY_ID[m.task], G.state.day) : [];
 }
 /**
- * Где сейчас житель: 'guest' — в гостях у героини, 'asleep' — спит (поздно), 'home' — дома и рад гостям
- * (утро, вечер или сам позвал), 'out' — гуляет в городе. Часы — VISIT в data/visits.js.
- */
-export function npcWhere(id) {
-  const s = G.state,
-    m = s.minutes;
-  if (s.guests.includes(id)) return 'guest';
-  if (m >= VISIT.sleep) return 'asleep';
-  if (invitedToday(id)) return 'home';
-  return m < VISIT.morningEnd || m >= VISIT.eveningStart ? 'home' : 'out';
-}
-
-/**
- * Где житель города на самом деле — куда вести звёздочку задания «поговори с …» (features/quests.js) и что сказать
- * в журнале. { at, scene, where, home }:
+ * ОДНО ПРАВИЛО «ГДЕ ЖИТЕЛЬ СЕЙЧАС» — для жителей города и хозяев тайных мест (у каждого в каждый момент одно место).
+ * Его слушаются все, кто показывает жителя: улица и места (engine/topdown/actors.js — кого не видно, кто идёт домой),
+ * его дом изнутри (жилец с when: npcAtHome — interiors/home_*.js и дома тайных мест), гости у хомячка (state.guests),
+ * отель (hotelPoolGuests, hotelRoomGuest), праздничные сборища (locations/holidays_crowd.js), скамейка рядом
+ * (features/relax.js — только тех, кого видно), дверь домика (features/visits.js), звёздочка и журнал (features/quests.js).
+ * { at, scene, where, home, house, fest }:
  *   at    — 'guest' (в гостях у хомячка — в доме state.guestsAt), 'pool' (у бассейна отеля), 'room' (в номере 203),
- *           иначе npcWhere: 'home' / 'asleep' / 'out';
- *   scene — локация, где его искать (имя сцены: город или место, где стоит дом, — лесной домик в лесу);
+ *           'fest' (на празднике в городе — HOLIDAY_GATHER), 'door' (праздник: стоит у своей двери и встречает гостей —
+ *           дверь открыта, зайдёшь — он с тобой), 'home' (у себя дома, рад гостям), 'asleep' (дома и спит — жители
+ *           города с VISIT.sleep), 'out' (на улице: днём у своего места, у хозяина тайного места — у своего дела);
+ *   scene — локация, где его искать (имя сцены: город, место, где стоит дом, где он в гостях, — лесной домик в лесу);
  *   where — точка для sc.whereIs в этой локации: здание дома, где он в гостях (вилла, квартира, бунгало…), отель или
- *           сам житель 'npc:<id>' (на улице — где он сейчас идёт; зашёл к себе — у двери его домика);
- *   home  — id своего дома, где он в гостях (HOME_BY_ID), иначе null.
- * null — не житель города (жители тайных мест всегда в своей локации).
+ *           сам житель 'npc:<id>' (на улице — где он сейчас идёт; дома — у двери его дома);
+ *   home  — id своего дома хомячка, где он в гостях (HOME_BY_ID), иначе null;
+ *   house — сцена его собственного дома (home_<id> или дом тайного места — LAND_HOME);
+ *   fest  — где празднуют (слова из HOLIDAY_GATHER: «хоровод у ёлки»), когда at 'fest' / 'door'.
+ * Порядок у жителя города: в гостях у хомячка → хомячок сейчас у него дома (хозяин гостью не бросит: G.hostVisit —
+ * features/visits.js) → поздно, спит → позвал к себе (дома весь день) → отель → праздник → часы VISIT (утром и вечером
+ * дома, днём на улице). У хозяина тайного места: хомячок у него → часы LAND_HOME / LAND_VISIT (data/visits.js).
+ * null — житель без дома и расписания (Камушкин, Жемчужинка, работники отеля и башни): всегда на своём месте.
  */
-export function npcSpot(id) {
+export function npcPlace(id) {
   const s = G.state;
-  if (!s || !s.friends[id]) return null;
+  if (!s) return null;
+  const key = `${stateStamp()}|${Math.floor(s.minutes)}|${G.hostVisit}`;
+  if (placeState !== s || placeKey !== key) {
+    placeState = s;
+    placeKey = key;
+    placeCache = {};
+  }
+  if (!(id in placeCache)) placeCache[id] = NPC_HOME[id] ? townPlace(id) : LAND_HOME[id] ? landPlace(id) : null;
+  return placeCache[id];
+}
+let placeState = null,
+  placeKey = '',
+  placeCache = {};
+function townPlace(id) {
+  const s = G.state,
+    m = s.minutes,
+    house = 'home_' + id,
+    out = (at, fest = null) => ({ at, scene: HOME_SCENE, where: 'npc:' + id, home: null, house, fest });
   if (s.guests.includes(id)) {
     const h = HOME_BY_ID[s.guestsAt] || HOME_BY_ID.villa;
-    return { at: 'guest', scene: h.loc || HOME_SCENE, where: h.building, home: h.id };
+    return { at: 'guest', scene: h.loc || HOME_SCENE, where: h.building, home: h.id, house, fest: null };
   }
-  if (hotelPoolGuests().includes(id)) return { at: 'pool', scene: HOME_SCENE, where: 'hotel', home: null };
-  if (hotelRoomGuest() === id) return { at: 'room', scene: HOME_SCENE, where: 'hotel', home: null };
-  return { at: npcWhere(id), scene: HOME_SCENE, where: 'npc:' + id, home: null };
+  if (G.hostVisit === id) return out('home');
+  if (m >= VISIT.sleep) return out('asleep');
+  if (invitedToday(id)) return out('home');
+  if (hotelPoolGuests().includes(id)) return { ...out('pool'), where: 'hotel' };
+  if (hotelRoomGuest() === id) return { ...out('room'), where: 'hotel' };
+  const hol = holidayOn(s.day, s.startDay || 0),
+    g = hol && gatherOn(hol.id, m);
+  if (g) return out(g.kind === 'doors' ? 'door' : 'fest', g.where);
+  return out(m < VISIT.morningEnd || m >= VISIT.eveningStart ? 'home' : 'out');
+}
+function landPlace(id) {
+  const s = G.state,
+    m = s.minutes,
+    L = LAND_HOME[id],
+    lunch = LAND_VISIT.lunch;
+  const home =
+    G.hostVisit === id ||
+    m < LAND_VISIT.morningEnd ||
+    m >= L.evening * 60 ||
+    (m >= lunch.from && m < lunch.to && dayRoll(s.day, 'lunch:' + id) < lunch.p);
+  return { at: home ? 'home' : 'out', scene: NPC_BY_ID[id].land, where: 'npc:' + id, home: null, house: L.house };
+}
+/** Где житель — то же, что npcPlace (так звали его раньше: звёздочка заданий, журнал). */
+export const npcSpot = npcPlace;
+/** Дома ли житель и рад гостям (его видно в его доме изнутри): 'home' или праздничное «у своей двери». */
+export function npcAtHome(id) {
+  const p = npcPlace(id);
+  return !!p && (p.at === 'home' || p.at === 'door');
+}
+/**
+ * Коротко для двери домика и разговоров: 'guest' — в гостях у героини, 'asleep' — спит, 'home' — дома и рад гостям
+ * (и праздничное «у своей двери»), 'out' — не дома (на улице, в отеле, на празднике). Подробно — npcPlace.
+ */
+export function npcWhere(id) {
+  const p = npcPlace(id),
+    at = p ? p.at : 'out';
+  return at === 'door' ? 'home' : at === 'guest' || at === 'asleep' || at === 'home' ? at : 'out';
 }
 
 /**
@@ -187,7 +242,14 @@ export function hotelPoolGuests() {
   const s = G.state;
   if (!s) return [];
   return poolGuestsOn(s.day, s.minutes).filter(
-    (id) => !(s.guests.includes(id) || invitedToday(id) || guestsWaiting().includes(id) || questBadge(id)),
+    (id) =>
+      !(
+        s.guests.includes(id) ||
+        G.hostVisit === id ||
+        invitedToday(id) ||
+        guestsWaiting().includes(id) ||
+        questBadge(id)
+      ),
   );
 }
 
@@ -196,7 +258,15 @@ export function hotelRoomGuest() {
   const s = G.state;
   if (!s) return null;
   const id = roomGuestOn(s.day, s.minutes);
-  if (!id || s.guests.includes(id) || invitedToday(id) || guestsWaiting().includes(id) || questBadge(id)) return null;
+  if (
+    !id ||
+    s.guests.includes(id) ||
+    G.hostVisit === id ||
+    invitedToday(id) ||
+    guestsWaiting().includes(id) ||
+    questBadge(id)
+  )
+    return null;
   return id;
 }
 

@@ -1,5 +1,6 @@
 // Дом Сени: спортзал (колесо, штанга, груша) и комната чемпиона с кубками.
 // Дом жителя: мебель из описания, хозяин внутри; вход — 'home-of:senya'.
+import { npcAtHome } from '../core/state.js'; // дома ли хозяин сейчас (одно правило «где житель» — core/queries.js)
 export default {
   id: 'home_senya',
   name: 'Домик Сени',
@@ -30,5 +31,5 @@ export default {
       ['pic_sea', 0, 1320, 185],
     ],
   },
-  actors: [{ npc: 'senya', f: 0, x: 650, roam: [200, 1260], act: 'host:senya' }],
+  actors: [{ npc: 'senya', f: 0, x: 650, roam: [200, 1260], act: 'host:senya', when: () => npcAtHome('senya') }],
 };

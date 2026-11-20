@@ -1,6 +1,7 @@
 // Избушка лесника Шишкина (Л1): сени с картой леса и горница — печка, лавка под окном, гербарий, самовар.
 // Дом «тайного места»: вход — дверь избушки в лесу ('inside:hut_shishkin', locations/forest.js), дверь изнутри — назад
 // к двери снаружи. Хозяин внутри — его разговор (задание, венок, «Грибная охота») — действие 'forester'.
+import { npcAtHome } from '../core/state.js'; // дома ли хозяин сейчас (одно правило «где житель» — core/queries.js)
 import { ell, fillRR, line, poly } from '../core/draw.js';
 import { wob, flame } from './inside_art.js';
 
@@ -201,5 +202,5 @@ export default {
       ['fir_wreath', 0, 940, 200],
     ],
   },
-  actors: [{ npc: 'shishkin', f: 0, x: 680, roam: [260, 960], act: 'forester' }],
+  actors: [{ npc: 'shishkin', f: 0, x: 680, roam: [260, 960], act: 'forester', when: () => npcAtHome('shishkin') }],
 };
