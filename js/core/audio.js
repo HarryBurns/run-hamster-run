@@ -242,6 +242,35 @@ function noise(t0, dur, vol = 0.08, freq = 1200, type = 'bandpass', dest = softB
   src.start(t, Math.random() * 1.5, dur + 0.05);
 }
 
+/**
+ * Мягкий шелест листвы (сквозь куст): шум плавно нарастает и стихает (без щелчка в начале, как у бумаги), полоса
+ * пропускания средняя и широкая, она чуть «проезжает» вниз — листья расступаются и смыкаются. Без верхов.
+ */
+function swish(t0, dur, vol, f0, f1) {
+  const a = ac;
+  if (!a) return;
+  const t = a.currentTime + t0;
+  const src = a.createBufferSource();
+  src.buffer = noiseBuf;
+  const bp = a.createBiquadFilter();
+  bp.type = 'bandpass';
+  bp.Q.value = 0.6;
+  bp.frequency.setValueAtTime(f0, t);
+  bp.frequency.exponentialRampToValueAtTime(f1, t + dur);
+  const lp = a.createBiquadFilter();
+  lp.type = 'lowpass';
+  lp.frequency.value = 2600;
+  const g = a.createGain();
+  g.gain.setValueAtTime(0.0001, t);
+  g.gain.exponentialRampToValueAtTime(vol, t + dur * 0.35);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  src.connect(bp);
+  bp.connect(lp);
+  lp.connect(g);
+  g.connect(softBus);
+  src.start(t, Math.random() * 1.5, dur + 0.05);
+}
+
 const SOUNDS = {
   tap: () => tone(660, 0, 0.07, 'triangle', 0.08),
   pop: () => tone(520, 0, 0.09, 'sine', 0.12, 900),
@@ -295,6 +324,13 @@ const SOUNDS = {
   paper: () => {
     noise(0, 0.12, 0.05, 3000, 'highpass');
     noise(0.1, 0.1, 0.04, 2400, 'highpass');
+  },
+  // сквозь куст: два-три мягких «ш-ш» листвы вразнобой (не бумага: без резкого начала и без верхов)
+  leaves: () => {
+    const r = Math.random;
+    swish(0, 0.32 + r() * 0.08, 0.05, 1500 + r() * 300, 900);
+    swish(0.09 + r() * 0.05, 0.26, 0.032, 1900 + r() * 300, 1100);
+    if (r() < 0.6) swish(0.2 + r() * 0.06, 0.22, 0.022, 1300, 800);
   },
   magic: () => [1047, 1319, 1568, 2093].forEach((f, i) => tone(f, i * 0.06, 0.2, 'sine', 0.08)),
   sticker: () => {

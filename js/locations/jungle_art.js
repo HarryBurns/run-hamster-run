@@ -614,7 +614,7 @@ defineObjects({
   },
   monstera: {
     slow: 0.5,
-    rustle: 'paper',
+    rustle: 'leaves',
     art: { monstera: [[-39, -46, 39, 21], paintMonstera] },
     draw(ctx, o, env) {
       const h = env.hero,

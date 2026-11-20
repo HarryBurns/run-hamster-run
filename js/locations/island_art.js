@@ -411,7 +411,7 @@ defineObjects({
   },
   iflowers: {
     slow: 0.6,
-    rustle: 'paper',
+    rustle: 'leaves',
     art: { iflowers: [[-30, -36, 30, 16], paintIFlowers] },
     draw: (ctx, o) => put('iflowers', o.x, o.y, (o.v || 0) % 3),
   },

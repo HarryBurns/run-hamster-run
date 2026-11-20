@@ -78,4 +78,47 @@ module.exports = async function cust20(ctx) {
     expect(/звёздочку/.test(say), 'подсказка стрижки', say);
     await ev(() => document.querySelector('#mg .xbtn').click());
   });
+
+  await step('заказчик 20: сквозь куст — мягкий шелест листвы, а не бумага', async () => {
+    await L.closeAll();
+    await L.go('world');
+    // куст в городе, к которому можно подойти слева или справа
+    const r = await ev(() => {
+      const d = window.__dev,
+        W = d.World,
+        m = W.map,
+        pass = W.pass();
+      const o = m.objs.find(
+        (q) =>
+          q.type === 'bush' &&
+          (pass(q.tx - 1, q.ty) || pass(q.tx + 1, q.ty)) &&
+          m.slowAt((q.tx + 0.5) * 48, (q.ty + 0.5) * 48),
+      );
+      if (!o) return null;
+      const from = pass(o.tx - 1, o.ty) ? o.tx - 1 : o.tx + 1;
+      W.debugTeleport(from, o.ty);
+      return { from, tx: o.tx, ty: o.ty };
+    });
+    expect(!!r, 'нет куста в городе');
+    await L.frames(2);
+    const before = (await ev(() => window.__dev.Audio.debugHeard())).length;
+    const key = r.from < r.tx ? 'ArrowRight' : 'ArrowLeft';
+    await ctx.page.keyboard.down(key);
+    await ctx.wait(450);
+    await ctx.page.keyboard.up(key);
+    const heard = (await ev(() => window.__dev.Audio.debugHeard())).slice(before > 30 ? 0 : before);
+    expect(heard.includes('leaves') && !heard.includes('paper'), 'звук куста', heard);
+    // и у всех «шуршащих» клеток (кусты, ягодник, орешник, цветы острова, монстера) — листва
+    const rustles = await ev(async () => {
+      const { OBJECTS } = await import('/js/engine/topdown/kinds.js');
+      return [
+        ...new Set(
+          Object.values(OBJECTS)
+            .map((o) => o.rustle)
+            .filter(Boolean),
+        ),
+      ];
+    });
+    expect(rustles.length && rustles.every((s) => s === 'leaves'), 'звуки шуршащих клеток', rustles);
+  });
 };

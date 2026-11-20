@@ -663,7 +663,7 @@ defineObjects({
   },
   bush: {
     slow: 0.5,
-    rustle: 'paper',
+    rustle: 'leaves',
     draw(ctx, o, env) {
       // шуршит, когда сквозь него идут
       const x = o.x,

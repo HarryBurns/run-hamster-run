@@ -1000,7 +1000,7 @@ defineObjects({
   },
   berryBush: {
     slow: 0.5,
-    rustle: 'paper',
+    rustle: 'leaves',
     tap: { dx: 26, up: 26, down: 18 },
     use: gather,
     art: { berryBush: [[-32, -28, 34, 22], paintBerryBush] },
@@ -1046,7 +1046,7 @@ defineObjects({
   },
   hazelBush: {
     slow: 0.5,
-    rustle: 'paper',
+    rustle: 'leaves',
     tap: { dx: 34, up: 44, down: 18 },
     use: gather,
     art: { hazelBush: [[-38, -50, 40, 22], paintHazel] },
