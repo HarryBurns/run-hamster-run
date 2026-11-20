@@ -37,6 +37,8 @@ const S = () => G.state;
 // первые письма новой игры — по дню: не повторяют вводную цепочку (обновка, работа, рынок, гости, купание — это
 // показывают соседи, features/welcome.js), а зовут посмотреть городок: пляж с ракушками, пирс, башню, кораблик
 const FIRST_TASKS = ['shells', 'fish', 'tower', 'boat'];
+/** Письма-соревнования: за них сюрпризом может достаться кубок чемпиона. */
+const COMPETITIONS = ['swim', 'fashion'];
 /** Сколько монет дают за задание (в дополнение к наклейке). */
 export const taskCoins = (id) => TASK_COINS[id] || TASK_COINS_DEFAULT;
 
@@ -221,7 +223,9 @@ function completeTask() {
   earn(coins, 'task');
   const isNew = award(t.id, { quiet: true }); // о наклейке расскажет окно «Задание выполнено»
   const surprise = done <= 2 || Math.random() < 0.5;
-  const gift = surprise ? grantSurprise() : null; // подарок выдаём сразу, окно — когда освободится экран
+  // за соревнование (заплыв, показ мод) — может достаться кубок; за остальные письма — уместные мелочи (features/gifts.js)
+  const win = t.type === 'minigame' && COMPETITIONS.includes(t.game);
+  const gift = surprise ? grantSurprise(win ? 'win' : 'small') : null; // подарок выдаём сразу, окно — когда освободится экран
   emit('hud');
   celebrate({
     title: 'Задание выполнено!',

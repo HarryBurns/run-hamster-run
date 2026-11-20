@@ -2,6 +2,8 @@
 // slot: head | body | legs | feet | acc
 // shop: start (уже есть в новой игре — то, что надето: майка, джинсовые шорты, кеды) | mall | boutique | beach
 //   | market (вещицы с рынка) | gift (только в подарок; бывает сюрпризом) | quest (награда за задание, больше никак)
+// surprise: false — подарок, но не сюрпризом: его дают в своём месте (медаль — за заплыв на три звезды, лея и венок —
+//   Вождь Кокос); награды заданий (reward.clothes в data/quests.js) сюрпризом тоже не дарят — features/gifts.js
 //   | holiday (подарок праздника раз в год — data/holidays.js; сюрпризом не дарят)
 // Цены — в таблице PRICES.clothes (economy.js); у стартовых вещей и подарков цены нет (0).
 // season — сезонная вещь: коллекция из таблицы сезонов вещей (WARE_MONTHS в data/seasons.js): 'cold' — тёплое
@@ -129,8 +131,8 @@ C('clip_shell', 'head', 'shellclip', 'Заколка-ракушка', '#ffb3c6',
 // лея из цветов — Вождь плетёт её из трёх разных цветов острова (features/island.js). Обе — только в подарок
 C('grass_skirt', 'legs', 'grass', 'Юбочка из травы', '#a9c95a', { c2: '#74a03a', shop: 'gift', tags: ['summer', 'beach', 'cute', 'fancy'] });
 // венок из цветов острова (этап 12, О11): Вождь Кокос сплетёт из трёх разных цветов, когда лея уже есть
-C('wreath_lei', 'head', 'wreath', 'Венок из цветов острова', '#fff', { island: true, shop: 'gift', tags: ['fancy', 'summer', 'beach', 'cute'] });
-C('lei_island', 'acc', 'lei', 'Лея из цветов', '#ff922b', { c2: '#fff3bf', shop: 'gift', tags: ['summer', 'beach', 'cute', 'fancy'] });
+C('wreath_lei', 'head', 'wreath', 'Венок из цветов острова', '#fff', { island: true, shop: 'gift', surprise: false, tags: ['fancy', 'summer', 'beach', 'cute'] });
+C('lei_island', 'acc', 'lei', 'Лея из цветов', '#ff922b', { c2: '#fff3bf', shop: 'gift', surprise: false, tags: ['summer', 'beach', 'cute', 'fancy'] });
 // --- аксессуары
 C('glasses_red', 'acc', 'glasses', 'Красные очки', '#e03131', { tags: ['cute'] });
 C('glasses_black', 'acc', 'glasses', 'Умные очки', '#343a40', { tags: ['fancy'] });
@@ -150,7 +152,7 @@ C('bag_yellow', 'acc', 'bag', 'Жёлтая сумочка', '#fcc419', { stock:
 C('bowtie', 'acc', 'bowtie', 'Бабочка', '#e03131', { c2: '#fff', shop: 'boutique', tags: ['fancy'] });
 C('backpack', 'acc', 'backpack', 'Рюкзачок', '#4dabf7', { tags: ['sport', 'spring', 'autumn'] });
 C('wings', 'acc', 'wings', 'Крылышки феи', '#d0ebff', { shop: 'gift', tags: ['fancy'] });
-C('medal', 'acc', 'medal', 'Золотая медаль', '#ffd43b', { shop: 'gift', tags: ['sport'] });
+C('medal', 'acc', 'medal', 'Золотая медаль', '#ffd43b', { shop: 'gift', surprise: false, tags: ['sport'] });
 
 // --- новая коллекция
 C('tee_hawaii', 'body', 'tee', 'Гавайская рубашка', '#ff922b', { pattern: 'flowers', c2: '#fff', shop: 'beach', tags: ['summer', 'beach', 'cute'] });

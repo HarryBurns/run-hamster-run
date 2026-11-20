@@ -281,7 +281,7 @@ export function update(dt) {
     if (!s.flags.shipChest) {
       A.setFlag('shipChest');
       A.award('x_treasure', { quiet: true });
-      run({ do: 'surprise', title: 'Сокровище затонувшего корабля!' });
+      run({ do: 'surprise', title: 'Сокровище затонувшего корабля!', why: 'treasure' });
     } else {
       addPearls(2, cx, cyy - 30);
       toast(`В сундуке нашлись 2 жемчужины! ⚪ Всего: ${s.pearls}`, 'good');

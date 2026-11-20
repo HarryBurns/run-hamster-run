@@ -4,38 +4,56 @@ import { sfx } from '../core/audio.js';
 import { register } from '../core/registry.js';
 import { G, cal, hasClothes } from '../core/state.js';
 import { el, fmtMoney, pick } from '../core/util.js';
-import { CLOTHES, FURNITURE, DISH_BY_ID, SECRET_RECIPES, SURPRISE_COINS, wareSeason } from '../data/index.js';
+import { CLOTHES, FURNITURE, DISH_BY_ID, QUESTS, SECRET_RECIPES, SURPRISE_COINS, wareSeason } from '../data/index.js';
 import { clothesIcon, furnIcon } from '../ui/icons.js';
 import { enqueue } from '../ui/modals.js';
 import { openPanel } from '../ui/panel.js';
 
 const S = () => G.state;
 
-function giftPool() {
+// Подарки, которые получают в своём месте, сюрпризом не дарят: награды заданий (шляпа исследовательницы, каска,
+// треуголка…) и вещи с пометкой surprise: false (медаль за заплыв, лея и венок Вождя).
+const QUEST_PRIZES = new Set(QUESTS.map((q) => q.reward && q.reward.clothes).filter(Boolean));
+
+/**
+ * Из чего выбирать сюрприз. why — за что он: 'small' (обычное задание, письмо, дружба) — уместные мелочи: цветы,
+ * игрушки, рецепты; 'win' (победа в соревновании) — сначала кубок; 'treasure' (клад, сокровище) — сначала золотой
+ * хомяк и трон. Вещи «за победу» и «из клада» (surprise в data/furniture.js) за обычное задание не дарят; когда они
+ * уже подарены, за победу и клад — мелочи, как обычно.
+ */
+function giftPool(why = 'small') {
   const s = S(),
-    pool = [],
+    small = [],
+    special = [],
     // праздничные подарки-сюрпризы (шляпа волшебницы) дарят только около своего праздника; подарки самих праздников
     // (shop: 'holiday' — колпак, красный наряд, самовар) сюрпризом не дарят: их дарит праздник (features/holidays.js)
-    timely = (def) => wareSeason(def, cal().month) !== 'off';
+    timely = (def) => wareSeason(def, cal().month) !== 'off',
+    put = (def, g) => {
+      if (def.surprise === undefined) small.push(g);
+      else if (def.surprise === why) special.push(g);
+    };
   for (const c of CLOTHES)
-    if (c.shop === 'gift' && c.id !== 'medal' && !hasClothes(c.id) && timely(c)) pool.push({ kind: 'clothes', def: c });
+    if (c.shop === 'gift' && !QUEST_PRIZES.has(c.id) && !hasClothes(c.id) && timely(c))
+      put(c, { kind: 'clothes', def: c });
   for (const f of FURNITURE)
-    if (f.shop === 'gift' && !s.flags['gift_' + f.id] && timely(f)) pool.push({ kind: 'furn', def: f });
-  for (const r of SECRET_RECIPES) if (!s.recipes.includes(r)) pool.push({ kind: 'recipe', def: DISH_BY_ID[r] });
-  return pool;
+    if (f.shop === 'gift' && !s.flags['gift_' + f.id] && timely(f)) put(f, { kind: 'furn', def: f });
+  for (const r of SECRET_RECIPES) if (!s.recipes.includes(r)) small.push({ kind: 'recipe', def: DISH_BY_ID[r] });
+  return special.length ? special : small;
 }
+/** Для тестов: id того, что сейчас может выпасть сюрпризом за why. */
+export const surprisePool = (why) => giftPool(why).map((g) => g.def.id);
 
 /**
  * Сюрприз. Сам подарок выдаётся сразу (так он не потеряется, если вкладку закроют), а окно с ним
- * показывается через delay мс и только когда на экране ничего не открыто.
+ * показывается через delay мс и только когда на экране ничего не открыто. why — за что (giftPool).
  */
-export function giveSurprise(title, delay = 0) {
-  const gift = grantSurprise();
+export function giveSurprise(title, delay = 0, why = 'small') {
+  const gift = grantSurprise(why);
   enqueue(() => showSurprise(title, gift), { delay });
 }
 
-export function grantSurprise() {
-  const pool = giftPool();
+export function grantSurprise(why = 'small') {
+  const pool = giftPool(why);
   let html,
     icon = null;
   if (!pool.length) {
@@ -78,4 +96,4 @@ export function showSurprise(title, { html, icon }) {
   });
 }
 
-register('surprise', (p) => giveSurprise(p.title, p.delay || 0), 'сюрприз: { title, delay? }');
+register('surprise', (p) => giveSurprise(p.title, p.delay || 0, p.why), 'сюрприз: { title, delay?, why? }');

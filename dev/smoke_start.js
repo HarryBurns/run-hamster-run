@@ -267,6 +267,57 @@ module.exports = async function start(ctx) {
   );
 
   await step(
+    'начало игры: сюрпризы по смыслу — за обычное задание мелочи, кубок — за соревнование, золото — в кладе',
+    async () => {
+      await fresh();
+      const pools = await ev(() => {
+        const F = window.__dev.F;
+        return { small: F.surprisePool('small'), win: F.surprisePool('win'), treasure: F.surprisePool('treasure') };
+      });
+      const trophies = ['cup', 'statue', 'throne', 'medal'],
+        elsewhere = [
+          'hat_pirate',
+          'panama_explorer',
+          'helmet_lamp',
+          'scarf_nomad',
+          'clip_shell',
+          'lei_island',
+          'wreath_lei',
+        ];
+      expect(
+        pools.small.length > 5 && !pools.small.some((id) => trophies.includes(id) || elsewhere.includes(id)),
+        'за обычное задание — кубок, золото или чужая награда',
+        pools.small,
+      );
+      expect(pools.win.join() === 'cup', 'за соревнование — кубок', pools.win);
+      expect(pools.treasure.sort().join() === 'statue,throne', 'в кладе — золотой хомяк и трон', pools.treasure);
+      // письма: первое задание дня (рыбалка) — мелочь, а не кубок; соревнование (заплыв) — кубок чемпиона
+      const mail = async (task, game) => {
+        await ev(
+          ([task, game]) => {
+            const d = window.__dev;
+            d.actions.setMail(task);
+            d.actions.readMail();
+            d.emit('minigame', { id: game, stars: 1 });
+          },
+          [task, game],
+        );
+        await untilPanel('Задание выполнено').catch(() => {});
+        await L.drain();
+        return state();
+      };
+      let s = await mail('fish', 'fishing');
+      expect(
+        s.mail.done && !trophies.some((id) => s.flags['gift_' + id] || s.clothes.includes(id)),
+        'за рыбалку — кубок',
+        s.flags,
+      );
+      s = await mail('swim', 'swim');
+      expect(s.mail.done && s.flags.gift_cup, 'за заплыв — не кубок', s.flags);
+    },
+  );
+
+  await step(
     'начало игры: вводная цепочка — четыре соседа заходят в гости, шаги по событиям, награды, наклейка «Новосёл»',
     async () => {
       await fresh();

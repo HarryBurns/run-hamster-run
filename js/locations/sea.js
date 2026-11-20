@@ -811,7 +811,7 @@ export function createSea(cfg) {
     });
     const found = s.flags.isles || {};
     if (found[bi]) return;
-    if (ISLES[bi].treasure) run({ do: 'surprise', title: 'Клад с Острова Сокровищ!', delay: 1600 });
+    if (ISLES[bi].treasure) run({ do: 'surprise', title: 'Клад с Острова Сокровищ!', delay: 1600, why: 'treasure' });
     setFlag('isles', { ...found, [bi]: 1 });
     const n = Object.keys(found).length + 1;
     award('x_island');

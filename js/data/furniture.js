@@ -70,12 +70,13 @@ F('mirror', 'mirror', 'Зеркало', 64, 96, { wall: true, cat: 'wall', act: 
 F('garland', 'garland', 'Гирлянда-огоньки', 220, 40, { season: 'newyear', wall: true, cat: 'wall' });
 F('shelf', 'shelf', 'Полочка с игрушками', 110, 50, { wall: true, cat: 'wall' });
 F('discoball', 'discoball', 'Диско-шар', 60, 80, { stock: 'special', wall: true, cat: 'wall', act: 'disco' });
-// подарки (только за задания)
-F('statue', 'statue', 'Золотой хомяк', 80, 130, { shop: 'gift', cat: 'decor', act: 'toy' });
-F('throne', 'throne', 'Трон', 110, 170, { shop: 'gift', act: 'sit', cat: 'seat', c: '#e03131' });
+// подарки-сюрпризы (за задания, дружбу, клады). surprise — за что дарят (features/gifts.js): 'win' — только за победу
+// в соревновании (кубок), 'treasure' — только в кладе и сокровище (золотой хомяк, трон); без поля — за что угодно
+F('statue', 'statue', 'Золотой хомяк', 80, 130, { shop: 'gift', surprise: 'treasure', cat: 'decor', act: 'toy' });
+F('throne', 'throne', 'Трон', 110, 170, { shop: 'gift', surprise: 'treasure', act: 'sit', cat: 'seat', c: '#e03131' });
 F('sunflower', 'plant', 'Гигантский подсолнух', 90, 210, { shop: 'gift', act: 'plant', v: 4, cat: 'decor' });
 F('neon', 'neon', 'Неоновая вывеска', 150, 70, { shop: 'gift', wall: true, cat: 'wall' });
-F('cup', 'cup', 'Кубок чемпиона', 56, 80, { shop: 'gift', cat: 'decor', act: 'toy' });
+F('cup', 'cup', 'Кубок чемпиона', 56, 80, { shop: 'gift', surprise: 'win', cat: 'decor', act: 'toy' });
 // из леса (П.9)
 F('golden_cone', 'goldcone', 'Золотая шишка', 60, 84, { shop: 'forest', cat: 'decor', act: 'look', say: 'Подарок белки из леса. Блестит!' });
 // с горы (П.9): эдельвейсы в рамке — делает инструктор Вершинкин из трёх эдельвейсов (не продаются)
