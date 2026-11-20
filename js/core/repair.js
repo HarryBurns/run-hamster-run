@@ -336,6 +336,8 @@ export function repair(s) {
     if (m.items && !Array.isArray(m.items)) m.items = null;
   }
   if (typeof s.weather !== 'string') s.weather = 'sun';
+  // сильная погода (сборка 30: 'rain2' — ливень, 'rain3' — гроза, 'snow2' — метель): в старом сохранении её нет
+  if (!['', 'rain2', 'rain3', 'snow2'].includes(s.wxStrong)) s.wxStrong = '';
   // позиция: имя сцены и конечные числа, иначе — у двери виллы (изнутри). Годится ли позиция самой сцене
   // (этаж, проходимая клетка), проверяет её restorePos().
   const p = s.pos,

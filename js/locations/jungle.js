@@ -15,14 +15,14 @@
 // белёсые полосы в маленьком слое неба, почти даром), а в некоторые дни после обеда идёт тёплый дождик (overlay —
 // одним путём несколько десятков чёрточек; промокнуть нельзя — он тёплый). Бабочек втрое больше, ночью — светлячки.
 // Своя музыка и птичий щебет (sound → features/soundscape.js), у водопада шумит вода.
-import { G, questNow } from '../core/state.js';
+import { G, questNow, weatherAt } from '../core/state.js';
 import { emit } from '../core/events.js';
 import { sfx } from '../core/audio.js';
 import { clamp, seeded, dist } from '../core/util.js';
 import { toast, hintOnce } from '../ui/toast.js';
 import { emoji } from '../core/draw.js';
 import { drawHamster, blinkAt } from '../art/hamster.js';
-import { JUNGLE, JUNGLE_GATHER, QUEST_BY_ID, PARROT_WORD_BY_ID, dayRoll } from '../data/index.js';
+import { JUNGLE, JUNGLE_GATHER, QUEST_BY_ID, PARROT_WORD_BY_ID } from '../data/index.js';
 import { T, PS, SP, put, label, tileOf, createTopDownScene, inEll } from '../engine/topdown/index.js';
 import { bathSpot } from './common/bath.js';
 import { createPlants } from './common/plants.js';
@@ -364,48 +364,14 @@ export const startFallBath = bath.start;
 /** Вылезти из заводи — на бережок. false — хомячок и так не в воде. */
 const endFallBath = bath.end;
 
-// ---------- туман по утрам и тёплый дождик после обеда ----------
-/** Идёт ли сейчас тёплый дождик: в некоторые дни (JUNGLE.drizzle — доля дней) с 14:00 до 15:30. */
-export const drizzleNow = () => {
-  const s = G.state;
-  return !!s && s.minutes >= 14 * 60 && s.minutes < 15 * 60 + 30 && dayRoll(s.day, 'jungle:drizzle') < JUNGLE.drizzle;
-};
-/** Утренний туман: насколько он густ (0..1) — с 5:00 до 9:30, гуще всего на рассвете. */
-export const mistNow = () => {
-  const m = G.state ? G.state.minutes : 0;
-  return m < 5 * 60 || m > 9.5 * 60 ? 0 : clamp(1 - (m - 6 * 60) / 210, 0, 1);
-};
-function drawMist(c, lw, lh, t, k) {
-  c.fillStyle = `rgba(235,248,240,${0.2 * k})`;
-  c.fillRect(0, 0, lw, lh);
-  c.fillStyle = `rgba(250,255,252,${0.22 * k})`;
-  for (let i = 0; i < 3; i++) {
-    const y0 = ((i * 0.33 + t * 0.006) % 1) * lh * 1.2 - lh * 0.1,
-      bh = lh * 0.09;
-    c.beginPath();
-    c.moveTo(0, y0);
-    for (let x = 0; x <= lw; x += lw / 6) c.lineTo(x, y0 + Math.sin(x * 0.05 + t * 0.3 + i) * bh * 0.5);
-    for (let x = lw; x >= 0; x -= lw / 6) c.lineTo(x, y0 + bh + Math.sin(x * 0.05 + t * 0.3 + i + 2) * bh * 0.5);
-    c.fill();
-  }
-}
-/** Тёплый дождик: короткие косые чёрточки одним путём (экранные координаты). */
-function drawDrizzle(ctx, w, h, t) {
-  ctx.strokeStyle = 'rgba(200,235,255,.55)';
-  ctx.lineWidth = 1.6;
-  ctx.lineCap = 'round';
-  ctx.beginPath();
-  const n = Math.round(Math.min(70, (w * h) / 14000));
-  for (let i = 0; i < n; i++) {
-    const sx = ((i * 0.618 + 0.13) % 1) * (w + 60),
-      ph = (t * (0.9 + (i % 5) * 0.08) + i * 0.37) % 1,
-      x = sx - ph * 40,
-      y = ph * (h + 40) - 20;
-    ctx.moveTo(x, y);
-    ctx.lineTo(x - 5, y + 14);
-  }
-  ctx.stroke();
-}
+// ---------- туман по утрам и тёплый дождик ----------
+// Погода джунглей — отклик на погоду города (placeWeather в data/weather.js; читать — sc.wx() / weatherAt('jungle')):
+// в городской дождь здесь весь день тёплый дождик и гуще туман, в городской снег — пасмурно и прохладно, в сухие дни —
+// свой дождик после обеда (JUNGLE.drizzle — доля дней, 14:00–15:30) и туман по утрам. Рисует их движок (render.js).
+/** Идёт ли сейчас тёплый дождик. */
+export const drizzleNow = () => !!G.state && weatherAt('jungle').kind === 'rain';
+/** Туман: насколько он густ (0..1) — с 5:00 до 9:30 (гуще всего на рассвете), в дождь — весь день. */
+export const mistNow = () => (G.state ? weatherAt('jungle').mist : 0);
 
 // ---------- лодочка-пирога (Дж5): по реке от моста до заводи под водопадом ----------
 // Пирога ждёт у мостков (AT.canoe). Села — способ передвижения ride с canoe: true: плывёт только по реке и заводи
@@ -561,7 +527,7 @@ const jungle = createTopDownScene({
   base: 'jfloor',
   bg: '#2f6e31',
   season: 'summer', // в джунглях всегда лето: деревья зелёные круглый год (плоды — по своим сезонам)
-  dry: true, // ни снега, ни холодного дождя (свой тёплый дождик — overlay, промокнуть нельзя)
+  dry: true, // ни снега, ни холодного дождя (дождик здесь тёплый — data/weather.js; промокнуть нельзя)
   critters: 3, // бабочек втрое больше, чем в городе (ночью — светлячки)
   critterTiles: ['jfloor'],
   gather: JUNGLE_GATHER, // сколько дают бананы, манго, ананасы и кокос (common/plants.js)
@@ -649,15 +615,6 @@ const jungle = createTopDownScene({
     if (isCanoeing(sc)) sc.p.ride = null;
     Object.assign(canoe, CANOE_HOME, { dir: -1, fall: false }); // вернулась в джунгли — лодочка снова у мостков
     for (const q of talk) q.next = G.time + 1.5; // попугаи заговорят не сразу
-  },
-  /** Утром — туман в слое неба. */
-  sky(c, sc, lw, lh) {
-    const k = mistNow();
-    if (k > 0.02) drawMist(c, lw, lh, G.time, k);
-  },
-  /** Тёплый дождик после обеда (в некоторые дни). */
-  overlay(ctx, sc, w, h) {
-    if (drizzleNow()) drawDrizzle(ctx, w, h, G.time);
   },
   /** Верёвочные перила подвесного моста — неподвижный рисунок поверх досок (в кэше земли). */
   paintGround(ctx, env, x0, y0, x1, y1) {

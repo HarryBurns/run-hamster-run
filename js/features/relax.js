@@ -284,7 +284,12 @@ function drawSelf(ctx, t) {
   drawSitter(ctx, c.how, c.look, c.lk, x, y, c.t, 0, c.o, c.spot, dir, c.t);
   SP.world();
   const sky = c.sc.desc.sky !== false,
-    sunny = sky && S().weather === 'sun' && c.sc.darkness() < 0.2 && (c.sc.desc.season || cal().season) !== 'winter';
+    sunny =
+      sky &&
+      c.sc.wx().kind === 'sun' &&
+      !c.sc.wx().cloud &&
+      c.sc.darkness() < 0.2 &&
+      (c.sc.desc.season || cal().season) !== 'winter';
   drawRestExtras(ctx, c.how, x, y, t, c.t, sunny, c.say && c.say.text);
 }
 function drawMate(c, m, t) {

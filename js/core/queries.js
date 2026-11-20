@@ -24,6 +24,11 @@ import {
   VILLA_UP_BY_ID,
   bedsOf,
   NPC_HOME,
+  JUNGLE,
+  BAD_FORCE,
+  weatherOfDay,
+  placeWeather,
+  RAIN_GEAR,
   NPC_BY_ID,
   LAND_HOME,
   LAND_VISIT,
@@ -122,6 +127,43 @@ export function guestsWaiting() {
   const m = G.state.mail;
   return m && m.read ? guestHosts(TASK_BY_ID[m.task], G.state.day) : [];
 }
+// ---------- погода (data/weather.js) ----------
+/**
+ * Погода ГОРОДА сейчас: { kind: sun | rain | snow | petals | leaves, force: 0 — без осадков, 1 — дождик или снежок,
+ * 2 — ливень или метель, 3 — гроза }. В состоянии — weather и wxStrong (сильная погода названа вместе с видом:
+ * если вид поменяли, а её нет, — погода лёгкая).
+ */
+export function weatherNow(s = G.state) {
+  const kind = (s && s.weather) || 'sun',
+    wet = kind === 'rain' || kind === 'snow',
+    st = (s && s.wxStrong) || '';
+  return { kind, force: !wet ? 0 : st.startsWith(kind) ? +st.slice(kind.length) || 1 : 1 };
+}
+/** Плохая ли сейчас погода в городе (ливень, гроза, метель): жители сидят по домам. */
+export const badWeather = () => weatherNow().force >= BAD_FORCE;
+let wxKey = '',
+  wxMemo = null;
+/**
+ * ПОГОДА В МЕСТЕ сейчас (place — имя сцены: 'world', 'forest', 'mountain', 'jungle', 'desert', 'island', 'cove'):
+ * { kind, force, cloud, mist, warm, name, icon } — как место откликается на погоду города (placeWeather в
+ * data/weather.js). Её слушают рисунок погоды и неба (engine/topdown/render.js: sc.wx()), звук и здоровье.
+ */
+export function weatherAt(place) {
+  const s = G.state,
+    key = `${place}|${s.weather}|${s.wxStrong}|${s.day}|${Math.floor(s.minutes)}`;
+  if (key !== wxKey) {
+    wxKey = key;
+    wxMemo = placeWeather(place, weatherNow(s), s.day, s.minutes, { drizzle: JUNGLE.drizzle });
+  }
+  return wxMemo;
+}
+/**
+ * ПРОГНОЗ: погода города в день day (сегодня, завтра — любой): { day, kind, force, name, icon, parts: [{ from, to,
+ * kind, force, name, icon }] } — parts по часам (минуты от полуночи). Прогноз всегда сбывается: это тот же расчёт,
+ * по которому наступает погода (weatherOfDay, data/weather.js).
+ */
+export const forecast = (day = G.state.day) => weatherOfDay(day, G.state.startDay || 0);
+
 /**
  * ОДНО ПРАВИЛО «ГДЕ ЖИТЕЛЬ СЕЙЧАС» — для жителей города и хозяев тайных мест (у каждого в каждый момент одно место).
  * Его слушаются все, кто показывает жителя: улица и места (engine/topdown/actors.js — кого не видно, кто идёт домой),
@@ -140,14 +182,14 @@ export function guestsWaiting() {
  *   house — сцена его собственного дома (home_<id> или дом тайного места — LAND_HOME);
  *   fest  — где празднуют (слова из HOLIDAY_GATHER: «хоровод у ёлки»), когда at 'fest' / 'door'.
  * Порядок у жителя города: в гостях у хомячка → хомячок сейчас у него дома (хозяин гостью не бросит: G.hostVisit —
- * features/visits.js) → поздно, спит → позвал к себе (дома весь день) → отель → праздник → часы VISIT (утром и вечером
- * дома, днём на улице). У хозяина тайного места: хомячок у него → часы LAND_HOME / LAND_VISIT (data/visits.js).
+ * features/visits.js) → поздно, спит → позвал к себе (дома весь день) → отель → праздник (и под дождём) → плохая
+ * погода (ливень, гроза, метель — badWeather: дома) → часы VISIT (утром и вечером дома, днём на улице). У хозяина тайного места: хомячок у него → часы LAND_HOME / LAND_VISIT (data/visits.js).
  * null — житель без дома и расписания (Камушкин, Жемчужинка, работники отеля и башни): всегда на своём месте.
  */
 export function npcPlace(id) {
   const s = G.state;
   if (!s) return null;
-  const key = `${stateStamp()}|${Math.floor(s.minutes)}|${G.hostVisit}`;
+  const key = `${stateStamp()}|${Math.floor(s.minutes)}|${G.hostVisit}|${s.weather}${s.wxStrong}`;
   if (placeState !== s || placeKey !== key) {
     placeState = s;
     placeKey = key;
@@ -176,6 +218,8 @@ function townPlace(id) {
   const hol = holidayOn(s.day, s.startDay || 0),
     g = hol && gatherOn(hol.id, m);
   if (g) return out(g.kind === 'doors' ? 'door' : 'fest', g.where);
+  // плохая погода (ливень, гроза, метель) — жители сидят по домам; в лёгкую планы не меняются
+  if (badWeather()) return out('home');
   return out(m < VISIT.morningEnd || m >= VISIT.eveningStart ? 'home' : 'out');
 }
 function landPlace(id) {
@@ -217,6 +261,14 @@ export function npcDress() {
   const h = holidayOn(s.day, s.startDay || 0);
   return h && HOLIDAY_DRESS[h.id] ? h.id : null;
 }
+/**
+ * Что у жителя города от дождя сейчас, на улице: { umbrella: цвет } — зонтик, { coat, boots } — дождевик и сапожки
+ * (RAIN_GEAR в data/weather.js); null — дождя в городе нет. Только на улице и на празднике: дома он без них.
+ */
+export function npcRain(id) {
+  const s = G.state;
+  return s && s.weather === 'rain' ? RAIN_GEAR[id] || null : null;
+}
 /** Внешность жителя сейчас — в праздник в праздничном наряде (для разговоров и сцен). */
 export const npcLookNow = (id) => npcLook(id, npcDress());
 
@@ -241,6 +293,7 @@ export function spaBoostOn() {
 export function hotelPoolGuests() {
   const s = G.state;
   if (!s) return [];
+  if (badWeather()) return []; // в ливень, грозу и метель у бассейна никого
   return poolGuestsOn(s.day, s.minutes).filter(
     (id) =>
       !(

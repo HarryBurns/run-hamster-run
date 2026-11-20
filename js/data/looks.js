@@ -30,14 +30,16 @@ export function resolveLook(look) {
 const _npcLooks = {};
 /**
  * Внешность жителя для рисования. fest — праздник, в чей наряд он одет (этап 15: HOLIDAY_DRESS в data/holidays.js;
- * сегодняшний — npcDress() в core/state.js); без него — обычная одежда.
+ * сегодняшний — npcDress() в core/state.js); без него — обычная одежда. rain — что надето от дождя (RAIN_GEAR в
+ * data/weather.js: { coat, boots } — дождевик и сапожки поверх наряда; у кого зонтик — одежда прежняя).
  */
-export function npcLook(id, fest = null) {
+export function npcLook(id, fest = null, rain = null) {
   const patch = holidayDress(fest, id),
-    k = patch ? id + '|' + fest : id;
+    coat = rain && rain.coat ? { body: rain.coat, feet: rain.boots } : null,
+    k = id + (patch ? '|' + fest : '') + (coat ? '|rain' : '');
   if (!_npcLooks[k]) {
     const base = NPC_BY_ID[id].look;
-    _npcLooks[k] = resolveLook(patch ? { ...base, outfit: { ...base.outfit, ...patch } } : base);
+    _npcLooks[k] = resolveLook(patch || coat ? { ...base, outfit: { ...base.outfit, ...patch, ...coat } } : base);
   }
   return _npcLooks[k];
 }

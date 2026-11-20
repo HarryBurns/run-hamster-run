@@ -14,7 +14,7 @@
 //   хомячок пришла в локацию (или вышла из его дома) — кто дома, тот уже внутри (settleResidents);
 //   в гостях у хомячка, в отеле — на улице его нет; праздник в городе — locations/holidays_crowd.js (n.hold);
 //   ночью (с 22:00 до 6:30) на улице нет никого, кроме always.
-import { G, npcPlace, questBadge, npcDress } from '../../core/state.js';
+import { G, npcPlace, questBadge, npcDress, npcRain } from '../../core/state.js';
 import { rnd, dist } from '../../core/util.js';
 import { ell } from '../../core/draw.js';
 import { NPC_BY_ID, npcLook } from '../../data/index.js';
@@ -205,20 +205,73 @@ export function drawResident(n, t) {
   const fr = n.moving
     ? Math.floor((n.walkT % 1) * WALK_FRAMES)
     : WALK_FRAMES + Math.min(IDLE_FRAMES - 1, Math.floor(((Math.sin((t + n.ph) * 2.2) + 1) / 2) * IDLE_FRAMES));
-  // в праздник — в праздничном наряде (этап 15): праздник входит в ключ кадра
+  // в праздник — в праздничном наряде (этап 15): праздник входит в ключ кадра; в дождь — с зонтиком или в дождевике
   const fest = npcDress(),
-    key = `npc:${n.id}:${fest || ''}:${faceDir(n)}:${fr}:${shut}`;
+    rain = n.home ? npcRain(n.id) : null,
+    key = `npc:${n.id}:${fest || ''}${rain ? ':rain' : ''}:${faceDir(n)}:${fr}:${shut}`;
   let s = SP.find(key);
   if (!s) {
     // поза кадра: для шага — середина его отрезка фазы; для «дыхания» — время, в которое тело на нужной высоте
     const i = fr - WALK_FRAMES,
       time = i < 0 ? 0 : Math.asin((((i + 0.5) / IDLE_FRAMES) * 2 - 1) * 0.9) / 2.2;
     const pose = { dir: faceDir(n), time, walk: i < 0 ? (fr + 0.5) / WALK_FRAMES : null, blink: shut };
-    s = SP.get(key, [-56 * sc, -124 * sc, 56 * sc, 12 * sc], (c) =>
-      drawHamster(c, 0, 0, sc, npcLook(n.id, fest), pose),
-    );
+    s = SP.get(key, [-66 * sc, (rain && rain.umbrella ? -166 : -124) * sc, 66 * sc, 12 * sc], (c) => {
+      drawHamster(c, 0, 0, sc, npcLook(n.id, fest, rain), pose);
+      if (rain && rain.umbrella) drawUmbrella(c, sc, rain.umbrella);
+    });
   }
   SP.draw(s, n.x, n.y + 10);
+}
+
+/** На сколько поднять имя и значок над жителем, когда он под зонтиком (чтобы не легли на купол). */
+export const umbrellaLift = (n) => (n.home && (npcRain(n.id) || {}).umbrella ? 40 : 0);
+/** Зонтик над жителем (в дождь): ручка от лапки и круглый купол с фестонами — в кадр спрайта жителя. s — масштаб. */
+export function drawUmbrella(c, s, col) {
+  c.save();
+  c.scale(s, s);
+  c.lineCap = 'round';
+  c.lineJoin = 'round';
+  // ручка
+  c.strokeStyle = OUT;
+  c.lineWidth = 5;
+  c.beginPath();
+  c.moveTo(30, -44);
+  c.lineTo(30, -122);
+  c.stroke();
+  c.strokeStyle = '#c9a26b';
+  c.lineWidth = 2.4;
+  c.stroke();
+  // купол
+  c.beginPath();
+  c.moveTo(-34, -120);
+  c.bezierCurveTo(-30, -172, 90, -172, 94, -120);
+  for (let i = 3; i >= 0; i--) c.quadraticCurveTo(-34 + (i + 0.5) * 32, -134, -34 + i * 32, -120);
+  c.closePath();
+  c.fillStyle = col;
+  c.fill();
+  c.strokeStyle = OUT;
+  c.lineWidth = 2.6;
+  c.stroke();
+  // спицы и блик
+  c.strokeStyle = 'rgba(60,40,30,.25)';
+  c.lineWidth = 1.6;
+  c.beginPath();
+  for (const x of [-2, 30, 62]) {
+    c.moveTo(30, -158);
+    c.quadraticCurveTo((x + 30) / 2 + (x - 30) * 0.2, -150, x, -124);
+  }
+  c.stroke();
+  c.strokeStyle = 'rgba(255,255,255,.55)';
+  c.lineWidth = 3;
+  c.beginPath();
+  c.moveTo(-18, -134);
+  c.quadraticCurveTo(-8, -154, 12, -160);
+  c.stroke();
+  c.fillStyle = OUT;
+  c.beginPath();
+  c.arc(30, -160, 3, 0, 6.2832);
+  c.fill();
+  c.restore();
 }
 
 /**
@@ -238,5 +291,5 @@ export function drawBadge(n, t) {
     c.fillStyle = OUT;
     c.fillText(mark, 0, 1.5);
   });
-  SP.draw(s, n.x, n.y - 96 * small + Math.round(Math.sin(t * 3 + n.ph) * 3));
+  SP.draw(s, n.x, n.y - (96 + umbrellaLift(n)) * small + Math.round(Math.sin(t * 3 + n.ph) * 3));
 }

@@ -37,6 +37,7 @@
 //  баги от заказчика 19 ноября (подсказки, указатели) — dev/smoke_pol.js:  node dev/smoke.js <url> "step:З-доработки";
 //  игра как приложение на экране «Домой» — dev/smoke_pwa.js:  node dev/smoke.js <url> step:приложение;
 //  первое открытие без игр (пустая игра) — dev/smoke_phantom.js:  node dev/smoke.js <url> "step:первое открытие";
+//  «Погода по всему миру» — dev/smoke_weather.js:  node dev/smoke.js <url> "step:погода:"
 //  одно правило «где житель сейчас» — dev/smoke_where.js:  node dev/smoke.js <url> "step:где житель:")
 // Скорость проверяется отдельно:  node dev/bench.js [url] --spots=forest --sizes=desktop --max-forest=45
 const { MG_START } = require('./selectors.js'); // кнопка «Начать!» мини-игры — по метке, а не по тексту
@@ -77,6 +78,7 @@ const core = require('./smoke_core.js'); // ревью основы: клави�
 const saves = require('./smoke_saves.js'); // этап 19: фото в IndexedDB, игра файлом, вторая вкладка и старая сборка
 const fixes = require('./smoke_fixes.js'); // В-пункты BACKLOG: стрелка к цели в фото-режиме, транспорт у воды, тёплая вода у острова
 const phantom = require('./smoke_phantom.js'); // баг от заказчика: до «Играть!» игра не записывается, пустые игры убираются
+const weatherSteps = require('./smoke_weather.js'); // «Погода по всему миру»: прогноз, связь мест, гроза, жители дома в ливень, зонтики
 const whereNpc = require('./smoke_where.js'); // баг от заказчика: житель в каждый момент ровно в одном месте (улица, дом, гости, отель)
 const zfix = require('./smoke_zfix.js'); // баги от заказчика: наряд после показа мод, звёздочка к жителю там, где он сейчас
 const holidaysWide = require('./smoke_holidays_wide.js'); // этап 15: праздники шире площади — наряды жителей, празднуют вместе, места, украшения за городом и в домах, полка в ТЦ, клумбы
@@ -2901,6 +2903,7 @@ const runParallel = () => {
     await fixes({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
     await zfix({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
     await whereNpc({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
+    await weatherSteps({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
     await phantom({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
     await rfix({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
     await core({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });

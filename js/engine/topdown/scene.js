@@ -39,7 +39,8 @@
 //                 круг света вокруг героя, lights: [[x, y, rx, ry, сила], …] — ещё пятна (мир), warm — тёплый оттенок
 //                 в пятнах (0,3) }. Рисуется маленьким слоем неба поверх кадра (render.js, drawSky) — почти даром;
 //                 предметы с полем light светят в темноте сами
-//   dry: true     здесь не бывает дождя и снега (пустыня): небо и ночь как обычно, а погода всегда «солнце»
+//   dry: true     здесь не промокнуть и не простыть от осадков (пустыня, джунгли, остров, бухта — там тепло).
+//                 Что здесь идёт на самом деле — sc.wx(): место откликается на погоду города (data/weather.js)
 //   clouds: false без теней облаков на земле (пустыня); слой неба днём всё равно есть — для крюка sky
 //   skyLayer: true слой неба есть всегда — и в дождь, и в снегопад (крюк sky рисует облака ниже вершины горы)
 //   sky: false    под крышей или под землёй: без погоды и ночного затемнения;  dark — своя темнота 0..1
@@ -92,7 +93,18 @@
 // Способ передвижения героя (кораблик): sc.p.ride = { speed, pass(tx, ty), step: { sfx, pause }, moved(sc),
 // draw(ctx, sc, p, t, look), drop(sc), bump(sc, tx, ty) } — пока он задан, герой ходит по его правилам; null — пешком.
 // bump — с клавиатуры упёрлись в клетку (tx, ty), куда ему нельзя (самокат у воды — слезает сам).
-import { G, darkness, cal, playerLook, beachLook, walkK, canSwim, landOpen, homesWith } from '../../core/state.js';
+import {
+  G,
+  darkness,
+  cal,
+  playerLook,
+  beachLook,
+  walkK,
+  canSwim,
+  landOpen,
+  homesWith,
+  weatherAt,
+} from '../../core/state.js';
 import { addItem, setFlag, setDayFlag, collectMailItem, markVisited } from '../../core/actions.js';
 import { emit } from '../../core/events.js';
 import { run } from '../../core/registry.js';
@@ -496,7 +508,7 @@ export function createTopDownScene(desc) {
       currentName = sc.name;
       layout();
       sc.cam.snap(p.x, p.y);
-      if (desc.sky !== false && !desc.dry) initWeather(sc);
+      if (desc.sky !== false) initWeather(sc);
     },
     leave() {
       if (sc.mode && sc.mode.end) sc.mode.end(sc);
@@ -738,7 +750,7 @@ export function createTopDownScene(desc) {
       // в «режиме» камера идёт за его точкой focus (двор листают пальцем), иначе — за хомячком
       const fc = (sc.mode && sc.mode.focus) || p;
       sc.cam.follow(fc.x, fc.y - 20, dt, 6);
-      if (desc.sky !== false && !desc.dry) updateWeather(sc, dt);
+      if (desc.sky !== false) updateWeather(sc, dt);
       sc.call('update', sc, dt);
       for (const q of sc.drops) q.t += dt;
       sc.drops = sc.drops.filter((q) => q.t < 0.9);
@@ -762,7 +774,15 @@ export function createTopDownScene(desc) {
     cold: () => (desc.cold ? !!desc.cold(sc) : null),
     /** Жарко ли здесь сейчас без шляпы от солнца (пустыня днём): true / false; без крюка hot — false. */
     hot: () => (desc.hot ? !!desc.hot(sc) : false),
-    /** Сухо ли здесь всегда: под крышей (sky: false) или в пустыне (dry: true) — дождь и снег сюда не долетают. */
+    /**
+     * Погода здесь сейчас: { kind, force, cloud, mist, warm } — место откликается на погоду города по смыслу
+     * (weatherAt в core/queries.js, таблица — placeWeather в data/weather.js; ключ — имя сцены).
+     */
+    wx: () => weatherAt(sc.name),
+    /**
+     * Не промокнуть и не замёрзнуть от осадков: под крышей (sky: false) или там, где всегда тепло (dry: true —
+     * пустыня, джунгли, остров, бухта: дождик там тёплый).
+     */
     dry: () => desc.sky === false || !!desc.dry,
     sound: () =>
       desc.sound ? desc.sound(sc) : { day: 'town', rain: desc.sky !== false ? 1 : 0, birds: true, crickets: true },

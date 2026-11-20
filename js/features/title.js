@@ -1,6 +1,6 @@
 // Заставка: название, «Продолжить», «Мои игры», «Новая игра». Сцена за кнопками — features/title_scene.js,
 // хранение нескольких игр — core/games.js. Игру запускает main.js: сюда приходит start(fresh).
-import { G, cal, claimSave, holdSave } from '../core/state.js';
+import { G, cal, claimSave, holdSave, weatherNow } from '../core/state.js';
 import {
   MAX_GAMES,
   syncGames,
@@ -103,9 +103,15 @@ export function openTitle({ start }) {
   function showScene() {
     const s = res.ok ? G.state : null;
     const env = s
-      ? { minutes: s.minutes, weather: s.weather, season: SEASON_OF_MONTH[monthOfDay(s.day)], look: lookOf(s.look) }
-      : { minutes: 12 * 60, weather: 'sun', season: 'summer', look: lookOf(null) };
-    const key = JSON.stringify([env.minutes, env.weather, env.season, s && s.look]);
+      ? {
+          minutes: s.minutes,
+          weather: s.weather,
+          force: weatherNow(s).force, // 2 — ливень или метель, 3 — гроза
+          season: SEASON_OF_MONTH[monthOfDay(s.day)],
+          look: lookOf(s.look),
+        }
+      : { minutes: 12 * 60, weather: 'sun', force: 0, season: 'summer', look: lookOf(null) };
+    const key = JSON.stringify([env.minutes, env.weather, env.force, env.season, s && s.look]);
     if (scene && key === sceneKey) return scene.relayout();
     if (scene) scene.destroy();
     sceneKey = key;

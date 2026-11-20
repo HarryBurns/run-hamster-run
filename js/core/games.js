@@ -131,6 +131,7 @@ function fillMeta(m, s) {
   if (typeof s.name === 'string') m.name = s.name.slice(0, 20);
   for (const k of ['day', 'minutes', 'money']) if (Number.isFinite(s[k])) m[k] = s[k];
   if (typeof s.weather === 'string') m.weather = s.weather;
+  if (typeof s.wxStrong === 'string') m.wxStrong = s.wxStrong;
   if (s.look && typeof s.look === 'object') m.look = s.look;
   return m;
 }

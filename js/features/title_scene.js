@@ -6,13 +6,15 @@
 // «кто ближе к зрителю».
 import { TAU, clamp, lerp, rnd, pick, seeded, readSec } from '../core/util.js';
 import { sfx } from '../core/audio.js';
+import { lightning, lightningNo } from '../engine/topdown/render.js';
 import { createTitleArt, CLOUD_ORDER, FISH, ease, releaseTitleArt } from './title_art.js';
 
 let starShown = false; // падающая звезда — не больше одной за запуск страницы
 
 /**
  * @param canvas  канва во весь экран заставки
- * @param o       { minutes, weather: sun|rain|snow|petals|leaves, season: winter|spring|summer|autumn, look, free }
+ * @param o       { minutes, weather: sun|rain|snow|petals|leaves, force: 1 — лёгкая, 2 — ливень или метель, 3 — гроза,
+ *                  season: winter|spring|summer|autumn, look, free }
  *                free() → { x, y, w, h } — место на экране, не занятое заголовком и кнопками (в CSS-пикселях)
  */
 export function createTitleScene(canvas, o) {
@@ -26,7 +28,10 @@ export function createTitleScene(canvas, o) {
     rain = weather === 'rain',
     snow = weather === 'snow',
     windy = weather === 'petals' || weather === 'leaves',
-    winter = season === 'winter';
+    winter = season === 'winter',
+    hard = (rain || snow) && o.force >= 2, // ливень или метель: осадков больше, их несёт ветром
+    storm = rain && o.force >= 3; // гроза: небо темнее, мягкие вспышки молний и тихий гром
+  let bolt = null; // номер последней вспышки (один раскат грома на вспышку)
   const look = o.look;
   const log = []; // что уже потрогали (для автотеста и отладки)
   const note = (name) => {
@@ -204,8 +209,8 @@ export function createTitleScene(canvas, o) {
     strokes.length = 0;
     inkV++;
     drops.length = 0;
-    const n = Math.round(((W * H) / 9000) * (rain ? 1.1 : snow ? 0.8 : windy ? 0.28 : 0));
-    for (let i = 0; i < Math.min(n, 220); i++) drops.push(newDrop(true));
+    const n = Math.round(((W * H) / 9000) * (rain ? 1.1 : snow ? 0.8 : windy ? 0.28 : 0) * (hard ? 1.7 : 1));
+    for (let i = 0; i < Math.min(n, hard ? 340 : 220); i++) drops.push(newDrop(true));
     paintBg();
   }
   function newDrop(anywhere) {
@@ -1149,16 +1154,22 @@ export function createTitleScene(canvas, o) {
     for (let i = 0; i < drops.length; i++) {
       const d = drops[i];
       if (rain) {
-        d.y += 620 * d.z * dt;
-        d.x -= 120 * d.z * dt;
+        d.y += (hard ? 760 : 620) * d.z * dt;
+        d.x -= (hard ? 260 : 120) * d.z * dt;
       } else if (snow) {
-        d.y += 46 * d.z * dt;
-        d.x += Math.sin(T * 1.3 + d.ph) * 18 * dt;
+        d.y += (hard ? 90 : 46) * d.z * dt;
+        d.x += (Math.sin(T * 1.3 + d.ph) * 18 - (hard ? 150 * d.z : 0)) * dt;
       } else {
         d.x += 130 * d.z * dt;
         d.y += (26 + Math.sin(T * 2 + d.ph) * 40) * dt;
       }
       if (d.y > H + 14 || d.x > W + 50 || d.x < -50) drops[i] = newDrop(false);
+    }
+    // гроза: за каждой вспышкой — тихий раскат грома
+    if (storm) {
+      const n = lightningNo(T);
+      if (bolt !== null && n !== bolt) setTimeout(() => sfx('thunder', 0.8), 800);
+      bolt = n;
     }
     for (let i = texts.length - 1; i >= 0; i--) if ((texts[i].t += dt) > texts[i].life) texts.splice(i, 1);
   }
@@ -1209,6 +1220,7 @@ export function createTitleScene(canvas, o) {
     SHIPS,
     LANE_U,
     shoreY,
+    hard,
     snow,
     snowman,
     star,
@@ -1345,7 +1357,18 @@ export function createTitleScene(canvas, o) {
     drawFly(false);
     drawWeather();
     if (rain) {
-      ctx.fillStyle = `rgba(60,72,95,${0.16 * (1 - dk * 0.7)})`;
+      // тучи: серая пелена, в ливень гуще, в грозу — тёмная; вспышка молнии на миг освещает весь берег
+      ctx.fillStyle = storm
+        ? `rgba(40,48,84,${0.36 * (1 - dk * 0.7)})`
+        : `rgba(60,72,95,${(hard ? 0.26 : 0.16) * (1 - dk * 0.7)})`;
+      ctx.fillRect(0, 0, W, H);
+      const fl = storm ? lightning(T) : 0;
+      if (fl > 0.02) {
+        ctx.fillStyle = `rgba(255,252,235,${(0.24 * fl).toFixed(3)})`;
+        ctx.fillRect(0, 0, W, H);
+      }
+    } else if (snow && hard) {
+      ctx.fillStyle = `rgba(232,238,248,${0.2 * (1 - dk * 0.7)})`; // метель: белая мгла
       ctx.fillRect(0, 0, W, H);
     }
     if (dk > 0) {
@@ -1430,7 +1453,7 @@ export function createTitleScene(canvas, o) {
         return xs.find((x) => !onHam(x) && !onFly(x)) ?? x0;
       };
       return {
-        env: { minutes: m, weather, season, night, rain, snow, windy, winter },
+        env: { minutes: m, weather, force: o.force || 0, season, night, rain, snow, windy, winter, hard, storm },
         free: F,
         k,
         log: log.slice(),

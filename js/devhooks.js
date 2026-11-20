@@ -27,6 +27,7 @@ import { OWN as demoOwn } from './interiors/demo_house.js';
 import town, { sea, BUILDINGS } from './locations/town.js';
 import * as topdown from './engine/topdown/index.js';
 import { pixStats } from './core/pixcache.js';
+import { weatherNow, weatherAt, forecast } from './core/queries.js';
 import { devGames, devToasts } from './core/dev.js';
 import { PLANTS, hasFruit, plantInSeason, gather } from './locations/common/plants.js';
 import * as Tower from './interiors/tower.js';
@@ -164,6 +165,17 @@ export function installDevHooks({ F }) {
     },
     Audio: audio,
     /**
+     * Погода для автотеста и снимков: weather('rain', 3) — в городе прямо сейчас (вид и сила: 1 — лёгкая, 2 — ливень
+     * или метель, 3 — гроза; держится до следующей смены по расписанию дня), weather() — вернуть погоду по расписанию.
+     * Читать: Weather.now() — в городе, Weather.at('jungle') — в месте, Weather.forecast(день) — прогноз.
+     */
+    weather(kind, force = 1) {
+      if (kind) actions.forceWeather(kind, force);
+      else actions.syncWeather();
+      return weatherNow();
+    },
+    Weather: { now: weatherNow, at: weatherAt, forecast },
+    /**
      * Для автотеста: начало игры, как до этапа 10, — 1 января (день 0), зима и снег, тёплый наряд, салат в семенах,
      * без вводной цепочки заданий. Шаги, написанные для такой игры (что есть на прилавках в первый день, кто где
      * гуляет, холод), зовут это сразу после «Новой игры»; шаги про само начало игры (dev/smoke_start.js) — нет.
@@ -174,6 +186,7 @@ export function installDevHooks({ F }) {
         s.startDay = 0;
         s.immuneUntil = 3;
         s.weather = 'snow';
+        s.wxStrong = '';
         s.look.outfit = {
           head: 'beanie_red',
           body: 'jw_blue',
@@ -264,6 +277,7 @@ export function installDevHooks({ F }) {
           s.minutes = minutes;
           s.dayFlags = {};
           s.weather = SEASON_OF_MONTH[Math.floor((s.day % YEAR_DAYS) / 3)] === 'winter' ? 'snow' : 'sun';
+          s.wxStrong = ''; // праздничный день в автотесте — без ливня и метели (погоду шаг задаёт сам: weather())
         });
         events.emit('hud');
         return G.state.day;

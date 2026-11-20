@@ -1702,7 +1702,7 @@ export function createTitleArt(S) {
       S.ctx.beginPath();
       for (const d of S.drops) {
         S.ctx.moveTo(d.x, d.y);
-        S.ctx.lineTo(d.x - 3 * d.z, d.y + 15 * d.z);
+        S.ctx.lineTo(d.x - (S.hard ? 7 : 3) * d.z, d.y + (S.hard ? 20 : 15) * d.z);
       }
       S.ctx.stroke();
     } else if (S.snow) {

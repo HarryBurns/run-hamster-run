@@ -20,12 +20,12 @@
 //   dance   танцоры на своих местах spots — прыгают, руки вверх
 //   crowd   стоят на своих местах spots лицом к центру c, иногда радуются
 //   doors   стоят у двери своего домика (n.home)
-import { G, npcPlace, npcDress } from '../core/state.js';
+import { G, npcPlace, npcDress, npcRain } from '../core/state.js';
 import { dist } from '../core/util.js';
 import { NPC_BY_ID, npcLook, HOLIDAY_GATHER, gatherOn } from '../data/index.js';
 import { drawHamster, blinkAt } from '../art/hamster.js';
 import { T, PS, SP, tileOf } from '../engine/topdown/kinds.js';
-import { moveAlong, faceTo } from '../engine/topdown/actors.js';
+import { moveAlong, faceTo, drawUmbrella } from '../engine/topdown/actors.js';
 
 const S = () => G.state;
 /** Где и когда празднуют — таблица HOLIDAY_GATHER (data/holidays.js): по ней и npcPlace (core/queries.js) знает,
@@ -81,12 +81,22 @@ export function createCrowd() {
       hop = Math.round(Math.abs(Math.sin(ph * 2)) * 9),
       shut = blinkAt(t, n.ph) > 0.5 ? 1 : 0,
       dir = n.dir === -1 ? -1 : 1;
-    const key = `npcd:${n.id}:${fest || ''}:${dir}:${up}:${shut}`;
+    // праздник идёт и под дождём: кто в дождевике, кто пляшет с зонтиком (npcRain, core/queries.js)
+    const rain = npcRain(n.id),
+      key = `npcd:${n.id}:${fest || ''}${rain ? ':rain' : ''}:${dir}:${up}:${shut}`;
     let s = SP.find(key);
     if (!s)
-      s = SP.get(key, [-56 * sc, -128 * sc, 56 * sc, 12 * sc], (c) =>
-        drawHamster(c, 0, 0, sc, npcLook(n.id, fest), { dir, time: 0, happy: true, armsUp: !!up, blink: shut }),
-      );
+      s = SP.get(key, [-66 * sc, (rain && rain.umbrella ? -166 : -128) * sc, 66 * sc, 12 * sc], (c) => {
+        const brolly = !!(rain && rain.umbrella);
+        drawHamster(c, 0, 0, sc, npcLook(n.id, fest, rain), {
+          dir,
+          time: 0,
+          happy: true,
+          armsUp: !!up && !brolly,
+          blink: shut,
+        });
+        if (brolly) drawUmbrella(c, sc, rain.umbrella);
+      });
     SP.draw(s, n.x, n.y + 10 - hop);
   }
   return {

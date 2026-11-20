@@ -13,7 +13,7 @@ import { makeCanvas } from '../core/draw.js';
 import { on, emit } from '../core/events.js';
 import { scene, sceneName } from '../core/loop.js';
 import { register, run } from '../core/registry.js';
-import { G, playerLook, isSick } from '../core/state.js';
+import { G, playerLook, isSick, badWeather, weatherNow } from '../core/state.js';
 import { el, esc, fmtMoney } from '../core/util.js';
 import {
   HEALTH,
@@ -35,7 +35,7 @@ import {
 import { dialog } from '../ui/dialog.js';
 import { enqueue } from '../ui/modals.js';
 import { openPanel, message } from '../ui/panel.js';
-import { toast, hintToday } from '../ui/toast.js';
+import { toast, hintToday, hintOnce } from '../ui/toast.js';
 import { paintSick, paintDoctor } from './health_art.js';
 
 const S = () => G.state;
@@ -155,6 +155,18 @@ function tick({ dt }) {
     outDay = s.day;
     coldMin = wetMin = 0;
   }
+  // плохая погода в городе: жители сидят по домам — один раз за игру говорим об этом (хомячку гулять можно всегда)
+  if (sceneName() === 'world' && !s.flags.badWeather && badWeather()) {
+    const w = weatherNow();
+    hintOnce(
+      'badWeather',
+      w.kind === 'snow'
+        ? 'Метель! 🌨️ Жители сидят по домам — загляни к ним в гости. А тебе гулять можно: только оденься потеплее.'
+        : w.force >= 3
+          ? 'Гроза! ⛈️ Жители сидят по домам — загляни к ним в гости. Гром только ворчит, он совсем не страшный.'
+          : 'Ливень! 🌧️ Жители сидят по домам — загляни к ним в гости. А тебе гулять можно: надень куртку или сапожки.',
+    );
+  }
   if (s.sick) {
     // чих: иногда, пока гуляем (мир не на паузе — шаг логики идёт только тогда)
     if (G.time > nextSneeze) {
@@ -185,7 +197,8 @@ function tick({ dt }) {
     if (coldMin >= HEALTH.outMin) markCareless('cold');
   }
   // под землёй и в пустыне дождя нет (sc.dry — крюк сцены), там не промокнуть
-  if (s.weather === 'rain' && !(sc.dry && sc.dry()) && !dressedForRain(o) && !cf.rain) {
+  // (что идёт в этом месте — sc.wx(): на горе, в лесу и в городе дождь общий — data/weather.js)
+  if ((sc.wx ? sc.wx().kind : s.weather) === 'rain' && !(sc.dry && sc.dry()) && !dressedForRain(o) && !cf.rain) {
     wetMin += min;
     if (wetMin >= HEALTH.warnMin)
       hintToday(

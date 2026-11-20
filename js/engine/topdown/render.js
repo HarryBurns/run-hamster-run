@@ -18,42 +18,95 @@ import { ell, fillRR, poly, rr, shade, star, emoji } from '../../core/draw.js';
 import { drawHamster, blinkAt } from '../../art/hamster.js';
 import { NPC_BY_ID, TASK_BY_ID } from '../../data/index.js';
 import { T, OUT, PS, SP, TILES, OBJECTS, BUILDING_KINDS, tileOf, label, hash } from './kinds.js';
-import { drawResident, drawBadge, faceDir } from './actors.js';
+import { drawResident, drawBadge, faceDir, umbrellaLift } from './actors.js';
 import { drawGround, buildShore, paintGroundMap, CH } from './ground.js';
 
 // ---------- погода ----------
+// Что идёт в этой локации — sc.wx() (weatherAt в core/queries.js: место откликается на погоду города по смыслу —
+// data/weather.js): kind — rain | snow | petals | leaves | dust (остальное — без осадков), force — сила (2 — ливень
+// или метель, 3 — гроза), warm — тёплый дождик (джунгли, остров, бухта: реже и светлее).
+const wxKey = (wx) => wx.kind + wx.force + (wx.warm ? 'w' : '');
 export function initWeather(sc) {
   sc.weather = [];
-  const kind = G.state.weather;
-  if (kind === 'sun') return;
-  const n = kind === 'rain' ? 70 : kind === 'snow' ? 60 : 22;
+  const wx = sc.wx(),
+    kind = wx.kind,
+    hard = wx.force >= 2;
+  sc.weatherKind = wxKey(wx);
+  const n =
+    kind === 'rain'
+      ? wx.force >= 3
+        ? 170
+        : hard
+          ? 150
+          : wx.warm
+            ? 45
+            : 70
+      : kind === 'snow'
+        ? hard
+          ? 150
+          : 60
+        : kind === 'dust'
+          ? 36
+          : kind === 'petals' || kind === 'leaves'
+            ? 22
+            : 0;
   for (let i = 0; i < n; i++) sc.weather.push({ x: Math.random(), y: Math.random(), s: rnd(0.6, 1.3), ph: rnd(0, 6) });
-  sc.weatherKind = kind;
 }
 export function updateWeather(sc, dt) {
-  if (sc.weatherKind !== G.state.weather) initWeather(sc);
-  const k = G.state.weather,
-    v = k === 'rain' ? 1.4 : k === 'snow' ? 0.16 : 0.1;
+  const wx = sc.wx();
+  if (sc.weatherKind !== wxKey(wx)) initWeather(sc);
+  const k = wx.kind,
+    hard = wx.force >= 2,
+    v = k === 'rain' ? (hard ? 1.9 : 1.4) : k === 'snow' ? (hard ? 0.34 : 0.16) : k === 'dust' ? 0.05 : 0.1,
+    // ветер: ливень косой, метель и пыль несёт вбок
+    vx = k === 'rain' ? (hard ? -0.42 : -0.15) : k === 'snow' && hard ? -0.55 : k === 'dust' ? -0.7 : 0;
   for (const q of sc.weather) {
     q.y += v * q.s * dt;
-    q.x += (k === 'rain' ? -0.15 : Math.sin(G.time + q.ph) * 0.03) * dt;
+    q.x += (vx ? vx * (k === 'rain' ? 1 : q.s) : Math.sin(G.time + q.ph) * 0.03) * dt;
     if (q.y > 1.05) {
       q.y = -0.05;
-      q.x = Math.random();
+      q.x = Math.random() * (vx < -0.3 ? 1.3 : 1);
     }
-    if (q.x < -0.05) q.x = 1.05;
+    if (q.x < -0.05) {
+      q.x = 1.05;
+      if (vx < -0.3) q.y = Math.random();
+    }
   }
 }
+/**
+ * Вспышка молнии в момент t (секунды): 0..1 — насколько светло. Раз в 9–14 секунд: короткая двойная вспышка и мягкое
+ * затухание (не страшно). Чистая функция времени: по ней же features/soundscape.js пускает раскат грома.
+ */
+export function lightning(t) {
+  const n = Math.floor(t / 14),
+    d = t - n * 14 - hash(n * 3 + 1, 77) * 5;
+  if (d < 0 || d > 0.8) return 0;
+  return d < 0.07 ? d / 0.07 : d < 0.16 ? 0.35 : d < 0.24 ? 0.85 : Math.max(0, 0.85 * (1 - (d - 0.24) / 0.56));
+}
+/** Номер вспышки, что идёт сейчас или была последней (для грома: одна вспышка — один раскат). */
+export const lightningNo = (t) => {
+  const n = Math.floor(t / 14);
+  return t - n * 14 >= hash(n * 3 + 1, 77) * 5 ? n : n - 1;
+};
 /** Осадки — в экранных координатах, по одному пути на цвет. */
-function drawWeather(ctx, sc, w, h) {
-  const k = G.state.weather,
+function drawWeather(ctx, sc, w, h, wx) {
+  const k = wx.kind,
+    hard = wx.force >= 2,
     list = sc.weather,
     t = G.time;
   if (!list.length) return;
   if (k === 'rain') {
-    // косые струи: дальние — тоньше и бледнее
+    // косые струи: дальние — тоньше и бледнее; в ливень — длиннее и круче по ветру, тёплый дождик — светлый и короткий
+    const slant = hard ? 0.5 : 0.3,
+      long = hard ? 1.5 : wx.warm ? 0.8 : 1;
     for (const far of [1, 0]) {
-      ctx.strokeStyle = far ? 'rgba(150,190,255,.4)' : 'rgba(130,175,255,.75)';
+      ctx.strokeStyle = wx.warm
+        ? far
+          ? 'rgba(215,240,255,.5)'
+          : 'rgba(215,240,255,.8)'
+        : far
+          ? 'rgba(150,190,255,.4)'
+          : 'rgba(130,175,255,.75)';
       ctx.lineWidth = far ? 1.3 : 2;
       ctx.lineCap = 'round';
       ctx.beginPath();
@@ -61,14 +114,14 @@ function drawWeather(ctx, sc, w, h) {
         const q = list[i],
           x = q.x * w,
           y = q.y * h,
-          len = (far ? 10 : 16) * q.s;
+          len = (far ? 10 : 16) * q.s * long;
         ctx.moveTo(x, y);
-        ctx.lineTo(x - len * 0.3, y + len);
+        ctx.lineTo(x - len * slant, y + len);
       }
       ctx.stroke();
     }
   } else if (k === 'snow') {
-    // снежинки двух размеров, покачиваются
+    // снежинки двух размеров, покачиваются; в метель их несёт ветром (короткий белый след)
     ctx.fillStyle = 'rgba(255,255,255,.95)';
     ctx.beginPath();
     for (const q of list) {
@@ -79,6 +132,33 @@ function drawWeather(ctx, sc, w, h) {
       ctx.arc(x, y, r, 0, 6.2832);
     }
     ctx.fill();
+    if (hard) {
+      ctx.strokeStyle = 'rgba(255,255,255,.4)';
+      ctx.lineWidth = 2;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      for (let i = 0; i < list.length; i += 3) {
+        const q = list[i],
+          x = q.x * w + Math.sin(t * 1.3 + q.ph * 3) * 6,
+          y = q.y * h;
+        ctx.moveTo(x + 3, y - 1);
+        ctx.lineTo(x + 3 + 16 * q.s, y - 1 - 7 * q.s);
+      }
+      ctx.stroke();
+    }
+  } else if (k === 'dust') {
+    // пыльный ветер: длинные песочные чёрточки летят вбок
+    ctx.strokeStyle = 'rgba(255,244,220,.7)';
+    ctx.lineWidth = 2.2;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    for (const q of list) {
+      const x = q.x * w,
+        y = q.y * h + Math.sin(t * 2 + q.ph) * 5;
+      ctx.moveTo(x, y);
+      ctx.lineTo(x + 26 * q.s, y - 3);
+    }
+    ctx.stroke();
   } else {
     // лепестки и листья: кружатся, по цвету — отдельный путь
     const cols =
@@ -97,6 +177,21 @@ function drawWeather(ctx, sc, w, h) {
       }
       ctx.fill();
     });
+  }
+}
+/** Туман (утром в лесу и в джунглях, в джунглях — и в дождь): белёсая дымка и плывущие полосы — в слое неба. */
+function drawMist(c, lw, lh, t, k) {
+  c.fillStyle = `rgba(235,248,240,${0.2 * k})`;
+  c.fillRect(0, 0, lw, lh);
+  c.fillStyle = `rgba(250,255,252,${0.22 * k})`;
+  for (let i = 0; i < 3; i++) {
+    const y0 = ((i * 0.33 + t * 0.006) % 1) * lh * 1.2 - lh * 0.1,
+      bh = lh * 0.09;
+    c.beginPath();
+    c.moveTo(0, y0);
+    for (let x = 0; x <= lw; x += lw / 6) c.lineTo(x, y0 + Math.sin(x * 0.05 + t * 0.3 + i) * bh * 0.5);
+    for (let x = lw; x >= 0; x -= lw / 6) c.lineTo(x, y0 + bh + Math.sin(x * 0.05 + t * 0.3 + i + 2) * bh * 0.5);
+    c.fill();
   }
 }
 /** Дождь на земле: лужицы на мостовой и расходящиеся круги — в координатах мира, под всем, что стоит. */
@@ -141,9 +236,10 @@ function drawRainOnGround(ctx, m, t, x0, y0, x1, y1) {
 // ---------- свет: время суток, ночь, пятна света ----------
 /**
  * Цвет неба поверх кадра: [r, g, b, a] или null. Утром — розоватая дымка, к закату — тёплый свет, в сумерках —
- * синева, ночью — тёмно-синяя темнота (dark — 0..1 из sc.darkness()). В дождь — серо-голубая пелена.
+ * синева, ночью — тёмно-синяя темнота (dark — 0..1 из sc.darkness()). В дождь — серо-голубая пелена (wx — погода
+ * места, sc.wx()).
  */
-function skyTint(dark, rain) {
+function skyTint(dark, wx, flash) {
   const m = G.state.minutes;
   let r = 0,
     g = 0,
@@ -161,9 +257,16 @@ function skyTint(dark, rain) {
   add(255, 138, 60, 0.2 * warm); // закат
   add(110, 70, 160, 0.16 * Math.sin(clamp(dark, 0, 1) * Math.PI)); // сумерки
   add(18, 22, 78, 0.6 * dark); // ночь
-  if (rain) add(70, 95, 130, 0.14);
+  if (wx) {
+    // тучи: серо-голубая пелена (в ливень гуще, в грозу — тёмная); метель — белая мгла, пыльный ветер — песочная
+    if (wx.kind === 'rain' && wx.force >= 3) add(48, 58, 100, 0.34);
+    else if (wx.kind === 'snow' && wx.force >= 2) add(228, 236, 248, 0.2);
+    else if (wx.kind === 'dust') add(214, 170, 110, 0.2);
+    else if (wx.cloud > 0) add(70, 95, 130, 0.28 * wx.cloud);
+  }
   if (a < 0.01) return null;
-  return [Math.round(r / a), Math.round(g / a), Math.round(b / a), Math.min(0.72, a)];
+  // вспышка молнии: темнота на миг расступается
+  return [Math.round(r / a), Math.round(g / a), Math.round(b / a), Math.min(0.72, a) * (1 - 0.55 * (flash || 0))];
 }
 let glowImg = null; // мягкое круглое пятно: им «прорезают» темноту
 function glowSprite() {
@@ -505,7 +608,8 @@ export function drawFrame(ctx, sc) {
   drawGround(ctx, sc, env, k, ox, oy, cw, chh); // земля: куски из кэша и «живое» поверх (вода, грядки)
   drawSurf(ctx, sc, env, x0, y0, x1, y1);
   const sky = desc.sky !== false,
-    weather = sky && !desc.dry ? G.state.weather : 'sun'; // в пустыне (dry) не бывает дождя и снега
+    wx = sky ? sc.wx() : null, // погода этого места (в пустыне дождя и снега не бывает — data/weather.js)
+    weather = wx ? wx.kind : 'sun';
   if (weather === 'rain') drawRainOnGround(ctx, m, t, x0, y0, x1, y1);
   sc.call('ground', ctx, sc, env); // разметка — то, что лежит прямо на земле и меняется
   // свет: ночью собираем пятна света от фонарей, окон и дверей; в тёмной локации (крюк gloom — пещера) — всегда
@@ -566,7 +670,15 @@ export function drawFrame(ctx, sc) {
         drawBadge(v, t); // «!» или «?» над головой — журнал заданий
         if (dist(v.x, v.y, p.x, p.y) < T * 3.2) {
           SP.world();
-          label(ctx, nd.name, v.x, v.y - 66 * (nd.small ? 0.82 : 1), 200, 12, 'rgba(255,255,255,.92)');
+          label(
+            ctx,
+            nd.name,
+            v.x,
+            v.y - (66 + umbrellaLift(v)) * (nd.small ? 0.82 : 1),
+            200,
+            12,
+            'rgba(255,255,255,.92)',
+          );
         }
         break;
       }
@@ -599,7 +711,7 @@ export function drawFrame(ctx, sc) {
   // свои пятна света ночью (праздничные украшения, фейерверк): light(x, y, rx, ry?, сила?) в единицах мира
   if (lit) sc.call('lights', sc, light);
   const warmSeason = season === 'spring' || season === 'summer',
-    fine = weather === 'sun' || weather === 'petals';
+    fine = (weather === 'sun' || weather === 'petals') && !(wx && wx.cloud);
   if (sky && warmSeason && fine && dark < 0.25) drawButterflies(ctx, m, t, x0, y0, x1, y1);
   // звёздочка-цель (в фото-режиме — нет, как и стрелки к ней у края экрана: В2)
   const tg = G.photo ? null : sc.target();
@@ -618,15 +730,22 @@ export function drawFrame(ctx, sc) {
   ctx.restore();
 
   if (sky) {
-    if (!desc.dry) drawWeather(ctx, sc, w, h);
+    drawWeather(ctx, sc, w, h, wx);
+    // гроза: мягкая вспышка молнии — светлеет весь кадр и на миг расступается тёмная пелена
+    const flash = weather === 'rain' && wx.force >= 3 ? lightning(t) : 0;
+    if (flash > 0.02) {
+      ctx.fillStyle = `rgba(255,252,235,${(0.2 * flash).toFixed(3)})`;
+      ctx.fillRect(0, 0, w, h);
+    }
     // небо: цвет времени суток, ночью — темнота с пятнами света, днём — тени облаков (отдельный слой, см. drawSky)
-    const tint = skyTint(dark, weather === 'rain');
+    const tint = skyTint(dark, wx, flash);
     if (lit) {
       light(p.x, p.y - 24, 70, 70, 0.4); // хомячка видно и в темноте
       if (tg) light(tg.x, tg.y - 70, 46, 46, 0.7); // и звёздочку цели
     }
-    const fair = dark < 0.5 && (weather === 'sun' || weather === 'petals' || weather === 'leaves'),
-      clouds = fair && desc.clouds !== false; // clouds: false — без теней облаков (пустыня), но слой днём есть
+    const fair = dark < 0.5 && !wx.cloud && (weather === 'sun' || weather === 'petals' || weather === 'leaves'),
+      clouds = fair && desc.clouds !== false, // clouds: false — без теней облаков (пустыня), но слой днём есть
+      mist = wx.mist > 0.02;
     // skyLayer: true — слой неба нужен всегда (облака ниже вершины горы видны и в дождь, снег и ночью — Г8)
     const layer = drawSky(
       sc,
@@ -641,8 +760,9 @@ export function drawFrame(ctx, sc) {
       h,
       dpr,
       undefined,
-      fair || !!desc.skyLayer,
+      fair || mist || !!desc.skyLayer,
     );
+    if (layer && mist) drawMist(layer.c, layer.c.canvas.width, layer.c.canvas.height, t, wx.mist);
     if (layer && warmSeason && fine && dark > 0.55) drawFireflies(layer.c, m, t, x0, y0, x1, y1, k, ox, oy, layer.S);
     if (layer) sc.call('sky', layer.c, sc, layer.c.canvas.width, layer.c.canvas.height); // своё в слое неба (лучи в лесу)
   } else if (gloom) {

@@ -28,6 +28,7 @@ import {
   RIDE_BY_ID,
   YARD_BY_ID,
   VILLA_UP_BY_ID,
+  weatherPart,
 } from '../data/index.js';
 
 let depth = 0;
@@ -393,24 +394,52 @@ export const finishTask = act(() => {
 const DAY_END = 23 * 60 + 59;
 /** Игровое время идёт: dt — секунды настоящего времени (0,6 с = 1 игровая минута). Сохранение не помечает. */
 export const passTime = act((dt) => {
-  const s = S();
+  const s = S(),
+    was = s.minutes;
   if (s.minutes < DAY_END) s.minutes = Math.min(DAY_END, s.minutes + dt / 0.6);
+  weatherTurn(was);
 });
 /** Занятие отняло n игровых минут (но не позже cap). */
 export const spendMinutes = act((n, cap = DAY_END) => {
-  const s = S();
+  const s = S(),
+    was = s.minutes;
   s.minutes = Math.min(cap, s.minutes + n);
+  weatherTurn(was);
   touch();
 });
-// Погода на день: sun | rain | snow | petals | leaves
-function rollWeather() {
-  const s = cal().season,
-    r = Math.random();
-  if (s === 'winter') return r < 0.65 ? 'snow' : 'sun';
-  if (s === 'spring') return r < 0.25 ? 'rain' : r < 0.75 ? 'petals' : 'sun';
-  if (s === 'summer') return r < 0.1 ? 'rain' : 'sun';
-  return r < 0.3 ? 'rain' : 'leaves';
+// Погода — одна на мир и известна заранее: расчёт от номера дня — weatherOfDay (data/weather.js). В состоянии лежит
+// погода города «сейчас»: weather (sun | rain | snow | petals | leaves) и wxStrong — сильная ли она ('' — лёгкая,
+// 'rain2' — ливень, 'rain3' — гроза, 'snow2' — метель; читать — weatherNow() в core/queries.js). Она меняется, когда
+// время переходит границу частей дня (гроза начинается после обеда).
+const strongOf = (kind, force) =>
+  force >= 2 && (kind === 'rain' || kind === 'snow') ? kind + Math.min(force, kind === 'rain' ? 3 : 2) : '';
+function putWeather(kind, force) {
+  const s = S(),
+    strong = strongOf(kind, force);
+  if (s.weather === kind && s.wxStrong === strong) return;
+  s.weather = kind;
+  s.wxStrong = strong;
+  emit('weather');
 }
+/** Время шло с минуты was: если началась другая часть погоды дня — погода меняется. */
+function weatherTurn(was) {
+  const s = S(),
+    st = s.startDay || 0,
+    p = weatherPart(s.day, s.minutes, st);
+  if (weatherPart(s.day, was, st) !== p) putWeather(p.kind, p.force);
+}
+/** Погода по расписанию дня — сейчас (в автотесте после смены дня и часа через __dev). */
+export const syncWeather = act(() => {
+  const s = S(),
+    p = weatherPart(s.day, s.minutes, s.startDay || 0);
+  putWeather(p.kind, p.force);
+  touch();
+});
+/** Для автотеста и снимков: погода города прямо сейчас (до следующей смены по расписанию дня). */
+export const forceWeather = act((kind, force = 1) => {
+  putWeather(kind, force);
+  touch();
+});
 /** Наступил следующий день: утро, грядки подросли, новая погода, гости разошлись. */
 export const nextDay = act(() => {
   const s = S();
@@ -425,7 +454,8 @@ export const nextDay = act(() => {
   s.minutes = 7 * 60 + 30;
   for (const b of s.garden) if (b.seed) b.age++;
   finishVillaUp(); // «Вилла растёт»: строители закончили к утру
-  s.weather = rollWeather();
+  const wp = weatherPart(s.day, s.minutes, s.startDay || 0);
+  putWeather(wp.kind, wp.force);
   s.guests = [];
   s.visitor = Math.random() < 0.35 ? NPCS[Math.floor(Math.random() * NPCS.length)].id : null;
   s.dayFlags = {}; // вместе с отметками дня обнуляются оплаченные смены (shifts) и кошелёк торговца (marketPaid)

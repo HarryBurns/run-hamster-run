@@ -343,13 +343,17 @@ module.exports = async function title(ctx) {
     await put(null);
     let d = await dbg();
     expect(d.env.weather === 'sun' && d.env.season === 'summer' && !d.env.night, 'без игр не летний день', d.env);
-    for (const [minutes, weather, day, want] of [
+    for (const [minutes, weather, day, want, more] of [
       [22 * 60 + 30, 'sun', 16, { night: true, rain: false, winter: false }],
       [13 * 60, 'rain', 28, { night: false, rain: true, winter: false }],
       [10 * 60, 'snow', 1, { night: false, snow: true, winter: true }],
       [12 * 60, 'petals', 10, { night: false, windy: true, winter: false }],
+      // гроза и метель последней игры («Погода по всему миру»: wxStrong — сильная погода)
+      [15 * 60, 'rain', 16, { rain: true, storm: true, hard: true, force: 3 }, { wxStrong: 'rain3' }],
+      [11 * 60, 'snow', 1, { snow: true, hard: true, storm: false, force: 2 }, { wxStrong: 'snow2' }],
+      [11 * 60, 'rain', 16, { rain: true, hard: false, storm: false, force: 1 }, { wxStrong: 'snow2' }],
     ]) {
-      await put(sample((s) => Object.assign(s, { minutes, weather, day })));
+      await put(sample((s) => Object.assign(s, { minutes, weather, day, wxStrong: '' }, more)));
       await wait(500);
       d = await dbg();
       expect(d.env.minutes === minutes && d.env.weather === weather, 'сцена не по последней игре', d.env);

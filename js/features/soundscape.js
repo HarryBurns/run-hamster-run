@@ -1,7 +1,8 @@
 // Что звучит: фоновая музыка и окружение (море, дождь, птицы, сверчки) — по сцене, времени суток и погоде.
-import { G, cal, darkness } from '../core/state.js';
+import { G, cal, darkness, weatherNow } from '../core/state.js';
+import { lightningNo } from '../engine/topdown/render.js';
 import { scene } from '../core/loop.js';
-import { setMusic, setAmbience } from '../core/audio.js';
+import { setMusic, setAmbience, sfx } from '../core/audio.js';
 
 // Сцена сама говорит, что в ней слышно: scene.sound() → { force, day, sea, rain, birds, crickets }.
 // day: 'town' — музыка города по сезону, 'forest' — лесная (лес, П.9), 'mountain' — горная, 'desert' — пустыни,
@@ -9,6 +10,20 @@ import { setMusic, setAmbience } from '../core/audio.js';
 // слышен, даже когда в городе сухо);
 // wind — ветер (0..1, гора), bells — колокольчики коров (0..1, луг на горе), drips — капли (0..1, пещеры; своя
 // музыка пещер — force: 'caves').
+// Гроза: за каждой вспышкой молнии (lightningNo — тот же счёт, что у вспышки в render.js) через секунду-другую —
+// тихий раскат грома (sfx 'thunder': мягкий низкий гул, без резких частот); под крышей — ещё тише.
+let lastBolt = null;
+function thunder(storm, vol) {
+  const n = lightningNo(G.time);
+  if (!storm || document.getElementById('mg')) {
+    lastBolt = n;
+    return;
+  }
+  if (lastBolt === null) lastBolt = n; // гроза только началась: ждём первой вспышки
+  if (n === lastBolt) return;
+  lastBolt = n;
+  setTimeout(() => sfx('thunder', vol), 700 + ((n * 37) % 9) * 100);
+}
 export function updateSound() {
   const sc = scene();
   const playing = G.state && sc && !document.getElementById('title');
@@ -19,7 +34,7 @@ export function updateSound() {
       s = G.state;
     setAmbience({
       sea: t ? 0.3 : 0,
-      rain: t && s && s.weather === 'rain' ? 0.2 : 0,
+      rain: t && s && s.weather === 'rain' ? (weatherNow().force >= 2 ? 0.3 : 0.2) : 0,
       birds: false,
       night: !!(t && s && darkness() > 0.75),
       wind: 0,
@@ -50,10 +65,14 @@ export function updateSound() {
               ? s.day
               : 'villa',
   );
-  const rain = G.state.weather === 'rain' || !!s.drizzle;
+  // погода этого места (sc.wx — локации; под крышей слышно погоду города): дождь, ливень, гроза
+  const wx = sc.wx ? sc.wx() : weatherNow(),
+    rain = wx.kind === 'rain',
+    hard = rain && wx.force >= 2 ? 1.5 : 1;
+  thunder(rain && wx.force >= 3, sc.wx ? 1 : 0.45);
   setAmbience({
     sea: mg ? 0 : s.sea || 0,
-    rain: rain && !mg ? (s.rain === undefined ? 0.3 : s.rain) : 0,
+    rain: rain && !mg ? Math.min(1, (s.rain === undefined ? 0.3 : s.rain) * hard) : 0,
     birds:
       !!s.birds &&
       !mg &&

@@ -163,7 +163,8 @@ export function newGame(name) {
     // года: y — год (holidayYear), b — номера клумб (MAY_BEDS в locations/holidays_art.js)
     mayBeds: { y: 0, b: [] },
     // первый день
-    weather: 'sun',
+    weather: 'sun', // погода города сейчас; wxStrong — сильная ли она ('rain2' — ливень, 'rain3' — гроза, 'snow2' — метель)
+    wxStrong: '',
     visitor: null,
     dayFlags: {},
   };

@@ -56,6 +56,7 @@
 "js/data/tasks.js",
 "js/data/visits.js",
 "js/data/wares.js",
+"js/data/weather.js",
 "js/devhooks.js",
 "js/engine/side/actors.js",
 "js/engine/side/cache.js",
