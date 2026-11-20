@@ -3,7 +3,6 @@
 // (компьютер, iPad), и стоя (телефон). Подписи кадров и показ сценки — в features/intro.js.
 import { ell, fillRR, line, poly, star, shade, mix } from '../core/draw.js';
 import { TAU, clamp } from '../core/util.js';
-import { npcLook } from '../data/index.js';
 import { drawHamster, drawPortrait } from './hamster.js';
 
 const OUT = '#4a3728';
@@ -289,19 +288,47 @@ export function paintTrain(ctx, w, h, t, look, fh) {
       (44 - i * 6) * u,
       mix('#a3adb9', '#ffffff', a),
     );
-  // море вдали — показывается всё больше
-  const seaY = rail - 150 * u;
-  ctx.fillStyle = mix('#9fb0bf', '#3fb2ee', a);
-  ctx.fillRect(w * (1 - 0.75 * a), seaY, w, rail - seaY);
-  if (a > 0.5) waves(ctx, w, seaY + 6 * u, seaY + 70 * u, t, u * 0.8);
-  // холмы едут мимо
+  // море вдали — во всю ширину: сперва серое, к концу пути синее и в бликах; холмы впереди опускаются и открывают его
+  const seaY = rail - 165 * u;
+  const sg = ctx.createLinearGradient(0, seaY, 0, rail);
+  sg.addColorStop(0, mix('#aab6c2', '#7fd3f7', a));
+  sg.addColorStop(1, mix('#8d9dac', '#2f9be0', a));
+  ctx.fillStyle = sg;
+  ctx.fillRect(0, seaY, w, rail - seaY);
+  line(ctx, 0, seaY, w, seaY, `rgba(255,255,255,${0.25 + 0.45 * a})`, 2.4 * u);
+  ctx.globalAlpha = 0.35 + 0.65 * a;
+  waves(ctx, w, seaY + 10 * u, seaY + 96 * u, t, u * 0.8);
+  ctx.globalAlpha = 1;
+  // блики солнца на воде и парус у горизонта
+  if (a > 0.3)
+    for (let i = 0; i < 6; i++)
+      ell(
+        ctx,
+        sx + (i - 2.5) * 22 * u,
+        seaY + (8 + (i % 3) * 7) * u,
+        (9 - (i % 3) * 2) * u,
+        1.8 * u,
+        `rgba(255,248,200,${(a - 0.3) * (0.6 + 0.4 * Math.sin(t * 3 + i))})`,
+      );
+  const bx = w * 0.22 + t * 6 * u,
+    by = seaY + 22 * u + Math.sin(t * 1.4) * 1.5 * u;
+  poly(
+    ctx,
+    [bx - 14 * u, by, bx + 14 * u, by, bx + 9 * u, by + 7 * u, bx - 9 * u, by + 7 * u],
+    '#fa5252',
+    OUT,
+    1.6 * u,
+  );
+  poly(ctx, [bx + 1 * u, by - 26 * u, bx + 13 * u, by - 3 * u, bx + 1 * u, by - 3 * u], '#fff', OUT, 1.4 * u);
+  // холмы едут мимо и становятся ниже — впереди море
   for (let layer = 0; layer < 2; layer++) {
+    const low = 1 - (layer ? 0.45 : 0.8) * a;
     ctx.fillStyle = layer ? mix('#6f8f6a', '#69c06b', a) : mix('#8ea694', '#9ad88f', a);
     ctx.beginPath();
     ctx.moveTo(0, rail + 4);
     const sp = (layer ? 90 : 46) * u,
-      amp = (layer ? 42 : 70) * u,
-      base = rail - (layer ? 36 : 80) * u;
+      amp = (layer ? 42 : 70) * u * low,
+      base = rail - (layer ? 36 : 80) * u * low;
     for (let x = 0; x <= w + 20; x += 20)
       ctx.lineTo(x, base - Math.sin((x + t * sp) / (layer ? 150 : 230) / u) * amp * 0.5 - amp * 0.5);
     ctx.lineTo(w, rail + 4);
@@ -401,9 +428,7 @@ export function paintTrain(ctx, w, h, t, look, fh) {
   }
 }
 
-/** 3. Панорама Ореховой Гавани: бухта, ореховые скалы, домики, площадь с флажками, жители машут. */
-const TOWN_FOLK = ['plusha', 'ponchik', 'myata', 'bob', 'zefirka'];
-
+/** 3. Панорама Ореховой Гавани: бухта, ореховые скалы, домики, площадь с флажками, зонтики на пляже (без жителей). */
 export function paintTown(ctx, w, h, t, look, fh) {
   const u = unit(w, fh),
     tall = fh > w * 1.15,
@@ -528,19 +553,39 @@ export function paintTown(ctx, w, h, t, look, fh) {
   nutCliff(ctx, w - cw * 0.42, seaY + 26 * u, cw, ch, true);
   nutCliff(ctx, cw * 0.95, seaY + 40 * u, cw * 0.42, ch * 0.3, true);
   nutCliff(ctx, w - cw * 0.98, seaY + 44 * u, cw * 0.36, ch * 0.26, false);
-  // жители машут с набережной
-  const n = TOWN_FOLK.length,
-    fw = Math.min(w * 0.5, 430 * u);
-  TOWN_FOLK.forEach((id, i) => {
-    const x = cx - fw / 2 + (i / (n - 1)) * fw,
-      wave = Math.sin(t * 5 + i * 1.3) > 0;
-    drawHamster(ctx, x, shore + 30 * u + (i % 2) * 8 * u, 0.86 * u, npcLook(id), {
-      time: t + i,
-      dir: 0,
-      happy: true,
-      armsUp: wave,
-    });
-  });
+  // зонтики на пляже — городок ждёт новую жительницу
+  for (const [q, col] of [
+    [0.34, '#ff6b6b'],
+    [0.58, '#4dabf7'],
+  ]) {
+    const x = w * q,
+      y = shore + 46 * u;
+    line(ctx, x, y, x, y - 50 * u, OUT, 3 * u);
+    ctx.beginPath();
+    ctx.arc(x, y - 44 * u, 34 * u, Math.PI, 0);
+    for (let i = 3; i >= 0; i--)
+      ctx.quadraticCurveTo(x - 34 * u + (i + 0.5) * 17 * u, y - 36 * u, x - 34 * u + i * 17 * u, y - 44 * u);
+    ctx.closePath();
+    ctx.fillStyle = col;
+    ctx.fill();
+    ctx.strokeStyle = OUT;
+    ctx.lineWidth = 2 * u;
+    ctx.stroke();
+    ell(ctx, x + 20 * u, y - 2 * u, 22 * u, 5 * u, 'rgba(255,255,255,.85)', OUT, 1.4 * u);
+  }
+  // чайки над бухтой
+  ctx.strokeStyle = OUT;
+  ctx.lineWidth = 2.2 * u;
+  ctx.beginPath();
+  for (let i = 0; i < 3; i++) {
+    const gx = w * (0.4 + i * 0.12) + Math.sin(t * 0.7 + i * 2) * 26 * u,
+      gy = hill - (50 + i * 18) * u + Math.cos(t + i) * 6 * u,
+      fl = Math.sin(t * 6 + i) * 4 * u;
+    ctx.moveTo(gx - 11 * u, gy - fl);
+    ctx.quadraticCurveTo(gx - 5 * u, gy - 7 * u, gx, gy);
+    ctx.quadraticCurveTo(gx + 5 * u, gy - 7 * u, gx + 11 * u, gy - fl);
+  }
+  ctx.stroke();
 }
 
 /** 4. Новый дом: домик у моря («Вилла растёт»: игра начинается в маленьком домике), хомячок с чемоданом у дорожки. */
@@ -552,9 +597,13 @@ export function paintVilla(ctx, w, h, t, look, fh) {
   ell(ctx, w * 0.14, fh * 0.14, 38 * u, 38 * u, '#ffe066', OUT, 2.4 * u);
   cloud(ctx, w * 0.62 + Math.sin(t * 0.14) * 20 * u, fh * 0.1, 40 * u);
   cloud(ctx, w * 0.3 + Math.cos(t * 0.1) * 16 * u, fh * 0.2, 26 * u);
-  // море и ореховая скала вдали справа
-  ctx.fillStyle = '#48b6f0';
-  ctx.fillRect(w * 0.6, ground - 70 * u, w * 0.4, 80 * u);
+  // море во всю ширину за лужайкой и ореховая скала вдали справа
+  const sg = ctx.createLinearGradient(0, ground - 70 * u, 0, ground + 10 * u);
+  sg.addColorStop(0, '#7fd3f7');
+  sg.addColorStop(1, '#3aa6ea');
+  ctx.fillStyle = sg;
+  ctx.fillRect(0, ground - 70 * u, w, 80 * u);
+  line(ctx, 0, ground - 70 * u, w, ground - 70 * u, 'rgba(255,255,255,.7)', 2 * u);
   waves(ctx, w, ground - 62 * u, ground - 12 * u, t, u * 0.7);
   nutCliff(ctx, w - 50 * u, ground + 2 * u, 150 * u, 150 * u, true);
   // лужайка

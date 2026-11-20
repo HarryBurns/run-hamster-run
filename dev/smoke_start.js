@@ -99,7 +99,7 @@ module.exports = async function start(ctx) {
     let f = await intro();
     expect(f && f.i === 0 && f.id === 'city' && f.n === 4, 'сценка не началась с города', f);
     const cap = L.norm(await ev(() => document.querySelector('#intro .i-text').textContent));
-    expect(cap.includes('Хомка') && cap.includes('шумном городе'), 'подпись первого кадра', cap);
+    expect(cap.includes('Хомка') && cap.includes('домике у моря'), 'подпись первого кадра', cap);
     expect((await ev(() => window.__dev.sceneName)) !== 'villa', 'игра началась до конца сценки');
     const ids = [];
     for (let i = 0; i < 3; i++) {
