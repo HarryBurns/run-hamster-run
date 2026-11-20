@@ -1061,7 +1061,8 @@ function playEl(d) {
 /** Вступить треку id (файл по кругу); null — файлов нет или все не загрузились. */
 function startFileTrack(id, prev) {
   const files = (MUSIC_FILES[id] || []).filter((f) => !badMusic.has(f));
-  if (!files.length || !decks.length) return null;
+  // без сети файлов музыки не достать (в кэш service worker'а её не кладём — большая): сразу сочинённая мелодия
+  if (!files.length || !decks.length || navigator.onLine === false) return null;
   const file = files[(plPos[id] || 0) % files.length];
   const d = decks.find((x) => !x.busy) || decks.find((x) => x !== prev) || decks[0];
   d.token++;
@@ -1098,6 +1099,10 @@ function stopFileTrack(d) {
     MUSIC_OUT * 1000 + 100,
   );
 }
+// сеть вернулась, а играет сочинённая мелодия — трек снова из файла
+window.addEventListener('online', () => {
+  if (cur && curId && ac) switchMusic(curId);
+});
 /** Сменить музыку: старое затихает, новое вступает (файл, а если его нет — сочинённая мелодия). */
 function switchMusic(id) {
   curId = id;

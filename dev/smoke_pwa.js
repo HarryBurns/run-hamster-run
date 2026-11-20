@@ -1,8 +1,8 @@
 // Шаги автотеста «Игра как приложение» (features/install.js, sw.js, manifest.webmanifest): манифест и значки,
 // в приложении (display-mode: standalone) ничего не предлагается, кнопка на заставке и пункт меню открывают окно
 // для «iPhone» (user agent Safari iOS) и «Android» (событие beforeinstallprompt — подделка), подсказка взрослым,
-// service worker: без сети игра открывается из кэша. Каждый шаг — в своём контексте браузера (свой user agent,
-// своё хранилище), основная страница автотеста не трогается.
+// service worker: без сети игра открывается из кэша, звуки в ней — записи из кэша, музыка — сочинённая. Каждый шаг —
+// в своём контексте браузера (свой user agent, своё хранилище), основная страница автотеста не трогается.
 // Подключается из dev/smoke.js. Только эти шаги:  node dev/smoke.js <url> step:приложение
 const fs = require('fs');
 const path = require('path');
@@ -202,8 +202,11 @@ module.exports = async function pwa(ctx) {
     }
   });
 
-  await step('приложение: service worker — сеть сначала; без сети игра открывается из кэша этой сборки', async () => {
+  await step('приложение: service worker — сеть сначала; без сети игра открывается из кэша и звучит', async () => {
     const { c, p } = await open({ games: 1, query: '?sw', w: 1024, h: 768 });
+    const errs = [];
+    p.on('console', (m) => m.type() === 'error' && errs.push(m.text() + ' ' + m.location().url));
+    p.on('pageerror', (e) => errs.push(e.message));
     try {
       await p.waitForFunction(() => navigator.serviceWorker.controller, null, { timeout: 20000 });
       const BUILD = /BUILD\s*=\s*(\d+)/.exec(fs.readFileSync(path.join(ROOT, 'js/data/build.js'), 'utf8'))[1];
@@ -212,6 +215,15 @@ module.exports = async function pwa(ctx) {
       const n = await p.evaluate(async (k) => (await (await caches.open(k)).keys()).length, keys[0]);
       const files = JSON.parse(fs.readFileSync(path.join(ROOT, 'js/modules.json'), 'utf8')).length;
       expect(n > files, 'в кэше не все файлы сборки', [n, files]);
+      // все звуки — в кэше сразу при установке (список пишет node dev/deps.js --write); музыки в кэше нет
+      const sfx = JSON.parse(fs.readFileSync(path.join(ROOT, 'assets/audio/sfx/list.json'), 'utf8'));
+      const cached = await p.evaluate(async (k) => (await (await caches.open(k)).keys()).map((r) => r.url), keys[0]);
+      const noSfx = sfx.filter((f) => !cached.includes(base() + 'assets/audio/sfx/' + f));
+      expect(!noSfx.length, 'звуков нет в кэше', noSfx);
+      expect(!cached.some((u) => u.includes('/assets/audio/music/')), 'музыка попала в кэш');
+      const named = await p.evaluate(() => window.__dev.Audio.debugAudio().files.sfx);
+      const unlisted = named.filter((u) => !sfx.includes(u.replace('assets/audio/sfx/', '')));
+      expect(!unlisted.length, 'игра знает звуки, которых нет в списке для кэша', unlisted);
       // сеть есть — ответ с сервера, не из кэша
       const fromNet = await p.evaluate(async () => {
         const r = await fetch('js/data/build.js?t=' + Date.now());
@@ -225,6 +237,35 @@ module.exports = async function pwa(ctx) {
       });
       await p.click('[data-act=continue]');
       await p.waitForFunction(() => window.__dev.sceneName, null, { timeout: 15000 });
+      // без сети: нажатие разрешает звук — записи звуков из кэша, музыка (её в кэше нет) — сочинённая мелодия
+      await p.evaluate(() => window.__dev.Audio.setMusicOn(true));
+      const box = await p.evaluate(() => {
+        const r = document.querySelector('canvas').getBoundingClientRect();
+        return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+      });
+      await p.mouse.click(box.x, box.y);
+      const ok = await p
+        .waitForFunction(
+          () => {
+            const a = window.__dev.Audio,
+              d = a.debugAudio(),
+              l = a.debugLevel();
+            return d.sfxLoaded >= d.sfxNames - 1 && l && l.synth && !l.file;
+          },
+          null,
+          { timeout: 15000 },
+        )
+        .then(
+          () => true,
+          () => false,
+        );
+      const a = await p.evaluate(() => ({ d: window.__dev.Audio.debugAudio(), l: window.__dev.Audio.debugLevel() }));
+      expect(ok && !a.d.sfxFailed.length, 'без сети звуки не из записей', { ...a.d, files: undefined });
+      expect(a.l.synth && !a.l.file && !a.d.musicFailed.length, 'без сети музыка не сочинённая', a);
+      expect(!errs.length, 'ошибки в консоли без сети', errs);
+      // сеть вернулась — трек снова из файла
+      await c.setOffline(false);
+      await p.waitForFunction(() => window.__dev.Audio.debugLevel().file, null, { timeout: 10000 });
     } finally {
       await c.setOffline(false);
       await c.close();

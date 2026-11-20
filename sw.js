@@ -3,7 +3,9 @@
 // без service worker); только если сети нет — ответ из кэша. Так игра с экрана «Домой» открывается и без интернета.
 //
 // Ставит его features/install.js: sw.js?v=BUILD. Кэш — «rhr-BUILD»: при установке в него кладутся все файлы этой
-// сборки (страница, стили, все модули из js/modules.json, значки), при включении старые кэши «rhr-…» удаляются.
+// сборки (страница, стили, все модули из js/modules.json, значки, все звуки из assets/audio/sfx/list.json — его пишет
+// node dev/deps.js --write; музыку — нет: она большая, без сети играет сочинённая мелодия), при включении старые кэши
+// «rhr-…» удаляются.
 // По ходу игры в кэш докладываются только файлы этой сборки (?v=BUILD) и файлы без метки (звуки, значки) — но не
 // «указатели» сборки (страница, build.js, modules.json): они в кэше всегда той же сборки, что и модули.
 //
@@ -40,6 +42,7 @@ async function precache() {
   if (!m || m[1] !== V) throw new Error('на сервере другая сборка'); // её service worker придёт со своей страницей
   const mods = await get(BASE + 'js/modules.json', fresh);
   const files = await mods.clone().json();
+  const sfx = await (await get(BASE + 'assets/audio/sfx/list.json', fresh)).json();
   const c = await caches.open(CACHE);
   await c.put(BASE + 'js/data/build.js', build);
   await c.put(BASE + 'js/modules.json', mods);
@@ -51,7 +54,8 @@ async function precache() {
   const urls = files
     .concat('css/style.css')
     .map((f) => BASE + f + '?v=' + V)
-    .concat(STATIC.map((f) => BASE + f));
+    .concat(STATIC.map((f) => BASE + f))
+    .concat(sfx.map((f) => BASE + 'assets/audio/sfx/' + f)); // звуки — без метки, как их грузит core/audio.js
   for (let i = 0; i < urls.length; i += 16)
     await Promise.all(urls.slice(i, i + 16).map(async (u) => c.put(u, await get(u))));
 }

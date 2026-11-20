@@ -1,6 +1,7 @@
 // Проверка зависимостей между модулями js/: нет ли круговых импортов и соблюдаются ли слои.
 // Запуск:  node dev/deps.js [--tree] [--write]   (браузер и сервер не нужны; код возврата 1 — есть нарушения)
-// --write — обновить js/modules.json (список модулей для меток версий; нужен после добавления или удаления файла).
+// --write — обновить js/modules.json (список модулей для меток версий; нужен после добавления или удаления файла)
+//           и assets/audio/sfx/list.json (список звуков — service worker кладёт их в кэш для игры без интернета).
 //
 // Слои (модуль может импортировать только то, что ниже, и соседей по своей папке):
 //   main.js, devhooks.js
@@ -93,6 +94,25 @@ if (process.argv.includes('--write')) {
   console.log('js/modules.json записан');
 } else if (!fs.existsSync(LIST) || fs.readFileSync(LIST, 'utf8') !== listNow) {
   problems.push('js/modules.json не совпадает со списком файлов js/ — запусти: node dev/deps.js --write');
+}
+
+// список звуков для service worker'а (sw.js кладёт их в кэш при установке — игра без интернета звучит записями)
+const SFX = path.join(ROOT, 'assets/audio/sfx');
+const SFX_LIST = path.join(SFX, 'list.json');
+const sfxNow =
+  JSON.stringify(
+    fs
+      .readdirSync(SFX)
+      .filter((f) => f.endsWith('.mp3'))
+      .sort(),
+    null,
+    0,
+  ).replace(/,/g, ',\n') + '\n';
+if (process.argv.includes('--write')) {
+  fs.writeFileSync(SFX_LIST, sfxNow);
+  console.log('assets/audio/sfx/list.json записан');
+} else if (!fs.existsSync(SFX_LIST) || fs.readFileSync(SFX_LIST, 'utf8') !== sfxNow) {
+  problems.push('assets/audio/sfx/list.json не совпадает с файлами звуков — запусти: node dev/deps.js --write');
 }
 
 const edges = Object.values(graph).reduce((n, d) => n + d.length, 0);
