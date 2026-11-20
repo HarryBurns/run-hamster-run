@@ -80,16 +80,19 @@ module.exports = async function build(ctx) {
       await frames(4);
       const a = await ev(() => window.__dev.pix());
       expect(a.sprites > 0 && a.ground > 0, 'в городе нет спрайтов или земли в кэше', a);
-      expect(a.total === a.sprites + a.ground + a.layers && a.layers === 0, 'учёт не сходится', a);
+      expect(a.title === 0, 'заставка закрыта, а её кадры (самолётик, корабли…) остались в кэше', a);
+      expect(a.total === a.sprites + a.ground + a.title + a.layers && a.layers === 0, 'учёт не сходится', a);
       await go('villa');
       await frames(4);
       const b = await ev(() => window.__dev.pix());
       expect(b.layers > 0 && b.total === b.sprites + b.ground + b.layers, 'картинки дома не учтены', b);
+      expect(b.title === 0, 'в доме в кэше кадры заставки', b);
       expect(b.budget >= 16e6 && b.budget <= 24e6, 'предел памяти вне 64–96 МБ', b.budget);
       await go('world');
       await frames(4);
       const c = await ev(() => window.__dev.pix());
       expect(c.layers === 0 && c.total <= c.budget, 'дом не отпустил картинки или память выше предела', c);
+      expect(c.title === 0 && c.total === c.sprites + c.ground + c.title + c.layers, 'учёт не сходится', c);
     },
   );
 

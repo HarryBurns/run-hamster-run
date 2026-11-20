@@ -703,10 +703,16 @@ module.exports = async function title(ctx) {
       await until(() => window.__dev.title.debug().sub.up > 0.6, null, { timeout: 5000, msg: 'батискаф всплыл' });
       d = await dbg();
       expect(!d.fleet.some((s) => s.lane === 'near'), 'батискаф и корабль на одной полосе', d.fleet);
-      await page.mouse.click(d.sub.x, d.sub.y);
+      // бабочку — подальше: нажатие точно по ней забирает она, а летает она где придётся
+      await ev((p) => window.__dev.title.flyAt(p.x > innerWidth / 2 ? 20 : innerWidth - 20, p.y + 120), d.sub);
+      d = await dbg();
+      await page.mouse.click(d.sub.x, d.sub.y); // всплывает не за пальмой (subGo) — нажатие не достанется её стволу
       await wait(100);
-      expect((await dbg()).log.includes('sub'), 'батискаф не ответил', (await dbg()).log.slice(-3));
+      expect((await dbg()).log.includes('sub'), 'батискаф не ответил', { log: (await dbg()).log.slice(-3), sub: d.sub, trunk: d.trunk, palm: d.palm }); // prettier-ignore
       await until(() => !window.__dev.title.debug().sub.on, null, { timeout: 6000, msg: 'батискаф погрузился' });
+      // кадры кораблей и батискафа — в общем учёте памяти кэшей картинок (core/pixcache.js)
+      const px = await ev(() => window.__dev.pix());
+      expect(px.title > 0 && px.total >= px.title, 'кадры заставки не в общем учёте памяти', px);
       noErrors();
     },
   );

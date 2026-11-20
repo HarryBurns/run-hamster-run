@@ -9,6 +9,7 @@ import * as audio from './core/audio.js';
 import * as modals from './ui/modals.js';
 import * as games from './core/games.js';
 import { titleDebug } from './features/title.js';
+import { titleArtPixels } from './features/title_art.js';
 import { message, openPanel } from './ui/panel.js';
 import { dialog } from './ui/dialog.js';
 import { toast } from './ui/toast.js';
@@ -134,12 +135,16 @@ export function installDevHooks({ F }) {
     locations: topdown.locations,
     /** Плодовые растения: Plants.PLANTS (что на чём растёт), hasFruit(o), plantInSeason(o), gather(сцена, o). */
     Plants: { PLANTS, hasFruit, plantInSeason, gather },
-    /** Память кэшей картинок (core/pixcache.js), пикселей: всего, предел, спрайты локаций, земля, остальное — дома. */
+    /**
+     * Память кэшей картинок (core/pixcache.js), пикселей: всего, предел, спрайты локаций, земля, кадры заставки
+     * (title — после выхода в игру 0), остальное — дома.
+     */
     pix() {
       const st = pixStats(),
         sprites = topdown.SP.pixels,
-        ground = topdown.getLocation('world').debugGround().pixels;
-      return { ...st, sprites, ground, layers: st.total - sprites - ground };
+        ground = topdown.getLocation('world').debugGround().pixels,
+        title = titleArtPixels();
+      return { ...st, sprites, ground, title, layers: st.total - sprites - ground - title };
     },
     pixClock: () => pixStats().clock,
     Tower,

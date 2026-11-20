@@ -6,7 +6,7 @@
 // «кто ближе к зрителю».
 import { TAU, clamp, lerp, rnd, pick, seeded } from '../core/util.js';
 import { sfx } from '../core/audio.js';
-import { createTitleArt, CLOUD_ORDER, ease } from './title_art.js';
+import { createTitleArt, CLOUD_ORDER, ease, releaseTitleArt } from './title_art.js';
 
 let starShown = false; // падающая звезда — не больше одной за запуск страницы
 
@@ -708,9 +708,17 @@ export function createTitleScene(canvas, o) {
     return ease(clamp(Math.min(sub.t / 1.4, (sub.dur - sub.t) / 1.4), 0, 1));
   };
   function subGo() {
-    const busy = (x) => Math.abs(x - mer.x) < 80 * k || Math.abs(x - ham.x) < 34 * ham.s + 30 * k;
-    let x = F.x + F.w * 0.35;
-    for (let i = 0; i < 12; i++) {
+    // не за русалочкой, хомячком и пальмой: ствол и крона ближе к нам и забрали бы нажатие по батискафу (down)
+    const y = shipY('near') - 14 * k;
+    const behindPalm = (x) =>
+      palms.some((p) => {
+        const [cx, cy] = crown(p);
+        const trunk = lerp(p.x, cx, clamp((p.y - y) / p.h, 0, 1));
+        return (Math.abs(x - trunk) < 52 * k && y < p.y && y > cy) || near(x, y, cx, cy, p.h * 0.34 + 24 * k);
+      });
+    const busy = (x) => Math.abs(x - mer.x) < 80 * k || Math.abs(x - ham.x) < 34 * ham.s + 30 * k || behindPalm(x);
+    let x = F.x + F.w * 0.5;
+    for (let i = 0; i < 24; i++) {
       const c = F.x + F.w * rnd(0.22, 0.78);
       if (!busy(c)) {
         x = c;
@@ -1346,6 +1354,8 @@ export function createTitleScene(canvas, o) {
       dead = true;
       cancelAnimationFrame(raf);
       window.removeEventListener('resize', onResize);
+      releaseTitleArt(); // кадры самолётика, кораблей, русалочки… — в общем пределе памяти, в игре не нужны
+      S.bg = null; // небо, море и песок — канва во весь экран
     },
     /** Для автотеста и отладки: где что стоит (в CSS-пикселях окна) и что уже потрогали. */
     debug() {
