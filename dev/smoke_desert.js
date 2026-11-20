@@ -575,6 +575,13 @@ module.exports = async function desert(ctx) {
     // бот знает, где какая табличка, и открывает пары без промахов
     const deck = await ev(() => document.querySelector('#mg .pr-grid').__pairs().deck);
     expect(deck.length === 12, 'табличек не 12', deck);
+    // на узком телефоне — 3 × 4 (карточки крупнее), на компьютере и iPad — 4 × 3
+    const lay = await ev(() => ({
+      w: innerWidth,
+      cols: getComputedStyle(document.querySelector('#mg .pr-grid')).gridTemplateColumns.split(' ').length,
+      card: document.querySelector('#mg .pr-card').getBoundingClientRect().width,
+    }));
+    expect(lay.cols === (lay.w <= 560 ? 3 : 4) && lay.card >= 90, 'сетка табличек', lay);
     const seen = new Set();
     for (let i = 0; i < deck.length; i++) {
       if (seen.has(i)) continue;
