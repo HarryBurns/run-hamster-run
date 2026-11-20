@@ -269,4 +269,43 @@ module.exports = async function cust20(ctx) {
     expect((await ev(() => !!document.querySelector('#mg'))) && !(await titles()), 'Esc в мини-игре', await titles());
     await ev(() => document.querySelector('#mg .xbtn').click());
   });
+
+  /** Полдень хорошего дня, гостей нет, хомячок на вилле. */
+  const noon = async (set = '') => {
+    await L.closeAll();
+    await L.mutate(`s.minutes = 12 * 60; s.weather = 'sun'; s.wxStrong = ''; s.dayFlags = {}; s.guests = []; ${set}`);
+    await L.go('villa');
+  };
+
+  await step('заказчик 20: житель не пропадает посреди разговора (Сеня у бассейна отеля зовёт к себе)', async () => {
+    // день и час, когда Сеня у бассейна
+    const at = await ev(async () => {
+      const H = await import('/js/data/hotel.js');
+      for (let day = 2; day < 60; day++)
+        for (let m = 9 * 60; m < 19 * 60; m += 30) if (H.poolGuestsOn(day, m).includes('senya')) return { day, m };
+      return null;
+    });
+    expect(!!at, 'нет дня, когда Сеня у бассейна');
+    await noon(`s.day = ${at.day}; s.minutes = ${at.m + 5}; s.mail = null;`);
+    await L.mutate('s.friends.senya.met = true; s.friends.senya.chat = -1;');
+    const pool = () =>
+      ev(async () => {
+        const Q = await import('/js/core/state.js');
+        return { pool: Q.hotelPoolGuests().includes('senya'), at: Q.npcPlace('senya').at };
+      });
+    expect((await pool()).pool, 'Сеня не у бассейна', await pool());
+    await ev(() => {
+      window.__dev.run('npc:senya');
+    });
+    await L.untilDialog();
+    // посреди разговора Сеня позвал к себе («Заходи ко мне сегодня!») — раньше он тут же уходил домой
+    await ev(() => window.__dev.actions.inviteHome('senya'));
+    expect((await pool()).pool && (await pool()).at === 'pool', 'Сеня пропал посреди разговора', await pool());
+    await L.closeAll();
+    await ctx.wait(300);
+    expect((await pool()).pool, 'Сеня пропал сразу после разговора', await pool());
+    // через полчаса игры — пошёл домой, как звал
+    await L.mutate('s.minutes += 40;');
+    expect((await pool()).at === 'home', 'Сеня так и не пошёл домой', await pool());
+  });
 };

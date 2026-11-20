@@ -27,6 +27,7 @@ import {
   ownedHomes,
   invitedToday,
   npcWhere,
+  npcPlace,
   npcLookNow,
   villaStage,
   villaWords,
@@ -252,7 +253,7 @@ export async function npcDialog(id) {
 
 /** Позвать в гости (в разговоре или по телефону); позвали — событие invite (шаг вводного задания). */
 function invite(id, home = hostHome()) {
-  const ok = inviteGuest(id, home);
+  const ok = inviteGuest(id, home, 'call'); // позвали — уходят по своим правилам (features/guests.js)
   if (ok) emit('invite', { id });
   return ok;
 }
@@ -383,7 +384,23 @@ export function openPhone() {
   });
 }
 
-register('npc', (p) => npcDialog(p.arg), 'поговорить с жителем в городе: npc:<житель>');
+/** Сколько игровых минут после разговора житель ещё остаётся, где был (чтобы не пропал на глазах — pinnedPlace). */
+const TALK_HOLD = 30;
+/** Разговор с жителем: пока он идёт и TALK_HOLD минут после, житель остаётся там, где был (core/queries.js). */
+async function talkHeld(id) {
+  const s = S();
+  G.talkPin = { id, place: npcPlace(id), day: s.day, until: Infinity };
+  try {
+    await npcDialog(id);
+  } finally {
+    const p = G.talkPin;
+    if (p && p.id === id) G.talkPin = { ...p, until: S().minutes + TALK_HOLD };
+  }
+}
+// ушла в другое место — держать жителя на месте незачем
+on('scene', () => (G.talkPin = null));
+
+register('npc', (p) => talkHeld(p.arg), 'поговорить с жителем в городе: npc:<житель>');
 
 register('guest', (p) => guestDialog(p.arg), 'поговорить с гостем дома: guest:<житель>');
 

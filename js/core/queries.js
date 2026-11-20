@@ -191,7 +191,8 @@ export const forecast = (day = G.state.day) => weatherOfDay(day, G.state.startDa
 export function npcPlace(id) {
   const s = G.state;
   if (!s) return null;
-  const key = `${stateStamp()}|${Math.floor(s.minutes)}|${G.hostVisit}|${s.weather}${s.wxStrong}`;
+  const pin = G.talkPin,
+    key = `${stateStamp()}|${Math.floor(s.minutes)}|${G.hostVisit}|${s.weather}${s.wxStrong}|${pin ? pin.id + pin.until : ''}`;
   if (placeState !== s || placeKey !== key) {
     placeState = s;
     placeKey = key;
@@ -203,6 +204,20 @@ export function npcPlace(id) {
 let placeState = null,
   placeKey = '',
   placeCache = {};
+/**
+ * ЖИТЕЛЬ НЕ ПРОПАДАЕТ ПОСРЕДИ РАЗГОВОРА. Пока хомячок говорит с жителем (действие npc:<id> — features/friends.js,
+ * talkHold) и ещё немного после, его место — то, где он был, когда разговор начался: G.talkPin = { id, place, day,
+ * until } (until — минута игры, до которой держится; Infinity — разговор идёт). Иначе место менялось прямо
+ * в разговоре: взял задание — над ним «?», а с «?» к бассейну отеля не ходят — и он пропадал от бассейна; сдал
+ * задание — и уходил из парка в отель; позвал к себе — и уходил домой. Хомячок ушла в другое место — держать
+ * незачем (talkPin снимается при смене сцены). Гости у хомячка и «хомячок у него дома» — важнее.
+ */
+export function pinnedPlace(id) {
+  const p = G.talkPin,
+    s = G.state;
+  if (!p || p.id !== id || !s || p.day !== s.day || s.minutes >= p.until) return null;
+  return p.place;
+}
 function townPlace(id) {
   const s = G.state,
     m = s.minutes,
@@ -213,6 +228,8 @@ function townPlace(id) {
     return { at: 'guest', scene: h.loc || HOME_SCENE, where: h.building, home: h.id, house, fest: null };
   }
   if (G.hostVisit === id) return out('home');
+  const pin = pinnedPlace(id);
+  if (pin) return pin;
   if (m >= VISIT.sleep) return out('asleep');
   if (invitedToday(id)) return out('home');
   if (hotelPoolGuests().includes(id)) return { ...out('pool'), where: 'hotel' };
@@ -229,6 +246,8 @@ function landPlace(id) {
     m = s.minutes,
     L = LAND_HOME[id],
     lunch = LAND_VISIT.lunch;
+  const pin = G.hostVisit !== id && pinnedPlace(id);
+  if (pin) return pin;
   const home =
     G.hostVisit === id ||
     m < LAND_VISIT.morningEnd ||
@@ -303,23 +322,39 @@ export function hotelPoolGuests() {
   if (!s) return [];
   // бассейн на открытой террасе на крыше: в любой дождь (и в ливень, грозу, метель) у него никого — гуляют в городе
   if (hotelRoofWet()) return [];
-  return poolGuestsOn(s.day, s.minutes).filter(
-    (id) =>
-      !(
-        s.guests.includes(id) ||
-        G.hostVisit === id ||
-        invitedToday(id) ||
-        guestsWaiting().includes(id) ||
-        questBadge(id)
-      ),
-  );
+  const list = poolGuestsOn(s.day, s.minutes).filter((id) => {
+    const pin = !s.guests.includes(id) && pinnedPlace(id); // с ним говорят — остаётся, где был (и с «?» тоже)
+    if (pin) return pin.at === 'pool';
+    return !(
+      s.guests.includes(id) ||
+      G.hostVisit === id ||
+      invitedToday(id) ||
+      guestsWaiting().includes(id) ||
+      questBadge(id)
+    );
+  });
+  // говорили у бассейна, а смена у бассейна тем временем кончилась — договорит и уйдёт потом
+  const tp = talking('pool');
+  if (tp && !list.includes(tp)) list.push(tp);
+  return list;
+}
+/** С кем сейчас говорят (или только что говорили) там, где at ('pool', 'room'), — id или null. */
+function talking(at) {
+  const p = G.talkPin,
+    s = G.state;
+  if (!p || s.guests.includes(p.id)) return null;
+  const pl = pinnedPlace(p.id);
+  return pl && pl.at === at ? p.id : null;
 }
 
 /** Кто из жителей сейчас гостит в номере 203 отеля (От1) — с теми же оговорками, что и у бассейна. */
 export function hotelRoomGuest() {
   const s = G.state;
   if (!s) return null;
+  const tp = talking('room');
+  if (tp) return tp; // с ним говорят в номере — он там, пока не договорят
   const id = roomGuestOn(s.day, s.minutes);
+  if (id && pinnedPlace(id)) return null; // говорит с хомячком в другом месте
   if (
     !id ||
     s.guests.includes(id) ||
