@@ -62,9 +62,27 @@ export function createTitleScene(canvas, o) {
   // облака плывут каждое своим ходом: маленькое (дальнее) — медленнее, sp — пикселей в секунду на экране компьютера.
   // Кораблик на горизонте — сам по себе, ещё медленнее облаков, чтобы глаз видел: они не связаны
   const clouds = [0, 1, 2].map((i) => ({ fx: 0.12 + i * 0.36, fy: [0.3, 0.75, 0.45][i], size: [1, 0.75, 0.9][i], sp: [9, 4.6, 6.6][i], shape: 0, from: 0, t: 1, x: 0, y: 0 })); // prettier-ignore
-  const SHIP_SP = 2.6;
-  const ship = { x: -1, honk: -9, puffs: [] };
+  // корабли: на горизонте (far) — кораблик или круизный лайнер, ближе (near) — рыболовецкое судно или яхта; на экране
+  // не больше двух, по одному на полосу. Скорость — пикселей в секунду на экране компьютера, len — длина в единицах
+  // рисунка, top — высота над водой, u — масштаб полосы (дальний мельче). Гудок у каждого свой (sfx), надпись — своя.
+  // Нажать три раза подряд — корабль отвечает гирляндой сигнальных флажков (маленький секрет)
+  const SHIPS = {
+    boat: { lane: 'far', sp: 2.6, len: 46, top: 31, snd: 'lift', say: 'Ту-ту-у!' },
+    liner: { lane: 'far', sp: 2.2, len: 94, top: 40, snd: 'lift', say: 'Ту-ту-у-у-у!' },
+    trawler: { lane: 'near', sp: 6.5, len: 60, top: 36, snd: 'bell', say: 'Дзынь-дзынь!' },
+    yacht: { lane: 'near', sp: 9.5, len: 46, top: 54, snd: 'whistle', say: 'Фью-ить!' },
+  };
+  const LANE_U = { far: 0.9, near: 1.25 };
+  const fleet = []; // { type, lane, x, dir, honk, taps: [время], flags, puffs, id }
+  let fleetNext = rnd(10, 25),
+    shipSeq = 0;
+  // батискаф: очень редко всплывает ближе к берегу, смотрит в перископ и погружается
+  const sub = { next: rnd(150, 300), t: -1, x: 0, hi: -9, dur: 8 };
   const dolphin = { next: rnd(10, 22), t: -1, x: 0, hi: -9 };
+  // вдали на горизонте: остров с вулканом (как наш «Удалённый остров») и маяк на скале. Сами они — в кэше неба (bg),
+  // каждый кадр — только дымок, огоньки и луч маяка. s — масштаб (дальнее — мельче), puff/beam — когда нажали
+  const isle = { x: 0, s: 1, puff: -9 };
+  const tower = { x: 0, s: 1, beam: -9 };
   // самолётик: время от времени пролетает по небу над морем (с ленточкой-флажком); в дождь и снег — реже.
   // t — сколько уже летит (−1 — не летит), trick — когда покачал крыльями или сделал петлю, hearts — сердечки из дыма
   const PLANE_GAP = rain ? [130, 220] : snow ? [100, 180] : [40, 90];
@@ -130,11 +148,15 @@ export function createTitleScene(canvas, o) {
     if (gull.st === 'stand') [gull.x, gull.y] = [gull.hx, gull.hy];
     if (shell.st === 'sand') [shell.x, shell.y] = at(0.27, 0.84);
     [snowman.x, snowman.y] = at(0.31, 0.42);
+    isle.s = Math.min(k, (F.w * 0.3) / 240);
+    isle.x = F.x + F.w * 0.43;
+    tower.s = Math.min(k, (F.w * 0.3) / 240);
+    tower.x = F.x + F.w * 0.64;
     for (const c of clouds) {
       c.x = W * c.fx;
       c.y = lerp(F.y + 26 * k, hy - 46 * k, c.fy);
     }
-    if (ship.x < 0) ship.x = F.x + F.w * 0.58;
+    if (!fleet.length) fleet.push(newShip(pick(['boat', 'liner']), 'far', 1, F.x + F.w * 0.58));
     mer.y = lerp(hy, sy, 0.52); // уровень воды у русалочки
     if (mer.st !== 'off') mer.x = clamp(mer.x, F.x + F.w * 0.15, F.x + F.w * 0.85);
     stars.length = 0;
@@ -290,8 +312,10 @@ export function createTitleScene(canvas, o) {
         return;
       }
     }
-    // русалочка — на воде за пальмами
+    // русалочка — на воде за пальмами, корабли поближе и батискаф — за ней
     if ((mer.st === 'look' || (mer.st === 'up' && mer.t > 0.5)) && near(x, y, ...merHit(), Math.max(R * 1.1, 36 * merS()))) return merTap(); // prettier-ignore
+    if (sub.t >= 0 && subUp() > 0.4 && near(x, y, sub.x, shipY('near') - 14 * k, Math.max(R * 1.2, 30 * k))) return subTap(); // prettier-ignore
+    for (const sh of fleet) if (sh.lane === 'near' && onShip(sh, x, y, R)) return shipTap(sh);
     // рядом с бабочкой, а под пальцем — небо, море или песок: всё же бабочке
     if (flyNear(R * 1.2)) return flyTap();
     for (const c of clouds)
@@ -307,18 +331,29 @@ export function createTitleScene(canvas, o) {
         sfx('pop');
         return;
       }
-    if (near(x, y, ship.x, hy - 10 * k, R * 1.3)) {
-      ship.honk = T;
-      note('ship');
-      sfx('lift');
-      pop(ship.x, hy - 46 * k, 'Ту-ту-у!', 16 * Math.max(k, 0.8));
-      return;
-    }
+    for (const sh of fleet) if (sh.lane === 'far' && onShip(sh, x, y, R)) return shipTap(sh);
     if (dolphin.t >= 0 && near(x, y, dolphin.x, hy + 14 * k, R * 1.6)) {
       dolphin.hi = T;
       note('dolphin');
       sfx('squeak');
       pop(dolphin.x, hy - 22 * k, '💙', 20 * Math.max(k, 0.8));
+      return;
+    }
+    // маяк и остров — дальше всех
+    if (near(x, y, tower.x, towerTop() + 16 * tower.s, Math.max(R, 34 * tower.s))) {
+      if (T - tower.beam > 2) {
+        tower.beam = T;
+        note('lighthouse');
+        sfx('ding');
+      }
+      return;
+    }
+    if (Math.abs(x - isle.x + 10 * isle.s) < 60 * isle.s && y > hy - 64 * isle.s && y < hy + 4 * k) {
+      if (T - isle.puff > 2.5) {
+        isle.puff = T;
+        note('volcano');
+        sfx('thud');
+      }
       return;
     }
     if (y < hy) {
@@ -553,6 +588,76 @@ export function createTitleScene(canvas, o) {
     pop(mer.x, mer.y - 100 * merS(), pick(['💙', '✨💙✨']), 20 * Math.max(k, 0.8));
   }
 
+  const towerTop = () => hy - 48 * tower.s; // фонарь маяка
+  // ---------- корабли ----------
+  const shipY = (lane) => (lane === 'far' ? hy + 1 * k : lerp(hy, sy, 0.3)); // ватерлиния полосы
+  const funnelX = (sh) => (sh.type === 'liner' ? -14 : 0) * sh.dir; // труба (откуда дымок), в единицах рисунка
+  function newShip(type, lane, dir, x) {
+    return { type, lane, x, dir, honk: -9, taps: [], flags: -99, puffs: [], id: ++shipSeq };
+  }
+  function onShip(sh, x, y, R) {
+    const sp = SHIPS[sh.type],
+      u = k * LANE_U[sh.lane],
+      y0 = shipY(sh.lane);
+    return (
+      Math.abs(x - sh.x) < Math.max(sp.len * u * 0.5, R) && y < y0 + R * 0.5 && y > y0 - Math.max(sp.top * u, R * 1.2)
+    );
+  }
+  function shipTap(sh) {
+    const sp = SHIPS[sh.type],
+      u = k * LANE_U[sh.lane];
+    sh.honk = T;
+    sh.taps = sh.taps.filter((t) => T - t < 1.3).concat(T);
+    note('ship');
+    note('ship-' + sh.type);
+    if (sh.taps.length >= 3 && T - sh.flags > 5) {
+      // три раза подряд — сигнальные флажки
+      sh.flags = T;
+      sh.taps = [];
+      note('ship-flags');
+      sfx('fanfare');
+      pop(sh.x, shipY(sh.lane) - (sp.top + 22) * u, '🚩 Привет!', 16 * Math.max(k, 0.8));
+      return;
+    }
+    sfx(sp.snd);
+    pop(sh.x, shipY(sh.lane) - (sp.top + 16) * u, sp.say, 16 * Math.max(k, 0.8));
+  }
+  const subUp = () => {
+    if (sub.t < 0) return 0;
+    return ease(clamp(Math.min(sub.t / 1.4, (sub.dur - sub.t) / 1.4), 0, 1));
+  };
+  function subGo() {
+    const busy = (x) => Math.abs(x - mer.x) < 80 * k || Math.abs(x - ham.x) < 34 * ham.s + 30 * k;
+    let x = F.x + F.w * 0.35;
+    for (let i = 0; i < 12; i++) {
+      const c = F.x + F.w * rnd(0.22, 0.78);
+      if (!busy(c)) {
+        x = c;
+        break;
+      }
+    }
+    Object.assign(sub, { t: 0, x, hi: -9 });
+    rings.push({ x, y: shipY('near'), t: 0 });
+    sfx('bubble');
+  }
+  function subTap() {
+    sub.hi = T;
+    sub.t = Math.max(sub.t, sub.dur - 3); // посмотрел в перископ — и погружается
+    note('sub');
+    sfx('bubble');
+    setTimeout(() => !dead && sfx('bubble'), 200);
+    pop(sub.x, shipY('near') - 50 * k, 'Буль-буль!', 16 * Math.max(k, 0.8));
+  }
+  // для автотеста: в точке x, y у горизонта нет ничего ближе (облака, кораблика, дельфина) — нажатие достанется дальнему
+  const farSky = (x, y) => {
+    const R = 30 * Math.max(k, 0.7);
+    return (
+      clouds.every((c) => !near(x, y, c.x, c.y, 62 * k * c.size + 8)) &&
+      fleet.every((sh) => !onShip(sh, x, y, 30 * Math.max(k, 0.7) + 8)) &&
+      dolphin.t < 0
+    );
+  };
+
   // ---------- шаг времени ----------
   function update(dt) {
     // хомячок
@@ -707,10 +812,42 @@ export function createTitleScene(canvas, o) {
       if (c.x > W + 120 * k) c.x = -120 * k;
       c.t = Math.min(1, c.t + dt / 0.8);
     }
-    ship.x += SHIP_SP * k * dt;
-    if (ship.x > W + 60 * k) ship.x = -60 * k;
-    if (T - ship.honk < 1.2 && Math.random() < dt * 9) ship.puffs.push({ x: ship.x - 2 * k, y: hy - 30 * k, t: 0 });
-    for (let i = ship.puffs.length - 1; i >= 0; i--) if ((ship.puffs[i].t += dt) > 2) ship.puffs.splice(i, 1);
+    for (let i = fleet.length - 1; i >= 0; i--) {
+      const sh = fleet[i],
+        sp = SHIPS[sh.type];
+      sh.x += sh.dir * sp.sp * k * dt;
+      const u = k * LANE_U[sh.lane],
+        m = sp.len * u * 0.6 + 20 * k;
+      if ((sh.dir > 0 && sh.x > W + m) || (sh.dir < 0 && sh.x < -m)) {
+        fleet.splice(i, 1);
+        fleetNext = Math.max(fleetNext, T + rnd(6, 20));
+        continue;
+      }
+      if (T - sh.honk < 1.2 && (sh.type === 'boat' || sh.type === 'liner') && Math.random() < dt * 9)
+        sh.puffs.push({ x: sh.x + funnelX(sh) * u, y: shipY(sh.lane) - sp.top * u, t: 0 });
+      for (let j = sh.puffs.length - 1; j >= 0; j--) if ((sh.puffs[j].t += dt) > 2) sh.puffs.splice(j, 1);
+    }
+    if (T > fleetNext && fleet.length < 2) {
+      // свободная полоса: на каждой — не больше одного корабля; пока всплыл батискаф, ближняя занята им
+      const lanes = ['far', 'near'].filter((l) => !fleet.some((sh) => sh.lane === l) && !(l === 'near' && sub.t >= 0));
+      if (lanes.length) {
+        const lane = pick(lanes),
+          type = pick(Object.keys(SHIPS).filter((t) => SHIPS[t].lane === lane)),
+          dir = pick([-1, 1]),
+          u = k * LANE_U[lane];
+        fleet.push(newShip(type, lane, dir, dir > 0 ? -SHIPS[type].len * u * 0.55 : W + SHIPS[type].len * u * 0.55));
+      }
+      fleetNext = T + rnd(20, 45);
+    }
+    // батискаф: не вместе с русалочкой и дельфином, ближняя полоса свободна
+    if (sub.t < 0) {
+      if (guests && T > sub.next && mer.st === 'off' && dolphin.t < 0 && !fleet.some((sh) => sh.lane === 'near'))
+        subGo();
+    } else if ((sub.t += dt) > sub.dur) {
+      sub.t = -1;
+      sub.next = T + rnd(240, 420);
+      rings.push({ x: sub.x, y: shipY('near'), t: 0 });
+    } else if (Math.random() < dt * 3) rings.push({ x: sub.x + rnd(-14, 14) * k, y: shipY('near') + 2 * k, t: 0.8 });
     // рыбки, круги, дельфин
     for (let i = jumps.length - 1; i >= 0; i--) {
       const j = jumps[i];
@@ -732,7 +869,7 @@ export function createTitleScene(canvas, o) {
     }
     // русалочка: не одновременно с дельфином
     if (mer.st === 'off') {
-      if (guests && T > mer.next && dolphin.t < 0) merGo();
+      if (guests && T > mer.next && dolphin.t < 0 && sub.t < 0) merGo();
     } else {
       mer.t += dt;
       const was = mer.t - dt;
@@ -834,6 +971,9 @@ export function createTitleScene(canvas, o) {
     kite,
     kitePos,
     look,
+    isle,
+    tower,
+    towerTop,
     mer,
     merS,
     merUp,
@@ -845,7 +985,12 @@ export function createTitleScene(canvas, o) {
     rain,
     rings,
     shell,
-    ship,
+    fleet,
+    sub,
+    subUp,
+    shipY,
+    SHIPS,
+    LANE_U,
     shoreY,
     snow,
     snowman,
@@ -898,6 +1043,8 @@ export function createTitleScene(canvas, o) {
     drawSea,
     drawFish,
     drawShip,
+    drawShipLights,
+    drawSub,
     drawCloud,
     drawPalm,
     drawNut,
@@ -913,6 +1060,9 @@ export function createTitleScene(canvas, o) {
     drawNightSky,
     drawPlane,
     drawPlaneLights,
+    drawIsleSmoke,
+    drawIsleLights,
+    drawBeam,
     drawMermaid,
     drawMermaidGlow,
   } = createTitleArt(S);
@@ -928,7 +1078,8 @@ export function createTitleScene(canvas, o) {
     ctx.drawImage(bg, 0, 0);
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     const sg = surge();
-    drawShip();
+    drawIsleSmoke();
+    for (const sh of fleet) if (sh.lane === 'far') drawShip(sh);
     drawFish();
     for (const c of clouds) drawCloud(c);
     if (!night && !rain)
@@ -946,6 +1097,9 @@ export function createTitleScene(canvas, o) {
         ctx.stroke();
       }
     drawSea(sg);
+    drawSub();
+    for (const sh of fleet) if (sh.lane === 'near') drawShip(sh);
+    if (!night) drawBeam();
     drawMermaid();
     drawStrokes();
     if (windy) drawKite();
@@ -973,6 +1127,9 @@ export function createTitleScene(canvas, o) {
       ctx.fillStyle = `rgba(10,16,58,${(rain ? 0.5 : 0.58) * dk})`;
       ctx.fillRect(0, 0, W, H);
       drawNightSky();
+      drawIsleLights();
+      drawShipLights();
+      drawBeam();
       drawPlaneLights();
       drawMermaidGlow();
     }
@@ -1065,9 +1222,21 @@ export function createTitleScene(canvas, o) {
             clouds.filter((c) => c.x > 60 && c.x < F.x + F.w - 60).sort((a, b) => far(b) - far(a))[0] || clouds[0];
           return { ...P(c.x, c.y), shape: CLOUD_ORDER[c.shape] };
         })(),
-        ship: P(ship.x, hy - 10 * k),
+        ship: (() => {
+          // корабль для автотеста: в свободной части экрана, предпочтительно дальний (первый)
+          const inF = fleet.filter((sh) => sh.x > F.x + 20 && sh.x < F.x + F.w - 20);
+          const sh = inF.find((sh) => sh.lane === 'far') || inF[0] || fleet[0];
+          if (!sh) return { x: -999, y: -999, type: null };
+          const u = k * LANE_U[sh.lane];
+          return { ...P(sh.x, shipY(sh.lane) - Math.min(SHIPS[sh.type].top * u * 0.35, 12 * k)), type: sh.type, id: sh.id, flags: T - sh.flags < 5 }; // prettier-ignore
+        })(),
+        fleet: fleet.map((sh) => ({ type: sh.type, lane: sh.lane, ...P(sh.x, shipY(sh.lane) - Math.min(SHIPS[sh.type].top * k * LANE_U[sh.lane] * 0.35, 12 * k)), id: sh.id, flags: T - sh.flags < 5 })), // prettier-ignore
+        sub: { on: sub.t >= 0, up: Math.round(subUp() * 100) / 100, ...P(sub.x, shipY('near') - 14 * k) },
         clouds: clouds.map((c) => Math.round(c.x * 10) / 10),
-        shipX: Math.round(ship.x * 10) / 10,
+        shipX: (() => {
+          const sh = fleet.find((sh) => sh.lane === 'far');
+          return sh ? Math.round(sh.x * 10) / 10 : null;
+        })(),
         sea: P(F.x + F.w * 0.45, lerp(hy, sy, 0.6)),
         shore: P(clear(F.x + F.w * 0.4, sy + 6 * k), sy + 6 * k),
         sand: P(clear(F.x + F.w * 0.36, lerp(sy, bot, 0.5)), lerp(sy, bot, 0.5)),
@@ -1076,6 +1245,15 @@ export function createTitleScene(canvas, o) {
         snowman: P(snowman.x, snowman.y - 38 * k),
         fly: { ...P(fly.x, fly.y), st: fly.st },
         dolphin: { on: dolphin.t >= 0, ...P(dolphin.x, hy + 14 * k) },
+        isle: (() => {
+          // точка острова, не закрытая кроной пальмы (на телефоне левая крона закрывает его часть)
+          const R = 30 * Math.max(k, 0.7),
+            y = hy - 14 * isle.s;
+          const xs = [-10, 10, 30, 45, -40, -60].map((dx) => isle.x + dx * isle.s);
+          const x = xs.find((x) => palms.every((p) => !near(x, y, ...crown(p), p.h * 0.34 + R))) ?? xs[0];
+          return { ...P(x, y), clear: farSky(x, y), puff: T - isle.puff < 2.5 };
+        })(),
+        tower: { ...P(tower.x, towerTop() + 16 * tower.s), clear: farSky(tower.x, towerTop() + 16 * tower.s), beam: T - tower.beam < 2 }, // prettier-ignore
         plane: (() => {
           const [x, y] = planePos();
           return { on: planeOn(), ...P(x, y), dir: plane.dir, trick: T - plane.trick < PLANE_TRICK, hearts: plane.hearts.length, top: Math.round(planeBand()[0] + r.top) }; // prettier-ignore
@@ -1095,6 +1273,26 @@ export function createTitleScene(canvas, o) {
     /** Для автотеста: позвать редкого гостя сейчас. */
     callDolphin() {
       dolphin.next = 0;
+    },
+    /** Для автотеста: пустить корабль type (boat, liner, trawler, yacht) на его полосу — в середину экрана. */
+    callShip(type) {
+      const lane = SHIPS[type].lane;
+      for (let i = fleet.length - 1; i >= 0; i--) if (fleet[i].lane === lane) fleet.splice(i, 1);
+      fleet.push(newShip(type, lane, 1, F.x + F.w * (lane === 'far' ? 0.5 : 0.68)));
+      fleetNext = T + 1e6;
+    },
+    /** Для автотеста: отогнать облака и корабли от острова и маяка (они ближе и забрали бы нажатие). */
+    clearHorizon() {
+      clouds.forEach((c, i) => (c.x = [F.x + F.w * 0.06, F.x + F.w * 0.9, W + 60 * k][i]));
+      fleet.length = 0;
+      fleetNext = T + 1e6;
+    },
+    /** Для автотеста: всплыть батискафу сейчас. */
+    callSub() {
+      for (let i = fleet.length - 1; i >= 0; i--) if (fleet[i].lane === 'near') fleet.splice(i, 1);
+      mer.st = 'off';
+      if (sub.t < 0) subGo();
+      sub.dur = 30;
     },
     /** Для автотеста: позвать самолётик сейчас (летит из-за края). */
     callPlane() {

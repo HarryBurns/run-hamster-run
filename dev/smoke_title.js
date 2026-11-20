@@ -643,6 +643,74 @@ module.exports = async function title(ctx) {
     },
   );
 
+  await step('заставка: вдали остров с вулканом и маяк — нажатие: дымок «пых» и луч маяка по морю', async () => {
+    for (const minutes of [12 * 60, 22 * 60 + 30]) {
+      await put(sample((s) => Object.assign(s, { minutes, weather: 'sun', day: 16 })));
+      await ev(() => window.__dev.title.guests(false));
+      const r = await ev(() => {
+        const q = (s) => document.querySelector(s).getBoundingClientRect();
+        return { head: q('#title .t-head').bottom, menu: q('#title .t-menu').toJSON() };
+      });
+      const inMenu = (p) => p.x > r.menu.left && p.x < r.menu.right && p.y > r.menu.top && p.y < r.menu.bottom;
+      for (const [key, name, flag] of [
+        ['tower', 'lighthouse', 'beam'],
+        ['isle', 'volcano', 'puff'],
+      ]) {
+        // облака и корабли ближе и забрали бы нажатие — отгоняем их
+        await ev(() => window.__dev.title.clearHorizon());
+        await wait(50);
+        expect((await dbg())[key].clear, key + ': закрыт облаком или кораблём', await dbg());
+        const d = await dbg();
+        expect(d[key].y > r.head && !inMenu(d[key]) && d[key].y < d.sea.y, key + ': не на горизонте', d[key]);
+        await page.mouse.click(d[key].x, d[key].y);
+        await wait(150);
+        const d2 = await dbg();
+        expect(d2.log.includes(name) && d2[key][flag], key + ': нажатие не сработало', { log: d2.log, [key]: d2[key] });
+      }
+    }
+    noErrors();
+  });
+
+  await step(
+    'заставка: корабли — лайнер, рыбаки, яхта, кораблик; у каждого свой гудок, три нажатия — флажки; батискаф',
+    async () => {
+      await put(null);
+      await ev(() => window.__dev.title.guests(false));
+      let d = await dbg();
+      expect(d.fleet.length >= 1 && d.fleet.length <= 2, 'кораблей на экране не 1–2', d.fleet);
+      for (const type of ['liner', 'boat', 'trawler', 'yacht']) {
+        await ev((t) => window.__dev.title.callShip(t), type);
+        await wait(100);
+        d = await dbg();
+        const sh = d.fleet.find((s) => s.type === type);
+        expect(sh && d.fleet.length <= 2, type + ': корабля нет или их больше двух', d.fleet);
+        await page.mouse.click(sh.x, sh.y);
+        await wait(80);
+        expect((await dbg()).log.includes('ship-' + type), type + ': не загудел', (await dbg()).log.slice(-4));
+        // ещё два быстрых нажатия (всего три подряд) — сигнальные флажки
+        for (let i = 0; i < 2; i++) {
+          const p = (await dbg()).fleet.find((s) => s.type === type);
+          await page.mouse.click(p.x, p.y);
+          await wait(60);
+        }
+        d = await dbg();
+        expect(d.fleet.find((s) => s.type === type).flags && d.log.includes('ship-flags'), type + ': флажков нет', d.log.slice(-6)); // prettier-ignore
+      }
+      const flags = (await dbg()).log.filter((x) => x === 'ship-flags').length;
+      expect(flags === 4, 'флажки поднялись не у всех', flags);
+      // батискаф: всплывает, нажатие — «буль-буль», погружается; ближняя полоса в это время свободна
+      await ev(() => window.__dev.title.callSub());
+      await until(() => window.__dev.title.debug().sub.up > 0.6, null, { timeout: 5000, msg: 'батискаф всплыл' });
+      d = await dbg();
+      expect(!d.fleet.some((s) => s.lane === 'near'), 'батискаф и корабль на одной полосе', d.fleet);
+      await page.mouse.click(d.sub.x, d.sub.y);
+      await wait(100);
+      expect((await dbg()).log.includes('sub'), 'батискаф не ответил', (await dbg()).log.slice(-3));
+      await until(() => !window.__dev.title.debug().sub.on, null, { timeout: 6000, msg: 'батискаф погрузился' });
+      noErrors();
+    },
+  );
+
   await step('заставка: ночью — одна падающая звезда за запуск; касание пальцем работает как мышь', async () => {
     await put(sample((s) => Object.assign(s, { minutes: 22 * 60 + 30, weather: 'sun', day: 16 })));
     await wait(400);

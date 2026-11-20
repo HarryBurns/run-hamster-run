@@ -106,11 +106,242 @@ export function createTitleArt(S) {
         c.fill();
       }
     }
+    paintIsle(c, low);
+    paintTower(c, low);
     // норка краба
     c.fillStyle = 'rgba(120,80,40,.55)';
     c.beginPath();
     c.ellipse(S.crab.hx, S.crab.hy, 17 * S.k, 7 * S.k, 0, 0, TAU);
     c.fill();
+  }
+  // ---------- вдали: остров с вулканом и маяк (рисуются один раз в кэш неба) ----------
+  // haze — цвет дымки у горизонта: чем дальше, тем больше в неё уходят цвета
+  const HAZE = 0.42;
+  function paintIsle(c, haze) {
+    const z = (col) => mix(col, haze, HAZE),
+      s = S.isle.s;
+    c.save();
+    c.translate(S.isle.x, S.hy);
+    c.scale(s, s);
+    c.lineCap = 'round';
+    const blob = (col, pts) => {
+      c.fillStyle = z(col);
+      c.beginPath();
+      pts();
+      c.closePath();
+      c.fill();
+    };
+    blob('#f3d9a0', () => c.ellipse(4, 0.5, 124, 4.5, 0, 0, TAU)); // песок у воды
+    blob('#5fae4a', () => {
+      c.moveTo(-120, 0);
+      c.quadraticCurveTo(-104, -12, -80, -10);
+      c.quadraticCurveTo(0, -16, 84, -9);
+      c.quadraticCurveTo(108, -8, 122, 0);
+    });
+    // вулкан: наверху пепел, ниже зелёные склоны
+    const g = c.createLinearGradient(0, -57, 0, -4);
+    g.addColorStop(0, z('#8d7b6e'));
+    g.addColorStop(0.5, z('#8d7b6e'));
+    g.addColorStop(0.8, z('#5fae4a'));
+    c.fillStyle = g;
+    c.beginPath();
+    c.moveTo(-74, -6);
+    c.quadraticCurveTo(-46, -20, -30, -54);
+    c.lineTo(-25, -57);
+    c.lineTo(-9, -57);
+    c.lineTo(-4, -54);
+    c.quadraticCurveTo(12, -22, 42, -7);
+    c.closePath();
+    c.fill();
+    blob('#5a4a42', () => c.ellipse(-17, -56.6, 8, 1.8, 0, 0, TAU));
+    c.strokeStyle = z('#ff8a3d');
+    c.lineWidth = 1.6;
+    c.beginPath();
+    c.moveTo(-15, -55);
+    c.quadraticCurveTo(-11, -45, -16, -36);
+    c.stroke();
+    // пальмы
+    for (const [px, py, lean] of [
+      [-102, -5, -1],
+      [-88, -8, 1],
+      [52, -9, -1],
+      [100, -6, 1],
+    ]) {
+      // prettier-ignore
+      const tx = px + lean * 4,
+        ty = py - 17;
+      c.strokeStyle = z('#7a5a3a');
+      c.lineWidth = 1.7;
+      c.beginPath();
+      c.moveTo(px, py);
+      c.quadraticCurveTo(px + lean * 1, py - 9, tx, ty);
+      c.stroke();
+      c.strokeStyle = z('#2f8f3a');
+      c.lineWidth = 2.4;
+      c.beginPath();
+      for (const a of [-2.7, -2.1, -1.57, -1.05, -0.45]) {
+        c.moveTo(tx, ty);
+        c.quadraticCurveTo(
+          tx + Math.cos(a) * 6,
+          ty + Math.sin(a) * 6 - 1,
+          tx + Math.cos(a) * 10,
+          ty + Math.sin(a) * 6 + 4,
+        );
+      }
+      c.stroke();
+    }
+    // хижины на сваях под пальмовыми крышами
+    for (const [hx, hy2] of [
+      [66, -6],
+      [80, -5],
+    ]) {
+      // prettier-ignore
+      c.strokeStyle = z('#7a5a3a');
+      c.lineWidth = 1.1;
+      c.beginPath();
+      for (const dx of [-3, 3]) {
+        c.moveTo(hx + dx, hy2);
+        c.lineTo(hx + dx, hy2 + 4);
+      }
+      c.stroke();
+      blob('#c08a4e', () => c.rect(hx - 4.5, hy2 - 5, 9, 5));
+      blob('#d9b36b', () => {
+        c.moveTo(hx - 7, hy2 - 4.5);
+        c.lineTo(hx, hy2 - 11);
+        c.lineTo(hx + 7, hy2 - 4.5);
+      });
+      blob('#5a3d26', () => c.rect(hx - 1, hy2 - 3.6, 2, 3.6));
+    }
+    // причал
+    c.strokeStyle = z('#a0784e');
+    c.lineWidth = 1.8;
+    c.beginPath();
+    c.moveTo(104, -1);
+    c.lineTo(130, 1);
+    c.stroke();
+    c.lineWidth = 1;
+    c.beginPath();
+    for (const px of [110, 118, 126]) {
+      c.moveTo(px, -0.5);
+      c.lineTo(px, 3);
+    }
+    c.stroke();
+    blob('#9a9086', () => c.ellipse(22, -6.5, 4, 1.2, 0, 0, TAU)); // круг камней у костра
+    c.restore();
+  }
+  function paintTower(c, haze) {
+    const z = (col) => mix(col, haze, HAZE),
+      s = S.tower.s;
+    c.save();
+    c.translate(S.tower.x, S.hy);
+    c.scale(s, s);
+    const blob = (col, pts) => {
+      c.fillStyle = z(col);
+      c.beginPath();
+      pts();
+      c.closePath();
+      c.fill();
+    };
+    blob('#7d8a96', () => {
+      c.moveTo(-28, 1);
+      c.quadraticCurveTo(-24, -10, -11, -13);
+      c.lineTo(9, -14);
+      c.quadraticCurveTo(22, -9, 28, 1);
+    });
+    blob('#66717c', () => c.ellipse(8, -1, 18, 3, 0, 0, TAU));
+    blob('#ffffff', () => {
+      c.moveTo(-6, -12);
+      c.lineTo(6, -12);
+      c.lineTo(4, -44);
+      c.lineTo(-4, -44);
+    });
+    for (const y0 of [-21, -33])
+      blob('#e03131', () => {
+        c.moveTo(-5.4 + (y0 + 12) * -0.0625, y0);
+        c.lineTo(5.4 - (y0 + 12) * -0.0625, y0);
+        c.lineTo(5.0 - (y0 + 7 + 12) * -0.0625, y0 - 5);
+        c.lineTo(-5.0 + (y0 + 7 + 12) * -0.0625, y0 - 5);
+      });
+    blob('#495057', () => c.rect(-6, -46, 12, 2.2));
+    blob('#ffe8a3', () => c.rect(-3.5, -52, 7, 6));
+    blob('#c92a2a', () => {
+      c.moveTo(-5, -52);
+      c.lineTo(5, -52);
+      c.lineTo(0, -58);
+    });
+    c.restore();
+  }
+  // дымок над вулканом: четыре облачка поднимаются по очереди; нажали — «пых!» побольше
+  function drawIsleSmoke() {
+    const I = S.isle,
+      s = I.s,
+      drift = S.windy ? 2 : 1;
+    const puff = (ph, big) => {
+      const a = clamp(ph * 5, 0, 1) * (1 - ph) * (big ? 0.8 : 0.5);
+      circle(I.x + (-17 + ph * 26 * drift + Math.sin(ph * 6) * 3) * s, S.hy + (-60 - ph * (big ? 60 : 38)) * s, (3 + ph * (big ? 13 : 7)) * s, `rgba(236,236,240,${a.toFixed(3)})`); // prettier-ignore
+    };
+    for (let i = 0; i < 4; i++) puff((S.T * 0.11 + i / 4) % 1, false);
+    const q = (S.T - I.puff) / 2.5;
+    if (q >= 0 && q < 1) for (let i = 0; i < 3; i++) puff(clamp(q * 1.3 - i * 0.12, 0, 0.999), true);
+  }
+  /** Ночью (поверх затемнения): окошки хижин, костёр, жерло вулкана и вспышки маяка. */
+  function drawIsleLights() {
+    const I = S.isle,
+      s = I.s,
+      a = clamp((S.dk - 0.25) / 0.4, 0, 1);
+    if (a <= 0) return;
+    const glow = (x, y, r, col, al) => {
+      const g = S.ctx.createRadialGradient(x, y, 0, x, y, r);
+      g.addColorStop(0, `rgba(${col},${(al * a).toFixed(3)})`);
+      g.addColorStop(1, `rgba(${col},0)`);
+      S.ctx.fillStyle = g;
+      S.ctx.fillRect(x - r, y - r, r * 2, r * 2);
+    };
+    const fl = 0.75 + 0.25 * Math.sin(S.T * 9) * Math.sin(S.T * 5.3);
+    glow(I.x - 17 * s, S.hy - 57 * s, 16 * s, '255,120,50', 0.55); // жерло
+    glow(I.x + 22 * s, S.hy - 8 * s, 10 * s * fl, '255,170,60', 0.85); // костёр
+    circle(I.x + 22 * s, S.hy - 8 * s, 1.5 * s, `rgba(255,220,130,${(a * fl).toFixed(3)})`);
+    for (const [hx, hy2] of [
+      [66, -8.5],
+      [80, -7.5],
+    ]) {
+      // prettier-ignore
+      glow(I.x + hx * s, S.hy + hy2 * s, 7 * s, '255,210,120', 0.6);
+      circle(I.x + hx * s, S.hy + hy2 * s, 1.1 * s, `rgba(255,225,150,${a.toFixed(3)})`);
+    }
+    // маяк мигает: две вспышки, пауза
+    const ph = S.T % 2.8,
+      on = ph < 0.3 || (ph > 0.55 && ph < 0.85);
+    const tx = S.tower.x,
+      ty = S.towerTop();
+    glow(tx, ty, (on ? 34 : 10) * S.tower.s, '255,240,180', on ? 0.9 : 0.4);
+    if (on) circle(tx, ty, 2.6 * S.tower.s, `rgba(255,250,220,${a.toFixed(3)})`);
+  }
+  /** Нажали на маяк: по морю проходит луч света — слева направо к берегу. */
+  function drawBeam() {
+    const q = (S.T - S.tower.beam) / 2;
+    if (q < 0 || q >= 1) return;
+    const tx = S.tower.x,
+      ty = S.towerTop(),
+      ang = lerp(Math.PI * 0.93, Math.PI * 0.07, ease(q)),
+      L = Math.hypot(S.W, S.H),
+      w = 0.06;
+    const al = bell(q) * (S.night ? 0.55 : 0.4);
+    S.ctx.save();
+    S.ctx.beginPath();
+    S.ctx.rect(S.F.x, ty - 20 * S.tower.s, S.F.w, S.sy - ty + 20 * S.tower.s); // небо у горизонта и море
+    S.ctx.clip();
+    const g = S.ctx.createRadialGradient(tx, ty, 0, tx, ty, (S.sy - S.hy) * 3);
+    g.addColorStop(0, `rgba(255,248,210,${al.toFixed(3)})`);
+    g.addColorStop(1, 'rgba(255,248,210,0)');
+    S.ctx.fillStyle = g;
+    S.ctx.beginPath();
+    S.ctx.moveTo(tx, ty);
+    S.ctx.lineTo(tx + Math.cos(ang - w) * L, ty + Math.sin(ang - w) * L * 0.35);
+    S.ctx.lineTo(tx + Math.cos(ang + w) * L, ty + Math.sin(ang + w) * L * 0.35);
+    S.ctx.closePath();
+    S.ctx.fill();
+    S.ctx.restore();
   }
   // ---------- рисование ----------
   const circle = (x, y, r, fill) => {
@@ -228,30 +459,315 @@ export function createTitleArt(S) {
       S.ctx.restore();
     }
   }
-  function drawShip() {
-    const x = S.ship.x,
-      y = S.hy + Math.sin(S.T * 1.2) * 1.2 * S.k,
-      u = S.k * 0.9;
-    for (const p of S.ship.puffs) circle(p.x - p.t * 9 * S.k, p.y - p.t * 16 * S.k, (4 + p.t * 5) * S.k, `rgba(255,255,255,${0.7 * (1 - p.t / 2)})`); // prettier-ignore
-    S.ctx.save();
-    S.ctx.translate(x, y);
-    S.ctx.scale(u, u);
-    S.ctx.fillStyle = '#e8590c';
-    S.ctx.beginPath();
-    S.ctx.moveTo(-22, -9);
-    S.ctx.lineTo(24, -9);
-    S.ctx.lineTo(17, 1);
-    S.ctx.lineTo(-17, 1);
-    S.ctx.fill();
-    S.ctx.fillStyle = '#fff';
-    S.ctx.fillRect(-11, -19, 19, 10);
-    S.ctx.fillStyle = '#343a40';
-    S.ctx.fillRect(-4, -31, 7, 12);
-    S.ctx.fillStyle = '#ffd43b';
-    S.ctx.fillRect(-4, -27, 7, 3);
-    S.ctx.fillStyle = '#4dabf7';
-    for (const wx of [-8, -2, 4]) S.ctx.fillRect(wx, -16, 3, 3);
-    S.ctx.restore();
+  // ---------- корабли: рисунок каждого вида — один раз в кэш, поверх — дымок, кильватер, флажки, чайки ----------
+  // единицы рисунка: нос — вправо (+x), ватерлиния — y = 0; dir −1 — зеркально
+  const SHIP_ART = {
+    boat: {
+      flags: [[24, -9], [0, -31], [-22, -9]], // prettier-ignore
+      paint(c, f) {
+        f('#e8590c', () => {
+          c.moveTo(-22, -9);
+          c.lineTo(24, -9);
+          c.lineTo(17, 1);
+          c.lineTo(-17, 1);
+        });
+        f('#fff', () => c.rect(-11, -19, 19, 10));
+        f('#343a40', () => c.rect(-4, -31, 7, 12));
+        f('#ffd43b', () => c.rect(-4, -27, 7, 3), true);
+        for (const wx of [-8, -2, 4]) f('#4dabf7', () => c.rect(wx, -16, 3, 3), true);
+      },
+    },
+    liner: {
+      flags: [[48, -10], [30, -42], [-46, -10]], // prettier-ignore
+      paint(c, f) {
+        f('#fff', () => {
+          c.moveTo(-46, -10);
+          c.lineTo(49, -10);
+          c.lineTo(41, 2);
+          c.lineTo(-42, 2);
+          c.quadraticCurveTo(-47, -3, -46, -10);
+        });
+        f(
+          '#264b8c',
+          () => {
+            c.moveTo(-44, -3);
+            c.lineTo(45, -3);
+            c.lineTo(41, 2);
+            c.lineTo(-42, 2);
+          },
+          true,
+        );
+        f('#fff', () => c.rect(-36, -18, 66, 8));
+        f('#fff', () => c.rect(-28, -25, 48, 7));
+        f('#fff', () => c.rect(14, -31, 12, 6));
+        c.fillStyle = '#4dabf7';
+        for (let x = -33; x < 28; x += 5) c.fillRect(x, -15.5, 2.6, 2.4);
+        for (let x = -25; x < 18; x += 5) c.fillRect(x, -22.5, 2.6, 2.4);
+        for (let x = -42; x < 44; x += 5) c.fillRect(x, -7.5, 2, 2);
+        for (const fx of [-20, -8]) {
+          f('#e03131', () => c.rect(fx, -38, 8, 13));
+          f('#212529', () => c.rect(fx, -38, 8, 3), true);
+        }
+        c.beginPath();
+        c.moveTo(30, -25);
+        c.lineTo(30, -42);
+        c.stroke();
+      },
+    },
+    trawler: {
+      flags: [[30, -10], [-12, -40], [-28, -8]], // prettier-ignore
+      paint(c, f) {
+        // сеть на стреле: висит у кормы
+        c.strokeStyle = 'rgba(80,60,40,.8)';
+        c.lineWidth = 1.2;
+        c.beginPath();
+        c.moveTo(-12, -36);
+        c.lineTo(-34, -16);
+        c.stroke();
+        c.lineWidth = 0.8;
+        c.beginPath();
+        for (let i = 0; i <= 4; i++) {
+          c.moveTo(-34 + i * 2, -16 + i * 0.5);
+          c.lineTo(-30 + i * 3, -2);
+          c.moveTo(-34, -16 + i * 3.4);
+          c.lineTo(-22, -14 + i * 3);
+        }
+        c.stroke();
+        c.lineWidth = 1.4;
+        c.strokeStyle = OUT;
+        f('#1971c2', () => {
+          c.moveTo(-28, -8);
+          c.lineTo(30, -11);
+          c.lineTo(23, 2);
+          c.lineTo(-25, 2);
+        });
+        f(
+          '#e03131',
+          () => {
+            c.moveTo(-26, -1);
+            c.lineTo(26, -2);
+            c.lineTo(23, 2);
+            c.lineTo(-25, 2);
+          },
+          true,
+        );
+        f('#fff', () => c.rect(0, -22, 15, 12));
+        f('#74c0fc', () => c.rect(8, -19, 5, 4), true);
+        f('#f08c00', () => c.rect(2, -26, 9, 4));
+        c.beginPath();
+        c.moveTo(-12, -9);
+        c.lineTo(-12, -40);
+        c.stroke();
+        for (const bx of [-20, -4, 20]) f('#ff922b', () => c.arc(bx, -10, 2, 0, TAU));
+      },
+    },
+    yacht: {
+      flags: [[25, -6], [0, -55], [-21, -5]], // prettier-ignore
+      paint(c, f) {
+        f('#fff', () => {
+          c.moveTo(1, -52);
+          c.lineTo(1, -9);
+          c.lineTo(-19, -9);
+        });
+        f(
+          '#ff6b6b',
+          () => {
+            c.moveTo(1, -24);
+            c.lineTo(1, -17);
+            c.lineTo(-12, -17);
+            c.lineTo(-8, -24);
+          },
+          true,
+        );
+        f('#ffe066', () => {
+          c.moveTo(3, -48);
+          c.lineTo(3, -9);
+          c.lineTo(20, -9);
+        });
+        c.beginPath();
+        c.moveTo(0, -6);
+        c.lineTo(0, -55);
+        c.stroke();
+        f('#fff', () => {
+          c.moveTo(-21, -6);
+          c.lineTo(25, -7);
+          c.quadraticCurveTo(19, 2, 10, 2);
+          c.lineTo(-17, 2);
+        });
+        c.strokeStyle = '#1c7ed6';
+        c.lineWidth = 1.6;
+        c.beginPath();
+        c.moveTo(-19, -2);
+        c.lineTo(21, -3);
+        c.stroke();
+      },
+    },
+  };
+  function paintShip(c, type, u, dir) {
+    c.scale(dir * u, u);
+    c.lineWidth = 1.4;
+    c.strokeStyle = OUT;
+    c.lineJoin = 'round';
+    const f = (col, pts, noStroke) => {
+      c.fillStyle = col;
+      c.beginPath();
+      pts();
+      c.closePath();
+      c.fill();
+      if (!noStroke) c.stroke();
+    };
+    SHIP_ART[type].paint(c, f);
+  }
+  const FLAG_COLS = ['#e03131', '#ffd43b', '#1c7ed6', '#2f9e44', '#fff', '#f76707'];
+  function drawShip(sh) {
+    const sp = S.SHIPS[sh.type],
+      u = S.k * S.LANE_U[sh.lane],
+      d = sh.dir,
+      x = sh.x,
+      y = S.shipY(sh.lane) + Math.sin(S.T * 1.2 + sh.id) * 1.2 * u,
+      ctx = S.ctx;
+    for (const p of sh.puffs) circle(p.x - p.t * 9 * S.k * d, p.y - p.t * 16 * S.k, (4 + p.t * 5) * S.k, `rgba(255,255,255,${(0.7 * (1 - p.t / 2)).toFixed(3)})`); // prettier-ignore
+    // кильватер: белые чёрточки за кормой
+    ctx.strokeStyle = 'rgba(255,255,255,.75)';
+    ctx.lineWidth = 1.6 * u;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    for (let i = 0; i < 3; i++) {
+      const q = (S.T * 0.6 + i / 3) % 1,
+        wx = x - d * (sp.len * 0.5 + 4 + q * 26) * u;
+      ctx.moveTo(wx, y + (1 + q * 2) * u);
+      ctx.lineTo(wx - d * 8 * u * (1 - q), y + (1 + q * 2) * u);
+    }
+    ctx.stroke();
+    SP.setScale(S.dpr);
+    blit(SP.get(`ship:${sh.type}:${d}:${Math.round(u * 100)}`, [-(sp.len * 0.5 + 16) * u, -(sp.top + 8) * u, (sp.len * 0.5 + 16) * u, 6 * u], (c) => paintShip(c, sh.type, u, d)), x, y); // prettier-ignore
+    if (sh.type === 'trawler' && !S.rain && !S.night) {
+      // чайки кружат над рыбаками
+      ctx.strokeStyle = 'rgba(70,80,100,.8)';
+      ctx.lineWidth = 1.4 * u;
+      ctx.beginPath();
+      for (let i = 0; i < 2; i++) {
+        const gx = x + Math.cos(S.T * 1.1 + i * 3) * 22 * u - d * 10 * u,
+          gy = y - (48 + Math.sin(S.T * 1.7 + i) * 5) * u,
+          fl = Math.sin(S.T * 6 + i) * 2.5 * u;
+        ctx.moveTo(gx - 6 * u, gy - fl);
+        ctx.quadraticCurveTo(gx - 2.5 * u, gy - 3.5 * u, gx, gy);
+        ctx.quadraticCurveTo(gx + 2.5 * u, gy - 3.5 * u, gx + 6 * u, gy - fl);
+      }
+      ctx.stroke();
+    }
+    // сигнальные флажки: гирлянда от носа через мачту к корме поднимается и держится пять секунд
+    const q = (S.T - sh.flags) / 5;
+    if (q >= 0 && q < 1) {
+      const up = ease(clamp(q * 5, 0, 1)) * clamp((1 - q) * 6, 0, 1),
+        [a, m, b] = SHIP_ART[sh.type].flags.map(([fx, fy]) => [x + fx * d * u, y + fy * u]),
+        top = [m[0], lerp(y - 4 * u, m[1], up)];
+      ctx.strokeStyle = 'rgba(60,50,40,.8)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(...a);
+      ctx.lineTo(...top);
+      ctx.lineTo(...b);
+      ctx.stroke();
+      let n = 0;
+      for (const [p0, p1] of [[a, top], [top, b]]) // prettier-ignore
+        for (let i = 1; i < 6; i++) {
+          const fx = lerp(p0[0], p1[0], i / 6),
+            fy = lerp(p0[1], p1[1], i / 6),
+            wv = Math.sin(S.T * 8 + n) * 1.2 * u;
+          ctx.fillStyle = FLAG_COLS[n++ % FLAG_COLS.length];
+          ctx.beginPath();
+          ctx.moveTo(fx - 2.6 * u, fy);
+          ctx.lineTo(fx + 2.6 * u, fy);
+          ctx.lineTo(fx + wv, fy + 6 * u);
+          ctx.closePath();
+          ctx.fill();
+        }
+    }
+  }
+  /** Ночью у кораблей светятся окошки и огонёк на мачте (поверх затемнения). */
+  function drawShipLights() {
+    const a = clamp((S.dk - 0.25) / 0.4, 0, 1);
+    if (a <= 0) return;
+    for (const sh of S.fleet) {
+      const u = S.k * S.LANE_U[sh.lane],
+        d = sh.dir,
+        y = S.shipY(sh.lane) + Math.sin(S.T * 1.2 + sh.id) * 1.2 * u;
+      S.ctx.fillStyle = `rgba(255,225,140,${(0.9 * a).toFixed(3)})`;
+      const win = { liner: [[-33, 28, -15.5], [-25, 18, -22.5]], boat: [[-8, 6, -16]], trawler: [[8, 9, -19]], yacht: [] }[sh.type]; // prettier-ignore
+      for (const [x0, x1, wy] of win)
+        for (let wx = x0; wx < x1; wx += 5) S.ctx.fillRect(sh.x + (d > 0 ? wx : -wx - 2.6) * u, y + wy * u, 2.6 * u, 2.4 * u); // prettier-ignore
+      const [mx, my] = SHIP_ART[sh.type].flags[1];
+      circle(sh.x + mx * d * u, y + my * u, 1.6 * u, `rgba(255,255,230,${a.toFixed(3)})`);
+    }
+  }
+  // батискаф: жёлтый, с круглым окошком и перископом; поднимается из воды (видно только то, что над водой)
+  function paintSub(c, u) {
+    c.scale(u, u);
+    c.lineWidth = 1.5;
+    c.strokeStyle = OUT;
+    const f = (col, pts) => {
+      c.fillStyle = col;
+      c.beginPath();
+      pts();
+      c.closePath();
+      c.fill();
+      c.stroke();
+    };
+    f('#868e96', () => c.ellipse(-24, -9, 3, 6, 0, 0, TAU)); // винт
+    f('#ffd43b', () => c.ellipse(0, -9, 23, 12, 0, 0, TAU));
+    f('#ffd43b', () => c.rect(-7, -27, 12, 9));
+    f('#ffe066', () => c.ellipse(-1, -27, 6, 1.8, 0, 0, TAU));
+    f('#d0ebff', () => c.arc(9, -10, 5.5, 0, TAU));
+    c.fillStyle = 'rgba(255,255,255,.8)';
+    c.beginPath();
+    c.arc(7.5, -11.5, 1.6, 0, TAU);
+    c.fill();
+    for (const rx of [-12, -4]) f('#fab005', () => c.arc(rx, -6, 1.6, 0, TAU));
+  }
+  function drawSub() {
+    const B = S.sub;
+    if (B.t < 0) return;
+    const up = S.subUp(),
+      u = S.k * 1.1,
+      wy = S.shipY('near'),
+      ctx = S.ctx,
+      x = B.x,
+      y = wy + (1 - up) * 44 * u + Math.sin(S.T * 1.5) * 1 * u;
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(0, 0, S.W, wy + 1); // над водой
+    ctx.clip();
+    // перископ: смотрит то вправо, то влево; нажали — крутится
+    const spin = S.T - B.hi < 1.2,
+      pd = spin ? (Math.sin(S.T * 18) > 0 ? 1 : -1) : Math.sin(S.T * 0.8) > 0 ? 1 : -1;
+    ctx.strokeStyle = '#495057';
+    ctx.lineWidth = 2 * u;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(x - 2 * u, y - 27 * u);
+    ctx.lineTo(x - 2 * u, y - 38 * u);
+    ctx.lineTo(x + (-2 + pd * 5) * u, y - 38 * u);
+    ctx.stroke();
+    SP.setScale(S.dpr);
+    blit(
+      SP.get(`sub:${Math.round(u * 100)}`, [-30 * u, -32 * u, 26 * u, 6 * u], (c) => paintSub(c, u)),
+      x,
+      y,
+    );
+    ctx.restore();
+    // пузыри
+    for (let i = 0; i < 5; i++) {
+      const q = (S.T * (spin ? 1.6 : 0.7) + i / 5) % 1;
+      circle(x + Math.sin(i * 2.3 + S.T) * 18 * u, wy - q * 26 * u * (0.4 + up), (1.4 + q * 1.8) * u, `rgba(255,255,255,${(0.75 * (1 - q)).toFixed(3)})`); // prettier-ignore
+    }
+    if (up > 0.05) {
+      ctx.strokeStyle = `rgba(255,255,255,${(0.85 * up).toFixed(3)})`;
+      ctx.lineWidth = 2 * S.k;
+      ctx.beginPath();
+      ctx.ellipse(x, wy, 26 * u, 5 * u, 0, 0, Math.PI);
+      ctx.stroke();
+    }
   }
   function drawCloud(c) {
     const a = CLOUD_SHAPES[CLOUD_ORDER[c.from]],
@@ -1119,6 +1635,8 @@ export function createTitleArt(S) {
     drawSea,
     drawFish,
     drawShip,
+    drawShipLights,
+    drawSub,
     drawCloud,
     drawPalm,
     drawNut,
@@ -1136,5 +1654,8 @@ export function createTitleArt(S) {
     drawPlaneLights,
     drawMermaid,
     drawMermaidGlow,
+    drawIsleSmoke,
+    drawIsleLights,
+    drawBeam,
   };
 }
