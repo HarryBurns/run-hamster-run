@@ -10,7 +10,7 @@ import { SpriteSet } from '../core/sprites.js';
 import { npcLook } from '../data/index.js';
 
 const OUT = '#4a3728',
-  PLANE_U = 1.15; // размер самолётика от общего масштаба заставки
+  PLANE_U = 0.62; // размер самолётика от общего масштаба заставки: он далеко над морем, за пальмами
 // кадры самолётика и русалочки рисуются один раз и потом только копируются (ключ — направление, поза, масштаб);
 // набор один на все заставки: сменился масштаб экрана — он сбрасывается сам. Память — в общем учёте кэшей картинок
 // (core/pixcache.js); заставку закрыли — releaseTitleArt() отпускает все кадры (в игре они не нужны)
@@ -28,6 +28,17 @@ const CLOUD_SHAPES = {
   hamster: { puffs: [[0, 0.5, 1.05], [0, -0.6, 0.85], [-0.65, -1.3, 0.35], [0.65, -1.3, 0.35], [-0.75, -0.35, 0.5], [0.75, -0.35, 0.5], [-0.8, 1.2, 0.35], [0.8, 1.2, 0.35]], eyes: [[-0.3, -0.75], [0.3, -0.75]] }, // prettier-ignore
 };
 export const CLOUD_ORDER = ['cloud', 'bunny', 'fish', 'hamster'];
+/**
+ * Рыбки, что выпрыгивают из моря: dur — сколько длится прыжок (с), len — как далеко, hi — как высоко (на экране
+ * компьютера), size — размер, n — сколько в стайке (lag — на сколько секунд каждая следующая отстаёт), w — как часто.
+ */
+export const FISH = {
+  clown: { dur: 0.9, len: 46, hi: 54, size: 1.1, n: 1, lag: 0, w: 3 },
+  blue: { dur: 1, len: 52, hi: 60, size: 1.2, n: 1, lag: 0, w: 3 },
+  yellow: { dur: 0.85, len: 40, hi: 50, size: 1.05, n: 1, lag: 0, w: 3 },
+  school: { dur: 0.75, len: 36, hi: 40, size: 0.7, n: 5, lag: 0.09, w: 2.5 },
+  flying: { dur: 2.2, len: 230, hi: 34, size: 1, n: 1, lag: 0, w: 1 },
+};
 export const ease = (t) => t * t * (3 - 2 * t);
 const bell = (t) => Math.sin(clamp(t, 0, 1) * Math.PI);
 
@@ -294,18 +305,61 @@ export function createTitleArt(S) {
     });
     c.restore();
   }
-  // дымок над вулканом: четыре облачка поднимаются по очереди; нажали — «пых!» побольше
+  // дымок над вулканом: четыре облачка поднимаются по очереди. Нажали — извержение: вспышка и искры из жерла, потом
+  // ERUPT секунд валят густые клубы (тёмные снизу, светлые сверху), растут и клонятся по ветру; ночью их снизу
+  // подсвечивает лава (drawIsleLights)
+  const ERUPT = 5.5,
+    CLUMP = 3.6; // сколько живёт один клуб
+  /** Для каждого клуба извержений сейчас: fn(x, y, r, a, ph) — середина, радиус, непрозрачность, доля жизни. */
+  function eruptClumps(fn) {
+    const I = S.isle,
+      s = I.s,
+      drift = S.windy ? 1.8 : 1;
+    for (const t0 of I.puffs) {
+      const e = S.T - t0;
+      if (e < 0 || e > ERUPT + CLUMP) continue;
+      for (let i = 0; i * 0.24 < ERUPT; i++) {
+        const ph = (e - i * 0.24) / CLUMP;
+        if (ph < 0 || ph >= 1) continue;
+        const rise = 1 - (1 - ph) * (1 - ph),
+          side = ((i * 7) % 5) - 2;
+        fn(
+          I.x + (-17 + rise * 70 * drift + Math.sin(ph * 5 + i) * 4 + side * 6 * rise) * s,
+          S.hy + (-62 - rise * 80 + rise * rise * 6 * side) * s,
+          (6 + rise * 22) * s * (0.85 + (i % 3) * 0.12),
+          clamp(ph * 7, 0, 1) * (1 - ph) ** 0.7 * 0.95,
+          ph,
+        );
+      }
+    }
+  }
   function drawIsleSmoke() {
     const I = S.isle,
       s = I.s,
       drift = S.windy ? 2 : 1;
-    const puff = (ph, big) => {
-      const a = clamp(ph * 5, 0, 1) * (1 - ph) * (big ? 0.8 : 0.5);
-      circle(I.x + (-17 + ph * 26 * drift + Math.sin(ph * 6) * 3) * s, S.hy + (-60 - ph * (big ? 60 : 38)) * s, (3 + ph * (big ? 13 : 7)) * s, `rgba(236,236,240,${a.toFixed(3)})`); // prettier-ignore
+    const puff = (ph) => {
+      const a = clamp(ph * 5, 0, 1) * (1 - ph) * 0.5;
+      circle(I.x + (-17 + ph * 26 * drift + Math.sin(ph * 6) * 3) * s, S.hy + (-60 - ph * 38) * s, (3 + ph * 7) * s, `rgba(236,236,240,${a.toFixed(3)})`); // prettier-ignore
     };
-    for (let i = 0; i < 4; i++) puff((S.T * 0.11 + i / 4) % 1, false);
-    const q = (S.T - I.puff) / 2.5;
-    if (q >= 0 && q < 1) for (let i = 0; i < 3; i++) puff(clamp(q * 1.3 - i * 0.12, 0, 0.999), true);
+    for (let i = 0; i < 4; i++) puff((S.T * 0.11 + i / 4) % 1);
+    // клубы извержения: тень снизу-справа, светлый бок сверху-слева
+    eruptClumps((x, y, r, a) => {
+      circle(x + r * 0.22, y + r * 0.18, r, `rgba(140,142,154,${a.toFixed(3)})`);
+      circle(x - r * 0.16, y - r * 0.16, r * 0.8, `rgba(246,246,249,${a.toFixed(3)})`);
+    });
+    // вспышка и искры лавы — в первую секунду
+    for (const t0 of I.puffs) {
+      const e = S.T - t0;
+      if (e < 0 || e > 1.2) continue;
+      const cx = I.x - 17 * s,
+        cy = S.hy - 60 * s;
+      if (e < 0.6) circle(cx, cy, (4 + e * 10) * s, `rgba(255,140,50,${(0.8 * (1 - e / 0.6)).toFixed(3)})`);
+      for (let i = 0; i < 6; i++) {
+        const vx = (i - 2.5) * 9,
+          vy = 52 + (i % 2) * 14;
+        circle(cx + vx * e * s, cy + (-vy * e + 70 * e * e) * s, 1.6 * s, `rgba(255,${150 + i * 12},60,${(1 - e / 1.2).toFixed(3)})`); // prettier-ignore
+      }
+    }
   }
   /** Ночью (поверх затемнения): окошки хижин, костёр, жерло вулкана и вспышки маяка. */
   function drawIsleLights() {
@@ -321,6 +375,12 @@ export function createTitleArt(S) {
       S.ctx.fillRect(x - r, y - r, r * 2, r * 2);
     };
     const fl = 0.75 + 0.25 * Math.sin(S.T * 9) * Math.sin(S.T * 5.3);
+    // извержение: лава сильнее светится и подсвечивает клубы снизу
+    const hot = Math.max(0, ...I.puffs.map((t0) => S.T - t0).filter((e) => e >= 0 && e < ERUPT).map((e) => 1 - e / ERUPT)); // prettier-ignore
+    eruptClumps((x, y, r, al, ph) => glow(x, y + r * 0.5, r * 1.1, '255,120,50', al * (1 - ph) * 0.55));
+    // облака снизу чуть подсвечены лавой: теплее те, что ближе к вулкану по горизонтали
+    lavaClouds(a * (1 + 0.6 * hot));
+    glow(I.x - 17 * s, S.hy - 70 * s, 60 * s, '255,110,40', 0.16 + 0.2 * hot); // зарево над островом
     glow(I.x - 17 * s, S.hy - 57 * s, 16 * s, '255,120,50', 0.55); // жерло
     glow(I.x + 22 * s, S.hy - 8 * s, 10 * s * fl, '255,170,60', 0.85); // костёр
     circle(I.x + 22 * s, S.hy - 8 * s, 1.5 * s, `rgba(255,220,130,${(a * fl).toFixed(3)})`);
@@ -445,29 +505,150 @@ export function createTitleArt(S) {
     S.ctx.fillStyle = g;
     S.ctx.fill();
   }
+  // рыбка вида kind в своих единицах: нос — вправо (+x), длина около 30 при масштабе 1
+  function paintFish(c, kind, t) {
+    const line = 'rgba(74,55,40,.75)';
+    const body = (fill, rx, ry) => {
+      c.fillStyle = fill;
+      c.beginPath();
+      c.ellipse(0, 0, rx, ry, 0, 0, TAU);
+      c.fill();
+    };
+    const tail = (fill, x, h, fork) => {
+      c.fillStyle = fill;
+      c.beginPath();
+      c.moveTo(x + 2, 0);
+      c.lineTo(x - 9, -h);
+      if (fork) c.lineTo(x - 5, 0);
+      c.lineTo(x - 9, h);
+      c.closePath();
+      c.fill();
+    };
+    const eye = (x, y, r) => {
+      circle(x, y, r + 0.9, '#fff');
+      circle(x + 0.4, y, r, '#222');
+    };
+    c.lineWidth = 1.1;
+    c.strokeStyle = line;
+    if (kind === 'clown') {
+      // рыбка-клоун: оранжевая, три белые полоски с тёмным краем
+      tail('#ff8c1a', -11, 7, false);
+      body('#ff8c1a', 13, 7.5);
+      c.save();
+      c.clip();
+      for (const bx of [7, -1, -9]) {
+        c.fillStyle = '#fff';
+        c.fillRect(bx - 1.8, -9, 3.6, 18);
+        c.strokeRect(bx - 1.8, -9, 3.6, 18);
+      }
+      c.restore();
+      c.beginPath();
+      c.ellipse(0, 0, 13, 7.5, 0, 0, TAU);
+      c.stroke();
+      eye(8.5, -2, 1.5);
+    } else if (kind === 'blue') {
+      // синяя рыбка-хирург: синяя, тёмная полоса по спинке, жёлтый хвост
+      tail('#ffd43b', -12, 8, true);
+      body('#2f7fe0', 14, 8.5);
+      c.save();
+      c.clip();
+      c.fillStyle = '#1b2a6b';
+      c.beginPath();
+      c.ellipse(-2, -6, 11, 4, -0.1, 0, TAU);
+      c.fill();
+      c.restore();
+      c.beginPath();
+      c.ellipse(0, 0, 14, 8.5, 0, 0, TAU);
+      c.stroke();
+      eye(8.5, -1.5, 1.6);
+    } else if (kind === 'yellow') {
+      // жёлтая полосатая: круглая, с плавником на спинке и чёрными полосками
+      c.fillStyle = '#fcc419';
+      c.beginPath();
+      c.moveTo(-6, -7);
+      c.quadraticCurveTo(0, -14, 6, -8);
+      c.closePath();
+      c.fill();
+      tail('#fcc419', -10, 6, false);
+      body('#ffd43b', 11, 9);
+      c.save();
+      c.clip();
+      c.fillStyle = '#343a40';
+      for (const bx of [5, -1, -7]) c.fillRect(bx - 1, -10, 2, 20);
+      c.restore();
+      c.beginPath();
+      c.ellipse(0, 0, 11, 9, 0, 0, TAU);
+      c.stroke();
+      eye(6.5, -2.5, 1.5);
+    } else if (kind === 'school') {
+      // маленькая серебристая рыбка из стайки
+      tail('#1971c2', -10, 5, true);
+      body('#f1f3f5', 12, 5.5);
+      c.save();
+      c.clip();
+      c.fillStyle = '#1c7ed6';
+      c.fillRect(-14, -7, 28, 4.5);
+      c.restore();
+      c.beginPath();
+      c.ellipse(0, 0, 12, 5.5, 0, 0, TAU);
+      c.stroke();
+      eye(7.5, -1, 1.3);
+    } else {
+      // летучая рыба: длинная, с большими прозрачными «крыльями»-плавниками, хвост вилкой
+      tail('#4c6ef5', -14, 6.5, true);
+      body('#dbe4ff', 16, 5);
+      c.fillStyle = '#4c6ef5';
+      c.beginPath();
+      c.ellipse(0, -2, 15, 2.8, 0, 0, TAU);
+      c.fill();
+      const fl = Math.sin(t * 40) * 0.08;
+      c.fillStyle = 'rgba(165,216,255,.85)';
+      for (const [wy, a] of [
+        [-2, -0.5 + fl],
+        [1, 0.35 - fl],
+      ]) {
+        c.save();
+        c.translate(3, wy);
+        c.rotate(a + Math.PI);
+        c.beginPath();
+        c.ellipse(9, 0, 10, 3.6, 0, 0, TAU);
+        c.fill();
+        c.stroke();
+        c.restore();
+      }
+      eye(10, -1, 1.3);
+    }
+  }
   function drawFish() {
     for (const j of S.jumps) {
-      const q = j.t / 0.9,
-        sc = S.k * j.s,
-        x = j.x + j.dir * 46 * sc * q,
-        y = j.y - Math.sin(q * Math.PI) * 54 * sc;
-      S.ctx.save();
-      S.ctx.translate(x, y);
-      S.ctx.rotate(j.dir * lerp(-0.9, 0.9, q));
-      S.ctx.scale(j.dir * sc, sc);
-      S.ctx.fillStyle = '#ff9f43';
-      S.ctx.beginPath();
-      S.ctx.ellipse(0, 0, 13, 7, 0, 0, TAU);
-      S.ctx.fill();
-      S.ctx.beginPath();
-      S.ctx.moveTo(-11, 0);
-      S.ctx.lineTo(-21, -7);
-      S.ctx.lineTo(-21, 7);
-      S.ctx.fill();
-      S.ctx.fillStyle = '#fff';
-      S.ctx.fillRect(-1, -6, 3, 12);
-      circle(7, -2, 1.6, '#333');
-      S.ctx.restore();
+      const sc = S.k * j.s * j.size;
+      for (let m = 0; m < j.n; m++) {
+        const tm = j.t - m * j.lag;
+        if (tm < 0 || tm > j.dur) continue;
+        const q = tm / j.dur;
+        let lift, rot;
+        if (j.kind === 'flying') {
+          // летучая: быстро выпрыгнула, долго скользит над водой, потом шлёп
+          lift =
+            q < 0.15
+              ? ease(q / 0.15)
+              : q > 0.85
+                ? ease((1 - q) / 0.15)
+                : 1 - Math.sin(((q - 0.15) / 0.7) * Math.PI) * 0.12;
+          rot = q < 0.15 ? -0.5 : q > 0.85 ? 0.6 : Math.sin(tm * 3) * 0.05;
+        } else {
+          lift = Math.sin(q * Math.PI);
+          rot = lerp(-0.9, 0.9, q);
+        }
+        const x = j.x + j.dir * (j.len * q - m * 9 * j.size) * S.k * j.s,
+          y = j.y + m * 3 * sc - lift * j.hi * S.k * j.s;
+        S.ctx.save();
+        S.ctx.translate(x, y);
+        S.ctx.rotate(j.dir * rot);
+        S.ctx.scale(j.dir * sc, sc);
+        paintFish(S.ctx, j.kind, S.T + m);
+        S.ctx.restore();
+      }
     }
     if (S.dolphin.t >= 0) {
       const q = S.dolphin.t / 1.5,
@@ -793,13 +974,12 @@ export function createTitleArt(S) {
       ctx.stroke();
     }
   }
-  function drawCloud(c) {
+  /** Контур облака c (восемь комков) — в текущий путь; вернёт единицу размера u. */
+  function cloudPath(c) {
     const a = CLOUD_SHAPES[CLOUD_ORDER[c.from]],
       b = CLOUD_SHAPES[CLOUD_ORDER[c.shape]],
       q = ease(c.t),
       u = 34 * S.k * c.size;
-    const col = S.rain ? '#8d99a8' : S.snow ? '#e3e9f0' : mix('#ffffff', '#ffd9c2', S.dusk * 0.6);
-    S.ctx.fillStyle = col;
     S.ctx.beginPath();
     for (let i = 0; i < 8; i++) {
       const x = c.x + lerp(a.puffs[i][0], b.puffs[i][0], q) * u,
@@ -808,8 +988,34 @@ export function createTitleArt(S) {
       S.ctx.moveTo(x + r, y);
       S.ctx.arc(x, y, r, 0, TAU);
     }
+    return u;
+  }
+  function drawCloud(c) {
+    const b = CLOUD_SHAPES[CLOUD_ORDER[c.shape]];
+    const col = S.rain ? '#8d99a8' : S.snow ? '#e3e9f0' : mix('#ffffff', '#ffd9c2', S.dusk * 0.6);
+    S.ctx.fillStyle = col;
+    const u = cloudPath(c);
     S.ctx.fill();
     if (c.t > 0.7) for (const e of b.eyes) circle(c.x + e[0] * u, c.y + e[1] * u, 0.09 * u, shade(col, -0.35));
+  }
+  /** Ночью (поверх затемнения): тёплый отсвет лавы на нижнем крае облаков; a — сила (больше — во время извержения). */
+  function lavaClouds(a) {
+    const vx = S.isle.x - 17 * S.isle.s;
+    for (const c of S.clouds) {
+      const d = (c.x - vx) / (S.W * 0.28),
+        w = (0.15 + 0.85 * Math.exp(-d * d)) * a;
+      if (w < 0.02) continue;
+      S.ctx.save();
+      const u = cloudPath(c);
+      S.ctx.clip();
+      const g = S.ctx.createLinearGradient(0, c.y + 1.3 * u, 0, c.y - 0.3 * u);
+      g.addColorStop(0, `rgba(255,128,56,${(0.5 * Math.min(w, 1.4)).toFixed(3)})`);
+      g.addColorStop(0.45, `rgba(255,150,70,${(0.16 * Math.min(w, 1.4)).toFixed(3)})`);
+      g.addColorStop(1, 'rgba(255,160,80,0)');
+      S.ctx.fillStyle = g;
+      S.ctx.fillRect(c.x - 3 * u, c.y - 2 * u, 6 * u, 4 * u);
+      S.ctx.restore();
+    }
   }
   function drawPalm(p) {
     const [cx, cy] = S.crown(p);
@@ -1663,7 +1869,7 @@ export function createTitleArt(S) {
     for (const h of P.hearts) {
       const grow = clamp(h.t / 0.9, 0, 1),
         a = clamp((4.5 - h.t) / 1.6, 0, 1) * 0.85,
-        R = 16 * k * (0.7 + 0.3 * grow),
+        R = 16 * k * (PLANE_U / 1.15) * (0.7 + 0.3 * grow),
         n = 18;
       ctx.fillStyle = `rgba(255,240,246,${a.toFixed(3)})`;
       ctx.beginPath();
@@ -1673,7 +1879,7 @@ export function createTitleArt(S) {
           hy = -(13 * Math.cos(th) - 5 * Math.cos(2 * th) - 2 * Math.cos(3 * th) - Math.cos(4 * th)),
           x = h.x + (hx / 16) * R,
           y = h.y + (hy / 16) * R,
-          r = (2.8 + h.t * 0.5) * k;
+          r = (2.8 + h.t * 0.5) * k * 0.65;
         ctx.moveTo(x + r, y);
         ctx.arc(x, y, r, 0, TAU);
       }
@@ -1730,7 +1936,8 @@ export function createTitleArt(S) {
     }
     ctx.restore();
   }
-  /** Ночью — огоньки на крыле и на хвосте (поверх затемнения). Летит вправо — видно левое крыло, красный огонёк. */
+  /** Ночью — огоньки на крыле и на хвосте (поверх затемнения, поэтому те, что за пальмой, пропускаем). Летит вправо —
+   * видно левое крыло, красный огонёк. */
   function drawPlaneLights() {
     if (!S.planeOn() || S.dk < 0.25) return;
     const [x, y, rot] = S.planePos(),
@@ -1746,14 +1953,15 @@ export function createTitleArt(S) {
       [-29, -19, '255,255,235', Math.sin(S.T * 5) > 0.3 ? 1 : 0.2],
     ]) {
       const [lx, ly] = at(px, py),
-        r = 11 * S.k,
+        r = 11 * S.k * (PLANE_U / 1.15),
         al = a * S.dk;
+      if (S.palmAt(lx, ly, 0)) continue; // огонёк за кроной или стволом пальмы — не виден
       const g = S.ctx.createRadialGradient(lx, ly, 0, lx, ly, r);
       g.addColorStop(0, `rgba(${col},${(0.8 * al).toFixed(3)})`);
       g.addColorStop(1, `rgba(${col},0)`);
       S.ctx.fillStyle = g;
       S.ctx.fillRect(lx - r, ly - r, r * 2, r * 2);
-      circle(lx, ly, 2.1 * S.k, `rgba(${col},${al.toFixed(3)})`);
+      circle(lx, ly, 2.1 * S.k * (PLANE_U / 1.15), `rgba(${col},${al.toFixed(3)})`);
     }
     S.ctx.restore();
   }

@@ -455,6 +455,11 @@ module.exports = async function title(ctx) {
       await tap(d.sea);
       d = await dbg();
       expect(d.log.includes('fish') && d.jumps >= 1, 'рыбка не выпрыгнула', d.jumps);
+      // рыбки разные: каждый раз другой вид (клоун, синяя, жёлтая полосатая, стайка, летучая)
+      await tap(d.sea);
+      d = await dbg();
+      const kinds = d.log.filter((x) => /^fish-/.test(x));
+      expect(kinds.length >= 2 && kinds.at(-1) !== kinds.at(-2), 'выпрыгнула рыбка того же вида', kinds);
       await tap(d.cloud);
       expect((await dbg()).cloud.shape === 'bunny', 'облако не стало зайчиком', (await dbg()).cloud);
       await tap(d.ship);
@@ -594,10 +599,10 @@ module.exports = async function title(ctx) {
         await until(
           () => {
             const p = window.__dev.title.debug().plane;
-            return p.x > innerWidth * 0.2 && p.x < innerWidth * 0.8;
+            return p.x > innerWidth * 0.2 && p.x < innerWidth * 0.8 && !p.hidden;
           },
           null,
-          { timeout: 14000, msg: 'самолётик долетел до середины' },
+          { timeout: 14000, msg: 'самолётик долетел до середины, не за пальмой' },
         );
         d = await dbg();
         const r = await ev(() => {
@@ -614,10 +619,10 @@ module.exports = async function title(ctx) {
         await until(
           () => {
             const p = window.__dev.title.debug().plane;
-            return !p.trick;
+            return !p.trick && !p.hidden;
           },
           null,
-          { timeout: 6000, msg: 'трюк закончился' },
+          { timeout: 9000, msg: 'трюк закончился, самолётик не за пальмой' },
         );
         let log = await touchNearFly('plane');
         expect(count(log, /^plane-/) === 2 && !log.includes('butterfly') && !log.includes('fireflies'), 'нажатие по самолётику забрала бабочка', log); // prettier-ignore
@@ -675,6 +680,11 @@ module.exports = async function title(ctx) {
           [key]: d2[key],
         });
         expect(!d2.log.some((x) => x.startsWith('cloud-')), key + ': нажатие забрало облако', d2.log);
+        // вулкан дымит заметно и долго: клубы ещё идут через 3 с
+        if (key === 'isle' && minutes === 12 * 60) {
+          await wait(3000);
+          expect((await dbg()).isle.smoke, 'вулкан перестал дымить слишком быстро', (await dbg()).isle);
+        }
       }
     }
     noErrors();

@@ -6,7 +6,7 @@
 // «кто ближе к зрителю».
 import { TAU, clamp, lerp, rnd, pick, seeded, readSec } from '../core/util.js';
 import { sfx } from '../core/audio.js';
-import { createTitleArt, CLOUD_ORDER, ease, releaseTitleArt } from './title_art.js';
+import { createTitleArt, CLOUD_ORDER, FISH, ease, releaseTitleArt } from './title_art.js';
 
 let starShown = false; // падающая звезда — не больше одной за запуск страницы
 
@@ -101,7 +101,7 @@ export function createTitleScene(canvas, o) {
   const dolphin = { next: rnd(10, 22), t: -1, x: 0, hi: -9 };
   // вдали на горизонте: остров с вулканом (как наш «Удалённый остров») и маяк на скале. Сами они — в кэше неба (bg),
   // каждый кадр — только дымок, огоньки и луч маяка. s — масштаб (дальнее — мельче), puff/beam — когда нажали
-  const isle = { x: 0, s: 1, puff: -9 };
+  const isle = { x: 0, s: 1, puff: -9, puffs: [] }; // puffs — когда нажимали (клубы дыма идут ~5 с, title_art.js)
   const tower = { x: 0, s: 1, beam: -9 };
   // самолётик: время от времени пролетает по небу над морем (с ленточкой-флажком); в дождь и снег — реже.
   // t — сколько уже летит (−1 — не летит), trick — когда покачал крыльями или сделал петлю, hearts — сердечки из дыма
@@ -113,7 +113,8 @@ export function createTitleScene(canvas, o) {
   const MER_GAP = winter ? [150, 270] : [90, 180];
   const mer = { next: rnd(45, 110) * (winter ? 1.5 : 1), st: 'off', t: 0, x: 0, y: 0, look: 6, side: 1 };
   let guests = true; // автотест выключает редких гостей, чтобы они не перехватили нажатие по облаку или морю
-  const jumps = []; // рыбки в прыжке: { x, y, t, dir, big }
+  const jumps = []; // рыбки в прыжке: { x, y, t, dir, s, kind, …FISH[kind] } — kind: clown, blue, yellow, school, flying
+  let lastFish = '';
   const rings = []; // круги на воде: { x, y, t }
   const fly = { x: 0, y: 0, st: 'roam', t: 0, ph: rnd(9), next: rnd(7, 12) }; // бабочка днём, светлячки ночью
   const kite = { loop: -9 };
@@ -235,6 +236,24 @@ export function createTitleScene(canvas, o) {
     sfx('splash');
     for (const c of castles)
       if (c.gone === null && (ham.st !== 'busy' || c !== castles[castles.length - 1])) c.gone = T; // куличик смыло
+  }
+
+  // ---------- рыбки ----------
+  /** Из моря в x, y выпрыгивает рыбка случайного вида (не того же, что в прошлый раз; летучая — редко). Вернёт вид. */
+  function fishJump(x, y, want) {
+    const kinds = Object.keys(FISH).filter((f) => f !== lastFish);
+    let kind = want && FISH[want] ? want : kinds[kinds.length - 1],
+      r = rnd(kinds.reduce((n, f) => n + FISH[f].w, 0));
+    if (!want)
+      for (const f of kinds)
+        if ((r -= FISH[f].w) < 0) {
+          kind = f;
+          break;
+        }
+    lastFish = kind;
+    jumps.push({ x, y, t: 0, dir: pick([-1, 1]), s: clamp((y - hy) / (sy - hy), 0.35, 1), kind, ...FISH[kind] });
+    rings.push({ x, y, t: 0 });
+    return kind;
   }
 
   // ---------- что делает хомячок ----------
@@ -374,11 +393,6 @@ export function createTitleScene(canvas, o) {
         return;
       }
     }
-    // самолётик пролетает перед кронами пальм (небо над морем узкое — за кроной его не было бы видно)
-    if (planeOn()) {
-      const [px, py] = planePos();
-      if (near(x, y, px, py, R * 1.4)) return T - plane.trick > PLANE_TRICK && planeTap(); // посреди петли — ждём
-    }
     // пальма: потянуть — качнуть, нажать на крону — упадёт кокос
     for (const p of palms) {
       const [cx, cy] = crown(p);
@@ -389,6 +403,11 @@ export function createTitleScene(canvas, o) {
         p.drag = true;
         return;
       }
+    }
+    // самолётик — далеко над морем, за пальмами: нажатие по видимой его части (за кроной — пальме, она ближе)
+    if (planeOn()) {
+      const [px, py] = planePos();
+      if (near(x, y, px, py, R * 1.2)) return T - plane.trick > PLANE_TRICK && planeTap(); // посреди петли — ждём
     }
     // русалочка — на воде за пальмами, корабли поближе и батискаф — за ней
     if ((mer.st === 'look' || (mer.st === 'up' && mer.t > 0.5)) && near(x, y, ...merHit(), Math.max(R * 1.1, 36 * merS()))) return merTap(); // prettier-ignore
@@ -417,6 +436,8 @@ export function createTitleScene(canvas, o) {
     if (onIsle(x, y)) {
       if (T - isle.puff > 2.5) {
         isle.puff = T;
+        isle.puffs.push(T);
+        if (isle.puffs.length > 3) isle.puffs.shift();
         note('volcano');
         sfx('thud');
       }
@@ -443,9 +464,9 @@ export function createTitleScene(canvas, o) {
     const sh = shoreY(x, 0);
     if (y < sh - 16 * k) {
       // море: выпрыгивает рыбка
-      jumps.push({ x, y: Math.max(y, hy + 12 * k), t: 0, dir: pick([-1, 1]), s: clamp((y - hy) / (sy - hy), 0.35, 1) });
-      rings.push({ x, y: Math.max(y, hy + 12 * k), t: 0 });
+      const kind = fishJump(x, Math.max(y, hy + 12 * k));
       note('fish');
+      note('fish-' + kind);
       sfx('splash');
       return;
     }
@@ -565,12 +586,14 @@ export function createTitleScene(canvas, o) {
     ];
   };
 
-  // самолётик: где летит и как наклонён. Высота — доля fy свободного неба над морем (не выше заголовка: петле
-  // хватает места сверху), летит от края до края свободного места; trick — покачать крыльями или петля
-  const PLANE_R = () => 24 * k; // радиус петли
+  // самолётик: где летит и как наклонён. Он далеко, над морем, за пальмами (мелкий, рисуется до крон): высота — доля
+  // fy неба над морем от заголовка почти до горизонта (не выше заголовка: петле хватает места сверху; чаще ниже — на
+  // компьютере небо узкое, и его видно в просветах между кронами и над горизонтом), летит от края до края свободного
+  // места; trick — покачать крыльями или петля
+  const PLANE_R = () => 15 * k; // радиус петли
   const planeBand = () => {
-    const top = F.y + 22 * k,
-      lo = hy - 58 * k;
+    const top = F.y + 16 * k,
+      lo = hy - 22 * k;
     return [top, Math.max(top, lo)];
   };
   const canLoop = () => {
@@ -584,7 +607,7 @@ export function createTitleScene(canvas, o) {
       x1 = b + 80 * k,
       [top, lo] = planeBand();
     let x = plane.dir > 0 ? lerp(x0, x1, q) : lerp(x1, x0, q),
-      y = lerp(top, lo, plane.fy) + Math.sin(plane.t * 1.7) * 5 * k,
+      y = lerp(top, lo, plane.fy) + Math.sin(plane.t * 1.7) * 3 * k,
       rot = Math.cos(plane.t * 1.7) * -0.08 * plane.dir; // нос чуть вверх-вниз вместе с волной полёта
     const tq = (T - plane.trick) / PLANE_TRICK;
     if (tq >= 0 && tq < 1) {
@@ -604,14 +627,14 @@ export function createTitleScene(canvas, o) {
     plane.t = 0;
     plane.dur = rnd(10, 14);
     plane.dir = pick([-1, 1]);
-    plane.fy = rnd(0.1, 0.9);
+    plane.fy = rnd(0.2, 1);
     plane.n = 0;
   }
   function planeTap() {
     const [x, y] = planePos();
     plane.loop = canLoop() && plane.n++ % 2 === 0; // через раз: петля и «покачал крыльями»
     plane.trick = T;
-    plane.hearts.push({ x: x - plane.dir * 34 * k, y: y + 4 * k, t: 0 });
+    plane.hearts.push({ x: x - plane.dir * 20 * k, y: y + 2 * k, t: 0 });
     if (plane.hearts.length > 3) plane.hearts.shift();
     note(plane.loop ? 'plane-loop' : 'plane-wave');
     sfx('plane'); // «ж-ж-ж» мотора (core/audio.js), посреди фигуры — «фью»
@@ -976,8 +999,9 @@ export function createTitleScene(canvas, o) {
     for (let i = jumps.length - 1; i >= 0; i--) {
       const j = jumps[i];
       j.t += dt;
-      if (j.t > 0.9) {
-        rings.push({ x: j.x + j.dir * 46 * k * j.s, y: j.y, t: 0 });
+      const end = j.dur + j.lag * (j.n - 1);
+      if (j.t > end) {
+        rings.push({ x: j.x + j.dir * j.len * k * j.s, y: j.y, t: 0 });
         jumps.splice(i, 1);
       }
     }
@@ -1037,8 +1061,7 @@ export function createTitleScene(canvas, o) {
       // рыбки иногда прыгают сами
       const x = F.x + F.w * rnd(0.1, 0.9),
         y = rnd(hy + 16 * k, sy - 24 * k);
-      jumps.push({ x, y, t: 0, dir: pick([-1, 1]), s: clamp((y - hy) / (sy - hy), 0.35, 1) });
-      rings.push({ x, y, t: 0 });
+      fishJump(x, y);
     }
     // морская звезда: волна выносит её на песок
     const band = bot - sy;
@@ -1174,6 +1197,8 @@ export function createTitleScene(canvas, o) {
     planeOn,
     planePos,
     planeSpan,
+    palmAt,
+    clouds,
     rain,
     rings,
     shell,
@@ -1278,6 +1303,7 @@ export function createTitleScene(canvas, o) {
     drawFar();
     drawIsleSmoke();
     for (const sh of fleet) if (sh.lane === 'far') drawShip(sh);
+    drawPlane(); // далеко над морем — за пальмами
     drawFish();
     if (!night && !rain)
       for (let i = 0; i < 2; i++) {
@@ -1316,7 +1342,6 @@ export function createTitleScene(canvas, o) {
     if (turtle.st !== 'off') things.push([turtle.y, drawTurtle]);
     things.sort((a, b) => a[0] - b[0]);
     for (const th of things) th[1]();
-    drawPlane();
     drawFly(false);
     drawWeather();
     if (rain) {
@@ -1474,12 +1499,12 @@ export function createTitleScene(canvas, o) {
           const xs = [-10, 10, 30, 45, -40, -60].map((dx) => isle.x + dx * isle.s);
           const x = xs.find((x) => palms.every((p) => !near(x, y, ...crown(p), p.h * 0.34 + R))) ?? xs[0];
           // palm — вулкан за кроной пальмы
-          return { ...P(x, y), clear: farSky(x, y), puff: T - isle.puff < 2.5, palm: palmAt(isle.x - 17 * isle.s, hy - 30 * isle.s, 0) }; // prettier-ignore
+          return { ...P(x, y), clear: farSky(x, y), puff: T - isle.puff < 2.5, smoke: T - isle.puff < 5.5, palm: palmAt(isle.x - 17 * isle.s, hy - 30 * isle.s, 0) }; // prettier-ignore
         })(),
         tower: { ...P(tower.x, towerTop() + 16 * tower.s), clear: farSky(tower.x, towerTop() + 16 * tower.s), beam: T - tower.beam < 2, palm: palmAt(tower.x, towerTop(), 0) }, // prettier-ignore
         plane: (() => {
           const [x, y] = planePos();
-          return { on: planeOn(), ...P(x, y), dir: plane.dir, trick: T - plane.trick < PLANE_TRICK, hearts: plane.hearts.length, top: Math.round(planeBand()[0] + r.top) }; // prettier-ignore
+          return { on: planeOn(), ...P(x, y), hidden: palmAt(x, y, 0), dir: plane.dir, trick: T - plane.trick < PLANE_TRICK, hearts: plane.hearts.length, top: Math.round(planeBand()[0] + r.top) }; // prettier-ignore
         })(),
         mermaid: { st: mer.st, ...P(...merHit()), water: Math.round(mer.y + r.top) },
         drawn: strokes.reduce((n, st) => n + st.length, 0),
@@ -1551,6 +1576,12 @@ export function createTitleScene(canvas, o) {
     /** Для автотеста: позвать самолётик сейчас (летит из-за края). */
     callPlane() {
       if (!planeOn()) planeGo();
+    },
+    /** Для автотеста и снимков: самолётик сейчас на доле пути q (0..1), на высоте fy (0 — верх неба, 1 — низ). */
+    planeAt(q, fy = 0.6) {
+      if (!planeOn()) planeGo();
+      plane.t = q * plane.dur;
+      plane.fy = fy;
     },
     /** Для автотеста: позвать русалочку сейчас (сразу показать её над водой — st 'look'). */
     callMermaid(now = true) {
