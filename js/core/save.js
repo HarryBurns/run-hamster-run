@@ -162,6 +162,9 @@ export function newGame(name) {
     // этап 15 (Пр17): клумбы субботника, на которых хомячок посадила цветы на 1 Мая — они цветут до конца лета этого
     // года: y — год (holidayYear), b — номера клумб (MAY_BEDS в locations/holidays_art.js)
     mayBeds: { y: 0, b: [] },
+    // телевизор (features/tv.js): ch — канал, который сейчас показывают дома; news — новости о хомячке
+    // [{ k, id, d — день }], последние первыми; show — выпуск «У плиты» сегодня { day, dish, done } или null
+    tv: { ch: 'weather', news: [], show: null },
     // первый день
     weather: 'sun', // погода города сейчас; wxStrong — сильная ли она ('rain2' — ливень, 'rain3' — гроза, 'snow2' — метель)
     wxStrong: '',

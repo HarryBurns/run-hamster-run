@@ -55,6 +55,7 @@ import * as backpack from './backpack.js';
 import * as album from './album.js';
 import * as photo from './photo.js';
 import * as piano from './piano.js';
+import * as tv from './tv.js';
 import * as settings from './settings.js';
 import * as soundscape from './soundscape.js';
 import * as install from './install.js';
@@ -131,6 +132,7 @@ export const devAll = () =>
     album,
     photo,
     piano,
+    tv,
     settings,
     install,
     soundscape,

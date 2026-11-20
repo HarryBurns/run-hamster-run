@@ -6,14 +6,14 @@
 //  - остальное (лечь спать, открыть шкаф, холодильник, пианино) — действие с тем же именем из реестра
 //    (core/registry.js); его регистрирует занятие из features/.
 // Новый вид поведения мебели = новая строка в USE или новое действие в реестре.
-import { G, darkness } from '../../core/state.js';
+import { G, darkness, weatherNow } from '../../core/state.js';
 import { setFurnOn } from '../../core/actions.js';
 import { emit } from '../../core/events.js';
 import { run, has } from '../../core/registry.js';
 import { pick } from '../../core/util.js';
 import { rr } from '../../core/draw.js';
 import { sfx } from '../../core/audio.js';
-import { FURN_BY_ID } from '../../data/index.js';
+import { FURN_BY_ID, cookShowOn } from '../../data/index.js';
 import { drawFurn, furnRect } from '../../art/furniture.js';
 import { toast } from '../../ui/toast.js';
 
@@ -83,7 +83,11 @@ const USE = {
     sc.p.x = it.x;
     sfx('pop');
   },
-  tv: toggle,
+  /** Телевизор: окно «Телевизор» с передачами (features/tv.js); если занятия нет (пробные страницы) — просто включить. */
+  tv(sc, it, d) {
+    if (has('tv')) run('tv', { scene: sc, item: it });
+    else toggle(sc, it, d);
+  },
   lamp: toggle,
   music: toggle,
   disco: toggle,
@@ -197,6 +201,13 @@ export function isParty(sc) {
     );
 }
 
+/** Что показывает телевизор: канал и погода сейчас (для значка на канале погоды). */
+function tvNow() {
+  const tv = G.state.tv,
+    wx = weatherNow();
+  return { ch: (tv && tv.ch) || 'weather', wx: wx.kind, force: wx.force, cook: cookShowOn(G.state.day) };
+}
+
 /** Знак «нельзя»: красный круг с чертой, центр x, y. */
 function noSign(ctx, x, y) {
   ctx.save();
@@ -237,7 +248,9 @@ export function drawItems(ctx, sc, t) {
       ctx.stroke();
       ctx.restore();
     }
-    drawFurn(ctx, d, it.x, d.wall ? y - it.y : y, { t, on, minutes });
+    // телевизор показывает канал, который включили (один на все телевизоры), — art/tv_art.js
+    const tv = d.act === 'tv' && on ? tvNow() : null;
+    drawFurn(ctx, d, it.x, d.wall ? y - it.y : y, tv ? { t, on, minutes, tv } : { t, on, minutes });
     if (bad) noSign(ctx, r.x + r.w + 4, r.y - 4);
   }
 }

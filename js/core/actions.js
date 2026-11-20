@@ -328,6 +328,32 @@ export const setFurnOn = act((it, on) => {
   it.on = on;
   touch();
 });
+// ---------- телевизор (features/tv.js) ----------
+/** Сколько новостей помнит телевизор (последние — первыми). */
+export const TV_NEWS_MAX = 6;
+/** Переключить канал (один на все телевизоры: что включила, то и показывают дома). */
+export const setTvChannel = act((ch) => {
+  if (S().tv.ch === ch) return;
+  S().tv.ch = ch;
+  touch();
+});
+/** Новость для «Новостей Ореховой Гавани»: k — что случилось, id — что именно. Одна и та же — не повторяется. */
+export const addTvNews = act((k, id = '') => {
+  const t = S().tv,
+    s = S();
+  if (t.news.some((n) => n.k === k && n.id === id)) return false;
+  t.news.unshift({ k, id, d: s.day });
+  if (t.news.length > TV_NEWS_MAX) t.news.length = TV_NEWS_MAX;
+  touch();
+  return true;
+});
+/** Выпуск «У плиты» сегодня: какое блюдо (запоминается на весь день) и досмотрен ли до конца. */
+export const setTvShow = act((day, dish, done = false) => {
+  const t = S().tv;
+  if (t.show && t.show.day === day && t.show.dish === dish && t.show.done === done) return;
+  t.show = { day, dish, done };
+  touch();
+});
 /** Есть ли у предмета тип «кровать» и т. п. — помощник для правил вроде «последнюю кровать не убирать». */
 export const countFurnAct = (key, actName) =>
   houseItems(key).filter((i) => FURN_BY_ID[i.id] && FURN_BY_ID[i.id].act === actName).length;

@@ -490,7 +490,7 @@ export const PRICES = {
     wardrobe: 1800, wardrobe_white: 2200, shower: 1200, fridge: 2000, fridge_pink: 2600,
     sofa_red: 1600, sofa_mint: 1600, sofa_purple: 1800, armchair: 800, armchair_blue: 800, beanbag: 500, chair: 250,
     table: 900, coffee_table: 500, nightstand: 350, bookshelf: 1200,
-    tv: 3000, piano: 8000, wheel: 1500, music: 1200, teddy: 300, aquarium: 2500, fireplace: 3000,
+    tv: 6000, piano: 8000, wheel: 1500, music: 1200, teddy: 300, aquarium: 2500, fireplace: 3000,
     lamp: 300, lamp_pink: 300, plant_ficus: 200, plant_palm: 350, plant_cactus: 150, plant_flowers: 180,
     rug_pink: 300, rug_blue: 300, rug_rainbow: 700, balloons: 100,
     pic_sun: 400, pic_sea: 400, pic_hamster: 900, pic_flowers: 400, clock: 300, mirror: 600, garland: 250,

@@ -30,3 +30,4 @@ export * from './credits.js';
 export * from './relax.js';
 export * from './buddy.js';
 export * from './photo.js';
+export * from './tv.js';

@@ -5,6 +5,7 @@ import { TAU } from '../core/util.js';
 import { ell, fillRR, line, poly, star, shade, rr, heart } from '../core/draw.js';
 import { D_HOMES } from './furniture_homes.js';
 import { D_FEST } from './furniture_fest.js';
+import { paintTV } from './tv_art.js';
 
 const OUT = '#4a3728';
 const WOOD = '#d9a066';
@@ -152,7 +153,14 @@ const D = {
       sy = -h + 8,
       sw = w - 16,
       sh = h - 56;
-    if (st.on) {
+    if (st.on && st.tv) {
+      // канал, который включили (art/tv_art.js): погода, кулинарное шоу, звери, новости, мультики
+      c.save();
+      rr(c, sx, sy, sw, sh, 5);
+      c.clip();
+      paintTV(c, st.tv.ch, sx, sy, sw, sh, st.t, st.tv, { small: true });
+      c.restore();
+    } else if (st.on) {
       c.save();
       rr(c, sx, sy, sw, sh, 5);
       c.clip();

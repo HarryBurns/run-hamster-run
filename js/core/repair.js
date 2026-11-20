@@ -32,6 +32,7 @@ import {
   VILLA_UP_MAX,
   VILLA_UP_BY_ID,
   GARDEN_SIZE,
+  TV_CH_BY_ID,
   BUILD,
 } from '../data/index.js';
 
@@ -334,6 +335,21 @@ export function repair(s) {
     if (!Number.isFinite(m.n)) m.n = 0;
     obj(m, 'got');
     if (m.items && !Array.isArray(m.items)) m.items = null;
+  }
+  // телевизор (сборка 31): в старом сохранении поля нет — канал погоды, новостей пока нет
+  {
+    const t = s.tv && typeof s.tv === 'object' && !Array.isArray(s.tv) ? s.tv : {};
+    const sh = t.show;
+    s.tv = {
+      ch: TV_CH_BY_ID[t.ch] ? t.ch : 'weather',
+      news: (Array.isArray(t.news) ? t.news : [])
+        .filter((n) => n && typeof n.k === 'string' && typeof n.id === 'string' && Number.isFinite(n.d))
+        .slice(0, 6),
+      show:
+        sh && typeof sh === 'object' && Number.isFinite(sh.day) && DISH_BY_ID[sh.dish]
+          ? { day: sh.day, dish: sh.dish, done: !!sh.done }
+          : null,
+    };
   }
   if (typeof s.weather !== 'string') s.weather = 'sun';
   // сильная погода (сборка 30: 'rain2' — ливень, 'rain3' — гроза, 'snow2' — метель): в старом сохранении её нет

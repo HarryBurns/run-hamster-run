@@ -91,6 +91,7 @@ const side = require('./smoke_side.js'); // движок домов: лифт н
 const screen = require('./smoke_screen.js'); // этап 20: проблемы на экране — дом на iPad стоя (В12), кнопка места с морским путём (В14)
 const drawFixes = require('./smoke_draw.js'); // правки рисунка: часы не на окне, пруд и грядки во дворе, лежак, значок сахара
 const trifles = require('./smoke_trifles.js'); // «Мелочи» 20 ноября: полезный компас
+const tvSteps = require('./smoke_tv.js'); // телевизор дома: каналы, прогноз = погода, «У плиты» и рецепт, животные, новости
 const rest = require('./smoke_rest.js'); // «Отдых и питомец» 20 ноября: гамак, сидит спиной за столиками, отдых в тайных местах, питомец в корзинке
 const villa = require('./smoke_villa.js'); // «Вилла растёт»: маленький домик новой игры, стройка в агентстве, ступени дома и двора, теплица, старая игра
 const homeSteps = require('./smoke_home.js'); // свой дом: снаружи по ступени, подписи, двор с дикими цветами, «Обустроить», новая игра после сценки
@@ -2920,6 +2921,7 @@ const runParallel = () => {
     await villa({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
     await homeSteps({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
     await trifles({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
+    await tvSteps({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
     await rest({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
     await toastsSteps({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
     await buildSteps({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
