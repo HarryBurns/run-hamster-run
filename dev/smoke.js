@@ -34,6 +34,7 @@
 //  сон только вечером, этап 18 — dev/smoke_sleep.js:  node dev/smoke.js <url> "step:сон вечером";
 //  движок домов: лифт и порядок рисования — dev/smoke_side.js:  node dev/smoke.js <url> "step:движок домов";
 //  указатели во всех местах — dev/smoke_signs.js:  node dev/smoke.js <url> step:указатели;
+//  баги от заказчика 19 ноября (подсказки, указатели) — dev/smoke_pol.js:  node dev/smoke.js <url> "step:З-доработки";
 //  игра как приложение на экране «Домой» — dev/smoke_pwa.js:  node dev/smoke.js <url> step:приложение;
 //  первое открытие без игр (пустая игра) — dev/smoke_phantom.js:  node dev/smoke.js <url> "step:первое открытие")
 // Скорость проверяется отдельно:  node dev/bench.js [url] --spots=forest --sizes=desktop --max-forest=45
@@ -81,6 +82,7 @@ const pwa = require('./smoke_pwa.js'); // игра как приложение: 
 const buildSteps = require('./smoke_build.js'); // этап 25: метки версий модулей (карта импортов ?v=BUILD)
 const tfix = require('./smoke_tfix.js'); // Т-пункты BACKLOG и мелкие правки: звёздочка к колесу, дом на iPad лёжа, холл башни, repair имён, подсказки, двор, вагонетка
 const signs = require('./smoke_signs.js'); // указатели: без букв-стрелок, таблички «здесь», направления по карте
+const pol = require('./smoke_pol.js'); // баги от заказчика 19 ноября (З18, З20): подсказки под плашками, указатели
 const side = require('./smoke_side.js'); // движок домов: лифт не застревает между этажами, кто ходит мимо ванны — перед ней
 const screen = require('./smoke_screen.js'); // этап 20: проблемы на экране — дом на iPad стоя (В12), кнопка места с морским путём (В14)
 const drawFixes = require('./smoke_draw.js'); // правки рисунка: часы не на окне, пруд и грядки во дворе, лежак, значок сахара
@@ -2899,6 +2901,7 @@ const runParallel = () => {
     await tfix({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
     await side({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
     await signs({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
+    await pol({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
     await drawFixes({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
     await buildSteps({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
     await pwa({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });

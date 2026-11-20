@@ -44,13 +44,35 @@ export function hintToday(flag, text, kind = '', group = 'warn') {
   return true;
 }
 
-/** Поставить подсказки под шапку верхнего открытого окна (или на обычное место, если окон нет). */
+/**
+ * Нижний край плашек HUD сверху (дата, монеты, письмо, журнал), которые сейчас видно (0 — не видно ни одной: заставка,
+ * мини-игра или пианино поверх). На телефоне плашки в два-три ряда — ниже обычного места подсказок.
+ */
+function hudBottom() {
+  const top = document.querySelector('#hud .hud-top');
+  if (!top) return 0;
+  let b = 0;
+  for (const c of top.children) {
+    const r = c.getBoundingClientRect();
+    if (c.hidden || !r.height) continue;
+    const at = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+    if (at && top.contains(at)) b = Math.max(b, r.bottom);
+  }
+  return b;
+}
+
+/**
+ * Поставить подсказки под шапку верхнего открытого окна, а если окон нет — на обычное место, но не на плашки HUD
+ * (на телефоне они в несколько рядов, и подсказка ложилась на плашку письма — З18).
+ */
 export function placeToasts() {
   if (!toastBox) return;
   const panels = document.querySelectorAll('.overlay > .panel'),
     p = panels[panels.length - 1];
   if (!p || !document.body.classList.contains('win-open')) {
     toastBox.style.top = '';
+    const b = hudBottom();
+    if (b && b + 6 > toastBox.getBoundingClientRect().top) toastBox.style.top = Math.round(b + 6) + 'px';
     return;
   }
   // offsetTop/offsetHeight не зависят от анимации появления окна (transform: scale)
