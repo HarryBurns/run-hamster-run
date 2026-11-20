@@ -1,4 +1,4 @@
-// ПАУЗА, КОГДА РЕБЁНОК ОТВЛЁКСЯ (баги заказчика 20 ноября).
+// ПАУЗА, КОГДА РЕБЁНОК ОТВЛЁКСЯ, и КЛАВИША Esc (баги заказчика 20 ноября).
 //
 // Пауза. Время игры стоит (как под окном или в диалоге: слой с паузой — ui/modals.js, openLayer), музыка тише
 // (setMusicDuck, core/audio.js), если:
@@ -10,11 +10,16 @@
 // мини-игры, пианино, заставки и вступления на экране нет — под ними время и так стоит (а мини-игры на скрытой
 // вкладке стоят сами — minigames/kit.js). Автотест (navigator.webdriver) паузу сам не ставит: окна браузера там
 // часто без фокуса; включить — __dev.F.pauseAuto(true).
+//
+// Esc. Открыто окно — Esc закрывает верхнее, как ✕; ещё раз — открывает ⚙️ меню (openSettings). Мини-игра, пианино,
+// вступление, заставка, диалог жителя — Esc не трогаем (у них свои клавиши или выбор ответа). На верблюде и в заводи
+// (способ передвижения героя sc.p.ride, кроме «отдыхает» — relax) Esc — «слезть», это делает сама локация.
 import { G } from '../core/state.js';
 import { scene, every } from '../core/loop.js';
 import { setMusicDuck, sfx } from '../core/audio.js';
 import { el } from '../core/util.js';
 import { openLayer } from '../ui/modals.js';
+import { openSettings } from './settings.js';
 
 /** Через сколько секунд без касаний, мыши и клавиш — мягкая пауза. */
 export const IDLE_PAUSE = 150;
@@ -88,6 +93,27 @@ every(1, () => {
   // пока открыто окно или идёт мини-игра — ребёнок читает или играет: счёт «без касаний» не копится
   if (!worldRuns()) lastInput = Math.max(lastInput, performance.now() - 1000);
   else if (performance.now() - lastInput > IDLE_PAUSE * 1000) pauseNow('idle');
+});
+
+// ---------- Esc ----------
+window.addEventListener('keydown', (e) => {
+  if (e.code !== 'Escape' || e.repeat || e.defaultPrevented) return;
+  if (e.target && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) return;
+  // верхнее окно с ✕ (окна поверх мини-игры — тоже)
+  const wins = [...document.querySelectorAll('.overlay')];
+  const top = wins.length ? wins[wins.length - 1].querySelector('.panel-head .xbtn') : null;
+  if (top) {
+    e.preventDefault();
+    top.click();
+    return;
+  }
+  if (busy() || document.querySelector('.dialog')) return;
+  if (!G.state || !scene() || G.modal > 0) return;
+  const sc = scene();
+  if (sc.p && sc.p.ride && !sc.p.ride.relax) return; // верблюд, заводь: Esc — «слезть» (локация)
+  e.preventDefault();
+  sfx('tap');
+  openSettings();
 });
 
 /** Для автотеста и консоли: что с паузой. */

@@ -243,4 +243,30 @@ module.exports = async function cust20(ctx) {
     await L.closeAll();
     await ev(() => window.__dev.F.pauseAuto(false));
   });
+
+  await step('заказчик 20: Esc — открытое окно закрывает, без окна — ⚙️ меню', async () => {
+    await L.closeAll();
+    await L.go('world');
+    const titles = () => L.panelTitles();
+    await ctx.page.keyboard.press('Escape');
+    await L.untilPanel('Меню', 2000);
+    await ctx.page.keyboard.press('Escape');
+    await L.until(() => !document.querySelector('.overlay'), undefined, { timeout: 2000 });
+    expect(!(await titles()), 'Esc не закрыл меню', await titles());
+    await ev(() => window.__dev.F.openBackpack());
+    await L.untilPanel();
+    await ctx.page.keyboard.press('Escape');
+    await L.until(() => !document.querySelector('.overlay'), undefined, { timeout: 2000 });
+    expect(!(await titles()), 'Esc закрыл рюкзак и открыл меню сразу', await titles());
+    // в мини-игре Esc ничего не делает (там свои клавиши)
+    await ev(async () => {
+      const h = await import('/js/minigames/host.js');
+      h.runMinigame('slide', { look: window.__dev.G.state.look, track: 'kid' });
+    });
+    await L.mgStart();
+    await ctx.page.keyboard.press('Escape');
+    await ctx.wait(300);
+    expect((await ev(() => !!document.querySelector('#mg'))) && !(await titles()), 'Esc в мини-игре', await titles());
+    await ev(() => document.querySelector('#mg .xbtn').click());
+  });
 };
