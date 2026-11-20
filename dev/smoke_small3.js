@@ -1,5 +1,5 @@
 // Шаги автотеста «правки заказчика вдогонку 20 ноября»: шляпка из каталога (подарок Плюши — не шляпа от солнца),
-// Вершинкин на горе не стоит за ёлкой, гриб в пещерах без лишнего плюсика.
+// Вершинкин на горе не стоит за ёлкой, гриб в пещерах без лишнего плюсика, питомцы не заходят в воду.
 // Подключается из dev/smoke.js. Только эти шаги:  node dev/smoke.js <url> "step:заказчик 20б:"
 const lib = require('./lib.js');
 
@@ -115,5 +115,88 @@ module.exports = async function small3(ctx) {
       return n;
     });
     expect(r === 0, 'над грибом справа вверху что-то нарисовано (плюсик)', r);
+  });
+
+  await step('заказчик 20б: питомцы не заходят в воду — бассейн, джакузи, ванна дома; бассейн во дворе', async () => {
+    await L.fresh();
+    const D = await ev(async () => (await import('/js/data/index.js')).PETS.map((q) => q.id));
+    /** Питомец kind (взять заново). */
+    const adopt = (kind) =>
+      ev((kind) => {
+        const d = window.__dev;
+        d.actions.mutate((s) => delete s.pet);
+        d.actions.adoptPet(kind, 'Пушок');
+      }, kind);
+    /** Хомячок лезет в fix (с этажа from — питомец «прибегает» с другого этажа); где питомец 1,5 с: сколько раз в воде. */
+    const swim = async (fix, from) => {
+      await L.go('villa');
+      await ev(
+        ([fix, from]) => {
+          const sc = window.__dev.scene,
+            b = sc.fixtures.find((q) => q.id === fix);
+          sc.p.f = from == null ? b.f : from;
+          sc.p.x = b.x - b.w / 2 - 60;
+        },
+        [fix, from],
+      );
+      await ctx.wait(600);
+      await ev((fix) => {
+        const sc = window.__dev.scene,
+          b = sc.fixtures.find((q) => q.id === fix);
+        sc.p.f = b.f;
+        sc.p.x = b.x;
+        b.def.use(sc, b);
+      }, fix);
+      const bad = [];
+      for (let i = 0; i < 8; i++) {
+        await ctx.wait(200);
+        const r = await ev((fix) => {
+          const sc = window.__dev.scene,
+            b = sc.fixtures.find((q) => q.id === fix),
+            h = window.__dev.F.petDebug().home;
+          return { using: sc.using(b), x: h && h.x, f: h && h.f, l: b.x - b.w / 2, r: b.x + b.w / 2, bf: b.f };
+        }, fix);
+        if (!r.using) bad.push('хомячок вылезла');
+        else if (r.f === r.bf && r.x > r.l && r.x < r.r) bad.push(`питомец в воде: x ${Math.round(r.x)}`);
+      }
+      await ev(() => window.__dev.scene.standUp());
+      return bad;
+    };
+    for (const kind of D) {
+      await adopt(kind);
+      for (const fix of ['pool', 'jacuzzi', 'bathtub']) {
+        const bad = await swim(fix);
+        expect(!bad.length, `${kind}: ${fix}`, bad);
+      }
+    }
+    // «прибегает» с другого этажа, когда хомячок уже в воде
+    const bad = await swim('pool', 0);
+    expect(!bad.length, 'питомец прибежал с другого этажа прямо в бассейн', bad);
+    // бассейн во дворе (город): хомячок плывёт — питомец ждёт на суше
+    await L.closeAll();
+    await ev(() => {
+      const d = window.__dev;
+      d.actions.mutate((s) => (s.villaUp.pool = 1));
+      d.go('world');
+      d.World.debugTeleport(9, 14);
+    });
+    await L.untilScene('world');
+    await ctx.wait(500);
+    await ev(() => window.__dev.scene.walkTo(9.5 * 48, 19.5 * 48, true));
+    const wet = [];
+    for (let i = 0; i < 12; i++) {
+      await ctx.wait(200);
+      const r = await ev(() => {
+        const sc = window.__dev.scene,
+          w = window.__dev.F.petDebug().world;
+        return w && { dry: sc.map.dry(Math.floor(w.x / 48), Math.floor(w.y / 48)), x: w.x / 48, y: w.y / 48 };
+      });
+      if (r && !r.dry) wet.push(r);
+    }
+    const inPool = await ev(() => {
+      const sc = window.__dev.scene;
+      return !sc.map.dry(Math.floor(sc.p.x / 48), Math.floor(sc.p.y / 48)); // хомячок в воде
+    });
+    expect(inPool && !wet.length, 'питомец в бассейне во дворе', { inPool, wet });
   });
 };

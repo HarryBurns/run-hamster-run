@@ -12,7 +12,8 @@
 // а потом «прибегает»: появляется рядом. Кадры — в кэше спрайтов SP. Хомячок едет на транспорте — питомец в корзинке
 // велосипеда или самоката, в кабриолете — на сиденье (w.basket; рисует его кадр транспорта, art/wheels.js); слезла —
 // спрыгивает рядом и идёт следом.
-//   ДОМА (свои дома: вилла и купленное жильё) — общая часть домов (addSidePart): гуляет по этажу, где хомячок. В чужие дома,
+//   ДОМА (свои дома: вилла и купленное жильё) — общая часть домов (addSidePart): гуляет по этажу, где хомячок; хомячок
+// в бассейне, джакузи или ванне — ждёт у бортика, в воду не заходит (dryX). В чужие дома,
 // магазины и мини-игры не заходит. «Подожди дома» — остаётся в основном доме (кнопка «Домой»).
 import { G } from '../core/state.js';
 import { adoptPet, renamePet, petCare, addPetGood, setPetStay, award } from '../core/actions.js';
@@ -261,7 +262,9 @@ function showCare(what, gain) {
     e.fx = { kind: 'feed', t: 0, dur: 2.4 };
     sfx('eat');
   } else if (what === 'play') {
-    const to = side ? { x: clamp(e.x + (e.x > e.sc.p.x ? 1 : -1) * 150, 50, e.sc.geo.W - 50), y: 0 } : ballSpot(e.sc);
+    const to = side
+      ? { x: dryX(e.sc, e.f, clamp(e.x + (e.x > e.sc.p.x ? 1 : -1) * 150, 50, e.sc.geo.W - 50), e.x), y: 0 } // не в воду
+      : ballSpot(e.sc);
     e.fx = { kind: 'play', t: 0, dur: 3, from: { x: e.x, y: e.y || 0 }, to: to || { x: e.x, y: e.y || 0 }, hop: !to };
     sfx('whistle');
   }
@@ -396,6 +399,26 @@ function drawWorldPet(ctx, e, t) {
 const HK = HS / 0.78; // во столько раз питомец в доме крупнее, чем на карте
 /** В этом ли доме питомец: свой дом с мебелью; «ждёт дома» — только основной. */
 const homeHere = (sc) => !!pet() && !!sc && !!sc.geo && sc.owned && (!pet().stay || sc.name === S().homeMain);
+/**
+ * Куда в доме питомцу можно встать вместо x на этаже f. Хомячок в воде (бассейн, джакузи, ванна — встроенные предметы
+ * с wet, engine/side/fixtures.js; передняя стенка тогда рисуется поверх всех) — питомец в эту воду не заходит: встаёт
+ * у бортика с той стороны, откуда идёт (from), а если он уже над водой — у ближнего. Мимо пустого бассейна он, как
+ * хомячок, просто проходит по полу перед ним.
+ */
+function dryX(sc, f, x, from = x) {
+  const W = sc.geo.W,
+    pad = 30; // полкорпуса питомца: у бортика, а не на нём
+  for (let k = 0; k < 2; k++)
+    for (const b of sc.fixtures || []) {
+      if (b.f !== f || !b.def || !b.def.wet || !sc.using(b)) continue;
+      const l = b.x - b.w / 2 - pad,
+        r = b.x + b.w / 2 + pad;
+      if (x <= l || x >= r) continue;
+      const near = from <= l ? 'l' : from >= r ? 'r' : from - l <= r - from ? 'l' : 'r';
+      x = (near === 'l' && l >= 46) || r > W - 46 ? l : r;
+    }
+  return clamp(x, 46, W - 46);
+}
 function updateHome(dt) {
   const sc = scene();
   if (!homeHere(sc)) {
@@ -404,14 +427,17 @@ function updateHome(dt) {
   }
   const p = sc.p,
     W = sc.geo.W;
-  if (!h || h.sc !== sc) h = { sc, x: clamp(p.x - 80, 50, W - 50), f: p.f, dir: 1, moving: false, walkT: 0, fx: null };
+  if (!h || h.sc !== sc)
+    h = { sc, x: dryX(sc, p.f, clamp(p.x - 80, 50, W - 50)), f: p.f, dir: 1, moving: false, walkT: 0, fx: null };
   if (h.fx) return updateFx(h, dt, null);
   if (p.lift) return; // хомячок в лифте — ждём
   if (h.f !== p.f) {
     h.f = p.f;
-    h.x = clamp(p.x + (p.dir >= 0 ? -70 : 70), 50, W - 50);
+    h.x = dryX(sc, h.f, clamp(p.x + (p.dir >= 0 ? -70 : 70), 50, W - 50));
   }
-  const want = clamp(p.x + (p.dir >= 0 ? -78 : 78), 46, W - 46),
+  // хомячок в воде — питомец ждёт у бортика со своей стороны (по воде не идёт)
+  if (dryX(sc, h.f, h.x) !== h.x) h.x = dryX(sc, h.f, h.x);
+  const want = dryX(sc, h.f, clamp(p.x + (p.dir >= 0 ? -78 : 78), 46, W - 46), h.x),
     dx = want - h.x;
   h.moving = Math.abs(dx) > (h.moving ? 6 : 46);
   if (h.moving) {

@@ -299,6 +299,7 @@ export const FIXTURES = {
     h: 100,
     wall: [[40, 94, 60, 216]], // душ
     state: 'bath',
+    wet: true, // вода: питомец в неё не заходит, ждёт у бортика (features/pet.js, dryX)
     use(sc, b) {
       sc.settle('bath', b, b.x);
       sfx('splash');
@@ -382,6 +383,7 @@ export const FIXTURES = {
     w: 280,
     h: 90,
     state: 'jacuzzi',
+    wet: true, // вода: питомец в неё не заходит, ждёт у бортика (features/pet.js, dryX)
     use(sc, b) {
       sc.settle('jacuzzi', b, b.x);
       sfx('bubble');
@@ -433,6 +435,7 @@ export const FIXTURES = {
     w: 770,
     h: 90,
     state: 'swim',
+    wet: true, // вода: питомец в неё не заходит, ждёт у бортика (features/pet.js, dryX)
     use(sc, b) {
       if (!canSwim()) return void toast(SICK_TEXT.water); // простуженной в бассейн нельзя (Ф1); ванна и сауна — можно
       sc.settle('swim', b, clamp(sc.p.x, b.x - b.w / 2 + 60, b.x + b.w / 2 - 60));
