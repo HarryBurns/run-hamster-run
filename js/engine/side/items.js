@@ -153,6 +153,17 @@ const USE = {
     toast(n ? 'Цветы напились и шелестят: «Спасибо!» 🌿💧' : 'Буль-буль… А поливать-то нечего! Поставь рядом цветы 🪴');
     emit('thing', { id: it.id, owner: sc.desc.owner || null });
   },
+  /** Душевая кабинка: хомячок встаёт под душ, пару секунд льётся вода. */
+  shower(sc, it, d) {
+    const y = sc.geo.fy(it.floor);
+    sc.p.x = it.x;
+    sc.live.set(it, { on: true, t: 3.5 });
+    sc.playerHappy();
+    sfx('splash');
+    sc.burst(it.x, y - d.h * 0.55, 'bubble', 8);
+    toast('Тёплый душ! Чистая и пушистая 🚿');
+    emit('spa', { what: 'shower' });
+  },
   /** Штанга: потренироваться. */
   sport(sc, it, d) {
     sc.live.set(it, { on: true, t: 1.6 });

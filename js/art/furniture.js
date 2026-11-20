@@ -38,6 +38,34 @@ const D = {
     heart(c, -w / 4 - 1, -h + 40, 9, shade(d.c, -0.18));
     heart(c, w / 4 + 1, -h + 40, 9, shade(d.c, -0.18));
   },
+  /** Душевая кабинка: поддон, стеклянные стенки, лейка; включена (st.on) — льётся вода. */
+  shower(c, d, w, h, st) {
+    fillRR(c, -w / 2, -14, w, 14, 5, '#f1f3f5', OUT);
+    fillRR(c, -w / 2 + 4, -h, w - 8, h - 12, 10, 'rgba(208,235,255,.38)', OUT);
+    fillRR(c, -w / 2 + 4, -h, w - 8, 16, 6, d.c, OUT);
+    line(c, w / 2 - 16, -h + 16, w / 2 - 16, -h + 44, '#adb5bd', 5);
+    line(c, w / 2 - 16, -h + 44, 4, -h + 44, '#adb5bd', 5);
+    fillRR(c, -14, -h + 42, 32, 10, 5, '#ced4da', OUT, 1.5);
+    poly(
+      c,
+      [-w / 2 + 14, -h + 30, -w / 2 + 30, -h + 30, -w / 2 + 16, -h + 96, -w / 2 + 8, -h + 96],
+      'rgba(255,255,255,.4)',
+    );
+    ell(c, -w / 2 + 12, -h / 2, 3.5, 9, '#adb5bd', OUT, 1.2);
+    if (st.on) {
+      c.strokeStyle = 'rgba(116,192,252,.9)';
+      c.lineWidth = 2.5;
+      c.lineCap = 'round';
+      c.beginPath();
+      for (let i = 0; i < 6; i++) {
+        const x = -12 + i * 6,
+          y = -h + 56 + ((st.t * 260 + i * 37) % (h - 80));
+        c.moveTo(x, y);
+        c.lineTo(x - 1, y + 12);
+      }
+      c.stroke();
+    }
+  },
   fridge(c, d, w, h) {
     fillRR(c, -w / 2, -h, w, h, 14, d.c, OUT);
     line(c, -w / 2, -h * 0.62, w / 2, -h * 0.62, OUT, 2);

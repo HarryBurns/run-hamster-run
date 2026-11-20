@@ -2,13 +2,14 @@
 // Каждую культуру сажают в свой сезон (data/seasons.js): зимой и весной — салат (зимой грядки под парничком),
 // весной и летом — клубнику, летом — помидоры, летом и осенью — морковку, осенью — подсолнухи и тыкву.
 // Вне сезона семена посадить нельзя — подсказка скажет, когда можно. Что уже посажено — дорастает в любое время.
+// «Вилла растёт»: грядок сначала шесть, ещё — за монеты (bedOwned); в теплице (isGreenBed) сажают что угодно круглый год.
 import { plantSeed, harvestBed } from '../core/actions.js';
 import { sfx } from '../core/audio.js';
 import { emit } from '../core/events.js';
 import { register } from '../core/registry.js';
-import { G, cal, count } from '../core/state.js';
+import { G, cal, count, bedOwned } from '../core/state.js';
 import { el, plural } from '../core/util.js';
-import { ING_BY_ID, SEEDS, SEED_BY_ID, canSow, whenRipe } from '../data/index.js';
+import { ING_BY_ID, SEEDS, SEED_BY_ID, canSow, whenRipe, isGreenBed } from '../data/index.js';
 import { openPanel } from '../ui/panel.js';
 import { toast } from '../ui/toast.js';
 
@@ -27,8 +28,8 @@ const sowNow = () =>
 /** Посадить семена на грядку i. false — не сезон (и подсказка, когда можно) или таких семян нет. */
 export function plantOn(i, seedId) {
   const sd = SEED_BY_ID[seedId];
-  if (!sd || !count('seeds', seedId) || S().garden[i].seed) return false;
-  if (!canPlantNow(seedId)) {
+  if (!sd || !bedOwned(i) || !count('seeds', seedId) || S().garden[i].seed) return false;
+  if (!canPlantNow(seedId) && !isGreenBed(i)) {
     sfx('pop');
     toast(`${sowHint(sd)}. Сейчас можно сажать: ${sowNow()}.`);
     return false;
@@ -41,7 +42,9 @@ export function plantOn(i, seedId) {
 }
 
 export function gardenBed(i) {
-  const bed = S().garden[i];
+  const bed = S().garden[i],
+    green = isGreenBed(i); // в теплице тепло круглый год: сажают что угодно
+  if (!bed || !bedOwned(i)) return;
   if (bed.seed) {
     const sd = SEED_BY_ID[bed.seed],
       ing = ING_BY_ID[sd.crop];
@@ -57,20 +60,25 @@ export function gardenBed(i) {
     return;
   }
   const c = cal();
-  const have = SEEDS.filter((s) => count('seeds', s.id) > 0).sort((x, y) => canPlantNow(y.id) - canPlantNow(x.id));
+  const okNow = (id) => green || canPlantNow(id);
+  const have = SEEDS.filter((s) => count('seeds', s.id) > 0).sort((x, y) => okNow(y.id) - okNow(x.id));
   if (!have.length) {
-    toast(`Нет семян. Они продаются в ТЦ «Уютный дом» 🌱 Сейчас можно сажать: ${sowNow()}.`);
+    toast(
+      green
+        ? 'Нет семян. Они продаются в ТЦ «Уютный дом» 🌱 В теплице растёт всё и круглый год!'
+        : `Нет семян. Они продаются в ТЦ «Уютный дом» 🌱 Сейчас можно сажать: ${sowNow()}.`,
+    );
     return;
   }
   openPanel({
-    title: 'Что посадим?',
-    icon: '🌱',
+    title: green ? 'Что посадим в теплице?' : 'Что посадим?',
+    icon: green ? '🪴' : '🌱',
     cls: 'narrow',
     render(body, tab, panel) {
       const grid = el('div', 'grid');
       for (const sd of have) {
         const ing = ING_BY_ID[sd.crop],
-          now = canPlantNow(sd.id);
+          now = okNow(sd.id);
         const card = el('div', 'card tap' + (now ? '' : ' away'));
         card.appendChild(el('div', 'e', ing.e));
         card.appendChild(el('div', 'nm', sd.name));
@@ -92,7 +100,9 @@ export function gardenBed(i) {
         el(
           'p',
           'muted center',
-          `Сейчас ${c.seasonName.toLowerCase()} ${c.seasonIcon} — можно сажать: ${sowNow()}.${have.some((sd) => canPlantNow(sd.id)) ? '' : ' Семена — в ТЦ «Уютный дом».'}${c.season === 'winter' ? ' Зимой грядки укрыты парничком.' : ''}`,
+          green
+            ? 'В теплице тепло круглый год: сажай что хочешь в любой сезон 🪴'
+            : `Сейчас ${c.seasonName.toLowerCase()} ${c.seasonIcon} — можно сажать: ${sowNow()}.${have.some((sd) => canPlantNow(sd.id)) ? '' : ' Семена — в ТЦ «Уютный дом».'}${c.season === 'winter' ? ' Зимой грядки укрыты парничком.' : ''}`,
         ),
       );
     },

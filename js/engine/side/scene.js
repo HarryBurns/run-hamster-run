@@ -24,6 +24,9 @@
 //   guests        { f, enterX, gap, first, roam } — сюда приходят приглашённые друзья (см. actors.js)
 //   actors        [{ npc, f, x, roam, act, when }] — кто здесь живёт или работает (when() — когда он здесь)
 //   shell         { wall, roof, chimneyX, bushes, flat, ground, trees } — дом снаружи (см. rooms.js)
+//   variant       () => описание, которое действует сейчас (дом достраивается — вилла, interiors/villa.js): сцена
+//                 пересобирается при входе и по событию villaUp (sc.regrow)
+//   fitMin        при каком масштабе дом ещё показывать целиком (по умолчанию 0,66; планшет — 0,5–0,55)
 //   maxZoom       не приближать сильнее (для маленьких домов);  music — дневная музыка ('villa' | 'town' | 'forest' |
 //                 'mountain' | 'desert' | 'jungle' | 'cove' | 'island');  ambience — что ещё слышно ({ sea, drips, wind…})
 //   lamps, dim, night   свет вечером и ночью (light.js): свои лампы, «темно и днём», насколько темнеет ночью
@@ -69,27 +72,39 @@ export function addSidePart(part) {
   SIDE_PARTS.push(part);
 }
 
-export function createSideScene(desc) {
-  const geo = geometry(desc);
-  const { FH, W, WTOT, EX, floors, fy } = geo;
-  if (floors > 1 && !geo.lift) throw new Error(`Дом «${desc.id}»: больше одного этажа — нужен лифт (lift: true)`);
-  const { fixtures, zones, drawOrder } = buildFixtures(desc.built);
-  const furn = desc.furniture || {};
+export function createSideScene(desc0) {
+  // Описание может расти (вилла, «Вилла растёт»): variant() — какое описание дома сейчас. Всё, что выводится
+  // из описания (размеры, встроенные предметы, дверь), собирает setup(): при создании, при входе и по событию villaUp.
+  let desc, geo, FH, W, WTOT, EX, floors, fy, fixtures, zones, drawOrder, door, poses;
+  const furn = desc0.furniture || {};
   const owned = !!furn.key; // мебель своя и лежит в сохранении
   const fixed = owned
     ? null
     : (furn.fixed || []).map(([id, floor, x, y], i) => ({ uid: -1 - i, id, floor, x, y: y || 0 }));
   const noUse = new Set(furn.noUse || (owned ? [] : ['sleep', 'wardrobe', 'fridge']));
-  const door = desc.door || { f: 0, x: 100 };
-  // как рисовать хомячка в ванне, сауне и т. п. — берём у встроенных предметов, которые есть в доме
-  const poses = {};
-  for (const b of fixtures) if (b.def.state && b.def.pose) poses[b.def.state] = b.def.pose;
+  /** Собрать дом по описанию d. true — описание сменилось (или это первый раз). */
+  function setup(d) {
+    if (d === desc) return false;
+    desc = d;
+    geo = geometry(desc);
+    ({ FH, W, WTOT, EX, floors, fy } = geo);
+    if (floors > 1 && !geo.lift) throw new Error(`Дом «${desc.id}»: больше одного этажа — нужен лифт (lift: true)`);
+    ({ fixtures, zones, drawOrder } = buildFixtures(desc.built));
+    door = desc.door || { f: 0, x: 100 };
+    // как рисовать хомячка в ванне, сауне и т. п. — берём у встроенных предметов, которые есть в доме
+    poses = {};
+    for (const b of fixtures) if (b.def.state && b.def.pose) poses[b.def.state] = b.def.pose;
+    return true;
+  }
+  /** Описание, которое действует сейчас; у обычного дома — оно само. Можно звать до начала игры (тогда — как есть). */
+  const variantNow = () => (desc0.variant && G.state ? desc0.variant() : desc0);
+  setup(variantNow());
   const sub = scope(); // подписки на события, пока сцена — текущая
 
   // кэш неподвижного рисунка (От12): коробка дома с обоями и полами, неподвижные части art (sc.still)
   const cache = new LayerCache();
   const sc = {
-    name: desc.id,
+    name: desc0.id,
     desc,
     geo,
     owned,
@@ -122,6 +137,25 @@ export function createSideScene(desc) {
 
     /** Встроенные предметы ({ f, x, w, def … }) — где они стоят (украшение праздника ищет свободный пол). */
     fixtures,
+    /**
+     * Дом достроили (описание с variant): пересобрать сцену по новому описанию. Хомячок остаётся на месте (или у двери,
+     * если его этажа или места больше нет). true — дом сменился.
+     */
+    regrow() {
+      if (!setup(variantNow())) return false;
+      sc.desc = desc;
+      sc.geo = geo;
+      sc.fixtures = fixtures;
+      sc.actors = makeResidents(desc);
+      cache.clear();
+      resetPlayer();
+      if (sc.p.f >= floors || sc.p.x > WTOT - 40) {
+        sc.p.f = door.f;
+        sc.p.x = door.x;
+      }
+      sc.liftY = fy(sc.p.f);
+      return true;
+    },
     /** Мебель этого дома. */
     items: () => (owned ? houseItems(furn.key) : fixed),
     /** Можно ли пользоваться предметом с таким описанием. */
@@ -166,6 +200,7 @@ export function createSideScene(desc) {
 
     // ---------- интерфейс сцены ----------
     enter(from, params = {}) {
+      sc.regrow();
       if (owned) initHouse(furn.key, furn.start);
       // откуда пришли. Если нас возвращают на сохранённое место (params.pos), «откуда» не меняется:
       // дверь по-прежнему ведёт туда, откуда в дом вошли (к двери его здания в городе).
@@ -187,6 +222,14 @@ export function createSideScene(desc) {
       sub.on('guestHappy', ({ id }) => actorHappy(sc, id));
       sub.on('happy', sc.playerHappy);
       sub.on('wake', wake);
+      // строители закончили, пока хомячок дома (спала — утром дом уже больше)
+      sub.on('villaUp', () => {
+        if (sc.regrow()) {
+          syncGuests(sc);
+          setDecor(sc, false);
+          snapCam();
+        }
+      });
     },
     leave() {
       setDecor(sc, false);
@@ -303,7 +346,8 @@ export function createSideScene(desc) {
     const tall = h > w * 1.1 && w >= 600;
     const pad = w >= h && h >= 700 && w < h * 1.5;
     const desk = w >= h * 1.5 && h >= 600; // телефон лёжа ниже
-    const minFit = tall ? 0.5 : pad ? 0.55 : 0.66;
+    // fitMin в описании — свой порог «показывать целиком» (вилла с мансардой: четыре этажа на компьютере)
+    const minFit = Math.min(tall ? 0.5 : pad ? 0.55 : 0.66, desc.fitMin || 1);
     const hFit = h / (floors * FH + 230); // все этажи по высоте
     // дом целиком помещается на экран — показываем целиком; иначе крупно и следим за хомячком
     let z =

@@ -13,6 +13,8 @@ import {
   HEALTH,
   defaultLook,
   BUILD,
+  VILLA_UP_NEW,
+  GARDEN_SIZE,
 } from '../data/index.js';
 
 // Ключ хранилища («v1» в имени — исторически; версия сохранения лежит в поле v). Здесь всегда лежит ТА ИГРА,
@@ -32,8 +34,20 @@ export const G = {
   sneezeAt: null, // когда простуженная хомячок последний раз чихнула (по G.time; features/health.js)
 };
 
-// Мебель, которая стоит на вилле в начале игры. floor: 0..2, x — центр, y — высота над полом (для настенных)
+// Мебель маленького домика, с которого начинается новая игра («Вилла растёт»): душ, шкаф, кровать, стул и стол.
+// floor — этаж, x — центр, y — высота над полом (для настенных). Комнаты домика — interiors/villa.js, ступень 0.
 const START_VILLA = [
+  ['shower', 0, 66],
+  ['wardrobe', 0, 402],
+  ['bed_pink', 0, 578],
+  ['chair', 0, 712],
+  ['table', 0, 790],
+];
+/**
+ * Мебель, с которой игра начиналась до «Вилла растёт» (полная вилла в три этажа). Нужна автотесту: __dev.villaFull()
+ * ставит её, чтобы прежние шаги работали на той же вилле (js/devhooks.js).
+ */
+export const OLD_START_VILLA = [
   ['lamp', 0, 372],
   ['rug_pink', 0, 540],
   ['sofa_mint', 0, 500],
@@ -108,7 +122,10 @@ export function newGame(name) {
     dishes: { cookies: 2, cocoa: 1 },
     seeds: { seed_carrot: 2 }, // игра начинается в июне: морковка вырастает за ночь
     recipes: [...START_RECIPES],
-    garden: Array.from({ length: 8 }, () => ({ seed: null, age: 0 })),
+    garden: Array.from({ length: GARDEN_SIZE }, () => ({ seed: null, age: 0 })),
+    // «Вилла растёт»: что построено (data/estate.js). Новая игра — маленький домик и 6 грядок; у сохранений без
+    // этого поля (игры, начатые раньше) построено всё, что было, — см. repair
+    villaUp: { ...VILLA_UP_NEW },
     friends: Object.fromEntries(NPCS.map((n) => [n.id, { pts: 0, chat: -1, gift: -1, met: false }])),
     guests: [],
     mail: null,
@@ -117,7 +134,7 @@ export function newGame(name) {
     stickers: [],
     best: {},
     plays: {},
-    pos: { scene: 'villa', floor: 1, x: 270 },
+    pos: { scene: 'villa', floor: 0, x: 608 },
     // intro: 1 — идёт вводная цепочка заданий новой игры (features/welcome.js); begun: 1 — игра дошла до самой игры
     // (после вступительной сценки, main.js: startGame): без неё и без перемен это «пустая» игра (core/games.js: blankGame)
     flags: { intro: 1 },

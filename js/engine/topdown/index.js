@@ -27,3 +27,4 @@ export {
 } from './scene.js';
 export { spotlight } from './render.js';
 export { inEll } from './map.js';
+export { resetGround } from './ground.js';

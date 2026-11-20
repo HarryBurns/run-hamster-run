@@ -42,6 +42,7 @@ import * as inside from './inside.js';
 import * as relax from './relax.js';
 import * as wheels from './wheels.js';
 import * as yard from './yard.js';
+import * as villaUp from './villa_up.js';
 import * as pet from './pet.js';
 import * as holidays from './holidays.js';
 import * as holidaysScenes from './holidays_scenes.js';
@@ -117,6 +118,7 @@ export const devAll = () =>
     relax,
     wheels,
     yard,
+    villaUp,
     pet,
     holidays,
     holidaysScenes,

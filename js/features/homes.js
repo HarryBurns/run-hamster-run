@@ -172,7 +172,9 @@ function homeCard(h, panel, mine) {
     here = scene() && scene().name === h.id;
   const soon = soonNote(h);
   const li = el('div', 'list-item home-card' + (soon ? ' soon' : ''));
-  if (HOUSE_BY_ID[h.id]) li.appendChild(planCanvas(HOUSE_BY_ID[h.id]));
+  // у виллы план — какой дом сейчас («Вилла растёт»: описание по ступени, variant)
+  const desc = HOUSE_BY_ID[h.id];
+  if (desc) li.appendChild(planCanvas(desc.variant ? desc.variant() : desc));
   const main = S().homeMain === h.id;
   const info = el(
     'div',
@@ -210,12 +212,18 @@ function homeCard(h, panel, mine) {
   return li;
 }
 
+/** Ещё вкладки окна риелтора: «Стройка» («Вилла растёт», features/villa_up.js) — { id, name, render(body, panel) }. */
+const EXTRA_TABS = [];
+export function addRealtorTab(tab) {
+  EXTRA_TABS.push(tab);
+}
+
 /**
- * Окно риелтора (дверь агентства): вкладки «Купить жильё» и «Мои дома». tab: 'buy' | 'mine' — какую открыть.
+ * Окно риелтора (дверь агентства): вкладки «Купить жильё», «Стройка» и «Мои дома». tab: 'buy' | 'mine' — какую открыть.
  * only — только список «Мои дома» с выбором основного дома (кнопка в меню): купить отсюда нельзя.
  */
 export function openRealtor(tab = 'buy', only = false) {
-  const start = tab === 'mine' ? 'mine' : 'buy';
+  const start = tab === 'mine' || EXTRA_TABS.some((t) => t.id === tab) ? tab : 'buy';
   const mineList = (body, panel) => {
     const list = ownedHomes().map((id) => HOME_BY_ID[id]);
     for (const h of list) body.appendChild(homeCard(h, panel, true));
@@ -225,7 +233,7 @@ export function openRealtor(tab = 'buy', only = false) {
         'muted center',
         list.length > 1
           ? 'Кнопка «Домой» ведёт в основной дом ⭐. В каждый дом входят через его дверь в городе. Спать можно в любом — проснёшься там, где уснула.'
-          : 'Пока у тебя один дом — вилла. Ещё один можно купить в агентстве «Свой домик» — оно на Северной улице, рядом с Хомяк-Банком.',
+          : 'Пока у тебя один дом. Его можно достроить (вкладка «Стройка»), а ещё один — купить в агентстве «Свой домик»: оно на Северной улице, рядом с Хомяк-Банком.',
       ),
     );
   };
@@ -239,10 +247,13 @@ export function openRealtor(tab = 'buy', only = false) {
     tab: start,
     tabs: [
       { id: 'buy', name: '🏘️ Купить жильё' },
+      ...EXTRA_TABS.map((t) => ({ id: t.id, name: t.name })),
       { id: 'mine', name: '🔑 Мои дома' },
     ],
     render(body, t, panel) {
-      if (t === 'buy') {
+      const extra = EXTRA_TABS.find((q) => q.id === t);
+      if (extra) extra.render(body, panel);
+      else if (t === 'buy') {
         body.appendChild(
           el(
             'p',

@@ -866,10 +866,10 @@ const { pathToFileURL } = require('url');
   const SPEND = 1 / 3; // какая доля заработка уходит на наряды, мебель, еду и салон
   const total = (d) => d.work + d.task + Math.min(MARKET.purse, d.market);
   /** За сколько дней накопится GOAL: первые два дня — «в начале», к седьмому доход дорастает до «через неделю». */
-  const daysTo = (p, spend) => {
+  const daysTo = (p, spend, goal = GOAL) => {
     let money = START_MONEY,
       d = 0;
-    while (money < GOAL && d < 999) {
+    while (money < goal && d < 999) {
       d++;
       const t = Math.min(1, Math.max(0, (d - 2) / 5));
       money += (total(p.start) + (total(p.week) - total(p.start)) * t) * (1 - spend);
@@ -880,6 +880,51 @@ const { pathToFileURL } = require('url');
     p.days = daysTo(p, SPEND);
     p.daysNoSpend = daysTo(p, 0);
   }
+
+  // ---------- 3б. «Вилла растёт»: ступени дома и двора (data/estate.js, VILLA_PRICES) ----------
+  // Новая игра начинается в маленьком домике с GARDEN.beds[0] грядок. Первая ступень (пристройка) — за несколько
+  // игровых дней, третий этаж — цель надолго (дороже квартиры). Теплица: любые семена круглый год, а урожай «не в сезон»
+  // рынок берёт дороже — поэтому мест в ней мало, стоит она дорого и окупается долго; огород целиком (все грядки и
+  // теплица) вместе со сбором в городе — меньше трёх с половиной смен на 2★ в день и сам не больше кошелька торговца.
+  const { VILLA_PRICES, GARDEN, VILLA_UPS } = D;
+  for (const u of VILLA_UPS) if (!(u.price > 0)) bad(`«Вилла растёт»: ступень без цены: ${u.id}`);
+  for (const id of Object.keys(VILLA_PRICES))
+    if (!D.VILLA_UP_BY_ID[id]) bad(`«Вилла растёт»: цена для неизвестной ступени: ${id}`);
+  const calmP = PROFILES.find((p) => p.id === 'calm'),
+    keenP = PROFILES.find((p) => p.id === 'keen');
+  const villaDays = Object.fromEntries(
+    VILLA_UPS.map((u) => [u.id, [daysTo(keenP, SPEND, u.price), daysTo(calmP, SPEND, u.price)]]),
+  );
+  if (VILLA_PRICES.house1 <= START_MONEY)
+    bad('пристройка покупается на стартовые монеты — домик не успеет побыть домиком');
+  if (villaDays.house1[1] > 6) bad(`пристройка: ${villaDays.house1[1]} дн. спокойной игры — это не «несколько дней»`);
+  if (!(VILLA_PRICES.house1 < VILLA_PRICES.house2 && VILLA_PRICES.house2 < VILLA_PRICES.house3))
+    bad('ступени дома должны дорожать: пристройка < второй этаж < третий этаж');
+  if (VILLA_PRICES.house3 <= HOME_PRICES.flat) bad('третий этаж — цель надолго: дороже квартиры в городе');
+  if (villaDays.house3[0] < 10) bad(`третий этаж за ${villaDays.house3[0]} дн. увлечённой игры — слишком быстро`);
+  if (VILLA_PRICES.house4 >= VILLA_PRICES.house3) bad('небольшая терраса не дороже третьего этажа');
+  const bedOffBest = Math.max(...beds.map((b) => b.perDayOff)), // теплица: любая культура, урожай продан «не в сезон»
+    bedsAll = GARDEN.beds[GARDEN.beds.length - 1],
+    greenDay = GARDEN.green * bedOffBest,
+    greenBack = VILLA_PRICES.green / greenDay;
+  if (!(GARDEN.beds[0] >= 6 && GARDEN.beds[0] <= 8)) bad('в начале игры — 6–8 грядок');
+  if (GARDEN.beds[1] !== 8) bad('GARDEN.beds[1] — восемь грядок старых игр (правила огорода выше считают их)');
+  if (GARDEN.green > 4) bad('в теплице не больше четырёх мест');
+  if (greenBack < 20) bad(`теплица окупается за ${fmt(greenBack)} дн. — быстрее 20: «вечный двигатель» не в сезон`);
+  if (greenBack > 60) bad(`теплица окупается за ${fmt(greenBack)} дн. — дольше 60: покупать незачем`);
+  for (const [i, id] of ['beds1', 'beds2'].entries()) {
+    const back = VILLA_PRICES[id] / ((GARDEN.beds[i + 1] - GARDEN.beds[i]) * bestBed);
+    if (back < 5 || back > 40) bad(`${id}: грядки окупаются за ${fmt(back)} дн. — вне 5–40`);
+  }
+  for (let month = 0; month < 12; month++) {
+    const full = gatherSum(month) + bedsAll * bedBestIn(month) + greenDay;
+    if (full >= 3.5 * avg2)
+      bad(
+        `сбор и весь огород с теплицей: ${MONTHS[month]} — ${fmt(full)} монет в день, это не меньше трёх с половиной смен на 2★`,
+      );
+  }
+  if ((bedsAll + GARDEN.green) * bedOffBest > MARKET.purse)
+    bad('весь огород с теплицей, проданный не в сезон, — больше кошелька торговца');
 
   // ---------- 4. сколько стоит ----------
   const C = D.CLOTHES_BY_ID,
@@ -1273,6 +1318,14 @@ const { pathToFileURL } = require('url');
     );
   }
 
+  console.log(
+    '\n«Вилла растёт»: ступени дома и двора (дней увлечённой / спокойной игры, если тратить треть заработка)',
+  );
+  for (const u of VILLA_UPS) line(`  ${u.name}`, `${fmt(u.price)} — ${villaDays[u.id][0]} / ${villaDays[u.id][1]} дн.`);
+  line(
+    '  огород',
+    `грядок ${GARDEN.beds.join(' → ')}, в теплице ${GARDEN.green}; теплица даёт до ${fmt(greenDay)} в день (не в сезон) — окупается за ${fmt(greenBack)} дн.`,
+  );
   // первое жильё: примерно 10–15 игровых дней — между увлечённой и спокойной игрой; и не «за пару дней» даже на потолке
   const by = Object.fromEntries(PROFILES.map((p) => [p.id, p]));
   if (by.keen.days < 7 || by.keen.days > 15) bad(`увлечённая игра: квартира за ${by.keen.days} дн. — вне 7–15`);

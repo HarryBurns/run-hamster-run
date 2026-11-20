@@ -1,6 +1,15 @@
 // Отладочные хуки для автотестов (dev/smoke.js, dev/bench.js) и ручной отладки в консоли браузера.
 // Всё собрано в одном объекте window.__dev; игра сама им не пользуется.
-import { G, houseItems, questNow, questBadge, findsWanted, landOpen, npcLookNow } from './core/state.js';
+import {
+  G,
+  houseItems,
+  questNow,
+  questBadge,
+  findsWanted,
+  landOpen,
+  npcLookNow,
+  OLD_START_VILLA,
+} from './core/state.js';
 import * as actions from './core/actions.js';
 import * as events from './core/events.js';
 import * as registry from './core/registry.js';
@@ -25,7 +34,7 @@ import { debugDecor, debugFireworks } from './locations/holidays.js';
 import { debugLandDecor } from './locations/holidays_lands.js';
 import { debugRoomDecor } from './interiors/holidays_rooms.js';
 import { viewFireworks } from './interiors/tower_view.js';
-import { HOLIDAY_BY_ID, holidayDoy, YEAR_DAYS, SEASON_OF_MONTH, SLEEP_FROM } from './data/index.js';
+import { HOLIDAY_BY_ID, holidayDoy, YEAR_DAYS, SEASON_OF_MONTH, SLEEP_FROM, VILLA_UP_OLD } from './data/index.js';
 
 /**
  * Следить, что состояние меняют только действия из core/actions.js: подменяет G.state «прозрачной обёрткой»,
@@ -177,6 +186,30 @@ export function installDevHooks({ F }) {
       });
       events.emit('look');
       events.emit('hud');
+    },
+    /**
+     * «Вилла растёт», для автотеста: вилла целиком, как до этого обновления, — три этажа, пруд, бассейн, 8 грядок и
+     * прежняя стартовая мебель (спальня на втором этаже, колесо, диван…). Шаги, написанные для такой виллы, зовут это
+     * после «Новой игры» (dev/lib.js: fresh() делает это сам, кроме villa: 'small'). Хомячок — у кровати.
+     */
+    villaFull() {
+      actions.mutate((s) => {
+        s.villaUp = { ...VILLA_UP_OLD };
+        s.villa = OLD_START_VILLA.filter((r) => r[4] !== 'table').map(([id, floor, x, y]) => ({
+          uid: s.uid++,
+          id,
+          floor,
+          x,
+          y: y || 0,
+        }));
+      });
+      events.emit('villaUp', { what: 'set' });
+      if (loop.sceneName() === 'villa') loop.go('villa', { wake: true });
+    },
+    /** «Вилла растёт»: построить ступень сразу (без ночи): villaUp('house1'), villaUp('pond'). Возвращает id или null. */
+    villaUp(id) {
+      actions.orderVillaUp(id);
+      return actions.finishVillaUp(true);
     },
     /**
      * Вечер: часы не раньше m (по умолчанию SLEEP_FROM — 19:00, с этого часа можно лечь спать; этап 18).

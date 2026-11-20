@@ -16,6 +16,8 @@ import {
   stepWaits,
   hotelPoolGuests,
   hotelRoomGuest,
+  bedOwned,
+  yardHas,
 } from '../core/state.js';
 import { T, OUT, SP, put, defineTiles, defineObjects } from '../engine/topdown/kinds.js';
 import { createTopDownScene } from '../engine/topdown/scene.js';
@@ -30,7 +32,8 @@ import { createPlants, hasFruit } from './common/plants.js';
 import { createHerbs } from './common/herbs.js';
 import { createHolidayDecor, HOLIDAY_PLACES } from './holidays.js';
 import { createDoorman } from './doorman.js';
-import { MW, MH, GATES, BEDS, JOB_SPOTS, POOLS, YARD, buildTown } from './town_map.js';
+import { MW, MH, GATES, BED_CELLS, JOB_SPOTS, POOLS, YARD, buildTown } from './town_map.js';
+import { syncVillaYard } from './town_yard.js';
 
 export { JOB_SPOTS };
 
@@ -257,7 +260,7 @@ function gateOpen(id) {
 }
 
 // ---------- особые места ----------
-const bedIndex = (tx, ty) => (ty === BEDS.rows[0] ? 0 : BEDS.n) + (tx - BEDS.x);
+const bedIndex = (tx, ty) => BED_CELLS.findIndex((c) => c[0] === tx && c[1] === ty);
 const notWinter = () => cal().season !== 'winter',
   winter = () => cal().season === 'winter';
 /** Кусочек карты Зефирки (задание «Карта сокровищ Зефирки», П.9) ещё ждёт на месте: tower | ship | isle. */
@@ -274,13 +277,24 @@ const PLACES = [
     act: 'mailbox',
   },
   // зимняя лунка на пруду во дворе
-  { id: 'icehole', at: [22, 19], hit: { r: 30 }, stand: [23.5, 19.5], when: winter, act: 'fish:pond', key: false },
+  {
+    id: 'icehole',
+    at: [22, 19],
+    hit: { r: 30 },
+    stand: [23.5, 19.5],
+    when: () => winter() && yardHas('pond'),
+    act: 'fish:pond',
+    key: false,
+  },
   // грядки: встаём под грядкой
-  ...Array.from({ length: BEDS.n * BEDS.rows.length }, (_, i) => {
-    const x = BEDS.x + (i % BEDS.n),
-      y = BEDS.rows[Math.floor(i / BEDS.n)];
-    return { id: 'bed' + i, cell: [x, y], stand: [x + 0.5, y + 1.5], act: 'garden:' + i, shy: 0.6 };
-  }),
+  ...BED_CELLS.map(([x, y], i) => ({
+    id: 'bed' + i,
+    cell: [x, y],
+    stand: [x + 0.5, y + 1.5],
+    act: 'garden:' + i,
+    shy: 0.6,
+    when: () => bedOwned(i), // «Вилла растёт»: грядку ещё не вскопали, теплицу не построили
+  })),
   // пруды (во дворе и в парке), пока не замёрзли: рыбалка с берега
   { id: 'pond', tile: 'd', when: notWinter, act: 'fish:pond' },
   // доска «Ореховая Гавань» на набережной и ореховые скалы на краях пляжа (этап 10): почему городок так зовут
@@ -442,6 +456,14 @@ defineTiles({
   // клетки под воротами выездов: тропа и дорога, по которым можно пройти, только когда выезд открыт
   gateF: { like: 'y', gate: true, walk: () => gateOpen('forest') },
   gateD: { like: 'r', gate: true, walk: () => gateOpen('desert') },
+});
+// грядка в теплице («Вилла растёт»): под стеклом тепло круглый год — зимой без парничка и без инея
+defineTiles({
+  bg: {
+    like: 'b',
+    fill: () => '#8d5a3a',
+    deco: (ctx, x, y, tx, ty, env) => bedDeco(ctx, x, y, tx, ty, { ...env, season: 'summer' }),
+  },
 });
 function bedDeco(ctx, x, y, tx, ty, env) {
   // борозды и перегородка между соседними грядками
@@ -969,9 +991,11 @@ const town = createTopDownScene({
   },
   built(sc) {
     townScene = sc;
+    syncVillaYard(sc); // двор виллы — какой сейчас построен («Вилла растёт»)
     sealPockets(sc.map);
   },
   enter(sc, from) {
+    syncVillaYard(sc);
     if (from === 'villa') sea.boatHome(); // кораблик возвращается к пирсу
     // за закрытыми воротами (старое сохранение, отладка) не остаёмся: встаём перед ними
     const tx = Math.floor(sc.p.x / T),

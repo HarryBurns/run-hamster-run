@@ -249,7 +249,9 @@ function lib(ctx) {
    *   start: 'june' (по умолчанию: настоящее начало — 1 июня, без вводной цепочки заданий) | 'old' (__dev.oldStart():
    *          1 января, снег, тёплый наряд — для шагов про зиму) | 'intro' (как у ребёнка: с вводной цепочкой);
    *   name — имя хомячка; day, minutes, weather — сразу поставить; dayFlags: true — очистить отметки дня;
-   *   money; flags — { имя: значение } в s.flags; set — ещё строка/функция для mutate; scene — перейти туда.
+   *   money; flags — { имя: значение } в s.flags; set — ещё строка/функция для mutate; scene — перейти туда;
+   *   villa: 'small' — как в настоящей новой игре: маленький домик («Вилла растёт»); по умолчанию — вилла целиком
+   *          (__dev.villaFull(): три этажа, пруд, бассейн, прежняя мебель) — на неё рассчитаны прежние шаги.
    * Хомячок после этого на вилле (или в scene), окна закрыты.
    */
   const fresh = async (o = {}) => {
@@ -262,6 +264,10 @@ function lib(ctx) {
     await act('go'); // «Добро пожаловать!» — «Поехали!»
     await untilScene('villa');
     await closeAll();
+    if (o.villa !== 'small') {
+      await ev(() => window.__dev.villaFull());
+      await frames(2);
+    }
     const parts = [];
     if (o.day != null) parts.push(`s.day = ${+o.day};`);
     if (o.minutes != null) parts.push(`s.minutes = ${+o.minutes};`);

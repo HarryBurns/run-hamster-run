@@ -141,6 +141,19 @@ export function createMap(desc) {
       objs.splice(i, 1);
     },
 
+    /**
+     * Сменить вид клетки после постройки — редкий случай: двор виллы достраивают («Вилла растёт»: пруд, бассейн,
+     * грядки — locations/town_yard.js). Предметов на клетке быть не должно (сначала m.clear / m.remove); после всех
+     * замен — resetGround(m) (ground.js): земля перерисуется.
+     */
+    retile(x, y, c) {
+      const k = TILES[c];
+      if (!k || !ground[y] || ground[y][x] === undefined) return;
+      ground[y][x] = c;
+      if (m.kinds) m.kinds[y][x] = k;
+      solid[y][x] = !!k.block;
+    },
+
     // ---------- после постройки ----------
     kindAt: (tx, ty) => (m.kinds[ty] ? m.kinds[ty][tx] : undefined),
     inside: (px, py) => px >= 0 && px < w * T && py >= 0 && py < h * T,

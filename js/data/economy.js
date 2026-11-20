@@ -79,6 +79,18 @@ export const MONEY_STICKERS = { earned: 10000, saved: 50000 };
 // Принятые цифры — docs/DESIGN.md, раздел 3. Описания (названия, сцены, кто хозяин) — data/estate.js.
 /** Цены жилья. */
 export const HOME_PRICES = { flat: 25000, cabin: 45000, bungalow: 60000, suite: 80000, penthouse: 150000 };
+/**
+ * «Вилла растёт» (docs/DESIGN.md): новая игра начинается в маленьком домике, а этажи, пруд, бассейн, грядки и теплицу
+ * достраивают за монеты (описания ступеней — VILLA_UPS в data/estate.js). Первая ступень — за несколько игровых дней,
+ * третий этаж — цель надолго (дороже квартиры в городе). Теплица дорогая, и мест в ней мало (GARDEN.green): урожай
+ * «не в сезон» рынок покупает дороже — она окупается долго (проверка — dev/balance.js).
+ */
+export const VILLA_PRICES = {
+  house1: 6000, house2: 15000, house3: 40000, house4: 12000,
+  beds1: 1000, beds2: 2500, pond: 3000, pool: 8000, green: 15000,
+};
+/** Огород: сколько грядок на каждой ступени (beds[0] — в начале новой игры) и сколько мест в теплице. */
+export const GARDEN = { beds: [6, 8, 10], green: 4 };
 /** Заведения: цена покупки и выручка за день (копится в кассе заведения, забирать — там же). */
 export const BIZ = {
   cafe: { price: 40000, income: 1500 },
@@ -475,7 +487,7 @@ export const PRICES = {
   // мебель: ТЦ «Уютный дом», рынок
   furn: {
     bed_pink: 1500, bed_blue: 1500, bed_green: 1500, bed_royal: 30000,
-    wardrobe: 1800, wardrobe_white: 2200, fridge: 2000, fridge_pink: 2600,
+    wardrobe: 1800, wardrobe_white: 2200, shower: 1200, fridge: 2000, fridge_pink: 2600,
     sofa_red: 1600, sofa_mint: 1600, sofa_purple: 1800, armchair: 800, armchair_blue: 800, beanbag: 500, chair: 250,
     table: 900, coffee_table: 500, nightstand: 350, bookshelf: 1200,
     tv: 3000, piano: 8000, wheel: 1500, music: 1200, teddy: 300, aquarium: 2500, fireplace: 3000,

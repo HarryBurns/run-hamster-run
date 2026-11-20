@@ -28,6 +28,10 @@ import {
   RIDE_BY_ID,
   YARD_BY_ID,
   YARD_BY_ID_HOME,
+  VILLA_UP_OLD,
+  VILLA_UP_MAX,
+  VILLA_UP_BY_ID,
+  GARDEN_SIZE,
   BUILD,
 } from '../data/index.js';
 
@@ -294,8 +298,21 @@ export function repair(s) {
     Number.isFinite(s.uid) ? s.uid : 1,
     ...[s.villa, ...Object.values(s.homes)].flat().map((i) => (i.uid || 0) + 1),
   );
-  // грядки: всегда восемь, семена — только известные
-  s.garden = Array.from({ length: 8 }, (_, i) => {
+  // «Вилла растёт»: у игры, начатой раньше (поля нет), построено всё, что было на вилле, — ничего не отбираем
+  {
+    const u = s.villaUp && typeof s.villaUp === 'object' && !Array.isArray(s.villaUp) ? s.villaUp : null,
+      up = { ...VILLA_UP_OLD };
+    if (u)
+      for (const k of Object.keys(VILLA_UP_MAX))
+        up[k] = Number.isInteger(u[k]) ? Math.max(0, Math.min(VILLA_UP_MAX[k], u[k])) : 0;
+    // заказ строителям: известная ступень, следующая по порядку, день заказа — число
+    const b = u && u.build && typeof u.build === 'object' ? u.build : null,
+      def = b ? VILLA_UP_BY_ID[b.id] : null;
+    up.build = def && up[def.kind] === def.level - 1 && Number.isFinite(b.day) ? { id: def.id, day: b.day } : null;
+    s.villaUp = up;
+  }
+  // грядки: всегда GARDEN_SIZE мест (какие из них куплены — bedsOf(villaUp), data/estate.js), семена — только известные
+  s.garden = Array.from({ length: GARDEN_SIZE }, (_, i) => {
     const b = s.garden[i];
     return b && b.seed && SEED_BY_ID[b.seed]
       ? { seed: b.seed, age: Number.isFinite(b.age) ? b.age : 0 }

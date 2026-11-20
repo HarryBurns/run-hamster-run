@@ -20,6 +20,9 @@ import {
   npcLook,
   HOME_BY_ID,
   HOME_SCENE,
+  VILLA_UPS,
+  VILLA_UP_BY_ID,
+  bedsOf,
 } from '../data/index.js';
 
 // ---------- внешность игрока ----------
@@ -196,6 +199,31 @@ export function hotelRoomGuest() {
   if (!id || s.guests.includes(id) || invitedToday(id) || guestsWaiting().includes(id) || questBadge(id)) return null;
   return id;
 }
+
+// ---------- «Вилла растёт» (data/estate.js; только чтение) ----------
+/** Ступень дома: 0 — маленький домик, 1 — с пристройкой, 2 — два этажа, 3 — три, 4 — с мансардой и террасой. */
+export const villaStage = () => (G.state && G.state.villaUp ? G.state.villaUp.house : 3);
+/** Построено ли во дворе: 'pond' | 'pool' | 'green'. */
+export const yardHas = (k) => !!(G.state && G.state.villaUp && G.state.villaUp[k]);
+/** Номера купленных грядок (в state.garden), вместе с местами в теплице. */
+export const gardenBeds = () => bedsOf(G.state.villaUp);
+export const bedOwned = (i) => gardenBeds().includes(i);
+/** Что строители сейчас строят (описание ступени) или null. */
+export const villaBuilding = () => {
+  const b = G.state && G.state.villaUp && G.state.villaUp.build;
+  return (b && VILLA_UP_BY_ID[b.id]) || null;
+};
+/** Что можно заказать: 'ok' | 'done' (уже есть) | 'later' (сначала прошлая ступень или needs) | 'busy' (строители заняты). */
+export function villaUpState(id) {
+  const u = G.state.villaUp,
+    d = VILLA_UP_BY_ID[id];
+  if (!d) return 'later';
+  if (u[d.kind] >= d.level) return 'done';
+  if (u.build) return u.build.id === id ? 'building' : u[d.kind] === d.level - 1 ? 'busy' : 'later';
+  return u[d.kind] === d.level - 1 ? 'ok' : 'later';
+}
+/** Следующая ступень каждого вида, которую ещё не построили (по порядку таблицы). */
+export const villaUpsLeft = () => VILLA_UPS.filter((d) => G.state.villaUp[d.kind] < d.level);
 
 /** Мебель дома по его ключу в сохранении: 'villa' — вилла, остальные лежат в state.homes. */
 export function houseItems(key) {

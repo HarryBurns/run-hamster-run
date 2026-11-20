@@ -117,6 +117,92 @@ const eq = (a, b, msg) => ok(JSON.stringify(a) === JSON.stringify(b), msg, { got
     return G.state.gid;
   };
 
+  // ---------- «Вилла растёт»: старые игры ничего не теряют, новая начинается в маленьком домике ----------
+  console.log('«Вилла растёт»');
+  const D = await import(url('data/index.js'));
+  for (const v of [1, 2, 3, 4, 5])
+    await test(`образец v${v}: всё, что было на вилле, считается построенным; мебель и грядки на месте`, () => {
+      const raw = sample(v),
+        was = JSON.parse(raw);
+      ok(was.villaUp === undefined, 'в образце уже есть villaUp — он не «старая игра»');
+      ls.setItem(KEY, raw);
+      ok(Gm.openActive().ok, 'не открылось');
+      const s = G.state;
+      eq(s.villaUp, { house: 3, beds: 1, pond: 1, pool: 1, green: 0, build: null }, 'ступени старой игры');
+      eq([S.villaStage(), S.yardHas('pond'), S.yardHas('pool'), S.yardHas('green')], [3, true, true, false], 'чтение');
+      eq(S.gardenBeds(), [0, 1, 2, 4, 5, 6, 3, 7], 'у старой игры — все восемь грядок');
+      eq(s.garden.length, D.GARDEN_SIZE, 'мест на огороде');
+      eq(
+        s.garden.slice(0, 8).map((b) => b.seed),
+        (was.garden || []).slice(0, 8).map((b) => (b && D.SEED_BY_ID[b.seed] ? b.seed : null)),
+        'что росло на грядках',
+      );
+      const known = (was.villa || []).filter((i) => D.FURN_BY_ID[i.id]);
+      eq(
+        s.villa.map((i) => [i.id, i.floor]),
+        known.map((i) => [i.id, i.floor]),
+        'мебель виллы и её этажи',
+      );
+      ok(S.save() && live().villaUp.house === 3, 'ступени не записались');
+    });
+  await test('новая игра: маленький домик — душ, шкаф, кровать, стул, стол; 6 грядок, без пруда и бассейна', () => {
+    eq(Gm.createGame('Плюша'), null, 'игра не создалась');
+    const s = G.state;
+    eq(s.villaUp, { house: 0, beds: 0, pond: 0, pool: 0, green: 0, build: null }, 'ступени новой игры');
+    eq(s.villa.map((i) => i.id).sort(), ['bed_pink', 'chair', 'shower', 'table', 'wardrobe'], 'мебель домика');
+    ok(
+      s.villa.every((i) => i.floor === 0 && i.x > 0 && i.x < 1000),
+      'мебель не в домике',
+    );
+    eq([S.gardenBeds().length, S.bedOwned(3), S.bedOwned(10)], [6, false, false], 'грядки');
+    eq([s.pos.scene, s.pos.floor], ['villa', 0], 'хомячок не на первом этаже');
+    ok(S.save(), 'не сохранилось');
+    ok(Gm.openActive().ok && G.state.villaUp.house === 0, 'после перезагрузки домик стал виллой');
+  });
+  await test('стройка: заказ — к утру готово; один заказ за раз, ступени по порядку; мебель с места сантехники — в кладовку', () => {
+    eq(Gm.createGame('Мята'), null, 'игра не создалась');
+    const s = G.state;
+    const seen = [];
+    const off = E.on('villaUp', (d) => seen.push(d.what + ':' + d.id));
+    eq(
+      [S.villaUpState('house1'), S.villaUpState('house2'), S.villaUpState('pond')],
+      ['ok', 'later', 'ok'],
+      'что можно',
+    );
+    ok(!A.orderVillaUp('house2'), 'второй этаж заказали раньше пристройки');
+    ok(A.orderVillaUp('house1'), 'пристройка не заказалась');
+    ok(!A.orderVillaUp('pond'), 'два заказа сразу');
+    eq([S.villaUpState('house1'), S.villaUpState('pond'), S.villaStage()], ['building', 'busy', 0], 'идёт стройка');
+    eq(A.finishVillaUp(), null, 'достроили в тот же день');
+    ok(S.save() && Gm.openActive().ok && G.state.villaUp.build.id === 'house1', 'заказ потерялся при перезагрузке');
+    A.nextDay();
+    const t = G.state;
+    eq([t.villaUp.house, t.villaUp.build, S.villaStage()], [1, null, 1], 'утром не готово');
+    ok(!t.villa.some((i) => i.id === 'shower') && t.storage.shower === 1, 'душ не переехал в кладовку');
+    eq(t.villa.map((i) => i.id).sort(), ['bed_pink', 'chair', 'table', 'wardrobe'], 'остальная мебель на месте');
+    ok(A.orderVillaUp('pond'), 'пруд не заказался');
+    A.nextDay();
+    for (const id of ['beds1', 'beds2', 'pool', 'green', 'house2', 'house3', 'house4']) {
+      ok(A.orderVillaUp(id), 'не заказалось: ' + id);
+      A.nextDay();
+    }
+    eq(G.state.villaUp, { house: 4, beds: 2, pond: 1, pool: 1, green: 1, build: null }, 'всё построено');
+    eq(S.gardenBeds().length, 14, 'грядок с теплицей');
+    ok(!A.orderVillaUp('house4') && S.villaUpsLeft().length === 0, 'построенное заказывается снова');
+    ok(seen.includes('order:house1') && seen.includes('done:house1') && seen.includes('done:green'), 'события', seen);
+    off();
+  });
+  await test('испорченные ступени чинятся: числа в пределах, неизвестный заказ выбрасывается', () => {
+    const raw = JSON.parse(sample(5));
+    raw.villaUp = { house: 99, beds: -3, pond: 'да', pool: 1, build: { id: 'castle', day: 1 } };
+    ls.setItem(KEY, JSON.stringify(raw));
+    ok(Gm.openActive().ok, 'не открылось');
+    eq(G.state.villaUp, { house: 4, beds: 0, pond: 0, pool: 1, green: 0, build: null }, 'починка');
+    raw.villaUp = { house: 1, beds: 0, pond: 0, pool: 0, green: 0, build: { id: 'house3', day: 2 } };
+    ls.setItem(KEY, JSON.stringify(raw));
+    ok(Gm.openActive().ok && G.state.villaUp.build === null, 'заказ «через ступень» остался');
+  });
+
   console.log('Сохранения: починка и перенос');
   for (const v of [1, 2, 3, 4, 5])
     await test(`образец v${v} открывается, становится версией ${VER} со сборкой ${BUILD}, имя и вещи на месте`, () => {

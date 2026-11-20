@@ -3,7 +3,7 @@ import { award, earn, setMail, readMail, mailCount, mailGot, finishTask } from '
 import { sfx } from '../core/audio.js';
 import { on, emit } from '../core/events.js';
 import { register } from '../core/registry.js';
-import { G, cal, hasClothes, homesWith } from '../core/state.js';
+import { G, cal, hasClothes, homesWith, villaStage, yardHas } from '../core/state.js';
 import { esc, fmtMoney, pick } from '../core/util.js';
 import {
   CLOTHES_BY_ID,
@@ -55,6 +55,9 @@ export function newDayMail() {
     (!t.needsCrop || ripe) &&
     (t.type !== 'wheel' || hasWheel) &&
     (t.type !== 'piano' || hasPiano) &&
+    // «Вилла растёт»: спа-день — когда на вилле есть сауна и джакузи (третий этаж), каток — когда есть пруд
+    (t.type !== 'spa' || villaStage() >= 3) &&
+    (t.type !== 'skate' || yardHas('pond')) &&
     (!s.sick || !taskNeedsHealth(t, JOBS));
   let id;
   const played = s.day - (s.startDay || 0); // сколько дней идёт игра (новая начинается 1 июня)

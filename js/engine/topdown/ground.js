@@ -63,6 +63,14 @@ export function clearGround() {
   for (const e of cache.map.values()) pool.push(e.c);
   cache.clear();
 }
+/**
+ * Земля карты m изменилась (m.retile — двор виллы достроили: пруд, бассейн, грядки): забыть границы слоёв этой карты
+ * и выбросить нарисованные куски — они нарисуются заново.
+ */
+export function resetGround(m) {
+  masks.delete(m.kinds);
+  clearGround();
+}
 /** Для тестов и отладки: сколько кусков и пикселей в кэше земли. */
 export const groundStats = () => ({
   count: cache.map.size,

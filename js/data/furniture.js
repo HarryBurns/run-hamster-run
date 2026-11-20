@@ -29,6 +29,8 @@ F('bed_green', 'bed', 'Кровать зелёная', 210, 96, { act: 'sleep', 
 F('bed_royal', 'bed', 'Королевская кровать', 230, 130, { stock: 'special', act: 'sleep', c: '#b197fc', royal: true, cat: 'bed' });
 F('wardrobe', 'wardrobe', 'Шкаф с одеждой', 130, 190, { act: 'wardrobe', c: '#d9a066', cat: 'furn' });
 F('wardrobe_white', 'wardrobe', 'Белый шкаф', 130, 190, { stock: 'delivery', act: 'wardrobe', c: '#f1f3f5', cat: 'furn' });
+// душевая кабинка («Вилла растёт»): стоит в маленьком домике с начала новой игры
+F('shower', 'shower', 'Душевая кабинка', 96, 204, { act: 'shower', c: '#99e9f2', cat: 'furn' });
 F('fridge', 'fridge', 'Холодильник', 96, 180, { act: 'fridge', c: '#e9ecef', cat: 'furn' });
 F('fridge_pink', 'fridge', 'Розовый холодильник', 96, 180, { stock: 'delivery', act: 'fridge', c: '#ffc9de', cat: 'furn' });
 F('sofa_red', 'sofa', 'Диван красный', 200, 90, { act: 'sit', c: '#ff6b6b', cat: 'seat' });

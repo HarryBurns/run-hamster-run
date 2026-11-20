@@ -27,6 +27,7 @@ import {
   PET_BY_ID,
   RIDE_BY_ID,
   YARD_BY_ID,
+  VILLA_UP_BY_ID,
 } from '../data/index.js';
 
 let depth = 0;
@@ -423,6 +424,7 @@ export const nextDay = act(() => {
   s.day++;
   s.minutes = 7 * 60 + 30;
   for (const b of s.garden) if (b.seed) b.age++;
+  finishVillaUp(); // «Вилла растёт»: строители закончили к утру
   s.weather = rollWeather();
   s.guests = [];
   s.visitor = Math.random() < 0.35 ? NPCS[Math.floor(Math.random() * NPCS.length)].id : null;
@@ -430,6 +432,47 @@ export const nextDay = act(() => {
   s.ledger = { today: { in: {}, out: 0 }, yesterday: s.ledger.today };
   touch();
   emit('guests');
+});
+
+// ---------- «Вилла растёт» (data/estate.js) ----------
+/** Заказать строителям ступень дома или двора (деньги списывает занятие — features/villa_up.js). false — нельзя. */
+export const orderVillaUp = act((id) => {
+  const s = S(),
+    u = s.villaUp,
+    d = VILLA_UP_BY_ID[id];
+  if (!d || u.build || u[d.kind] !== d.level - 1) return false;
+  u.build = { id, day: s.day };
+  touch();
+  emit('villaUp', { what: 'order', id });
+  return true;
+});
+/**
+ * Строители закончили (наступило утро после заказа; now — сразу, для отладки): ступень построена. Мебель, которая
+ * стоит там, куда встают новые встроенные предметы (clear у ступени), уходит в кладовку — кроме последней кровати.
+ * Возвращает id ступени или null. Событие villaUp { what: 'done', id, moved: [id мебели] }.
+ */
+export const finishVillaUp = act((now = false) => {
+  const s = S(),
+    u = s.villaUp,
+    b = u && u.build,
+    d = b && VILLA_UP_BY_ID[b.id];
+  if (!b || (!now && s.day <= b.day)) return null;
+  u.build = null;
+  touch();
+  if (!d) return null;
+  u[d.kind] = Math.max(u[d.kind], d.level);
+  const moved = [];
+  for (const [f, x0, x1] of d.clear || [])
+    for (const it of [...s.villa]) {
+      const def = FURN_BY_ID[it.id];
+      if (!def || def.wall || def.layer === 0 || it.floor !== f) continue;
+      if (it.x + def.w / 2 <= x0 || it.x - def.w / 2 >= x1) continue;
+      if (def.act === 'sleep' && countFurnAct('villa', 'sleep') <= 1) continue;
+      stashFurn('villa', it.uid);
+      moved.push(it.id);
+    }
+  emit('villaUp', { what: 'done', id: d.id, moved });
+  return d.id;
 });
 
 // ---------- болезнь (Ф1) ----------
