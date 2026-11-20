@@ -88,6 +88,57 @@ export const lightningNo = (t) => {
   const n = Math.floor(t / 14);
   return t - n * 14 >= hash(n * 3 + 1, 77) * 5 ? n : n - 1;
 };
+// Снежинка-картинка: белый кружок радиуса FLAKE_R с голубоватой тенью снизу справа (центр — FLAKE_C, сторона —
+// FLAKE_S); след метели: от хлопка вправо-вверх (по ветру назад), тает к хвосту, тоже с тенью (TRAIL_LEN — его длина).
+const FLAKE_R = 12,
+  FLAKE_C = 16,
+  FLAKE_S = 36,
+  TRAIL_W = 64,
+  TRAIL_H = 32,
+  TRAIL_LEN = 56;
+let snowSpr = null;
+function snowSprites() {
+  if (snowSpr) return snowSpr;
+  const cv = (w, h) => {
+    const c = document.createElement('canvas');
+    c.width = w;
+    c.height = h;
+    return c;
+  };
+  const flake = (shade) => {
+    const c = cv(FLAKE_S, FLAKE_S),
+      x = c.getContext('2d');
+    x.fillStyle = shade;
+    x.beginPath();
+    x.arc(FLAKE_C + 3, FLAKE_C + 4.6, FLAKE_R + 3, 0, 6.2832);
+    x.fill();
+    x.fillStyle = 'rgba(255,255,255,.97)';
+    x.beginPath();
+    x.arc(FLAKE_C, FLAKE_C, FLAKE_R, 0, 6.2832);
+    x.fill();
+    return c;
+  };
+  const trail = cv(TRAIL_W, TRAIL_H),
+    x = trail.getContext('2d'),
+    hx = 2,
+    hy = TRAIL_H - 4,
+    tx = hx + TRAIL_LEN,
+    ty = hy - TRAIL_LEN * 0.42;
+  x.lineCap = 'round';
+  for (const shade of [1, 0]) {
+    const g = x.createLinearGradient(hx, hy, tx, ty);
+    g.addColorStop(0, shade ? 'rgba(70,95,140,.3)' : 'rgba(255,255,255,.85)');
+    g.addColorStop(1, shade ? 'rgba(70,95,140,0)' : 'rgba(255,255,255,0)');
+    x.strokeStyle = g;
+    x.lineWidth = shade ? 7 : 5;
+    x.beginPath();
+    x.moveTo(hx + shade * 2.4, hy + shade * 3.2);
+    x.lineTo(tx + shade * 2.4, ty + shade * 3.2);
+    x.stroke();
+  }
+  snowSpr = { soft: flake('rgba(70,95,140,.3)'), hard: flake('rgba(60,85,130,.42)'), trail };
+  return snowSpr;
+}
 /** Осадки — в экранных координатах, по одному пути на цвет. */
 function drawWeather(ctx, sc, w, h, wx) {
   const k = wx.kind,
@@ -121,30 +172,23 @@ function drawWeather(ctx, sc, w, h, wx) {
       ctx.stroke();
     }
   } else if (k === 'snow') {
-    // снежинки двух размеров, покачиваются; в метель их несёт ветром (короткий белый след)
-    ctx.fillStyle = 'rgba(255,255,255,.95)';
-    ctx.beginPath();
-    for (const q of list) {
-      const r = (q.ph > 4 ? 4.2 : q.ph > 2 ? 3 : 2) * q.s,
+    // снежинки двух размеров, покачиваются; у каждой — голубоватая тень снизу справа, чтобы белое было видно и на белом
+    // снегу; в метель хлопья крупнее, и за частью тянется след по ветру. Хлопья и следы — готовые картинки
+    // (snowSprites): так дешевле, чем каждый кадр заливать и обводить сотни кружков
+    const spr = snowSprites(),
+      fl = hard ? spr.hard : spr.soft,
+      big = hard ? 1.45 : 1;
+    for (let i = 0; i < list.length; i++) {
+      const q = list[i],
+        r = (q.ph > 4 ? 4.2 : q.ph > 2 ? 3 : 2) * q.s * big,
         x = q.x * w + Math.sin(t * 1.3 + q.ph * 3) * 6,
-        y = q.y * h;
-      ctx.moveTo(x + r, y);
-      ctx.arc(x, y, r, 0, 6.2832);
-    }
-    ctx.fill();
-    if (hard) {
-      ctx.strokeStyle = 'rgba(255,255,255,.4)';
-      ctx.lineWidth = 2;
-      ctx.lineCap = 'round';
-      ctx.beginPath();
-      for (let i = 0; i < list.length; i += 3) {
-        const q = list[i],
-          x = q.x * w + Math.sin(t * 1.3 + q.ph * 3) * 6,
-          y = q.y * h;
-        ctx.moveTo(x + 3, y - 1);
-        ctx.lineTo(x + 3 + 16 * q.s, y - 1 - 7 * q.s);
+        y = q.y * h,
+        f = r / FLAKE_R;
+      if (hard && i % 3 === 0) {
+        const len = (14 + 22 * q.s) / TRAIL_LEN;
+        ctx.drawImage(spr.trail, x - 2 * len, y - (TRAIL_H - 4) * len, TRAIL_W * len, TRAIL_H * len);
       }
-      ctx.stroke();
+      ctx.drawImage(fl, x - FLAKE_C * f, y - FLAKE_C * f, FLAKE_S * f, FLAKE_S * f);
     }
   } else if (k === 'dust') {
     // пыльный ветер: длинные песочные чёрточки летят вбок
@@ -193,6 +237,32 @@ function drawMist(c, lw, lh, t, k) {
     for (let x = lw; x >= 0; x -= lw / 6) c.lineTo(x, y0 + bh + Math.sin(x * 0.05 + t * 0.3 + i + 2) * bh * 0.5);
     c.fill();
   }
+}
+/**
+ * Метель в слое неба: белые порывы снега — рваные полосы несутся справа налево и чуть вниз, то густеют, то редеют.
+ * Слой маленький (~170 точек в ширину), поэтому это почти ничего не стоит.
+ */
+function drawGusts(c, lw, lh, t) {
+  c.fillStyle = 'rgba(248,251,255,.45)';
+  c.beginPath();
+  for (let i = 0; i < 5; i++) {
+    const sp = 0.22 + hash(i, 41) * 0.12,
+      len = lw * (0.5 + hash(i, 43) * 0.5),
+      x0 = lw + len - ((t * sp * lw + hash(i, 47) * lw * 2) % (lw * 2 + len * 2)),
+      y0 = (hash(i, 53) * 0.9 + 0.05) * lh + Math.sin(t * 0.7 + i) * lh * 0.04,
+      bh = lh * (0.04 + hash(i, 59) * 0.04),
+      tilt = len * 0.18;
+    c.moveTo(x0, y0);
+    for (let j = 1; j <= 6; j++) {
+      const f = j / 6;
+      c.lineTo(x0 + len * f, y0 - tilt * f + Math.sin(f * 6 + t * 2 + i) * bh * 0.6);
+    }
+    for (let j = 6; j >= 0; j--) {
+      const f = j / 6;
+      c.lineTo(x0 + len * f, y0 - tilt * f + bh * Math.sin(f * 3.1416) + Math.sin(f * 5 + t * 1.7 + i) * bh * 0.4);
+    }
+  }
+  c.fill();
 }
 /** Дождь на земле: лужицы на мостовой и расходящиеся круги — в координатах мира, под всем, что стоит. */
 function drawRainOnGround(ctx, m, t, x0, y0, x1, y1) {
@@ -258,9 +328,11 @@ function skyTint(dark, wx, flash) {
   add(110, 70, 160, 0.16 * Math.sin(clamp(dark, 0, 1) * Math.PI)); // сумерки
   add(18, 22, 78, 0.6 * dark); // ночь
   if (wx) {
-    // тучи: серо-голубая пелена (в ливень гуще, в грозу — тёмная); метель — белая мгла, пыльный ветер — песочная
+    // тучи: серо-голубая пелена (в ливень гуще, в грозу — тёмная); метель — холодная серая мгла (а белые порывы
+    // поверх — drawGusts), пыльный ветер — песочная
     if (wx.kind === 'rain' && wx.force >= 3) add(48, 58, 100, 0.34);
-    else if (wx.kind === 'snow' && wx.force >= 2) add(228, 236, 248, 0.2);
+    else if (wx.kind === 'snow' && wx.force >= 2)
+      add(150, 168, 200, 0.3); // серо-голубая: на ней видно хлопья
     else if (wx.kind === 'dust') add(214, 170, 110, 0.2);
     else if (wx.cloud > 0) add(70, 95, 130, 0.28 * wx.cloud);
   }
@@ -765,6 +837,8 @@ export function drawFrame(ctx, sc) {
       fair || mist || !!desc.skyLayer,
     );
     if (layer && mist) drawMist(layer.c, layer.c.canvas.width, layer.c.canvas.height, t, wx.mist);
+    if (layer && wx.kind === 'snow' && wx.force >= 2)
+      drawGusts(layer.c, layer.c.canvas.width, layer.c.canvas.height, t);
     if (layer && warmSeason && fine && dark > 0.55) drawFireflies(layer.c, m, t, x0, y0, x1, y1, k, ox, oy, layer.S);
     if (layer) sc.call('sky', layer.c, sc, layer.c.canvas.width, layer.c.canvas.height); // своё в слое неба (лучи в лесу)
   } else if (gloom) {

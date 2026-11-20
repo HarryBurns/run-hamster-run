@@ -2557,6 +2557,8 @@ js/core/queries.js           weatherNow() — погода города сейч
 js/core/actions.js           nextDay и ход времени (passTime, spendMinutes) меняют погоду по частям дня; событие weather;
                              syncWeather(), forceWeather(kind, force) — для автотеста (__dev.weather)
 js/engine/topdown/render.js  рисунок: осадки по sc.wx() (сила, тёплый дождик, пыль), пелена туч, туман, lightning(t)
+                             метель: серая мгла, белые порывы в слое неба (drawGusts), хлопья — картинки с тенью
+                             (snowSprites), за частью — след по ветру
 js/engine/topdown/actors.js  зонтик и дождевик жителя на улице (drawUmbrella, umbrellaLift)
 js/features/soundscape.js    дождь по погоде места, раскат грома за вспышкой (sfx 'thunder')
 dev/smoke_weather.js         автотест: node dev/smoke.js <url> "step:погода:"

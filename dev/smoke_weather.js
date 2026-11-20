@@ -234,6 +234,39 @@ module.exports = async function weather(ctx) {
     await setWx('sun');
   });
 
+  await step('погода: метель видна и на белом снегу — серая мгла, белые порывы, хлопья с тенью', async () => {
+    await fresh({ start: 'old', dayFlags: true });
+    await mutate('s.minutes = 12 * 60;');
+    await setWx('snow', 2);
+    await go('world');
+    await frames(6);
+    const r = await ev(async () => {
+      const sky = document.getElementById('sky'),
+        c = sky.getContext('2d'),
+        px = c.getImageData(0, 0, sky.width, sky.height).data;
+      let minR = 255,
+        maxA = 0,
+        minA = 255;
+      for (let i = 0; i < px.length; i += 4) {
+        minA = Math.min(minA, px[i + 3]);
+        maxA = Math.max(maxA, px[i + 3]);
+        if (px[i + 3] > 40) minR = Math.min(minR, px[i]);
+      }
+      return {
+        on: sky.style.display !== 'none',
+        minR: Math.round(minR),
+        minA,
+        maxA,
+        n: window.__dev.scene.weather.length,
+      };
+    });
+    // мгла — холодная серая (не белая: на белой белых хлопьев не видно), поверх — светлые порывы (слой неровный)
+    expect(r.on && r.n >= 150, 'в метель нет слоя неба или мало хлопьев', r);
+    expect(r.minR < 200, 'мгла метели слишком белая', r);
+    expect(r.maxA - r.minA > 20, 'в метель нет порывов снега', r);
+    await setWx('sun');
+  });
+
   await step(
     'погода: в ливень, грозу и метель жители сидят по домам, в дождик гуляют — с зонтиками и в дождевиках',
     async () => {
