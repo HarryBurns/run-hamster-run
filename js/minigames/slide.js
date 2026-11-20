@@ -184,7 +184,7 @@ export default {
         <div class="sd-col turn"><b>↪ Поворот</b><div class="row">${pic((c, x, y, s) => turnPic(c, x, y, s))}</div><small>на повороте рули внутрь —<br>не задевай бортик</small></div>
         <div class="sd-col"><b>✅ Собирай</b><div class="row">${pic((c, x, y, s) => drawBubble(c, x, y, s * 1.4, 0))}${pic((c, x, y, s) => drawStar(c, x, y, s * 1.3, 0))}</div><small>пузыри и звёздочки<br>(звёздочка — за три!)</small></div>
       </div>
-      За ${TIME} секунд собери побольше! Задела бортик — «плюх!», и катишься дальше.
+      За ${TIME} секунд собери побольше! Задел{|а} бортик — «плюх!», и катишься дальше.
       Горок — ${TRACKS.length}: ${TRACKS.map((q) => `${q.icon} ${q.name}`).join(', ')}. Выбирай любую!`;
   },
   start(host) {
@@ -435,7 +435,7 @@ export default {
         stars = r.stars(SLIDE_STARS);
       r.finish({
         stars,
-        text: `${track.icon} «${track.name}» — плюх, и в бассейн! На счету ${got} 🫧 — пузыри и звёздочки${bumps ? `, задела бортик ${bumps} ${plural(bumps, 'раз', 'раза', 'раз')}.` : ', и ни разу не задела бортик!'}${stars === 3 ? ' Королева водной горки!' : ''}`,
+        text: `${track.icon} «${track.name}» — плюх, и в бассейн! На счету ${got} 🫧 — пузыри и звёздочки${bumps ? `, задел{|а} бортик ${bumps} ${plural(bumps, 'раз', 'раза', 'раз')}.` : ', и ни разу не задел{|а} бортик!'}${stars === 3 ? ' {Король|Королева} водной горки!' : ''}`,
         extra: { got, bumps, track: track.id },
       });
     }

@@ -161,9 +161,9 @@ function letterHtml() {
   // первое письмо новой игры (1 июня): городок здоровается с новой соседкой
   const hello =
     S().startDay && S().day === S().startDay
-      ? '<p>С приездом в <b>Ореховую Гавань</b>! Весь городок рад новой соседке. 🌰</p>'
+      ? '<p>С приездом в <b>Ореховую Гавань</b>! Весь городок рад {новому соседу|новой соседке}. 🌰</p>'
       : '';
-  return `<div class="letter"><h3>${t.sticker} ${t.title}</h3><p>Дорогая ${esc(S().name)}!</p>${hello}<p>${t.text}</p>${tip ? `<p class="tip">${tip}</p>` : ''}
+  return `<div class="letter"><h3>${t.sticker} ${t.title}</h3><p>{Дорогой|Дорогая} ${esc(S().name)}!</p>${hello}<p>${t.text}</p>${tip ? `<p class="tip">${tip}</p>` : ''}
     <p class="muted">${c.seasonIcon} ${c.monthName}, день ${c.dom}${where ? ` · Куда идти: <b>${where}</b>` : ''}</p></div>
     <p class="center">${m.done ? '✅ <b>Задание выполнено!</b>' : `Награда: <b>🪙 ${fmtMoney(taskCoins(t.id))}</b>, наклейка ${t.sticker} и, может быть, сюрприз 🎁${taskProgress() ? '<br>Сделано' + taskProgress() : ''}`}</p>`;
 }

@@ -40,7 +40,7 @@ export const PET_LINES = {
 // speed — во сколько раз быстрее ходьбы по дороге (клетки ROAD_TILES); по траве и песку — как пешком.
 // В воду, в здания и в места без дорог — пешком: хомячок слезает сам.
 export const RIDES = [
-  { id: 'scooter', name: 'Самокат', icon: '🛴', speed: 1.4, price: RIDE_PRICES.scooter, about: 'Лёгкий и быстрый: оттолкнулась — и поехала!' },
+  { id: 'scooter', name: 'Самокат', icon: '🛴', speed: 1.4, price: RIDE_PRICES.scooter, about: 'Лёгкий и быстрый: оттолкнул{ся|ась} — и поехал{|а}!' },
   { id: 'bike', name: 'Велосипед', icon: '🚲', speed: 1.7, price: RIDE_PRICES.bike, about: 'С корзинкой и звонком. По улицам — с ветерком.' },
   { id: 'car', name: 'Кабриолет', icon: '🚗', speed: 2.1, price: RIDE_PRICES.car, about: 'Маленькая машинка без крыши. Самая быстрая в городе!' },
 ];

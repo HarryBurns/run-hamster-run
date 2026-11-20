@@ -140,20 +140,20 @@ const BUILDING_ACTS = {
   home_bungalow: 'home:bungalow',
   hotel: 'scene:hotel',
   shelter: 'shelter',
-  fashion: ask('fashion', 'Дорогая! Подиум ждёт. Выйдешь на показ мод?', [
+  fashion: ask('fashion', '{Дорогой|Дорогая}! Подиум ждёт. Выйдешь на показ мод?', [
     { text: '👠 На подиум!', cls: 'green', do: 'minigame:fashion' },
     { text: 'Не сейчас' },
   ]),
   // больница: простуженную (Ф1) сразу ведут на приём к доктору, иначе медсестра зовёт поработать (features/health.js)
   hospital: {
     do: 'hospital',
-    ask: ask('hospital', 'Ой, как хорошо, что ты пришла! Пациентов много. Поможешь их вылечить?', [
+    ask: ask('hospital', 'Ой, как хорошо, что ты приш{ёл|ла}! Пациентов много. Поможешь их вылечить?', [
       { text: '🩺 Лечить', cls: 'green', do: 'minigame:doctor' },
       { text: '🌡️ Как не простыть?', do: 'health-tips' },
       { text: 'Не сейчас' },
     ]),
   },
-  school: ask('school', 'Здравствуй! Детям как раз нужна учительница. Проведёшь урок?', [
+  school: ask('school', 'Здравствуй! Детям как раз нуж{ен учитель|на учительница}. Проведёшь урок?', [
     { text: '👩‍🏫 Провести урок', cls: 'green', do: 'minigame:teacher' },
     { text: 'Не сейчас' },
   ]),

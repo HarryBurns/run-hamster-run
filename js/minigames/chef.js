@@ -140,7 +140,7 @@ export default {
         </div>
         <div class="chf-right">
           <div class="chf-msg"></div>
-          <button class="btn small yellow chf-skip">Запомнила! ▶</button>
+          <button class="btn small yellow chf-skip">Запомнил{|а}! ▶</button>
           <div class="chf-shelf"></div>
         </div>
       </div>`;

@@ -107,10 +107,10 @@ export default {
           liftButton(c, size / 2, size * 0.28, size * 0.13, '3', false);
           liftButton(c, size / 2, size * 0.56, size * 0.13, '2', true, true);
           liftButton(c, size / 2, size * 0.82, size * 0.11, '1', false);
-        })}</div><small>на опытных сменах <br>этаж нажимаешь сама: <br>2 — второй этаж</small></div>
+        })}</div><small>на опытных сменах <br>этаж нажимаешь сам{|а}: <br>2 — второй этаж</small></div>
         <div class="pt-col ok"><b>👆 Нажми на дверь</b><div class="row">${pic((c, size, s) => doorPic(c, size, s, '203', '#d0bfff'))}</div><small>с тем же номером: <br>2 — этаж, 03 — дверь</small></div>
       </div>
-      Чем меньше ошибок и чем быстрее — тем больше звёзд. Ошиблась — ничего страшного, подскажем!`;
+      Чем меньше ошибок и чем быстрее — тем больше звёзд. Ошиб{ся|лась} — ничего страшного, подскажем!`;
   },
   start(host) {
     const top = el('div', 'pt-top');
@@ -548,7 +548,7 @@ export default {
             : lift
               ? ', и ни одной ошибки — ни дверью, ни этажом в лифте!'
               : ', и ни одной ошибки!'
-        }${stars === 3 ? ' Лучшая носильщица отеля!' : ''}`,
+        }${stars === 3 ? ' {Лучший носильщик|Лучшая носильщица} отеля!' : ''}`,
         extra: { pts, mistakes, floorMiss, lift },
       });
     }

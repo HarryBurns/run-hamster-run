@@ -141,7 +141,7 @@ function sitDown(sc, o, spot, a) {
   sfx(st.how === 'slide' ? 'whistle' : 'pop');
   emit('relax', { how: st.how, type: o.type });
   if (award('x_relax', { delay: 600 }))
-    toast('Хорошо отдыхать! Нажми ещё раз — и хомячок встанет. Или просто иди дальше.', 'good');
+    toast('Хорошо отдыхать! Нажми ещё раз — и {хомячок|хомячка} встанет. Или просто иди дальше.', 'good');
   return true;
 }
 

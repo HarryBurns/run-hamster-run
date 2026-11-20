@@ -448,7 +448,7 @@ h4.sect .muted { font-size: 13px; }
 }
 /* новая игра: мягкая подсказка под именем и две кнопки-картинки «Я — хомячок / Я — хомячка» */
 #title input::placeholder { color: #c9b8a8; opacity: 1; }
-#title .t-hint {
+#title .name-hint, .set-name .name-hint {
   font-size: 15px; font-weight: 800; line-height: 1.25; text-align: center; color: #7a4b12; background: #fff3bf;
   border-radius: 14px; padding: 5px 12px; width: 100%;
 }
@@ -473,13 +473,24 @@ h4.sect .muted { font-size: 13px; }
   #title .t-who-btn { flex-direction: row; justify-content: center; gap: 3px; padding: 2px 3px; font-size: 13px; border-width: 3px; border-radius: 14px; }
   #title .t-who-btn canvas { width: 34px !important; height: 34px !important; flex: none; }
   #title .t-who-btn.on span::before { content: '✓'; }
-  #title .t-hint { font-size: 13px; padding: 3px 10px; }
+  #title .name-hint { font-size: 13px; padding: 3px 10px; }
 }
 @media (max-width: 350px) { #title .t-who-btn { font-size: 15px; } }
 /* открыта экранная клавиатура (features/title.js ставит --kb — сколько она закрыла): вся форма — над ней */
 #title .t-menu.kb { top: auto; bottom: calc(var(--kb, 0px) + 8px); max-height: calc(100% - var(--kb, 0px) - 16px); overflow-y: auto; }
 @media (orientation: landscape) { #title .t-menu.kb { transform: none; } }
-/* меню ⚙️: кто герой — хомячок или хомячка */
+/* меню ⚙️: имя героя и кто он — хомячок или хомячка */
+.set-name { display: flex; flex-direction: column; gap: 6px; align-items: stretch; }
+.set-name label { font-weight: 800; font-size: 15px; text-align: center; }
+.set-name input {
+  font: inherit; font-size: 20px; font-weight: 800; text-align: center; padding: 8px 12px; border-radius: 14px; border: 3px solid var(--pink);
+  width: 100%; min-width: 0; color: var(--ink); background: #fff; outline: none; user-select: text; -webkit-user-select: text;
+}
+@media (orientation: landscape) and (max-height: 520px) {
+  .set-name { grid-column: 1 / -1; flex-direction: row; flex-wrap: wrap; align-items: center; justify-content: center; }
+  .set-name input { width: auto; flex: 1; font-size: 17px; padding: 5px 10px; }
+  .set-name .name-hint { flex-basis: 100%; }
+}
 .set-who { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .set-who .btn { padding-left: 6px; padding-right: 6px; white-space: nowrap; }
 @media (orientation: landscape) and (max-height: 520px) { .set-who { grid-column: 1 / -1; } }

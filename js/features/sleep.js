@@ -83,7 +83,7 @@ export async function askSleep() {
     else if (!night.fall) toast(`Доброе утро! ${c.seasonIcon} ${c.monthName}, день ${c.dom}. В ящике новое письмо ✉️`);
     // итог вчерашнего дня: сколько монет заработано (подробно — в Хомяк-Банке)
     const got = Object.values(s.ledger.yesterday.in).reduce((a, b) => a + b, 0);
-    if (got > 0) setTimeout(() => toast(`Вчера ты заработала 🪙 ${fmtMoney(got)}. Молодец!`, 'good'), 1800);
+    if (got > 0) setTimeout(() => toast(`Вчера ты заработал{|а} 🪙 ${fmtMoney(got)}. Молодец!`, 'good'), 1800);
     morningNews(night);
   }, 600);
   return true;

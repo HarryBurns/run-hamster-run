@@ -462,7 +462,7 @@ async function talkStep(q, w) {
       const f = FIND_BY_ID[id];
       if (f) setTimeout(() => toast(`🎁 +${n} ${f.e} ${f.name} — уже в рюкзаке!`, 'good'), 300);
     }
-    await say(npc, step.say || 'Спасибо, что зашла!', [{ text: 'Хорошо!', cls: 'green' }], true);
+    await say(npc, step.say || 'Спасибо, что заш{ёл|ла}!', [{ text: 'Хорошо!', cls: 'green' }], true);
     return { end: true };
   }
   const i = await say(npc, step.say || 'Ой! Неужели всё готово? Покажи скорее!', [

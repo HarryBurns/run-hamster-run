@@ -82,7 +82,7 @@ export function mountWheels(sc = scene(), id = S().wheels.use, quiet = false) {
       if (!w || !w.swim || !cur || cur.ride !== ride) return;
       dismountWheels();
       sfx('tap');
-      toast(`${def.icon} Дальше вода — хомячок слезла и идёт пешком. Снова поехать — кнопка «Поехали!» слева.`);
+      toast(`${def.icon} Дальше вода — {хомячок слез|хомячка слезла} и идёт пешком. Снова поехать — кнопка «Поехали!» слева.`);
     },
   };
   p.ride = ride;
@@ -91,7 +91,7 @@ export function mountWheels(sc = scene(), id = S().wheels.use, quiet = false) {
   if (!quiet) {
     sfx('pop');
     if (award('x_wheels', { delay: 600 }))
-      toast(`${def.icon} Поехали! По дорогам — быстрее. В дом и в воду хомячок пойдёт пешком.`, 'good');
+      toast(`${def.icon} Поехали! По дорогам — быстрее. В дом и в воду {хомячок|хомячка} пойдёт пешком.`, 'good');
   }
   emit('hud');
   emit('wheels', { what: 'on', id });
@@ -190,7 +190,7 @@ export function renderWheelsShop(body, panel) {
     el(
       'p',
       'muted',
-      'На колёсах по городу быстрее! Садись и слезай кнопкой слева. В дома, в воду и туда, где нет дорог, хомячок идёт пешком.',
+      'На колёсах по городу быстрее! Садись и слезай кнопкой слева. В дома, в воду и туда, где нет дорог, {хомячок|хомячка} идёт пешком.',
     ),
   );
   const grid = el('div', 'grid');

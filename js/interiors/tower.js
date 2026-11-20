@@ -371,7 +371,7 @@ function updatePlanes(dt) {
         for (let i = 0; i < 10; i++)
           S.pops.push({ x: b.x, y: b.y, vx: rnd(-150, 150), vy: rnd(-170, 60), t: 0, c: b.c });
         const n = bumpFlag('balloons');
-        if (n === 1) toast('Попала! 🎈 Целься в шарики — они лопаются!', 'good');
+        if (n === 1) toast('Попал{|а}! 🎈 Целься в шарики — они лопаются!', 'good');
         if (n >= 5) award('x_ace');
       }
   }

@@ -62,7 +62,7 @@ export function buildHud() {
     if (cfg.date) cfg.date.fn();
   };
   chipSick = el('div', 'chip sick', '🤒');
-  chipSick.title = 'Простыла — что делать?';
+  chipSick.title = 'Простыл{|а} — что делать?';
   chipSick.hidden = true;
   chipSick.onclick = () => {
     sfx('tap');

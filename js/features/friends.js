@@ -278,7 +278,7 @@ export async function guestDialog(id) {
           here === 'penthouse'
             ? 'Ух, как высоко! Весь город как на ладошке.'
             : 'Отличный дом! Можно я буду приходить почаще?',
-          here === 'bungalow' ? 'Слышишь, как шумит море? Красота!' : 'А где ты купила такую мебель?',
+          here === 'bungalow' ? 'Слышишь, как шумит море? Красота!' : 'А где ты купил{|а} такую мебель?',
         ],
   );
   const ht = talkHooks.guest ? await talkHooks.guest(id) : null; // праздник (торт на день рождения) — сначала он
@@ -308,7 +308,7 @@ export async function guestDialog(id) {
       emit('guestHappy', { id });
       emit('treat', { id });
       text = fav
-        ? `${DISH_BY_ID[dish].e} ${DISH_BY_ID[dish].name}?! Моё самое любимое! Ты лучшая хозяйка на свете!`
+        ? `${DISH_BY_ID[dish].e} ${DISH_BY_ID[dish].name}?! Моё самое любимое! Ты {лучший хозяин|лучшая хозяйка} на свете!`
         : `${DISH_BY_ID[dish].e} М-м-м, объедение! Спасибо за угощение!`;
     } else if (i === 1) {
       text = placeLine(id) || pick(npc.lines);

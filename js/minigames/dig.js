@@ -211,7 +211,7 @@ export default {
             }
             poly(c, pts, '#ffd43b', OUT, 2);
           }
-        })}<small>быстрее нашла —<br>больше звёзд</small></div>
+        })}<small>быстрее наш{ёл|ла} —<br>больше звёзд</small></div>
       </div>
       Торопиться не страшно: если не успеешь, Бархан поможет докопать!`;
   },
@@ -458,7 +458,7 @@ export default {
         ctx.font = `900 ${Math.round(26 * s)}px ui-rounded, "Trebuchet MS", sans-serif`;
         ctx.lineWidth = 6;
         ctx.strokeStyle = '#fff';
-        const msg = helped ? 'Бархан помог докопать!' : 'Нашла!';
+        const msg = helped ? 'Бархан помог докопать!' : 'Наш{ёл|ла}!';
         ctx.strokeText(msg, W / 2, b.y - 26);
         ctx.fillStyle = '#e8590c';
         ctx.fillText(msg, W / 2, b.y - 26);
@@ -490,8 +490,8 @@ export default {
       host.finish({
         stars,
         text: helped
-          ? `Песок был упрямый — Бархан помог докопать. Ты нашла ${FOSSIL_NAMES[id]}! В следующий раз води кисточкой там, где торчит кусочек.`
-          : `Ты нашла ${FOSSIL_NAMES[id]} за ${Math.round(sec)} с!${stars === 3 ? ' Настоящий палеонтолог!' : ' Ей миллионы лет!'}`,
+          ? `Песок был упрямый — Бархан помог докопать. Ты наш{ёл|ла} ${FOSSIL_NAMES[id]}! В следующий раз води кисточкой там, где торчит кусочек.`
+          : `Ты наш{ёл|ла} ${FOSSIL_NAMES[id]} за ${Math.round(sec)} с!${stars === 3 ? ' Настоящий палеонтолог!' : ' Ей миллионы лет!'}`,
         extra: { fossil: id, sec: Math.round(sec), helped },
       });
     }

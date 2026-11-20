@@ -57,7 +57,7 @@ export function applyNight(plan) {
 export function morningNews(plan) {
   if (plan.fall) enqueue(() => sickMorning(plan.fall));
   else if (plan.recover)
-    setTimeout(() => toast(`Ура, ${esc(S().name)} выздоровела! 💪 Нос больше не красный.`, 'good'), 900);
+    setTimeout(() => toast(`Ура, ${esc(S().name)} выздоровел{|а}! 💪 Нос больше не красный.`, 'good'), 900);
 }
 
 /** Маленькая картинка: простуженная хомячок (иногда чихает). Возвращает { canvas, stop }. */
@@ -100,7 +100,7 @@ function sickMorning(cause) {
           el(
             'p',
             'center',
-            `Доброе утро! <b>Апчхи!</b> Кажется, ${esc(S().name)} простыла 🤧<br>Загляни в больницу — доктор поможет 🏥`,
+            `Доброе утро! <b>Апчхи!</b> Кажется, ${esc(S().name)} простыл{|а} 🤧<br>Загляни в больницу — доктор поможет 🏥`,
           ),
         );
         body.appendChild(el('p', 'muted center', why));
@@ -127,12 +127,12 @@ export function showSickHelp() {
   if (!isSick()) return;
   const pic = sickPicture();
   openPanel({
-    title: 'Простыла',
+    title: 'Простыл{|а}',
     icon: '🤒',
     cls: 'narrow',
     render(body) {
       body.appendChild(pic.canvas);
-      body.appendChild(el('p', 'center', `${esc(S().name)} немножко простыла. Что делать?`));
+      body.appendChild(el('p', 'center', `${esc(S().name)} немножко простыл{|а}. Что делать?`));
       body.appendChild(el('div', '', whatToDo()));
     },
     foot: [{ text: 'Понятно!', cls: 'green', fn: (p) => p.close() }],
@@ -287,7 +287,7 @@ function healthTips() {
       <li>🧣 Поздней осенью и зимой надевай что-нибудь тёплое: шапку, куртку, кофту или шарф.</li>
       <li>🌊 В холод в море не купайся и не ныряй — вода ледяная. Летом — пожалуйста!</li>
       <li>☔ В дождь надевай куртку или резиновые сапожки.</li>
-      <li>🤧 А если всё-таки простыла — приходи ко мне, вылечу!</li></ul>`,
+      <li>🤧 А если всё-таки простыл{|а} — приходи ко мне, вылечу!</li></ul>`,
     buttons: [{ text: 'Спасибо, доктор!' }],
   });
 }
@@ -368,7 +368,7 @@ function doctorScene(paid) {
         cancelAnimationFrame(raf);
         cure();
         award('x_healthy', { delay: 700 });
-        toast('Будь здорова! 💪 Теперь можно и поработать, и поплавать.', 'good');
+        toast('Будь здоров{|а}! 💪 Теперь можно и поработать, и поплавать.', 'good');
         emit('hud');
         resolve();
       },

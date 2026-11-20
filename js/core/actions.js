@@ -29,6 +29,7 @@ import {
   YARD_BY_ID,
   VILLA_UP_BY_ID,
   weatherPart,
+  cleanName,
 } from '../data/index.js';
 
 let depth = 0;
@@ -708,6 +709,15 @@ export const adoptPet = act((kind, name) => {
   s.pet = { kind, name: nm, love: 0, fed: s.day, feedDay: -1, pet: -1, play: -1, food: 2, ball: false, stay: false };
   touch();
   emit('pet', { what: 'adopt', kind });
+  return true;
+});
+/** Дать герою другое имя (правила — cleanName в data/looks.js). Пустое имя не ставится. Меню ⚙️. */
+export const setName = act((name) => {
+  const nm = cleanName(name);
+  if (!nm || S().name === nm) return false;
+  S().name = nm;
+  touch();
+  emit('name', { name: nm });
   return true;
 });
 /** Сменить пол героя ('m' — хомячок, 'f' — хомячка): от него род во всех текстах (core/gender.js). Меню ⚙️. */

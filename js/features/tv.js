@@ -74,7 +74,7 @@ function newsLine(n) {
   switch (n.k) {
     case 'land': {
       const L = LAND_BY_ID[n.id];
-      return L && { icon: L.icon, text: `Новое место на карте: ${L.name.toLowerCase()}! Дорогу туда открыла ${name}.` };
+      return L && { icon: L.icon, text: `Новое место на карте: ${L.name.toLowerCase()}! Дорогу туда открыл{|а} ${name}.` };
     }
     case 'quest': {
       const q = QUEST_BY_ID[n.id],
@@ -82,7 +82,7 @@ function newsLine(n) {
       return (
         q && {
           icon: q.icon || '📖',
-          text: `${name} выполнила задание «${q.title}».` + (npc ? ` ${npc.name} говорит: «Спасибо!»` : ''),
+          text: `${name} выполнил{|а} задание «${q.title}».` + (npc ? ` ${npc.name} говорит: «Спасибо!»` : ''),
         }
       );
     }
@@ -94,34 +94,34 @@ function newsLine(n) {
       return {
         icon: st.sticker,
         text: TV_RARE_STICKERS.has(n.id)
-          ? `${name} получила редкую наклейку «${t}». Вот это да!`
-          : `${name} приклеила в альбом новую наклейку «${t}». Поздравляем!`,
+          ? `${name} получил{|а} редкую наклейку «${t}». Вот это да!`
+          : `${name} приклеил{|а} в альбом новую наклейку «${t}». Поздравляем!`,
       };
     }
     case 'home': {
       const h = HOME_BY_ID[n.id];
       return (
-        h && { icon: '🔑', text: `${name} купила новое жильё — ${h.name.toLowerCase()}. Поздравляем с новосельем!` }
+        h && { icon: '🔑', text: `${name} купил{|а} новое жильё — ${h.name.toLowerCase()}. Поздравляем с новосельем!` }
       );
     }
     case 'biz': {
       const b = BIZ_BY_ID[n.id];
-      return b && { icon: '🏪', text: `В городе открылось новое заведение — ${b.name}! Хозяйка — ${name}.` };
+      return b && { icon: '🏪', text: `В городе открылось новое заведение — ${b.name}! {Хозяин|Хозяйка} — ${name}.` };
     }
     case 'villa': {
       const u = VILLA_UP_BY_ID[n.id];
       return u && { icon: u.icon, text: `Стройка закончена: «${u.name}»! ${name} приглашает соседей в гости.` };
     }
     case 'map':
-      return { icon: '🗺️', text: `Жители говорят: ${name} нашла кусочек старой карты сокровищ! Что же на ней?` };
+      return { icon: '🗺️', text: `Жители говорят: ${name} наш{ёл|ла} кусочек старой карты сокровищ! Что же на ней?` };
     case 'treasure':
-      return { icon: '💰', text: `Сенсация! ${name} выкопала настоящий клад на секретном пляже!` };
+      return { icon: '💰', text: `Сенсация! ${name} выкопал{|а} настоящий клад на секретном пляже!` };
     case 'holiday': {
       const h = HOLIDAY_BY_ID[n.id.split(':')[0]];
       return (
         h && {
           icon: h.icon,
-          text: `Праздник «${h.name}» удался! ${name} успела всё — спасибо за праздничное настроение!`,
+          text: `Праздник «${h.name}» удался! ${name} успел{|а} всё — спасибо за праздничное настроение!`,
         }
       );
     }
@@ -129,7 +129,7 @@ function newsLine(n) {
       const p = PET_BY_ID[n.id];
       return {
         icon: p ? p.icon : '🐾',
-        text: `Хорошие новости из приюта: у малыша теперь есть дом и хозяйка — ${name}!`,
+        text: `Хорошие новости из приюта: у малыша теперь есть дом и {хозяин|хозяйка} — ${name}!`,
       };
     }
     case 'ride': {
@@ -145,7 +145,7 @@ function newsLine(n) {
       return (
         d && {
           icon: d.e,
-          text: `${TV_HOSTS.cook.name} рассказал секрет блюда «${d.name}». ${name} уже записала рецепт!`,
+          text: `${TV_HOSTS.cook.name} рассказал секрет блюда «${d.name}». ${name} уже записал{|а} рецепт!`,
         }
       );
     }

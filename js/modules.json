@@ -264,5 +264,6 @@
 "js/ui/icons.js",
 "js/ui/itemicons.js",
 "js/ui/modals.js",
+"js/ui/nameinput.js",
 "js/ui/panel.js",
 "js/ui/toast.js"]

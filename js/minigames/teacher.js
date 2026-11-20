@@ -93,7 +93,7 @@ function wrongAnswer(p) {
 
 export default {
   id: 'teacher',
-  title: 'Учительница',
+  title: '{Учитель|Учительница}',
   icon: '👩‍🏫',
   howTo:
     'Ученики приносят тетрадки с примерами. Посмотри на пример и реши: он решён <b>верно</b> или в нём <b>ошибка</b>? Всего 10 тетрадок.',
@@ -128,7 +128,7 @@ export default {
         const stars = correct >= 9 ? 3 : correct >= 6 ? 2 : 1;
         host.finish({
           stars,
-          text: `Ты правильно проверила ${correct} из ${TOTAL} тетрадок!` + (stars === 3 ? ' Ученики в восторге!' : ''),
+          text: `Ты правильно проверил{|а} ${correct} из ${TOTAL} тетрадок!` + (stars === 3 ? ' Ученики в восторге!' : ''),
           extra: { correct },
         });
       },
@@ -212,7 +212,7 @@ export default {
         host.sfx('ok');
         bTitle.textContent = pick(['Молодец! ⭐', 'Правильно! ⭐', 'Отлично! ⭐']);
         bLine.textContent = exText(t, t.ans);
-        bSub.textContent = t.isWrong ? 'В тетрадке была ошибка — ты её нашла!' : 'Пример решён верно.';
+        bSub.textContent = t.isWrong ? 'В тетрадке была ошибка — ты её наш{ёл|ла}!' : 'Пример решён верно.';
         react = t.isWrong ? 'oops' : 'happy';
       } else {
         host.sfx('bad');

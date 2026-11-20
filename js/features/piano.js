@@ -208,7 +208,7 @@ export function openPiano() {
     setTimeout(() => {
       if (!closed) sfx('fanfare');
     }, 500);
-    toast(`Браво! Ты сыграла «${name}» 👏`, 'good');
+    toast(`Браво! Ты сыграл{|а} «${name}» 👏`, 'good');
     award('x_piano', { delay: 1400 });
     emit('piano');
   }

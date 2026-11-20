@@ -30,13 +30,11 @@ import {
   startLook,
   monthOfDay,
   SEASON_OF_MONTH,
-  typeName,
-  cleanName,
-  nameProblem,
 } from '../data/index.js';
 import { sfx, unlockAudio } from '../core/audio.js';
 import { openPanel, message } from '../ui/panel.js';
 import { downloadText, pickTextFile } from '../ui/files.js';
+import { nameInput } from '../ui/nameinput.js';
 import { createTitleScene } from './title_scene.js';
 import { installButton, onInstallChange, needMoveHint } from './install.js';
 
@@ -193,70 +191,10 @@ export function openTitle({ start }) {
     fillApp();
     if (scene) scene.relayout();
   });
-  /**
-   * Поле имени и выбор «Я — хомячок / Я — хомячка» для новой игры. Имя правится на лету (typeName в data/looks.js:
-   * только буквы, пробел и дефис, слова с заглавной, не больше трёх слов), курсор остаётся там, где печатали; пока
-   * клавиатура телефона «составляет» слово (Android), поле не трогаем — правим, когда слово готово.
-   */
+  /** Поле имени (ui/nameinput.js) и выбор «Я — хомячок / Я — хомячка» для новой игры. */
   function nameForm() {
-    const inp = el('input');
-    inp.type = 'text';
-    inp.placeholder = 'Хомка';
-    inp.setAttribute('aria-label', 'Имя');
-    inp.autocomplete = 'off';
-    inp.spellcheck = false;
-    inp.setAttribute('autocapitalize', 'words');
-    inp.setAttribute('autocorrect', 'off');
-    inp.setAttribute('enterkeyhint', 'done');
+    const { inp, hint, say, clean } = nameInput({ onLayout: () => scene && scene.relayout() });
     inp.dataset.act = 'name';
-    const hint = el('div', 't-hint');
-    hint.setAttribute('aria-live', 'polite');
-    hint.hidden = true;
-    let hintT = 0;
-    const say = (text) => {
-      clearTimeout(hintT);
-      hint.textContent = text;
-      hint.hidden = !text;
-      if (scene) scene.relayout();
-      if (text) hintT = setTimeout(() => say(''), 6000);
-    };
-    const WHY = {
-      chars: 'В имени — только буквы. Можно ещё пробел и дефис 🙂',
-      words: 'В имени не больше трёх слов 🙂',
-      long: 'Имя получилось длинное — давай чуть короче 🙂',
-    };
-    let composing = false;
-    const fix = () => {
-      const raw = inp.value,
-        clean = typeName(raw);
-      const why = nameProblem(raw);
-      if (clean !== raw) {
-        const at = inp.selectionStart == null ? raw.length : inp.selectionStart;
-        const pos = Math.min(typeName(raw.slice(0, at)).length, clean.length);
-        inp.value = clean;
-        try {
-          inp.setSelectionRange(pos, pos);
-        } catch (e) {
-          /* поле не в фокусе — курсор ставить некуда */
-        }
-      }
-      if (why) say(WHY[why]);
-      else if (WHY_TEXTS.includes(hint.textContent)) say('');
-    };
-    const WHY_TEXTS = Object.values(WHY);
-    inp.addEventListener('compositionstart', () => (composing = true));
-    inp.addEventListener('compositionend', () => {
-      composing = false;
-      fix();
-    });
-    inp.addEventListener('input', (e) => {
-      if (!composing && !e.isComposing) fix();
-    });
-    inp.addEventListener('blur', () => {
-      composing = false;
-      fix();
-      inp.value = cleanName(inp.value);
-    });
     // две большие кнопки-картинки: герой нарисован таким, каким начнёт игру (хомячка — с ресничками)
     const who = el('div', 't-who');
     who.setAttribute('role', 'radiogroup');
@@ -303,7 +241,7 @@ export function openTitle({ start }) {
       onEnter: null,
       /** Всё ли выбрано: { name, gender } или null (и мягкая подсказка, чего не хватает). Пустое имя — «Хомка». */
       check() {
-        inp.value = cleanName(inp.value);
+        clean();
         if (!gender) {
           say(ASK);
           who.classList.remove('ask');

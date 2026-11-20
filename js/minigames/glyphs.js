@@ -158,7 +158,7 @@ export default {
       <div class="gl-rules">
         <div class="gl-col"><b>👀 Смотри</b><img class="mk" src="${maskImg(true)}" alt="">${im('sun', true)}<small>какой камень горит</small></div>
         <div class="gl-col ok"><b>👆 Повтори</b>${im('sun', true)}${im('wave', true)}<small>нажми в том же порядке</small></div>
-        <div class="gl-col no"><b>🔄 Ошиблась?</b>${im('hill', false)}<small>маска покажет ещё раз</small></div>
+        <div class="gl-col no"><b>🔄 Ошиб{ся|лась}?</b>${im('hill', false)}<small>маска покажет ещё раз</small></div>
       </div>
       Три узора: из 3, 4 и 5 знаков. Меньше ошибок — больше звёзд!`;
   },

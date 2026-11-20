@@ -51,7 +51,7 @@ const payback = (b) => Math.ceil(b.price / b.income);
 export function bizSign(biz) {
   if (!biz || !ownsBiz(biz.id)) return null;
   const st = S().biz[biz.id];
-  const e = el('div', 'biz-sign', `👑 <b>${esc(bizTitle(biz.id))}</b> · хозяйка — ${esc(S().name)}`);
+  const e = el('div', 'biz-sign', `👑 <b>${esc(bizTitle(biz.id))}</b> · {хозяин|хозяйка} — ${esc(S().name)}`);
   e.style.background = st.sign || SIGN_COLORS[0];
   return e;
 }
@@ -96,7 +96,7 @@ export function bizAskOption(biz) {
 /** Приветствие у двери своего заведения: бывший хозяин узнаёт хозяйку. */
 export function bizAskText(biz, text) {
   if (!biz || !ownsBiz(biz.id)) return text;
-  return `<span class="boss-hi">О, хозяйка пришла! Здравствуй, ${esc(S().name)}!</span> ${text}`;
+  return `<span class="boss-hi">О, {хозяин пришёл|хозяйка пришла}! Здравствуй, ${esc(S().name)}!</span> ${text}`;
 }
 
 // ---------- работа хозяйки ----------
@@ -117,7 +117,7 @@ async function buyBiz(b, panel) {
   const v = VENDORS[b.vendor];
   const ok = await confirmBox(
     'Покупаем заведение?',
-    `<p class="center big-emoji">${b.icon}</p><p class="center"><b>${b.name}</b> за <b>${coins(b.price)}</b>.<br>${v.name} останется здесь работать, а ты станешь хозяйкой. Берём?</p>`,
+    `<p class="center big-emoji">${b.icon}</p><p class="center"><b>${b.name}</b> за <b>${coins(b.price)}</b>.<br>${v.name} останется здесь работать, а ты станешь {хозяином|хозяйкой}. Берём?</p>`,
     'Да, покупаю! 🏪',
     'Ещё подумаю',
   );
@@ -131,11 +131,11 @@ async function buyBiz(b, panel) {
   sfx('fanfare');
   if (panel && !panel.closed) panel.close();
   await message({
-    title: 'Теперь ты хозяйка!',
+    title: 'Теперь ты {хозяин|хозяйка}!',
     icon: '👑',
     html: `<p class="center big-emoji">${b.icon}🎉</p><p class="center"><b>${b.name}</b> — твоё заведение!</p>
       <p>🪙 Каждый день в кассу ложится выручка: <b>${coins(b.income)}</b>. Забирай её здесь же — кнопка «Моё заведение».</p>
-      <p>${b.game && hasMinigame(b.game) ? `⭐ Если в этот день поработаешь тут сама, выручка будет больше — до <b>+${pct(BIZ_RULES.workBonus[2])}</b>.` : '⭐ Дела здесь идут сами: мастера справляются, а выручка ждёт тебя в кассе.'}</p>`,
+      <p>${b.game && hasMinigame(b.game) ? `⭐ Если в этот день поработаешь тут сам{|а}, выручка будет больше — до <b>+${pct(BIZ_RULES.workBonus[2])}</b>.` : '⭐ Дела здесь идут сами: мастера справляются, а выручка ждёт тебя в кассе.'}</p>`,
     buttons: [{ text: 'Ура!' }],
   });
   openBizOffice(b.id);
@@ -199,7 +199,7 @@ export function openBizOffice(id) {
           el(
             'p',
             '',
-            `<b>${v.name}:</b> «Хочешь купить ${b.short}? Отличная мысль! Я останусь здесь работать, а ты будешь хозяйкой — и выручка будет твоя».`,
+            `<b>${v.name}:</b> «Хочешь купить ${b.short}? Отличная мысль! Я останусь здесь работать, а ты будешь {хозяином|хозяйкой} — и выручка будет твоя».`,
           ),
         );
         const card = el('div', 'biz-offer');
@@ -210,7 +210,7 @@ export function openBizOffice(id) {
             'ul',
             'biz-facts',
             `<li>🪙 Выручка: <b>${coins(b.income)} в день</b> — окупится примерно за ${payback(b)} ${plural(payback(b), 'день', 'дня', 'дней')}.</li>
-             <li>⭐ ${canWork ? `Поработаешь сама — в этот день выручка больше (до +${pct(BIZ_RULES.workBonus[2])})${JOBS[b.game] ? ', а за смену хозяйке платят в полтора раза больше' : ''}.` : 'Дела идут сами: работать не обязательно.'}</li>
+             <li>⭐ ${canWork ? `Поработаешь сам{|а} — в этот день выручка больше (до +${pct(BIZ_RULES.workBonus[2])})${JOBS[b.game] ? ', а за смену {хозяину|хозяйке} платят в полтора раза больше' : ''}.` : 'Дела идут сами: работать не обязательно.'}</li>
              <li>🏷️ Можно придумать своё название и цвет вывески${b.id === 'rest' ? ', выбрать «блюдо дня»' : ''}.</li>`,
           ),
         );
@@ -263,8 +263,8 @@ export function openBizOffice(id) {
             'div',
             'grow',
             worked
-              ? `<b>Сегодня ты уже поработала здесь</b> (${'⭐'.repeat(worked)}): выручка дня больше на ${pct(BIZ_RULES.workBonus[worked - 1])}. Сыграешь лучше — будет ещё больше.`
-              : `<b>Поработай сама</b> — и сегодняшняя выручка вырастет: ⭐ +${pct(BIZ_RULES.workBonus[0])} · ⭐⭐ +${pct(BIZ_RULES.workBonus[1])} · ⭐⭐⭐ +${pct(BIZ_RULES.workBonus[2])}.`,
+              ? `<b>Сегодня ты уже поработал{|а} здесь</b> (${'⭐'.repeat(worked)}): выручка дня больше на ${pct(BIZ_RULES.workBonus[worked - 1])}. Сыграешь лучше — будет ещё больше.`
+              : `<b>Поработай сам{|а}</b> — и сегодняшняя выручка вырастет: ⭐ +${pct(BIZ_RULES.workBonus[0])} · ⭐⭐ +${pct(BIZ_RULES.workBonus[1])} · ⭐⭐⭐ +${pct(BIZ_RULES.workBonus[2])}.`,
           ),
         );
         const wb = el('button', 'btn small blue', b.work);

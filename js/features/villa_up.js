@@ -208,7 +208,7 @@ function renderBuild(body, panel) {
     el(
       'p',
       'muted',
-      `<b>${VENDORS.realtor.name}:</b> «Дом растёт вместе с хозяйкой! Сейчас у тебя <b>${houseName().toLowerCase()}</b>. ${b ? `Строители уже работают: ${b.name.toLowerCase()} — к утру закончат.` : 'Скажи, что построить, — мои строители управятся за одну ночь.'}»`,
+      `<b>${VENDORS.realtor.name}:</b> «Дом растёт вместе с {хозяином|хозяйкой}! Сейчас у тебя <b>${houseName().toLowerCase()}</b>. ${b ? `Строители уже работают: ${b.name.toLowerCase()} — к утру закончат.` : 'Скажи, что построить, — мои строители управятся за одну ночь.'}»`,
     ),
   );
   const house = VILLA_UPS.filter((d) => d.kind === 'house' && villaUpState(d.id) !== 'done'),
