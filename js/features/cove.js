@@ -218,6 +218,9 @@ landHint(
 );
 
 // ---------- заплыв через подводный грот ----------
+/** Для автотеста: был ли на картинке последнего заплыва дельфин (простуженную везёт он, В20). */
+const lastGrotto = { dolphin: false };
+export const debugGrottoRide = () => ({ ...lastGrotto });
 /** Проплыть через подводный грот: toCove — из моря города на секретный пляж, иначе — обратно к буйку. */
 export const rideGrotto = landRide({
   act: 'grotto',
@@ -233,7 +236,10 @@ export const rideGrotto = landRide({
   cls: 'grotto-ride',
   text: ['🤿 Плывём через подводный грот!', '🤿 Плывём обратно, в море города!'],
   ms: 2600,
-  paint: (toCove) => (ctx, w, h, p, look, t) => paintGrotto(ctx, w, h, smooth(p), toCove, look, t),
+  paint: (toCove) => {
+    const dolphin = (lastGrotto.dolphin = !toCove && !canSwim()); // простуженную везёт дельфин (В20)
+    return (ctx, w, h, p, look, t) => paintGrotto(ctx, w, h, smooth(p), toCove, look, t, dolphin);
+  },
   to: (toCove) => {
     const land = LAND_BY_ID.cove;
     if (toCove) {

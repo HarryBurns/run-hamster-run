@@ -254,4 +254,30 @@ module.exports = async function trifles(ctx) {
       expect(!r.drawn.length, 'без рисованного значка', r.drawn);
     },
   );
+
+  await step('мелочи: простуженную через грот везёт дельфин — он на картинке заплыва (В20)', async () => {
+    const back = async (sick) => {
+      await L.fresh();
+      await ev((sick) => {
+        const d = window.__dev;
+        for (const id of ['forest', 'jungle', 'cove']) if (!d.QuestState.landOpen(id)) d.actions.openLand(id);
+        d.actions.mutate((s) => {
+          s.day = 18;
+          s.minutes = 12 * 60;
+          s.weather = 'sun';
+          s.sick = sick ? { cause: 'cold', since: s.day } : null;
+        });
+        d.go('cove');
+      }, sick);
+      await wait(300);
+      await closeAll();
+      await L.run('grotto:back', 1200);
+      expect(await ev(() => !!document.querySelector('.grotto-ride canvas')), 'нет картинки заплыва в город');
+      const r = await ev(() => window.__dev.F.debugGrottoRide());
+      await L.untilArrive('world').catch(() => {});
+      return r.dolphin;
+    };
+    expect(await back(true), 'простуженную в гроте не везёт дельфин');
+    expect(!(await back(false)), 'здоровая плывёт сама — без дельфина');
+  });
 };

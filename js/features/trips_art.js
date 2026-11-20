@@ -15,8 +15,11 @@ const OUT = '#4a3728';
 
 // ════════ из cove.js ════════
 // ---------- заплыв через подводный грот ----------
-/** Картинка переезда: подводный грот — тёмные своды, лучи света, хомячок плывёт (k — 0..1 пути). */
-export function paintGrotto(ctx, w, h, k, toCove, look, t) {
+/**
+ * Картинка переезда: подводный грот — тёмные своды, лучи света, хомячок плывёт (k — 0..1 пути). dolphin — простуженную
+ * хомячку везёт дельфин Жемчужинки (В20): она сидит у него на спинке и держится за плавник.
+ */
+export function paintGrotto(ctx, w, h, k, toCove, look, t, dolphin = false) {
   const g = ctx.createLinearGradient(0, 0, w, 0);
   g.addColorStop(0, toCove ? '#1c6fc4' : '#3fd0d4');
   g.addColorStop(0.5, '#124a66');
@@ -82,11 +85,28 @@ export function paintGrotto(ctx, w, h, k, toCove, look, t) {
     dir = toCove ? 1 : -1,
     hx = toCove ? -40 * z + k * (w + 80 * z) : w + 40 * z - k * (w + 80 * z),
     hy = h * 0.55 + Math.sin(t * 4) * 6;
-  ctx.save();
-  ctx.translate(hx, hy);
-  ctx.rotate(dir * 1.25);
-  drawHamster(ctx, 0, 30 * z, 0.95 * z, look, { dir: 0, happy: true, armsUp: true, time: t, shadow: false });
-  ctx.restore();
+  if (dolphin) {
+    // дельфин плывёт носом вперёд, чуть покачиваясь; хомячок — у него на спинке, за плавником
+    const S = 1.35 * z;
+    ctx.save();
+    ctx.translate(hx, hy + 22 * z);
+    ctx.scale(S, S);
+    paintDolphin(ctx, 3 + Math.sin(t * 3) * 0.35, dir < 0 ? 1 : 0);
+    ctx.restore();
+    drawHamster(ctx, hx - dir * 14 * z, hy + 6 * z + Math.sin(t * 3) * 2 * z, 0.62 * z, look, {
+      dir,
+      sit: true,
+      happy: true,
+      time: t,
+      shadow: false,
+    });
+  } else {
+    ctx.save();
+    ctx.translate(hx, hy);
+    ctx.rotate(dir * 1.25);
+    drawHamster(ctx, 0, 30 * z, 0.95 * z, look, { dir: 0, happy: true, armsUp: true, time: t, shadow: false });
+    ctx.restore();
+  }
   // пузырьки за хомячком
   for (let i = 0; i < 6; i++) {
     const ph = (t * 1.5 + i / 6) % 1;
