@@ -101,69 +101,91 @@ module.exports = async function quests(ctx) {
       });
     });
 
-  await step('журнал: в первый день задания нет, со второго — «!» у Мяты, плашка и подсказка', async () => {
-    await fresh();
-    await noon();
-    await frames(2);
-    expect((await status()) === 'locked', 'в первый день задание уже можно взять', await status());
-    expect((await badge('myata')) === null, 'в первый день над Мятой значок', await badge('myata'));
-    expect((await chip()) === null, 'в первый день плашка задания', await chip());
-    // сбора для гербария нет, пока задание не взято
-    expect(!(await ev(() => window.__dev.QuestState.findsWanted('herb'))), 'находки нужны без задания');
-    expect(!(await pick(33, 33)), 'сорвали для гербария без задания');
-    // разговор с Мятой — обычный
-    await talkMyata();
-    expect(!(await dialogText()).includes('гербарий'), 'Мята в первый день предлагает задание', await dialogText());
-    await closeAll();
-    // у ворот леса: «загляни завтра»
-    await ev(() => {
-      window.__dev.run('way:forest');
-    });
-    await untilPanel();
-    expect(
-      /Тропа в лес заросла/.test(await panelText()) && /завтра/.test(await panelText()),
-      'ворота в первый день',
-      await panelText(),
-    );
-    await closeAll();
-    // второй день: можно взять
-    await nextDay();
-    await noon();
-    await frames(2);
-    expect((await status()) === 'ready', 'со второго дня задание не появилось', await status());
-    expect((await badge('myata')) === '!', 'нет «!» над Мятой', await badge('myata'));
-    expect((await badge('plusha')) === null, '«!» над другим жителем');
-    const c = await chip();
-    expect(c && c.text.includes('Мята'), 'плашка «Мята просит о помощи»', c);
-    expect(c.right <= c.vw + 1, 'плашка задания вылезла за экран', c);
-    // журнал: «Новое задание!»
-    await ev(() => document.querySelector('.chip.quest').click()); // плашка покачивается — жмём из страницы
-    await untilPanel();
-    expect(
-      /Новое задание/.test(await panelText()) && /Мята/.test(await panelText()),
-      'журнал: новое задание',
-      await panelText(),
-    );
-    await closeAll();
-    // значок нарисован из кэша спрайтов и помещается в свою рамку
-    await ev(() => {
-      const W = window.__dev.World,
-        n = W.npcs.find((q) => q.id === 'myata');
-      W.debugTeleport(Math.floor(n.x / 48), Math.floor(n.y / 48) + 2);
-    });
-    await wait(700);
-    const sp = await ev(() => ({
-      has: [...window.__dev.topdown.SP.map.keys()].some((k) => k.startsWith('badge:!')),
-      clipped: window.__dev.World.debugSprites().clipped,
-    }));
-    expect(sp.has && !sp.clipped.length, 'значок «!» не из кэша спрайтов или обрезан', sp);
-  });
+  await step(
+    'журнал: задания Мяты нет, пока не подошла к заросшей тропе; у ворот — «!» у Мяты, плашка, звёздочка',
+    async () => {
+      await fresh();
+      await noon();
+      await frames(2);
+      expect((await status()) === 'locked', 'задание можно взять, не побывав у ворот', await status());
+      expect((await badge('myata')) === null, 'над Мятой значок', await badge('myata'));
+      expect((await chip()) === null, 'плашка задания', await chip());
+      // сбора для гербария нет, пока задание не взято
+      expect(!(await ev(() => window.__dev.QuestState.findsWanted('herb'))), 'находки нужны без задания');
+      expect(!(await pick(33, 33)), 'сорвали для гербария без задания');
+      // разговор с Мятой — обычный
+      await talkMyata();
+      expect(!(await dialogText()).includes('гербарий'), 'Мята предлагает задание до ворот', await dialogText());
+      await closeAll();
+      // и на второй день — тоже нет: задание ждёт, когда хомячок наткнётся на тропу в лес
+      await nextDay();
+      await noon();
+      await frames(2);
+      expect((await status()) === 'locked', 'на второй день задание без ворот', await status());
+      // подошла к воротам леса (не нажимая) — подсказка «поговори с Мятой» и звёздочка к ней
+      await clearToasts();
+      await ev(() => window.__dev.World.debugTeleport(3, 4));
+      await L.until(() => window.__dev.QuestState.questNow('herbarium').status === 'ready', undefined, {
+        timeout: 3000,
+      }).catch(() => {});
+      await wait(300);
+      expect((await status()) === 'ready', 'у ворот задание не появилось', await status());
+      expect(/поговори с ней/.test(await toasts()), 'нет подсказки «поговори с Мятой»', await toasts());
+      const star = await ev(() => {
+        const W = window.__dev.World,
+          t = W.target(),
+          n = W.npcs.find((q) => q.id === 'myata');
+        return t && n ? { d: Math.hypot(t.x - n.x, t.y + 62 - n.y) } : null; // звёздочка — над её головой
+      });
+      expect(star && star.d < 60, 'звёздочка не к Мяте', star);
+      // ворота: «поговори с Мятой»
+      await ev(() => {
+        window.__dev.run('way:forest');
+      });
+      await untilPanel();
+      expect(
+        /Тропа в лес заросла/.test(await panelText()) && /поговори с ней/.test(await panelText()),
+        'ворота: «поговори»',
+        await panelText(),
+      );
+      await closeAll();
+      await noon();
+      await frames(2);
+      expect((await badge('myata')) === '!', 'нет «!» над Мятой', await badge('myata'));
+      expect((await badge('plusha')) === null, '«!» над другим жителем');
+      const c = await chip();
+      expect(c && c.text.includes('Мята'), 'плашка «Мята просит о помощи»', c);
+      expect(c.right <= c.vw + 1, 'плашка задания вылезла за экран', c);
+      // журнал: «Новое задание!»
+      await ev(() => document.querySelector('.chip.quest').click()); // плашка покачивается — жмём из страницы
+      await untilPanel();
+      expect(
+        /Новое задание/.test(await panelText()) && /Мята/.test(await panelText()),
+        'журнал: новое задание',
+        await panelText(),
+      );
+      await closeAll();
+      // значок нарисован из кэша спрайтов и помещается в свою рамку
+      await ev(() => {
+        const W = window.__dev.World,
+          n = W.npcs.find((q) => q.id === 'myata');
+        W.debugTeleport(Math.floor(n.x / 48), Math.floor(n.y / 48) + 2);
+      });
+      await wait(700);
+      const sp = await ev(() => ({
+        has: [...window.__dev.topdown.SP.map.keys()].some((k) => k.startsWith('badge:!')),
+        clipped: window.__dev.World.debugSprites().clipped,
+      }));
+      expect(sp.has && !sp.clipped.length, 'значок «!» не из кэша спрайтов или обрезан', sp);
+    },
+  );
 
   await step(
     'журнал: взять задание, гербарий по дням, урожай, перезагрузка, сдать — лес открыт; только действия',
     async () => {
       await fresh();
       await nextDay();
+      await ev(() => window.__dev.actions.setFlag('door:forest', 1)); // была у заросшей тропы
       await noon();
       await frames(2);
       await ev(() => {

@@ -329,6 +329,10 @@ module.exports = async function start(ctx) {
         'цепочка в начале',
         w,
       );
+      // наткнулась на тропу в лес в первый же день — задание Мяты всё равно ждёт конца вводной цепочки
+      await ev(() => window.__dev.actions.setFlag('door:forest', 1));
+      const herb = () => ev(() => window.__dev.QuestState.questNow('herbarium').status);
+      expect((await herb()) === 'locked', 'гербарий Мяты во время вводной цепочки', await herb());
       // «!» над Плюшей на улице нет: вводное задание она приносит сама
       expect((await ev(() => window.__dev.QuestState.questBadge('plusha'))) === null, 'у Плюши «!» на улице');
       let s0 = await state();
@@ -496,6 +500,7 @@ module.exports = async function start(ctx) {
       );
       w = await welcome();
       expect(w.next === null && w.quests.every((q) => q.includes(':done:')), 'цепочка пройдена', w);
+      expect((await herb()) === 'ready', 'гербарий Мяты после вводной цепочки', await herb());
       // дома больше никто не стучит
       await ev(() => window.__dev.villaAt(0, 700));
       await wait(2400); // сосед стучит, побыв дома 1,6 с (features/welcome.js, WAIT) — проверяем, что никто не пришёл
@@ -546,12 +551,12 @@ module.exports = async function start(ctx) {
       await ev(() => window.__dev.villaAt(0, 700));
       await wait(2400); // сосед стучит, побыв дома 1,6 с — проверяем, что не пришёл
       expect(!(await dialogText()), 'сосед пришёл снова', await dialogText());
-      // ничего не заблокировано: задание Мяты (гербарий) на второй день — как обычно
+      // цепочка пропущена: задание Мяты (гербарий) — когда хомячок наткнётся на заросшую тропу в лес
+      const herb = () => ev(() => window.__dev.QuestState.questNow('herbarium').status);
       await ev(() => window.__dev.actions.mutate((st) => (st.day += 1)));
-      expect(
-        (await ev(() => window.__dev.QuestState.questNow('herbarium').status)) === 'ready',
-        'гербарий Мяты на второй день',
-      );
+      expect((await herb()) === 'locked', 'гербарий Мяты до ворот леса', await herb());
+      await ev(() => window.__dev.actions.setFlag('door:forest', 1));
+      expect((await herb()) === 'ready', 'гербарий Мяты после ворот леса', await herb());
       // старая игра (до этапа 10): нет ни startDay, ни отметки цепочки — началась 1 января, соседи не приходят
       const old = await ev(async () => {
         const St = await import('./js/core/state.js');

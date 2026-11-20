@@ -24,7 +24,7 @@ import {
 } from '../core/actions.js';
 import { sfx } from '../core/audio.js';
 import { on, emit } from '../core/events.js';
-import { go } from '../core/loop.js';
+import { go, scene } from '../core/loop.js';
 import { register, run } from '../core/registry.js';
 import { G, questNow, landOpen, npcSpot, invitedToday } from '../core/state.js';
 import { el, esc, fmtMoney } from '../core/util.js';
@@ -676,6 +676,53 @@ export function questChip() {
   return { text: `${q.icon} ${q.title} · ${prog}`, short: `${q.icon} ${prog}`, cls: '' };
 }
 
+// ---------- закрытый проход: «поговори с …» ----------
+// Задание с полем door (гербарий Мяты — тропа в лес) появляется, когда хомячок наткнулась на закрытый вход: подошла
+// к воротам в городе или нажала на них (openWay) — отметка door:<место>. Как только задание можно взять (и вводная
+// цепочка позади — when в data/quests.js), один раз: подсказка «поговори с Мятой» и звёздочка к ней (туда, где она
+// сейчас, — npcSpot).
+const DOOR_QUESTS = QUESTS.filter((q) => q.door),
+  DOOR_NEAR = 2.5 * 48, // «подошла»: столько пикселей до ворот
+  DOOR_EVERY = 0.3; // как часто проверять, секунды
+let doorT = 0;
+/** Хомячок у закрытого входа в место id — запомнить (один раз). */
+function markDoor(id) {
+  if (DOOR_QUESTS.some((q) => q.door === id) && !S().flags['door:' + id]) setFlag('door:' + id);
+}
+/** Задание «за закрытым входом» стало можно взять — подсказать и повести звёздочку к жителю. quiet — без подсказки. */
+function doorHints(quiet = false) {
+  const s = S();
+  for (const q of DOOR_QUESTS) {
+    if (!s.flags['door:' + q.door] || s.flags['doorHint:' + q.id] || questNow(q.id).status !== 'ready') continue;
+    setFlag('doorHint:' + q.id);
+    setFlag('questHint:' + q.id); // общая подсказка «хочет о чём-то попросить» уже не нужна
+    trackQuest(q.id);
+    emit('hud');
+    const land = LAND_BY_ID[q.door],
+      npc = NPC_BY_ID[q.npc];
+    if (!quiet)
+      toast(
+        `${land.icon} ${land.door} ${land.who} знает дорогу — поговори с ${her(q.npc)}! ⭐ Звёздочка покажет, где ${npc.name}.`,
+        'good',
+      );
+  }
+}
+on('step', ({ dt = 0 } = {}) => {
+  const s = S(),
+    sc = scene();
+  if (!s || !sc || !DOOR_QUESTS.length) return;
+  doorT += dt;
+  if (doorT < DOOR_EVERY) return;
+  doorT = 0;
+  if (sc.name === HOME_SCENE && sc.whereIs)
+    for (const q of DOOR_QUESTS) {
+      if (s.flags['door:' + q.door] || landOpen(q.door)) continue;
+      const p = sc.whereIs(q.door);
+      if (p && Math.hypot(sc.p.x - p.x, sc.p.y - p.y) < DOOR_NEAR) markDoor(q.door);
+    }
+  doorHints();
+});
+
 // ---------- входы в тайные места ----------
 /** Вход в место из LANDS: закрыто — кто знает дорогу; открыто — в сцену места (или своя дорога go). */
 export function openWay(id) {
@@ -690,6 +737,8 @@ export function openWay(id) {
     go(land.scene, { at: land.entry });
     return;
   }
+  markDoor(id); // наткнулась на закрытый вход — задание Мяты может появиться прямо сейчас
+  doorHints(true); // окно ниже само скажет «поговори с …»
   // у каждого места в LANDS есть сцена и задание-открытие (data/places.js)
   const q = QUEST_BY_ID[land.quest],
     w = questNow(q.id),
@@ -698,7 +747,10 @@ export function openWay(id) {
   let text,
     buttons = [{ text: 'Хорошо' }],
     act = null;
-  if (w.status === 'locked') {
+  if (w.status === 'locked' && S().flags.intro === 1) {
+    // идёт вводная цепочка: сначала соседи покажут городок (data/quests.js, when гербария)
+    text = `${door} Говорят, ${land.who} знает дорогу… Сейчас ${npc.fem ? 'она занята' : 'он занят'} — загляни к ${toHim(land.npc)}, когда освоишься в городке!`;
+  } else if (w.status === 'locked') {
     text = `${door} Говорят, ${land.who} знает дорогу… Сегодня ${npc.fem ? 'она занята' : 'он занят'} — загляни к ${toHim(land.npc)} завтра!`;
   } else if (w.status === 'ready') {
     text = `${door} ${land.who} знает дорогу — поговори с ${her(land.npc)}! Над головой у ${hisOf(land.npc)} «!».`;
