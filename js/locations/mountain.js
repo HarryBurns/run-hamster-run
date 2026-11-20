@@ -411,7 +411,8 @@ const mountain = createTopDownScene({
       act: 'inside:chalet_vershinkin', // войти — внутри Вершинкин (interiors/chalet.js)
     },
   ],
-  actors: [{ npc: 'vershinkin', at: [27.5, 21.5], home: 'chalet', always: true, act: 'instructor' }],
+  // Вершинкин — внизу трассы для санок, справа от шале; гуляет рядом (roam), не уходит за ёлки ниже по склону
+  actors: [{ npc: 'vershinkin', at: [30.5, 19.5], roam: 2, home: 'chalet', always: true, act: 'instructor' }],
   places: [
     {
       id: 'lookout',

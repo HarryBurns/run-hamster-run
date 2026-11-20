@@ -385,7 +385,7 @@ module.exports = async function mountain(ctx) {
       );
       // рамка у Вершинкина из трёх эдельвейсов
       await ev(() => window.__dev.actions.addItem('finds', 'edelweiss', 2));
-      await ev(() => window.__dev.locations.mountain.debugTeleport(27, 22));
+      await ev(() => window.__dev.locations.mountain.debugTeleport(30, 21));
       await talkV();
       await tap('.dialog .btn >> text=Эдельвейсы в рамке', 400);
       s = await state();
@@ -448,7 +448,7 @@ module.exports = async function mountain(ctx) {
   );
 
   await step('гора: «Спуск на санках» у Вершинкина — до конца, приз за первые две игры дня', async () => {
-    await toMountain(18, 720, 27, 22);
+    await toMountain(18, 720, 30, 21);
     const s0 = await state();
     await talkV();
     await tap('.dialog .btn >> text=Спуск с горы', 1200);
@@ -512,7 +512,7 @@ module.exports = async function mountain(ctx) {
   });
 
   await step('гора: задание Вершинкина «Потерянная варежка» — от взятия до сдачи, только действия', async () => {
-    await toMountain(18, 720, 27, 22);
+    await toMountain(18, 720, 30, 21);
     await ev(() =>
       window.__dev.actions.mutate((s) => {
         delete s.quests.lost_mitten;
@@ -550,7 +550,7 @@ module.exports = async function mountain(ctx) {
     );
     const s0 = await state();
     await ev(() => {
-      window.__dev.locations.mountain.debugTeleport(27, 22);
+      window.__dev.locations.mountain.debugTeleport(30, 21);
       window.__dev.run('instructor');
     });
     await L.untilDialog();

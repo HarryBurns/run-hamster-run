@@ -7,6 +7,7 @@
 //   act     действие из реестра, когда хомячок подошёл (по умолчанию 'npc:<id>' — разговор)
 //   always  true — не уходит спать ночью (иначе с 22:00 до 6:30 жителя на улице нет)
 //   still   true — не гуляет, всегда на своём месте (русалочка на камне в воде — секретный пляж)
+//   roam    гуляет не дальше стольких клеток от at (по умолчанию 3.5) — чтобы не заходил за ёлки и дома
 // Где житель — одно правило для всех мест, npcPlace (core/queries.js; часы — VISIT и LAND_HOME в data/visits.js):
 //   на улице ('out') — гуляет возле своего места at (хозяин тайного места — у своего дела);
 //   дома ('home' — утром, вечером, позвал в гости, обедает; 'asleep' — спит) — идёт к своей двери и заходит: дошёл
@@ -135,7 +136,7 @@ export function settleResidents(sc) {
     n.inside = atHome(at);
     n.goingHome = false;
     const c = (n.inside && !n.def.still) || at === 'door' ? n.home : n.hang; // still — всегда на своём месте
-    if (cellDist(n, c) <= T * 4) continue; // уже рядом — пусть стоит, где стоял
+    if (cellDist(n, c) <= T * ((n.def.roam || 3.5) + 0.5)) continue; // уже рядом — пусть стоит, где стоял
     n.x = (c[0] + 0.5) * T;
     n.y = (c[1] + 0.5) * T;
     n.path = [];
@@ -183,10 +184,11 @@ export function updateResidents(sc, dt) {
     }
     n.lead = null;
     const [ax, ay] = waits || (at === 'door' && n.home) ? n.home : n.hang;
-    const far = waits || dist(n.x, n.y, (ax + 0.5) * T, (ay + 0.5) * T) > T * 4;
+    const roam = n.def.roam || 3.5,
+      far = waits || dist(n.x, n.y, (ax + 0.5) * T, (ay + 0.5) * T) > T * (roam + 0.5);
     const tx = far ? ax : tileOf(n.x) + Math.round(rnd(-2, 2)),
       ty = far ? ay : tileOf(n.y) + Math.round(rnd(-2, 2));
-    if (!far && dist((tx + 0.5) * T, (ty + 0.5) * T, (ax + 0.5) * T, (ay + 0.5) * T) > T * 3.5) continue;
+    if (!far && dist((tx + 0.5) * T, (ty + 0.5) * T, (ax + 0.5) * T, (ay + 0.5) * T) > T * roam) continue;
     const k = m.kindAt(tx, ty);
     if (k && k.wet) continue;
     const ok = m.route(n, (tx + 0.5) * T, (ty + 0.5) * T, false, m.dry);
