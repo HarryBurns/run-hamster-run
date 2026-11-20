@@ -52,4 +52,25 @@ module.exports = async function p20(ctx) {
     await L.closeAll();
     await ev(() => window.__dev.weather());
   });
+
+  await step('20н: стол для пикника под рост хомячка — шире двоих сидящих, вокруг можно пройти', async () => {
+    await L.fresh({ day: 200, minutes: 12 * 60, weather: 'sun', scene: 'world' });
+    const r = await ev(async () => {
+      const K = await import('/js/engine/topdown/kinds.js'),
+        A = await import('/js/engine/topdown/actors.js'),
+        m = window.__dev.World.map,
+        T = 48,
+        box = K.ART.picnicTable[0],
+        o = m.objs.find((q) => q.type === 'picnicTable');
+      // свободные клетки вокруг стола (кроме забора справа): слева, снизу и сверху — туда встают сидящие
+      const around = [
+        [-1, 0],
+        [0, 1],
+        [0, -1],
+      ].map(([dx, dy]) => A.canStand(m.dry, o.x + dx * T, o.y + dy * T));
+      return { w: box[2] - box[0], around };
+    });
+    expect(r.w >= 80, 'стол для пикника узкий — хомячок закрывает его целиком', r);
+    expect(r.around.every(Boolean), 'вокруг стола для пикника не пройти', r);
+  });
 };

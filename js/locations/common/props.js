@@ -784,41 +784,62 @@ defineObjects({
   }),
   picnicTable: simple('picnicTable', {
     solid: true,
-    // посидеть на лавке спиной к нам (пачка 20 ноября); житель — напротив, за столом
+    // посидеть на лавке спиной к нам (пачка 20 ноября); житель — напротив, за столом. Стол — под рост хомячка
+    // (П20-4): столешница шире двоих сидящих, лавка длиннее стола; стоит на одной клетке, края — над соседними
     ...seat(
       'table',
       [
-        [-11, 2, -11, 31],
-        [12, -9, 12, -31, 'npc'],
+        [-14, 5, -11, 31],
+        [14, -13, 12, -31, 'npc'],
       ],
-      { dx: 30, up: 34, down: 20 },
+      { dx: 38, up: 40, down: 20 },
     ),
     art: {
       picnicTable: [
-        [-34, -36, 36, 22],
+        [-44, -46, 44, 24],
         (ctx, snow) => {
-          shadow(ctx, 0, 14, 28, 5);
+          shadow(ctx, 0, 15, 40, 6);
+          // ножки стола — «домиком», ножки лавки — короткие
           for (const sx of [-1, 1]) {
-            line(ctx, sx * 16, -8, sx * 20, 12, OUT, 4);
-            line(ctx, sx * 16, -8, sx * 20, 12, WOOD_D, 2);
+            line(ctx, sx * 22, -12, sx * 28, 14, OUT, 4.4);
+            line(ctx, sx * 22, -12, sx * 28, 14, WOOD_D, 2.4);
+            line(ctx, sx * 32, 9, sx * 33, 16, OUT, 4);
+            line(ctx, sx * 32, 9, sx * 33, 16, WOOD_D, 2);
           }
-          fillRR(ctx, -27, 0, 54, 6, 2, WOOD, OUT, 1.8); // лавка
-          fillRR(ctx, -24, -18, 48, 10, 2, WOOD_L, OUT, 2); // стол
-          line(ctx, -22, -13, 22, -13, 'rgba(0,0,0,.15)', 1);
+          fillRR(ctx, -39, 3, 78, 7, 2.5, WOOD, OUT, 1.8); // лавка
+          line(ctx, -36, 6.5, 36, 6.5, 'rgba(0,0,0,.12)', 1);
+          // столешница из трёх досок и её передний край
+          fillRR(ctx, -35, -25, 70, 14, 3, WOOD_L, OUT, 2);
+          for (const dy of [-20.5, -15.5]) line(ctx, -33, dy, 33, dy, 'rgba(0,0,0,.13)', 1);
+          fillRR(ctx, -35, -12, 70, 4, 1.5, WOOD, OUT, 1.4);
           if (snow) {
-            snowCap(ctx, 0, -18, 44, 5);
+            snowCap(ctx, 0, -25, 66, 6);
             return;
           }
-          // скатерть-салфетка и корзинка
-          fillRR(ctx, -8, -20, 16, 8, 1, '#fff', OUT, 1.2);
+          // клетчатая салфетка, тарелка с арбузом, корзинка и кувшин с лимонадом
+          fillRR(ctx, -14, -24, 28, 11, 1.5, '#fff', OUT, 1.2);
           ctx.fillStyle = '#fa5252';
-          for (let i = 0; i < 4; i++) ctx.fillRect(-7 + i * 4, -19, 2, 6);
-          fillRR(ctx, 10, -26, 12, 8, 2, '#e0ac78', OUT, 1.3);
+          for (let i = 0; i < 6; i++) ctx.fillRect(-12.5 + i * 4.4, -23, 2.2, 9);
+          ell(ctx, -24, -18, 7.5, 3, '#fff', OUT, 1.1);
           ctx.beginPath();
-          ctx.arc(16, -26, 5, Math.PI, 0);
-          ctx.strokeStyle = OUT;
-          ctx.lineWidth = 1.3;
+          ctx.moveTo(-30, -19);
+          ctx.arc(-24, -19, 6, Math.PI, 0);
+          ctx.closePath();
+          ctx.fillStyle = '#ff6b6b';
+          ctx.fill();
+          ctx.strokeStyle = '#2f9e44';
+          ctx.lineWidth = 1.6;
           ctx.stroke();
+          for (const dx of [-26, -22]) ell(ctx, dx, -21, 0.9, 0.9, OUT);
+          fillRR(ctx, 15, -33, 16, 11, 2.5, '#e0ac78', OUT, 1.3);
+          line(ctx, 17, -28, 29, -28, 'rgba(0,0,0,.15)', 1);
+          ctx.beginPath();
+          ctx.arc(23, -33, 6.5, Math.PI, 0);
+          ctx.strokeStyle = OUT;
+          ctx.lineWidth = 1.4;
+          ctx.stroke();
+          fillRR(ctx, 4, -34, 8, 13, 2.5, 'rgba(255,236,153,.9)', OUT, 1.2);
+          line(ctx, 5, -30, 11, -30, 'rgba(255,255,255,.7)', 1);
         },
       ],
     },
