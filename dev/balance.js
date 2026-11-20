@@ -475,6 +475,13 @@ const { pathToFileURL } = require('url');
       );
     if (withBeds > MARKET.purse)
       bad(`день сбора с огородом: ${MONTHS[month]} — ${fmt(withBeds)} монет: больше кошелька торговца`);
+    // весь огород (все грядки — сразу, теплица — не в сезон) с «днём сбора» — тоже не больше кошелька торговца:
+    // больше за день всё равно не продать, и тогда теплица окупалась бы на бумаге быстрее, чем в игре
+    const withGarden = day.sum + gardenNow(month);
+    if (withGarden > MARKET.purse)
+      bad(
+        `день сбора со всем огородом и теплицей: ${MONTHS[month]} — ${fmt(withGarden)} монет: больше кошелька торговца (${fmt(MARKET.purse)})`,
+      );
   }
   if (!(ISLAND.bowling.coins.length === 3 && ISLAND.bowling.paid >= 1))
     bad('ISLAND.bowling: нужны coins на 1–3★ и paid');
@@ -1213,10 +1220,14 @@ const { pathToFileURL } = require('url');
       topM = 0,
       old = 0,
       rate = 0,
-      rateWho = '';
+      rateWho = '',
+      full = 0,
+      fullM = 0;
     for (let mo = 0; mo < 12; mo++) {
       const v = gatherDay(mo).sum + yardNow(mo);
       if (v > top) ((top = v), (topM = mo));
+      const f = gatherDay(mo).sum + gardenNow(mo);
+      if (f > full) ((full = f), (fullM = mo));
       old = Math.max(old, gatherPlaces.reduce((a, id) => a + placeIn[id](mo).sum, 0) + yardNow(mo));
       for (const id of gatherPlaces) {
         const q = placeIn[id](mo);
@@ -1227,6 +1238,10 @@ const { pathToFileURL } = require('url');
     line(
       'самый щедрый день сбора с огородом',
       `${fmt(top)} монет (${MONTHS[topM]}) — предел: пять смен на 2★ — ${fmt(5 * avg2)}, кошелёк торговца — ${fmt(MARKET.purse)}`,
+    );
+    line(
+      '…со всем огородом и теплицей',
+      `${fmt(full)} монет (${MONTHS[fullM]}) — предел: кошелёк торговца — ${fmt(MARKET.purse)}`,
     );
     line(
       'самый выгодный поход в одно место',

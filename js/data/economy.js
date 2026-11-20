@@ -438,7 +438,7 @@ export const PRICES = {
   },
   // семена в ТЦ «Уютный дом»
   seeds: {
-    seed_lettuce: 15, seed_carrot: 20, seed_tomato: 30, seed_strawberry: 50, seed_seeds: 40, seed_pumpkin: 60,
+    seed_lettuce: 15, seed_carrot: 24, seed_tomato: 30, seed_strawberry: 50, seed_seeds: 48, seed_pumpkin: 60,
   },
   // готовые блюда в кафе и ресторане
   cafe: {
