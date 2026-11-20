@@ -9,6 +9,8 @@
 // здесь. Занятие только сверяет карту с сохранением (sync): при входе в локацию и по событию yard убирает свои
 // предметы (map.remove) и ставит заново (map.add с пометкой yard). Режим «Обустроить двор» — sc.mode: палец идёт
 // сюда, хомячок стоит, камера идёт за точкой focus (двор листают пальцем), внизу — панель, как в доме.
+// «Дикие» цветы на траве (В6) клетку не занимают: предмет встаёт прямо на них — цветы прячутся под него (hideWild),
+// а когда предмет унесли или переставили, вырастают снова (sync: сначала вернуть спрятанные, потом поставить предметы).
 // Поставить можно на свободную клетку двора (canPlace): нужный вид земли, не дорожка, не у двери и не там, где
 // встают у почтового ящика и других мест, не под хомячка и не на предмет задания — и так, чтобы не перекрыть проход:
 // от двери дома, мест двора и хомячка можно дойти до выхода со двора (keepsWay).
@@ -49,6 +51,10 @@ export function yardIcon(def, size = 84) {
 }
 
 // ---------- карта ↔ сохранение ----------
+/** «Дикие» цветы двора (зелень карты, не предмет двора): на них можно ставить. */
+const wildFlower = (o) => o.type === 'flowers' && !o.yard;
+/** Цветы, спрятанные под предметами двора: локация → [{ tx, ty, v }]. */
+const hiddenWild = new Map();
 /** Двор этой локации, в котором стоит точка (клетка), — только свой (вилла или купленное жильё). */
 function yardAt(sc, tx, ty) {
   for (const y of YARDS)
@@ -65,7 +71,8 @@ function canPlace(sc, y, tx, ty, skip = null, soft = false) {
   wayBlocked = false;
   if (tx < y.area[0] || tx > y.area[2] || ty < y.area[1] || ty > y.area[3]) return false;
   if (!y.tiles.includes(m.at(tx, ty))) return false;
-  if (m.objs.some((o) => o !== skip && o.tx === tx && o.ty === ty)) return false; // занято (и цветами, и лежаком)
+  // занято (клумбой, лежаком…); «дикие» цветы не мешают — спрячутся под предмет
+  if (m.objs.some((o) => o !== skip && o.tx === tx && o.ty === ty && !wildFlower(o))) return false;
   if (m.solid[ty][tx] && !(skip && skip.tx === tx && skip.ty === ty)) return false;
   if (soft) return true;
   if (tileOf(sc.p.x) === tx && tileOf(sc.p.y) === ty) return false;
@@ -226,7 +233,7 @@ function keepsWay(sc, y, tx, ty, skip) {
  * ~2–4 мс за кадр). Список считается заново, только когда что-то поменялось: сверка карты с сохранением (wayVer —
  * поставили, переставили, убрали), число предметов карты, клетка хомячка, предметы задания и находки на земле.
  */
-const freeMemo = { key: '', cells: [] };
+const freeMemo = { key: '', cells: [], wild: [] };
 function freeCells(sc, y) {
   const m = sc.map;
   let left = 0;
@@ -239,14 +246,34 @@ function freeCells(sc, y) {
       for (let tx = ax0; tx <= ax1; tx++) if (canPlace(sc, y, tx, ty)) cells.push(tx, ty);
     freeMemo.key = key;
     freeMemo.cells = cells;
+    // свободные клетки с «дикими» цветами: их точки рисуются поверх цветов (things), иначе цветы их закрывают
+    const wild = new Set(m.objs.filter(wildFlower).map((o) => o.ty * 4096 + o.tx));
+    freeMemo.wild = [];
+    for (let i = 0; i < cells.length; i += 2)
+      if (wild.has(cells[i + 1] * 4096 + cells[i])) freeMemo.wild.push(cells[i], cells[i + 1]);
     wayBlocked = false; // перебор клеток — не попытка поставить: подсказка «будет не пройти» не о нём
   }
   return freeMemo.cells;
 }
-/** Поставить на карту предмет двора по записи сохранения. */
+/** Поставить на карту предмет двора по записи сохранения; «дикие» цветы на его клетке прячутся под него. */
 function addToMap(sc, y, it) {
-  const def = YARD_BY_ID[it.id];
-  return sc.map.add(def.kind, it.x, it.y, { ...(def.o || {}), yard: y.id, it });
+  const def = YARD_BY_ID[it.id],
+    m = sc.map;
+  for (const o of m.objs.filter((q) => q.tx === it.x && q.ty === it.y && wildFlower(q))) {
+    m.remove(o);
+    hiddenWild.get(sc.name).push({ tx: o.tx, ty: o.ty, v: o.v });
+  }
+  return m.add(def.kind, it.x, it.y, { ...(def.o || {}), yard: y.id, it });
+}
+/** Вернуть цветы, спрятанные под предметами двора, — там, где клетка снова свободна. */
+function regrowWild(sc) {
+  const m = sc.map,
+    list = hiddenWild.get(sc.name) || [];
+  for (const h of list)
+    // клетку могли перекопать (пруд, бассейн, грядка — «Вилла растёт»): цветы растут только на свободной траве
+    if (m.at(h.tx, h.ty) === 'g' && !m.solid[h.ty][h.tx] && !m.objs.some((o) => o.tx === h.tx && o.ty === h.ty))
+      m.add('flowers', h.tx, h.ty, { v: h.v });
+  hiddenWild.set(sc.name, []);
 }
 /** Предмет карты, который стоит по записи сохранения it (ищем по клетке: на клетке двора — один предмет). */
 const objOf = (sc, it) => sc.map.objs.find((o) => o.yard && o.tx === it.x && o.ty === it.y) || null;
@@ -256,6 +283,7 @@ function sync(sc) {
   const m = sc.map;
   wayVer++;
   for (const o of m.objs.filter((q) => q.yard)) m.remove(o);
+  regrowWild(sc);
   for (const y of YARDS) {
     if (y.loc !== sc.name || !owns(y)) continue;
     for (const it of [...itemsOf(y)]) {
@@ -461,6 +489,17 @@ on('scene', () => {
   if (cur && scene() !== cur.sc) setYardMode(null);
 });
 
+/** Точка свободной клетки (как в ground) — поверх «диких» цветов. */
+function freeDot(ctx, [px, py]) {
+  ctx.fillStyle = 'rgba(255,255,255,.85)';
+  ctx.strokeStyle = 'rgba(74,55,40,.28)';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.arc(px, py, 4.5, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+}
+
 // ---------- общая часть локаций: кнопка, подсветка клеток ----------
 let inYard = null;
 addWorldPart({
@@ -480,6 +519,18 @@ addWorldPart({
     if (cur || !inYard || sc.mode || (sc.p.ride && !sc.p.ride.relax && !sc.p.ride.wheels)) return [];
     const y = inYard;
     return [{ id: 'yard', icon: '🌷', label: 'Мой двор', on: false, fn: () => setYardMode(sc, y) }];
+  },
+  /** Точки свободных клеток с «дикими» цветами — над цветами (плоское рисуется поверх земли), но под всем, что стоит. */
+  things(sc, add, v) {
+    const c = cur;
+    if (!c || c.sc !== sc) return;
+    freeCells(sc, c.y);
+    const w = freeMemo.wild;
+    for (let i = 0; i < w.length; i += 2) {
+      const px = (w[i] + 0.5) * T,
+        py = (w[i + 1] + 0.5) * T;
+      if (px > v.x0 - T && px < v.x1 + T && py > v.y0 - T && py < v.y1 + T) add(py - 39, freeDot, [px, py]);
+    }
   },
   /** В режиме: свободные клетки двора — точками, под выбранным предметом — кружок. */
   ground(ctx, sc) {

@@ -65,4 +65,37 @@ module.exports = async function home(ctx) {
       }
     },
   );
+
+  await step(
+    'свой дом: «Мой двор» — предмет встаёт на «дикие» цветы, цветы под ним прячутся, унесли или переставили — вырастают снова',
+    async () => {
+      await fresh({ villa: 'small', scene: 'world' });
+      const r = await ev(() => {
+        const d = window.__dev,
+          m = d.World.map,
+          A = d.actions;
+        const at = (x, y) => m.objs.filter((o) => o.tx === x && o.ty === y).map((o) => o.type + (o.yard ? '*' : ''));
+        // клетки двора с «дикими» цветами, куда можно поставить
+        const cells = m.objs
+          .filter((o) => o.type === 'flowers' && o.tx >= 5 && o.tx <= 26 && o.ty >= 4 && o.ty <= 23)
+          .filter((o) => d.F.yardCanPlace('villa', o.tx, o.ty))
+          .map((o) => [o.tx, o.ty, o.v]);
+        if (cells.length < 2) return { cells };
+        const [a, b] = cells;
+        A.addYardItem('y_bush', 1);
+        const it = A.placeYard('villa', 'y_bush', a[0], a[1]);
+        const placed = at(a[0], a[1]);
+        A.moveYard('villa', it, b[0], b[1]);
+        const movedA = at(a[0], a[1]),
+          movedB = at(b[0], b[1]);
+        A.stashYard('villa', it);
+        const back = m.objs.filter((o) => o.tx === b[0] && o.ty === b[1] && o.type === 'flowers').map((o) => o.v);
+        return { cells: cells.length, placed, movedA, movedB, afterB: at(b[0], b[1]), back, v: b[2] };
+      });
+      expect(r.cells >= 2, 'во дворе нет клеток с цветами, куда можно поставить', r);
+      expect(r.placed.join() === 'yardBush*', 'предмет встал не на цветы или цветы под ним остались', r);
+      expect(r.movedA.join() === 'flowers' && r.movedB.join() === 'yardBush*', 'переставили — цветы не вернулись', r);
+      expect(r.afterB.join() === 'flowers' && r.back.join() === String(r.v), 'унесли — цветы не выросли те же', r);
+    },
+  );
 };
