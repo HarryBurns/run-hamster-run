@@ -26,7 +26,10 @@ function C(id, slot, kind, name, c, o = {}) {
   CL.push({ id, slot, kind, name, price: PRICES.clothes[id] || 0, c, shop: 'mall', tags: [], ...o });
 }
 // --- майки
-C('tee_heart', 'body', 'tee', 'Майка с сердечком', '#ff6b9d', { print: 'heart', shop: 'start', tags: ['summer', 'sport', 'cute'] });
+// стартовая майка — простая белая у обоих (решение заказчика 20 ноября); розовая с сердечком — в ТЦ «Модный», у старых игр
+// она остаётся в шкафу
+C('tee_white', 'body', 'tee', 'Белая майка', '#f1f3f5', { shop: 'start', tags: ['summer', 'sport'] });
+C('tee_heart', 'body', 'tee', 'Майка с сердечком', '#ff6b9d', { print: 'heart', tags: ['summer', 'sport', 'cute'] });
 C('tee_sun', 'body', 'tee', 'Майка с солнышком', '#74c0fc', { print: 'sun', tags: ['summer', 'sport', 'beach'] });
 C('tee_stripe', 'body', 'tee', 'Майка-тельняшка', '#ffffff', { pattern: 'stripes', c2: '#1c7ed6', tags: ['summer', 'sport', 'beach'] });
 C('tee_dots', 'body', 'tee', 'Майка в горошек', '#69db7c', { pattern: 'dots', c2: '#fff', tags: ['summer', 'cute'] });
@@ -231,5 +234,5 @@ export const FLIPFLOPS_GIFT = 'flip_pink';
 export const SUN_HAT_KINDS = ['sunhat', 'panama', 'pith', 'cowboy', 'turban'];
 /** Защищает ли вещь от солнца (шляпа, панамка, шлем исследователя, платок кочевника). */
 export const isSunHat = (c) => !!c && c.slot === 'head' && SUN_HAT_KINDS.includes(c.kind);
-// новая игра: майка, джинсы и кроссовки — и больше в шкафу ничего нет (джинсовые шорты и красные кеды — в ТЦ «Модный»)
-export const START_OUTFIT = { head: null, body: 'tee_heart', legs: 'pants_jeans', feet: 'sn_white', acc: null };
+// новая игра: белая майка, джинсы и кроссовки — и больше в шкафу ничего нет (джинсовые шорты и красные кеды — в ТЦ «Модный»)
+export const START_OUTFIT = { head: null, body: 'tee_white', legs: 'pants_jeans', feet: 'sn_white', acc: null };

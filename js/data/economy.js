@@ -451,7 +451,7 @@ export const PRICES = {
   // одежда: ТЦ «Модный», пляжный магазинчик, бутик «Бантик», рынок
   clothes: {
     // майки
-    tee_sun: 180, tee_stripe: 180, tee_dots: 190, tee_star: 220, tee_orange: 150, tee_hawaii: 320, tee_hawaii_blue: 320,
+    tee_heart: 190, tee_sun: 180, tee_stripe: 180, tee_dots: 190, tee_star: 220, tee_orange: 150, tee_hawaii: 320, tee_hawaii_blue: 320,
     // платья
     dress_red: 550, dress_check: 500, dress_sea: 520, dress_stars: 600, dress_mint: 450, dress_sleeve: 650,
     dress_flowers: 580, dress_lilac: 480, dress_evening: 9000, dress_daisy: 6000, princess_pink: 30000, princess_gold: 80000,

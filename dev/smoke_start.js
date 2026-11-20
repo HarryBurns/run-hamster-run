@@ -156,7 +156,7 @@ module.exports = async function start(ctx) {
       [s.day, s.startDay, c],
     );
     expect(
-      s.weather === 'sun' && s.look.outfit.body === 'tee_heart' && !s.look.outfit.head && s.seeds.seed_carrot === 2,
+      s.weather === 'sun' && s.look.outfit.body === 'tee_white' && !s.look.outfit.head && s.seeds.seed_carrot === 2,
       'лето: солнце, майка, морковка в семенах',
       [s.weather, s.look.outfit, s.seeds],
     );

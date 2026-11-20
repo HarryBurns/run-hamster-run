@@ -143,7 +143,7 @@ export function openTitle({ start }) {
           look: lookOf(s.look),
         }
       : { minutes: 12 * 60, weather: 'sun', force: 0, season: 'summer', look: lookOf(null) };
-    if (formLook) env.look = formLook; // в форме новой игры выбрали «хомячок» или «хомячка»
+    if (formLook) env.look = formLook; // в форме новой игры выбрали «хомячок» или «хомяшка»
     const key = JSON.stringify([env.minutes, env.weather, env.force, env.season, formLook ? formLook.beauty : s && s.look]);
     if (scene && key === sceneKey) return scene.relayout();
     if (scene) scene.destroy();

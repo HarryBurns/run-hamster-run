@@ -119,7 +119,7 @@ module.exports = async function health(ctx) {
         s.weather = 'sun';
       });
       for (const slot of ['head', 'body', 'acc']) d.actions.wear(slot, null);
-      d.actions.wear('body', 'tee_heart');
+      d.actions.wear('body', 'tee_white');
       d.go('world');
     });
     await clearToasts();

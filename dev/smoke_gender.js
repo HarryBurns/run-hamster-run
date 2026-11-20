@@ -175,7 +175,7 @@ module.exports = async function gender(ctx) {
     expect(s.gender === 'm' && s.name === 'Тимоша', 'пол и имя в сохранении', [s.gender, s.name]);
     expect(!s.look.beauty.lashes && !s.look.beauty.bow, 'у хомячка нет ресничек и бантика', s.look.beauty);
     expect(
-      s.look.outfit.body === 'tee_heart' && s.look.outfit.legs === 'pants_jeans' && s.look.outfit.feet === 'sn_white',
+      s.look.outfit.body === 'tee_white' && s.look.outfit.legs === 'pants_jeans' && s.look.outfit.feet === 'sn_white',
       'стартовая одежда: майка, джинсы, кроссовки',
       s.look.outfit,
     );
