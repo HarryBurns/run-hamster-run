@@ -512,21 +512,27 @@ export function createTitleScene(canvas, o) {
   const merHit = () => [mer.x, Math.min(mer.y - 33 * merS() + (1 - merUp()) * 76 * merS(), mer.y - 8 * merS())];
   function merGo() {
     // место — в свободной части моря: не за хомячком, не за пальмой и не там, где только что прыгал дельфин
-    const ok = (x) =>
-      Math.abs(x - ham.x) > 34 * ham.s + 40 * k &&
+    // крона мешает, только если листья свисают до её головы; ствол — всегда
+    const ok = (x, strict) =>
+      (!strict || Math.abs(x - ham.x) > 34 * ham.s + 40 * k) &&
       Math.abs(x - dolphin.x) > 90 * k &&
       palms.every((p) => {
-        const cx = crown(p)[0];
-        return x < Math.min(p.x, cx) - 60 * k || x > Math.max(p.x, cx) + 60 * k;
+        const [cx, cy] = crown(p),
+          L = p.h * 0.42,
+          low = cy + L * 0.6 > mer.y - 80 * merS(),
+          a = Math.min(p.x, low ? cx - L : cx) - (low ? 20 : 60) * k,
+          b = Math.max(p.x, low ? cx + L : cx) + (low ? 20 : 60) * k;
+        return x < a || x > b;
       });
     let x = F.x + F.w * 0.64;
-    for (let i = 0; i < 14; i++) {
-      const c = F.x + F.w * rnd(0.2, 0.8);
-      if (ok(c)) {
-        x = c;
-        break;
+    search: for (const strict of [true, false])
+      for (let i = 0; i < 24; i++) {
+        const c = F.x + F.w * rnd(0.15, 0.85);
+        if (ok(c, strict)) {
+          x = c;
+          break search;
+        }
       }
-    }
     Object.assign(mer, { st: 'up', t: 0, x, look: rnd(5.2, 6.8), side: pick([-1, 1]) });
     rings.push({ x, y: mer.y, t: 0 });
     sfx('bubble');
