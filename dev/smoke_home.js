@@ -176,29 +176,34 @@ module.exports = async function home(ctx) {
     async () => {
       await fresh({ minutes: 12 * 60 });
       await go('villa');
-      // окно гостиной виллы (x 640): часы, отпущенные над ним, встают рядом — не вплотную к раме
-      await decorAt({ clock: 1 }, 640, 0, 150);
-      await page.click('.decor-tray .tray-item');
-      let c = await item('clock');
-      expect(c, 'часы не встали из кладовки');
-      let bad = await dragTo(c, 640, 0, 156);
-      expect(bad === 'window', 'над окном рамка не «нельзя»', bad);
-      c = await item('clock');
-      const frame = 88 / 2 + 8; // половина рамы окна
-      expect(Math.abs(c.x - 640) >= 28 + frame + 10, 'часы встали вплотную к раме окна', c);
-      expect((await toasts()).includes('окно'), 'нет подсказки про окно');
-      // картина рядом: часы над ней — «нельзя», отпущенные — рядом, не налезая
-      await clearToasts();
-      await ev(([x]) => window.__dev.actions.placeFurn('villa', 'pic_sun', 0, x, 150), [c.x > 640 ? 820 : 460]);
-      await frames(2);
-      const pic = await item('pic_sun');
-      c = await item('clock');
-      bad = await dragTo(c, pic.x, 0, 150);
-      expect(bad === 'wall', 'над картиной рамка не «нельзя»', bad);
-      c = await item('clock');
-      expect(!cross(c, pic), 'часы остались на картине', { c, pic });
-      expect((await toasts()).includes('висит'), 'нет подсказки «здесь уже что-то висит»', await toasts());
-      await ev(() => window.__dev.scene.setDecor(false));
+      // окно гостиной виллы (x 640): часы, отпущенные над ним, встают рядом — не вплотную к раме. Перетаскивание —
+      // на широком экране (на узком телефоне окно и картина не помещаются в кадр вместе с часами; там — только кладовка)
+      const wide = await ev(() => innerWidth >= 900);
+      if (wide) await dragChecks();
+      async function dragChecks() {
+        await decorAt({ clock: 1 }, 640, 0, 150);
+        await page.click('.decor-tray .tray-item');
+        let c = await item('clock');
+        expect(c, 'часы не встали из кладовки');
+        let bad = await dragTo(c, 640, 0, 156);
+        expect(bad === 'window', 'над окном рамка не «нельзя»', bad);
+        c = await item('clock');
+        const frame = 88 / 2 + 8; // половина рамы окна
+        expect(Math.abs(c.x - 640) >= 28 + frame + 10, 'часы встали вплотную к раме окна', c);
+        expect((await toasts()).includes('окно'), 'нет подсказки про окно');
+        // картина рядом: часы над ней — «нельзя», отпущенные — рядом, не налезая
+        await clearToasts();
+        await ev(([x]) => window.__dev.actions.placeFurn('villa', 'pic_sun', 0, x, 150), [c.x > 640 ? 820 : 460]);
+        await frames(2);
+        const pic = await item('pic_sun');
+        c = await item('clock');
+        bad = await dragTo(c, pic.x, 0, 150);
+        expect(bad === 'wall', 'над картиной рамка не «нельзя»', bad);
+        c = await item('clock');
+        expect(!cross(c, pic), 'часы остались на картине', { c, pic });
+        expect((await toasts()).includes('висит'), 'нет подсказки «здесь уже что-то висит»', await toasts());
+        await ev(() => window.__dev.scene.setDecor(false));
+      }
       // напольное из кладовки — не за кроватью и тумбочкой в спальне (камера — на кровати; на этаже есть место)
       const bed = await item('bed_pink');
       await decorAt({ plant_ficus: 1 }, bed.x, bed.f, 120);
@@ -223,10 +228,10 @@ module.exports = async function home(ctx) {
       await go('penthouse');
       await decorAt({ clock: 1 }, 1075, 0, 160);
       await page.click('.decor-tray .tray-item');
-      c = await item('clock');
+      const c = await item('clock');
       const cab = { x0: 1075 - 177, x1: 1075 + 157, lo: 164, hi: 238 };
-      expect(c && c.f === 0, 'часы в пентхаусе не встали на первый этаж', c);
-      expect(!cross(c, cab), 'часы из кладовки зашли на кухонные шкафчики', c);
+      expect(c && (c.f === 0 || !wide), 'часы в пентхаусе не встали на первый этаж', c);
+      expect(!(c.f === 0 && cross(c, cab)), 'часы из кладовки зашли на кухонные шкафчики', c);
       await ev(() => window.__dev.scene.setDecor(false));
     },
   );
