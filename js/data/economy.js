@@ -454,29 +454,29 @@ export const PRICES = {
     tee_sun: 180, tee_stripe: 180, tee_dots: 190, tee_star: 220, tee_orange: 150, tee_hawaii: 320, tee_hawaii_blue: 320,
     // платья
     dress_red: 550, dress_check: 500, dress_sea: 520, dress_stars: 600, dress_mint: 450, dress_sleeve: 650,
-    dress_flowers: 580, dress_evening: 9000, dress_daisy: 6000, princess_pink: 30000, princess_gold: 80000,
+    dress_flowers: 580, dress_lilac: 480, dress_evening: 9000, dress_daisy: 6000, princess_pink: 30000, princess_gold: 80000,
     // кофты, худи, комбинезоны
     sw_orange: 420, sw_pink: 400, sw_green: 450, sw_cream: 430, hoodie_grey: 480, hoodie_violet: 550,
     overall_jeans: 520, overall_red: 520, tuxedo: 8000, tuxedo_white: 9000,
     // куртки
-    jw_red: 1300, jw_pink: 1350, jw_white: 1500, ja_yellow: 1000, ja_orange: 1050, ja_wine: 1100,
+    jw_blue: 1250, jw_red: 1300, jw_pink: 1350, jw_white: 1500, ja_yellow: 1000, ja_orange: 1050, ja_wine: 1100,
     js_mint: 800, js_lilac: 850, js_pink: 850,
     // купальники, пижама, халат
-    swim_blue: 300, swim_yellow: 300, swim_star: 380, pajama_pink: 280, robe: 2500,
+    swim_pink: 300, swim_blue: 300, swim_yellow: 300, swim_star: 380, pajama: 280, pajama_pink: 280, robe: 2500,
     // низ
     shorts_red: 200, shorts_dots: 220, shorts_star: 250, skirt_check: 300, skirt_blue: 280, skirt_dots: 320,
-    pants_grey: 400, pants_black: 450, tutu_pink: 3000, tutu_white: 3000,
+    pants_jeans: 380, pants_grey: 400, pants_black: 450, tutu_pink: 3000, tutu_white: 3000,
     // обувь
-    sn_white: 380, sn_mint: 400, boots_black: 550, ugg_beige: 600, ugg_pink: 650, rain_red: 400, rain_yellow: 400,
-    sand_yellow: 250, sand_pink: 250, flip_sea: 180, flip_lime: 160, flippers: 300, rollers: 600, heels_red: 3500, heels_black: 3500,
+    sn_white: 380, sn_mint: 400, boots_brown: 520, boots_black: 550, ugg_beige: 600, ugg_pink: 650, rain_red: 400, rain_yellow: 400,
+    sand_yellow: 250, sand_pink: 250, flip_pink: 170, flip_sea: 180, flip_lime: 160, slippers: 150, flippers: 300, rollers: 600, heels_red: 3500, heels_black: 3500,
     shoes_gold: 12000,
     // голова
     cap_yellow: 200, cap_red: 250, cap_blue: 200, panama_green: 230, panama_white: 220, panama_pink: 230,
-    sunhat: 400, sunhat_blue: 400, beanie_blue: 300, beanie_pink: 320, earmuffs: 380, hat_cowboy: 500,
+    sunhat: 400, sunhat_blue: 400, beanie_red: 300, beanie_blue: 300, beanie_pink: 320, earmuffs: 380, hat_cowboy: 500,
     beret_red: 380, beret_black: 2500, hat_chef: 300, hat_pith: 450, catears: 350, hair_flower: 250, hat_party: 150,
     tophat: 7000, crown: 50000, sunhat_wide: 350,
     // аксессуары
-    glasses_red: 250, glasses_black: 250, sung_yellow: 350, sung_pink: 350, scarf_blue: 280, scarf_pink: 280,
+    glasses_red: 250, glasses_black: 250, sung_yellow: 350, sung_pink: 350, scarf_yellow: 260, scarf_blue: 280, scarf_pink: 280,
     bag_yellow: 450, backpack: 400, tie_red: 300, tie_blue: 300, lei: 280, camera: 900,
     neck_heart: 5000, neck_pearl: 15000, bag_pink: 2800, bowtie: 2500, cape_red: 4000,
     // рынок: вещицы ручной работы

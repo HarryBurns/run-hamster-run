@@ -1,6 +1,7 @@
 // Одежда: слоты, каталог вещей, стартовый гардероб.
 // slot: head | body | legs | feet | acc
-// shop: start (уже есть) | mall | boutique | beach | market (вещицы с рынка) | gift (только в подарок)
+// shop: start (уже есть в новой игре — то, что надето: майка, джинсовые шорты, кеды) | mall | boutique | beach
+//   | market (вещицы с рынка) | gift (только в подарок; бывает сюрпризом) | quest (награда за задание, больше никак)
 //   | holiday (подарок праздника раз в год — data/holidays.js; сюрпризом не дарят)
 // Цены — в таблице PRICES.clothes (economy.js); у стартовых вещей и подарков цены нет (0).
 // season — сезонная вещь: коллекция из таблицы сезонов вещей (WARE_MONTHS в data/seasons.js): 'cold' — тёплое
@@ -30,7 +31,7 @@ C('tee_dots', 'body', 'tee', 'Майка в горошек', '#69db7c', { patter
 C('tee_star', 'body', 'tee', 'Майка со звездой', '#845ef7', { print: 'star', tags: ['summer', 'sport'] });
 C('tee_orange', 'body', 'tee', 'Апельсиновая майка', '#ff922b', { tags: ['summer', 'sport'] });
 // --- платья
-C('dress_lilac', 'body', 'dress', 'Сиреневое платье в горошек', '#c77dff', { pattern: 'dots', c2: '#fff', shop: 'start', tags: ['summer', 'cute', 'fancy'] });
+C('dress_lilac', 'body', 'dress', 'Сиреневое платье в горошек', '#c77dff', { pattern: 'dots', c2: '#fff', tags: ['summer', 'cute', 'fancy'] });
 C('dress_red', 'body', 'dress', 'Красное платье', '#f03e3e', { c2: '#fff', tags: ['fancy', 'cute'] });
 C('dress_check', 'body', 'dress', 'Платье в клетку', '#ffd43b', { pattern: 'check', c2: '#f08c00', tags: ['cute', 'autumn'] });
 C('dress_sea', 'body', 'dress', 'Морское платье', '#ffffff', { pattern: 'stripes', c2: '#339af0', stock: 'delivery', tags: ['summer', 'beach', 'cute'] });
@@ -50,7 +51,7 @@ C('sw_pink', 'body', 'sweater', 'Розовая кофта', '#faa2c1', { tags: 
 C('sw_green', 'body', 'sweater', 'Зелёная кофта со звёздами', '#2f9e44', { pattern: 'stars', c2: '#fff', stock: 'delivery', tags: ['warm', 'winter'] });
 C('sw_cream', 'body', 'sweater', 'Уютная бежевая кофта', '#f1e0c5', { stock: 'delivery', tags: ['warm', 'autumn', 'home'] });
 // --- куртки
-C('jw_blue', 'body', 'jacketW', 'Зимняя куртка голубая', '#4dabf7', { shop: 'start', season: 'cold', tags: ['warm', 'winter'] });
+C('jw_blue', 'body', 'jacketW', 'Зимняя куртка голубая', '#4dabf7', { season: 'cold', tags: ['warm', 'winter'] });
 C('jw_red', 'body', 'jacketW', 'Зимняя куртка красная', '#f03e3e', { season: 'cold', tags: ['warm', 'winter'] });
 C('jw_pink', 'body', 'jacketW', 'Зимняя куртка розовая', '#f783ac', { season: 'cold', tags: ['warm', 'winter', 'cute'] });
 C('jw_white', 'body', 'jacketW', 'Белоснежный пуховик', '#f8f9fa', { c2: '#d0bfff', season: 'cold', tags: ['warm', 'winter', 'fancy'] });
@@ -61,11 +62,11 @@ C('js_mint', 'body', 'jacketS', 'Весенняя куртка мятная', '#
 C('js_lilac', 'body', 'jacketS', 'Весенняя куртка сиреневая', '#b197fc', { c2: '#fff', season: 'spring', tags: ['spring', 'cute'] });
 C('js_pink', 'body', 'jacketS', 'Весенняя куртка розовая', '#ff8fab', { c2: '#ffe066', season: 'spring', tags: ['spring', 'cute'] });
 // --- купальники, пижама, халат
-C('swim_pink', 'body', 'swim', 'Купальник в горошек', '#ff5c8a', { pattern: 'dots', c2: '#fff', shop: 'start', season: 'hot', tags: ['beach', 'summer', 'swim'] });
+C('swim_pink', 'body', 'swim', 'Купальник в горошек', '#ff5c8a', { pattern: 'dots', c2: '#fff', season: 'hot', tags: ['beach', 'summer', 'swim'] });
 C('swim_blue', 'body', 'swim', 'Полосатый купальник', '#339af0', { pattern: 'stripes', c2: '#fff', season: 'hot', tags: ['beach', 'summer', 'swim', 'sport'] });
 C('swim_yellow', 'body', 'swim', 'Солнечный купальник', '#ffd43b', { season: 'hot', tags: ['beach', 'summer', 'swim'] });
 C('swim_star', 'body', 'swim', 'Звёздный купальник', '#20c997', { pattern: 'stars', c2: '#fff', shop: 'beach', season: 'hot', tags: ['beach', 'summer', 'swim'] });
-C('pajama', 'body', 'pajama', 'Пижама со звёздами', '#b197fc', { pattern: 'stars', c2: '#fff', shop: 'start', tags: ['home'] });
+C('pajama', 'body', 'pajama', 'Пижама со звёздами', '#b197fc', { pattern: 'stars', c2: '#fff', tags: ['home'] });
 C('pajama_pink', 'body', 'pajama', 'Пижама-зефирка', '#ffc9de', { pattern: 'dots', c2: '#fff', tags: ['home', 'cute'] });
 C('robe', 'body', 'robe', 'Пушистый халат', '#74c0fc', { shop: 'boutique', tags: ['home'] });
 // --- низ
@@ -76,14 +77,14 @@ C('shorts_star', 'legs', 'shorts', 'Шорты со звёздами', '#845ef7'
 C('skirt_check', 'legs', 'skirt', 'Юбка в клетку', '#ff8fab', { pattern: 'check', c2: '#c2255c', tags: ['cute', 'spring', 'autumn'] });
 C('skirt_blue', 'legs', 'skirt', 'Голубая юбочка', '#74c0fc', { tags: ['cute', 'summer', 'spring'] });
 C('skirt_dots', 'legs', 'skirt', 'Юбка в горошек', '#ffd43b', { pattern: 'dots', c2: '#fff', stock: 'delivery', tags: ['cute', 'summer'] });
-C('pants_jeans', 'legs', 'pants', 'Джинсы', '#1c7ed6', { shop: 'start', tags: ['warm', 'autumn', 'spring', 'winter', 'rain'] });
+C('pants_jeans', 'legs', 'pants', 'Джинсы', '#1c7ed6', { tags: ['warm', 'autumn', 'spring', 'winter', 'rain'] });
 C('pants_grey', 'legs', 'pants', 'Тёплые штаны', '#868e96', { tags: ['warm', 'winter', 'home'] });
 C('pants_black', 'legs', 'pants', 'Чёрные брючки', '#343a40', { tags: ['fancy', 'warm', 'autumn'] });
 // --- обувь
 C('sn_red', 'feet', 'sneakers', 'Красные кеды', '#ff6b6b', { shop: 'start', tags: ['sport', 'summer', 'spring'] });
 C('sn_white', 'feet', 'sneakers', 'Белые кроссовки', '#f1f3f5', { tags: ['sport', 'summer', 'spring'] });
 C('sn_mint', 'feet', 'sneakers', 'Мятные кеды', '#63e6be', { tags: ['sport', 'cute', 'spring'] });
-C('boots_brown', 'feet', 'boots', 'Коричневые ботинки', '#8d5524', { shop: 'start', tags: ['warm', 'autumn', 'winter'] });
+C('boots_brown', 'feet', 'boots', 'Коричневые ботинки', '#8d5524', { tags: ['warm', 'autumn', 'winter'] });
 C('boots_black', 'feet', 'boots', 'Чёрные ботинки', '#343a40', { tags: ['warm', 'autumn', 'fancy'] });
 C('ugg_beige', 'feet', 'wboots', 'Угги', '#d9a066', { season: 'cold', tags: ['warm', 'winter', 'home'] });
 C('ugg_pink', 'feet', 'wboots', 'Розовые угги', '#f783ac', { season: 'cold', tags: ['warm', 'winter', 'cute'] });
@@ -92,12 +93,12 @@ C('rain_yellow', 'feet', 'rainboots', 'Жёлтые резиновые сапо�
 C('sand_yellow', 'feet', 'sandals', 'Жёлтые сандалии', '#fcc419', { season: 'hot', tags: ['summer', 'beach', 'cute'] });
 C('sand_pink', 'feet', 'sandals', 'Розовые сандалии', '#ff6b9d', { season: 'hot', tags: ['summer', 'beach', 'fancy', 'cute'] });
 C('flippers', 'feet', 'flippers', 'Ласты', '#20c997', { shop: 'beach', tags: ['beach', 'swim'] });
-C('slippers', 'feet', 'slippers', 'Домашние тапочки', '#ffc9de', { shop: 'start', tags: ['home'] });
+C('slippers', 'feet', 'slippers', 'Домашние тапочки', '#ffc9de', { tags: ['home'] });
 C('shoes_gold', 'feet', 'sandals', 'Золотые туфельки', '#ffd43b', { c2: '#ff6b9d', shop: 'boutique', stock: 'special', tags: ['fancy'] });
 // шлёпанцы-вьетнамки (У2): c — подошва, c2 — перемычка. На песке пляжа хомячок сама идёт в шлёпанцах, если они
-// есть в шкафу (кроме зимы): beachLook в core/state.js, клетки с beach: true. Розовые — подарок: в новой игре
-// лежат в шкафу, в старых сохранениях появляются один раз (main.js, отметка flags.flipflopsGift).
-C('flip_pink', 'feet', 'flipflops', 'Розовые шлёпанцы', '#ff6b9d', { c2: '#ffe066', shop: 'start', season: 'hot', tags: ['summer', 'beach', 'cute'] });
+// есть в шкафу (кроме зимы): beachLook в core/state.js, клетки с beach: true. Розовые продаются в ТЦ «Модный»; старым
+// сохранениям они достались подарком один раз (main.js, отметка flags.flipflopsGift).
+C('flip_pink', 'feet', 'flipflops', 'Розовые шлёпанцы', '#ff6b9d', { c2: '#ffe066', season: 'hot', tags: ['summer', 'beach', 'cute'] });
 C('flip_sea', 'feet', 'flipflops', 'Бирюзовые шлёпанцы', '#22b8cf', { c2: '#fff', shop: 'beach', season: 'hot', tags: ['summer', 'beach', 'swim'] });
 C('flip_lime', 'feet', 'flipflops', 'Салатовые шлёпанцы', '#94d82d', { c2: '#ff922b', season: 'hot', tags: ['summer', 'beach', 'sport'] });
 // --- голова
@@ -109,7 +110,7 @@ C('panama_white', 'head', 'panama', 'Белая панамка', '#f8f9fa', { c2
 C('panama_pink', 'head', 'panama', 'Розовая панамка', '#ff8fab', { pattern: 'stripes', c2: '#fff', season: 'hot', tags: ['summer', 'beach', 'cute'] });
 C('sunhat', 'head', 'sunhat', 'Соломенная шляпа', '#ffe8a1', { c2: '#ff6b9d', season: 'hot', tags: ['summer', 'beach', 'fancy'] });
 C('sunhat_blue', 'head', 'sunhat', 'Шляпа с голубой лентой', '#fff3bf', { c2: '#4dabf7', shop: 'beach', season: 'hot', tags: ['summer', 'beach', 'fancy'] });
-C('beanie_red', 'head', 'beanie', 'Шапка с помпоном', '#ff6b6b', { pattern: 'stripes', c2: '#fff', shop: 'start', season: 'cold', tags: ['warm', 'winter'] });
+C('beanie_red', 'head', 'beanie', 'Шапка с помпоном', '#ff6b6b', { pattern: 'stripes', c2: '#fff', season: 'cold', tags: ['warm', 'winter'] });
 C('beanie_blue', 'head', 'beanie', 'Синяя шапка', '#4c6ef5', { season: 'cold', tags: ['warm', 'winter', 'sport'] });
 C('beanie_pink', 'head', 'beanie', 'Розовая шапка в горошек', '#f783ac', { pattern: 'dots', c2: '#fff', season: 'cold', tags: ['warm', 'winter', 'cute'] });
 C('earmuffs', 'head', 'earmuffs', 'Меховые наушники', '#ffc9de', { season: 'cold', tags: ['warm', 'winter', 'cute'] });
@@ -119,6 +120,8 @@ C('wreath', 'head', 'wreath', 'Венок из цветов', '#fff', { shop: 'g
 // пустыня (П.9): широкополая шляпа от солнца — в ТЦ «Модный» каждый день, в любой сезон (её просит купить Буся —
 // задание «Звезда подиума», data/quests.js); платок кочевника — подарок Бархана за задание «Бубенчик верблюда»
 C('sunhat_wide', 'head', 'sunhat', 'Шляпа от солнца', '#f4dca6', { c2: '#e8590c', tags: ['summer', 'beach', 'sport'] });
+// награда за первое вводное задание (Плюша и снимок для каталога, data/quests.js: intro_home)
+C('sunhat_bow', 'head', 'sunhat', 'Соломенная шляпка с бантиком', '#f3d98b', { c2: '#ff8fab', shop: 'quest', tags: ['summer', 'beach', 'cute', 'fancy'] });
 C('panama_explorer', 'head', 'panama', 'Панама исследовательницы', '#c9b47c', { c2: '#5c7a2e', shop: 'gift', tags: ['summer', 'sport'] });
 C('scarf_nomad', 'head', 'turban', 'Платок кочевника', '#4dabf7', { c2: '#ffd43b', shop: 'gift', tags: ['summer', 'fancy'] });
 C('clip_shell', 'head', 'shellclip', 'Заколка-ракушка', '#ffb3c6', { c2: '#fff0f6', shop: 'gift', tags: ['summer', 'cute', 'fancy'] });
@@ -137,7 +140,7 @@ C('goggles_ski', 'acc', 'skigoggles', 'Лыжные очки', '#1c7ed6', { c2: 
 // пещеры (П.9): каска шахтёра с фонариком — подарок Камушкина за задание «Счастливая кирка» (data/quests.js)
 C('helmet_lamp', 'head', 'helmet', 'Каска с фонариком', '#ffd43b', { c2: '#e8a400', shop: 'gift', tags: ['sport'] });
 C('sung_pink', 'acc', 'sunglasses', 'Розовые тёмные очки', '#ff6b9d', { shop: 'beach', season: 'hot', tags: ['summer', 'beach', 'cute'] });
-C('scarf_yellow', 'acc', 'scarf', 'Полосатый шарф', '#ffd43b', { c2: '#ff6b6b', shop: 'start', season: 'cold', tags: ['warm', 'winter', 'autumn'] });
+C('scarf_yellow', 'acc', 'scarf', 'Полосатый шарф', '#ffd43b', { c2: '#ff6b6b', season: 'cold', tags: ['warm', 'winter', 'autumn'] });
 C('scarf_blue', 'acc', 'scarf', 'Голубой шарф', '#74c0fc', { c2: '#fff', season: 'cold', tags: ['warm', 'winter', 'autumn'] });
 C('scarf_pink', 'acc', 'scarf', 'Розовый шарф', '#faa2c1', { c2: '#c2255c', season: 'cold', tags: ['warm', 'winter', 'cute'] });
 C('neck_heart', 'acc', 'necklace', 'Кулон-сердечко', '#ffd43b', { pendant: 'heart', shop: 'boutique', tags: ['fancy', 'cute'] });
@@ -214,12 +217,14 @@ C('lei_shell', 'acc', 'lei', 'Бусы из ракушек', '#ffe8cc', { c2: '#
 
 export const CLOTHES = CL;
 export const CLOTHES_BY_ID = Object.fromEntries(CL.map((c) => [c.id, c]));
+// Новая игра: в шкафу только то, что надето (майка, джинсовые шорты, кеды), остальное покупают. Прежние стартовые
+// вещи (платье, купальник, пижама, тёплое) продаются в ТЦ «Модный»; у старых игр они остаются в шкафу.
 export const START_CLOTHES = CL.filter((c) => c.shop === 'start').map((c) => c.id);
-/** Шлёпанцы в подарок (У2): в новой игре — в шкафу с начала, в старом сохранении — один раз при загрузке (main.js). */
+/** Шлёпанцы в подарок (У2): старым сохранениям — один раз при загрузке (main.js); в новой игре их покупают. */
 export const FLIPFLOPS_GIFT = 'flip_pink';
 // Шляпы от солнца: в пустыне в них не жарко (features/desert.js), задание Буси засчитывает покупку любой из них.
 export const SUN_HAT_KINDS = ['sunhat', 'panama', 'pith', 'cowboy', 'turban'];
 /** Защищает ли вещь от солнца (шляпа, панамка, шлем исследователя, платок кочевника). */
 export const isSunHat = (c) => !!c && c.slot === 'head' && SUN_HAT_KINDS.includes(c.kind);
-// новая игра начинается летом (1 июня): майка, шорты и кеды; тёплые вещи ждут в шкафу
+// новая игра начинается летом (1 июня): майка, шорты и кеды — и больше в шкафу ничего нет
 export const START_OUTFIT = { head: null, body: 'tee_heart', legs: 'shorts_jeans', feet: 'sn_red', acc: null };

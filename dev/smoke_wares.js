@@ -540,13 +540,14 @@ module.exports = async function wares(ctx) {
         `${sea}: письмо «Обновка» называет не то`,
         [letter, named],
       );
+      const c0 = (await state()).clothes.length;
       await enter('mall_fashion');
       const first = norm(await page.locator('.overlay .card:not(.away) .nm').first().innerText());
       await page.click('.overlay .card:not(.away) .btn.green');
       await frames(2);
       await closeAll();
       let s = await state();
-      expect(s.mail.done && s.clothes.length > 12, `${sea}: «Обновка» не выполнена покупкой (${first})`, s.mail);
+      expect(s.mail.done && s.clothes.length > c0, `${sea}: «Обновка» не выполнена покупкой (${first})`, s.mail);
       await settle();
       // «Уют в доме»: письмо называет мебель с витрины; купленное ставится дома — задание выполнено
       await ev(() => {
@@ -578,13 +579,14 @@ module.exports = async function wares(ctx) {
       expect(s.mail.done, `${sea}: «Уют в доме» не выполнено`, s.mail);
       await settle();
     }
-    // купальник для «Купания в море» есть с первого дня и надевается в любой сезон
+    // купальник надевается в любой сезон (в новой игре его покупают — здесь кладём в шкаф)
     const swim = await ev(() => {
       const d = window.__dev;
+      d.actions.addClothes('swim_pink');
       d.actions.wear('body', 'swim_pink');
       return d.G.state.look.outfit.body;
     });
-    expect(swim === 'swim_pink', 'стартовый купальник не надевается', swim);
+    expect(swim === 'swim_pink', 'купальник не надевается', swim);
     // когда на витринах не осталось ничего нового, письмо «Обновка» не приходит
     const mail = await ev(async () => {
       const d = window.__dev,
@@ -724,7 +726,14 @@ module.exports = async function wares(ctx) {
       await fresh();
       let s = await state();
       const once = (q) => q.clothes.filter((id) => id === 'flip_pink').length === 1 && q.flags.flipflopsGift === 1;
-      expect(once(s), 'новая игра: розовые шлёпанцы в шкафу с начала', [s.clothes, s.flags]);
+      // новая игра: шкаф пустой, шлёпанцы не дарят (их покупают) — кладём в шкаф, как купленные
+      expect(!s.clothes.includes('flip_pink') && s.flags.flipflopsGift === 1, 'новая игра: шлёпанцы подарены', [
+        s.clothes,
+        s.flags,
+      ]);
+      await ev(() => window.__dev.actions.addClothes('flip_pink'));
+      s = await state();
+      expect(once(s), 'шлёпанцы в шкафу', s.clothes);
       /** Поставить хомячка на клетку и посмотреть, в чём она нарисована: { surf, feet, worn }. */
       const at = async (x, y) => {
         await ev(([x, y]) => window.__dev.World.debugTeleport(x, y), [x, y]);

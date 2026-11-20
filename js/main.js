@@ -224,11 +224,11 @@ function startGame(fresh) {
       );
     }
   }
-  // шлёпанцы в подарок (У2, один раз): в новой игре они уже лежат в шкафу, в старом сохранении — появляются
+  // шлёпанцы в подарок (У2, один раз) — старым сохранениям; в новой игре шкаф пустой, шлёпанцы покупают
   if (!s.flags.flipflopsGift) {
     setFlag('flipflopsGift');
     const text = '🩴 Подарок к лету: в шкафу появились розовые шлёпанцы! На пляже ты будешь ходить в них сама.';
-    if (addClothes(FLIPFLOPS_GIFT)) setTimeout(() => toast(text, 'good'), 3500);
+    if (!fresh && addClothes(FLIPFLOPS_GIFT)) setTimeout(() => toast(text, 'good'), 3500);
   }
   if (!fresh) F.showBankLetter(); // после переноса старого сохранения — письмо банка (один раз)
   if (fresh) {

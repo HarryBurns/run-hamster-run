@@ -194,6 +194,7 @@ export function installDevHooks({ F }) {
           feet: 'boots_brown',
           acc: 'scarf_yellow',
         };
+        for (const id of Object.values(s.look.outfit)) if (!s.clothes.includes(id)) s.clothes.push(id); // как в старых играх
         s.seeds = { seed_lettuce: 2 };
         s.flags.intro = 0;
       });
