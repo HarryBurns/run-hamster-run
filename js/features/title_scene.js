@@ -4,7 +4,7 @@
 // Рисование — features/title_art.js: небо, море и песок без движения лежат в кэше (bg), каждый кадр поверх —
 // волны, облака, пальмы, зверьки и погода. Что можно трогать — см. down() ниже: порядок проверок там и есть
 // «кто ближе к зрителю».
-import { TAU, clamp, lerp, rnd, pick, seeded } from '../core/util.js';
+import { TAU, clamp, lerp, rnd, pick, seeded, readSec } from '../core/util.js';
 import { sfx } from '../core/audio.js';
 import { createTitleArt, CLOUD_ORDER, ease, releaseTitleArt } from './title_art.js';
 
@@ -140,10 +140,13 @@ export function createTitleScene(canvas, o) {
   const texts = []; // надписи, всплывающие над сценой: { x, y, text, t, life, size }
   let grab = null; // что сейчас держит указатель
 
+  // реплики и надписи висят, пока медленно читающий ребёнок успеет их прочитать (core/util.js: readSec, та же мерка,
+  // что у подсказок вверху); сердечко без букв — сколько задано
+  const readLife = (text, life) => (/\p{L}/u.test(text) ? Math.max(life, readSec(text)) : life);
   const say = (text, life = 1.8) => {
-    ham.bubble = { text, t: 0, life };
+    ham.bubble = { text, t: 0, life: readLife(text, life) };
   };
-  const pop = (x, y, text, size = 18, life = 1.6) => texts.push({ x, y, text, t: 0, life, size });
+  const pop = (x, y, text, size = 18, life = 1.6) => texts.push({ x, y, text, t: 0, life: readLife(text, life), size });
 
   // ---------- размеры и расстановка ----------
   function layout() {

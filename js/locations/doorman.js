@@ -6,7 +6,7 @@
 import { G, darkness } from '../core/state.js';
 import { run } from '../core/registry.js';
 import { sfx } from '../core/audio.js';
-import { dist } from '../core/util.js';
+import { dist, readSec } from '../core/util.js';
 import { drawHamster, blinkAt } from '../art/hamster.js';
 import { T, put, label, defineArt } from '../engine/topdown/index.js';
 import { DOORMAN } from './town_buildings.js';
@@ -67,7 +67,7 @@ export function createDoorman(bid = 'hotel') {
       });
     },
     over(ctx, sc, t) {
-      if (pos && t - greetT < 2.6) label(ctx, say(), pos.x, pos.y - 70, 240, 13, '#fffbe6');
+      if (pos && t - greetT < readSec(say())) label(ctx, say(), pos.x, pos.y - 70, 240, 13, '#fffbe6');
     },
     /** Нажали на швейцара — подойти и поздороваться. */
     tap(sc, w) {

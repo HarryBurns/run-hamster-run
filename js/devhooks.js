@@ -21,13 +21,13 @@ import { titleDebug } from './features/title.js';
 import { titleArtPixels } from './features/title_art.js';
 import { message, openPanel } from './ui/panel.js';
 import { dialog } from './ui/dialog.js';
-import { toast } from './ui/toast.js';
+import { toast, toastsInfo } from './ui/toast.js';
 import { createSideScene } from './engine/side/scene.js';
 import { OWN as demoOwn } from './interiors/demo_house.js';
 import town, { sea, BUILDINGS } from './locations/town.js';
 import * as topdown from './engine/topdown/index.js';
 import { pixStats } from './core/pixcache.js';
-import { devGames } from './core/dev.js';
+import { devGames, devToasts } from './core/dev.js';
 import { PLANTS, hasFruit, plantInSeason, gather } from './locations/common/plants.js';
 import * as Tower from './interiors/tower.js';
 import { debugDecor, debugFireworks } from './locations/holidays.js';
@@ -134,7 +134,7 @@ export function installDevHooks({ F }) {
     houseItems,
     watchState,
     /** Окна: очередь (enqueue, queued), слои и сами окна — для тестов. */
-    ui: { ...modals, message, openPanel, dialog, toast },
+    ui: { ...modals, message, openPanel, dialog, toast, toastsInfo },
     /** Занятия (features): F.openWardrobe(), F.playMinigame('swim') … */
     F,
     /** Город (сцена-локация) вместе с функциями его моря: World.debugTeleport(x, y), World.leaveBoat()… */
@@ -230,6 +230,11 @@ export function installDevHooks({ F }) {
     fastGames(on = true) {
       devGames.speed = on === true ? 4 : Math.max(1, Math.round(+on || 1));
       return devGames.speed;
+    },
+    /** Подсказки вверху: true — как раньше для автотеста (2,6 с, сквозь них можно нажимать), false — как у игрока. */
+    fastToasts(on = true) {
+      devToasts.fast = !!on;
+      return devToasts.fast;
     },
     /** Войти в здание города по его id — так же, как если бы хомячок дошёл до двери. */
     enterBuilding: (id) => town.enterBuilding(BUILDINGS.find((b) => b.id === id)),

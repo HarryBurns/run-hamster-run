@@ -19,7 +19,7 @@ import { on, emit } from '../core/events.js';
 import { register } from '../core/registry.js';
 import { scene } from '../core/loop.js';
 import { sfx } from '../core/audio.js';
-import { dist, shuffle } from '../core/util.js';
+import { dist, shuffle, readSec } from '../core/util.js';
 import { NPCS, NPC_BY_ID, npcLook, RELAX, RELAX_LINES, RELAX_PRIZE } from '../data/index.js';
 import { T, SP, OBJECTS, TILES } from '../engine/topdown/kinds.js';
 import { canStand } from '../engine/topdown/actors.js';
@@ -259,6 +259,7 @@ function updateMate(c, dt) {
     let line = pool[Math.floor(Math.random() * pool.length)];
     if (typeof line === 'object') line = nd.fem ? line.fem : line.masc;
     m.line = line.replace('{name}', S().name || 'дружок');
+    m.lineT = readSec(m.line, 4.5); // облачко висит, пока медленно читающий успеет прочитать (core/util.js)
     sfx('pop');
     // посидели рядом — раз в день дружба чуть крепче
     const flags = S().dayFlags.relaxWith || {};
@@ -279,7 +280,7 @@ function drawSelf(ctx, t) {
     x = c.o.x + s[0],
     y = c.o.y + s[1];
   const m = c.mate && c.mate.seated ? c.mate : null;
-  const dir = m && m.t < 4 ? (m.ax > c.ax ? 1 : -1) : 0; // пока житель говорит — смотрит на него
+  const dir = m && m.t < m.lineT - 0.5 ? (m.ax > c.ax ? 1 : -1) : 0; // пока житель говорит — смотрит на него
   drawSitter(ctx, c.how, c.look, c.lk, x, y, c.t, 0, c.o, c.spot, dir, c.t);
   SP.world();
   const sky = c.sc.desc.sky !== false,
@@ -291,7 +292,7 @@ function drawMate(c, m, t) {
     st = seatOf(m.o),
     s = st.spots[m.spot];
   const how = c.how === 'swing' && m.o !== c.o ? 'sit' : c.how;
-  const dir = m.t < 4 ? (c.ax > m.ax ? 1 : -1) : 0;
+  const dir = m.t < m.lineT - 0.5 ? (c.ax > m.ax ? 1 : -1) : 0;
   drawSitter(
     SP.ctx,
     how,
@@ -306,7 +307,7 @@ function drawMate(c, m, t) {
     dir,
     cur ? cur.t : 0,
   );
-  if (m.line && m.t < 4.5) {
+  if (m.line && m.t < m.lineT) {
     SP.world();
     bubble(SP.ctx, m.line, m.o.x + s[0], m.o.y + s[1] - (c.how === 'lie' ? 100 : 110));
   }

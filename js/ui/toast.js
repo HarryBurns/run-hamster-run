@@ -1,13 +1,24 @@
-// Подсказки — короткие сообщения вверху экрана, которые исчезают сами.
+// Подсказки — короткие сообщения вверху экрана, которые исчезают сами — не раньше, чем их успеет прочитать ребёнок
+// (по длине текста, toast ниже); касание убирает подсказку, мышь или палец на ней — придерживают.
 // Пока открыто окно (класс win-open у body ставит ui/panel.js), подсказки встают на нижний край шапки (и вкладок)
 // верхнего окна, компактнее и не больше двух — заголовок и ✕ окна остаются на виду, кнопки внизу окна тоже (Ф2),
 // и первая строка окна не прячется.
 import { setFlag, setDayFlag } from '../core/actions.js';
-import { el } from '../core/util.js';
+import { el, readSec } from '../core/util.js';
+import { devToasts } from '../core/dev.js';
 import { sfx } from '../core/audio.js';
 import { G } from '../core/state.js';
 
 let toastBox = null;
+const MAX = 3; // на экране не больше трёх (при открытом окне видно две — style.css)
+const FADE = 400; // мс: тает (.toast.out)
+/**
+ * Показать подсказку msg (kind: '' | 'good'). Висит столько, сколько нужно медленно читающему ребёнку 8–10 лет
+ * (readSec: 3,5–12 с по длине текста); касание или щелчок — убрать раньше; пока на ней мышь или палец — не тает
+ * (отпустили — ещё хотя бы 1,5 с). Та же подсказка ещё на экране — она не повторяется, а показывается заново.
+ * Пришла четвёртая — самая старая сразу тает, а старшая из оставшихся — не дольше 2 с: новые не ждут и не теряются.
+ * Для автотеста (devToasts.fast, core/dev.js) — по-старому: 2,6 с и сквозь подсказку можно нажимать.
+ */
 export function toast(msg, kind = '') {
   if (!toastBox) {
     toastBox = el('div');
@@ -15,12 +26,94 @@ export function toast(msg, kind = '') {
     document.body.appendChild(toastBox);
   }
   if (msg.startsWith('Новая наклейка')) sfx('sticker');
+  const fast = devToasts.fast;
+  toastBox.classList.toggle('fast', fast);
+  if (fast) {
+    const t = el('div', 'toast ' + kind, msg);
+    toastBox.appendChild(t);
+    while (toastBox.children.length > MAX) toastBox.firstChild.remove();
+    placeToasts();
+    setTimeout(() => t.classList.add('out'), 2600);
+    setTimeout(() => t.remove(), 3100);
+    return;
+  }
+  const ms = readSec(msg) * 1000;
+  const same = live().find((t) => t._q.msg === msg && t._q.kind === kind);
+  if (same) {
+    toastBox.appendChild(same); // наверх стопки — как новая
+    arm(same, ms);
+    placeToasts();
+    return;
+  }
   const t = el('div', 'toast ' + kind, msg);
+  t._q = { msg, kind, held: 0, end: 0, left: 0, tm: 0, gone: false, down: 0 };
+  t.addEventListener('pointerdown', (e) => {
+    e.stopPropagation();
+    t._q.down = performance.now();
+    holdOn(t, 'press', true);
+  });
+  const up = () => holdOn(t, 'press', false);
+  t.addEventListener('pointerup', up);
+  t.addEventListener('pointercancel', up);
+  t.addEventListener('click', (e) => {
+    e.stopPropagation();
+    // короткое касание — «прочитала, убери»; долго держала палец — читала, пусть ещё повисит
+    if (performance.now() - t._q.down < 600) fade(t);
+  });
+  const old = live();
+  if (old.length >= MAX) fade(old[0], true);
   toastBox.appendChild(t);
-  while (toastBox.children.length > 3) toastBox.firstChild.remove();
+  arm(t, ms);
+  const rest = live();
+  if (rest.length >= MAX) arm(rest[0], Math.min(left(rest[0]), 2000));
   placeToasts();
-  setTimeout(() => t.classList.add('out'), 2600);
-  setTimeout(() => t.remove(), 3100);
+}
+const live = () => (toastBox ? [...toastBox.children].filter((t) => t._q && !t._q.gone) : []);
+const left = (t) => (t._q.held ? t._q.left : Math.max(0, t._q.end - performance.now()));
+/** Подсказка t растает через ms (если её сейчас не держат — иначе после того, как отпустят). */
+function arm(t, ms) {
+  const q = t._q;
+  clearTimeout(q.tm);
+  q.left = ms;
+  q.end = performance.now() + ms;
+  if (!q.held) q.tm = setTimeout(() => fade(t), ms);
+}
+/** Придержать подсказку (why: 'hover' — мышь над ней, 'press' — нажата) или отпустить. */
+function holdOn(t, why, on) {
+  const q = t._q;
+  if (!q || q.gone) return;
+  const bit = why === 'press' ? 1 : 2,
+    was = q.held;
+  q.held = on ? q.held | bit : q.held & ~bit;
+  if (!was && q.held) {
+    q.left = Math.max(0, q.end - performance.now());
+    clearTimeout(q.tm);
+  } else if (was && !q.held) arm(t, Math.max(q.left, 1500));
+}
+function fade(t, now) {
+  const q = t._q;
+  if (!q || q.gone) return;
+  q.gone = true;
+  clearTimeout(q.tm);
+  t.classList.add('out');
+  setTimeout(() => t.remove(), now ? FADE / 2 : FADE);
+}
+// мышь над подсказкой — не тает. По прямоугольнику, а не по событиям самой подсказки: при открытом окне сквозь
+// подсказки можно нажимать (pointer-events: none — вкладки и ✕ под ними), а придержать мышью всё равно можно
+addEventListener(
+  'pointermove',
+  (e) => {
+    if (e.pointerType !== 'mouse' || !toastBox || !toastBox.firstChild) return;
+    for (const t of live()) {
+      const r = t.getBoundingClientRect();
+      holdOn(t, 'hover', !!r.width && e.clientX >= r.left && e.clientX <= r.right && e.clientY >= r.top && e.clientY <= r.bottom); // prettier-ignore
+    }
+  },
+  { passive: true },
+);
+/** Для автотеста: подсказки на экране — текст, сколько ещё будут видны (мс) и придержаны ли. */
+export function toastsInfo() {
+  return live().map((t) => ({ text: t.textContent, left: Math.round(left(t)), held: !!t._q.held }));
 }
 
 /**

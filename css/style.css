@@ -101,6 +101,10 @@ button { font: inherit; color: inherit; cursor: pointer; }
 }
 .toast.good { background: #2f9e44; }
 .toast.out { opacity: 0; transition: opacity .4s; }
+/* подсказку можно убрать касанием и придержать пальцем (ui/toast.js); при открытом окне — сквозь неё нажимаются
+   вкладки и ✕ (придержать можно мышью), в автотесте (#toasts.fast) — как раньше, сквозь */
+.toast { pointer-events: auto; cursor: pointer; }
+#toasts.fast .toast, body.win-open .toast, .toast.out { pointer-events: none; }
 @keyframes toast-in { from { transform: translateY(-12px) scale(.9); opacity: 0; } to { transform: none; opacity: 1; } }
 /* открыто окно (класс ставит ui/panel.js): подсказки на нижнем краю шапки окна (top ставит ui/toast.js), компактнее
    и не больше двух — заголовок и ✕ окна остаются на виду (Ф2); лёжа на телефоне — шире и мельче, чтобы длинная

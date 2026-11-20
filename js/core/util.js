@@ -49,6 +49,20 @@ export function esc(str) {
     (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c],
   );
 }
+/**
+ * Сколько секунд показывать текст, чтобы его успел прочитать ребёнок 8–10 лет, который читает медленно: 2,5 с —
+ * заметить и перевести взгляд, плюс 0,09 с на знак (≈ 11 знаков в секунду — 80–90 слов в минуту, медленное чтение
+ * во 2–3 классе), не меньше min и не больше max (дольше 12 с текст уже мешает — его можно придержать). Эмодзи не читают.
+ * Две строки подсказки (~90 знаков) — около 10,5 с, «Привет!» — min.
+ */
+export function readSec(text, min = 3.5, max = 12) {
+  const n = String(text == null ? '' : text)
+    .replace(/<[^>]*>/g, '')
+    .replace(/\p{Extended_Pictographic}|[\uFE0F\u200D]/gu, '')
+    .replace(/\s+/g, ' ')
+    .trim().length;
+  return clamp(2.5 + 0.09 * n, min, max);
+}
 export function el(tag, cls, html) {
   const e = document.createElement(tag);
   if (cls) e.className = cls;

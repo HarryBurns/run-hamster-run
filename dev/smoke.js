@@ -88,6 +88,7 @@ const screen = require('./smoke_screen.js'); // этап 20: проблемы н
 const drawFixes = require('./smoke_draw.js'); // правки рисунка: часы не на окне, пруд и грядки во дворе, лежак, значок сахара
 const trifles = require('./smoke_trifles.js'); // «Мелочи» 20 ноября: полезный компас
 const villa = require('./smoke_villa.js'); // «Вилла растёт»: маленький домик новой игры, стройка в агентстве, ступени дома и двора, теплица, старая игра
+const toastsSteps = require('./smoke_toasts.js'); // подсказки вверху: по длине текста, придержать мышью, убрать нажатием, не копятся
 const holidays = require('./smoke_holidays.js'); // П.13: праздники — Новый год, Рождество, Китайский Новый год, Масленица
 
 // Размер (этап 8): переменная SMOKE_SIZE=desktop|phone или аргумент size:desktop / size:phone — только этот размер
@@ -1592,6 +1593,9 @@ const runParallel = () => {
   for (const [w, h, tag] of SIZES) {
     const page = await browser.newPage({ viewport: { width: w, height: h }, hasTouch: tag === 'phone' });
     page.setDefaultTimeout(8000);
+    // подсказки вверху — по-старому быстро (2,6 с) и сквозь них можно нажимать: шаги не ждут долгого показа
+    // (core/dev.js: devToasts; как у игрока — шаги «подсказки» в dev/smoke_toasts.js)
+    await page.addInitScript(() => (window.__fastToasts = 1));
     page.on('console', (m) => {
       if (m.type() === 'error') errors.push(`[${tag}] console: ${m.text()}`);
     });
@@ -2907,6 +2911,7 @@ const runParallel = () => {
     await drawFixes({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
     await villa({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
     await trifles({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
+    await toastsSteps({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
     await buildSteps({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
     await pwa({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
     await estate({ page, step: (n, f, o) => step(n, f, { ...o, extra: true, estate: true }), ev, wait, closeAll });
