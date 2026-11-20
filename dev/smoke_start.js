@@ -130,11 +130,22 @@ module.exports = async function start(ctx) {
     await untilPanel('Добро пожаловать').catch(() => {});
     expect((await intro()) === null && !(await ev(() => !!document.getElementById('intro'))), 'сценка не закрылась');
     const hello = await panelText();
+    // продолжение истории: домик куплен на сбережения, на счету — настоящее число монет; без подсказок про почту и работу
+    const left = L.norm(await ev(async () => (await import('./js/core/util.js')).fmtMoney(window.__dev.G.state.money)));
     expect(
-      hello.includes('Ореховую Гавань') && hello.includes('июнь') && hello.includes('соседи'),
+      hello.includes('Ореховую Гавань') &&
+        hello.includes('июнь') &&
+        hello.includes('домик на холме') &&
+        hello.includes(`осталось 🪙 ${left} монет`) &&
+        !/почтов|достроить|заработа/.test(hello),
       'приветствие',
-      hello.slice(0, 200),
+      hello.slice(0, 300),
     );
+    const head = await ev(() => {
+      const t = document.querySelector('.panel.wrap-title .panel-head .title');
+      return t ? { sw: t.scrollWidth, cw: t.clientWidth, sh: t.scrollHeight, ch: t.clientHeight } : null;
+    });
+    expect(head && head.sw <= head.cw + 1 && head.sh <= head.ch + 1, 'заголовок приветствия обрезан', head);
     await act('go');
     await untilScene('villa');
     const s = await state();
