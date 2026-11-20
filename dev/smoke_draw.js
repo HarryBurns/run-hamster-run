@@ -138,7 +138,10 @@ module.exports = async function draw(ctx) {
       const vw = page.viewportSize(),
         tray = await ev(() => document.querySelector('.decor-tray').getBoundingClientRect().top);
       for (const q of [pt.a, pt.b])
-        expect(q.x > 0 && q.x < vw.width && q.y > 0 && q.y < tray, id + ': часы или окно за краем экрана', { pt, tray });
+        expect(q.x > 0 && q.x < vw.width && q.y > 0 && q.y < tray, id + ': часы или окно за краем экрана', {
+          pt,
+          tray,
+        });
       await page.mouse.move(pt.a.x, pt.a.y);
       await page.mouse.down();
       // палец берёт то, что впереди: часы из кладовки не должны встать за пальму или шкаф (тогда берётся пальма)
