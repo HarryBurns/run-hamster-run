@@ -474,7 +474,7 @@ export const PRICES = {
     cap_yellow: 200, cap_red: 250, cap_blue: 200, panama_green: 230, panama_white: 220, panama_pink: 230,
     sunhat: 400, sunhat_blue: 400, beanie_red: 300, beanie_blue: 300, beanie_pink: 320, earmuffs: 380, hat_cowboy: 500,
     beret_red: 380, beret_black: 2500, hat_chef: 300, hat_pith: 450, catears: 350, hair_flower: 250, hat_party: 150,
-    tophat: 7000, crown: 50000, sunhat_wide: 350,
+    tophat: 7000, crown: 50000, sunhat_wide: 350, sunhat_bow: 420,
     // аксессуары
     glasses_red: 250, glasses_black: 250, sung_yellow: 350, sung_pink: 350, scarf_yellow: 260, scarf_blue: 280, scarf_pink: 280,
     bag_yellow: 450, backpack: 400, tie_red: 300, tie_blue: 300, lei: 280, camera: 900,

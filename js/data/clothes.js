@@ -122,8 +122,11 @@ C('wreath', 'head', 'wreath', 'Венок из цветов', '#fff', { shop: 'g
 // пустыня (П.9): широкополая шляпа от солнца — в ТЦ «Модный» каждый день, в любой сезон (её просит купить Буся —
 // задание «Звезда подиума», data/quests.js); платок кочевника — подарок Бархана за задание «Бубенчик верблюда»
 C('sunhat_wide', 'head', 'sunhat', 'Шляпа от солнца', '#f4dca6', { c2: '#e8590c', tags: ['summer', 'beach', 'sport'] });
-// награда за первое вводное задание (Плюша и снимок для каталога, data/quests.js: intro_home)
-C('sunhat_bow', 'head', 'sunhat', 'Соломенная шляпка с бантиком', '#f3d98b', { c2: '#ff8fab', shop: 'quest', tags: ['summer', 'beach', 'cute', 'fancy'] });
+// соломенная шляпка с бантиком — летняя, в ТЦ «Модный» (была наградой Плюши; у кого уже есть — остаётся в шкафу)
+C('sunhat_bow', 'head', 'sunhat', 'Соломенная шляпка с бантиком', '#f3d98b', { c2: '#ff8fab', season: 'hot', tags: ['summer', 'beach', 'cute', 'fancy'] });
+// награда за первое вводное задание (Плюша и снимок для каталога, data/quests.js: intro_home): модная шляпка, не от
+// солнца — шаг Буси «купи шляпу от солнца» она не засчитывает (вид fashion не в SUN_HAT_KINDS); цены нет (0)
+C('hat_catalog', 'head', 'fashion', 'Шляпка из каталога', '#9775fa', { c2: '#ff8fab', shop: 'quest', tags: ['fancy', 'cute', 'spring', 'summer'] });
 C('panama_explorer', 'head', 'panama', 'Панама исследовательницы', '#c9b47c', { c2: '#5c7a2e', shop: 'gift', tags: ['summer', 'sport'] });
 C('scarf_nomad', 'head', 'turban', 'Платок кочевника', '#4dabf7', { c2: '#ffd43b', shop: 'gift', tags: ['summer', 'fancy'] });
 C('clip_shell', 'head', 'shellclip', 'Заколка-ракушка', '#ffb3c6', { c2: '#fff0f6', shop: 'gift', tags: ['summer', 'cute', 'fancy'] });

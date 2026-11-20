@@ -403,8 +403,8 @@ module.exports = async function start(ctx) {
       expect(
         fin.includes('Задание выполнено') &&
           fin.includes('Снимок для каталога') &&
-          fin.includes('Соломенная шляпка с бантиком') &&
-          s.clothes.includes('sunhat_bow') &&
+          fin.includes('Шляпка из каталога') &&
+          s.clothes.includes('hat_catalog') &&
           s.quests.intro_home.done === 15 &&
           s.money === s0.money + 100,
         'снимок для каталога сдан: плата +100 и шляпка',

@@ -216,6 +216,45 @@ export function drawHat(ctx, item, side = 1) {
       ctx.fillRect(-17, -77, 34, 5);
       star(ctx, 0, -74.5, 3.4, '#ffd43b');
       break;
+    case 'fashion': {
+      // модная шляпка из каталога (Плюша, задание «Снимок для каталога»): маленькая, чуть набок, узкие поля,
+      // лента с пышным бантом сбоку и брошка-звёздочка. Не от солнца (не в SUN_HAT_KINDS)
+      ctx.translate(2 * side, -70);
+      ctx.rotate(0.12 * side);
+      ell(ctx, 0, 0, 26, 5.5, shade(c, -0.12), OUT, 1.8); // поля
+      ctx.beginPath();
+      ctx.moveTo(-17, -1);
+      ctx.bezierCurveTo(-18, -14, -12, -18, 0, -18);
+      ctx.bezierCurveTo(12, -18, 18, -14, 17, -1);
+      ctx.closePath();
+      ctx.fillStyle = c;
+      ctx.fill();
+      ctx.strokeStyle = OUT;
+      ctx.lineWidth = 1.8;
+      ctx.stroke();
+      ctx.save();
+      ctx.clip();
+      ctx.fillStyle = c2;
+      ctx.fillRect(-20, -7, 40, 5); // лента
+      ell(ctx, -6, -14, 5, 2.2, 'rgba(255,255,255,.45)', null, 1, -0.3); // блик
+      ctx.restore();
+      const bx = 13 * side;
+      for (const d of [-1, 1]) {
+        // бант: две пышные петли и хвостик ленты
+        ctx.beginPath();
+        ctx.moveTo(bx, -6);
+        ctx.quadraticCurveTo(bx + d * 6, -17, bx + d * 11, -12);
+        ctx.quadraticCurveTo(bx + d * 12, -3, bx, -6);
+        ctx.fillStyle = c2;
+        ctx.fill();
+        ctx.strokeStyle = OUT;
+        ctx.lineWidth = 1.3;
+        ctx.stroke();
+      }
+      poly(ctx, [bx - 1, -5, bx + 3 * side, 5, bx + 7 * side, 3], c2, OUT, 1.2);
+      star(ctx, bx, -6.5, 4, '#ffd43b', OUT, 1);
+      break;
+    }
     case 'beret':
       ell(ctx, -3, -79, 25, 11, c, OUT, 1.8, -0.18);
       line(ctx, -2, -89, 0, -95, OUT, 3);
