@@ -326,11 +326,12 @@ export function createTitleArt(S) {
       ang = lerp(Math.PI * 0.93, Math.PI * 0.07, ease(q)),
       L = Math.hypot(S.W, S.H),
       w = 0.06;
-    const al = bell(q) * (S.night ? 0.55 : 0.4);
+    const al = bell(q) * (S.night ? 0.9 : 0.4); // ночью ярче: поверх ляжет затемнение
     S.ctx.save();
     S.ctx.beginPath();
     S.ctx.rect(S.F.x, ty - 20 * S.tower.s, S.F.w, S.sy - ty + 20 * S.tower.s); // небо у горизонта и море
     S.ctx.clip();
+    if (S.night) S.ctx.globalCompositeOperation = 'lighter';
     const g = S.ctx.createRadialGradient(tx, ty, 0, tx, ty, (S.sy - S.hy) * 3);
     g.addColorStop(0, `rgba(255,248,210,${al.toFixed(3)})`);
     g.addColorStop(1, 'rgba(255,248,210,0)');
@@ -1177,6 +1178,17 @@ export function createTitleArt(S) {
       pose = { ...pose, armsUp: t < 0.8 };
     } else if (S.ham.st === 'listen') {
       pose = { ...pose, happy: true, dir: -1 };
+    } else if (S.ham.st === 'busy') {
+      // сам по себе: лепит (хлопает лапками в сторону куличика), смотрит на море, дремлет, перебирает лапками
+      const a = S.ham.act,
+        c = S.castles[S.castles.length - 1];
+      if (a === 'castle' || a === 'snowball')
+        pose = { ...pose, happy: true, dir: c ? c.side : 1, armsUp: Math.sin(t * 6) > 0.3, lean: false };
+      else if (a === 'sea') pose = { ...pose, sit: true, blink: blinkAt(S.T * 0.6) };
+      else if (a === 'doze') {
+        pose = { ...pose, sleep: true, blink: 1, sit: true };
+        y += Math.sin(S.T * 1.6) * 1.2 * s;
+      } else if (a === 'paws') pose = { ...pose, walk: (t * 1.4) % 1, lean: false };
     }
     // тень остаётся на песке, когда хомячок в прыжке
     S.ctx.fillStyle = 'rgba(0,0,0,.16)';
@@ -1186,6 +1198,18 @@ export function createTitleArt(S) {
     drawHamster(S.ctx, x, y, s, lk, { ...pose, shadow: false });
     S.ham.px = x;
     S.ham.py = y;
+    if (S.ham.st === 'busy' && S.ham.act === 'doze')
+      for (let i = 0; i < 3; i++) {
+        const q = (S.T * 0.4 + i / 3) % 1;
+        S.ctx.globalAlpha = clamp(q * 4, 0, 1) * (1 - q);
+        S.ctx.font = `900 ${Math.round((14 + q * 10) * S.ham.s * 0.5)}px Nunito, sans-serif`;
+        S.ctx.lineWidth = 3;
+        S.ctx.strokeStyle = '#fff';
+        S.ctx.strokeText('z', x + (20 + q * 22) * s, S.hamTop() - q * 30 * s + 10 * s);
+        S.ctx.fillStyle = '#4dabf7';
+        S.ctx.fillText('z', x + (20 + q * 22) * s, S.hamTop() - q * 30 * s + 10 * s);
+      }
+    S.ctx.globalAlpha = 1;
     if (S.rain) {
       // зонтик
       const top = S.hamTop() - 26 * s + (y - S.ham.y),
@@ -1338,6 +1362,71 @@ export function createTitleArt(S) {
     }
     SP.setScale(S.dpr);
     blit(SP.get(`turtle:${Math.round(u * 100)}`, [-20 * u, -24 * u, 20 * u, 2 * u], (c) => paintShell(c, u)), x, y, hide ? Math.sin(S.T * 20) * 0.04 * hide : 0); // prettier-ignore
+    ctx.restore();
+  }
+  // куличик из песка (зимой — снежок): растёт, пока хомячок лепит; смыло волной — тает
+  function drawCastle(c) {
+    const ctx = S.ctx,
+      u = S.k * 1.15,
+      g = ease(c.g),
+      a = c.gone === null ? 1 : clamp(1 - (S.T - c.gone) / 1.2, 0, 1);
+    ctx.save();
+    ctx.globalAlpha = a;
+    ctx.translate(c.x, c.y);
+    ctx.fillStyle = 'rgba(0,0,0,.12)';
+    ctx.beginPath();
+    ctx.ellipse(0, 1 * u, 18 * u, 4 * u, 0, 0, TAU);
+    ctx.fill();
+    ctx.scale(u, u * g);
+    ctx.strokeStyle = 'rgba(120,80,40,.6)';
+    ctx.lineWidth = 1.2;
+    if (c.kind === 'snowball') {
+      ctx.scale(1, 1 / Math.max(g, 0.01)); // снежок растёт целиком, а не по высоте
+      for (const [by, r] of [
+        [-9 * g, 9 * g],
+        [-21 * g, 6 * g],
+      ]) {
+        // prettier-ignore
+        ctx.fillStyle = '#fff';
+        ctx.beginPath();
+        ctx.arc(0, by, Math.max(r, 0.1), 0, TAU);
+        ctx.fill();
+        ctx.strokeStyle = '#cfe0ee';
+        ctx.stroke();
+      }
+    } else {
+      const sand = S.winter ? '#f3deb4' : '#f4c97c';
+      ctx.fillStyle = sand;
+      ctx.beginPath();
+      ctx.moveTo(-15, 0);
+      ctx.lineTo(-12, -16);
+      for (let i = 0; i < 4; i++) {
+        ctx.lineTo(-12 + i * 6, -20);
+        ctx.lineTo(-9 + i * 6, -20);
+        ctx.lineTo(-9 + i * 6, -16);
+        ctx.lineTo(-6 + i * 6, -16);
+      }
+      ctx.lineTo(12, -16);
+      ctx.lineTo(15, 0);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      ctx.fillStyle = 'rgba(120,80,40,.45)';
+      ctx.fillRect(-2.5, -8, 5, 8);
+      if (c.g > 0.95) {
+        ctx.strokeStyle = '#7a4a21';
+        ctx.beginPath();
+        ctx.moveTo(0, -20);
+        ctx.lineTo(0, -31);
+        ctx.stroke();
+        ctx.fillStyle = '#ff6b9d';
+        ctx.beginPath();
+        ctx.moveTo(0, -31);
+        ctx.lineTo(8, -28);
+        ctx.lineTo(0, -25);
+        ctx.fill();
+      }
+    }
     ctx.restore();
   }
   function drawFly(lit) {
@@ -1768,6 +1857,7 @@ export function createTitleArt(S) {
     drawGull,
     drawShell,
     drawSnowman,
+    drawCastle,
     drawStarfish,
     drawTurtle,
     drawKite,

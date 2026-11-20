@@ -754,6 +754,44 @@ module.exports = async function title(ctx) {
     },
   );
 
+  await step(
+    'заставка: хомячок сам по себе — лепит куличик (до волны), дремлет; нажатие будит; в дождь — лапками, зимой — снежок',
+    async () => {
+      await put(null);
+      await ev(() => window.__dev.title.guests(false));
+      let d = await dbg();
+      expect(d.ham.st === 'idle' && !d.ham.act, 'хомячок уже занят', d.ham);
+      await ev(() => window.__dev.title.idleNow('castle'));
+      d = await dbg();
+      expect(d.ham.st === 'busy' && d.ham.act === 'castle' && d.log.includes('busy-castle'), 'не лепит куличик', d.ham);
+      await until(() => window.__dev.title.debug().ham.st === 'idle', null, { timeout: 6000, msg: 'куличик готов' });
+      expect((await dbg()).ham.castles === 1, 'куличика нет на песке', (await dbg()).ham);
+      await page.mouse.click(d.shore.x, d.shore.y); // волна смывает куличик
+      await until(() => window.__dev.title.debug().ham.castles === 0, null, { timeout: 4000, msg: 'волна смыла куличик' }); // prettier-ignore
+      // дремлет; любое нажатие (по небу) — просыпается
+      await wait(3500);
+      await ev(() => window.__dev.title.idleNow('doze'));
+      expect((await dbg()).ham.act === 'doze', 'не дремлет', (await dbg()).ham);
+      await page.mouse.click(d.sky.x, d.sky.y);
+      await wait(100);
+      d = await dbg();
+      expect(d.ham.st === 'idle' && d.log.includes('wake'), 'не проснулся', { ham: d.ham, log: d.log.slice(-3) });
+      // в дождь — только перебирает лапками под зонтиком; зимой — снежок, не куличик
+      await put(sample((s) => Object.assign(s, { minutes: 12 * 60, weather: 'rain', day: 16 })));
+      for (let i = 0; i < 3; i++) await ev(() => window.__dev.title.idleNow());
+      d = await dbg();
+      expect(d.ham.act === 'paws' && !d.log.some((x) => /busy-(doze|castle|sea)/.test(x)), 'в дождь не так', d.log);
+      await put(sample((s) => Object.assign(s, { minutes: 12 * 60, weather: 'snow', day: 1 })));
+      for (let i = 0; i < 4; i++) await ev(() => window.__dev.title.idleNow());
+      d = await dbg();
+      expect(d.env.winter && !d.log.includes('busy-castle'), 'зимой лепит куличик', d.log);
+      await ev(() => window.__dev.title.idleNow('snowball'));
+      expect((await dbg()).ham.act === 'snowball', 'зимой не лепит снежок', (await dbg()).ham);
+      await put(null);
+      noErrors();
+    },
+  );
+
   await step('заставка: ночью — одна падающая звезда за запуск; касание пальцем работает как мышь', async () => {
     await put(sample((s) => Object.assign(s, { minutes: 22 * 60 + 30, weather: 'sun', day: 16 })));
     await wait(400);

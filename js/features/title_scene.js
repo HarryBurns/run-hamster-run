@@ -49,7 +49,27 @@ export function createTitleScene(canvas, o) {
     dead = false;
 
   // ---------- кто живёт на заставке ----------
-  const ham = { x: 0, y: 0, s: 2, st: 'idle', t: 0, press: null, alt: 0, bubble: null, hop: 0, dir: 0 };
+  const ham = {
+    x: 0,
+    y: 0,
+    s: 2,
+    st: 'idle',
+    t: 0,
+    press: null,
+    alt: 0,
+    bubble: null,
+    hop: 0,
+    dir: 0,
+    act: null,
+    dur: 0,
+  };
+  // хомячок сам по себе: ничего не трогают 20–30 с — он сам находит занятие (st 'busy', act: castle — лепит куличик,
+  // snowball — зимой лепит снежок, sea — сидит и смотрит на море, doze — дремлет, paws — в дождь под зонтиком
+  // перебирает лапками). Любое нажатие — «просыпается». Куличики и снежки остаются на песке до первой большой волны
+  let idleAt = 0,
+    idleWait = rnd(20, 30),
+    lastAct = null;
+  const castles = []; // { x, y, kind: castle|snowball, g: 0..1 — сколько слепил, gone — когда смыло волной }
   const palms = [
     { fx: 0.13, fy: 0.22, size: 1, bend: 0, vel: 0, drag: false, nuts: [1, 1, 1], lean: 1 },
     { fx: 0.9, fy: 0.08, size: 0.72, bend: 0, vel: 0, drag: false, nuts: [], lean: -1 },
@@ -208,9 +228,35 @@ export function createTitleScene(canvas, o) {
     wave.t = T;
     wave.depth = depth;
     sfx('splash');
+    for (const c of castles)
+      if (c.gone === null && (ham.st !== 'busy' || c !== castles[castles.length - 1])) c.gone = T; // куличик смыло
   }
 
   // ---------- что делает хомячок ----------
+  function busyGo(want) {
+    const acts = rain ? ['paws'] : winter ? ['snowball', 'sea', 'doze'] : ['castle', 'sea', 'doze'];
+    const act = want && acts.includes(want) ? want : pick(acts.filter((a) => a !== lastAct || acts.length === 1));
+    lastAct = act;
+    hamDo('busy');
+    ham.act = act;
+    ham.dur = act === 'doze' ? rnd(14, 20) : rnd(10, 15);
+    if (act === 'castle' || act === 'snowball') {
+      // лепит сбоку от себя — с той стороны, где есть место на песке
+      const side = ham.x + 70 * ham.s < F.x + F.w - 20 * k ? 1 : -1;
+      castles.push({ x: ham.x + side * 44 * ham.s, y: ham.y + 3 * ham.s, kind: act, g: 0, gone: null, side });
+      if (castles.length > 4) castles.shift();
+    }
+    if (act === 'sea') say('Какое море…', 2);
+    note('busy-' + act);
+  }
+  function wake() {
+    const act = ham.act;
+    hamDo('idle');
+    ham.act = null;
+    say(act === 'doze' ? 'Ой! Я не сплю!' : pick(['Ой, привет!', 'А я тут!']), 1.4);
+    note('wake');
+    idleWait = rnd(20, 30);
+  }
   function hamDo(st) {
     ham.st = st;
     ham.t = 0;
@@ -245,6 +291,8 @@ export function createTitleScene(canvas, o) {
 
   function down(x, y) {
     const R = 30 * Math.max(k, 0.7); // палец толще мышки: все цели не меньше этого
+    idleAt = T;
+    if (ham.st === 'busy') wake();
     // бабочка или светлячки. Точно по ней — ей; рядом — сначала тому, кто под пальцем (бабочка пролетает над
     // чайкой: нажатие по чайке не достаётся бабочке), а если там никого — всё же бабочке
     const flyNear = (r) => (night || (!rain && !snow)) && near(x, y, fly.x, fly.y, r);
@@ -705,6 +753,21 @@ export function createTitleScene(canvas, o) {
     if (lim && ham.t > lim) hamDo('idle');
     if (ham.st === 'dance' && ham.press === null && ham.t > 2.4) hamDo('idle');
     if (ham.bubble && (ham.bubble.t += dt) > ham.bubble.life) ham.bubble = null;
+    // сам по себе
+    if (ham.st === 'idle' && ham.press === null && !grab && T - idleAt > idleWait) busyGo();
+    if (ham.st === 'busy') {
+      const c = castles[castles.length - 1];
+      if ((ham.act === 'castle' || ham.act === 'snowball') && c && c.gone === null)
+        c.g = Math.min(1, c.g + dt / (ham.dur * 0.7));
+      if (ham.t > ham.dur) {
+        hamDo('idle');
+        ham.act = null;
+        idleAt = T;
+        idleWait = rnd(20, 30);
+      }
+    }
+    for (let i = castles.length - 1; i >= 0; i--)
+      if (castles[i].gone !== null && T - castles[i].gone > 1.4) castles.splice(i, 1);
     // большая волна: смывает рисунок, хомячок отпрыгивает
     const sg = surge();
     if (sg > 0) {
@@ -1058,6 +1121,7 @@ export function createTitleScene(canvas, o) {
     kite,
     kitePos,
     look,
+    castles,
     isle,
     tower,
     starfish,
@@ -1142,6 +1206,7 @@ export function createTitleScene(canvas, o) {
     drawGull,
     drawShell,
     drawSnowman,
+    drawCastle,
     drawStarfish,
     drawTurtle,
     drawKite,
@@ -1191,7 +1256,7 @@ export function createTitleScene(canvas, o) {
     drawSea(sg);
     drawSub();
     for (const sh of fleet) if (sh.lane === 'near') drawShip(sh);
-    if (!night) drawBeam();
+    drawBeam(); // под пальмами и хомячком: луч идёт по морю
     drawMermaid();
     drawStrokes();
     if (windy) drawKite();
@@ -1206,6 +1271,7 @@ export function createTitleScene(canvas, o) {
       ...nuts.map((n) => [n.floor, () => drawNut(n)]),
     ];
     if (winter) things.push([snowman.y, drawSnowman]);
+    for (const c of castles) if (c.g > 0.02) things.push([c.y, () => drawCastle(c)]);
     if (starfish.st !== 'off') things.push([starfish.y - 20 * k, drawStarfish]); // плоская — под всеми, кто рядом
     if (turtle.st !== 'off') things.push([turtle.y, drawTurtle]);
     things.sort((a, b) => a[0] - b[0]);
@@ -1223,7 +1289,6 @@ export function createTitleScene(canvas, o) {
       drawNightSky();
       drawIsleLights();
       drawShipLights();
-      drawBeam();
       drawPlaneLights();
       drawMermaidGlow();
     }
@@ -1301,7 +1366,14 @@ export function createTitleScene(canvas, o) {
         free: F,
         k,
         log: log.slice(),
-        ham: { ...P(ham.x, ham.y - 40 * ham.s), st: ham.st, top: Math.round(hamTop() + r.top), s: ham.s },
+        ham: {
+          ...P(ham.x, ham.y - 40 * ham.s),
+          st: ham.st,
+          act: ham.act,
+          castles: castles.filter((c) => c.gone === null).length,
+          top: Math.round(hamTop() + r.top),
+          s: ham.s,
+        },
         palm: { ...P(cx, cy), nuts: palms[0].nuts.slice(), bend: palms[0].bend },
         trunk: P(lerp(palms[0].x, cx, 0.5), palms[0].y - palms[0].h * 0.5),
         nuts: nuts.map((n) => ({ ...P(n.x, n.y - 9 * k), still: n.vy === 0 && n.vx === 0 })),
@@ -1391,6 +1463,12 @@ export function createTitleScene(canvas, o) {
       fleet.length = 0;
       fleetNext = T + 1e6;
     },
+    /** Для автотеста: хомячку сейчас наскучило — он сам находит занятие (act — какое, если оно подходит к погоде). */
+    idleNow(act) {
+      if (ham.st !== 'idle') hamDo('idle');
+      busyGo(act);
+      if (act === 'castle' || act === 'snowball') ham.dur = 3;
+    },
     /** Для автотеста: волна сейчас вынесет морскую звезду. */
     callStarfish() {
       starfish.st = 'off';
@@ -1401,7 +1479,7 @@ export function createTitleScene(canvas, o) {
     callTurtle() {
       turtleGo();
       // там, где рядом нет ни ракушки, ни хомячка, ни краба
-      const xs = [0.4, 0.62, 0.3, 0.2].map((f) => F.x + F.w * f);
+      const xs = [0.4, 0.62, 0.3, 0.2, 0.85, 0.12].map((f) => F.x + F.w * f);
       turtle.x = xs.find((x) => Math.abs(x - shell.x) > 50 * k && Math.abs(x - ham.x) > 34 * ham.s + 30 * k && Math.abs(x - crab.x) > 50 * k) ?? xs[0]; // prettier-ignore
     },
     /** Для автотеста: всплыть батискафу сейчас. */
