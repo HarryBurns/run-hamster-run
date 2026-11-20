@@ -1101,7 +1101,8 @@ async function economy({ page, step, ev, wait, closeAll }) {
     await page.evaluate(() => window.__dev.actions.setFlag('intro', 0)); // вводная цепочка заданий — в своих шагах (dev/smoke_start.js)
     await wait(400);
     const hello = await text('.overlay .panel-body');
-    expect(!/миллиард/i.test(hello) && hello.includes('3 000') && /заработ/i.test(hello), 'приветствие', hello);
+    // монеты на домик хомячок накопила сама (а не получила миллиард): «На монетки, которые ты так долго копила…»
+    expect(!/миллиард/i.test(hello) && hello.includes('3 000') && /копил|заработ/i.test(hello), 'приветствие', hello);
     await page.click('text=Поехали!');
     await wait(500);
     const s = await state();
@@ -1117,7 +1118,8 @@ async function economy({ page, step, ev, wait, closeAll }) {
     const prices = await ev(async () => {
       const d = await import('./js/data/index.js');
       const all = [
-        ...d.CLOTHES.filter((c) => !['start', 'gift', 'holiday'].includes(c.shop)), // holiday — подарки праздников (П.13), без цены
+        // holiday — подарки праздников (П.13), quest — награды заданий (шляпка Плюши): без цены
+        ...d.CLOTHES.filter((c) => !['start', 'gift', 'holiday', 'quest'].includes(c.shop)),
         ...d.FURNITURE.filter(
           (f) =>
             !['gift', 'holiday', 'forest', 'mountain', 'caves', 'desert', 'jungle', 'cove', 'island'].includes(f.shop),
