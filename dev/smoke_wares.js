@@ -159,7 +159,7 @@ module.exports = async function wares(ctx) {
       await settle();
       const next = await snapshot();
       expect(JSON.stringify(next.shelf) !== JSON.stringify(before.shelf), 'наутро витрина та же самая');
-      expect(next.shelf['mall:ugg_beige'][0] && next.shelf['mall:sn_white'][0], 'сезонное и базовое есть и назавтра');
+      expect(next.shelf['mall:ugg_beige'][0] && next.shelf['mall:sn_mint'][0], 'сезонное и базовое есть и назавтра');
 
       // день, когда сандалии привезли: «Не сезон», цена обычная; купленное остаётся на витрине со значком «Есть ✓»
       await L.go('world');

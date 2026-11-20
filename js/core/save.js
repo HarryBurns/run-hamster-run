@@ -2,16 +2,16 @@
 // запись и чтение сохранения, защита от второй вкладки и от старой страницы. Миграции и починка — core/repair.js.
 // МЕНЯТЬ состояние во время игры можно только через функции из core/actions.js.
 import { emit } from './events.js';
+import { bindGender } from './gender.js';
 import { MIGRATIONS, saveVersion, repair, newLedger } from './repair.js';
 import {
   START_MONEY,
   START_DAY,
   START_CLOTHES,
-  START_OUTFIT,
   START_RECIPES,
   NPCS,
   HEALTH,
-  defaultLook,
+  startLook,
   BUILD,
   VILLA_UP_NEW,
   GARDEN_SIZE,
@@ -35,6 +35,7 @@ export const G = {
   hostVisit: null, // у кого из жителей хомячок сейчас в гостях (в его доме): пока она там, он дома (npcPlace, features/visits.js)
   talkPin: null, // с кем хомячок говорит (или только что говорила): он остаётся, где был (pinnedPlace, features/friends.js)
 };
+bindGender(() => (G.state ? G.state.gender : 'f')); // род героя в текстах — core/gender.js
 
 // Мебель маленького домика, с которого начинается новая игра («Вилла растёт»): душ, шкаф, кровать, стул и стол.
 // floor — этаж, x — центр, y — высота над полом (для настенных). Комнаты домика — interiors/villa.js, ступень 0.
@@ -82,14 +83,15 @@ export const OLD_START_VILLA = [
 /** Во сколько начинается первый день новой игры (минуты от полуночи). */
 export const START_MINUTES = 7 * 60 + 30;
 
-export function newGame(name) {
+/** Новая игра. gender — пол героя: 'm' — хомячок, 'f' — хомячка (по умолчанию, как было раньше). */
+export function newGame(name, gender = 'f') {
   let uid = 1;
-  const look = defaultLook();
-  look.outfit = { ...START_OUTFIT };
+  const look = startLook(gender); // одеты одинаково; у хомячки — реснички и бантик (data/looks.js)
   G.state = {
     v: saveVersion(),
     build: BUILD, // номер сборки кода, который писал сохранение (data/build.js)
     name: name || 'Хомка',
+    gender: gender === 'm' ? 'm' : 'f', // пол героя: от него — род во всех текстах (core/gender.js)
     money: START_MONEY,
     spent: 0, // потрачено за всё время
     earned: 0, // заработано за всё время

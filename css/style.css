@@ -446,6 +446,43 @@ h4.sect .muted { font-size: 13px; }
   font: inherit; font-size: 22px; font-weight: 800; text-align: center; padding: 10px 14px; border-radius: 16px; border: 4px solid var(--pink);
   width: min(100%, 300px); color: var(--ink); background: #fff; outline: none; user-select: text; -webkit-user-select: text;
 }
+/* новая игра: мягкая подсказка под именем и две кнопки-картинки «Я — хомячок / Я — хомячка» */
+#title input::placeholder { color: #c9b8a8; opacity: 1; }
+#title .t-hint {
+  font-size: 15px; font-weight: 800; line-height: 1.25; text-align: center; color: #7a4b12; background: #fff3bf;
+  border-radius: 14px; padding: 5px 12px; width: 100%;
+}
+#title .t-who { display: flex; gap: 10px; width: 100%; }
+#title .t-who-btn {
+  flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px 4px 8px;
+  font: inherit; font-size: 17px; font-weight: 900; color: var(--ink); background: #fff; border: 4px solid #e9dccd;
+  border-radius: 18px; box-shadow: 0 4px 0 #d9c9b6; cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent;
+}
+#title .t-who-btn canvas { width: 84px; height: 84px; border-radius: 50%; background: #e7f5ff; pointer-events: none; }
+#title .t-who-f canvas { background: #fff0f6; }
+#title .t-who-btn span { white-space: nowrap; }
+#title .t-who-btn:active { transform: translateY(3px); box-shadow: 0 1px 0 #d9c9b6; }
+#title .t-who-btn.on { border-color: var(--green-d); background: #ebfbee; box-shadow: 0 4px 0 var(--green-d); }
+#title .t-who-btn.on span::before { content: '✓ '; color: var(--green-d); }
+#title .t-who.ask .t-who-btn { animation: t-who-ask .5s ease-in-out 2; border-color: var(--pink); }
+@keyframes t-who-ask { 0%, 100% { transform: rotate(0); } 25% { transform: rotate(-3deg); } 75% { transform: rotate(3deg); } }
+@media (prefers-reduced-motion: reduce) { #title .t-who.ask .t-who-btn { animation: none; } }
+@media (orientation: landscape) and (max-height: 520px) {
+  #title .t-menu[data-mode="form"] { gap: 5px; width: min(40vw, 310px); }
+  #title .t-who { gap: 6px; }
+  #title .t-who-btn { flex-direction: row; justify-content: center; gap: 3px; padding: 2px 3px; font-size: 13px; border-width: 3px; border-radius: 14px; }
+  #title .t-who-btn canvas { width: 34px !important; height: 34px !important; flex: none; }
+  #title .t-who-btn.on span::before { content: '✓'; }
+  #title .t-hint { font-size: 13px; padding: 3px 10px; }
+}
+@media (max-width: 350px) { #title .t-who-btn { font-size: 15px; } }
+/* открыта экранная клавиатура (features/title.js ставит --kb — сколько она закрыла): вся форма — над ней */
+#title .t-menu.kb { top: auto; bottom: calc(var(--kb, 0px) + 8px); max-height: calc(100% - var(--kb, 0px) - 16px); overflow-y: auto; }
+@media (orientation: landscape) { #title .t-menu.kb { transform: none; } }
+/* меню ⚙️: кто герой — хомячок или хомячка */
+.set-who { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.set-who .btn { padding-left: 6px; padding-right: 6px; white-space: nowrap; }
+@media (orientation: landscape) and (max-height: 520px) { .set-who { grid-column: 1 / -1; } }
 #title ~ .overlay { z-index: 75; } /* окна заставки («Мои игры», вопросы) — поверх неё */
 /* «Мои игры» */
 .g-list { display: flex; flex-direction: column; gap: 10px; }

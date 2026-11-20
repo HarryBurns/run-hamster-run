@@ -5,6 +5,7 @@
 // и первые строки окна (экран телевизора) остаются на виду (Ф2, П20-6).
 import { setFlag, setDayFlag } from '../core/actions.js';
 import { el, readSec } from '../core/util.js';
+import { gx } from '../core/gender.js';
 import { devToasts } from '../core/dev.js';
 import { sfx } from '../core/audio.js';
 import { G } from '../core/state.js';
@@ -26,6 +27,7 @@ const POINT = /(^|[^а-яё])(нажм|нажим|жми)/i,
  * Для автотеста (devToasts.fast, core/dev.js) — по-старому: 2,6 с и сквозь подсказку можно нажимать.
  */
 export function toast(msg, kind = '') {
+  msg = gx(msg); // «{он|она}» — под пол героя: дальше текст меряют и сравнивают
   if (!toastBox) {
     toastBox = el('div');
     toastBox.id = 'toasts';

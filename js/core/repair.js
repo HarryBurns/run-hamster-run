@@ -258,6 +258,8 @@ export function repair(s) {
   num('pearls', 0);
   s.pearlsSold = Math.max(0, Math.min(s.pearlsSold, s.pearls)); // продано не больше, чем найдено
   s.name = (typeof s.name === 'string' && s.name.trim().slice(0, NAME_MAX)) || 'Хомка';
+  // пол героя: у игр, начатых до выбора пола, — хомячка (так игра к ним и обращалась)
+  if (s.gender !== 'm') s.gender = 'f';
   // внешность
   if (!s.look || typeof s.look !== 'object') s.look = defaultLook();
   obj(s.look, 'outfit');

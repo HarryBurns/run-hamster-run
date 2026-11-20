@@ -1,4 +1,5 @@
 // Мелкие помощники: математика, случайные числа, текст, DOM. Рисование — в draw.js.
+import { gx } from './gender.js';
 export const TAU = Math.PI * 2;
 export const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 export const lerp = (a, b, t) => a + (b - a) * t;
@@ -66,6 +67,6 @@ export function readSec(text, min = 3.5, max = 12) {
 export function el(tag, cls, html) {
   const e = document.createElement(tag);
   if (cls) e.className = cls;
-  if (html !== undefined) e.innerHTML = html;
+  if (html !== undefined) e.innerHTML = gx(html); // «{он|она}» — под пол героя (core/gender.js)
   return e;
 }

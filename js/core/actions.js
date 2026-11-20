@@ -710,6 +710,15 @@ export const adoptPet = act((kind, name) => {
   emit('pet', { what: 'adopt', kind });
   return true;
 });
+/** Сменить пол героя ('m' — хомячок, 'f' — хомячка): от него род во всех текстах (core/gender.js). Меню ⚙️. */
+export const setGender = act((gender) => {
+  const g = gender === 'm' ? 'm' : 'f';
+  if (S().gender === g) return false;
+  S().gender = g;
+  touch();
+  emit('gender', { gender: g });
+  return true;
+});
 /** Дать питомцу другое имя. */
 export const renamePet = act((name) => {
   const pt = S().pet,

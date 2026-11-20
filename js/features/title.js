@@ -24,7 +24,16 @@ import { emit } from '../core/events.js';
 import { el, esc, fmtMoney } from '../core/util.js';
 import { makeCanvas } from '../core/draw.js';
 import { drawPortrait } from '../art/hamster.js';
-import { resolveLook, defaultLook, monthOfDay, SEASON_OF_MONTH, NAME_MAX } from '../data/index.js';
+import {
+  resolveLook,
+  defaultLook,
+  startLook,
+  monthOfDay,
+  SEASON_OF_MONTH,
+  typeName,
+  cleanName,
+  nameProblem,
+} from '../data/index.js';
 import { sfx, unlockAudio } from '../core/audio.js';
 import { openPanel, message } from '../ui/panel.js';
 import { downloadText, pickTextFile } from '../ui/files.js';
@@ -136,7 +145,8 @@ export function openTitle({ start }) {
           look: lookOf(s.look),
         }
       : { minutes: 12 * 60, weather: 'sun', force: 0, season: 'summer', look: lookOf(null) };
-    const key = JSON.stringify([env.minutes, env.weather, env.force, env.season, s && s.look]);
+    if (formLook) env.look = formLook; // в форме новой игры выбрали «хомячок» или «хомячка»
+    const key = JSON.stringify([env.minutes, env.weather, env.force, env.season, formLook ? formLook.beauty : s && s.look]);
     if (scene && key === sceneKey) return scene.relayout();
     if (scene) scene.destroy();
     sceneKey = key;
@@ -160,6 +170,7 @@ export function openTitle({ start }) {
       claimSave();
     }
     offInstall();
+    if (offKb) offKb();
     scene.destroy();
     current = null;
     t.remove();
@@ -182,7 +193,167 @@ export function openTitle({ start }) {
     fillApp();
     if (scene) scene.relayout();
   });
+  /**
+   * Поле имени и выбор «Я — хомячок / Я — хомячка» для новой игры. Имя правится на лету (typeName в data/looks.js:
+   * только буквы, пробел и дефис, слова с заглавной, не больше трёх слов), курсор остаётся там, где печатали; пока
+   * клавиатура телефона «составляет» слово (Android), поле не трогаем — правим, когда слово готово.
+   */
+  function nameForm() {
+    const inp = el('input');
+    inp.type = 'text';
+    inp.placeholder = 'Хомка';
+    inp.setAttribute('aria-label', 'Имя');
+    inp.autocomplete = 'off';
+    inp.spellcheck = false;
+    inp.setAttribute('autocapitalize', 'words');
+    inp.setAttribute('autocorrect', 'off');
+    inp.setAttribute('enterkeyhint', 'done');
+    inp.dataset.act = 'name';
+    const hint = el('div', 't-hint');
+    hint.setAttribute('aria-live', 'polite');
+    hint.hidden = true;
+    let hintT = 0;
+    const say = (text) => {
+      clearTimeout(hintT);
+      hint.textContent = text;
+      hint.hidden = !text;
+      if (scene) scene.relayout();
+      if (text) hintT = setTimeout(() => say(''), 6000);
+    };
+    const WHY = {
+      chars: 'В имени — только буквы. Можно ещё пробел и дефис 🙂',
+      words: 'В имени не больше трёх слов 🙂',
+      long: 'Имя получилось длинное — давай чуть короче 🙂',
+    };
+    let composing = false;
+    const fix = () => {
+      const raw = inp.value,
+        clean = typeName(raw);
+      const why = nameProblem(raw);
+      if (clean !== raw) {
+        const at = inp.selectionStart == null ? raw.length : inp.selectionStart;
+        const pos = Math.min(typeName(raw.slice(0, at)).length, clean.length);
+        inp.value = clean;
+        try {
+          inp.setSelectionRange(pos, pos);
+        } catch (e) {
+          /* поле не в фокусе — курсор ставить некуда */
+        }
+      }
+      if (why) say(WHY[why]);
+      else if (WHY_TEXTS.includes(hint.textContent)) say('');
+    };
+    const WHY_TEXTS = Object.values(WHY);
+    inp.addEventListener('compositionstart', () => (composing = true));
+    inp.addEventListener('compositionend', () => {
+      composing = false;
+      fix();
+    });
+    inp.addEventListener('input', (e) => {
+      if (!composing && !e.isComposing) fix();
+    });
+    inp.addEventListener('blur', () => {
+      composing = false;
+      fix();
+      inp.value = cleanName(inp.value);
+    });
+    // две большие кнопки-картинки: герой нарисован таким, каким начнёт игру (хомячка — с ресничками)
+    const who = el('div', 't-who');
+    who.setAttribute('role', 'radiogroup');
+    who.setAttribute('aria-label', 'Кто ты?');
+    let gender = null;
+    const btns = {};
+    for (const [g, label] of [
+      ['m', 'Я — хомячок'],
+      ['f', 'Я — хомячка'],
+    ]) {
+      const bt = el('button', 't-who-btn t-who-' + g);
+      bt.type = 'button';
+      bt.dataset.act = 'gender-' + g;
+      bt.setAttribute('role', 'radio');
+      bt.setAttribute('aria-checked', 'false');
+      const { canvas, ctx } = makeCanvas(84, 84);
+      const look = resolveLook(startLook(g));
+      try {
+        drawPortrait(ctx, 42, 42, 84, look);
+      } catch (e) {
+        console.error(e); // картинка не вышла — останется подпись
+      }
+      bt.append(canvas, el('span', '', label));
+      bt.onclick = () => {
+        gender = g;
+        for (const k in btns) {
+          btns[k].classList.toggle('on', k === g);
+          btns[k].setAttribute('aria-checked', k === g ? 'true' : 'false');
+        }
+        who.classList.remove('ask');
+        if (hint.textContent === ASK) say('');
+        sfx('tap');
+        formLook = look; // и на берегу заставки — тот, кого выбрали
+        showScene();
+      };
+      btns[g] = bt;
+      who.appendChild(bt);
+    }
+    const ASK = 'Выбери, кто ты: хомячок или хомячка 👆';
+    const api = {
+      name: inp,
+      hint,
+      who,
+      onEnter: null,
+      /** Всё ли выбрано: { name, gender } или null (и мягкая подсказка, чего не хватает). Пустое имя — «Хомка». */
+      check() {
+        inp.value = cleanName(inp.value);
+        if (!gender) {
+          say(ASK);
+          who.classList.remove('ask');
+          void who.offsetWidth; // чтобы покачивание началось заново
+          who.classList.add('ask');
+          return null;
+        }
+        return { name: inp.value || 'Хомка', gender };
+      },
+    };
+    inp.addEventListener('keydown', (e) => {
+      if (e.key !== 'Enter' || e.isComposing) return;
+      inp.blur(); // убрать клавиатуру телефона: под ней — выбор и «Играть!»
+      if (gender && api.onEnter) api.onEnter();
+      else api.check();
+    });
+    // экранная клавиатура (iPhone, iPad): она закрывает низ страницы, а страница об этом не знает — поднимаем форму
+    // над ней, чтобы имя, выбор и «Играть!» были видны все сразу
+    const vv = window.visualViewport;
+    const lift = () => {
+      const hid = vv && document.activeElement === inp ? Math.round(window.innerHeight - vv.height - vv.offsetTop) : 0;
+      const on = hid > 80;
+      if (on) menu.style.setProperty('--kb', hid + 'px');
+      if (menu.classList.contains('kb') !== on) {
+        menu.classList.toggle('kb', on);
+        if (scene) scene.relayout();
+      }
+    };
+    if (vv) {
+      vv.addEventListener('resize', lift);
+      vv.addEventListener('scroll', lift);
+      inp.addEventListener('focus', lift);
+      inp.addEventListener('blur', () => setTimeout(lift, 50));
+      offKb = () => {
+        vv.removeEventListener('resize', lift);
+        vv.removeEventListener('scroll', lift);
+        menu.classList.remove('kb');
+      };
+    }
+    return api;
+  }
+  let formLook = null; // герой, выбранный в форме новой игры (его и показывает сцена)
+  let offKb = null; // снять слежение за экранной клавиатурой (форма новой игры)
   function render(mode) {
+    if (offKb) offKb();
+    offKb = null;
+    if (formLook) {
+      formLook = null;
+      showScene();
+    }
     menu.innerHTML = '';
     const games = listGames();
     if (mode === 'form' || (!games.length && !res.ok)) {
@@ -195,22 +366,19 @@ export function openTitle({ start }) {
             '<small>Старую игру не получилось открыть 😿<br>Мы её не выбросили, а отложили про запас.</small>',
           ),
         );
-      menu.appendChild(el('div', 'sub', 'Как зовут твою хомячку?'));
-      const inp = el('input');
-      inp.maxLength = NAME_MAX;
-      inp.value = 'Хомка';
-      inp.setAttribute('aria-label', 'Имя');
+      menu.appendChild(el('div', 'sub', 'Как тебя зовут?'));
+      const form = nameForm();
       const b = el('button', 'btn big green', 'Играть! ▶');
       b.dataset.act = 'play'; // метки data-act — для автотеста (dev/lib.js)
       b.onclick = () => {
-        const why = prepareGame((inp.value || '').trim() || 'Хомка'); // запишется после сценки (beginNewGame)
+        const who = form.check(); // { name, gender } или null — тогда форма сама мягко подсказала, чего не хватает
+        if (!who) return sfx('tap');
+        const why = prepareGame(who.name, who.gender); // запишется после сценки (beginNewGame)
         if (why) return noRoom(why);
         close(true);
       };
-      inp.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') b.click();
-      });
-      menu.append(inp, b);
+      form.onEnter = () => b.click();
+      menu.append(form.name, form.hint, form.who, b);
       if (!games.length) {
         // браузер стёр данные сайта, а игра была сохранена в файл — вернуть её можно прямо отсюда
         const move = needMoveHint(); // приложение на iPhone и iPad: игры из Safari сюда сами не переходят

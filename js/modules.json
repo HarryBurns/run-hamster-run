@@ -17,6 +17,7 @@
 "js/core/draw.js",
 "js/core/events.js",
 "js/core/games.js",
+"js/core/gender.js",
 "js/core/input.js",
 "js/core/loop.js",
 "js/core/photos.js",

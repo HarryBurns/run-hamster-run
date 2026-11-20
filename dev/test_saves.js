@@ -98,6 +98,7 @@ const eq = (a, b, msg) => ok(JSON.stringify(a) === JSON.stringify(b), msg, { got
   const P = await import(url('core/photos.js'));
   const E = await import(url('core/events.js'));
   const A = await import(url('core/actions.js'));
+  const GX = await import(url('core/gender.js'));
   const { BUILD, START_MONEY: START_MONEY_ } = await import(url('data/index.js'));
   const { G } = S;
   const VER = S.saveVersion();
@@ -228,6 +229,37 @@ const eq = (a, b, msg) => ok(JSON.stringify(a) === JSON.stringify(b), msg, { got
       const once = ls.getItem(KEY);
       ok(Gm.openActive().ok && S.save() && ls.getItem(KEY) === once, 'повторное открытие изменило сохранение');
     });
+  await test('пол героя: старые сохранения и список игр — хомячка; «хомячок» сохраняется; мусор чинится', () => {
+    for (const v of [1, 5]) {
+      ls.clear();
+      ls.setItem(KEY, sample(v));
+      ok(Gm.openActive().ok, 'не открылось');
+      eq(G.state.gender, 'f', `образец v${v}: пол`);
+      eq(index().games[0].gender, 'f', `образец v${v}: пол в списке игр`);
+    }
+    // список игр из прежней сборки (без поля gender) читается как «хомячка»
+    const old = index();
+    for (const g of old.games) delete g.gender;
+    ls.setItem(INDEX, JSON.stringify(old));
+    Gm.syncGames();
+    eq(Gm.listGames()[0].gender, 'f', 'старый список игр');
+    // новая игра за хомячка: пол записан и переживает перезагрузку; текст раскрывается по полу
+    eq(Gm.createGame('Тимоша', 'm'), null, 'игра не создалась');
+    eq([G.state.gender, G.state.look.beauty.lashes, G.state.look.beauty.bow], ['m', false, null], 'новая игра за хомячка');
+    eq(GX.gx('Ты наш{ёл|ла} {его|её}'), 'Ты нашёл его', 'разметка для хомячка');
+    ok(S.save() && Gm.openActive().ok, 'не открылось');
+    eq([G.state.name, G.state.gender], ['Тимоша', 'm'], 'после перезагрузки');
+    eq(Gm.listGames().find((g) => g.id === G.state.gid).gender, 'm', 'пол в списке игр');
+    eq(Gm.createGame('Буся'), null, 'игра не создалась');
+    eq([G.state.gender, G.state.look.beauty.lashes, !!G.state.look.beauty.bow], ['f', true, true], 'новая игра без пола — хомячка');
+    eq(GX.gx('Ты наш{ёл|ла} {его|её}'), 'Ты нашла её', 'разметка для хомячки');
+    for (const bad of [undefined, null, 'x', 1, {}]) {
+      const s = JSON.parse(sample(5));
+      s.gender = bad;
+      S.repair(s);
+      eq(s.gender, 'f', 'мусор в поле пола');
+    }
+  });
   await test('repair: мусор в полях чинится, неизвестные id уходят, игра открывается', () => {
     const s = JSON.parse(sample(5));
     Object.assign(s, {
@@ -648,7 +680,7 @@ const eq = (a, b, msg) => ok(JSON.stringify(a) === JSON.stringify(b), msg, { got
       photos: [{ src: 'javascript:alert(1)' }, pic(1), { src: 'data:image/png;base64,' + 'A'.repeat(7e5) }],
     };
     const r = await Gm.importGame(JSON.stringify(file));
-    ok(r.ok && r.name.length === 14 && r.photos === 1, 'итог', r);
+    ok(r.ok && r.name.length === 20 && r.photos === 1, 'итог', r); // NAME_MAX
     ok(Gm.switchGame(r.id) && G.state.gid === r.id && !G.state.clothes.includes('нет_такой'), 'не починилось');
     eq((await P.loadPhotos(r.id)).length, 1, 'снимки');
   });

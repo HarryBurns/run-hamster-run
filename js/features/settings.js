@@ -5,6 +5,9 @@ import { persist } from '../core/loop.js';
 import { el, esc } from '../core/util.js';
 import { sfx, isMuted, setMuted, isMusicOn, setMusicOn, getMusicVolume, setMusicVolume } from '../core/audio.js';
 import { run } from '../core/registry.js';
+import { gender } from '../core/gender.js';
+import { setGender } from '../core/actions.js';
+import { toast } from '../ui/toast.js';
 import { MUSIC_CREDITS, SFX_CREDITS, SYNTH_NOTE } from '../data/credits.js';
 import { openPanel, message } from '../ui/panel.js';
 import { showHelp } from './help.js';
@@ -66,6 +69,25 @@ export function openSettings() {
       };
       const own = el('div', 'set-own');
       own.append(homes, biz);
+      // кто герой: от этого — «нашёл» или «нашла» во всех текстах игры (core/gender.js); выбирают при старте, сменить — тут
+      const who = el('div', 'set-who');
+      for (const [g, label] of [
+        ['m', 'Я — хомячок'],
+        ['f', 'Я — хомячка'],
+      ]) {
+        const on = gender() === g;
+        const bt = el('button', 'btn ' + (on ? 'green' : 'ghost'), (on ? '✓ ' : '') + label);
+        bt.dataset.act = 'gender-' + g;
+        bt.setAttribute('aria-pressed', on ? 'true' : 'false');
+        bt.onclick = () => {
+          sfx('tap');
+          if (!setGender(g)) return;
+          persist();
+          panel.refresh();
+          toast('Хорошо! Теперь ты — {хомячок|хомячка} 🐹', 'good');
+        };
+        who.appendChild(bt);
+      }
       const help = el('button', 'btn yellow', '❓ Как играть');
       help.onclick = () => showHelp();
       const authors = el('button', 'btn ghost', '🎼 Авторы музыки и звуков');
@@ -80,7 +102,7 @@ export function openSettings() {
         location.reload();
       };
       const col = el('div', 'set-col'); // лёжа на телефоне — в два столбца (css/style.css)
-      col.append(own, mus, vol, snd, help, authors);
+      col.append(own, mus, vol, snd, who, help, authors);
       // игра как приложение на экране «Домой» (features/install.js); уже приложение — пункта нет
       const app = installButton('📲 Поставить на экран «Домой»', 'btn ghost');
       if (app) col.appendChild(app);

@@ -1,6 +1,6 @@
 // Одежда: слоты, каталог вещей, стартовый гардероб.
 // slot: head | body | legs | feet | acc
-// shop: start (уже есть в новой игре — то, что надето: майка, джинсовые шорты, кеды) | mall | boutique | beach
+// shop: start (уже есть в новой игре — то, что надето: майка, джинсы, кроссовки) | mall | boutique | beach
 //   | market (вещицы с рынка) | gift (только в подарок; бывает сюрпризом) | quest (награда за задание, больше никак)
 // surprise: false — подарок, но не сюрпризом: его дают в своём месте (медаль — за заплыв на три звезды, лея и венок —
 //   Вождь Кокос); награды заданий (reward.clothes в data/quests.js) сюрпризом тоже не дарят — features/gifts.js
@@ -72,19 +72,19 @@ C('pajama', 'body', 'pajama', 'Пижама со звёздами', '#b197fc', {
 C('pajama_pink', 'body', 'pajama', 'Пижама-зефирка', '#ffc9de', { pattern: 'dots', c2: '#fff', tags: ['home', 'cute'] });
 C('robe', 'body', 'robe', 'Пушистый халат', '#74c0fc', { shop: 'boutique', tags: ['home'] });
 // --- низ
-C('shorts_jeans', 'legs', 'shorts', 'Джинсовые шорты', '#4dabf7', { shop: 'start', season: 'hot', tags: ['summer', 'sport', 'beach'] });
+C('shorts_jeans', 'legs', 'shorts', 'Джинсовые шорты', '#4dabf7', { season: 'hot', tags: ['summer', 'sport', 'beach'] });
 C('shorts_red', 'legs', 'shorts', 'Красные шорты', '#f03e3e', { season: 'hot', tags: ['summer', 'sport'] });
 C('shorts_dots', 'legs', 'shorts', 'Шорты в горошек', '#69db7c', { pattern: 'dots', c2: '#fff', season: 'hot', tags: ['summer', 'cute', 'beach'] });
 C('shorts_star', 'legs', 'shorts', 'Шорты со звёздами', '#845ef7', { pattern: 'stars', c2: '#ffe066', season: 'hot', tags: ['summer', 'sport'] });
 C('skirt_check', 'legs', 'skirt', 'Юбка в клетку', '#ff8fab', { pattern: 'check', c2: '#c2255c', tags: ['cute', 'spring', 'autumn'] });
 C('skirt_blue', 'legs', 'skirt', 'Голубая юбочка', '#74c0fc', { tags: ['cute', 'summer', 'spring'] });
 C('skirt_dots', 'legs', 'skirt', 'Юбка в горошек', '#ffd43b', { pattern: 'dots', c2: '#fff', stock: 'delivery', tags: ['cute', 'summer'] });
-C('pants_jeans', 'legs', 'pants', 'Джинсы', '#1c7ed6', { tags: ['warm', 'autumn', 'spring', 'winter', 'rain'] });
+C('pants_jeans', 'legs', 'pants', 'Джинсы', '#1c7ed6', { shop: 'start', tags: ['warm', 'autumn', 'spring', 'winter', 'rain'] });
 C('pants_grey', 'legs', 'pants', 'Тёплые штаны', '#868e96', { tags: ['warm', 'winter', 'home'] });
 C('pants_black', 'legs', 'pants', 'Чёрные брючки', '#343a40', { tags: ['fancy', 'warm', 'autumn'] });
 // --- обувь
-C('sn_red', 'feet', 'sneakers', 'Красные кеды', '#ff6b6b', { shop: 'start', tags: ['sport', 'summer', 'spring'] });
-C('sn_white', 'feet', 'sneakers', 'Белые кроссовки', '#f1f3f5', { tags: ['sport', 'summer', 'spring'] });
+C('sn_red', 'feet', 'sneakers', 'Красные кеды', '#ff6b6b', { tags: ['sport', 'summer', 'spring'] });
+C('sn_white', 'feet', 'sneakers', 'Белые кроссовки', '#f1f3f5', { shop: 'start', tags: ['sport', 'summer', 'spring'] });
 C('sn_mint', 'feet', 'sneakers', 'Мятные кеды', '#63e6be', { tags: ['sport', 'cute', 'spring'] });
 C('boots_brown', 'feet', 'boots', 'Коричневые ботинки', '#8d5524', { tags: ['warm', 'autumn', 'winter'] });
 C('boots_black', 'feet', 'boots', 'Чёрные ботинки', '#343a40', { tags: ['warm', 'autumn', 'fancy'] });
@@ -219,7 +219,7 @@ C('lei_shell', 'acc', 'lei', 'Бусы из ракушек', '#ffe8cc', { c2: '#
 
 export const CLOTHES = CL;
 export const CLOTHES_BY_ID = Object.fromEntries(CL.map((c) => [c.id, c]));
-// Новая игра: в шкафу только то, что надето (майка, джинсовые шорты, кеды), остальное покупают. Прежние стартовые
+// Новая игра: в шкафу только то, что надето (майка, джинсы, кроссовки — одинаково хомячку и хомячке), остальное покупают. Прежние стартовые
 // вещи (платье, купальник, пижама, тёплое) продаются в ТЦ «Модный»; у старых игр они остаются в шкафу.
 export const START_CLOTHES = CL.filter((c) => c.shop === 'start').map((c) => c.id);
 /** Шлёпанцы в подарок (У2): старым сохранениям — один раз при загрузке (main.js); в новой игре их покупают. */
@@ -228,5 +228,5 @@ export const FLIPFLOPS_GIFT = 'flip_pink';
 export const SUN_HAT_KINDS = ['sunhat', 'panama', 'pith', 'cowboy', 'turban'];
 /** Защищает ли вещь от солнца (шляпа, панамка, шлем исследователя, платок кочевника). */
 export const isSunHat = (c) => !!c && c.slot === 'head' && SUN_HAT_KINDS.includes(c.kind);
-// новая игра начинается летом (1 июня): майка, шорты и кеды — и больше в шкафу ничего нет
-export const START_OUTFIT = { head: null, body: 'tee_heart', legs: 'shorts_jeans', feet: 'sn_red', acc: null };
+// новая игра: майка, джинсы и кроссовки — и больше в шкафу ничего нет (джинсовые шорты и красные кеды — в ТЦ «Модный»)
+export const START_OUTFIT = { head: null, body: 'tee_heart', legs: 'pants_jeans', feet: 'sn_white', acc: null };

@@ -286,7 +286,7 @@ module.exports = async function tfix(ctx) {
           empty: [e.name, e.pet.name, 'title' in e.biz.cafe],
         };
       });
-      expect(r.name === 'Очень-очень-дл' && r.name.length === r.max[0], 'имя хомячка', r);
+      expect(r.name === 'Очень-очень-длинное '.slice(0, r.max[0]) && r.name.length === r.max[0], 'имя хомячка', r);
       expect(r.pet.length === r.max[1], 'имя питомца', r);
       expect(r.biz.length === r.max[2], 'название заведения', r);
       expect(r.empty[0] === 'Хомка' && r.empty[1] && !r.empty[2], 'пустые имена', r);

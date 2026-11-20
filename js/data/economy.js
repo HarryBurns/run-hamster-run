@@ -464,10 +464,10 @@ export const PRICES = {
     // купальники, пижама, халат
     swim_pink: 300, swim_blue: 300, swim_yellow: 300, swim_star: 380, pajama: 280, pajama_pink: 280, robe: 2500,
     // низ
-    shorts_red: 200, shorts_dots: 220, shorts_star: 250, skirt_check: 300, skirt_blue: 280, skirt_dots: 320,
+    shorts_jeans: 220, shorts_red: 200, shorts_dots: 220, shorts_star: 250, skirt_check: 300, skirt_blue: 280, skirt_dots: 320,
     pants_jeans: 380, pants_grey: 400, pants_black: 450, tutu_pink: 3000, tutu_white: 3000,
     // обувь
-    sn_white: 380, sn_mint: 400, boots_brown: 520, boots_black: 550, ugg_beige: 600, ugg_pink: 650, rain_red: 400, rain_yellow: 400,
+    sn_red: 350, sn_white: 380, sn_mint: 400, boots_brown: 520, boots_black: 550, ugg_beige: 600, ugg_pink: 650, rain_red: 400, rain_yellow: 400,
     sand_yellow: 250, sand_pink: 250, flip_pink: 170, flip_sea: 180, flip_lime: 160, slippers: 150, flippers: 300, rollers: 600, heels_red: 3500, heels_black: 3500,
     shoes_gold: 12000,
     // голова

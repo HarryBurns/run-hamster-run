@@ -17,6 +17,7 @@ import { esc, fmtMoney } from './core/util.js';
 import { FLIPFLOPS_GIFT } from './data/index.js';
 import { unlockAudio } from './core/audio.js';
 import { on } from './core/events.js';
+import { installGenderNet } from './core/gender.js';
 import { migrateAllPhotos } from './core/photos.js';
 import { message } from './ui/panel.js';
 import { enqueue } from './ui/modals.js';
@@ -61,6 +62,7 @@ const HOME = villa.id; // сцена-дом: там начинается нов�
 // ---------- HUD ----------
 // Кнопка «Домой» ведёт в основной дом (его выбирают в окне «Мои дома») — см. features/homes.js.
 const goHome = () => F.askGoHome();
+installGenderNet(); // «{он|она}» в текстах — под пол героя: ничего сырого на экран не попадает (core/gender.js)
 installItemIcons(); // рисованные значки вещей в окнах и подсказках (ui/itemicons.js)
 initHud(hud, {
   right: [

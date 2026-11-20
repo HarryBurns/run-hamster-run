@@ -180,7 +180,16 @@ function lib(ctx) {
   };
 
   /** Нажать кнопку с меткой data-act (по умолчанию ждёт её появления). */
-  const act = (name, scope) => page.click(sel(name, scope));
+  const act = async (name, scope) => {
+    // «Играть!» новой игры ждёт выбора «Я — хомячок / Я — хомячка»: шаги, которым пол не важен, играют за хомячку
+    // (как было до выбора пола); кому важен — fresh({ gender: 'm' }) или act('gender-m') заранее
+    if (name === 'play')
+      await ev(() => {
+        const f = document.querySelector('#title [data-act="gender-f"]');
+        if (f && !document.querySelector('#title .t-who-btn.on')) f.click();
+      });
+    return page.click(sel(name, scope));
+  };
   const hasAct = (name, scope) => ev((s) => !!document.querySelector(s), sel(name, scope));
 
   /** Закрыть все окна и диалоги: ✕ окон и мини-игр, последний вариант диалога («Пока!»). Ждёт, только если было что закрывать. */
@@ -248,7 +257,7 @@ function lib(ctx) {
    * Новая игра. o:
    *   start: 'june' (по умолчанию: настоящее начало — 1 июня, без вводной цепочки заданий) | 'old' (__dev.oldStart():
    *          1 января, снег, тёплый наряд — для шагов про зиму) | 'intro' (как у ребёнка: с вводной цепочкой);
-   *   name — имя хомячка; day, minutes, weather — сразу поставить; dayFlags: true — очистить отметки дня;
+   *   name — имя хомячка; gender: 'm' | 'f' — пол героя (по умолчанию хомячка); day, minutes, weather — сразу поставить; dayFlags: true — очистить отметки дня;
    *   money; flags — { имя: значение } в s.flags; set — ещё строка/функция для mutate; scene — перейти туда;
    *   villa: 'small' — как в настоящей новой игре: маленький домик («Вилла растёт»); по умолчанию — вилла целиком
    *          (__dev.villaFull(): три этажа, пруд, бассейн, прежняя мебель) — на неё рассчитаны прежние шаги.
@@ -257,6 +266,7 @@ function lib(ctx) {
   const fresh = async (o = {}) => {
     await blank();
     if (o.name) await page.fill('#title input', o.name);
+    if (o.gender) await page.click(sel('gender-' + o.gender));
     await act('play');
     await act('skip'); // вступительная сценка новой игры (этап 10)
     if (o.start === 'old') await ev(() => window.__dev.oldStart());

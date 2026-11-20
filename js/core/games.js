@@ -82,7 +82,11 @@ function readIndex() {
   const out = { v: 1, active: null, seq: 0, games: [], lost: [] };
   if (!o) return out;
   if (Array.isArray(o.games))
-    for (const g of o.games) if (g && okId(g.id) && !out.games.some((x) => x.id === g.id)) out.games.push(g);
+    for (const g of o.games)
+      if (g && okId(g.id) && !out.games.some((x) => x.id === g.id)) {
+        if (g.gender !== 'm') g.gender = 'f'; // список из прежних сборок: пола ещё не было — хомячка
+        out.games.push(g);
+      }
   // lost — нечитаемые сохранения, отложенные про запас: лежат на полке, но не в списке игр
   if (Array.isArray(o.lost))
     for (const l of o.lost)
@@ -129,6 +133,7 @@ function newId() {
 function fillMeta(m, s) {
   if (!s) return m;
   if (typeof s.name === 'string') m.name = s.name.slice(0, 20);
+  m.gender = s.gender === 'm' ? 'm' : 'f'; // пол героя; у игр, начатых до выбора пола, — хомячка
   for (const k of ['day', 'minutes', 'money']) if (Number.isFinite(s[k])) m[k] = s[k];
   if (typeof s.weather === 'string') m.weather = s.weather;
   if (typeof s.wxStrong === 'string') m.wxStrong = s.wxStrong;
@@ -138,6 +143,7 @@ function fillMeta(m, s) {
 const blankMeta = (id) => ({
   id,
   name: 'Хомка',
+  gender: 'f',
   day: 0,
   minutes: 450,
   money: 0,
@@ -368,12 +374,12 @@ let pendingNew = null;
  * причину: 'full' — мест нет, 'store' — она не поместится в хранилище (проверяется пробной записью, которая тут же
  * стирается); тогда G.state остаётся прежним.
  */
-export function prepareGame(name) {
+export function prepareGame(name, gender = 'f') {
   syncGames();
   if (idx.games.length >= MAX_GAMES) return 'full';
   const keep = G.state;
   const id = newId();
-  newGame(name);
+  newGame(name, gender);
   G.state.gid = id;
   const fits = put(PROBE_KEY, JSON.stringify(G.state));
   del(PROBE_KEY);
@@ -416,9 +422,9 @@ export function commitGame() {
  * Возвращает null (получилось, G.state — новая игра) или причину: 'full' — мест нет, 'store' — не удалось записать
  * (хранилище переполнено); тогда всё остаётся как было.
  */
-export function createGame(name) {
+export function createGame(name, gender = 'f') {
   const keep = G.state;
-  const why = prepareGame(name) || commitGame();
+  const why = prepareGame(name, gender) || commitGame();
   if (why) G.state = keep;
   return why;
 }
