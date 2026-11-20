@@ -2,7 +2,8 @@
 // вторая игра не трогает первую, «Продолжить» и «Мои игры», удаление только нарочно (⋯ → окно с именем → подержать
 // кнопку), предел числа игр, «Выйти на заставку» из меню; живая заставка — время суток и погода последней игры,
 // сцена не заходит под кнопки, взаимодействия мышью (хомячок, танец, кокос, краб, чайка, ракушка, рыбка, волна,
-// рисунок на песке, облако, кораблик, пальма), ошибок в консоли нет.
+// рисунок на песке, облако, кораблик, пальма), самолётик и русалочка (бабочка не перехватывает нажатие), ошибок в
+// консоли нет.
 // Подключается из dev/smoke.js. Только эти шаги:  node dev/smoke.js <url> step:заставка
 const fs = require('fs');
 const path = require('path');
@@ -395,6 +396,7 @@ module.exports = async function title(ctx) {
     'заставка: взаимодействия — хомячок, танец, кокос, краб, чайка, ракушка, рыбка, волна, рисунок, облако, кораблик, пальма',
     async () => {
       await put(null);
+      await ev(() => window.__dev.title.guests(false)); // самолётик и русалочка — в своём шаге
       await wait(400);
       const has = async (name) => (await dbg()).log.includes(name);
       const tap = async (p) => {
@@ -557,6 +559,86 @@ module.exports = async function title(ctx) {
       expect(d.ink.length === 2 && last(d).pieces === 1 && last(d).gap <= 9, 'быстрый зигзаг пальцем порвался', d.ink);
       // рисунок полежал — волна смывает и его
       await until(() => window.__dev.title.debug().drawn === 0, null, { timeout: 14000, msg: 'волна смыла рисунок' });
+      noErrors();
+    },
+  );
+
+  await step(
+    'заставка: самолётик и русалочка — прилетают и выглядывают, нажатие мышью и пальцем, бабочка не перехватывает',
+    async () => {
+      // нажать пальцем в точку p, а бабочку (светлячков) поставить рядом — ближе, чем она ловит нажатие «рядом»
+      const touchNearFly = (key) =>
+        ev((key) => {
+          const t = window.__dev.title,
+            d = t.debug(),
+            p = d[key],
+            R = 30 * Math.max(d.k, 0.7);
+          t.flyAt(p.x + R * 0.9, p.y);
+          const c = document.querySelector('#title .t-scene');
+          const o = { pointerId: 9, pointerType: 'touch', clientX: p.x, clientY: p.y, bubbles: true, isPrimary: true };
+          c.dispatchEvent(new PointerEvent('pointerdown', o));
+          c.dispatchEvent(new PointerEvent('pointerup', o));
+          return t.debug().log;
+        }, key);
+      const count = (log, re) => log.filter((x) => re.test(x)).length;
+      for (const [minutes, night] of [
+        [12 * 60, false],
+        [22 * 60 + 30, true],
+      ]) {
+        await put(sample((s) => Object.assign(s, { minutes, weather: 'sun', day: 16 })));
+        await ev(() => window.__dev.title.guests(false));
+        let d = await dbg();
+        expect(d.env.night === night && !d.plane.on && d.mermaid.st === 'off', 'гости уже здесь', d);
+        // самолётик: летит по небу над морем, не под заголовком и не под кнопками
+        await ev(() => window.__dev.title.callPlane());
+        await until(
+          () => {
+            const p = window.__dev.title.debug().plane;
+            return p.clear && p.x > innerWidth * 0.2 && p.x < innerWidth * 0.8;
+          },
+          null,
+          { timeout: 14000, msg: 'самолётик долетел до середины, не за пальмой' },
+        );
+        d = await dbg();
+        const r = await ev(() => {
+          const q = (s) => document.querySelector(s).getBoundingClientRect();
+          return { head: q('#title .t-head').bottom, menu: q('#title .t-menu').toJSON() };
+        });
+        const inMenu = (p) => p.x > r.menu.left && p.x < r.menu.right && p.y > r.menu.top && p.y < r.menu.bottom;
+        expect(d.plane.on && d.plane.y > r.head && d.plane.y < d.ship.y && !inMenu(d.plane), 'самолётик не там', { plane: d.plane, r, ship: d.ship }); // prettier-ignore
+        await page.mouse.click(d.plane.x, d.plane.y);
+        await wait(150);
+        d = await dbg();
+        expect(count(d.log, /^plane-/) === 1 && d.plane.trick && d.plane.hearts === 1, 'самолётик не ответил на нажатие', d.plane); // prettier-ignore
+        // трюк закончился — можно снова, пальцем, с бабочкой рядом
+        await until(
+          () => {
+            const p = window.__dev.title.debug().plane;
+            return !p.trick && p.clear;
+          },
+          null,
+          { timeout: 6000, msg: 'трюк закончился' },
+        );
+        let log = await touchNearFly('plane');
+        expect(count(log, /^plane-/) === 2 && !log.includes('butterfly') && !log.includes('fireflies'), 'нажатие по самолётику забрала бабочка', log); // prettier-ignore
+        // русалочка: выглядывает из моря в свободном месте; пока она здесь, дельфин не прыгает
+        await ev(() => {
+          window.__dev.title.callMermaid();
+          window.__dev.title.callDolphin();
+        });
+        await wait(600);
+        d = await dbg();
+        expect(d.mermaid.st === 'look' && d.mermaid.y < d.mermaid.water && d.mermaid.y > d.ship.y && !inMenu(d.mermaid), 'русалочка не там', d.mermaid); // prettier-ignore
+        expect(!d.dolphin.on, 'дельфин прыгает вместе с русалочкой');
+        log = await touchNearFly('mermaid');
+        expect(log.includes('mermaid') && !log.includes('butterfly') && !log.includes('fireflies'), 'нажатие по русалочке забрала бабочка', log); // prettier-ignore
+        expect((await dbg()).mermaid.st === 'wave', 'русалочка не машет в ответ', (await dbg()).mermaid);
+        await until(() => window.__dev.title.debug().mermaid.st === 'off', null, { timeout: 6000, msg: 'русалочка нырнула' }); // prettier-ignore
+        await page.mouse.click(d.mermaid.x, d.mermaid.y); // под водой её уже нет: нажатие — рыбке
+        await wait(100);
+        expect(count((await dbg()).log, /^mermaid$/) === 1, 'нажатие по нырнувшей русалочке', (await dbg()).log);
+      }
+      await put(null);
       noErrors();
     },
   );

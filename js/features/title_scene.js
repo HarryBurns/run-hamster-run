@@ -65,6 +65,16 @@ export function createTitleScene(canvas, o) {
   const SHIP_SP = 2.6;
   const ship = { x: -1, honk: -9, puffs: [] };
   const dolphin = { next: rnd(10, 22), t: -1, x: 0, hi: -9 };
+  // самолётик: время от времени пролетает по небу над морем (с ленточкой-флажком); в дождь и снег — реже.
+  // t — сколько уже летит (−1 — не летит), trick — когда покачал крыльями или сделал петлю, hearts — сердечки из дыма
+  const PLANE_GAP = rain ? [130, 220] : snow ? [100, 180] : [40, 90];
+  const plane = { next: rnd(15, 35) * (rain || snow ? 2.5 : 1), t: -1, dur: 12, dir: 1, fy: 0.5, trick: -99, loop: false, n: 0, hearts: [] }; // prettier-ignore
+  const PLANE_TRICK = 1.6;
+  // русалочка (Жемчужинка из бухты) выглядывает из моря на среднем плане: редко, но надолго, чтобы разглядеть.
+  // st: off → up (поднимается) → look (оглядывается, машет, хвост мелькает) → dive (ныряет); нажали — wave → dive
+  const MER_GAP = winter ? [150, 270] : [90, 180];
+  const mer = { next: rnd(45, 110) * (winter ? 1.5 : 1), st: 'off', t: 0, x: 0, y: 0, look: 6, side: 1 };
+  let guests = true; // автотест выключает редких гостей, чтобы они не перехватили нажатие по облаку или морю
   const jumps = []; // рыбки в прыжке: { x, y, t, dir, big }
   const rings = []; // круги на воде: { x, y, t }
   const fly = { x: 0, y: 0, st: 'roam', t: 0, ph: rnd(9), next: rnd(7, 12) }; // бабочка днём, светлячки ночью
@@ -101,7 +111,7 @@ export function createTitleScene(canvas, o) {
     canvas.width = Math.round(W * dpr);
     canvas.height = Math.round(H * dpr);
     const f = (o.free && o.free()) || { x: 0, y: 0, w: W, h: H };
-    F = { x: f.x, y: f.y, w: Math.max(120, f.w), h: Math.max(120, f.h) };
+    F = { x: f.x, y: f.y, w: Math.max(120, f.w), h: Math.max(120, f.h), open: f.open ?? H };
     ham.s = clamp(Math.min(F.w / 250, F.h / 250), 0.8, 2.5);
     k = ham.s / 2;
     bot = F.y + F.h;
@@ -125,6 +135,8 @@ export function createTitleScene(canvas, o) {
       c.y = lerp(F.y + 26 * k, hy - 46 * k, c.fy);
     }
     if (ship.x < 0) ship.x = F.x + F.w * 0.58;
+    mer.y = lerp(hy, sy, 0.52); // уровень воды у русалочки
+    if (mer.st !== 'off') mer.x = clamp(mer.x, F.x + F.w * 0.15, F.x + F.w * 0.85);
     stars.length = 0;
     const rs = seeded(7);
     for (let i = 0; i < 90; i++) {
@@ -262,7 +274,6 @@ export function createTitleScene(canvas, o) {
         return;
       }
     }
-    if (flyNear(R * 1.2)) return flyTap();
     // пальма: потянуть — качнуть, нажать на крону — упадёт кокос
     for (const p of palms) {
       const [cx, cy] = crown(p);
@@ -274,6 +285,14 @@ export function createTitleScene(canvas, o) {
         return;
       }
     }
+    // русалочка — на воде за пальмами; самолётик — в небе перед облаками
+    if ((mer.st === 'look' || (mer.st === 'up' && mer.t > 0.5)) && near(x, y, ...merHit(), Math.max(R * 1.1, 36 * merS()))) return merTap(); // prettier-ignore
+    if (planeOn()) {
+      const [px, py] = planePos();
+      if (near(x, y, px, py, R * 1.4)) return T - plane.trick > PLANE_TRICK && planeTap(); // посреди петли — ждём
+    }
+    // рядом с бабочкой, а под пальцем — небо, море или песок: всё же бабочке
+    if (flyNear(R * 1.2)) return flyTap();
     for (const c of clouds)
       if (near(x, y, c.x, c.y, 62 * k * c.size)) {
         if (rain) {
@@ -429,6 +448,103 @@ export function createTitleScene(canvas, o) {
       Math.max(F.y + 50 * k, hy - 120 * k) + Math.sin(T * 1.3) * 12 * k - (1 - Math.cos(a)) * 30 * k,
     ];
   };
+
+  // самолётик: где летит и как наклонён. Высота — доля fy свободного неба над морем (не выше заголовка: петле
+  // хватает места сверху), летит от края до края свободного места; trick — покачать крыльями или петля
+  const PLANE_R = () => 24 * k; // радиус петли
+  const planeBand = () => {
+    const top = F.y + 22 * k,
+      lo = hy - 58 * k;
+    return [top, Math.max(top, lo)];
+  };
+  const canLoop = () => {
+    const [top, lo] = planeBand();
+    return lerp(top, lo, plane.fy) - 2 * PLANE_R() - 12 * k > F.y;
+  };
+  function planePos() {
+    const q = clamp(plane.t / plane.dur, 0, 1),
+      [a, b] = planeSpan(),
+      x0 = a - 80 * k,
+      x1 = b + 80 * k,
+      [top, lo] = planeBand();
+    let x = plane.dir > 0 ? lerp(x0, x1, q) : lerp(x1, x0, q),
+      y = lerp(top, lo, plane.fy) + Math.sin(plane.t * 1.7) * 5 * k,
+      rot = Math.cos(plane.t * 1.7) * -0.08 * plane.dir; // нос чуть вверх-вниз вместе с волной полёта
+    const tq = (T - plane.trick) / PLANE_TRICK;
+    if (tq >= 0 && tq < 1) {
+      if (plane.loop) {
+        const a = ease(tq) * TAU;
+        x += plane.dir * Math.sin(a) * PLANE_R();
+        y -= (1 - Math.cos(a)) * PLANE_R();
+        rot = -plane.dir * a;
+      } else rot += Math.sin(tq * TAU * 2.5) * 0.4 * (1 - tq); // покачал крыльями
+    }
+    return [x, y, rot];
+  }
+  // где самолётик может лететь по ширине: кнопки сбоку начинаются ниже неба — весь экран, иначе — до кнопок
+  const planeSpan = () => (planeBand()[1] + 34 * k < F.open ? [0, W] : [F.x, F.x + F.w]);
+  const planeOn = () => plane.t >= 0;
+  function planeGo() {
+    plane.t = 0;
+    plane.dur = rnd(10, 14);
+    plane.dir = pick([-1, 1]);
+    plane.fy = rnd(0.1, 0.9);
+    plane.n = 0;
+  }
+  function planeTap() {
+    const [x, y] = planePos();
+    plane.loop = canLoop() && plane.n++ % 2 === 0; // через раз: петля и «покачал крыльями»
+    plane.trick = T;
+    plane.hearts.push({ x: x - plane.dir * 34 * k, y: y + 4 * k, t: 0 });
+    if (plane.hearts.length > 3) plane.hearts.shift();
+    note(plane.loop ? 'plane-loop' : 'plane-wave');
+    sfx('lift');
+    setTimeout(() => !dead && sfx('whistle'), 500);
+  }
+  // русалочка: где голова и насколько она над водой (0 — под водой, 1 — по пояс)
+  const merS = () => ham.s * 0.55;
+  function merUp() {
+    if (mer.st === 'up') return ease(clamp(mer.t / 1.6, 0, 1));
+    if (mer.st === 'dive') return 1 - ease(clamp(mer.t / 0.55, 0, 1));
+    return mer.st === 'off' ? 0 : 1;
+  }
+  // середина того, что видно над водой (голова и плечи): тело стоит на mer.y + 22·S, пока не всплыла — ниже
+  const merHit = () => [mer.x, Math.min(mer.y - 33 * merS() + (1 - merUp()) * 76 * merS(), mer.y - 8 * merS())];
+  function merGo() {
+    // место — в свободной части моря: не за хомячком, не за пальмой и не там, где только что прыгал дельфин
+    const ok = (x) =>
+      Math.abs(x - ham.x) > 34 * ham.s + 40 * k &&
+      Math.abs(x - dolphin.x) > 90 * k &&
+      palms.every((p) => {
+        const cx = crown(p)[0];
+        return x < Math.min(p.x, cx) - 60 * k || x > Math.max(p.x, cx) + 60 * k;
+      });
+    let x = F.x + F.w * 0.64;
+    for (let i = 0; i < 14; i++) {
+      const c = F.x + F.w * rnd(0.2, 0.8);
+      if (ok(c)) {
+        x = c;
+        break;
+      }
+    }
+    Object.assign(mer, { st: 'up', t: 0, x, look: rnd(5.2, 6.8), side: pick([-1, 1]) });
+    rings.push({ x, y: mer.y, t: 0 });
+    sfx('bubble');
+  }
+  function merSet(st) {
+    mer.st = st;
+    mer.t = 0;
+    if (st === 'dive') {
+      rings.push({ x: mer.x, y: mer.y, t: 0 });
+      sfx('splash');
+    }
+  }
+  function merTap() {
+    merSet('wave');
+    note('mermaid');
+    sfx('magic');
+    pop(mer.x, mer.y - 100 * merS(), pick(['💙', '✨💙✨']), 20 * Math.max(k, 0.8));
+  }
 
   // ---------- шаг времени ----------
   function update(dt) {
@@ -598,7 +714,7 @@ export function createTitleScene(canvas, o) {
       }
     }
     for (let i = rings.length - 1; i >= 0; i--) if ((rings[i].t += dt) > 1.6) rings.splice(i, 1);
-    if (dolphin.t < 0 && T > dolphin.next) {
+    if (dolphin.t < 0 && T > dolphin.next && mer.st === 'off') {
       dolphin.t = 0;
       dolphin.x = F.x + F.w * rnd(0.2, 0.8);
     }
@@ -606,6 +722,39 @@ export function createTitleScene(canvas, o) {
       rings.push({ x: dolphin.x + 50 * k, y: hy + 16 * k, t: 0 });
       dolphin.t = -1;
       dolphin.next = T + rnd(35, 70); // редкий гость
+    }
+    // русалочка: не одновременно с дельфином
+    if (mer.st === 'off') {
+      if (guests && T > mer.next && dolphin.t < 0) merGo();
+    } else {
+      mer.t += dt;
+      const was = mer.t - dt;
+      if (mer.st === 'up' && mer.t > 1.6) merSet('look');
+      else if (mer.st === 'look' && mer.t > mer.look) merSet('dive');
+      else if (mer.st === 'wave' && mer.t > 1.5) merSet('dive');
+      else if (mer.st === 'dive') {
+        if (was < 0.95 && mer.t >= 0.95) rings.push({ x: mer.x + mer.side * 10 * k, y: mer.y, t: 0 }); // хвост ушёл под воду
+        if (mer.t > 1.7) {
+          mer.st = 'off';
+          mer.next = T + rnd(...MER_GAP);
+          dolphin.next = Math.max(dolphin.next, T + 5);
+        }
+      }
+    }
+    // самолётик
+    if (planeOn()) {
+      plane.t += dt;
+      if (plane.t > plane.dur + (T - plane.trick < PLANE_TRICK ? 2 : 0)) {
+        plane.t = -1;
+        plane.next = T + rnd(...PLANE_GAP);
+      }
+    } else if (guests && T > plane.next) planeGo();
+    for (let i = plane.hearts.length - 1; i >= 0; i--) {
+      const h = plane.hearts[i];
+      h.t += dt;
+      h.y -= 3 * k * dt;
+      h.x += (windy ? 14 : 4) * k * dt;
+      if (h.t > 4.5) plane.hearts.splice(i, 1);
     }
     if (Math.random() < dt / 11 && jumps.length < 2) {
       // рыбки иногда прыгают сами
@@ -678,7 +827,14 @@ export function createTitleScene(canvas, o) {
     kite,
     kitePos,
     look,
+    mer,
+    merS,
+    merUp,
     night,
+    plane,
+    planeOn,
+    planePos,
+    planeSpan,
     rain,
     rings,
     shell,
@@ -748,6 +904,10 @@ export function createTitleScene(canvas, o) {
     drawFly,
     drawWeather,
     drawNightSky,
+    drawPlane,
+    drawPlaneLights,
+    drawMermaid,
+    drawMermaidGlow,
   } = createTitleArt(S);
   function frame(now) {
     if (dead) return;
@@ -764,6 +924,7 @@ export function createTitleScene(canvas, o) {
     drawShip();
     drawFish();
     for (const c of clouds) drawCloud(c);
+    drawPlane();
     if (!night && !rain)
       for (let i = 0; i < 2; i++) {
         // чайки вдалеке
@@ -779,6 +940,7 @@ export function createTitleScene(canvas, o) {
         ctx.stroke();
       }
     drawSea(sg);
+    drawMermaid();
     drawStrokes();
     if (windy) drawKite();
     // всё, что стоит на песке, — по порядку «дальше — раньше»
@@ -804,6 +966,8 @@ export function createTitleScene(canvas, o) {
       ctx.fillStyle = `rgba(10,16,58,${(rain ? 0.5 : 0.58) * dk})`;
       ctx.fillRect(0, 0, W, H);
       drawNightSky();
+      drawPlaneLights();
+      drawMermaidGlow();
     }
     drawFly(true);
     if (ham.bubble) {
@@ -905,6 +1069,13 @@ export function createTitleScene(canvas, o) {
         snowman: P(snowman.x, snowman.y - 38 * k),
         fly: { ...P(fly.x, fly.y), st: fly.st },
         dolphin: { on: dolphin.t >= 0, ...P(dolphin.x, hy + 14 * k) },
+        plane: (() => {
+          const [x, y] = planePos();
+          // clear — не за кроной пальмы (крона ближе к зрителю и забрала бы нажатие)
+          const clear = palms.every((p) => !near(x, y, ...crown(p), p.h * 0.34 + 30 * Math.max(k, 0.7)));
+          return { on: planeOn(), clear, ...P(x, y), dir: plane.dir, trick: T - plane.trick < PLANE_TRICK, hearts: plane.hearts.length, top: Math.round(planeBand()[0] + r.top) }; // prettier-ignore
+        })(),
+        mermaid: { st: mer.st, ...P(...merHit()), water: Math.round(mer.y + r.top) },
         drawn: strokes.reduce((n, st) => n + st.length, 0),
         // сколько кусков у рисунка (линия начинается заново) и самый большой шаг между точками внутри куска
         ink: strokes.map((st) => ({
@@ -919,6 +1090,31 @@ export function createTitleScene(canvas, o) {
     /** Для автотеста: позвать редкого гостя сейчас. */
     callDolphin() {
       dolphin.next = 0;
+    },
+    /** Для автотеста: позвать самолётик сейчас (летит из-за края). */
+    callPlane() {
+      if (!planeOn()) planeGo();
+    },
+    /** Для автотеста: позвать русалочку сейчас (сразу показать её над водой — st 'look'). */
+    callMermaid(now = true) {
+      dolphin.t = -1;
+      if (mer.st === 'off') merGo();
+      if (now) merSet('look');
+      mer.look = 30;
+    },
+    /** Для автотеста: редкие гости (самолётик, русалочка, дельфин) сами не приходят — нажатия по небу и морю
+     * достаются облакам, кораблику и рыбкам. */
+    guests(on) {
+      guests = !!on;
+      if (!on) dolphin.next = 1e9;
+    },
+    /** Для автотеста: поставить бабочку (светлячков) в точку x, y окна — проверить, что она не перехватит нажатие. */
+    flyAt(x, y) {
+      const r = canvas.getBoundingClientRect();
+      fly.st = 'roam';
+      fly.next = T + 30;
+      fly.x = x - r.left;
+      fly.y = y - r.top;
     },
   };
 }

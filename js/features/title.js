@@ -81,7 +81,8 @@ export function openTitle({ start }) {
   let res = openActive(); // { ok, problem, lost, restored }: G.state — последняя игра (если она есть и читается)
   let scene = null,
     sceneKey = '';
-  /** Свободное место для сцены: всё, что не под заголовком и не под кнопками. */
+  /** Свободное место для сцены: всё, что не под заголовком и не под кнопками. open — выше этой линии свободна вся
+   * ширина экрана (кнопки сбоку начинаются ниже: там может пролететь самолётик). */
   const free = () => {
     const r = t.getBoundingClientRect(),
       h = head.getBoundingClientRect(),
@@ -89,7 +90,7 @@ export function openTitle({ start }) {
     const side = mn.height > r.height * 0.6 || mn.left > r.width * 0.5; // кнопки сбоку (экран лежит)
     const top = Math.min(h.bottom - r.top, r.height * 0.4);
     return side
-      ? { x: 0, y: top, w: Math.max(160, mn.left - r.left - 8), h: r.height - top }
+      ? { x: 0, y: top, w: Math.max(160, mn.left - r.left - 8), h: r.height - top, open: mn.top - r.top - 8 }
       : { x: 0, y: top, w: r.width, h: Math.max(160, mn.top - r.top - top - 6) };
   };
   /** Сцена показывает время суток и погоду последней игры; игр нет — солнечный летний день. */

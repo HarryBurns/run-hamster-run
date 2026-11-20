@@ -1,11 +1,19 @@
 // РИСОВАНИЕ живой заставки (features/title_scene.js): небо, море и песок (кэш bg), волны, облака, пальмы, кораблик,
-// дельфин, рыбки, крабик, чайка, ракушка, снеговик, воздушный змей, рисунок на песке, хомячок, бабочка и светлячки,
-// погода, ночное небо. Здесь только рисование: что где находится и что происходит, решает title_scene.js
+// дельфин, рыбки, самолётик, русалочка, крабик, чайка, ракушка, снеговик, воздушный змей, рисунок на песке, хомячок,
+// бабочка и светлячки, погода, ночное небо. Здесь только рисование: что где находится и что происходит, решает title_scene.js
 // (layout, update, down) — оттуда приходит S, состояние заставки. Порядок слоёв кадра — frame() там же.
 import { TAU, clamp, lerp, seeded } from '../core/util.js';
 import { mix, shade } from '../core/draw.js';
 import { drawHamster, blinkAt } from '../art/hamster.js';
 import { paintDolphin } from '../locations/cove_art.js';
+import { SpriteSet } from '../core/sprites.js';
+import { npcLook } from '../data/index.js';
+
+const OUT = '#4a3728',
+  PLANE_U = 1.15; // размер самолётика от общего масштаба заставки
+// кадры самолётика и русалочки рисуются один раз и потом только копируются (ключ — направление, поза, масштаб);
+// набор один на все заставки: сменился масштаб экрана — он сбрасывается сам
+const SP = new SpriteSet();
 
 // Облако — восемь «комков»; фигуры (зайчик, рыбка, хомячок) — те же восемь комков на других местах
 const CLOUD_SHAPES = {
@@ -21,8 +29,9 @@ const bell = (t) => Math.sin(clamp(t, 0, 1) * Math.PI);
 /**
  * Функции рисования заставки. S — состояние заставки из createTitleScene: размеры экрана и кадра (W, H, F, hy, sy,
  * bot, k, dpr), время T, кэш неба и моря bg, кто где сейчас (ham, crab, gull, shell, ship, dolphin, fly, kite,
- * snowman, star, stars, drops, jumps, rings, strokes, feathers), погода и время суток (rain, snow, windy, winter,
- * night, dk, dusk), внешность хомячка look и общие расчёты (shoreY, sway, crown, hamTop, kitePos).
+ * snowman, star, stars, drops, jumps, rings, strokes, feathers, plane, mer), погода и время суток (rain, snow, windy,
+ * winter, night, dk, dusk), внешность хомячка look и общие расчёты (shoreY, sway, crown, hamTop, kitePos, planeOn,
+ * planePos, planeSpan, merS, merUp).
  */
 export function createTitleArt(S) {
   // ---------- то, что не движется: небо, море, песок ----------
@@ -804,6 +813,306 @@ export function createTitleArt(S) {
     }
     if (q >= 0.3 && q < 3.6) label(S.star.x, S.star.y + 70 * S.k, '🌠 Загадай желание!', 19 * Math.max(S.k, 0.75), clamp((3.6 - q) * 2, 0, 1) * clamp((q - 0.3) * 4, 0, 1)); // prettier-ignore
   }
+  // ---------- самолётик ----------
+  /** Скопировать кадр s из кэша так, чтобы его точка (0, 0) попала в (x, y); rot — поворот (тогда чуть мягче). */
+  function blit(s, x, y, rot = 0) {
+    if (!s.c) return;
+    const d = S.dpr;
+    S.ctx.save();
+    if (rot) {
+      S.ctx.translate(x, y);
+      S.ctx.rotate(rot);
+      S.ctx.drawImage(s.c, -s.ax / d, -s.ay / d, s.w / d, s.h / d);
+    } else {
+      S.ctx.setTransform(1, 0, 0, 1, 0, 0);
+      S.ctx.drawImage(s.c, Math.round(x * d) - s.ax, Math.round(y * d) - s.ay);
+    }
+    S.ctx.restore();
+  }
+  // винтовой самолётик сбоку, нос — вправо (dir −1 — зеркально); в кабине — хомячок-лётчик в очках
+  function paintPlane(c, u, dir) {
+    c.scale(dir * u, u);
+    c.lineWidth = 1.6;
+    c.strokeStyle = OUT;
+    const shape = (fill, pts) => {
+      c.fillStyle = fill;
+      c.beginPath();
+      pts();
+      c.closePath();
+      c.fill();
+      c.stroke();
+    };
+    const dot = (x, y, r, col) => {
+      c.fillStyle = col;
+      c.beginPath();
+      c.arc(x, y, r, 0, TAU);
+      c.fill();
+    };
+    // киль
+    shape('#ffd43b', () => {
+      c.moveTo(-21, -5);
+      c.lineTo(-29, -19);
+      c.quadraticCurveTo(-25, -22, -22, -18);
+      c.lineTo(-13, -6);
+    });
+    // лётчик — хомячок той же масти, что на берегу: голова над бортом, ушки, очки на лбу
+    const fur = (S.look && S.look.fur) || '#f4b88a';
+    for (const [ex, ey] of [[-8, -17], [1, -18]]) shape(fur, () => c.arc(ex, ey, 2.8, 0, TAU)); // prettier-ignore
+    shape(fur, () => c.arc(-3, -11, 6.8, 0, TAU));
+    c.fillStyle = '#4dabf7';
+    c.fillRect(-9.5, -16, 13, 2.4);
+    shape('#d0ebff', () => c.arc(2.5, -15, 2.6, 0, TAU));
+    dot(3, -10.5, 1.3, '#222');
+    dot(1.2, -7.6, 1.8, 'rgba(255,130,160,.55)');
+    // корпус с белой полоской
+    shape('#ff6b6b', () => {
+      c.moveTo(15, -6);
+      c.quadraticCurveTo(22, -5, 22, 0);
+      c.quadraticCurveTo(22, 6, 14, 7);
+      c.lineTo(-6, 7);
+      c.quadraticCurveTo(-22, 5, -31, -2);
+      c.quadraticCurveTo(-31, -6, -25, -6);
+    });
+    c.fillStyle = 'rgba(255,255,255,.9)';
+    c.beginPath();
+    c.moveTo(-25, -1.5);
+    c.quadraticCurveTo(-6, 0.5, 19, -1);
+    c.lineTo(19, 1.6);
+    c.quadraticCurveTo(-6, 3.6, -23, 1.2);
+    c.closePath();
+    c.fill();
+    shape('#ffd43b', () => c.ellipse(-25, -2, 6.5, 2.2, 0, 0, TAU)); // хвостовое крылышко
+    shape('#fff3bf', () => c.ellipse(-1, 4, 15, 3.6, -0.05, 0, TAU)); // крыло
+    c.beginPath();
+    c.moveTo(2, 7);
+    c.lineTo(5, 13);
+    c.stroke();
+    shape('#495057', () => c.arc(5, 13.5, 3, 0, TAU)); // колесо
+    shape('#ffd43b', () => c.arc(21, 0, 4.5, 0, TAU)); // нос
+  }
+  /** Только в свободной части экрана: самолётик не залетает под кнопки сбоку и под заголовок. */
+  function clipFree() {
+    const [x0, x1] = S.planeSpan();
+    S.ctx.beginPath();
+    S.ctx.rect(x0, S.F.y, x1 - x0, S.H - S.F.y);
+    S.ctx.clip();
+  }
+  function drawPlane() {
+    SP.setScale(S.dpr);
+    SP.tick();
+    const P = S.plane;
+    if (!S.planeOn() && !P.hearts.length) return;
+    const ctx = S.ctx,
+      k = S.k,
+      u = k * PLANE_U;
+    ctx.save();
+    clipFree();
+    // сердечки из дыма: облачка одно за другим по контуру сердца, потом тают
+    for (const h of P.hearts) {
+      const grow = clamp(h.t / 0.9, 0, 1),
+        a = clamp((4.5 - h.t) / 1.6, 0, 1) * 0.85,
+        R = 16 * k * (0.7 + 0.3 * grow),
+        n = 18;
+      ctx.fillStyle = `rgba(255,240,246,${a.toFixed(3)})`;
+      ctx.beginPath();
+      for (let i = 0; i < n * grow; i++) {
+        const th = (i / n) * TAU,
+          hx = 16 * Math.sin(th) ** 3,
+          hy = -(13 * Math.cos(th) - 5 * Math.cos(2 * th) - 2 * Math.cos(3 * th) - Math.cos(4 * th)),
+          x = h.x + (hx / 16) * R,
+          y = h.y + (hy / 16) * R,
+          r = (2.8 + h.t * 0.5) * k;
+        ctx.moveTo(x + r, y);
+        ctx.arc(x, y, r, 0, TAU);
+      }
+      ctx.fill();
+    }
+    if (S.planeOn()) {
+      const [x, y, rot] = S.planePos(),
+        d = P.dir;
+      ctx.translate(x, y);
+      ctx.rotate(rot);
+      ctx.save();
+      ctx.scale(d * u, u);
+      // ленточка-флажок на верёвочке: развевается волной
+      const wv = (i) => Math.sin(S.T * 7 - i * 0.9) * 2.4 * Math.min(1, i / 2 + 0.2);
+      ctx.strokeStyle = 'rgba(90,70,60,.75)';
+      ctx.lineWidth = 1.1;
+      ctx.beginPath();
+      ctx.moveTo(-30, -2);
+      ctx.lineTo(-44, wv(0) - 0.5);
+      ctx.stroke();
+      for (const [col, h0] of [
+        ['#ff8fab', 6],
+        ['#ffe066', 2],
+      ]) {
+        ctx.fillStyle = col;
+        ctx.beginPath();
+        for (let i = 0; i <= 5; i++) ctx.lineTo(-44 - i * 8, wv(i) - h0 + i * h0 * 0.08);
+        for (let i = 5; i >= 0; i--) ctx.lineTo(-44 - i * 8, wv(i) + h0 - i * h0 * 0.08);
+        ctx.closePath();
+        ctx.fill();
+        if (h0 > 2) {
+          ctx.strokeStyle = OUT;
+          ctx.lineWidth = 1.2;
+          ctx.stroke();
+        }
+      }
+      ctx.restore();
+      const s = SP.get(`plane:${d}:${Math.round(u * 100)}`, [-36 * u, -26 * u, 36 * u, 19 * u], (c) => paintPlane(c, u, d)); // prettier-ignore
+      if (s.c) ctx.drawImage(s.c, -s.ax / S.dpr, -s.ay / S.dpr, s.w / S.dpr, s.h / S.dpr);
+      // пропеллер крутится
+      ctx.scale(d * u, u);
+      ctx.fillStyle = 'rgba(255,255,255,.4)';
+      ctx.beginPath();
+      ctx.ellipse(25.5, 0, 2.2, 11, 0, 0, TAU);
+      ctx.fill();
+      const b = Math.sin(S.T * 31) * 10;
+      ctx.strokeStyle = '#6b4a35';
+      ctx.lineWidth = 2.4;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(25.5, -b);
+      ctx.lineTo(25.5, b);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+  /** Ночью — огоньки на крыле и на хвосте (поверх затемнения). Летит вправо — видно левое крыло, красный огонёк. */
+  function drawPlaneLights() {
+    if (!S.planeOn() || S.dk < 0.25) return;
+    const [x, y, rot] = S.planePos(),
+      d = S.plane.dir,
+      u = S.k * PLANE_U,
+      cs = Math.cos(rot),
+      sn = Math.sin(rot);
+    const at = (px, py) => [x + px * d * u * cs - py * u * sn, y + px * d * u * sn + py * u * cs];
+    S.ctx.save();
+    clipFree();
+    for (const [px, py, col, a] of [
+      [-14, 5, d > 0 ? '255,96,96' : '110,255,150', 1],
+      [-29, -19, '255,255,235', Math.sin(S.T * 5) > 0.3 ? 1 : 0.2],
+    ]) {
+      const [lx, ly] = at(px, py),
+        r = 11 * S.k,
+        al = a * S.dk;
+      const g = S.ctx.createRadialGradient(lx, ly, 0, lx, ly, r);
+      g.addColorStop(0, `rgba(${col},${(0.8 * al).toFixed(3)})`);
+      g.addColorStop(1, `rgba(${col},0)`);
+      S.ctx.fillStyle = g;
+      S.ctx.fillRect(lx - r, ly - r, r * 2, r * 2);
+      circle(lx, ly, 2.1 * S.k, `rgba(${col},${al.toFixed(3)})`);
+    }
+    S.ctx.restore();
+  }
+  // ---------- русалочка ----------
+  // Жемчужинка из бухты (тот же рисунок, что в locations/cove.js): по пояс в воде, хвост мелькает за ней
+  function merPose() {
+    const M = S.mer,
+      t = M.t;
+    if (M.st === 'wave') return { dir: 0, arms: Math.sin(t * 14) > 0 ? 1 : 0 };
+    if (M.st !== 'look') return { dir: 0, arms: 0 };
+    const wave = t > M.look * 0.45 && t < M.look * 0.45 + 1.1; // сама машет
+    return { dir: wave ? 0 : [0, -1, 0, 1][Math.floor(t / 1.3) % 4], arms: wave && Math.sin(t * 12) > 0 ? 1 : 0 };
+  }
+  function paintTail(c, ms) {
+    c.scale(ms, ms);
+    c.fillStyle = '#38d9a9';
+    c.strokeStyle = OUT;
+    c.lineWidth = 2;
+    c.beginPath();
+    c.moveTo(0, 16);
+    c.lineTo(-4, -4);
+    c.quadraticCurveTo(-18, -16, -22, -6);
+    c.quadraticCurveTo(-8, -6, 0, 2);
+    c.quadraticCurveTo(8, -6, 22, -6);
+    c.quadraticCurveTo(18, -16, 4, -4);
+    c.closePath();
+    c.fill();
+    c.stroke();
+    c.strokeStyle = '#96f2d7';
+    c.lineWidth = 1.4;
+    c.beginPath();
+    c.moveTo(-1, 10);
+    c.lineTo(-2, 0);
+    c.moveTo(1, 10);
+    c.lineTo(2, 0);
+    c.stroke();
+  }
+  function drawMermaid() {
+    const M = S.mer;
+    if (M.st === 'off') return;
+    SP.setScale(S.dpr);
+    const ctx = S.ctx,
+      ms = S.merS(),
+      up = S.merUp(),
+      x = M.x,
+      wy = M.y,
+      sk = Math.round(ms * 100);
+    // хвост: мелькает за спиной, пока она оглядывается, и уходит под воду последним, когда ныряет
+    let tail = null;
+    if (M.st === 'look')
+      for (const t0 of [1, M.look - 2.3]) {
+        const q = (M.t - t0) / 0.9;
+        if (q > 0 && q < 1) tail = [x + M.side * 30 * ms, Math.sin(q * Math.PI), M.side * (0.25 - q * 0.5)];
+      }
+    if (M.st === 'dive') {
+      const q = (M.t - 0.4) / 0.9;
+      if (q > 0 && q < 1) tail = [x + M.side * 6 * ms, Math.sin(q * Math.PI) * 1.25, M.side * (q - 0.5) * 0.8];
+    }
+    // светлая вода вокруг
+    if (up > 0.02) {
+      ctx.fillStyle = `rgba(255,255,255,${(0.35 * up).toFixed(3)})`;
+      ctx.beginPath();
+      ctx.ellipse(x, wy, 30 * ms, 7.5 * ms, 0, 0, TAU);
+      ctx.fill();
+    }
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(0, 0, S.W, wy + 1.5 * ms); // только то, что над водой
+    ctx.clip();
+    if (tail) blit(SP.get(`mertail:${sk}`, [-26 * ms, -20 * ms, 26 * ms, 20 * ms], (c) => paintTail(c, ms)), tail[0], wy + 14 * ms - tail[1] * 24 * ms, tail[2]); // prettier-ignore
+    if (up > 0) {
+      const p = merPose(),
+        b = blinkAt(S.T + 1.7, 3) > 0.4 ? 1 : 0;
+      const s = SP.get(
+        `mer:${p.dir}:${p.arms}:${b}:${sk}`,
+        [-72 * ms, -140 * ms, 72 * ms, -18 * ms],
+        (c) =>
+        drawHamster(c, 0, 0, ms, npcLook('pearl'), { dir: p.dir, clipBelow: -22, happy: true, armsUp: !!p.arms, blink: b, shadow: false }), // prettier-ignore
+      );
+      blit(s, x, wy + 22 * ms + (1 - up) * 76 * ms);
+    }
+    ctx.restore();
+    if (up > 0.02) {
+      // пена у пояса — спереди
+      ctx.strokeStyle = `rgba(255,255,255,${(0.9 * up).toFixed(3)})`;
+      ctx.lineWidth = 2.4 * S.k;
+      ctx.beginPath();
+      ctx.ellipse(x, wy, (24 + Math.sin(S.T * 3) * 2.5) * ms, 6.5 * ms, 0, 0, Math.PI);
+      ctx.stroke();
+    }
+  }
+  /** Ночью русалочка чуть светится (поверх затемнения): мягкий голубой ореол и искорки. */
+  function drawMermaidGlow() {
+    const M = S.mer;
+    if (M.st === 'off' || S.dk < 0.25) return;
+    const ms = S.merS(),
+      up = S.merUp(),
+      x = M.x,
+      y = M.y - 26 * ms + (1 - up) * 40 * ms,
+      r = 74 * ms,
+      a = 0.3 * up * S.dk;
+    const g = S.ctx.createRadialGradient(x, y, 0, x, y, r);
+    g.addColorStop(0, `rgba(160,235,255,${a.toFixed(3)})`);
+    g.addColorStop(1, 'rgba(160,235,255,0)');
+    S.ctx.fillStyle = g;
+    S.ctx.fillRect(x - r, y - r, r * 2, r * 2);
+    for (let i = 0; i < 5; i++) {
+      const tw = 0.5 + 0.5 * Math.sin(S.T * 3 + i * 1.7);
+      circle(x + Math.sin(i * 2.4 + S.T * 0.6) * 40 * ms, y + Math.cos(i * 1.9 + S.T * 0.5) * 30 * ms, 1.8 * S.k, `rgba(220,250,255,${(tw * up * S.dk).toFixed(3)})`); // prettier-ignore
+    }
+  }
   return {
     paintBg,
     label,
@@ -823,5 +1132,9 @@ export function createTitleArt(S) {
     drawFly,
     drawWeather,
     drawNightSky,
+    drawPlane,
+    drawPlaneLights,
+    drawMermaid,
+    drawMermaidGlow,
   };
 }
