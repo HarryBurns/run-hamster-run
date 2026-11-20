@@ -2,7 +2,7 @@
 // (на полу). При масштабе 1 хомячок ростом около 85 px. Одежда и обувь — art/hamster_wear.js, шапки и
 // аксессуары — art/hamster_hats.js.
 import { TAU } from '../core/util.js';
-import { ell, line, poly, shade } from '../core/draw.js';
+import { ell, fillRR, line, poly, shade } from '../core/draw.js';
 import { OUT, bodyPath, sleevesOf, drawLegs, drawBody, collar, drawFeet } from './hamster_wear.js';
 import { drawHat, drawAccBack, drawAcc } from './hamster_hats.js';
 export { drawShoePair } from './hamster_wear.js';
@@ -113,7 +113,8 @@ const TURN = 8.5,
  *               kick: фаза 0..1 — сидит и болтает ногами (лапки по очереди приподнимаются; без walk),
  *               sneeze: 0..1 — чихает (0–0,45 «а-а-а…», 0,45–0,85 «апчхи!»), null — нет,
  *               fan: время — обмахивается правой лапкой у мордочки (жара в пустыне),
- *               grip: true — висит, держась обеими лапками за лиану над головой (лапки вверх, вместе)}
+ *               grip: true — висит, держась обеими лапками за лиану над головой (лапки вверх, вместе),
+ *               back: true — сидит спиной к зрителю (за столиком кафе, пикника: drawBack)}
  *
  * Направление (dir) показывает ПОЗА, рисунок не зеркалится: мордочка (глаза, нос, рот, усы, щёчки, очки)
  * поворачивается в сторону dir, носки и козырёк кепки смотрят туда же, на ходу хомячок слегка наклоняется
@@ -121,6 +122,7 @@ const TURN = 8.5,
  * на одной и той же стороне при любом dir. Без dir хомячок смотрит прямо на зрителя.
  */
 export function drawHamster(ctx, x, y, s, look, pose = {}) {
+  if (pose.back) return drawBack(ctx, x, y, s, look, pose);
   const o = look.outfit || {},
     b = look.beauty || {};
   const k = pose.dir === 1 || pose.dir === -1 ? pose.dir : 0; // куда повёрнут; 0 — смотрит прямо
@@ -494,6 +496,76 @@ function gripArms(ctx, fur, body) {
     }
     ell(ctx, sx * 6, -94, 6, 5.5, fur, OUT, 1.6); // ладошка
   }
+}
+
+/**
+ * Сидит спиной к зрителю (пачка 20 ноября: за столиком кафе и пикника). Мордочки не видно: затылок, уши без
+ * розового, хвостик, лапки тянутся вперёд — к столу (видны только локти). Пятна — с другой стороны, чем спереди
+ * (спина — зеркало); бантик тоже. То, что носят за спиной (рюкзак, плащ, крылья), — поверх тела. Одежда — та же,
+ * что спереди (рисунок на ткани — как принт на спине), шапка — тоже; очки и бусы спереди не видны.
+ */
+function drawBack(ctx, x, y, s, look, pose) {
+  const o = look.outfit || {},
+    b = look.beauty || {},
+    fur = look.fur,
+    time = pose.time || 0;
+  ctx.save();
+  ctx.translate(x, y);
+  if (pose.shadow !== false) ell(ctx, 0, s, 24 * s, 6 * s, 'rgba(0,0,0,.16)');
+  ctx.scale(s, s);
+  ctx.lineJoin = 'round';
+  ctx.translate(0, -Math.sin(time * 2.2) * 0.7);
+  // локти: лапки лежат на столе впереди, из-за спины видно только их
+  for (const sx of [-1, 1]) ell(ctx, sx * 23, -32, 6, 8.5, fur, OUT, 1.6, sx * 0.6);
+  // тело, пятна (зеркально), хвостик
+  bodyPath(ctx);
+  ctx.fillStyle = fur;
+  ctx.fill();
+  ctx.save();
+  ctx.clip();
+  if (look.spots) {
+    ell(ctx, 17, -18, 10, 9, look.spots);
+    ell(ctx, -17, -8, 7, 6, look.spots);
+  }
+  ctx.fillStyle = 'rgba(0,0,0,.05)';
+  ctx.fillRect(-30, -8, 60, 12);
+  ctx.restore();
+  bodyPath(ctx);
+  ctx.strokeStyle = OUT;
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  drawLegs(ctx, o.legs);
+  drawBody(ctx, o.body);
+  if (!(o.legs && o.legs.kind === 'mermaid')) ell(ctx, 0, -5, 5, 4, look.belly || fur, OUT, 1.4); // хвостик
+  if (o.acc && BACK_ACC.includes(o.acc.kind)) {
+    if (o.acc.kind === 'backpack') {
+      // рюкзачок на спине целиком: клапан и кармашек
+      fillRR(ctx, -16, -46, 32, 32, 9, o.acc.c, OUT, 1.8);
+      fillRR(ctx, -16, -46, 32, 12, 7, shade(o.acc.c, -0.15), OUT, 1.5);
+      fillRR(ctx, -9, -26, 18, 9, 3, shade(o.acc.c, 0.2), OUT, 1.3);
+    } else drawAccBack(ctx, o.acc, time);
+  }
+  // уши (сзади — без розового) и затылок
+  for (const sx of [-1, 1]) ell(ctx, sx * 19, -71, 8.5, 8.5, look.spots && sx === -1 ? look.spots : fur, OUT, 2);
+  headPath(ctx);
+  ctx.fillStyle = fur;
+  ctx.fill();
+  ctx.save();
+  ctx.clip();
+  if (look.spots) ell(ctx, -14, -60, 13, 12, look.spots);
+  ell(ctx, 0, -34, 22, 8, 'rgba(0,0,0,.06)'); // тень под затылком
+  ctx.restore();
+  headPath(ctx);
+  ctx.strokeStyle = OUT;
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  const hat = o.head;
+  if (b.tuft && (!hat || ['earmuffs', 'wreath', 'catears', 'flower', 'shellclip'].includes(hat.kind)))
+    drawTuft(ctx, b.tuft, b.hair || look.spots || shade(fur, -0.35));
+  if (hat) drawHat(ctx, hat, 1);
+  if (b.bow) drawBow(ctx, b.bow, hat ? 24 : 15, hat ? -62 : -74);
+  if (o.acc && o.acc.kind === 'scarf') ell(ctx, 0, -30, 21, 6.5, o.acc.c, OUT, 1.8); // шарф сзади — полоской
+  ctx.restore();
 }
 
 /** Портрет (голова крупно) в квадрате size×size с центром в (cx, cy). */

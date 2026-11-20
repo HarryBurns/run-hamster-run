@@ -52,4 +52,32 @@ module.exports = async function rest(ctx) {
       expect(!(await busy()), 'гамак остался «занятым»', await busy());
     },
   );
+
+  await step(
+    'отдых 20н: за столиком кафе и для пикника — сидит спиной к нам, житель подсаживается напротив',
+    async () => {
+      await fresh();
+      await L.teleport(55, 25);
+      let r = await sitOn('cafeTable', 55, 23);
+      expect(r.how === 'table' && r.spot === 0, 'не села за столик кафе (спиной к нам — место 0)', r);
+      // кадр «спиной» нарисовался в кэш спрайтов без ошибок
+      const back = await ev(() => [...window.__dev.topdown.SP.map.keys()].some((k) => k.includes(':back:1:')));
+      expect(back, 'нет кадра «сидит спиной» за столиком кафе');
+      expect(await ev(() => window.__dev.F.relaxJoinNow()), 'никто не идёт подсесть за столик');
+      await until(() => window.__dev.F.relaxNow().mate && window.__dev.F.relaxNow().mate.seated, undefined, {
+        timeout: 15000,
+        msg: 'житель не сел напротив',
+      });
+      const mate = await ev(() => {
+        const n = window.__dev.World.npcs.find((q) => q.id === window.__dev.F.relaxNow().mate.id);
+        return { y: n.y, ty: Math.floor(n.y / 48) };
+      });
+      expect(mate.ty === 22, 'житель сидит не напротив (за столиком, выше по карте)', mate);
+      await standUp();
+      await L.teleport(80, 46);
+      r = await sitOn('picnicTable', 80, 44);
+      expect(r.how === 'table' && r.spot === 0, 'не села за стол для пикника', r);
+      await standUp();
+    },
+  );
 };

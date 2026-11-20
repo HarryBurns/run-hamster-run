@@ -624,9 +624,19 @@ defineObjects({
   },
   cafeTable: {
     solid: true,
+    // присесть за столик (пачка 20 ноября): хомячок — спереди, спиной к нам; житель — напротив, за столиком
+    ...seat(
+      'table',
+      [
+        [-14, 16, -14, 33],
+        [14, -6, 14, -31, 'npc'],
+      ],
+      { dx: 26, up: 40, down: 24 },
+    ),
     art: {
+      // зонт поднят повыше: под ним видно голову того, кто сидит напротив
       cafeTable: [
-        [-40, -90, 40, 24],
+        [-40, -104, 40, 24],
         (ctx, v, snow) => {
           const col = ['#fa5252', '#4dabf7', '#12b886', '#f59f00', '#e64980'][v % 5];
           shadow(ctx, 0, 14, 28, 6);
@@ -647,39 +657,39 @@ defineObjects({
             ell(ctx, 5, -11, 3.4, 2, col, OUT, 1);
           }
           // зонтик
-          line(ctx, 0, -10, 0, -70, OUT, 3.4);
-          line(ctx, 0, -10, 0, -70, '#e9ecef', 1.6);
+          line(ctx, 0, -10, 0, -84, OUT, 3.4);
+          line(ctx, 0, -10, 0, -84, '#e9ecef', 1.6);
           if (snow) {
             // зимой зонт сложен
-            poly(ctx, [-5, -30, 0, -72, 5, -30], col, OUT, 1.8);
-            snowCap(ctx, 0, -70, 10, 4);
+            poly(ctx, [-5, -44, 0, -86, 5, -44], col, OUT, 1.8);
+            snowCap(ctx, 0, -84, 10, 4);
             return;
           }
           // купол зонта дольками, с фестонами и тенью справа
           for (let i = 0; i < 6; i++) {
             ctx.beginPath();
-            ctx.moveTo(0, -62);
-            ctx.arc(0, -46, 32, Math.PI + (i * Math.PI) / 6, Math.PI + ((i + 1) * Math.PI) / 6);
+            ctx.moveTo(0, -76);
+            ctx.arc(0, -60, 32, Math.PI + (i * Math.PI) / 6, Math.PI + ((i + 1) * Math.PI) / 6);
             ctx.closePath();
             ctx.fillStyle = i % 2 ? '#fff' : col;
             ctx.fill();
           }
           ctx.save();
           ctx.beginPath();
-          ctx.arc(0, -46, 32, Math.PI, 0);
+          ctx.arc(0, -60, 32, Math.PI, 0);
           ctx.closePath();
           ctx.clip();
           ctx.fillStyle = 'rgba(0,0,0,.1)';
-          ctx.fillRect(8, -80, 30, 40);
+          ctx.fillRect(8, -94, 30, 40);
           ctx.restore();
           ctx.beginPath();
-          ctx.arc(0, -46, 32, Math.PI, 0);
-          for (let i = 5; i >= 0; i--) ctx.arc(-32 + (i + 0.5) * (64 / 6), -46, 64 / 12, 0, Math.PI, true);
+          ctx.arc(0, -60, 32, Math.PI, 0);
+          for (let i = 5; i >= 0; i--) ctx.arc(-32 + (i + 0.5) * (64 / 6), -60, 64 / 12, 0, Math.PI, true);
           ctx.closePath();
           ctx.strokeStyle = OUT;
           ctx.lineWidth = 2;
           ctx.stroke();
-          ell(ctx, 0, -79, 2.5, 2.5, col, OUT, 1.2);
+          ell(ctx, 0, -93, 2.5, 2.5, col, OUT, 1.2);
         },
       ],
     },
@@ -742,6 +752,15 @@ defineObjects({
   }),
   picnicTable: simple('picnicTable', {
     solid: true,
+    // посидеть на лавке спиной к нам (пачка 20 ноября); житель — напротив, за столом
+    ...seat(
+      'table',
+      [
+        [-11, 2, -11, 31],
+        [12, -9, 12, -31, 'npc'],
+      ],
+      { dx: 30, up: 34, down: 20 },
+    ),
     art: {
       picnicTable: [
         [-34, -36, 36, 22],

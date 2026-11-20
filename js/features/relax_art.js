@@ -125,6 +125,32 @@ export function drawSitter(ctx, how, look, lk, x, y, t, ph, o, spot, dir, ct) {
     SP.draw(s, x, y);
     return;
   }
+  if (how === 'table') {
+    // за столиком кафе или для пикника: хомячок (место 0) сидит спиной к нам, на стуле или на лавке; житель
+    // напротив (место 1) — лицом к нам, ноги под столом (стол рисуется поверх него: житель стоит выше по карте)
+    const br = Math.floor(((Math.sin(t * 1.6 + ph) + 1) / 2) * 3.99);
+    if (spot === 0) {
+      const cafe = o.type === 'cafeTable';
+      const s = SP.get(`rx:${lk}:back:${cafe ? 1 : 0}:${br}`, [-46, -100, 46, 18], (c) => {
+        if (cafe) {
+          // стульчик как у столика: белое сиденье, ножки; спинка — между нами и хомячком
+          line(c, -9, 0, -10, 14, OUT, 2);
+          line(c, 9, 0, 10, 14, OUT, 2);
+          fillRR(c, -12, -3, 24, 5, 2, '#fff', OUT, 1.4);
+        }
+        drawHamster(c, 0, 0, PS * 0.85, look, { back: true, sit: true, shadow: false, time: br * 0.3 });
+        if (cafe) {
+          for (const sx of [-1, 1]) fillRR(c, sx * 10 - 1.5, -17, 3, 17, 1.5, '#fff', OUT, 1.3);
+          fillRR(c, -12, -18, 24, 5, 2, '#fff', OUT, 1.4);
+        }
+      });
+      SP.draw(s, x, y);
+      return;
+    }
+    const s = frame(`rx:${lk}:tbl:${shut}:${dir}`, look, { sit: true, shadow: false, blink: shut, dir }, 0.85);
+    SP.draw(s, x, y);
+    return;
+  }
   if (how === 'swing') {
     // качели: сиденье ходит вперёд-назад, на краях поднимается выше
     const a = Math.sin(t * 2.3 + ph) * 0.55,

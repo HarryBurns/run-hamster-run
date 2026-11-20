@@ -67,7 +67,7 @@ export function relaxAt(sc, o) {
   let best = -1,
     bd = 1e9;
   st.spots.forEach((s, i) => {
-    if (taken.has(i)) return;
+    if (taken.has(i) || s[4] === 'npc') return; // место только для жителя (напротив за столиком)
     const a = anchorOf(o, s),
       d = dist(a.x, a.y, p.x, p.y);
     if (d < bd) {
@@ -210,7 +210,7 @@ function mateSpot(c) {
   return best;
 }
 function tryJoin(c) {
-  if (c.how !== 'sit' && c.how !== 'lie' && c.how !== 'swing') return;
+  if (!['sit', 'lie', 'swing', 'table'].includes(c.how)) return;
   const free = mateSpot(c);
   if (!free) return;
   const sc = c.sc,
