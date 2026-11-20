@@ -291,6 +291,30 @@ module.exports = async function weather(ctx) {
         'жителей под дождём не рисуют с зонтиками',
         keys,
       );
+      // бассейн отеля — на открытой террасе: в любой дождь у него никого (по расписанию пришли бы — гуляют в городе)
+      const poolRain = await ev(async () => {
+        const D = await import('/js/data/index.js'),
+          Q = await import('/js/core/state.js'),
+          d = window.__dev,
+          s = d.G.state;
+        for (let day = s.day; day < s.day + 30; day++)
+          for (let h = 8; h < 20; h++)
+            if (D.poolGuestsOn(day, h * 60).length && !D.holidayOn(day, s.startDay || 0)) {
+              s.day = day;
+              s.minutes = h * 60 + 10;
+              d.weather('rain', 1);
+              const rain = Q.hotelPoolGuests().length,
+                id = D.poolGuestsOn(day, s.minutes)[0],
+                at = Q.npcPlace(id).at;
+              d.weather('sun');
+              return { day, h, rain, at, sun: Q.hotelPoolGuests().length };
+            }
+        return null;
+      });
+      expect(poolRain && poolRain.sun > 0, 'не нашлось дня с гостями у бассейна', poolRain);
+      expect(poolRain.rain === 0 && poolRain.at === 'out', 'в дождик кто-то у открытого бассейна', poolRain);
+      await mutate(`s.day = ${day}; s.minutes = 12 * 60;`);
+      await setWx('rain', 1);
       // без дождя — ни зонтиков, ни дождевиков
       await setWx('leaves');
       t = await town();

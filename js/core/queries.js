@@ -295,7 +295,8 @@ export function spaBoostOn() {
 export function hotelPoolGuests() {
   const s = G.state;
   if (!s) return [];
-  if (badWeather()) return []; // в ливень, грозу и метель у бассейна никого
+  // бассейн на открытой террасе на крыше: в любой дождь (и в ливень, грозу, метель) у него никого — гуляют в городе
+  if (badWeather() || weatherNow().kind === 'rain') return [];
   return poolGuestsOn(s.day, s.minutes).filter(
     (id) =>
       !(
