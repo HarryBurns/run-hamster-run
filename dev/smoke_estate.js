@@ -525,14 +525,22 @@ module.exports = async function estate(ctx) {
     await closeAll();
     await reenter(12);
     await closeAll();
-    const hidden = await ev(() => window.__dev.World.npcs.filter((n) => n.hidden).map((n) => n.id));
+    // кроме гостей отеля (номер, бассейн — data/hotel.js): их день — в отеле, они не на улице и не дома
+    const hidden = await ev(async () => {
+      const Q = await import('/js/core/queries.js');
+      return window.__dev.World.npcs
+        .filter((n) => n.hidden && (Q.npcPlace(n.id) || {}).where !== 'hotel')
+        .map((n) => n.id);
+    });
     expect(!hidden.length, 'наутро без приглашения жители не вышли на улицу', hidden);
     // письмо «день гостей» (З2): пока оно не прочитано — все гуляют; прочитали — трое хозяев дня ждут дома
-    // (и утром, и днём), остальные гуляют как обычно — на улицах кто-то есть
+    // (и утром, и днём), остальные гуляют как обычно — на улицах кто-то есть. Гость отеля (номер, бассейн) в свой
+    // день — в отеле: он считается с гуляющими (hotel)
     await ev(() => window.__dev.actions.setMail('guesting'));
     const streets = () =>
       ev(async () => {
         const D = await import('/js/data/index.js'),
+          Q = await import('/js/core/queries.js'),
           s = window.__dev.G.state,
           hosts = D.guestHosts(D.TASK_BY_ID[s.mail.task], s.day),
           npcs = window.__dev.World.npcs;
@@ -540,12 +548,17 @@ module.exports = async function estate(ctx) {
           hosts,
           waiting: npcs.filter((n) => hosts.includes(n.id)).every((n) => n.hidden && n.inside),
           out: npcs.filter((n) => !n.hidden).map((n) => n.id),
+          hotel: npcs.filter((n) => n.hidden && (Q.npcPlace(n.id) || {}).where === 'hotel').map((n) => n.id),
         };
       });
     for (const h of [12]) {
       await reenter(h);
       const r = await streets();
-      expect(r.out.length === 8, `«день гостей», ${h}:00, письмо не прочитано — кто-то уже сидит дома`, r);
+      expect(
+        r.out.length + r.hotel.length === 8,
+        `«день гостей», ${h}:00, письмо не прочитано — кто-то уже сидит дома`,
+        r,
+      );
     }
     await ev(() => window.__dev.actions.readMail());
     for (const h of [12]) {
@@ -553,7 +566,7 @@ module.exports = async function estate(ctx) {
       const r = await streets();
       expect(r.hosts.length === 3 && r.waiting, `«день гостей», ${h}:00: хозяева дня не ждут дома`, r);
       expect(
-        r.out.length === 5 && r.out.every((id) => !r.hosts.includes(id)),
+        r.out.length + r.hotel.length === 5 && r.out.every((id) => !r.hosts.includes(id)),
         `«день гостей», ${h}:00: на улицах должны гулять остальные пятеро`,
         r,
       );
@@ -566,7 +579,8 @@ module.exports = async function estate(ctx) {
     });
     await closeAll();
     await reenter(12);
-    expect((await streets()).out.length === 8, '«Чаепитие» не прочитано, а кто-то дома');
+    const t8 = await streets();
+    expect(t8.out.length + t8.hotel.length === 8, '«Чаепитие» не прочитано, а кто-то дома', t8);
     await ev(() => window.__dev.actions.readMail());
     await wait(200);
     const tg = await ev(() => {
