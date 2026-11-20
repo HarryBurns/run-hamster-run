@@ -158,7 +158,7 @@ function openHomeMall() {
           el(
             'p',
             'muted',
-            `Семена сажают на грядках во дворе виллы — каждую культуру в свой сезон. Сейчас ${c.seasonName.toLowerCase()} ${c.seasonIcon}: можно сажать ${SEEDS.filter(
+            `Семена сажают на грядках во дворе у дома — каждую культуру в свой сезон. Сейчас ${c.seasonName.toLowerCase()} ${c.seasonIcon}: можно сажать ${SEEDS.filter(
               (q) => canSow(q, month),
             )
               .map((q) => ING_BY_ID[q.crop].e + ' ' + q.sow.toLowerCase())

@@ -196,7 +196,7 @@ export function showLetter() {
     return;
   }
   if (!m.read) {
-    toast('Письмо ждёт в почтовом ящике у двери виллы ✉️');
+    toast('Письмо ждёт в почтовом ящике у двери дома ✉️');
     return;
   }
   sfx('paper');

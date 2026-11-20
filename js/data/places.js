@@ -37,7 +37,7 @@ export const PLACES = {
 export const LANDS = [
   {
     id: 'forest', name: 'Лес', icon: '🌲', npc: 'myata', who: 'Мята из парка', quest: 'herbarium',
-    door: 'Тропа в лес заросла.', from: 'world', at: 'за виллой, на северо-западе города',
+    door: 'Тропа в лес заросла.', from: 'world', at: 'за твоим домом, на северо-западе города',
     scene: 'forest', entry: 'gate', // сцена — locations/forest.js, вход gate — у ворот на южной опушке
   },
   // пустыня: остановка каравана на восточной окраине (особое место desert и выход за шлагбаум в locations/town.js);

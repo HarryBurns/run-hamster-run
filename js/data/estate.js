@@ -253,6 +253,18 @@ export const VILLA_UP_BY_ID = Object.fromEntries(VILLA_UPS.map((u) => [u.id, u])
 export const VILLA_UP_OLD = { house: 3, beds: 1, pond: 1, pool: 1, green: 0, build: null };
 /** Начало новой игры: маленький домик, 6 грядок. */
 export const VILLA_UP_NEW = { house: 0, beds: 0, pond: 0, pool: 0, green: 0, build: null };
+/**
+ * Как зовут свой первый дом на каждой ступени дома (state.villaUp.house): вилла он — с третьего этажа.
+ * name — подпись на карте; short — название в списках жилья; at — «где» (в гостях …); to — «куда» (гость бежит …).
+ * HOME_BY_ID.villa.name / atWords и PLACES.villa берут слова отсюда по построенной ступени (core/queries.js).
+ */
+export const VILLA_WORDS = [
+  { name: 'Мой домик', short: 'Домик', at: 'в домике', to: 'в домик' },
+  { name: 'Мой дом', short: 'Дом', at: 'дома', to: 'домой' },
+  { name: 'Мой дом', short: 'Дом', at: 'дома', to: 'домой' },
+  { name: 'Моя вилла', short: 'Вилла', at: 'на вилле', to: 'на виллу' },
+  { name: 'Моя вилла', short: 'Вилла', at: 'на вилле', to: 'на виллу' },
+];
 /** Самое большее по каждому виду. */
 export const VILLA_UP_MAX = { house: 4, beds: 2, pond: 1, pool: 1, green: 1 };
 // Грядки: номер в state.garden → куплена ли. Первые 8 — как были (два ряда по четыре: 0–3 и 4–7), в новой игре из них

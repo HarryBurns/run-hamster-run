@@ -113,7 +113,7 @@ function drawGarlands(ctx, sc) {
     const x0 = rm.x0 + 12,
       x1 = rm.x1 - 12;
     if (x1 - x0 < 160) return;
-    const key = `${sc.name}:${i}`;
+    const key = `${sc.name}:${i}:${x0}:${x1}:${top}`; // дом достроили («Вилла растёт») — комнаты другие
     let pic = pics.get(key);
     const h = Math.min(STRING_H, y - top + 12);
     if (!pic) pics.set(key, (pic = roomPic(id, x0, x1, h)));

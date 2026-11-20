@@ -2512,6 +2512,10 @@ dev/smoke_villa.js           автотест: node dev/smoke.js <url> "step:в�
   одинаковая в любой игре. `syncVillaYard` приводит двор к построенному: `m.retile(x, y, вид)` (новое в `map.js`),
   `m.add / m.remove` для лежаков, камышей и теплицы, потом `resetGround(m)` (`ground.js`) и событие `yard` — предметы
   двора, оказавшиеся в воде или на грядке, уходят в сарайчик. Теплица — предмет `villaGreenhouse` над клетками `bg`.
+- **Снаружи.** `paintVilla` (`locations/town_homes.js`) рисует дом по ступени; у вида здания `villa` поле `look` —
+  ступень входит в ключ спрайта (`render.js`, `drawBuilding`), так что после стройки картинка перерисовывается сама.
+  Как дом зовут — `VILLA_WORDS` (`data/estate.js`), `villaWords()` (`queries.js`); там же `HOME_BY_ID.villa.name` /
+  `atWords` и `PLACES.villa` стали геттерами по ступени, подпись здания на карте — геттер в `town.js`.
 - **Автотест.** `fresh()` из `dev/lib.js` по умолчанию зовёт `__dev.villaFull()` — вилла целиком с прежней стартовой
   мебелью (на неё рассчитаны прежние шаги); `fresh({ villa: 'small' })` — настоящая новая игра. `__dev.villaUp(id)` —
   построить ступень сразу.

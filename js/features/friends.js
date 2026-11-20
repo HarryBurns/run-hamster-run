@@ -28,6 +28,9 @@ import {
   invitedToday,
   npcWhere,
   npcLookNow,
+  villaStage,
+  villaWords,
+  yardHas,
 } from '../core/state.js';
 import { el, esc, pick } from '../core/util.js';
 import { drawPortrait } from '../art/hamster.js';
@@ -71,16 +74,15 @@ export function hostHome() {
   const sc = scene();
   return sc && sc.owned && sc.desc.guests && ownsHome(sc.houseKey) ? sc.houseKey : S().homeMain;
 }
-/** «на виллу», «в квартиру» — куда бежит гость. */
+/** «в квартиру», «в бунгало» — куда бежит гость; к первому дому — по ступени: «в домик», «домой», «на виллу». */
 const HOME_TO = {
-  villa: 'на виллу',
   flat: 'в квартиру',
   bungalow: 'в бунгало',
   penthouse: 'в пентхаус',
   cabin: 'в лесной домик',
   suite: 'в номер-люкс',
 };
-const homeTo = (id) => HOME_TO[id] || 'в гости';
+const homeTo = (id) => (id === 'villa' ? villaWords().to : HOME_TO[id] || 'в гости');
 
 /**
  * Житель зовёт к себе: «Заходи ко мне сегодня!» — и весь день ждёт дома (дверь открыта). Возвращает его реплику
@@ -184,7 +186,7 @@ export async function npcDialog(id) {
   let text;
   if (!fr.met) {
     meetNow(id);
-    text = `Привет! Я ${npc.name}. А ты, наверное, ${esc(S().name)} с большой виллы? Будем дружить!`;
+    text = `Привет! Я ${npc.name}. А ты, наверное, ${esc(S().name)} из дома на холме? Будем дружить!`;
   } else
     text =
       (talkHooks.greet && talkHooks.greet(id)) ||
@@ -262,8 +264,9 @@ export async function guestDialog(id) {
   let text = pick(
     here === 'villa'
       ? [
-          'Какая у тебя красивая вилла!',
-          'А можно мне потом в бассейн?',
+          // свой первый дом растёт («Вилла растёт»): вилла — с третьего этажа, бассейн — там же или во дворе
+          villaStage() >= 3 ? 'Какая у тебя красивая вилла!' : 'Какой у тебя славный домик!',
+          villaStage() >= 3 || yardHas('pool') ? 'А можно мне потом в бассейн?' : 'Мне у тебя очень нравится!',
           'У тебя так уютно!',
           'Чем это так вкусно пахнет?',
         ]

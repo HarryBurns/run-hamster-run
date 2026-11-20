@@ -7,7 +7,7 @@
 import { clamp } from '../core/util.js';
 import { ell, fillRR, line, poly, emoji } from '../core/draw.js';
 import { NPCS, ING_BY_ID, SEED_BY_ID, TASK_BY_ID, LAND_BY_ID, BIZ_BY_ID } from '../data/index.js';
-import { G, cal, ownsHome, landOpen, guestsWaiting, stepWaits, bedOwned, yardHas } from '../core/state.js';
+import { G, cal, ownsHome, landOpen, guestsWaiting, stepWaits, bedOwned, yardHas, villaWords } from '../core/state.js';
 import { T, OUT, SP, put, defineTiles, defineObjects } from '../engine/topdown/kinds.js';
 import { createTopDownScene } from '../engine/topdown/scene.js';
 import { run } from '../core/registry.js';
@@ -31,7 +31,7 @@ export { JOB_SPOTS };
 // не переименовывать. name — на вывеске; mapName — подпись для карты и кнопки «дойти», если нужна понятнее. Где что стоит — см. схему в docs/GDD.md («Город»).
 const B = (id, kind, x, y, w, h, o = {}) => ({ id, kind, x, y, w, h, ...o });
 export const BUILDINGS = [
-  B('villa', 'villa', 11, 4, 10, 5, { name: 'Моя вилла', wall: '#fff3d6', roof: '#f76e5c' }),
+  B('villa', 'villa', 11, 4, 10, 5, { wall: '#fff3d6', roof: '#f76e5c' }), // name — по ступени дома (ниже)
   // северная улица: магазины и небоскрёбы
   B('salon', 'salon', 32, 9, 4, 4, { name: 'Салон красоты', icon: '💇', wall: '#ffc9de', roof: '#e64980' }),
   B('boutique', 'boutique', 38, 9, 4, 4, { name: 'Бутик «Бантик»', icon: '🎀', wall: '#e5dbff', roof: '#845ef7' }),
@@ -180,6 +180,8 @@ const ownTitle = (id) => {
   const st = G.state && G.state.biz[id];
   return (st && st.title) || null;
 };
+// свой дом: «Мой домик» → «Мой дом» → «Моя вилла» (с третьего этажа) — по построенной ступени
+Object.defineProperty(BUILDINGS[0], 'name', { get: () => villaWords().name, enumerable: true });
 for (const b of BUILDINGS) {
   b.act = BUILDING_ACTS[b.id] || (b.npc ? 'home-of:' + b.npc : null);
   // дома жителей — по характеру хозяина: ставни, дорисовка поверх общего домика

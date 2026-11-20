@@ -146,6 +146,19 @@ const { pathToFileURL } = require('url');
   const avgBed = avgOf(ALL_MONTHS.map(bedAvgIn));
   const bestBed = Math.max(...ALL_MONTHS.map(bedBestIn));
   const fish = ING.fish.sell;
+  // Огород («Вилла растёт»): грядок во дворе GARDEN.beds — 6 в новой игре, 8 и 10 за монеты, — и теплица (любая
+  // культура в любой сезон, урожай уходит «не в сезон» — дороже). Правила раздела 3 (сбор в городе и в лесу, «день
+  // сбора») считают двор средней ступени — BEDS_MID грядок без теплицы, как у старых игр: столько у игрока бывает
+  // в первые недели. Весь огород (все грядки и теплица) — цель надолго (больше 18 000 монет на двор): его проверяет
+  // раздел 3б со своими пределами.
+  const { GARDEN } = D;
+  const BEDS_MID = GARDEN.beds[1],
+    BEDS_ALL = Math.max(...GARDEN.beds),
+    bedOffBest = Math.max(...beds.map((b) => b.perDayOff)),
+    greenDay = GARDEN.green * bedOffBest,
+    yardNow = (m) => BEDS_MID * bedBestIn(m), // урожай продан сразу
+    yardLater = (m) => BEDS_MID * bedBestOffIn(m), // придержан до «не сезона»
+    gardenNow = (m) => BEDS_ALL * bedBestIn(m) + greenDay; // весь огород: грядки — сразу, теплица — не в сезон
 
   const avg3 = payAt(3) / jobs.length;
   // потолок работы за день: оплачиваются не больше PAID_SHIFTS смен на месте и PAID_DAY на всех вместе (этап 17в) —
@@ -175,17 +188,17 @@ const { pathToFileURL } = require('url');
     if (!gatherIn(month).length) bad(`сбор: в месяце «${MONTHS[month]}» в городе нечего собрать`);
     if (gatherSum(month) >= avg2)
       bad(`сбор: ${MONTHS[month]} — ${gatherSum(month)} монет в день, это не меньше смены на 2★ (${fmt(avg2)})`);
-    // сбор + все 8 грядок под лучшей культурой сезона: продано сразу — меньше трёх смен на 2★;
+    // сбор + огород (BEDS_MID грядок под лучшей культурой сезона): продано сразу — меньше трёх смен на 2★;
     // придержано и продано не в сезон — всё равно не больше кошелька торговца
-    const now = gatherSum(month) + 8 * bedBestIn(month),
-      later = gatherOffSum(month) + 8 * bedBestOffIn(month);
+    const now = gatherSum(month) + yardNow(month),
+      later = gatherOffSum(month) + yardLater(month);
     if (now >= 3 * avg2)
       bad(`сбор и огород: ${MONTHS[month]} — ${fmt(now)} монет в день, это не меньше трёх смен на 2★`);
     if (later > MARKET.purse)
       bad(`сбор и огород: ${MONTHS[month]} — если продать не в сезон, ${fmt(later)} в день: больше кошелька торговца`);
   }
   // (е2) сбор в лесу (П.9) — главное место сбора: заметно щедрее города, но меньше полутора смен на 2★ за день;
-  // город + лес + 8 грядок под лучшей культурой — меньше трёх смен, а придержанное и проданное не в сезон —
+  // город + лес + огород (BEDS_MID грядок под лучшей культурой) — меньше трёх смен, а придержанное и проданное не в сезон —
   // не больше кошелька торговца. Сезоны — та же таблица (HARVEST_MONTHS); шишки и еловые веточки — не еда.
   const { FOREST_GATHER, FOREST } = D;
   const forestIn = (month) =>
@@ -203,8 +216,8 @@ const { pathToFileURL } = require('url');
   for (let month = 0; month < 12; month++) {
     const f = forestSum(month);
     if (f >= 1.5 * avg2) bad(`лес: ${MONTHS[month]} — ${f} монет в день, это не меньше полутора смен на 2★`);
-    const now = gatherSum(month) + f + 8 * bedBestIn(month),
-      later = gatherOffSum(month) + forestIn(month).reduce((a, q) => a + q.off, 0) + 8 * bedBestOffIn(month);
+    const now = gatherSum(month) + f + yardNow(month),
+      later = gatherOffSum(month) + forestIn(month).reduce((a, q) => a + q.off, 0) + yardLater(month);
     if (now >= 3 * avg2)
       bad(`город, лес и огород: ${MONTHS[month]} — ${fmt(now)} монет в день, это не меньше трёх смен на 2★`);
     if (later > MARKET.purse)
@@ -381,7 +394,7 @@ const { pathToFileURL } = require('url');
   // GATHER_DAY.shift минут (40 списывает сама смена и около 20 — дорога до работы).
   //   (1) поход в одно любое место даёт в минуту меньше трёх четвертей того, что даёт работа;
   //   (2) весь «день сбора» даёт в минуту меньше половины того, что даёт работа, — сбор приятный, но не выгодный;
-  //   (3) «день сбора» вместе с огородом (8 грядок под лучшей культурой — урожай снимают у дома) — меньше пяти смен
+  //   (3) «день сбора» вместе с огородом (BEDS_MID грядок под лучшей культурой — урожай снимают у дома) — меньше пяти смен
   //       на 2★ (день увлечённой игры на работе) и помещается в кошелёк торговца. (Придержанное до «не сезона»
   //       проверено выше для города, леса и огорода; продать за день больше кошелька всё равно нельзя.)
   // Новое место со сбором добавляется так: строка в GATHER_DAY.places и свой сбор в placeIn ниже — дальние места
@@ -455,7 +468,7 @@ const { pathToFileURL } = require('url');
       bad(
         `день сбора: ${MONTHS[month]} — ${(day.sum / day.time).toFixed(1)} монеты в минуту, это не меньше половины работы (${workPerMin.toFixed(1)})`,
       );
-    const withBeds = day.sum + 8 * bedBestIn(month);
+    const withBeds = day.sum + yardNow(month);
     if (withBeds >= 5 * avg2)
       bad(
         `день сбора с огородом: ${MONTHS[month]} — ${fmt(withBeds)} монет, это не меньше пяти смен на 2★ (${fmt(5 * avg2)})`,
@@ -747,7 +760,7 @@ const { pathToFileURL } = require('url');
     }
     if (got.some((d) => !D.wareOn(d, day))) bad(`рынок: день ${day} — привезли вещицу не в её день`);
   }
-  // задания: «Обновка» и «Уют на вилле» выполнимы в любой день — в ТЦ всегда есть базовые вещи (без сезона и привоза)
+  // задания: «Обновка» и «Уют в доме» выполнимы в любой день — в ТЦ всегда есть базовые вещи (без сезона и привоза)
   for (const shop of ['mall', 'home'])
     if (D.shopWares(shop).filter((q) => !q.def.season && !q.def.stock).length < 20)
       bad(`${WARE_SHOPS[shop]}: мало базовых вещей, которые есть всегда`);
@@ -841,8 +854,8 @@ const { pathToFileURL } = require('url');
       week: {
         work: 3 * avg2 + 2 * avg3,
         task: taskAvg,
-        market: (8 * avgBed + 7 * fish) * 1.15, // часть улова и урожая приготовлена: блюдо дороже сырых продуктов
-        how: '5 смен (две на 3★), задание, 8 грядок, 2 рыбалки, готовка',
+        market: (GARDEN.beds[1] * avgBed + 7 * fish) * 1.15, // часть улова и урожая приготовлена: блюдо дороже сырых продуктов
+        how: `5 смен (две на 3★), задание, ${GARDEN.beds[1]} грядок, 2 рыбалки, готовка`,
       },
     },
     {
@@ -885,8 +898,9 @@ const { pathToFileURL } = require('url');
   // Новая игра начинается в маленьком домике с GARDEN.beds[0] грядок. Первая ступень (пристройка) — за несколько
   // игровых дней, третий этаж — цель надолго (дороже квартиры). Теплица: любые семена круглый год, а урожай «не в сезон»
   // рынок берёт дороже — поэтому мест в ней мало, стоит она дорого и окупается долго; огород целиком (все грядки и
-  // теплица) вместе со сбором в городе — меньше трёх с половиной смен на 2★ в день и сам не больше кошелька торговца.
-  const { VILLA_PRICES, GARDEN, VILLA_UPS } = D;
+  // теплица) вместе со сбором в городе — меньше трёх с половиной смен на 2★ в день, со сбором в городе и в лесу —
+  // меньше пяти, и сам не больше кошелька торговца. (Раздел 3 считает огород средней ступени — BEDS_MID грядок.)
+  const { VILLA_PRICES, VILLA_UPS } = D;
   for (const u of VILLA_UPS) if (!(u.price > 0)) bad(`«Вилла растёт»: ступень без цены: ${u.id}`);
   for (const id of Object.keys(VILLA_PRICES))
     if (!D.VILLA_UP_BY_ID[id]) bad(`«Вилла растёт»: цена для неизвестной ступени: ${id}`);
@@ -903,12 +917,9 @@ const { pathToFileURL } = require('url');
   if (VILLA_PRICES.house3 <= HOME_PRICES.flat) bad('третий этаж — цель надолго: дороже квартиры в городе');
   if (villaDays.house3[0] < 10) bad(`третий этаж за ${villaDays.house3[0]} дн. увлечённой игры — слишком быстро`);
   if (VILLA_PRICES.house4 >= VILLA_PRICES.house3) bad('небольшая терраса не дороже третьего этажа');
-  const bedOffBest = Math.max(...beds.map((b) => b.perDayOff)), // теплица: любая культура, урожай продан «не в сезон»
-    bedsAll = GARDEN.beds[GARDEN.beds.length - 1],
-    greenDay = GARDEN.green * bedOffBest,
-    greenBack = VILLA_PRICES.green / greenDay;
+  const greenBack = VILLA_PRICES.green / greenDay; // теплица: любая культура, урожай продан «не в сезон»
   if (!(GARDEN.beds[0] >= 6 && GARDEN.beds[0] <= 8)) bad('в начале игры — 6–8 грядок');
-  if (GARDEN.beds[1] !== 8) bad('GARDEN.beds[1] — восемь грядок старых игр (правила огорода выше считают их)');
+  if (BEDS_ALL !== GARDEN.beds[GARDEN.beds.length - 1]) bad('GARDEN.beds — грядок становится только больше');
   if (GARDEN.green > 4) bad('в теплице не больше четырёх мест');
   if (greenBack < 20) bad(`теплица окупается за ${fmt(greenBack)} дн. — быстрее 20: «вечный двигатель» не в сезон`);
   if (greenBack > 60) bad(`теплица окупается за ${fmt(greenBack)} дн. — дольше 60: покупать незачем`);
@@ -917,13 +928,18 @@ const { pathToFileURL } = require('url');
     if (back < 5 || back > 40) bad(`${id}: грядки окупаются за ${fmt(back)} дн. — вне 5–40`);
   }
   for (let month = 0; month < 12; month++) {
-    const full = gatherSum(month) + bedsAll * bedBestIn(month) + greenDay;
+    const full = gatherSum(month) + gardenNow(month);
     if (full >= 3.5 * avg2)
       bad(
         `сбор и весь огород с теплицей: ${MONTHS[month]} — ${fmt(full)} монет в день, это не меньше трёх с половиной смен на 2★`,
       );
+    const withForest = full + forestSum(month);
+    if (withForest >= 5 * avg2)
+      bad(
+        `город, лес и весь огород с теплицей: ${MONTHS[month]} — ${fmt(withForest)} монет в день, это не меньше пяти смен на 2★`,
+      );
   }
-  if ((bedsAll + GARDEN.green) * bedOffBest > MARKET.purse)
+  if ((BEDS_ALL + GARDEN.green) * bedOffBest > MARKET.purse)
     bad('весь огород с теплицей, проданный не в сезон, — больше кошелька торговца');
 
   // ---------- 4. сколько стоит ----------
@@ -1005,10 +1021,17 @@ const { pathToFileURL } = require('url');
       `${SEASONS[s].name.toLowerCase()}: сажают ${bedsIn(month)
         .map((b) => ING[b.s.crop].name.toLowerCase())
         .join(', ')}`,
-      `8 грядок: в среднем ${fmt(8 * bedAvgIn(month))}, лучшая культура ${fmt(8 * bedBestIn(month))} в день`,
+      `${BEDS_MID} грядок: в среднем ${fmt(BEDS_MID * bedAvgIn(month))}, лучшая культура ${fmt(BEDS_MID * bedBestIn(month))} в день`,
     );
   }
-  line('8 грядок за год, в среднем / лучшая культура', `${fmt(8 * avgBed)} / ${fmt(8 * bestBed)} в день`);
+  line(
+    `${BEDS_MID} грядок за год, в среднем / лучшая культура`,
+    `${fmt(BEDS_MID * avgBed)} / ${fmt(BEDS_MID * bestBed)} в день`,
+  );
+  line(
+    `весь огород: ${BEDS_ALL} грядок и теплица (${GARDEN.green} грядки, не в сезон)`,
+    `${fmt(BEDS_ALL * bestBed)} + ${fmt(greenDay)} в день`,
+  );
   console.log(
     '\nЧто точно есть в ТЦ «Вкусный» (без несезонного и лакомств дня): сколько стартовых блюд из этого готовится',
   );
@@ -1182,7 +1205,7 @@ const { pathToFileURL } = require('url');
     );
     line(
       '',
-      `${fmt(day.sum)} монет за ${fmt(day.time)} мин — ${Math.round((100 * day.sum) / day.time / workPerMin)} % работы; с огородом ${fmt(day.sum + 8 * bedBestIn(month))}`,
+      `${fmt(day.sum)} монет за ${fmt(day.time)} мин — ${Math.round((100 * day.sum) / day.time / workPerMin)} % работы; с огородом ${fmt(day.sum + yardNow(month))} (весь с теплицей — ${fmt(day.sum + gardenNow(month))})`,
     );
   }
   {
@@ -1192,9 +1215,9 @@ const { pathToFileURL } = require('url');
       rate = 0,
       rateWho = '';
     for (let mo = 0; mo < 12; mo++) {
-      const v = gatherDay(mo).sum + 8 * bedBestIn(mo);
+      const v = gatherDay(mo).sum + yardNow(mo);
       if (v > top) ((top = v), (topM = mo));
-      old = Math.max(old, gatherPlaces.reduce((a, id) => a + placeIn[id](mo).sum, 0) + 8 * bedBestIn(mo));
+      old = Math.max(old, gatherPlaces.reduce((a, id) => a + placeIn[id](mo).sum, 0) + yardNow(mo));
       for (const id of gatherPlaces) {
         const q = placeIn[id](mo);
         if (q.sum && q.sum / tripTime([id], mo) > rate)

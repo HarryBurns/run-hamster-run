@@ -9,6 +9,7 @@
 // Рисунки зданий разложены по файлам: магазины и кафе — town_shops.js; больница, школа, высотки и банк —
 // town_public.js; жильё и дома жителей — town_homes.js; отель — town_hotel.js; общие мелочи — town_details.js.
 // Здесь — список видов (defineBuildings): чем рисовать, рамка спрайта, огни окон вечером.
+import { villaStage } from '../core/state.js';
 import { T, defineBuildings } from '../engine/topdown/kinds.js';
 import { towerBox, beacon, facadeLights } from './common/buildings.js';
 import { paintVilla, paintApartment, paintBungalow } from './town_homes.js';
@@ -35,12 +36,23 @@ const wideBox =
   (b) => [-side, -up, b.w * T + side, b.h * T + 16];
 
 defineBuildings({
+  // свой дом растёт по ступеням («Вилла растёт»): ступень — в ключе спрайта (look), от неё же высота и свет
   villa: {
     paint: paintVilla,
+    look: () => villaStage(),
     icon: '🏡',
-    box: wideBox(76),
-    hitUp: () => 60,
-    lights: (b) => doorLight(b, 130, 30),
+    box: wideBox(126),
+    hitUp: () => [12, 12, 40, 60, 96][villaStage()] ?? 60,
+    lights: (b) => {
+      const st = villaStage();
+      if (st >= 2) return doorLight(b, 130, st >= 4 ? 70 : 30);
+      const cx = (b.x + b.w / 2) * T,
+        bot = (b.y + b.h) * T;
+      return [
+        [cx, bot + 8, 100, 42, 0.9],
+        [cx + (st ? 60 : 0), bot - 70, st ? 220 : 140, 80, 0.72],
+      ];
+    },
   },
   // doorX — дверь сбоку от витрины (сдвиг от середины фасада): хомячок встаёт именно под ней
   salon: { paint: paintSalon, doorX: 42, box: wideBox(60), lights: (b) => doorLight(b) },

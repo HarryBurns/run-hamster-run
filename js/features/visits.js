@@ -82,7 +82,7 @@ export async function visitHome(id, ctx = {}) {
       look: npcLook(id),
       name: npc.name,
       happy: true,
-      text: `Тук-тук? Ой, привет! Я ${npc.name}. А ты, наверное, ${esc(S().name)} с большой виллы? Будем дружить! Заходи, не стой на пороге.`,
+      text: `Тук-тук? Ой, привет! Я ${npc.name}. А ты, наверное, ${esc(S().name)} из дома на холме? Будем дружить! Заходи, не стой на пороге.`,
       options: [{ text: 'Спасибо!', cls: 'green' }],
     });
   }

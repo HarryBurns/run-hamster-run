@@ -258,7 +258,7 @@ export function openRealtor(tab = 'buy', only = false) {
           el(
             'p',
             'muted',
-            `<b>${VENDORS.realtor.name}:</b> «Второй дом — это как вторая норка: лишним не бывает! В каждом — своя кровать, шкаф и кладовка общая с виллой».`,
+            `<b>${VENDORS.realtor.name}:</b> «Второй дом — это как вторая норка: лишним не бывает! В каждом — своя кровать, шкаф и кладовка у всех домов общая».`,
           ),
         );
         for (const h of HOMES.filter((q) => q.id !== 'villa')) body.appendChild(homeCard(h, panel, false));

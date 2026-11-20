@@ -543,7 +543,7 @@ export function paintTown(ctx, w, h, t, look, fh) {
   });
 }
 
-/** 4. Новый дом: вилла у моря, хомячок с чемоданом у дорожки. */
+/** 4. Новый дом: домик у моря («Вилла растёт»: игра начинается в маленьком домике), хомячок с чемоданом у дорожки. */
 export function paintVilla(ctx, w, h, t, look, fh) {
   const u = unit(w, fh),
     tall = fh > w * 1.15,
@@ -568,30 +568,29 @@ export function paintVilla(ctx, w, h, t, look, fh) {
   ctx.fill();
   ctx.fillStyle = '#7ccf72';
   ctx.fillRect(0, ground + 60 * u, w, h);
-  // вилла: три этажа, красная крыша
-  const k = Math.min(u * (tall ? 1.05 : 1.2), w / 520, (ground - 16 * u) / 312), // вилла целиком: от трубы до крыльца
+  // домик: один этаж, двускатная красная крыша с круглым окошком, труба
+  const k = Math.min(u * (tall ? 1.05 : 1.2), w / 520, (ground - 16 * u) / 250), // домик целиком: от трубы до крыльца
     vx = w * (tall ? 0.5 : 0.42),
     vy = ground + 6 * u;
   ctx.save();
   ctx.translate(vx, vy);
   ctx.scale(k, k);
   ctx.lineJoin = 'round';
-  ell(ctx, 0, 4, 190, 16, 'rgba(60,90,60,.25)');
-  fillRR(ctx, -170, -210, 340, 210, 8, '#fff3d6', OUT, 3.2);
-  poly(ctx, [-190, -206, -120, -276, 120, -276, 190, -206], '#f76e5c', OUT, 3.2);
-  fillRR(ctx, 60, -300, 30, 46, 4, '#e8d9c0', OUT, 2.6);
-  for (let f = 0; f < 3; f++) {
-    if (f) line(ctx, -170, -70 * f, 170, -70 * f, 'rgba(74,55,40,.25)', 2);
-    for (let i = 0; i < 4; i++) {
-      if (f === 0 && i === 1) continue;
-      const x = -140 + i * 82,
-        y = -62 - f * 70;
-      fillRR(ctx, x, y, 44, 40, 6, '#a5d8ff', OUT, 2.4);
-      line(ctx, x + 22, y, x + 22, y + 40, OUT, 1.6);
-      line(ctx, x, y + 20, x + 44, y + 20, OUT, 1.6);
-      fillRR(ctx, x - 4, y + 38, 52, 8, 3, '#ff8fab', OUT, 1.8);
-      for (let j = 0; j < 4; j++) ell(ctx, x + 4 + j * 12, y + 36, 4, 4, ['#ff6b9d', '#ffd43b', '#fff'][j % 3]);
-    }
+  ell(ctx, 0, 4, 170, 16, 'rgba(60,90,60,.25)');
+  fillRR(ctx, 50, -232, 30, 70, 4, '#e8d9c0', OUT, 2.6);
+  fillRR(ctx, -150, -128, 300, 128, 8, '#fff3d6', OUT, 3.2);
+  poly(ctx, [-172, -118, 0, -236, 172, -118], '#f76e5c', OUT, 3.2);
+  ell(ctx, 0, -160, 20, 20, '#fff8ec', OUT, 2.6);
+  ell(ctx, 0, -160, 14, 14, '#a5d8ff', OUT, 2);
+  line(ctx, -14, -160, 14, -160, OUT, 1.6);
+  line(ctx, 0, -174, 0, -146, OUT, 1.6);
+  for (const x of [-132, 4, 82]) {
+    const y = -98;
+    fillRR(ctx, x, y, 44, 44, 6, '#a5d8ff', OUT, 2.4);
+    line(ctx, x + 22, y, x + 22, y + 44, OUT, 1.6);
+    line(ctx, x, y + 22, x + 44, y + 22, OUT, 1.6);
+    fillRR(ctx, x - 4, y + 42, 52, 8, 3, '#ff8fab', OUT, 1.8);
+    for (let j = 0; j < 4; j++) ell(ctx, x + 4 + j * 12, y + 40, 4, 4, ['#ff6b9d', '#ffd43b', '#fff'][j % 3]);
   }
   fillRR(ctx, -70, -74, 52, 74, 8, '#c9783c', OUT, 2.8);
   ell(ctx, -28, -36, 3.4, 3.4, '#ffd43b', OUT, 1.2);

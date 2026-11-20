@@ -259,7 +259,7 @@ function northStreet(k) {
     put1('planter', x, 12, { v });
   for (const x of [41, 61, 65, 85]) put1('bench', x, 12);
   put1('bin', 62, 12);
-  put1('signpost', 31, 16, { text: '⛲ Площадь', text2: '🏡 Вилла' });
+  put1('signpost', 31, 16, { text: '⛲ Площадь', text2: '🏡 Домой' });
   // скверик у небоскрёбов
   put1('statue', 63, 9);
   for (const [x, y, v] of [

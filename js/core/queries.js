@@ -22,6 +22,8 @@ import {
   HOME_SCENE,
   VILLA_UPS,
   VILLA_UP_BY_ID,
+  VILLA_WORDS,
+  PLACES,
   bedsOf,
   NPC_HOME,
   JUNGLE,
@@ -326,6 +328,14 @@ export function hotelRoomGuest() {
 // ---------- «Вилла растёт» (data/estate.js; только чтение) ----------
 /** Ступень дома: 0 — маленький домик, 1 — с пристройкой, 2 — два этажа, 3 — три, 4 — с мансардой и террасой. */
 export const villaStage = () => (G.state && G.state.villaUp ? G.state.villaUp.house : 3);
+/** Как сейчас зовут свой первый дом: { name: 'Мой домик', short, at: 'в домике', to } — VILLA_WORDS. */
+export const villaWords = () => VILLA_WORDS[villaStage()] || VILLA_WORDS[3];
+// Название первого дома в таблицах (жильё — HOMES, места — PLACES) — по построенной ступени: «Домик», «Дом», «Вилла».
+Object.defineProperties(HOME_BY_ID.villa, {
+  name: { get: () => villaWords().short, enumerable: true },
+  atWords: { get: () => villaWords().at, enumerable: true },
+});
+Object.defineProperty(PLACES, 'villa', { get: () => villaWords().short, enumerable: true });
 /** Построено ли во дворе: 'pond' | 'pool' | 'green'. */
 export const yardHas = (k) => !!(G.state && G.state.villaUp && G.state.villaUp[k]);
 /** Номера купленных грядок (в state.garden), вместе с местами в теплице. */

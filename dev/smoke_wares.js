@@ -548,7 +548,7 @@ module.exports = async function wares(ctx) {
       let s = await state();
       expect(s.mail.done && s.clothes.length > 12, `${sea}: «Обновка» не выполнена покупкой (${first})`, s.mail);
       await settle();
-      // «Уют на вилле»: письмо называет мебель с витрины; купленное ставится дома — задание выполнено
+      // «Уют в доме»: письмо называет мебель с витрины; купленное ставится дома — задание выполнено
       await ev(() => {
         const d = window.__dev;
         d.actions.setMail('buy_furn');
@@ -561,7 +561,7 @@ module.exports = async function wares(ctx) {
       named = (letter.match(/точно есть: (.*?) — и ещё/) || [])[1];
       expect(
         named && named.split(', ').length === 3 && named.split(', ').every((n) => tip.furn.includes(n)),
-        `${sea}: письмо «Уют на вилле» называет не то`,
+        `${sea}: письмо «Уют в доме» называет не то`,
         [letter, named],
       );
       await enter('mall_home');
@@ -575,7 +575,7 @@ module.exports = async function wares(ctx) {
       await ev((id) => window.__dev.actions.placeFurn('villa', id, 0, 400, 0), got);
       await frames(2);
       s = await state();
-      expect(s.mail.done, `${sea}: «Уют на вилле» не выполнено`, s.mail);
+      expect(s.mail.done, `${sea}: «Уют в доме» не выполнено`, s.mail);
       await settle();
     }
     // купальник для «Купания в море» есть с первого дня и надевается в любой сезон

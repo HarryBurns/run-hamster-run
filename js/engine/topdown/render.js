@@ -543,14 +543,16 @@ function drawHero(ctx, sc, look, ent, t) {
 // ---------- здания ----------
 /**
  * Здание из кэша спрайтов. От времени зависят только снег на крыше и свет в окнах — они входят в ключ; вывеска,
- * которую можно переименовать (b.signText — своё название заведения), — тоже.
+ * которую можно переименовать (b.signText — своё название заведения), и вид здания сейчас (look вида: свой дом
+ * достроили) — тоже.
  */
 function drawBuilding(ctx, m, b, season, dark, env) {
   const kind = BUILDING_KINDS[b.kind],
     snow = season === 'winter' ? 1 : 0,
     lit = dark > 0.35 ? 1 : 0,
     sign = b.signText ? b.signText() || '' : '',
-    key = `b:${m.id}:${b.id}:${snow}:${lit}${sign ? ':' + sign : ''}`;
+    look = kind.look ? ':' + kind.look(b) : '',
+    key = `b:${m.id}:${b.id}:${snow}:${lit}${look}${sign ? ':' + sign : ''}`;
   let s = SP.find(key);
   if (!s) {
     // рамка — вокруг левого верхнего угла «пятна» здания

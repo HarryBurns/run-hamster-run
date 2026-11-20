@@ -68,7 +68,7 @@ export function openBackpack() {
           grid.appendChild(card);
         }
         body.appendChild(grid);
-        body.appendChild(el('p', 'muted center', 'Сажай на грядках во дворе виллы — каждую культуру в свой сезон.'));
+        body.appendChild(el('p', 'muted center', 'Сажай на грядках во дворе у дома — каждую культуру в свой сезон.'));
       } else if (tab === 'finds') {
         const ids = Object.keys(S().finds).filter((id) => FIND_BY_ID[id] && S().finds[id] > 0);
         const pieces = piecesFound(); // кусочки карты сокровищ — не находки из сумки, а шаги задания Зефирки
