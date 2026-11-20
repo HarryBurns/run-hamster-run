@@ -5,7 +5,6 @@
 // Кварталы строятся по очереди (buildTown), и порядок менять нельзя: забор не ставится на занятые клетки, а случайная
 // зелень (greenery) растёт только там, где кварталы до неё ничего не поставили, — от порядка зависит, где что стоит.
 import { seeded } from '../core/util.js';
-import { landOpen } from '../core/state.js';
 import { WORLD_SEA } from './sea.js';
 import { blockHolidayCells } from './holidays.js';
 
@@ -228,12 +227,8 @@ function gates(k, gateOpen) {
   put1('gate', 1, 2, { open: () => gateOpen('forest'), text: '🌲 ЛЕС' });
   put1('signpost', 3, 4, { text: '🌲 В лес', dir: 'u', solid: true });
   put1('busstop', 89, 25);
-  // табличка остановки: пока пустыня закрыта — замочек и подсказка, кто знает дорогу (Буся)
-  put1('signpost', 92, 25, {
-    text: '🐪 В пустыню',
-    dir2: '', // под стрелкой — простая доска: открыт ли караван
-    text2: () => (landOpen('desert') ? '🚌 Караван' : '🔒 Спроси Бусю'),
-  });
+  // табличка остановки — одна доска: что пустыня закрыта и дорогу знает Буся, говорит сама остановка (окно у шлагбаума)
+  put1('signpost', 92, 25, { text: '🐪 В пустыню' });
   put1('barrier', 94, 26, { open: () => gateOpen('desert') });
   put1('hedge', 95, 25); // за шлагбаум — только по дороге
   put1('hedge', 95, 28);

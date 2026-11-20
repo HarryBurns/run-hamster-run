@@ -91,7 +91,7 @@ module.exports = async function desert(ctx) {
     'пустыня: задание Буси «Звезда подиума» — остановка закрыта, показ мод, шляпа от солнца, сдача, караван в пустыню',
     async () => {
       await fresh();
-      // лес открыт, пустыня — нет: у остановки окно про Бусю, на табличке — замочек
+      // лес открыт, пустыня — нет: у остановки окно про Бусю; на указателе — одна доска (про Бусю говорит остановка)
       await ev((hats) => {
         const d = window.__dev;
         d.actions.openLand('forest');
@@ -108,13 +108,9 @@ module.exports = async function desert(ctx) {
       await wait(300);
       const sign = await ev(() => {
         const o = window.__dev.World.map.objs.find((q) => q.type === 'signpost' && q.tx === 92 && q.ty === 25);
-        return o ? [o.text, o.text2()] : null;
+        return o ? [o.text, o.text2 || null] : null;
       });
-      expect(
-        sign && sign[0] === '🐪 В пустыню' && /Бусю/.test(sign[1]) && /🔒/.test(sign[1]),
-        'табличка у закрытой остановки',
-        sign,
-      );
+      expect(sign && sign[0] === '🐪 В пустыню' && !sign[1], 'табличка у закрытой остановки — одна доска', sign);
       await L.run('way:desert', 500);
       expect(
         /Пустыня/.test(await panelText()) && /Буся/.test(await panelText()),
@@ -200,14 +196,12 @@ module.exports = async function desert(ctx) {
       await tap('.dialog .btn.green', 400);
       await closeAll();
       expect((await now()).i === 2, 'показ и шляпа «уже были» — не засчитаны сразу', await now());
-      // остановка открыта: на табличке — караван, за шлагбаумом — действие caravan:go; way:desert везёт картинкой
+      // остановка открыта: за шлагбаумом — действие caravan:go; way:desert везёт картинкой
       const open = await ev(() => {
-        const W = window.__dev.World,
-          o = W.map.objs.find((q) => q.type === 'signpost' && q.tx === 92 && q.ty === 25),
-          e = W.exit('desert');
-        return { sign: o.text2(), act: e.act, open: !e.off && e.when() };
+        const e = window.__dev.World.exit('desert');
+        return { act: e.act, open: !e.off && e.when() };
       });
-      expect(/Караван/.test(open.sign) && open.act === 'caravan:go' && open.open, 'открытая остановка', open);
+      expect(open.act === 'caravan:go' && open.open, 'открытая остановка', open);
       await L.run('way:desert', 700);
       expect(await ev(() => !!document.querySelector('.caravan-ride canvas')), 'нет картинки переезда');
       await untilArrive('desert').catch(() => {});

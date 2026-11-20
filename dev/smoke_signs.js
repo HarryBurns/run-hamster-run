@@ -93,6 +93,9 @@ module.exports = async function signs(ctx) {
               ],
               at = `${sc} ${o.tx},${o.ty}`;
             for (const [t] of boards) if (P.TEXT_ARROWS.test(t)) bad.push(`${at}: буква-стрелка в «${t}»`);
+            // у указателя «В пустыню» — одна доска: про Бусю говорят на остановке (вторая доска «Спроси Бусю» убрана)
+            if (sc === 'world' && o.tx === 92 && o.ty === 25 && v(o.text2))
+              bad.push(`${at}: вторая доска «${v(o.text2)}»`);
             if (o.here) {
               heres++;
               if (o.dir !== undefined || o.dir2 !== undefined) bad.push(`${at}: у таблички «здесь» есть направление`);
