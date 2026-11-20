@@ -191,4 +191,56 @@ module.exports = async function cust20(ctx) {
     expect(r.moved < 0.3, 'руль без инерции: за 0,1 с круг почти доехал до пальца', r);
     await ev(() => document.querySelector('#mg .xbtn').click());
   });
+
+  await step('заказчик 20: пауза — долго без касаний, окно без фокуса, вкладка спрятана; нажатие снимает', async () => {
+    await L.closeAll();
+    await L.go('world');
+    const mins = () => ev(() => window.__dev.G.state.minutes);
+    const info = () => ev(() => window.__dev.F.pauseInfo());
+    await ev(() => window.__dev.F.pauseAuto(true));
+    // 1) долго без касаний — мягкая пауза: плашка, часы стоят, музыка тише
+    await ev(() => window.__dev.F.pauseIdleFor(1000));
+    await L.until(() => window.__dev.F.pauseInfo().on, undefined, { timeout: 3000 });
+    let m0 = await mins();
+    await ctx.wait(1300);
+    expect((await mins()) === m0, 'на паузе часы идут', [m0, await mins()]);
+    expect(
+      (await info()).why === 'idle' &&
+        (await ev(() => !!document.querySelector('.pause-chip'))) &&
+        (await ev(() => window.__dev.Audio.musicDucked())) &&
+        !(await ev(() => !!document.querySelector('.overlay'))),
+      'мягкая пауза: плашка без окна, музыка тише',
+      await info(),
+    );
+    await ctx.page.click('.pause-chip', { force: true }); // плашка покачивается — без ожидания «замерла»
+    await ctx.wait(400);
+    m0 = await mins();
+    await ctx.wait(1300);
+    expect(
+      !(await info()).on && (await mins()) > m0 && !(await ev(() => window.__dev.Audio.musicDucked())),
+      'нажатие не сняло паузу',
+      await info(),
+    );
+    // 2) окно браузера потеряло фокус — пауза; клавиша снимает (и до игры не доходит)
+    await ev(() => window.dispatchEvent(new Event('blur')));
+    expect((await info()).on && (await info()).why === 'blur', 'окно без фокуса — нет паузы', await info());
+    await ctx.page.keyboard.press('KeyE');
+    expect(!(await info()).on, 'клавиша не сняла паузу', await info());
+    // 3) вкладку спрятали — пауза
+    await ev(() => {
+      Object.defineProperty(document, 'hidden', { configurable: true, get: () => true });
+      document.dispatchEvent(new Event('visibilitychange'));
+      delete document.hidden;
+    });
+    expect((await info()).on && (await info()).why === 'hidden', 'спрятанная вкладка — нет паузы', await info());
+    await ctx.page.mouse.click(640, 400);
+    expect(!(await info()).on, 'касание не сняло паузу', await info());
+    // 4) под окном мир и так стоит — плашки нет
+    await ev(() => window.__dev.F.openSettings());
+    await L.untilPanel('Меню');
+    await ev(() => window.dispatchEvent(new Event('blur')));
+    expect(!(await info()).on && !(await ev(() => !!document.querySelector('.pause-chip'))), 'плашка поверх окна');
+    await L.closeAll();
+    await ev(() => window.__dev.F.pauseAuto(false));
+  });
 };

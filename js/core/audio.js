@@ -78,7 +78,7 @@ function ctx() {
     ambBus.connect(ambSoft);
     ambSoft.connect(master);
     musicBus = ac.createGain();
-    musicBus.gain.value = musicOn ? musicVol : 0;
+    musicBus.gain.value = musicLevel();
     musicBus.connect(master);
     // лёгкое эхо, чтобы музыка звучала объёмнее
     const delay = ac.createDelay(1);
@@ -194,15 +194,24 @@ export function isMusicOn() {
 export function setMusicOn(on) {
   musicOn = on;
   store.set('rhr-music', on ? '1' : '0');
-  if (ac) musicBus.gain.setTargetAtTime(on ? musicVol : 0, ac.currentTime, 0.1);
+  if (ac) musicBus.gain.setTargetAtTime(musicLevel(), ac.currentTime, 0.1);
 }
+let duck = 1; // музыка тише на паузе (features/pause.js): 1 — как обычно
+const musicLevel = () => (musicOn ? musicVol * duck : 0);
+/** Музыка тише (игра на паузе — ребёнок отвлёкся) или снова как обычно. Громкость в настройках не меняется. */
+export function setMusicDuck(on) {
+  duck = on ? 0.35 : 1;
+  if (ac) musicBus.gain.setTargetAtTime(musicLevel(), ac.currentTime, 0.3);
+}
+/** Для автотеста: тише ли сейчас музыка (пауза). */
+export const musicDucked = () => duck < 1;
 export function getMusicVolume() {
   return musicVol;
 }
 export function setMusicVolume(v) {
   musicVol = Math.min(1, Math.max(0, v));
   store.set('rhr-music-vol', String(musicVol));
-  if (ac && musicOn) musicBus.gain.setTargetAtTime(musicVol, ac.currentTime, 0.05);
+  if (ac && musicOn) musicBus.gain.setTargetAtTime(musicLevel(), ac.currentTime, 0.05);
 }
 
 // ---------- кирпичики ----------

@@ -114,6 +114,7 @@
 "js/features/mountain.js",
 "js/features/panorama.js",
 "js/features/pantry.js",
+"js/features/pause.js",
 "js/features/pet.js",
 "js/features/pet_art.js",
 "js/features/photo.js",

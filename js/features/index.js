@@ -60,6 +60,7 @@ import * as settings from './settings.js';
 import * as help from './help.js';
 import * as soundscape from './soundscape.js';
 import * as install from './install.js';
+import * as pause from './pause.js';
 
 // ---------- что нужно main.js ----------
 export { showBankLetter } from './bank.js';
@@ -139,4 +140,5 @@ export const devAll = () =>
     help,
     install,
     soundscape,
+    pause,
   );
