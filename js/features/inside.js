@@ -1,7 +1,8 @@
 // Войти внутрь (этап 13): двери домиков «тайных мест» — избушка лесника, шале, пирамида, шатёр, храм, палатка, хижины
 // острова, подводный грот — ведут внутрь, в дома на «движке домов» (описания — interiors/, список LAND_HOUSES в
-// interiors/houses.js). Хозяин — внутри (его прежние действия: разговор, задание, обмен, мини-игра — теперь там),
-// дверь изнутри возвращает к двери снаружи.
+// interiors/houses.js). Хозяин внутри, когда он дома (одно правило «где житель» — npcAtHome, core/queries.js; часы —
+// LAND_HOME в data/visits.js), с теми же действиями, что снаружи: разговор, задание, обмен, мини-игра. Дверь изнутри
+// возвращает к двери снаружи.
 //
 // Действие реестра: 'inside:<id дома>' — у здания в описании локации (ctx.back — место у двери снаружи).
 // Первое посещение каждого дома — подсказка (поле hello в описании дома), все дома — наклейка x_inside.
@@ -13,6 +14,7 @@ import { go } from '../core/loop.js';
 import { register } from '../core/registry.js';
 import { G, npcAtHome } from '../core/state.js';
 import { pick } from '../core/util.js';
+import { NPC_BY_ID } from '../data/index.js';
 import { LAND_HOUSES, HOUSE_BY_ID } from '../interiors/houses.js';
 import { toast } from '../ui/toast.js';
 
@@ -34,6 +36,13 @@ export function enterInside(id, ctx = {}) {
     setFlag('in:' + id);
     if (h.hello) setTimeout(() => toast(h.hello, 'good'), 500);
     if (insideSeen().length >= LAND_HOUSES.length) award('x_inside', { delay: 2200 });
+  } else if (h.owner && !npcAtHome(h.owner)) {
+    // хозяина нет дома (одно правило «где житель» — core/queries.js): он снаружи, у своего дела
+    const n = NPC_BY_ID[h.owner];
+    setTimeout(
+      () => toast(`${n.name.split(' ').pop()} сейчас не дома — ${n.fem ? 'она' : 'он'} снаружи, у своих дел 🚶`),
+      500,
+    );
   } else if (h.greet) setTimeout(() => toast(pick(h.greet)), 500);
   return true;
 }
