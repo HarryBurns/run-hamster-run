@@ -1527,7 +1527,8 @@ export function createTitleScene(canvas, o) {
         tower: { ...P(tower.x, towerTop() + 16 * tower.s), clear: farSky(tower.x, towerTop() + 16 * tower.s), beam: T - tower.beam < 2, palm: palmAt(tower.x, towerTop(), 0) }, // prettier-ignore
         plane: (() => {
           const [x, y] = planePos();
-          return { on: planeOn(), ...P(x, y), hidden: palmAt(x, y, 0), dir: plane.dir, trick: T - plane.trick < PLANE_TRICK, hearts: plane.hearts.length, top: Math.round(planeBand()[0] + r.top) }; // prettier-ignore
+          // clear — до пальм не меньше пальца: нажатие не достанется качнувшейся кроне (автотест жмёт сюда)
+          return { on: planeOn(), ...P(x, y), hidden: palmAt(x, y, 0), clear: !palmAt(x, y, 30 * Math.max(k, 0.7)), dir: plane.dir, trick: T - plane.trick < PLANE_TRICK, hearts: plane.hearts.length, top: Math.round(planeBand()[0] + r.top) }; // prettier-ignore
         })(),
         mermaid: { st: mer.st, ...P(...merHit()), water: Math.round(mer.y + r.top) },
         drawn: strokes.reduce((n, st) => n + st.length, 0),

@@ -600,13 +600,14 @@ module.exports = async function title(ctx) {
         expect(d.env.night === night && !d.plane.on && d.mermaid.st === 'off', 'гости уже здесь', d);
         // самолётик: летит по небу над морем, не под заголовком и не под кнопками
         await ev(() => window.__dev.title.callPlane());
+        // жмём, когда до пальм не меньше пальца (clear): у самой кроны нажатие заберёт качнувшаяся пальма — она ближе
         await until(
           () => {
             const p = window.__dev.title.debug().plane;
-            return p.x > innerWidth * 0.2 && p.x < innerWidth * 0.8 && !p.hidden;
+            return p.x > innerWidth * 0.2 && p.x < innerWidth * 0.8 && p.clear;
           },
           null,
-          { timeout: 14000, msg: 'самолётик долетел до середины, не за пальмой' },
+          { timeout: 14000, msg: 'самолётик долетел до середины, не у пальмы' },
         );
         d = await dbg();
         const r = await ev(() => {
@@ -623,10 +624,10 @@ module.exports = async function title(ctx) {
         await until(
           () => {
             const p = window.__dev.title.debug().plane;
-            return !p.trick && !p.hidden;
+            return !p.trick && p.clear;
           },
           null,
-          { timeout: 9000, msg: 'трюк закончился, самолётик не за пальмой' },
+          { timeout: 9000, msg: 'трюк закончился, самолётик не у пальмы' },
         );
         let log = await touchNearFly('plane');
         expect(count(log, /^plane-/) === 2 && !log.includes('butterfly') && !log.includes('fireflies'), 'нажатие по самолётику забрала бабочка', log); // prettier-ignore
