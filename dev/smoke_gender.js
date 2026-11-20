@@ -1,5 +1,5 @@
-// Шаги автотеста «пол героя»: экран новой игры (имя и выбор «Я — хомячок / Я — хомячка»), род в текстах
-// (core/gender.js — разметка «{он|она}»), старое сохранение — хомячка, смена имени и пола в меню ⚙️.
+// Шаги автотеста «пол героя»: экран новой игры (имя и выбор «Я — хомячок / Я — хомяшка»), род в текстах
+// (core/gender.js — разметка «{он|она}»), старое сохранение — хомяшка, смена имени и пола в меню ⚙️.
 // Подключается из dev/smoke.js. Только эти шаги:  node dev/smoke.js <url> "step:пол героя"
 const fs = require('fs');
 const path = require('path');
@@ -57,7 +57,7 @@ module.exports = async function gender(ctx) {
       const T = await import('./js/ui/toast.js');
       const D = await import('./js/data/index.js');
       const GX = await import('./js/core/gender.js');
-      T.toast('Проверка: ты наш{ёл|ла} ракушку, {хомячок|хомячка}!');
+      T.toast('Проверка: ты наш{ёл|ла} ракушку, {хомячок|хомяшка}!');
       const cx = document.createElement('canvas').getContext('2d');
       const el = document.createElement('div');
       document.body.appendChild(el);
@@ -147,7 +147,7 @@ module.exports = async function gender(ctx) {
     await page.fill(inp, 'пЁТР  первый   великий царь');
     expect((await val()) === 'ПЁТР Первый Великий', 'вставка: три слова, пробелы схлопнуты', await val());
     await page.fill(inp, '');
-    // без выбора «хомячок / хомячка» игра не начинается — мягкая просьба выбрать
+    // без выбора «хомячок / хомяшка» игра не начинается — мягкая просьба выбрать
     await page.click(sel('play'));
     await wait(200);
     const ask = await ev(() => ({
@@ -157,7 +157,7 @@ module.exports = async function gender(ctx) {
       who: [...document.querySelectorAll('#title .t-who-btn')].map((b) => b.textContent),
     }));
     expect(ask.title && !ask.intro && /Выбери, кто ты/.test(ask.hint), 'без выбора пола игра не начинается', ask);
-    expect(ask.who.join('|') === 'Я — хомячок|Я — хомячка', 'две кнопки выбора', ask.who);
+    expect(ask.who.join('|') === 'Я — хомячок|Я — хомяшка', 'две кнопки выбора', ask.who);
     // кнопки и поле целиком на экране
     const fit = await ev(() => {
       const m = document.querySelector('#title .t-menu').getBoundingClientRect();
@@ -181,7 +181,7 @@ module.exports = async function gender(ctx) {
     );
     const x = await sample();
     expect(/Дорогой Тимоша/.test(x.letter) && /рад новому соседу/.test(x.letter), 'письмо', x.letter.slice(0, 160));
-    expect(/хомячок сам туда дойдёт/.test(x.help) && !/хомячка/.test(x.help), 'справка', x.help.slice(0, 300));
+    expect(/хомячок сам туда дойдёт/.test(x.help) && !/хомяшка/.test(x.help), 'справка', x.help.slice(0, 300));
     expect(/ты нашёл ракушку, хомячок!/.test(x.toast), 'подсказка', x.toast);
     expect(x.canvas && x.net.join() === 'Готов?,Он' && x.sticker === 'Хозяин города', 'канва, страница, наклейка', x);
     // первый диалог: Плюша пришла с заданием — в журнале и в репликах нет сырой разметки
@@ -196,19 +196,19 @@ module.exports = async function gender(ctx) {
     await closeAll();
   });
 
-  await step('пол героя: новая игра за хомячку — женский род; у неё реснички и бантик, одежда та же', async () => {
+  await step('пол героя: новая игра за хомяшку — женский род; у неё реснички и бантик, одежда та же', async () => {
     const t = await begin('анна-мария', 'f');
-    expect(/Жила-была хомячка Анна-Мария/.test(t.cap1) && /Она копила монетки и мечтала/.test(t.cap1), 'первый кадр', t.cap1);
+    expect(/Жила-была хомяшка Анна-Мария/.test(t.cap1) && /Она копила монетки и мечтала/.test(t.cap1), 'первый кадр', t.cap1);
     expect(/она решилась: собрала чемодан и села на поезд/.test(t.cap2), 'второй кадр сценки', t.cap2);
     expect(/ты так долго копила, ты купила /.test(t.hello), 'приветствие', t.hello.slice(0, 200));
     const s = await state();
     expect(s.gender === 'f' && s.name === 'Анна-Мария', 'пол и имя в сохранении', [s.gender, s.name]);
-    expect(s.look.beauty.lashes === true && !!s.look.beauty.bow, 'у хомячки реснички и бантик', s.look.beauty);
+    expect(s.look.beauty.lashes === true && !!s.look.beauty.bow, 'у хомяшки реснички и бантик', s.look.beauty);
     expect(s.look.outfit.legs === 'pants_jeans' && s.look.outfit.feet === 'sn_white', 'одежда та же', s.look.outfit);
     const x = await sample();
     expect(/Дорогая Анна-Мария/.test(x.letter) && /рад новой соседке/.test(x.letter), 'письмо', x.letter.slice(0, 160));
-    expect(/хомячка сама туда дойдёт/.test(x.help), 'справка', x.help.slice(0, 300));
-    expect(/ты нашла ракушку, хомячка!/.test(x.toast), 'подсказка', x.toast);
+    expect(/хомяшка сама туда дойдёт/.test(x.help), 'справка', x.help.slice(0, 300));
+    expect(/ты нашла ракушку, хомяшка!/.test(x.toast), 'подсказка', x.toast);
     expect(x.canvas && x.net.join() === 'Готова?,Она' && x.sticker === 'Хозяйка города', 'канва, страница, наклейка', x);
     // шорты и красные кеды, с которых игра начиналась раньше, теперь продаются в ТЦ
     const shop = await ev(async () => {
@@ -218,7 +218,7 @@ module.exports = async function gender(ctx) {
     expect(shop.every(([sh, pr]) => sh === 'mall' && pr), 'шорты и кеды продаются в ТЦ', shop);
   });
 
-  await step('пол героя: старое сохранение открывается как хомячка; имя и пол меняются в меню ⚙️', async () => {
+  await step('пол героя: старое сохранение открывается как хомяшка; имя и пол меняются в меню ⚙️', async () => {
     const old = fs.readFileSync(path.join(__dirname, 'saves', 'v4.json'), 'utf8');
     expect(!/"gender"/.test(old), 'в образце старого сохранения уже есть пол');
     await ev((raw) => {
@@ -234,18 +234,18 @@ module.exports = async function gender(ctx) {
     await closeAll();
     let s = await state();
     const was = JSON.parse(old);
-    expect(s.gender === 'f' && s.name === was.name, 'старая игра — хомячка, имя прежнее', [s.gender, s.name]);
+    expect(s.gender === 'f' && s.name === was.name, 'старая игра — хомяшка, имя прежнее', [s.gender, s.name]);
     expect(JSON.stringify(s.look.beauty) === JSON.stringify({ ...s.look.beauty, ...was.look.beauty }), 'внешность не тронута', s.look.beauty);
     const games = await ev(() => JSON.parse(localStorage.getItem('rhr-games')).games.map((g) => g.gender));
-    expect(games.join() === 'f', 'в списке игр — хомячка', games);
+    expect(games.join() === 'f', 'в списке игр — хомяшка', games);
     let x = await sample();
-    expect(/Дорогая /.test(x.letter) && /ты нашла ракушку, хомячка!/.test(x.toast), 'старая игра: женский род', [x.letter.slice(0, 80), x.toast]);
+    expect(/Дорогая /.test(x.letter) && /ты нашла ракушку, хомяшка!/.test(x.toast), 'старая игра: женский род', [x.letter.slice(0, 80), x.toast]);
 
     // меню: сменить пол
     await ev(() => void window.__dev.F.openSettings());
     await untilPanel('Меню');
     const on = () => ev(() => [...document.querySelectorAll('.set-who .btn')].map((b) => b.getAttribute('aria-pressed')).join());
-    expect((await on()) === 'false,true', 'в меню отмечена хомячка', await on());
+    expect((await on()) === 'false,true', 'в меню отмечена хомяшка', await on());
     await page.click('.overlay ' + sel('gender-m'));
     await until(() => window.__dev.G.state.gender === 'm');
     expect((await on()) === 'true,false', 'в меню отмечен хомячок', await on());

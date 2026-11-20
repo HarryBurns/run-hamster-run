@@ -123,7 +123,7 @@ F('anchor', 'anchor', 'Якорь', 76, 104, { stock: 'delivery', cat: 'decor', 
 F('lifebuoy', 'lifebuoy', 'Спасательный круг', 66, 66, { wall: true, cat: 'wall' });
 F('hammock', 'hammock', 'Гамак', 230, 124, { season: 'hot', cat: 'seat', act: 'sit', c: '#ffa94d' });
 F('globe', 'globe', 'Глобус', 64, 100, { stock: 'delivery', cat: 'fun', act: 'spin', c: '#4dabf7',
-  say: ['Глобус крутится… Стоп! Вот море, а вот наш город — меньше семечки 🌍', 'Вжух! Сколько же на свете мест, где {хомячок ещё не был|хомячка ещё не была} 🌍'] });
+  say: ['Глобус крутится… Стоп! Вот море, а вот наш город — меньше семечки 🌍', 'Вжух! Сколько же на свете мест, где {хомячок ещё не был|хомяшка ещё не была} 🌍'] });
 F('telescope', 'telescope', 'Телескоп', 110, 144, { stock: 'special', cat: 'fun', act: 'telescope', c: '#f08c00' });
 F('desk', 'desk', 'Письменный стол', 156, 96, { cat: 'furn', act: 'book', c: '#b9834f' });
 F('blackboard', 'blackboard', 'Школьная доска', 156, 96, { stock: 'delivery', wall: true, cat: 'wall', act: 'look',

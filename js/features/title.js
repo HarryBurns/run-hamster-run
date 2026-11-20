@@ -191,7 +191,7 @@ export function openTitle({ start }) {
     fillApp();
     if (scene) scene.relayout();
   });
-  /** Поле имени (ui/nameinput.js) и выбор «Я — хомячок / Я — хомячка» для новой игры. */
+  /** Поле имени (ui/nameinput.js) и выбор «Я — хомячок / Я — хомяшка» для новой игры. */
   function nameForm() {
     const { inp, hint, say, clean } = nameInput({ onLayout: () => scene && scene.relayout() });
     inp.dataset.act = 'name';
@@ -203,7 +203,7 @@ export function openTitle({ start }) {
     const btns = {};
     for (const [g, label] of [
       ['m', 'Я — хомячок'],
-      ['f', 'Я — хомячка'],
+      ['f', 'Я — хомяшка'],
     ]) {
       const bt = el('button', 't-who-btn t-who-' + g);
       bt.type = 'button';
@@ -233,7 +233,7 @@ export function openTitle({ start }) {
       btns[g] = bt;
       who.appendChild(bt);
     }
-    const ASK = 'Выбери, кто ты: хомячок или хомячка 👆';
+    const ASK = 'Выбери, кто ты: хомячок или хомяшка 👆';
     const api = {
       name: inp,
       hint,

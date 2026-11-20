@@ -84,7 +84,7 @@ export const OLD_START_VILLA = [
 /** Во сколько начинается первый день новой игры (минуты от полуночи). */
 export const START_MINUTES = 7 * 60 + 30;
 
-/** Новая игра. gender — пол героя: 'm' — хомячок, 'f' — хомячка (по умолчанию, как было раньше). */
+/** Новая игра. gender — пол героя: 'm' — хомячок, 'f' — хомяшка (по умолчанию, как было раньше). */
 export function newGame(name, gender = 'f') {
   let uid = 1;
   const look = startLook(gender); // одеты одинаково; у хомячки — реснички и бантик (data/looks.js)

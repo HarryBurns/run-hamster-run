@@ -314,7 +314,7 @@ export const parrotWords = (i) =>
  */
 export function parrotSay(i, text) {
   const q = talk[i],
-    name = (G.state && G.state.name) || '{хомячок|хомячка}';
+    name = (G.state && G.state.name) || '{хомячок|хомяшка}';
   if (!text) {
     const n = said++,
       own = parrotWords(i);

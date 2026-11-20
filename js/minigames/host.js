@@ -119,7 +119,7 @@ export async function runMinigame(id, info) {
     const host = {
       root,
       look: info.look,
-      name: info.name || '{Хомячок|Хомячка}',
+      name: info.name || '{Хомячок|Хомяшка}',
       friends: info.friends || [],
       season: info.season || 'summer',
       level: info.level || 0,

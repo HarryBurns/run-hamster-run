@@ -94,7 +94,7 @@ export function openSettings() {
       const who = el('div', 'set-who');
       for (const [g, label] of [
         ['m', 'Я — хомячок'],
-        ['f', 'Я — хомячка'],
+        ['f', 'Я — хомяшка'],
       ]) {
         const on = gender() === g;
         const bt = el('button', 'btn ' + (on ? 'green' : 'ghost'), (on ? '✓ ' : '') + label);
@@ -105,7 +105,7 @@ export function openSettings() {
           if (!setGender(g)) return;
           persist();
           panel.refresh();
-          toast('Хорошо! Теперь ты — {хомячок|хомячка} 🐹', 'good');
+          toast('Хорошо! Теперь ты — {хомячок|хомяшка} 🐹', 'good');
         };
         who.appendChild(bt);
       }

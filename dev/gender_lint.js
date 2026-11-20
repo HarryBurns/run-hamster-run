@@ -168,11 +168,17 @@ function suspicious(word) {
   return false;
 }
 
+const HAMSHKA = []; // женская часть разметки со словом «хомячка» — ошибка всегда
 function scan(file) {
   const rel = path.relative(ROOT, file).replace(/\\/g, '/');
   let src = fs.readFileSync(file, 'utf8');
   if (file.endsWith('.js')) src = stripComments(src);
   else src = src.replace(/<!--[\s\S]*?-->/g, (m) => m.replace(/[^\n]/g, ' '));
+  // героиня — «хомяшка» (решение заказчика 20 ноября): в женской части разметки «хомячка, хомячке…» быть не должно
+  src.split('\n').forEach((line, li) => {
+    for (const m of line.matchAll(/\{[^{}|\n]*\|([^{}\n]*)\}/g))
+      if (/[Хх]омячк/.test(m[1])) HAMSHKA.push(`${rel}:${li + 1}: ${m[0]} — героиня «хомяшка», не «хомячка»`);
+  });
   // то, что уже размечено, не смотрим (и слова, приклеенные к разметке: «наш{ёл|ла}», «{|по}смотрела» — тоже)
   src = src.replace(new RegExp(`[${CYR}-]*\\{[^{}|\\n]*\\|[^{}\\n]*\\}[${CYR}-]*`, 'g'), (m) => '_'.repeat(m.length));
   const found = [];
@@ -206,6 +212,11 @@ function main() {
     fs.writeFileSync(OK_FILE, JSON.stringify(obj, null, 1) + '\n');
     console.log(`Записано в dev/gender_ok.json: ${all.length} мест в ${Object.keys(obj).length} файлах.`);
     return;
+  }
+  if (HAMSHKA.length) {
+    for (const h of HAMSHKA) console.log(h);
+    console.log(`\nГероиня: ${HAMSHKA.length} мест, где в разметке «{хомячок|хомячка}» — пиши «{хомячок|хомяшка}».`);
+    process.exit(1);
   }
   const showAll = args.includes('--all');
   const only = args.filter((a) => !a.startsWith('--'));

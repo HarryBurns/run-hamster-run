@@ -720,7 +720,7 @@ export const setName = act((name) => {
   emit('name', { name: nm });
   return true;
 });
-/** Сменить пол героя ('m' — хомячок, 'f' — хомячка): от него род во всех текстах (core/gender.js). Меню ⚙️. */
+/** Сменить пол героя ('m' — хомячок, 'f' — хомяшка): от него род во всех текстах (core/gender.js). Меню ⚙️. */
 export const setGender = act((gender) => {
   const g = gender === 'm' ? 'm' : 'f';
   if (S().gender === g) return false;
