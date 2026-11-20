@@ -5,6 +5,7 @@
 import { G, cal, darkness } from '../../core/state.js';
 import { ell, fillRR, line, poly, rr, star, shade, mix } from '../../core/draw.js';
 import { TAU } from '../../core/util.js';
+import { lightning } from '../topdown/render.js';
 
 export const OUT = '#4a3728'; // цвет контура
 export const HS = 1.45; // масштаб хомячка в доме
@@ -34,26 +35,19 @@ export function geometry(desc) {
   };
 }
 
-/** Небо за домом (в экранных координатах, до включения камеры). */
-export function drawSky(ctx, w, h) {
+/** Небо за домом (в экранных координатах, до включения камеры); wx — погода места: в ненастье небо серее. */
+export function drawSky(ctx, w, h, wx = null) {
   const d = darkness(),
-    c = cal();
-  const top = mix(
-    { winter: '#a9d6f5', spring: '#8fd3ff', summer: '#6cc5ff', autumn: '#b5cfe0' }[c.season],
-    '#1b1b4a',
-    d * 0.92,
-  );
-  const bot = mix(
-    { winter: '#e9f4fb', spring: '#dff3ff', summer: '#c9ecff', autumn: '#f6e3c5' }[c.season],
-    '#3b2f6b',
-    d * 0.9,
-  );
+    c = cal(),
+    sk = skyWx(wx);
+  const top = mix(mix(SKY_TOP[c.season], sk.gloom, sk.cloud * 0.75), '#1b1b4a', d * 0.92);
+  const bot = mix(mix(SKY_BOT[c.season], '#d5dbe0', sk.cloud * 0.7), '#3b2f6b', d * 0.9);
   const g = ctx.createLinearGradient(0, 0, 0, h);
   g.addColorStop(0, top);
   g.addColorStop(1, bot);
   ctx.fillStyle = g;
   ctx.fillRect(0, 0, w, h);
-  if (d > 0.5) {
+  if (d > 0.5 && sk.cloud < 0.6) {
     ctx.fillStyle = '#fff';
     for (let i = 0; i < 40; i++) {
       const x = (i * 197) % w,
@@ -126,39 +120,108 @@ function skyline(ctx, x0, x1, y, maxH, d, seed) {
     xx += bw + 3;
   }
 }
-/** Открытая терраса вместо стены: небо, далёкий город внизу (view: 'sea' — море), стеклянные перила, гирлянда лампочек. */
-function terrace(ctx, geo, r, y) {
+/** Пасмурно: во что серее небо в тучах (cloud) и в пыльный ветер пустыни. */
+const GLOOM = '#8f9aa6',
+  DUST = '#d8b98a';
+/** Небо по погоде места (wx — sc.wxOut()): насколько затянуто и видно ли солнце, луну и звёзды. */
+function skyWx(wx) {
+  const k = wx ? wx.kind : 'sun',
+    wet = k === 'rain' || k === 'snow';
+  const cloud = Math.max(wx ? wx.cloud || 0 : 0, wet ? 0.35 : 0, k === 'cloudy' ? 0.45 : 0, k === 'dust' ? 0.35 : 0);
+  return { kind: k, cloud, clear: !wet && cloud < 0.45, gloom: k === 'dust' ? DUST : GLOOM };
+}
+const pmod = (a, m) => ((a % m) + m) % m;
+/**
+ * Что падает с неба в прямоугольнике (x0, y0, w, h): дождь (в ливень и грозу — гуще и косее), снег (в метель — вбок),
+ * лепестки весной, листья осенью. Одним путём на цвет; t — время в секундах.
+ */
+function fall(ctx, x0, y0, w, h, wx, t) {
+  const k = wx.kind,
+    hard = wx.force >= 2;
+  if (k === 'rain') {
+    const n = Math.round(w / (hard ? 11 : 20)),
+      dx = hard ? 9 : 5,
+      len = hard ? 22 : wx.warm ? 10 : 15;
+    ctx.strokeStyle = 'rgba(214,232,255,.75)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    for (let i = 0; i < n; i++) {
+      const xx = x0 + pmod(i * 53 + t * dx * 9, w),
+        yy = y0 + pmod(i * 97 + t * (hard ? 640 : 430), h + len) - len;
+      ctx.moveTo(xx, yy);
+      ctx.lineTo(xx - dx, yy + len);
+    }
+    ctx.stroke();
+  } else if (k === 'snow') {
+    const n = Math.round(w / (hard ? 9 : 22));
+    ctx.fillStyle = '#fff';
+    ctx.beginPath();
+    for (let i = 0; i < n; i++) {
+      const xx = x0 + pmod(i * 71 + t * (hard ? 150 : 8) + Math.sin(t * 1.3 + i) * 8, w),
+        yy = y0 + pmod(i * 89 + t * (hard ? 95 : 32), h),
+        rr0 = 1.8 + (i % 3) * 0.7;
+      ctx.moveTo(xx + rr0, yy);
+      ctx.arc(xx, yy, rr0, 0, TAU);
+    }
+    ctx.fill();
+  } else if (k === 'petals' || k === 'leaves') {
+    const n = Math.round(w / 70);
+    for (let i = 0; i < n; i++) {
+      const xx = x0 + pmod(i * 131 + t * 14 + Math.sin(t + i * 2) * 14, w),
+        yy = y0 + pmod(i * 67 + t * 18, h);
+      ell(ctx, xx, yy, 4, 2.4, k === 'petals' ? '#ffc9de' : i % 2 ? '#ffa94d' : '#e8590c', null, 1, t + i);
+    }
+  }
+}
+
+/**
+ * Открытая терраса вместо стены: небо по сезону, времени суток и погоде места (wx: в ненастье серо и без солнца, дождь,
+ * снег, в грозу вспышки), далёкий город внизу (view: 'sea' — море), стеклянные перила (зимой со снегом), гирлянда.
+ */
+function terrace(ctx, geo, r, y, wx) {
   const { RH } = geo,
     d = darkness(),
     c = cal(),
-    w = r.x1 - r.x0;
-  const top = mix(SKY_TOP[c.season], '#1b1b4a', d * 0.92);
+    w = r.x1 - r.x0,
+    sk = skyWx(wx),
+    t = G.time;
+  const top = mix(mix(SKY_TOP[c.season], sk.gloom, sk.cloud * 0.75), '#1b1b4a', d * 0.92);
   ctx.save();
   ctx.beginPath();
   ctx.rect(r.x0, y - RH, w, RH);
   ctx.clip();
   const g = ctx.createLinearGradient(0, y - RH, 0, y);
   g.addColorStop(0, top);
-  g.addColorStop(1, mix(SKY_BOT[c.season], '#3b2f6b', d * 0.9));
+  g.addColorStop(1, mix(mix(SKY_BOT[c.season], '#d5dbe0', sk.cloud * 0.7), '#3b2f6b', d * 0.9));
   ctx.fillStyle = g;
   ctx.fillRect(r.x0, y - RH, w, RH);
   if (d > 0.5) {
-    ctx.fillStyle = '#fff';
-    for (let i = 0; i < 26; i++) {
-      ctx.globalAlpha = (d - 0.5) * 2 * (0.4 + ((i * 37) % 10) / 16);
-      ctx.fillRect(r.x0 + ((i * 97) % w), y - RH + 8 + ((i * 53) % (RH - 110)), 2.5, 2.5);
+    if (sk.cloud < 0.6) {
+      ctx.fillStyle = '#fff';
+      for (let i = 0; i < 26; i++) {
+        ctx.globalAlpha = (d - 0.5) * 2 * (0.4 + ((i * 37) % 10) / 16) * (1 - sk.cloud * 1.6);
+        ctx.fillRect(r.x0 + ((i * 97) % w), y - RH + 8 + ((i * 53) % (RH - 110)), 2.5, 2.5);
+      }
+      ctx.globalAlpha = 1;
+    }
+    if (sk.clear) {
+      ell(ctx, r.x1 - 70, y - RH + 56, 20, 20, '#fff3bf');
+      ell(ctx, r.x1 - 61, y - RH + 50, 17, 17, top);
+    }
+  } else if (sk.clear) ell(ctx, r.x1 - 70, y - RH + 56, 22, 22, c.season === 'autumn' ? '#ffc078' : '#ffe066');
+  // облака: в ясный день — три белых, в ненастье — больше и серее (ночью — тёмные, их почти не видно)
+  const nc = 3 + Math.round(sk.cloud * 4),
+    cc = mix(mix('#ffffff', '#aeb6bf', sk.cloud), '#2a2a5c', d * 0.85);
+  if (d <= 0.5 || sk.cloud > 0) {
+    ctx.globalAlpha = d > 0.5 ? 0.6 : 0.85;
+    for (let i = 0; i < nc; i++) {
+      const s0 = 1 + sk.cloud * 0.6,
+        cx = r.x0 + pmod(i * 230 + t * 7, w + 160) - 80,
+        cy = y - RH + 60 + ((i * 26) % 80);
+      ell(ctx, cx, cy, 40 * s0, 13 * s0, cc);
+      ell(ctx, cx + 22 * s0, cy - 9 * s0, 24 * s0, 13 * s0, cc);
     }
     ctx.globalAlpha = 1;
-    ell(ctx, r.x1 - 70, y - RH + 56, 20, 20, '#fff3bf');
-    ell(ctx, r.x1 - 61, y - RH + 50, 17, 17, top);
-  } else {
-    ell(ctx, r.x1 - 70, y - RH + 56, 22, 22, c.season === 'autumn' ? '#ffc078' : '#ffe066');
-    for (let i = 0; i < 3; i++) {
-      const cx = r.x0 + ((i * 230 + G.time * 7) % (w + 160)) - 80,
-        cy = y - RH + 74 + i * 26;
-      ell(ctx, cx, cy, 40, 13, 'rgba(255,255,255,.85)');
-      ell(ctx, cx + 22, cy - 9, 24, 13, 'rgba(255,255,255,.85)');
-    }
   }
   if (r.view === 'sea') {
     // вид на море (крыша отеля): полоса моря у горизонта, блики одним путём, кораблик
@@ -180,12 +243,20 @@ function terrace(ctx, geo, r, y) {
       poly(ctx, [bx, y - 67, bx, y - 92, bx + 15, y - 70], '#fff');
     }
   } else skyline(ctx, r.x0, r.x1, y - 4, 50, d, 3);
+  if (wx) fall(ctx, r.x0, y - RH, w, RH, wx, t);
+  const flash = wx && wx.kind === 'rain' && wx.force >= 3 ? lightning(t) : 0;
+  if (flash > 0) {
+    ctx.fillStyle = `rgba(235,240,255,${(flash * 0.45).toFixed(3)})`;
+    ctx.fillRect(r.x0, y - RH, w, RH);
+  }
   ctx.restore();
-  // перила: стекло между столбиками
+  // перила: стекло между столбиками; зимой (и в снегопад) на поручне снег
   ctx.fillStyle = 'rgba(208,235,255,.45)';
   ctx.fillRect(r.x0, y - 74, w, 70);
   for (let xx = r.x0 + 8; xx < r.x1; xx += 88) fillRR(ctx, xx - 3, y - 78, 6, 78, 2, '#ced4da', OUT, 1.2);
   fillRR(ctx, r.x0, y - 82, w, 9, 4, '#f1f3f5', OUT, 1.5);
+  if (c.season === 'winter' || sk.kind === 'snow')
+    fillRR(ctx, r.x0 + 2, y - 88, w - 4, 8, 4, '#fff', 'rgba(74,55,40,.35)', 1);
   // гирлянда лампочек под навесом
   const cols = ['#ffd43b', '#ff8fab', '#74c0fc', '#8ce99a'];
   for (let i = 0, xx = r.x0 + 26; xx < r.x1 - 10; xx += 44, i++) {
@@ -199,11 +270,11 @@ function terrace(ctx, geo, r, y) {
  * Обои комнаты: paper — 'planks' (доски, как в сауне), 'logs' (бревенчатая стена), 'tile' (плитка), 'open' (терраса без стены),
  * узор с панелью понизу ('dots', 'flowers', 'stars', 'waves', 'diamonds', 'brick') или полоски с панелью (по умолчанию).
  */
-function wallpaper(ctx, geo, r, y) {
+function wallpaper(ctx, geo, r, y, wx = null) {
   const { RH } = geo;
   const paper = r.paper || (r.floor === 'tile' ? 'tile' : 'stripes');
   if (paper === 'open') {
-    terrace(ctx, geo, r, y);
+    terrace(ctx, geo, r, y, wx);
     return;
   }
   ctx.fillStyle = r.wall;
@@ -300,32 +371,45 @@ function wallpaper(ctx, geo, r, y) {
  * панорамное — шире); view — что видно: 'sea' (море), 'city' (город внизу), 'forest' (ёлки), 'mountain' (горы в снегу),
  * 'dunes' (барханы), 'jungle' (листья джунглей), иначе просто небо.
  */
-function windowAt(ctx, x, y, hw = 44, view = null) {
+function windowAt(ctx, x, y, hw = 44, view = null, wx = null) {
   const d = darkness(),
-    c = cal();
+    c = cal(),
+    sk = skyWx(wx),
+    t = G.time;
   const sky = mix(
-    { winter: '#cfe9fb', spring: '#bfe6ff', summer: '#9bdcff', autumn: '#e3d6bd' }[c.season],
+    mix(
+      { winter: '#cfe9fb', spring: '#bfe6ff', summer: '#9bdcff', autumn: '#e3d6bd' }[c.season],
+      sk.gloom,
+      sk.cloud * 0.7,
+    ),
     '#232355',
     d * 0.9,
   );
   fillRR(ctx, x - hw - 8, y - 208, hw * 2 + 16, 104, 10, '#fff', OUT);
   fillRR(ctx, x - hw, y - 200, hw * 2, 88, 6, sky, null);
-  // обрезка по стеклу нужна только виду за окном (у обычного окна всё и так внутри рамы)
+  // обрезка по стеклу нужна виду за окном и осадкам (у обычного окна в ясную погоду всё и так внутри рамы)
+  const falls = !!wx && ['rain', 'snow', 'petals', 'leaves'].includes(wx.kind);
   ctx.save();
-  if (view) {
+  if (view || falls) {
     rr(ctx, x - hw, y - 200, hw * 2, 88, 6);
     ctx.clip();
   }
   if (d > 0.6) {
-    ell(ctx, x + 18, y - 176, 11, 11, '#fff3bf');
-    ell(ctx, x + 23, y - 179, 9, 9, sky);
-    if (view) {
+    if (sk.clear) {
+      ell(ctx, x + 18, y - 176, 11, 11, '#fff3bf');
+      ell(ctx, x + 23, y - 179, 9, 9, sky);
+    }
+    if (view && sk.cloud < 0.6) {
       ctx.fillStyle = '#fff';
       for (let i = 0; i < hw / 5; i++) ctx.fillRect(x - hw + ((i * 47) % (hw * 2)), y - 196 + ((i * 31) % 40), 2, 2);
     }
-  } else if (c.season === 'winter' && !view) {
-    for (let i = 0; i < 5; i++) ell(ctx, x - 34 + i * 17, y - 190 + ((i * 29 + G.time * 20) % 70), 2.5, 2.5, '#fff');
-  } else ell(ctx, x - 20, y - 178, 13, 13, c.season === 'autumn' ? '#ffc078' : '#ffe066');
+  } else if (sk.clear) ell(ctx, x - 20, y - 178, 13, 13, c.season === 'autumn' ? '#ffc078' : '#ffe066');
+  else {
+    // пасмурно: серые тучи вместо солнца
+    const cc = mix('#e9ecef', '#9aa3ad', sk.cloud);
+    ell(ctx, x - 16, y - 184, 22, 9, cc);
+    ell(ctx, x + 2, y - 190, 14, 9, cc);
+  }
   if (view === 'sea') {
     ctx.fillStyle = mix('#4dabf7', '#16214d', d * 0.85);
     ctx.fillRect(x - hw, y - 152, hw * 2, 40);
@@ -379,6 +463,14 @@ function windowAt(ctx, x, y, hw = 44, view = null) {
     for (let i = 0, xx = x - hw - 6; xx < x + hw + 12; xx += 17, i++) {
       const h = 34 + ((i * 17) % 22);
       poly(ctx, [xx - 11, y - 112, xx, y - 112 - h, xx + 11, y - 112], i % 2 ? fir : shade(fir, -0.15));
+    }
+  }
+  if (falls) fall(ctx, x - hw, y - 200, hw * 2, 88, wx, t + x * 0.01);
+  if (wx && wx.kind === 'rain' && wx.force >= 3) {
+    const flash = lightning(t);
+    if (flash > 0) {
+      ctx.fillStyle = `rgba(235,240,255,${(flash * 0.5).toFixed(3)})`;
+      ctx.fillRect(x - hw, y - 200, hw * 2, 88);
     }
   }
   ctx.restore();
@@ -713,15 +805,15 @@ export function drawHouseStill(ctx, desc, geo, view = null) {
 }
 
 /** Живое: открытые террасы и окна (за ними время суток, погода, облака, кораблик) и перегородки с проёмами. */
-export function drawHouseLive(ctx, desc, geo, view = null) {
+export function drawHouseLive(ctx, desc, geo, view = null, wx = null) {
   const { RH, fy } = geo;
   const sh = shellOf(desc);
   for (const r of desc.rooms) {
     if (!roomSeen(geo, r, view)) continue;
     const y = fy(r.f);
-    if (r.paper === 'open') wallpaper(ctx, geo, r, y);
-    // окна: win — x центра или список x; winW — ширина стекла (панорамное окно); view — что за окном
-    for (const wx of r.win ? [].concat(r.win) : []) windowAt(ctx, wx, y, (r.winW || 88) / 2, r.view || null);
+    if (r.paper === 'open') wallpaper(ctx, geo, r, y, wx);
+    // окна: win — x центра или список x; winW — ширина стекла (панорамное окно); view — что за окном; wx — погода
+    for (const x of r.win ? [].concat(r.win) : []) windowAt(ctx, x, y, (r.winW || 88) / 2, r.view || null, wx);
   }
   // перегородки с проёмами
   for (const r of desc.rooms) {

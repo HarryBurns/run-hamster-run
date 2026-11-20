@@ -38,7 +38,8 @@
 //  игра как приложение на экране «Домой» — dev/smoke_pwa.js:  node dev/smoke.js <url> step:приложение;
 //  первое открытие без игр (пустая игра) — dev/smoke_phantom.js:  node dev/smoke.js <url> "step:первое открытие";
 //  «Погода по всему миру» — dev/smoke_weather.js:  node dev/smoke.js <url> "step:погода:"
-//  одно правило «где житель сейчас» — dev/smoke_where.js:  node dev/smoke.js <url> "step:где житель:")
+//  одно правило «где житель сейчас» — dev/smoke_where.js:  node dev/smoke.js <url> "step:где житель:";
+//  мелочи после «виллы» (небо террасы, торт на столе) — dev/smoke_vlfix.js:  node dev/smoke.js <url> "step:после виллы")
 // Скорость проверяется отдельно:  node dev/bench.js [url] --spots=forest --sizes=desktop --max-forest=45
 const { MG_START } = require('./selectors.js'); // кнопка «Начать!» мини-игры — по метке, а не по тексту
 const lib = require('./lib.js'); // общие помощники шагов (этап 21): ожидания условий вместо пауз, метки data-act
@@ -95,6 +96,7 @@ const tvSteps = require('./smoke_tv.js'); // телевизор дома: кан
 const rest = require('./smoke_rest.js'); // «Отдых и питомец» 20 ноября: гамак, сидит спиной за столиками, отдых в тайных местах, питомец в корзинке
 const villa = require('./smoke_villa.js'); // «Вилла растёт»: маленький домик новой игры, стройка в агентстве, ступени дома и двора, теплица, старая игра
 const homeSteps = require('./smoke_home.js'); // свой дом: снаружи по ступени, подписи, двор с дикими цветами, «Обустроить», новая игра после сценки
+const vlfix = require('./smoke_vlfix.js'); // мелочи после «виллы»: небо террасы по погоде, торт на столе в «Год в городе»
 const toastsSteps = require('./smoke_toasts.js'); // подсказки вверху: по длине текста, придержать мышью, убрать нажатием, не копятся
 const holidays = require('./smoke_holidays.js'); // П.13: праздники — Новый год, Рождество, Китайский Новый год, Масленица
 
@@ -2920,6 +2922,7 @@ const runParallel = () => {
     await drawFixes({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
     await villa({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
     await homeSteps({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
+    await vlfix({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
     await trifles({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
     await tvSteps({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
     await rest({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });

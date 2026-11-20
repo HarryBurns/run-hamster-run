@@ -36,11 +36,11 @@
 //
 // Сцена умеет: ходьбу по нажатию и стрелками, лифт, «дойти и сделать», мебель и встроенные предметы,
 // гостей и жильцов, режим «Обустроить» с кладовкой, сон (событие wake), HUD и звук.
-import { G, cal, playerLook, houseItems, walkK, sneezePhase } from '../../core/state.js';
+import { G, cal, playerLook, houseItems, walkK, sneezePhase, weatherAt } from '../../core/state.js';
 import { initHouse } from '../../core/actions.js';
 import { emit, scope } from '../../core/events.js';
 import { run } from '../../core/registry.js';
-import { go } from '../../core/loop.js';
+import { go, scenes } from '../../core/loop.js';
 import { keys, axisX } from '../../core/input.js';
 import { Camera } from '../../core/camera.js';
 import { clamp, lerp, rnd, TAU } from '../../core/util.js';
@@ -55,6 +55,9 @@ import { hitItem, useItem, drawItems, isParty, SEAT_H } from './items.js';
 import { makeResidents, syncGuests, actorHappy, hitActor, updateActors, drawActors, actorHere } from './actors.js';
 import { setDecor, decorDown, decorMove, decorUp } from './decor.js';
 import { drawLight } from './light.js';
+
+/** Погода «без погоды» — для домов под землёй. */
+const CALM = { kind: 'sun', force: 0, cloud: 0, mist: 0, warm: false };
 
 /**
  * ОБЩИЕ ЧАСТИ ВСЕХ ДОМОВ — addSidePart(часть), как addWorldPart у локаций: так занятия добавляют своё во все дома, не
@@ -131,6 +134,18 @@ export function createSideScene(desc0) {
     stateT: 0,
     down: null,
     back: null, // позиция снаружи, откуда пришли
+    /**
+     * Погода за окнами и над открытой террасой: места, где дом стоит (по цепочке «откуда вошли» — sc.back до локации:
+     * хижина на острове — погода острова), без него (вилла, вход кнопкой «Домой») — погода города. { kind, force, cloud … }
+     */
+    wxOut() {
+      for (let s = sc, i = 0; s && i < 5; i++) {
+        if (s.wx) return s.desc && s.desc.sky === false ? CALM : s.wx(); // под землёй (пещеры) — без погоды
+        const b = s.back;
+        s = b && typeof b.scene === 'string' && scenes[b.scene] !== s ? scenes[b.scene] : null;
+      }
+      return weatherAt('world');
+    },
     decor: { on: false, sel: null, drag: null, pan: null, tray: null },
     // Временное состояние мебели (крутится колесо, качнулась игрушка) живёт в сцене, а не в сохранении:
     live: new WeakMap(), // предмет → { on, t: сколько секунд осталось (0 — пока не выключат) }
@@ -662,8 +677,9 @@ export function createSideScene(desc0) {
   }
   function draw(ctx) {
     const { w, h } = G.view,
-      t = G.time;
-    drawSky(ctx, w, h);
+      t = G.time,
+      wx = sc.wxOut();
+    drawSky(ctx, w, h, wx);
     ctx.save();
     // координаты дома со сдвигом камеры в целых пикселях устройства (как cam.apply, но без дробной части) —
     // тогда неподвижное из кэша (engine/side/cache.js) ложится 1:1 и совпадает с рисунком линиями (От12)
@@ -680,7 +696,7 @@ export function createSideScene(desc0) {
     cache.begin(ctx, k, tx, ty, cal().season);
     drawHouseGround(ctx, desc, geo);
     cache.tiles('house', houseBox(desc, geo), view, (c) => drawHouseStill(c, desc, geo));
-    drawHouseLive(ctx, desc, geo, view);
+    drawHouseLive(ctx, desc, geo, view, wx);
     if (geo.lift) drawLift(ctx, geo, sc.liftY);
     if (desc.art && desc.art.back) desc.art.back(ctx, sc, t);
     for (const part of SIDE_PARTS) if (part.back) part.back(ctx, sc, t);
