@@ -2343,13 +2343,16 @@ const runParallel = () => {
         if (!t.includes(who) || t.includes('Скоро открытие')) throw new Error(key + ': окно тайного места: ' + t);
         await closeAll();
       }
-      // задание «Базарный день» ведёт к рынку на площади
+      // задание «Базарный день» ведёт к рынку на площади. Окно ворот леса выше отметило «наткнулась на заросшую
+      // тропу» — звёздочка ведёт к Мяте (задание журнала важнее письма); нажатие на плашку письма возвращает её к письму
       const tg = await ev(() => {
         const d = window.__dev,
           was = d.G.state.mail;
         d.actions.setMail('market');
         d.F.openMailbox();
         document.querySelectorAll('.overlay .xbtn').forEach((x) => x.click());
+        d.F.trackQuest(null); // как плашка письма в HUD (js/main.js, task.fn)
+        d.F.trackHoliday(false);
         const t = d.World.target(),
           door = d.World.doorOf('market');
         return { t, door, was: !!was };
