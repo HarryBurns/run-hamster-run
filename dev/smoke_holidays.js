@@ -39,7 +39,9 @@ module.exports = async function holidays(ctx) {
   /** Действие из реестра; ждём отклика (окно, диалог, сцена, подсказка), но не дольше ms. */
   const run = (a, ms = 450) => L.run(a, ms);
   /** Новая игра (1 июня, без вводной цепочки), 20 000 монет. */
-  const fresh = () => L.fresh({ money: 20000, flags: { questsEarly: 0 } });
+  // door:forest — хомячок была у заросшей тропы в лес: без неё задание Мяты (гербарий) не появляется;
+  // doorHint — подсказка «поговори с Мятой» уже была (без лишнего сообщения посреди шагов)
+  const fresh = () => L.fresh({ money: 20000, flags: { questsEarly: 0, 'door:forest': 1, 'doorHint:herbarium': 1 } });
   /** Перейти к празднику (when: eve | day | after; год), в город. */
   const toHoliday = async (id, when = 'day', year = 1, minutes = 600) => {
     await closeAll();
