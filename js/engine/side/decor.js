@@ -81,25 +81,94 @@ function placeFromStorage(sc, id) {
   const c = sc.cam.toWorld(G.view.w / 2, G.view.h / 2);
   const f = sc.geo.floorAt(c.y, 40);
   const x = clamp(c.x, d.w / 2 + 6, W - d.w / 2 - 6);
-  // настенный предмет посередине экрана мог попасть на окно — тогда рядом, на стене без окна; и не за пальмой или
-  // шкафом: спрятанный за ними, он почти не виден, а палец берёт то, что впереди (раньше часы вставали за пальму)
-  sc.decor.sel = placeFurn(sc.houseKey, id, f, d.wall ? freeWallX(sc, d, x, f, 160, true) : x, d.wall ? 160 : 0);
+  // настенный предмет посередине экрана мог попасть на окно — тогда рядом, на свободной стене (не на окне, не на
+  // нарисованных шкафчиках, не на другой картине); и не за пальмой или шкафом: спрятанный за ними, он почти не виден,
+  // а палец берёт то, что впереди (раньше часы вставали за пальму). Напольный — тоже не за другой мебелью (З21).
+  sc.decor.sel = placeFurn(
+    sc.houseKey,
+    id,
+    f,
+    d.wall ? freeWallX(sc, d, x, f, 160, true) : freeFloorX(sc, d, x, f),
+    d.wall ? 160 : 0,
+  );
   buildTray(sc);
 }
 
-// ---------- окна: настенное на них не вешается ----------
+// ---------- стена: окна, нарисованное на стене, другое настенное ----------
+/** Зазор, с которым игра сама вешает настенное рядом с окном или другим предметом (З16: не вплотную к раме). */
+const GAP = 12;
 /**
- * Налезает ли настенный предмет d (центр x, высота y над полом этажа floor) на окно дома. Рама окна — как её рисует
- * engine/side/rooms.js (windowAt): x ± (половина стекла + 8), от 104 до 208 над полом; стекло — winW комнаты или 88.
+ * Налезает ли настенный предмет d (центр x, высота y над полом этажа floor) на окно дома (gap — с зазором). Рама
+ * окна — как её рисует engine/side/rooms.js (windowAt): x ± (половина стекла + 8), от 104 до 208 над полом; стекло —
+ * winW комнаты или 88.
  */
-export function onWindow(sc, d, x, floor, y) {
-  if (!d.wall || y - d.h / 2 >= 208 || y + d.h / 2 <= 104) return false;
+export function onWindow(sc, d, x, floor, y, gap = 0) {
+  if (!d.wall || y - d.h / 2 >= 208 + gap || y + d.h / 2 <= 104 - gap) return false;
   for (const r of sc.desc.rooms) {
     if (r.f !== floor || !r.win) continue;
-    const hw = (r.winW || 88) / 2 + 8;
+    const hw = (r.winW || 88) / 2 + 8 + gap;
     for (const wx of [].concat(r.win)) if (Math.abs(x - wx) < d.w / 2 + hw) return true;
   }
   return false;
+}
+/**
+ * Что мешает повесить настенный предмет d (центр x, высота y над полом этажа floor): 'window' — окно; 'fixture' —
+ * нарисованное на стене (шкафчики кухни, зеркало над раковиной: поле wall встроенного предмета, fixtures.js);
+ * 'wall' — другое настенное (З16: не перекрывают друг друга); null — ничего. self — сам предмет (его не считаем),
+ * gap — с зазором.
+ */
+export function wallBusy(sc, d, x, floor, y, self = null, gap = 0) {
+  if (!d.wall) return null;
+  if (onWindow(sc, d, x, floor, y, gap)) return 'window';
+  const x0 = x - d.w / 2 - gap,
+    x1 = x + d.w / 2 + gap,
+    lo = y - d.h / 2 - gap, // высота над полом: низ и верх предмета
+    hi = y + d.h / 2 + gap;
+  for (const b of sc.fixtures || []) {
+    if (b.f !== floor || !b.def.wall) continue;
+    for (const [a0, a1, h0, h1] of b.def.wall)
+      if (x0 < b.x + a1 && b.x + a0 < x1 && lo < h1 && h0 < hi) return 'fixture';
+  }
+  for (const it of sc.items()) {
+    const q = FURN_BY_ID[it.id];
+    if (!q || !q.wall || it.floor !== floor || (self && it.uid === self.uid)) continue;
+    if (x0 < it.x + q.w / 2 && it.x - q.w / 2 < x1 && lo < it.y + q.h / 2 && it.y - q.h / 2 < hi) return 'wall';
+  }
+  return null;
+}
+/** Что сказать, когда отпущенный предмет вернулся на свободное место (по ответу wallBusy). */
+const BUSY_SAY = {
+  window: 'На окно не повесить — закроет вид. Повесь рядом, на стену!',
+  fixture: 'Тут уже шкафчики — повесь рядом, на свободную стену!',
+  wall: 'Здесь уже что-то висит — повесь рядом, на свободную стену!',
+};
+/**
+ * Занят ли пол этажа для напольного предмета d с центром x: другой напольной мебелью (не коврами) или встроенным
+ * предметом (дверь, ванна, кухня — поле foot или ширина w). Коврик ложится под всё — ему всегда свободно.
+ */
+function floorBusy(sc, d, x, floor) {
+  if (d.layer === 0) return false;
+  const x0 = x - d.w / 2,
+    x1 = x + d.w / 2;
+  for (const it of sc.items()) {
+    const q = FURN_BY_ID[it.id];
+    if (!q || q.wall || q.layer === 0 || it.floor !== floor) continue;
+    if (x0 < it.x + q.w / 2 && it.x - q.w / 2 < x1) return true;
+  }
+  for (const b of sc.fixtures || []) {
+    if (b.f !== floor || !b.type || b.type === 'zone') continue;
+    const s = b.def.foot || (b.w ? [-b.w / 2, b.w / 2] : null);
+    if (s && x0 < b.x + s[1] && b.x + s[0] < x1) return true;
+  }
+  return false;
+}
+/** Ближайший к x центр напольного предмета на этом этаже, где он не за другой мебелью (не нашлось — сам x). */
+function freeFloorX(sc, d, x, floor) {
+  const W = sc.geo.W;
+  for (let k = 0; k <= W; k += 8)
+    for (const nx of [x - k, x + k])
+      if (nx >= d.w / 2 + 6 && nx <= W - d.w / 2 - 6 && !floorBusy(sc, d, nx, floor)) return nx;
+  return x;
 }
 /**
  * Закрывает ли настенный предмет d (центр x, высота y над полом этажа floor) другая мебель этажа: напольная повыше
@@ -117,18 +186,29 @@ function hidden(sc, d, x, floor, y) {
   return false;
 }
 /**
- * Ближайший к x центр настенного предмета на этом этаже, где он не на окне; seen — ещё и не закрыт другой мебелью,
- * если такое место есть (не нашлось — сам x).
+ * Ближайший к x центр настенного предмета на этом этаже, где стена свободна (wallBusy) — с зазором GAP, а если так
+ * места нет, то вплотную; seen — ещё и не закрыт напольной мебелью, если такое место есть. self — сам предмет
+ * (его место не занято). Не нашлось — сам x.
  */
-function freeWallX(sc, d, x, floor, y, seen) {
-  const W = sc.geo.W;
-  for (const look of seen ? [true, false] : [false])
+function freeWallX(sc, d, x, floor, y, seen, self = null) {
+  const W = sc.geo.W,
+    tries = seen
+      ? [
+          [GAP, true],
+          [GAP, false],
+          [0, false],
+        ]
+      : [
+          [GAP, false],
+          [0, false],
+        ];
+  for (const [gap, look] of tries)
     for (let k = 0; k <= W; k += 8)
       for (const nx of [x - k, x + k])
         if (
           nx >= d.w / 2 + 6 &&
           nx <= W - d.w / 2 - 6 &&
-          !onWindow(sc, d, nx, floor, y) &&
+          !wallBusy(sc, d, nx, floor, y, self, gap) &&
           !(look && hidden(sc, d, nx, floor, y))
         )
           return nx;
@@ -152,7 +232,8 @@ export function decorDown(sc, sx, sy) {
   const it = hitItem(sc, w.x, w.y, true);
   if (it) {
     dc.sel = it;
-    // ok — последнее место, где предмет можно оставить (настенный — не на окне); bad — сейчас он на окне
+    // ok — последнее место, где предмет можно оставить (настенный — на свободной стене); bad — сейчас он на окне,
+    // на шкафчиках или на другом настенном (ответ wallBusy)
     dc.drag = { it, dx: w.x - it.x, moved: false, ok: { x: it.x, floor: it.floor, y: it.y }, bad: false };
     buildTray(sc);
   } else {
@@ -176,9 +257,9 @@ export function decorMove(sc, sx, sy) {
     const x = clamp(w.x - dc.drag.dx, d.w / 2 + 6, W - d.w / 2 - 6),
       y = d.wall ? clamp(fy(f) - w.y, d.h / 2 + 60, RH - d.h / 2 - 8) : undefined;
     moveFurn(it, x, f, y);
-    // на окне предмет идёт за пальцем, но рамка красная («сюда нельзя»), а отпущенный он вернётся на последнее
-    // хорошее место (decorUp)
-    dc.drag.bad = onWindow(sc, d, x, f, y);
+    // на окне (шкафчиках, другом настенном) предмет идёт за пальцем, но рамка красная («сюда нельзя»), а отпущенный
+    // он вернётся на ближайшее свободное место у последнего хорошего — с небольшим зазором (decorUp)
+    dc.drag.bad = wallBusy(sc, d, x, f, y, it);
     if (!dc.drag.bad) dc.drag.ok = { x, floor: f, y: it.y };
   } else if (dc.pan) {
     sc.cam.x = dc.pan.cx - (sx - dc.pan.sx) / sc.cam.zoom;
@@ -192,9 +273,9 @@ export function decorUp(sc) {
     const { it, ok, bad } = dc.drag;
     if (bad) {
       const d = FURN_BY_ID[it.id];
-      moveFurn(it, freeWallX(sc, d, ok.x, ok.floor, ok.y), ok.floor, ok.y);
+      moveFurn(it, freeWallX(sc, d, ok.x, ok.floor, ok.y, false, it), ok.floor, ok.y);
       sfx('bad');
-      toast('На окно не повесить — закроет вид. Повесь рядом, на стену!');
+      toast(BUSY_SAY[bad]);
     } else sfx('pop');
     touchState();
   }

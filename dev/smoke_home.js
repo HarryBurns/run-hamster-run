@@ -4,7 +4,8 @@
 const lib = require('./lib.js');
 
 module.exports = async function home(ctx) {
-  const { page, step, ev, expect, fresh, go, closeAll, frames, panelText, drain } = lib(ctx);
+  const { page, step, ev, expect, fresh, go, closeAll, frames, panelText, drain, until, toasts, clearToasts } =
+    lib(ctx);
 
   /** Дом на карте города: подпись, ключи его спрайтов в кэше, не обрезан ли рисунок. */
   const outside = () =>
@@ -96,6 +97,133 @@ module.exports = async function home(ctx) {
       expect(r.placed.join() === 'yardBush*', 'предмет встал не на цветы или цветы под ним остались', r);
       expect(r.movedA.join() === 'flowers' && r.movedB.join() === 'yardBush*', 'переставили — цветы не вернулись', r);
       expect(r.afterB.join() === 'flowers' && r.back.join() === String(r.v), 'унесли — цветы не выросли те же', r);
+    },
+  );
+
+  // ---------- «Обустроить» (З16, З21) ----------
+  /** Включить «Обустроить», в кладовке — только эти вещи; камера — на точку (x, этаж, высота над полом). */
+  const decorAt = async (store, x, f, up) => {
+    await ev((st) => window.__dev.actions.mutate((s) => (s.storage = st)), store);
+    await ev(() => window.__dev.scene.setDecor(true));
+    await until(() => document.querySelector('.decor-tray .tray-item'), undefined, { msg: 'кладовка' });
+    await frames(2);
+    await ev(
+      ([x, f, up]) => {
+        const sc = window.__dev.scene;
+        sc.cam.x = x;
+        sc.cam.y = sc.geo.fy(f) - up;
+        sc.cam.clamp();
+      },
+      [x, f, up],
+    );
+    await frames(2);
+  };
+  /** Предмет дома (последний с таким id) и его рамка: x0, x1 и высоты низа и верха над полом (для настенного). */
+  const item = (id) =>
+    ev(async (id) => {
+      const { FURN_BY_ID } = await import('/js/data/index.js');
+      const sc = window.__dev.scene,
+        it = sc
+          .items()
+          .filter((i) => i.id === id)
+          .pop(),
+        d = it && FURN_BY_ID[id];
+      return (
+        it && {
+          uid: it.uid,
+          x: it.x,
+          f: it.floor,
+          y: it.y,
+          x0: it.x - d.w / 2,
+          x1: it.x + d.w / 2,
+          lo: it.y - d.h / 2,
+          hi: it.y + d.h / 2,
+        }
+      );
+    }, id);
+  /** Перетащить предмет пальцем (мышью) в точку мира (x, высота над полом этажа f); вернуть drag.bad над ней. */
+  const dragTo = async (it, x, f, up) => {
+    const pt = await ev(
+      ([it, x, f, up]) => {
+        const sc = window.__dev.scene;
+        sc.cam.x = (it.x + x) / 2;
+        sc.cam.y = sc.geo.fy(f) - 150;
+        sc.cam.clamp();
+        return { a: sc.debugScreen(it.x, sc.geo.fy(it.f) - it.y), b: sc.debugScreen(x, sc.geo.fy(f) - up) };
+      },
+      [it, x, f, up],
+    );
+    await frames(2);
+    await page.mouse.move(pt.a.x, pt.a.y);
+    await page.mouse.down();
+    await page.mouse.move(pt.b.x, pt.b.y, { steps: 6 });
+    const bad = await ev(() => {
+      const g = window.__dev.scene.decor.drag;
+      return g ? g.bad : 'нет';
+    });
+    await page.mouse.up();
+    await frames(2);
+    return bad;
+  };
+  const cross = (a, b) => a.x0 < b.x1 && b.x0 < a.x1 && a.lo < b.hi && b.lo < a.hi;
+
+  await step(
+    'свой дом: «Обустроить» — у окна с зазором, настенное не на настенном и не на шкафчиках кухни пентхауса; напольное из кладовки — не за мебелью',
+    async () => {
+      await fresh({ minutes: 12 * 60 });
+      await go('villa');
+      // окно гостиной виллы (x 640): часы, отпущенные над ним, встают рядом — не вплотную к раме
+      await decorAt({ clock: 1 }, 640, 0, 150);
+      await page.click('.decor-tray .tray-item');
+      let c = await item('clock');
+      expect(c, 'часы не встали из кладовки');
+      let bad = await dragTo(c, 640, 0, 156);
+      expect(bad === 'window', 'над окном рамка не «нельзя»', bad);
+      c = await item('clock');
+      const frame = 88 / 2 + 8; // половина рамы окна
+      expect(Math.abs(c.x - 640) >= 28 + frame + 10, 'часы встали вплотную к раме окна', c);
+      expect((await toasts()).includes('окно'), 'нет подсказки про окно');
+      // картина рядом: часы над ней — «нельзя», отпущенные — рядом, не налезая
+      await clearToasts();
+      await ev(([x]) => window.__dev.actions.placeFurn('villa', 'pic_sun', 0, x, 150), [c.x > 640 ? 820 : 460]);
+      await frames(2);
+      const pic = await item('pic_sun');
+      c = await item('clock');
+      bad = await dragTo(c, pic.x, 0, 150);
+      expect(bad === 'wall', 'над картиной рамка не «нельзя»', bad);
+      c = await item('clock');
+      expect(!cross(c, pic), 'часы остались на картине', { c, pic });
+      expect((await toasts()).includes('висит'), 'нет подсказки «здесь уже что-то висит»', await toasts());
+      await ev(() => window.__dev.scene.setDecor(false));
+      // напольное из кладовки — не за кроватью и тумбочкой в спальне (камера — на кровати; на этаже есть место)
+      const bed = await item('bed_pink');
+      await decorAt({ plant_ficus: 1 }, bed.x, bed.f, 120);
+      const was = await ev(() => window.__dev.scene.items().map((i) => i.uid));
+      await page.click('.decor-tray .tray-item');
+      const fic = await ev(async (was) => {
+        const { FURN_BY_ID } = await import('/js/data/index.js');
+        const sc = window.__dev.scene,
+          it = sc.items().find((i) => !was.includes(i.uid)),
+          d = FURN_BY_ID[it.id];
+        const under = sc
+          .items()
+          .filter((q) => q !== it && q.floor === it.floor && !FURN_BY_ID[q.id].wall && FURN_BY_ID[q.id].layer !== 0)
+          .filter((q) => Math.abs(q.x - it.x) < (FURN_BY_ID[q.id].w + d.w) / 2)
+          .map((q) => q.id);
+        return { x: it.x, f: it.floor, under };
+      }, was);
+      expect(fic.f === bed.f && !fic.under.length, 'фикус из кладовки встал за другой мебелью', fic);
+      await ev(() => window.__dev.scene.setDecor(false));
+      // пентхаус: часы из кладовки — не на нарисованных шкафчиках кухни (кухня x 1075: шкафчики 898–1232)
+      await ev(() => window.__dev.actions.addHome('penthouse'));
+      await go('penthouse');
+      await decorAt({ clock: 1 }, 1075, 0, 160);
+      await page.click('.decor-tray .tray-item');
+      c = await item('clock');
+      const cab = { x0: 1075 - 177, x1: 1075 + 157, lo: 164, hi: 238 };
+      expect(c && c.f === 0, 'часы в пентхаусе не встали на первый этаж', c);
+      expect(!cross(c, cab), 'часы из кладовки зашли на кухонные шкафчики', c);
+      await ev(() => window.__dev.scene.setDecor(false));
     },
   );
 };
