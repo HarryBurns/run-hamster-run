@@ -594,10 +594,10 @@ module.exports = async function title(ctx) {
         await until(
           () => {
             const p = window.__dev.title.debug().plane;
-            return p.clear && p.x > innerWidth * 0.2 && p.x < innerWidth * 0.8;
+            return p.x > innerWidth * 0.2 && p.x < innerWidth * 0.8;
           },
           null,
-          { timeout: 14000, msg: 'самолётик долетел до середины, не за пальмой' },
+          { timeout: 14000, msg: 'самолётик долетел до середины' },
         );
         d = await dbg();
         const r = await ev(() => {
@@ -614,7 +614,7 @@ module.exports = async function title(ctx) {
         await until(
           () => {
             const p = window.__dev.title.debug().plane;
-            return !p.trick && p.clear;
+            return !p.trick;
           },
           null,
           { timeout: 6000, msg: 'трюк закончился' },

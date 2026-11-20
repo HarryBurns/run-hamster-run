@@ -274,6 +274,11 @@ export function createTitleScene(canvas, o) {
         return;
       }
     }
+    // самолётик пролетает перед кронами пальм (небо над морем узкое — за кроной его не было бы видно)
+    if (planeOn()) {
+      const [px, py] = planePos();
+      if (near(x, y, px, py, R * 1.4)) return T - plane.trick > PLANE_TRICK && planeTap(); // посреди петли — ждём
+    }
     // пальма: потянуть — качнуть, нажать на крону — упадёт кокос
     for (const p of palms) {
       const [cx, cy] = crown(p);
@@ -285,12 +290,8 @@ export function createTitleScene(canvas, o) {
         return;
       }
     }
-    // русалочка — на воде за пальмами; самолётик — в небе перед облаками
+    // русалочка — на воде за пальмами
     if ((mer.st === 'look' || (mer.st === 'up' && mer.t > 0.5)) && near(x, y, ...merHit(), Math.max(R * 1.1, 36 * merS()))) return merTap(); // prettier-ignore
-    if (planeOn()) {
-      const [px, py] = planePos();
-      if (near(x, y, px, py, R * 1.4)) return T - plane.trick > PLANE_TRICK && planeTap(); // посреди петли — ждём
-    }
     // рядом с бабочкой, а под пальцем — небо, море или песок: всё же бабочке
     if (flyNear(R * 1.2)) return flyTap();
     for (const c of clouds)
@@ -930,7 +931,6 @@ export function createTitleScene(canvas, o) {
     drawShip();
     drawFish();
     for (const c of clouds) drawCloud(c);
-    drawPlane();
     if (!night && !rain)
       for (let i = 0; i < 2; i++) {
         // чайки вдалеке
@@ -962,6 +962,7 @@ export function createTitleScene(canvas, o) {
     if (winter) things.push([snowman.y, drawSnowman]);
     things.sort((a, b) => a[0] - b[0]);
     for (const th of things) th[1]();
+    drawPlane();
     drawFly(false);
     drawWeather();
     if (rain) {
@@ -1077,9 +1078,7 @@ export function createTitleScene(canvas, o) {
         dolphin: { on: dolphin.t >= 0, ...P(dolphin.x, hy + 14 * k) },
         plane: (() => {
           const [x, y] = planePos();
-          // clear — не за кроной пальмы (крона ближе к зрителю и забрала бы нажатие)
-          const clear = palms.every((p) => !near(x, y, ...crown(p), p.h * 0.34 + 30 * Math.max(k, 0.7)));
-          return { on: planeOn(), clear, ...P(x, y), dir: plane.dir, trick: T - plane.trick < PLANE_TRICK, hearts: plane.hearts.length, top: Math.round(planeBand()[0] + r.top) }; // prettier-ignore
+          return { on: planeOn(), ...P(x, y), dir: plane.dir, trick: T - plane.trick < PLANE_TRICK, hearts: plane.hearts.length, top: Math.round(planeBand()[0] + r.top) }; // prettier-ignore
         })(),
         mermaid: { st: mer.st, ...P(...merHit()), water: Math.round(mer.y + r.top) },
         drawn: strokes.reduce((n, st) => n + st.length, 0),
