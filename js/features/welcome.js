@@ -44,7 +44,8 @@ const actorOf = (sc, id) => sc.actors.find((g) => g.guest && g.id === id);
 /** Сосед входит в дверь с гостинцем в лапках. */
 function knock(sc, q) {
   const npc = NPC_BY_ID[q.npc];
-  inviteGuest(q.npc, 'villa'); // уже в гостях или дом полон — расскажет и так
+  // пришёл сам — уйдёт вместе с хомячком (features/guests.js); уже в гостях или дом полон — расскажет и так
+  inviteGuest(q.npc, 'villa', 'self');
   const g = actorOf(sc, q.npc),
     c = q.visit && q.visit.carry;
   if (g && c) g.carry = { ...c, give: null };

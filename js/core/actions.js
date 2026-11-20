@@ -178,7 +178,7 @@ export const MAX_GUESTS = 3;
  * перебегают вместе с новым гостем. Без home — туда, где гости сейчас. false — уже в гостях или дом полон.
  * how — как гость пришёл (когда уйдёт — features/guests.js): 'call' — позвали (по телефону, в разговоре), 'self' —
  * сам («тук-тук»; уходит, когда хомячок выходит из дома), 'party' — гость праздника (день рождения). Лежит в отметке
- * дня dayFlags.guestHow (без отметки — 'call'; сосед вводной цепочки получает 'self' в features/guests.js); гости
+ * дня dayFlags.guestHow (без отметки — 'call'; сосед вводной цепочки — 'self', features/welcome.js); гости
  * и отметки дня обнуляются вместе в nextDay.
  */
 export const inviteGuest = act((id, home, how = null) => {

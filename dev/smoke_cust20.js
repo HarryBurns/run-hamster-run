@@ -291,9 +291,9 @@ module.exports = async function cust20(ctx) {
   const guests = () => ev(() => window.__dev.G.state.guests.slice());
 
   await step('заказчик 20: гость, пришедший сам, выходит вместе с хомячком; Плюша идёт к ТЦ из задания', async () => {
-    // вводная цепочка: Плюша заходит сама (как features/welcome.js — inviteGuest без how), задание взято
+    // вводная цепочка: Плюша заходит сама (как features/welcome.js — inviteGuest с how 'self'), задание взято
     await noon(`s.flags.intro = 1; delete s.quests.intro_home;`);
-    await ev(() => window.__dev.actions.inviteGuest('plusha', 'villa'));
+    await ev(() => window.__dev.actions.inviteGuest('plusha', 'villa', 'self'));
     expect(
       (await ev(() => window.__dev.F.guestHow('plusha'))) === 'self',
       'соседка вводной цепочки не отмечена «пришла сама»',
