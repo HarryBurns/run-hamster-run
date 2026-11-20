@@ -230,4 +230,28 @@ module.exports = async function trifles(ctx) {
     await L.mgClose();
     await closeAll();
   });
+
+  await step(
+    'мелочи: у блюд и вещей нет одинаковых значков; еловая веточка и новые блюда — рисованные (В10)',
+    async () => {
+      const r = await ev(async () => {
+        const D = await import('/js/data/index.js'),
+          A = await import('/js/art/items.js');
+        const by = {};
+        for (const x of [...D.DISHES, ...D.INGREDIENTS, ...D.FINDS])
+          if (x.id !== 'herb_cone') (by[x.e] = by[x.e] || []).push(x.id); // еловая шишка гербария — та же шишка
+        const ids = ['pineapple_pizza', 'gingerbread', 'pumpkin_pie', 'forest_pie', 'grape_jelly', 'coco_candy'];
+        const all = [...D.DISHES, ...D.INGREDIENTS, ...D.FINDS];
+        return {
+          dups: Object.values(by).filter((l) => l.length > 1),
+          drawn: [...ids, 'cheese_plate', 'flour', 'seeds', 'fir_twig'].filter((id) => {
+            const x = all.find((q) => q.id === id);
+            return !(x && D.ICON_RE.test(x.e) && A.hasItemArt(Object.keys(D.ICON).find((k) => D.ICON[k] === x.e)));
+          }),
+        };
+      });
+      expect(!r.dups.length, 'одинаковые значки у разных вещей', r.dups);
+      expect(!r.drawn.length, 'без рисованного значка', r.drawn);
+    },
+  );
 };

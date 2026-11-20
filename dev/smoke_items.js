@@ -351,109 +351,119 @@ module.exports = async function items(ctx) {
     },
   );
 
-  await step('вещи: венок и гирлянда из цветов острова у Вождя Кокоса — после леи, из трёх разных цветов', async () => {
-    await fresh();
-    await ev(() => {
-      const d = window.__dev;
-      for (const id of ['forest', 'jungle', 'island']) if (!d.QuestState.landOpen(id)) d.actions.openLand(id);
-      d.actions.mutate((s) => {
-        s.day = 18;
-        s.minutes = 12 * 60;
-        s.weather = 'sun';
-        s.dayFlags = {};
-        s.flags.islandHint = 1;
-        s.flags.metKokos = 1;
-      });
-      d.go('island');
-      d.locations.island.debugTeleport(18, 19);
-    });
-    await L.untilScene('island');
-    await frames(3);
-    await closeAll();
-    await watch();
-    const talk = async () => {
+  await step(
+    'вещи: венок и гирлянда из цветов острова у Вождя Кокоса — после леи, из трёх разных цветов, наклейки',
+    async () => {
+      await fresh();
       await ev(() => {
-        window.__dev.run('chief');
+        const d = window.__dev;
+        for (const id of ['forest', 'jungle', 'island']) if (!d.QuestState.landOpen(id)) d.actions.openLand(id);
+        d.actions.mutate((s) => {
+          s.day = 18;
+          s.minutes = 12 * 60;
+          s.weather = 'sun';
+          s.dayFlags = {};
+          s.flags.islandHint = 1;
+          s.flags.metKokos = 1;
+        });
+        d.go('island');
+        d.locations.island.debugTeleport(18, 19);
       });
-      await nextDialog();
-      if (
-        await ev(
-          () => !!document.querySelector('.dialog') && /Помогу/.test(document.querySelector('.dialog').textContent),
-        )
-      ) {
-        await page.click('.dialog .btn >> text=Потом');
+      await L.untilScene('island');
+      await frames(3);
+      await closeAll();
+      await watch();
+      const talk = async () => {
+        await ev(() => {
+          window.__dev.run('chief');
+        });
         await nextDialog();
-      }
-    };
-    const opts = () => ev(() => [...document.querySelectorAll('.dialog .btn')].map((b) => b.textContent));
-    const give = (n) =>
-      ev((n) => {
-        for (const id of ['flower_plumeria', 'flower_hibiscus', 'flower_orchid'])
-          window.__dev.actions.addItem('finds', id, n);
-      }, n);
-    // без леи венок и гирлянду не предлагают
-    await give(1);
-    await talk();
-    let o = await opts();
-    expect(o.some((t) => /Сплети лею/.test(t)) && !o.some((t) => /венок|гирлянд/.test(t)), 'до леи — только лея', o);
-    await page.click('.dialog .btn >> text=Сплети лею');
-    await nextDialog();
-    await closeAll();
-    // лея есть: венок (один раз) и гирлянда (сколько угодно)
-    await give(2);
-    await talk();
-    o = await opts();
-    expect(
-      o.some((t) => /Сплети венок \(3 из 3\)/.test(t)) && o.some((t) => /Сплети гирлянду для дома \(3 из 3\)/.test(t)),
-      'венок и гирлянда у Вождя',
-      o,
-    );
-    await page.click('.dialog .btn >> text=Сплети венок');
-    await nextDialog();
-    o = await opts();
-    expect(!o.some((t) => /венок/.test(t)) && o.some((t) => /гирлянд/.test(t)), 'венок — один раз', o);
-    await page.click('.dialog .btn >> text=Сплети гирлянду');
-    await nextDialog();
-    await closeAll();
-    let s = await state();
-    expect(
-      s.clothes.includes('wreath_lei') && s.storage.flower_garland === 1 && !s.finds.flower_orchid,
-      'венок в шкафу, гирлянда в кладовке, цветы потрачены',
-      [s.clothes.includes('wreath_lei'), s.storage, s.finds],
-    );
-    await ev(() => window.__dev.actions.wear('head', 'wreath_lei'));
-    expect((await state()).look.outfit.head === 'wreath_lei', 'венок не надевается');
-    // не хватает цветов — добрая подсказка, ничего не тратится
-    await ev(() => window.__dev.actions.addItem('finds', 'flower_orchid', 1));
-    await talk();
-    await page.click('.dialog .btn >> text=Сплети гирлянду');
-    await nextDialog();
-    const say = norm(await ev(() => (document.querySelector('.dialog .say') || {}).textContent || ''));
-    expect(/три разных цветка/.test(say), 'подсказка про три разных цветка', say);
-    await closeAll();
-    s = await state();
-    expect(s.storage.flower_garland === 1 && s.finds.flower_orchid === 1, 'гирлянда без цветов не плетётся', [
-      s.storage,
-      s.finds,
-    ]);
-    // значки мебели и одежды рисуются (кладовка, каталог)
-    const drawn = await ev(async () => {
-      const I = await import('/js/ui/icons.js'),
-        D = await import('/js/data/index.js');
-      const filled = (cv) => {
-        const px = cv.getContext('2d').getImageData(0, 0, cv.width, cv.height).data;
-        let n = 0;
-        for (let i = 3; i < px.length; i += 4) if (px[i] > 40) n++;
-        return n;
+        if (
+          await ev(
+            () => !!document.querySelector('.dialog') && /Помогу/.test(document.querySelector('.dialog').textContent),
+          )
+        ) {
+          await page.click('.dialog .btn >> text=Потом');
+          await nextDialog();
+        }
       };
-      return [
-        filled(I.furnIcon(D.FURN_BY_ID.flower_garland, 84)),
-        filled(I.clothesIcon(D.CLOTHES_BY_ID.wreath_lei, 84)),
-      ];
-    });
-    expect(drawn[0] > 300 && drawn[1] > 1500, 'гирлянда и венок нарисованы', drawn);
-    await unwatch();
-  });
+      const opts = () => ev(() => [...document.querySelectorAll('.dialog .btn')].map((b) => b.textContent));
+      const give = (n) =>
+        ev((n) => {
+          for (const id of ['flower_plumeria', 'flower_hibiscus', 'flower_orchid'])
+            window.__dev.actions.addItem('finds', id, n);
+        }, n);
+      // без леи венок и гирлянду не предлагают
+      await give(1);
+      await talk();
+      let o = await opts();
+      expect(o.some((t) => /Сплети лею/.test(t)) && !o.some((t) => /венок|гирлянд/.test(t)), 'до леи — только лея', o);
+      await page.click('.dialog .btn >> text=Сплети лею');
+      await nextDialog();
+      await closeAll();
+      // лея есть: венок (один раз) и гирлянда (сколько угодно)
+      await give(2);
+      await talk();
+      o = await opts();
+      expect(
+        o.some((t) => /Сплети венок \(3 из 3\)/.test(t)) &&
+          o.some((t) => /Сплети гирлянду для дома \(3 из 3\)/.test(t)),
+        'венок и гирлянда у Вождя',
+        o,
+      );
+      await page.click('.dialog .btn >> text=Сплети венок');
+      await nextDialog();
+      o = await opts();
+      expect(!o.some((t) => /венок/.test(t)) && o.some((t) => /гирлянд/.test(t)), 'венок — один раз', o);
+      await page.click('.dialog .btn >> text=Сплети гирлянду');
+      await nextDialog();
+      await closeAll();
+      let s = await state();
+      expect(
+        s.clothes.includes('wreath_lei') && s.storage.flower_garland === 1 && !s.finds.flower_orchid,
+        'венок в шкафу, гирлянда в кладовке, цветы потрачены',
+        [s.clothes.includes('wreath_lei'), s.storage, s.finds],
+      );
+      // наклейки за венок и гирлянду (В10)
+      expect(
+        s.stickers.includes('x_wreath_isle') && s.stickers.includes('x_garland'),
+        'наклейки за венок и гирлянду',
+        s.stickers,
+      );
+      await ev(() => window.__dev.actions.wear('head', 'wreath_lei'));
+      expect((await state()).look.outfit.head === 'wreath_lei', 'венок не надевается');
+      // не хватает цветов — добрая подсказка, ничего не тратится
+      await ev(() => window.__dev.actions.addItem('finds', 'flower_orchid', 1));
+      await talk();
+      await page.click('.dialog .btn >> text=Сплети гирлянду');
+      await nextDialog();
+      const say = norm(await ev(() => (document.querySelector('.dialog .say') || {}).textContent || ''));
+      expect(/три разных цветка/.test(say), 'подсказка про три разных цветка', say);
+      await closeAll();
+      s = await state();
+      expect(s.storage.flower_garland === 1 && s.finds.flower_orchid === 1, 'гирлянда без цветов не плетётся', [
+        s.storage,
+        s.finds,
+      ]);
+      // значки мебели и одежды рисуются (кладовка, каталог)
+      const drawn = await ev(async () => {
+        const I = await import('/js/ui/icons.js'),
+          D = await import('/js/data/index.js');
+        const filled = (cv) => {
+          const px = cv.getContext('2d').getImageData(0, 0, cv.width, cv.height).data;
+          let n = 0;
+          for (let i = 3; i < px.length; i += 4) if (px[i] > 40) n++;
+          return n;
+        };
+        return [
+          filled(I.furnIcon(D.FURN_BY_ID.flower_garland, 84)),
+          filled(I.clothesIcon(D.CLOTHES_BY_ID.wreath_lei, 84)),
+        ];
+      });
+      expect(drawn[0] > 300 && drawn[1] > 1500, 'гирлянда и венок нарисованы', drawn);
+      await unwatch();
+    },
+  );
 
   await step(
     'вещи: карта сокровищ в рюкзаке — кусочки видны, карту можно посмотреть; после задания — вся',

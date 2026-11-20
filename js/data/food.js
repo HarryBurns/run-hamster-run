@@ -18,7 +18,7 @@ import { ICON } from './icons.js';
 const floor5 = (n) => Math.max(5, Math.floor(n / 5) * 5);
 const round5 = (n) => Math.max(5, Math.round(n / 5) * 5);
 const ING_LIST = [
-  { id: 'flour', name: 'Мука', e: '🌾', src: 'shop' },
+  { id: 'flour', name: 'Мука', e: ICON.flour, src: 'shop' },
   { id: 'egg', name: 'Яйца', e: '🥚', src: 'shop' },
   { id: 'milk', name: 'Молоко', e: '🥛', src: 'shop' },
   { id: 'cheese', name: 'Сыр', e: '🧀', src: 'shop' },
@@ -48,7 +48,7 @@ const ING_LIST = [
   { id: 'lettuce', name: 'Зелёный салат', e: '🥬', src: 'garden', raw: true },
   { id: 'carrot', name: 'Морковка', e: '🥕', src: 'garden', raw: true },
   { id: 'strawberry', name: 'Клубника', e: '🍓', src: 'garden', raw: true },
-  { id: 'seeds', name: 'Семечки', e: '🌻', src: 'garden' },
+  { id: 'seeds', name: 'Семечки', e: ICON.sun_seeds, src: 'garden' },
   { id: 'tomato', name: 'Помидор', e: '🍅', src: 'garden', raw: true },
   { id: 'pumpkin', name: 'Тыква', e: '🎃', src: 'garden' },
   { id: 'fish', name: 'Рыбка', e: '🐟', src: 'fish' },
@@ -123,27 +123,27 @@ const DISH_LIST = [
   { id: 'fish_soup', name: 'Уха', e: '🍲', needs: { fish: 1, carrot: 1 }, start: true },
   { id: 'cookies', name: 'Ореховое печенье', e: '🍪', needs: { nuts: 1, flour: 1, butter: 1 }, start: true, cafe: 'cafe' },
   { id: 'coco_shake', name: 'Кокосовый коктейль', e: '🥤', needs: { coconut: 1, milk: 1, banana: 1 }, start: true, cafe: 'beach' },
-  { id: 'coco_candy', name: 'Кокосовые конфеты', e: '🍡', needs: { coconut: 1, choco: 1, sugar: 1 }, start: true },
+  { id: 'coco_candy', name: 'Кокосовые конфеты', e: ICON.coco_candy, needs: { coconut: 1, choco: 1, sugar: 1 }, start: true },
   { id: 'mango_lassi', name: 'Манговый коктейль', e: '🧋', needs: { mango: 1, milk: 1, honey: 1 }, start: true },
   { id: 'tropic_plate', name: 'Тарелка «Тропики»', e: '🍱', needs: { mango: 1, pineapple: 1, kiwi: 1 }, start: true },
   { id: 'orange_juice', name: 'Апельсиновый сок', e: '🧃', needs: { orange: 2 }, start: true },
   // тёплое питьё: простуженной становится полегче (WARM_DRINKS в data/health.js)
   { id: 'honey_tea', name: 'Чай с мёдом и лимоном', e: '🍵', needs: { honey: 1, lemon: 1 }, start: true },
   { id: 'peach_pie', name: 'Персиковый пирог', e: '🥧', needs: { peach: 2, flour: 1, egg: 1, sugar: 1 } },
-  { id: 'grape_jelly', name: 'Виноградное желе', e: '🍮', needs: { grapes: 2, sugar: 1 } },
+  { id: 'grape_jelly', name: 'Виноградное желе', e: ICON.grape_jelly, needs: { grapes: 2, sugar: 1 } },
   { id: 'avocado_toast', name: 'Тост с авокадо', e: '🥪', needs: { avocado: 1, flour: 1, egg: 1 }, start: true },
   // из маракуйи (этап 12): морс — сразу, мусс — секретный рецепт
   { id: 'passion_drink', name: 'Морс из маракуйи', e: ICON.passion_drink, needs: { passionfruit: 2, sugar: 1 }, start: true },
   { id: 'passion_mousse', name: 'Мусс из маракуйи', e: '🍮', needs: { passionfruit: 2, milk: 1, sugar: 1 } },
-  { id: 'pineapple_pizza', name: 'Гавайская пицца', e: '🍕', needs: { pineapple: 1, flour: 1, cheese: 1 } },
+  { id: 'pineapple_pizza', name: 'Гавайская пицца', e: ICON.pineapple_pizza, needs: { pineapple: 1, flour: 1, cheese: 1 } },
   { id: 'melon_sorbet', name: 'Дынный сорбет', e: '🍧', needs: { melon: 1, lemon: 1, sugar: 1 } },
   { id: 'icecream', name: 'Клубничное мороженое', e: '🍨', needs: { strawberry: 2, milk: 1, sugar: 1 }, cafe: 'beach' },
   { id: 'sushi', name: 'Суши', e: '🍣', needs: { fish: 1, rice: 1 }, cafe: 'rest' },
-  { id: 'pumpkin_pie', name: 'Тыквенный пирог', e: '🥧', needs: { pumpkin: 1, flour: 1, egg: 1 } },
+  { id: 'pumpkin_pie', name: 'Тыквенный пирог', e: ICON.pumpkin_pie, needs: { pumpkin: 1, flour: 1, egg: 1 } },
   { id: 'choco_cake', name: 'Шоколадный торт', e: '🎂', needs: { choco: 2, flour: 1, egg: 1, sugar: 1 }, cafe: 'cafe' },
   { id: 'kozinaki', name: 'Козинаки', e: '🍘', needs: { seeds: 2, honey: 1 } },
   { id: 'apple_pie', name: 'Яблочный пирог', e: '🥮', needs: { apple: 2, flour: 1, butter: 1, sugar: 1 } },
-  { id: 'cheese_plate', name: 'Сырная тарелка', e: '🧀', needs: { cheese: 2, nuts: 1, honey: 1 } },
+  { id: 'cheese_plate', name: 'Сырная тарелка', e: ICON.cheese_plate, needs: { cheese: 2, nuts: 1, honey: 1 } },
   // из собранного в городе и в лесу
   { id: 'mushroom_soup', name: 'Грибной суп', e: '🥣', needs: { mushroom: 2, carrot: 1 }, start: true },
   { id: 'blueberry_muffin', name: 'Черничный кекс', e: '🧁', needs: { blueberry: 2, flour: 1, egg: 1 }, start: true },
@@ -153,9 +153,9 @@ const DISH_LIST = [
   { id: 'strawberry_cream', name: 'Земляника с молоком и мёдом', e: ICON.berry_bowl, needs: { strawberry: 2, milk: 1, honey: 1 }, start: true },
   { id: 'porcini_roast', name: 'Жаркое с белыми грибами', e: '🥘', needs: { porcini: 2, carrot: 1, butter: 1 } },
   // секретный рецепт лесника Шишкина (награда за задание в лесу)
-  { id: 'forest_pie', name: 'Лесной пирог с белыми грибами', e: '🥧', needs: { porcini: 1, flour: 1, egg: 1 } },
+  { id: 'forest_pie', name: 'Лесной пирог с белыми грибами', e: ICON.forest_pie, needs: { porcini: 1, flour: 1, egg: 1 } },
   // подарок Рождества (П.13, data/holidays.js): рецепт узнают только на празднике — друзья его не рассказывают
-  { id: 'gingerbread', name: 'Медовые пряники', e: '🍪', needs: { flour: 1, honey: 1, butter: 1 }, holiday: 'xmas' },
+  { id: 'gingerbread', name: 'Медовые пряники', e: ICON.gingerbread, needs: { flour: 1, honey: 1, butter: 1 }, holiday: 'xmas' },
   // масленичные блины (этап 12, Пр9): рецепты рассказывают у прилавка «Блины» на ярмарке Масленицы (там же их можно
   // испечь); друзья их не рассказывают. Шаги праздника «испеки блины» и «угости блинами» засчитывают любые блины (BLINI)
   { id: 'blini_jam', name: 'Блины с вареньем', e: ICON.blini_jam, needs: { flour: 1, egg: 1, milk: 1, strawberry: 1, sugar: 1 }, holiday: 'maslenitsa' },

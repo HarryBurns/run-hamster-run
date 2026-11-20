@@ -296,9 +296,9 @@ function dailyPickups(sc) {
       list.push({
         id: 'twig' + i,
         at: [x, y],
-        icon: '🎄',
+        icon: FIND_BY_ID.fir_twig.e,
         give: ['finds', 'fir_twig', 1],
-        text: '+1 🎄 Еловая веточка',
+        text: `+1 ${FIND_BY_ID.fir_twig.e} Еловая веточка`,
       }),
     );
   sc.setPickups(list);
