@@ -291,6 +291,17 @@ module.exports = async function weather(ctx) {
         'жителей под дождём не рисуют с зонтиками',
         keys,
       );
+      // имя над жителем под зонтиком — над куполом, не на нём (верх купола — 160 единиц рисунка над лапами)
+      const lift = await ev(async () => {
+        const A = await import('/js/engine/topdown/actors.js'),
+          K = await import('/js/engine/topdown/kinds.js'),
+          Q = await import('/js/core/state.js'),
+          n = window.__dev.scene.npcs.find((q) => q.home && (Q.npcRain(q.id) || {}).umbrella);
+        const labelBottom = -(66 + A.umbrellaLift(n)) + 9,
+          dome = 10 - 160 * K.PS;
+        return { id: n.id, labelBottom, dome };
+      });
+      expect(lift.labelBottom < lift.dome - 2, 'имя жителя лежит на куполе зонтика', lift);
       // бассейн отеля — на открытой террасе: в любой дождь у него никого (по расписанию пришли бы — гуляют в городе)
       const poolRain = await ev(async () => {
         const D = await import('/js/data/index.js'),
