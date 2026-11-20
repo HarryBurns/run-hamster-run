@@ -265,6 +265,9 @@ function build(m) {
   for (const b of [AT.dock, AT.chief, AT.laguna, AT.guest, AT.bum])
     for (let x = b.x - 1; x <= b.x + b.w; x++)
       for (let y = b.y; y <= b.y + b.h; y++) if (m.at(x, y) !== 'i') m.clear(x, y);
+  // две циновки на западном пляже у лагуны — прилечь позагорать (отдых, пачка 20 ноября)
+  m.put1('palmMat', 9, 27, { v: 0 });
+  m.put1('palmMat', 11, 27, { v: 1 });
 }
 
 // ---------- время праздника, костёр, находки ----------

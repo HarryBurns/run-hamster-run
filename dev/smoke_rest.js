@@ -80,4 +80,34 @@ module.exports = async function rest(ctx) {
       await standUp();
     },
   );
+
+  await step(
+    'отдых 20н: в тайных местах — подушки у шатра, гамак в джунглях, лежак и полотенце на пляже, циновка',
+    async () => {
+      await fresh();
+      for (const [land, type, tx, ty, how] of [
+        ['desert', 'cushions', 23, 19, 'sit'],
+        ['jungle', 'hammock', 24, 26, 'hammock'],
+        ['cove', 'lounger', 12, 10, 'lie'],
+        ['cove', 'towel', 18, 11, 'lie'],
+        ['island', 'palmMat', 9, 27, 'lie'],
+      ]) {
+        await L.toPlace(land);
+        await closeAll();
+        await L.teleport(tx, ty + 3);
+        const r = await sitOn(type, tx, ty);
+        expect(r.how === how, `${land}: ${type} — не та поза`, r);
+        await standUp();
+      }
+      // в джунглях всегда лето: зимой гамак на месте и на него можно нажать
+      await L.mutate('s.day = 0;');
+      await L.toPlace('jungle');
+      await closeAll();
+      await L.teleport(24, 29);
+      const at = await ev(() => window.__dev.scene.debugScreen(24.5 * 48 + 24, 26.5 * 48 - 22));
+      await L.page.mouse.click(at.x, at.y);
+      const tap = await until(() => window.__dev.F.relaxNow(), undefined, { timeout: 8000 }).catch(() => null);
+      expect(tap && tap.how === 'hammock', 'зимой в джунглях на гамак не нажать', tap);
+    },
+  );
 };

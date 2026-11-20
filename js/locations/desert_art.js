@@ -10,7 +10,8 @@
 //          sandRock (песчаник; v: 2 — большая скала по краю карты), dryBush (сухой кустик), well (старый колодец),
 //          obelisk (обелиск у пирамиды), digTools (ведёрко, кисточка и сито на раскопе), starPost (фонарь-звезда на
 //          Звёздном бархане; ночью светит), safariBus (караван-автобус у остановки, 3 клетки), camel (верблюд Финик;
-//          пока на нём катаются — у привязи пусто).
+//          пока на нём катаются — у привязи пусто), cushions (подушки на ковре у шатра Бархана, 2 клетки: присесть —
+//          отдых, common/seats.js).
 // Рисунки: camel (верблюд: dir, шаг), bell (бубенчик), mirage (озеро-мираж), tumbleweed (перекати-поле, 4 поворота).
 // Здания:  tent (шатёр Бархана), pyramid (пирамида с входом — загадка «Пары»), caravanStop (остановка каравана).
 import { TAU } from '../core/util.js';
@@ -18,6 +19,7 @@ import { ell, fillRR, line, poly } from '../core/draw.js';
 import { T, OUT, put, hash, defineTiles, defineObjects, defineArt, defineBuildings } from '../engine/topdown/index.js';
 import { shadow, signBoard, WOOD, WOOD_D, WOOD_L, LIT } from './common/paint.js';
 import { geom, baseShadow, glow } from './common/buildings.js';
+import { seat } from './common/seats.js';
 
 export const SAND = '#f2d39a',
   SAND_D = '#d9b06c',
@@ -557,6 +559,23 @@ defineObjects({
     art: { digTools: [[-30, -30, 34, 18], paintDigTools] },
     draw: (ctx, o) => put('digTools', o.x, o.y),
   },
+  // подушки у шатра Бархана (пачка 20 ноября): на ковре две пухлые подушки и поднос с чайником — присесть
+  cushions: {
+    solid: [
+      [0, 0],
+      [1, 0],
+    ],
+    ...seat(
+      'sit',
+      [
+        [1, -4, 1, 31],
+        [47, -4, 47, 31],
+      ],
+      { ox: 24, dx: 44, up: 30, down: 22 },
+    ),
+    art: { cushions: [[-30, -30, 78, 22], paintCushions] },
+    draw: (ctx, o) => put('cushions', o.x, o.y),
+  },
   starPost: {
     solid: true,
     light: [0, -80, 110],
@@ -800,6 +819,33 @@ function paintStop(ctx, b, snow, lit) {
   ctx.textBaseline = 'middle';
   ctx.fillText('🚌', X + W - 20, bot - 46);
   if (lit) glow(ctx, cx, top + 30, 50, 0.3);
+}
+/** Подушки на ковре у шатра: ковёр с каймой, две подушки с кисточками, между ними — поднос с чайником. */
+function paintCushions(ctx) {
+  shadow(ctx, 24, 12, 44, 6);
+  fillRR(ctx, -22, -6, 92, 20, 4, '#c92a2a', OUT, 1.8);
+  fillRR(ctx, -15, -2, 78, 12, 2, null, '#ffd43b', 1.4);
+  for (let i = 0; i < 7; i++) poly(ctx, [-8 + i * 11, 4, -5 + i * 11, 1, -2 + i * 11, 4, -5 + i * 11, 7], '#ffd43b');
+  for (const x of [-22, 70])
+    for (let i = 0; i < 4; i++) line(ctx, x, -3 + i * 5, x + (x < 0 ? -4 : 4), -3 + i * 5, '#ffd43b', 1.4);
+  // поднос с чайником
+  ell(ctx, 24, -4, 9, 3.5, '#fcc419', OUT, 1.3);
+  ell(ctx, 24, -10, 5, 5, '#e8b04b', OUT, 1.3);
+  line(ctx, 29, -11, 33, -15, OUT, 1.6);
+  ell(ctx, 24, -15.5, 1.8, 1.5, '#e8b04b', OUT, 1);
+  // подушки
+  for (const [x, col] of [
+    [1, '#7048e8'],
+    [47, '#f08c00'],
+  ]) {
+    ell(ctx, x, -3, 17, 9, col, OUT, 1.8);
+    ell(ctx, x - 4, -6, 8, 3, 'rgba(255,255,255,.3)');
+    line(ctx, x - 13, -3, x + 13, -3, 'rgba(0,0,0,.15)', 1.2);
+    for (const sx of [-1, 1]) {
+      line(ctx, x + sx * 16, -6, x + sx * 19, -10, '#ffd43b', 1.6);
+      ell(ctx, x + sx * 19.5, -10.5, 1.8, 1.8, '#ffd43b', OUT, 0.8);
+    }
+  }
 }
 defineBuildings({
   tent: {

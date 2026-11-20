@@ -111,6 +111,10 @@ function build(m) {
   ])
     m.add(type, x, y);
   m.add('sandcastle', ...AT.castle);
+  // лежаки под пальмой и полотенце — позагорать (отдых, пачка 20 ноября)
+  m.add('lounger', 12, 10);
+  m.add('lounger', 14, 10);
+  m.add('towel', 18, 11, { v: 3 });
   m.add('signpost', 10, 7, { text: '🌊 Грот', dir: 'l', text2: '⛵ В город' }); // грот и есть дорога в город
 }
 

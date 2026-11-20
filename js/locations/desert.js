@@ -244,6 +244,8 @@ function build(m) {
   for (const b of [AT.stop, AT.tent, AT.pyramid])
     for (let x = b.x - 1; x <= b.x + b.w; x++)
       for (let y = b.y; y <= b.y + b.h + 1; y++) if (m.at(x, y) !== 'oasisWater') m.clear(x, y);
+  // подушки на ковре у шатра Бархана — посидеть (отдых, пачка 20 ноября); левее входа, дверь свободна
+  m.put1('cushions', AT.tent.x - 1, AT.tent.y + 3);
 }
 
 // ---------- катание на верблюде: хомячок верхом на Финике, круг по верблюжьей тропе ----------

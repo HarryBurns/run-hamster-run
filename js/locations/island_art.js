@@ -9,7 +9,8 @@
 // Предметы: bigVolcano (вулкан: занимает девять клеток в ширину, три в глубину; ночью — лава светится; light — пятно
 //          света ночью), obsidian (чёрное блестящее стекло у подножия: v — лежит ли сегодня кусочек), totem (резной
 //          тотем, 3 варианта), pins (кегли-тотемчики в конце дорожки боулинга), iflowers (кусты плюмерии, гибискуса
-//          и орхидей — 3 варианта), drum (большой барабан Бума).
+//          и орхидей — 3 варианта), drum (большой барабан Бума), palmMat (плетёная циновка на песке: прилечь —
+//          отдых, common/seats.js).
 // Рисунки: dancer — (кадры танцующих островитян рисует locations/island.js в кэш сам), coconut (кокос — для боулинга).
 // Здания:  stiltHut (хижина на сваях под пальмовой крышей; b.v — цвет занавески, b.sign — табличка), chiefHut (большая
 //          хижина вождя с резными столбами).
@@ -18,6 +19,7 @@ import { ell, fillRR, line, poly, star } from '../core/draw.js';
 import { T, OUT, SP, put, defineTiles, defineObjects, defineArt, defineBuildings } from '../engine/topdown/index.js';
 import { shadow, signBoard, WOOD, WOOD_D } from './common/paint.js';
 import { geom, baseShadow, glow } from './common/buildings.js';
+import { seat } from './common/seats.js';
 import './jungle_art.js'; // монстеры, геликонии, факелы, хижина причала, кораблик — общие с джунглями
 import './forest_art.js'; // костёр, папоротник и замшелые камни — общие с лесом
 
@@ -342,7 +344,29 @@ export function paintCoconut(ctx, r = 10) {
 }
 defineArt({ coconut: [[-14, -14, 14, 14], (ctx) => paintCoconut(ctx)] });
 
+/** Циновка: плетёнка из светлых и тёмных полосок «в шашечку», бахрома на концах; v — оттенок. */
+function paintPalmMat(ctx, v) {
+  const [a, b] = v ? ['#e9c46a', '#c99a3b'] : ['#f1d38a', '#d4a24c'];
+  fillRR(ctx, -14, -20, 28, 42, 3, a, OUT, 1.5);
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(-14, -20, 28, 42);
+  ctx.clip();
+  for (let y = 0; y < 7; y++)
+    for (let x = 0; x < 4; x++) if ((x + y) % 2) ((ctx.fillStyle = b), ctx.fillRect(-14 + x * 7, -20 + y * 6, 7, 6));
+  ctx.restore();
+  fillRR(ctx, -14, -20, 28, 42, 3, null, OUT, 1.5);
+  for (const y of [-20, 22])
+    for (let i = 0; i < 6; i++) line(ctx, -12 + i * 4.8, y, -12 + i * 4.8, y + (y < 0 ? -3 : 3), b, 1.4);
+}
 defineObjects({
+  // циновка из пальмовых листьев на пляже (пачка 20 ноября): прилечь позагорать, как на полотенце
+  palmMat: {
+    flat: true,
+    ...seat('lie', [[0, 19, 0, 8]], { dx: 16, up: 22, down: 24 }),
+    art: { palmMat: [[-18, -24, 18, 24], paintPalmMat] },
+    draw: (ctx, o) => put('palmMat', o.x, o.y, (o.v || 0) % 2),
+  },
   // вулкан: занимает три ряда клеток (внизу — девять в ширину, выше — уже); дымок рисуется поверх каждый кадр
   bigVolcano: {
     solid: [

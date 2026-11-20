@@ -16,10 +16,12 @@
 // (поле o.busy предмета — номер места + 1; его ставит и снимает features/relax.js).
 import { run } from '../../core/registry.js';
 import { cal } from '../../core/state.js';
+import { scene } from '../../core/loop.js';
 
 /** Поля вида предмета «на него можно присесть»: seat, tap, use; summer: true — зимой предмет убран (гамак, полотенце). */
 export function seat(how, spots, tap, { summer = false } = {}) {
   const k = { seat: { how, spots }, tap, use: (sc, o) => run('relax', { scene: sc, obj: o }) };
-  if (summer) k.tapIf = () => cal().season !== 'winter';
+  // зимой убран — но не там, где всегда лето (джунгли, бухта: поле season у описания места)
+  if (summer) k.tapIf = () => ((scene() && scene().desc && scene().desc.season) || cal().season) !== 'winter';
   return k;
 }
