@@ -376,7 +376,7 @@ export const HOTEL = {
   roomGuest: { from: 10, to: 14 },
   buffet: 0.5,
   spa: 150,
-  slide: { coins: [40, 80, 120], paid: 2 },
+  slide: { coins: [10, 15, 20], paid: 2 },
   animator: { morning: [8, 10], evening: [19, 21.5] },
   poolGuest: { from: 14, to: 17 },
   // больше друзей у бассейна (От4): в разное время дня — утром и днём те, кто любит воду (POOL_GUESTS), вечером — те,

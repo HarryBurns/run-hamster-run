@@ -121,4 +121,74 @@ module.exports = async function cust20(ctx) {
     });
     expect(rustles.length && rustles.every((s) => s === 'leaves'), 'звуки шуршащих клеток', rustles);
   });
+
+  await step('заказчик 20: «Горка» — у бортика не колошматит, руль с инерцией, приз 10–20 монет', async () => {
+    await L.closeAll();
+    const coins = await ev(() => window.__dev.G && import('/js/data/economy.js').then((m) => m.HOTEL.slide.coins));
+    expect(coins[0] >= 10 && coins[2] <= 20, 'приз за горку', coins);
+    await ev(async () => {
+      window.__dev.fastGames(false);
+      const h = await import('/js/minigames/host.js');
+      h.runMinigame('slide', { look: window.__dev.G.state.look, track: 'kid' });
+    });
+    await L.mgStart();
+    await L.until(() => [...document.querySelectorAll('#mg canvas')].some((q) => q.__slide), undefined, {
+      timeout: 4000,
+    });
+    await ctx.wait(300);
+    // палец держат далеко за правым бортиком 2 секунды: круг прижимается и скользит, а не дёргается туда-сюда каждый
+    // кадр (раньше — разворот почти в каждом кадре); потом палец чуть левее середины — круг разгоняется плавно
+    const r = await ev(
+      () =>
+        new Promise((done) => {
+          const c = [...document.querySelectorAll('#mg canvas')].find((q) => q.__slide),
+            b = c.getBoundingClientRect();
+          const move = (fx) => {
+            const st = c.__slide();
+            c.dispatchEvent(
+              new PointerEvent('pointermove', {
+                clientX: b.left + (st.x0 + fx * st.lw) * (b.width / st.w),
+                clientY: b.top + b.height * 0.8,
+                pointerType: 'mouse',
+                bubbles: true,
+              }),
+            );
+          };
+          move(0.95);
+          const xs = [];
+          let t0 = performance.now(),
+            phase = 0,
+            from = 0,
+            moved = null;
+          const f = () => {
+            const s = c.__slide(),
+              now = performance.now();
+            if (phase === 0) {
+              xs.push(s.x);
+              if (now - t0 > 2000) {
+                phase = 1;
+                t0 = now;
+                from = s.x;
+                move(Math.max(0.3, s.tube - 0.12));
+              }
+            } else if (now - t0 >= 100) {
+              moved = Math.abs(s.x - from) / Math.max(0.01, Math.abs(c.__slide().tube - 0.12 - from));
+              let rev = 0,
+                last = 0;
+              for (let i = 1; i < xs.length; i++) {
+                const d = Math.sign(Math.round((xs[i] - xs[i - 1]) * 1e5));
+                if (d && last && d !== last) rev++;
+                if (d) last = d;
+              }
+              return done({ frames: xs.length, rev, bumps: s.bumps, moved });
+            }
+            requestAnimationFrame(f);
+          };
+          requestAnimationFrame(f);
+        }),
+    );
+    expect(r.frames > 30 && r.rev <= 6, 'у бортика круг дёргается туда-сюда', r);
+    expect(r.moved < 0.3, 'руль без инерции: за 0,1 с круг почти доехал до пальца', r);
+    await ev(() => document.querySelector('#mg .xbtn').click());
+  });
 };
