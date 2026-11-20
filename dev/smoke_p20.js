@@ -3,6 +3,7 @@
 // без переда одежды; все рисунки ART — в своей рамке спрайта.
 // Подключается из dev/smoke.js. Только эти шаги:  node dev/smoke.js <url> "step:20н:"
 const lib = require('./lib.js');
+const SF = require('./sprite_frames.js');
 
 module.exports = async function p20(ctx) {
   const L = lib(ctx);
@@ -243,5 +244,13 @@ module.exports = async function p20(ctx) {
       r,
     );
     expect(r.hood && r.tux, 'со спины не видно капюшона или фалд', r);
+  });
+
+  await step('20н: рисунки ART — в своей рамке спрайта (все параметры; dev/sprite_frames.js)', async () => {
+    // рисунок от размера экрана не зависит — довольно одного размера (около 10 с)
+    if (!(await ev(() => innerWidth > 640))) return;
+    const r = await ev(SF.sweep, { only: null, A: SF.A, B: SF.B, PARAMS: SF.PARAMS });
+    expect(r.n > 150, 'рисунков ART мало — обход не нашёл их', r.n);
+    expect(!r.out.length, 'рисунки вылезают за рамку спрайта (поправь рамку в defineArt / PARAMS)', r.out);
   });
 };
