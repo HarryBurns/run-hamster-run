@@ -10,7 +10,7 @@
 // дверей, горки и шезлонгов — крюки art (back — позади всех, mid — стойки перед работниками, но позади хомячка);
 // он неподвижен и рисуется один раз в кэш (sc.still, engine/side/cache.js — От12), живое — огоньки свечей и диско-шар.
 // Своя позиция в сохранении (persist): уснула в номере — утро в отеле, и после перезагрузки тоже.
-import { G, ownsHome, hotelPoolGuests } from '../core/state.js';
+import { G, ownsHome, hotelPoolGuests, hotelRoofWet } from '../core/state.js';
 import { ell, fillRR, line, poly, star, shade, emoji } from '../core/draw.js';
 import { TAU } from '../core/util.js';
 import { HOTEL_DOORS, HOTEL_ROOM, HOTEL_ROOMS, POOL_GUESTS, ROOM_GUESTS, animatorNow } from '../data/index.js';
@@ -33,6 +33,7 @@ export const HX = {
   loungers: [1380, 1530],
   stage: 1730,
   board: 1900,
+  hall: 215, // где аниматор в дождь — в холле, у диванчика между дверью и ресепшеном
 };
 const HF = () => (G.state && G.state.dayFlags.hotel) || {};
 /** Снят ли номер 207 на эту ночь. */
@@ -43,6 +44,8 @@ export const rentedRoom = () => {
   return r === 1 || r === 'std' ? 'std' : r === 'eco' || r === 'balcony' ? r : null;
 };
 const evening = () => G.state && animatorNow(G.state.minutes) === 'evening';
+/** Где сейчас аниматор Хлопушка: 'roof' — у бассейна, 'hall' — в холле (на террасе мокро), null — его нет. */
+export const animatorAt = () => (G.state && animatorNow(G.state.minutes) ? (hotelRoofWet() ? 'hall' : 'roof') : null);
 
 /** Видна ли на экране полоса x0..x1 этажа f (v — sc.view; нет — видно всё). */
 function seen(v, f, x0, x1) {
@@ -316,19 +319,24 @@ function drawBoard(ctx) {
   label(ctx, 'дискотека', bx, y - 90, 10, '#495057');
 }
 /** Вечером над сценой аниматора — диско-шар и цветные лучи (живые, крутятся). */
-function drawDisco(ctx, t) {
-  const y = -552,
-    sx = HX.stage;
-  if (evening()) {
-    // диско-шар и цветные лучи
-    line(ctx, sx, y - 250, sx, y - 210, OUT, 2);
-    ell(ctx, sx, y - 196, 16, 16, '#dee2e6', OUT, 2);
+function drawDisco(ctx, t, at = 'roof') {
+  const hall = at === 'hall',
+    y = hall ? 0 : -552,
+    sx = hall ? 260 : HX.stage, // в холле лучи — от люстры (П20-3)
+    oy = hall ? y - 205 : y - 196,
+    r = hall ? 160 : 220;
+  if (evening() && animatorAt() === at) {
+    // диско-шар (в холле — люстра) и цветные лучи
+    if (!hall) {
+      line(ctx, sx, y - 250, sx, y - 210, OUT, 2);
+      ell(ctx, sx, y - 196, 16, 16, '#dee2e6', OUT, 2);
+    }
     for (let i = 0; i < 5; i++) {
       const a = t * 1.5 + (i * TAU) / 5;
-      ctx.globalAlpha = 0.18;
+      ctx.globalAlpha = hall ? 0.14 : 0.18;
       poly(
         ctx,
-        [sx, y - 196, sx + Math.cos(a) * 220 - 20, y - 10, sx + Math.cos(a) * 220 + 20, y - 10],
+        [sx, oy, sx + Math.cos(a) * r - 20, y - 10, sx + Math.cos(a) * r + 20, y - 10],
         ['#ff6b9d', '#ffd43b', '#63e6be', '#74c0fc', '#b197fc'][i],
       );
       ctx.globalAlpha = 1;
@@ -460,13 +468,22 @@ export default {
     { npc: 'zvezdochka', f: 0, x: HX.desk, act: 'hotel:reception' },
     { npc: 'telezhkin', f: 0, x: HX.cart - 100, roam: [600, 660], act: 'hotel:porter' },
     { npc: 'penka', f: 0, x: 1560, act: 'hotel:spa' },
+    // аниматор: в хорошую погоду — у сцены на террасе, в дождь — в холле (терраса открытая, П20-3)
     {
       npc: 'hlopushka',
       f: 2,
       x: HX.stage,
       roam: [HX.stage - 70, HX.stage + 70],
       act: 'hotel:animator',
-      when: () => !!G.state && !!animatorNow(G.state.minutes),
+      when: () => animatorAt() === 'roof',
+    },
+    {
+      npc: 'hlopushka',
+      f: 0,
+      x: HX.hall,
+      roam: [HX.hall - 40, HX.hall + 40],
+      act: 'hotel:animator',
+      when: () => animatorAt() === 'hall',
     },
     // друзья у бассейна (От4): утром и днём — одни, вечером — другие, иногда вдвоём; у каждого своё место у воды
     ...[...POOL_GUESTS, ...ROOM_GUESTS].map((id, i) => {
@@ -480,7 +497,10 @@ export default {
     back(ctx, sc, t) {
       const v = sc.view,
         on = (f, x0, x1) => seen(v, f, x0, x1);
-      if (on(0, 0, 820)) sc.still('lobby', [100, -262, 840, 4], (c) => drawLobby(c));
+      if (on(0, 0, 820)) {
+        sc.still('lobby', [100, -262, 840, 4], (c) => drawLobby(c));
+        drawDisco(ctx, t, 'hall');
+      }
       if (on(0, 780, 1340)) sc.still('buffet', [790, -240, 1310, 2], drawBuffetBack);
       if (on(0, 1340, W)) {
         sc.still('spa', [1350, -240, 1700, 2], drawSpaBack);

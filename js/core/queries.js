@@ -292,11 +292,17 @@ export function spaBoostOn() {
   return typeof d === 'number' && s.day >= d && s.day - d <= 1;
 }
 /** Все жители, что сейчас отдыхают у бассейна отеля (От4: несколько, в разное время) — с теми же оговорками. */
+/**
+ * Мокро ли на открытой террасе отеля (на крыше): любой дождь, а также ливень, гроза, метель. Тогда у бассейна
+ * никого, а аниматор Хлопушка проводит зарядку и дискотеку в холле (interiors/hotel.js).
+ */
+export const hotelRoofWet = () => !!G.state && (badWeather() || weatherNow().kind === 'rain');
+
 export function hotelPoolGuests() {
   const s = G.state;
   if (!s) return [];
   // бассейн на открытой террасе на крыше: в любой дождь (и в ливень, грозу, метель) у него никого — гуляют в городе
-  if (badWeather() || weatherNow().kind === 'rain') return [];
+  if (hotelRoofWet()) return [];
   return poolGuestsOn(s.day, s.minutes).filter(
     (id) =>
       !(

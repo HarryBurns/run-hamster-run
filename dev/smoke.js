@@ -98,6 +98,7 @@ const villa = require('./smoke_villa.js'); // «Вилла растёт»: ма�
 const homeSteps = require('./smoke_home.js'); // свой дом: снаружи по ступени, подписи, двор с дикими цветами, «Обустроить», новая игра после сценки
 const vlfix = require('./smoke_vlfix.js'); // мелочи после «виллы»: небо террасы по погоде, торт на столе в «Год в городе»
 const toastsSteps = require('./smoke_toasts.js'); // подсказки вверху: по длине текста, придержать мышью, убрать нажатием, не копятся
+const p20 = require('./smoke_p20.js'); // «Замечено в пачке 20 ноября»: аниматор в дождь, столик, телевизор, заставка, спиной, рамки ART
 const holidays = require('./smoke_holidays.js'); // П.13: праздники — Новый год, Рождество, Китайский Новый год, Масленица
 
 // Размер (этап 8): переменная SMOKE_SIZE=desktop|phone или аргумент size:desktop / size:phone — только этот размер
@@ -2929,6 +2930,7 @@ const runParallel = () => {
     await tvSteps({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
     await rest({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
     await toastsSteps({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
+    await p20({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
     await buildSteps({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
     await pwa({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
     await estate({ page, step: (n, f, o) => step(n, f, { ...o, extra: true, estate: true }), ev, wait, closeAll });

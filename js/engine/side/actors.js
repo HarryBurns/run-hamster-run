@@ -70,7 +70,8 @@ export function syncGuests(sc) {
 
 /** Гость (или жилец) радуется: сердечки. */
 export function actorHappy(sc, id) {
-  const g = sc.actors.find((q) => q.id === id);
+  // у жильца может быть несколько мест по времени (аниматор отеля: терраса или холл) — сначала тот, кто сейчас здесь
+  const g = sc.actors.find((q) => q.id === id && actorHere(q)) || sc.actors.find((q) => q.id === id);
   if (!g) return;
   sfx('heart');
   g.happy = 2.5;

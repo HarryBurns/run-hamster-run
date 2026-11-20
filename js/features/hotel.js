@@ -37,7 +37,7 @@ import {
   animatorNow,
   npcLook,
 } from '../data/index.js';
-import { HX, rentedRoom } from '../interiors/hotel.js';
+import { HX, rentedRoom, animatorAt } from '../interiors/hotel.js';
 import { DOORMAN } from '../locations/town_buildings.js';
 import { go } from '../core/loop.js';
 import { dialog } from '../ui/dialog.js';
@@ -367,13 +367,20 @@ async function animator() {
   emit('talk', { id: 'hlopushka' });
   sfx('tap');
   if (!now) {
-    toast('🪩 Аниматор Хлопушка приходит к бассейну утром (зарядка в 8:00) и вечером (дискотека в 19:00).');
+    toast(
+      '🪩 Аниматор Хлопушка приходит к бассейну утром (зарядка в 8:00) и вечером (дискотека в 19:00). В дождик — в холл.',
+    );
     return;
   }
-  const morning = now === 'morning';
-  const text = morning
-    ? 'Доброе утро! Зарядка у бассейна! Лапки вверх, хвостик вбок — повторяй за мной!'
-    : 'Дискотека у бассейна! Музыка, огоньки — танцуют все! Покажешь свой лучший танец?';
+  const morning = now === 'morning',
+    hall = animatorAt() === 'hall'; // на террасе дождик — Хлопушка в холле (П20-3)
+  const text = hall
+    ? morning
+      ? 'Доброе утро! Сегодня зарядка в холле — на улице дождик! Лапки вверх, хвостик вбок — повторяй за мной!'
+      : 'Сегодня дискотека в холле — на улице дождик! Зато тут сухо и огоньки! Покажешь свой лучший танец?'
+    : morning
+      ? 'Доброе утро! Зарядка у бассейна! Лапки вверх, хвостик вбок — повторяй за мной!'
+      : 'Дискотека у бассейна! Музыка, огоньки — танцуют все! Покажешь свой лучший танец?';
   const i = await sayAs(
     'hlopushka',
     text,
@@ -387,7 +394,7 @@ async function animator() {
   const res = await playMinigame('mimic', {
     kind: now,
     animator: npcLook('hlopushka'),
-    introNote: `<div class="pay-note">${morning ? '🤸 Зарядка у бассейна: повторяй за Хлопушкой — и бодрость на весь день!' : '🪩 Дискотека у бассейна: повтори танец Хлопушки!'}</div>`,
+    introNote: `<div class="pay-note">${morning ? `🤸 Зарядка ${hall ? 'в холле' : 'у бассейна'}: повторяй за Хлопушкой — и бодрость на весь день!` : `🪩 Дискотека ${hall ? 'в холле' : 'у бассейна'}: повтори танец Хлопушки!`}</div>`,
   });
   busy = false;
   if (!res) return;
@@ -401,19 +408,20 @@ async function animator() {
         ? '🤸 Отличная зарядка! Хлопушка хлопает: «Ты самая бодрая!»'
         : '🤸 Раз-два! Бодрость на весь день!'
       : got
-        ? '🪩 Вот это танец! Все у бассейна аплодируют!'
+        ? `🪩 Вот это танец! Все ${hall ? 'в холле' : 'у бассейна'} аплодируют!`
         : '🪩 Танцы — это весело! Приходи завтра вечером снова.',
     'good',
   );
 }
 function schedule() {
-  const now = animatorNow(S().minutes);
+  const now = animatorNow(S().minutes),
+    where = animatorAt() === 'hall' ? 'на улице дождик, поэтому сегодня — в холле, внизу' : 'у сцены справа';
   sfx('pop');
   toast(
     now === 'morning'
-      ? '🤸 Сейчас зарядка! Аниматор Хлопушка — у сцены справа.'
+      ? `🤸 Сейчас зарядка! Аниматор Хлопушка — ${where}.`
       : now === 'evening'
-        ? '🪩 Сейчас дискотека! Аниматор Хлопушка — у сцены справа.'
+        ? `🪩 Сейчас дискотека! Аниматор Хлопушка — ${where}.`
         : `🪩 Расписание: зарядка — с ${HOTEL.animator.morning[0]}:00 до ${HOTEL.animator.morning[1]}:00, дискотека — с ${HOTEL.animator.evening[0]}:00 до ${Math.floor(HOTEL.animator.evening[1])}:30.`,
   );
 }
