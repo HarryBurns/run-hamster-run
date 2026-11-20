@@ -346,7 +346,7 @@ function paintCrystals(ctx, v) {
     ctx.restore();
   }
 }
-/** Светящиеся грибы: тонкие ножки, шляпки бирюзовые и голубые, с «точками света». big — тот, что можно сорвать. */
+/** Светящиеся грибы: тонкие ножки, шляпки бирюзовые и голубые, с «точками света». big — тот, что можно сорвать (крупнее). */
 function paintGlow(ctx, v, big) {
   const s = big ? 1.35 : 1;
   const list =
@@ -379,17 +379,7 @@ function paintGlow(ctx, v, big) {
     ell(ctx, X + 1 - R * 0.35, Y - R * 1.7, R * 0.25, R * 0.16, '#e6fcf5');
     ell(ctx, X + 1 + R * 0.35, Y - R * 1.55, R * 0.12, R * 0.12, '#e6fcf5');
   }
-  if (big) {
-    // искорка — «меня можно сорвать»
-    ctx.strokeStyle = '#ffffff';
-    ctx.lineWidth = 1.6;
-    ctx.beginPath();
-    ctx.moveTo(14, -32);
-    ctx.lineTo(14, -22);
-    ctx.moveTo(9, -27);
-    ctx.lineTo(19, -27);
-    ctx.stroke();
-  }
+  // без «искорки»-плюсика справа вверху (правка заказчика): тот, что можно сорвать, и так крупнее и ярче
 }
 function paintLantern(ctx) {
   shadow(ctx, 2, 10, 12, 4);

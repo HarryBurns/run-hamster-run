@@ -1,5 +1,5 @@
 // Шаги автотеста «правки заказчика вдогонку 20 ноября»: шляпка из каталога (подарок Плюши — не шляпа от солнца),
-// Вершинкин на горе не стоит за ёлкой.
+// Вершинкин на горе не стоит за ёлкой, гриб в пещерах без лишнего плюсика.
 // Подключается из dev/smoke.js. Только эти шаги:  node dev/smoke.js <url> "step:заказчик 20б:"
 const lib = require('./lib.js');
 
@@ -97,5 +97,23 @@ module.exports = async function small3(ctx) {
       });
       expect(!r.out.length && r.cells > 4, `день ${day}: Вершинкин за ёлкой`, r);
     }
+  });
+
+  await step('заказчик 20б: гриб, который можно сорвать в пещерах, — без плюсика справа вверху', async () => {
+    const r = await ev(async () => {
+      const K = await import('/js/engine/topdown/kinds.js');
+      const k = 4,
+        c = document.createElement('canvas');
+      c.width = c.height = 100 * k;
+      const x = c.getContext('2d', { willReadFrequently: true });
+      x.setTransform(k, 0, 0, k, 50 * k, 60 * k); // начало рисунка — (50, 60)
+      K.ART.shroomBig[1](x);
+      // справа вверху над шляпками (x 10…20, y −34…−20) был белый плюсик «можно сорвать»
+      const d = x.getImageData((50 + 10) * k, (60 - 34) * k, 10 * k, 14 * k).data;
+      let n = 0;
+      for (let i = 3; i < d.length; i += 4) if (d[i] > 40) n++;
+      return n;
+    });
+    expect(r === 0, 'над грибом справа вверху что-то нарисовано (плюсик)', r);
   });
 };
