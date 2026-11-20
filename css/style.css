@@ -824,7 +824,7 @@ h4 { margin: 4px 0; font-size: 16px; }
 
 /* пауза, когда ребёнок отвлёкся (features/pause.js): маленькая плашка наверху, без затемнения */
 .pause-chip {
-  position: fixed; left: 50%; top: calc(10px + env(safe-area-inset-top)); transform: translateX(-50%); z-index: 65;
+  position: fixed; left: 50%; top: 22%; transform: translateX(-50%); z-index: 65; /* ниже плашек HUD, над хомячком */
   border: 3px solid #4a3728; border-radius: 18px; background: #fff8e6; color: #4a3728; font: inherit; font-weight: 900;
   font-size: 17px; padding: 8px 16px; box-shadow: 0 4px 0 rgba(74, 55, 40, .25); cursor: pointer; white-space: nowrap;
   animation: pause-pulse 1.6s ease-in-out infinite;
