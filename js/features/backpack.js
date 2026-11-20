@@ -1,4 +1,5 @@
 // Рюкзак: вкусняшки, продукты, семена, находки (не еда: для гербария Мяты — data/finds.js), кладовка.
+// Компас в находках нажимается — стрелка к цели задания (features/compass.js).
 // Продают лишнее на рынке — у прилавков на площади.
 import { G } from '../core/state.js';
 import { el } from '../core/util.js';
@@ -9,6 +10,7 @@ import { sfx } from '../core/audio.js';
 import { piecesFound, treasureMapImage } from './cove.js';
 import { eat, dishGrid, ingGrid } from './cooking.js';
 import { canPlantNow, sowHint } from './garden.js';
+import { useCompass } from './compass.js';
 
 const S = () => G.state;
 
@@ -92,10 +94,15 @@ export function openBackpack() {
         }
         for (const id of ids) {
           const f = FIND_BY_ID[id];
-          const card = el('div', 'card');
+          const card = el('div', id === 'compass' ? 'card tap compass-card' : 'card');
           card.appendChild(el('div', 'e', f.e));
           card.appendChild(el('div', '', f.name));
           card.appendChild(el('span', 'cnt', '×' + S().finds[id]));
+          if (id === 'compass') {
+            // компас Капитана Боба (О5): стрелка к цели задания
+            card.appendChild(el('div', 'note up', 'куда идти?'));
+            card.onclick = () => useCompass();
+          }
           grid.appendChild(card);
         }
         body.appendChild(grid);

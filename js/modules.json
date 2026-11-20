@@ -78,6 +78,7 @@
 "js/features/bank.js",
 "js/features/business.js",
 "js/features/caves.js",
+"js/features/compass.js",
 "js/features/cooking.js",
 "js/features/cove.js",
 "js/features/desert.js",

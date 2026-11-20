@@ -146,6 +146,23 @@ export function starScene() {
   return it ? it.loc || HOME_SCENE : null;
 }
 setMapGoal(starScene);
+/**
+ * Компас (О5, features/compass.js): какое задание журнала он показывает и где его цель. Звёздочка ни к чему
+ * не ведёт, а в журнале есть начатые задания — компас берёт первое из них (как «Показать на карте»), праздник
+ * не перебивает. → { q — задание или null, fest — цель — праздник, scene — место цели или null }.
+ */
+export function compassGoal() {
+  if (!S()) return { q: null, scene: null };
+  let tr = trackedNow();
+  if (!tr && !(extraScene && extraScene())) {
+    const w = QUESTS.map((q) => questNow(q.id)).find((x) => x.status === 'active' && questGoal(x).where);
+    if (w) {
+      trackQuest(w.q.id);
+      tr = trackedNow();
+    }
+  }
+  return { q: tr ? tr.w.q : null, fest: !tr && !!(extraScene && extraScene()), scene: starScene() };
+}
 /** Где искать того, кто дал задание: «в городе» или «в лесу» (поле loc задания — локация, где оно идёт). */
 const placeOf = (q) => (q.loc ? LOC_WORDS[q.loc] || 'в другом месте' : 'в городе');
 /** Карточка «Новое задание!»: где искать того, кто его даёт, — «найди её в городе…» или «сейчас она у тебя в гостях…». */
@@ -155,7 +172,8 @@ function readyWhere(q) {
   if (away) return `сейчас ${npc.fem ? 'она' : 'он'} ${away}. Над головой у ${hisOf(q.npc)} «!».`;
   return `найди ${npc.fem ? 'её' : 'его'} ${placeOf(q)}. Над головой у ${hisOf(q.npc)} «!».`;
 }
-const LOC_WORDS = {
+/** Где место — словами: «в лесу», «на секретном пляже» (журнал, компас). */
+export const LOC_WORDS = {
   world: 'в городе',
   forest: 'в лесу',
   mountain: 'в горах',
@@ -164,6 +182,7 @@ const LOC_WORDS = {
   jungle: 'в джунглях',
   cove: 'на секретном пляже',
   island: 'на удалённом острове',
+  deep: 'у подземной реки',
 };
 /**
  * Где житель города сейчас, если не там, где обычно (не на улице и не у своего домика), — словами после имени или
