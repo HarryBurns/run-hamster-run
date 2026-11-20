@@ -469,7 +469,7 @@ defineArt({
     },
   ],
   starfish: [
-    [-22, -8, 22, 24],
+    [-22, -14, 22, 26],
     (ctx, tx) => {
       ctx.translate(((tx * 7) % 11) - 5, 8);
       ctx.rotate(tx);

@@ -1236,7 +1236,7 @@ defineArt({
   hXmasPost: [[-30, -132, 30, 8], (ctx, f) => paintXmasPost(ctx, f || 0)],
   hLanternPost: [[-40, -100, 40, 8], (ctx) => paintLanternPost(ctx)],
   hPostSign: [[-70, -78, 70, 8], (ctx, text) => paintPostSign(ctx, text || '')],
-  hIceSlide: [[-56, -82, 46, 26], (ctx) => paintIceSlide(ctx)],
+  hIceSlide: [[-58, -84, 66, 28], (ctx) => paintIceSlide(ctx)],
   hDrops: [[-30, -42, 30, 8], (ctx, f) => paintDrops(ctx, f || 0)],
   hPuddle: [[-36, -14, 36, 14], (ctx, v) => paintPuddle(ctx, v || 0)],
   hFloatWreath: [[-34, -24, 34, 16], (ctx, f) => paintFloatWreath(ctx, f || 0)],

@@ -225,7 +225,7 @@ defineObjects({
     solid: true,
     art: {
       bin: [
-        [-13, -30, 14, 19],
+        [-15, -30, 15, 19],
         (ctx, snow) => {
           shadow(ctx, 0, 13, 10, 3.5);
           poly(ctx, [-8, 13, -10, -14, 10, -14, 8, 13], '#51a36a', OUT, 2);
@@ -659,7 +659,7 @@ defineObjects({
     ...seat('table', CAFE_SPOTS, { dx: 30, up: 44, down: 26 }),
     art: {
       cafeTable: [
-        [-58, -146, 58, 30],
+        [-58, -150, 58, 42],
         (ctx, a, snow) => {
           const v = a % 10,
             busy = Math.floor(a / 10),

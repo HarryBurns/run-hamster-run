@@ -1075,7 +1075,7 @@ defineObjects({
     solid: true,
     tap: { dx: 30, up: 72, down: 18 },
     use: gather,
-    art: { passionVine: [[-34, -74, 34, 22], paintPassionVine] },
+    art: { passionVine: [[-36, -77, 36, 22], paintPassionVine] },
     draw(ctx, o, env) {
       // осенью — плоды (пока не сорваны), весной и летом лиана цветёт, зимой — одни листья
       const look = hasFruit(o) ? 1 : env.season === 'spring' || env.season === 'summer' ? 2 : 0;

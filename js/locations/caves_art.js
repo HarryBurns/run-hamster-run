@@ -477,7 +477,7 @@ defineObjects({
   },
   rails: {
     flat: true,
-    art: { rails: [[-28, -28, 28, 28], paintRails] },
+    art: { rails: [[-31, -28, 31, 28], paintRails] },
     draw: (ctx, o) => put('rails', o.x, o.y, o.v ? 1 : 0),
   },
 });

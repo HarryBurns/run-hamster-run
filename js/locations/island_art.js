@@ -364,7 +364,7 @@ defineObjects({
   palmMat: {
     flat: true,
     ...seat('lie', [[0, 19, 0, 8]], { dx: 16, up: 22, down: 24 }),
-    art: { palmMat: [[-18, -24, 18, 24], paintPalmMat] },
+    art: { palmMat: [[-20, -26, 20, 30], paintPalmMat] },
     draw: (ctx, o) => put('palmMat', o.x, o.y, (o.v || 0) % 2),
   },
   // вулкан: занимает три ряда клеток (внизу — девять в ширину, выше — уже); дымок рисуется поверх каждый кадр
@@ -417,7 +417,7 @@ defineObjects({
   },
   drum: {
     solid: true,
-    art: { drum: [[-26, -46, 28, 16], paintDrum] },
+    art: { drum: [[-26, -46, 31, 18], paintDrum] },
     draw: (ctx, o) => put('drum', o.x, o.y),
   },
 });

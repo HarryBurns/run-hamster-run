@@ -595,7 +595,7 @@ function paintCanoe(ctx, m) {
 }
 defineArt({
   parrot: [[-28, -42, 20, 26], paintParrot],
-  notebook: [[-18, -18, 18, 12], paintNotebook],
+  notebook: [[-18, -18, 20, 17], paintNotebook],
   canoe: [[-66, -16, 66, 24], paintCanoe],
 });
 
@@ -615,7 +615,7 @@ defineObjects({
   monstera: {
     slow: 0.5,
     rustle: 'paper',
-    art: { monstera: [[-36, -46, 36, 20], paintMonstera] },
+    art: { monstera: [[-39, -46, 39, 21], paintMonstera] },
     draw(ctx, o, env) {
       const h = env.hero,
         inside = Math.abs(h.x - o.x) < 26 && Math.abs(h.y - o.y) < 26;
@@ -636,7 +636,7 @@ defineObjects({
   ruinHead: {
     solid: true,
     map: () => STONE_JD,
-    art: { ruinHead: [[-40, -90, 42, 26], paintHead] }, // тень у основания — до y = 23
+    art: { ruinHead: [[-40, -90, 45, 26], paintHead] }, // тень у основания — до y = 23
     draw: (ctx, o) => put('ruinHead', o.x, o.y),
   },
   // жёрдочка с попугаем: попугай чуть покачивается (готовым спрайтом) и машет крылом, когда говорит (o.talk())
