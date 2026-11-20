@@ -501,8 +501,9 @@ function gripArms(ctx, fur, body) {
 /**
  * Сидит спиной к зрителю (пачка 20 ноября: за столиком кафе и пикника). Мордочки не видно: затылок, уши без
  * розового, хвостик, лапки тянутся вперёд — к столу (видны только локти). Пятна — с другой стороны, чем спереди
- * (спина — зеркало); бантик тоже. То, что носят за спиной (рюкзак, плащ, крылья), — поверх тела. Одежда — та же,
- * что спереди (рисунок на ткани — как принт на спине), шапка — тоже; очки и бусы спереди не видны.
+ * (спина — зеркало); бантик тоже. То, что носят за спиной (рюкзак, плащ, крылья), — поверх тела. Одежда — вид сзади
+ * (drawBody/drawLegs с back, П20-8): узор ткани и пояс те же, а принт, пуговицы, молния, карманы, манишка и бабочка
+ * спереди не видны; капюшон, лямки, фалды, ремешок сумки — видны. Шапка — та же; очки, бусы и чёлка спереди не видны.
  */
 function drawBack(ctx, x, y, s, look, pose) {
   const o = look.outfit || {},
@@ -534,9 +535,10 @@ function drawBack(ctx, x, y, s, look, pose) {
   ctx.strokeStyle = OUT;
   ctx.lineWidth = 2;
   ctx.stroke();
-  drawLegs(ctx, o.legs);
-  drawBody(ctx, o.body);
+  drawLegs(ctx, o.legs, true);
+  drawBody(ctx, o.body, true);
   if (!(o.legs && o.legs.kind === 'mermaid')) ell(ctx, 0, -5, 5, 4, look.belly || fur, OUT, 1.4); // хвостик
+  if (o.acc && o.acc.kind === 'bag') line(ctx, -21, -40, 19, -10, shade(o.acc.c, -0.2), 3); // ремешок сумки через спину
   if (o.acc && BACK_ACC.includes(o.acc.kind)) {
     if (o.acc.kind === 'backpack') {
       // рюкзачок на спине целиком: клапан и кармашек
@@ -560,7 +562,8 @@ function drawBack(ctx, x, y, s, look, pose) {
   ctx.lineWidth = 2;
   ctx.stroke();
   const hat = o.head;
-  if (b.tuft && (!hat || ['earmuffs', 'wreath', 'catears', 'flower', 'shellclip'].includes(hat.kind)))
+  // чёлка — только спереди; хохолок, кудряшки, хвостики, ирокез видны и сзади
+  if (b.tuft && b.tuft !== 2 && (!hat || ['earmuffs', 'wreath', 'catears', 'flower', 'shellclip'].includes(hat.kind)))
     drawTuft(ctx, b.tuft, b.hair || look.spots || shade(fur, -0.35));
   if (hat) drawHat(ctx, hat, 1);
   if (b.bow) drawBow(ctx, b.bow, hat ? 24 : 15, hat ? -62 : -74);

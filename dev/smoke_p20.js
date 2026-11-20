@@ -205,4 +205,43 @@ module.exports = async function p20(ctx) {
       }
     },
   );
+
+  await step('20н: «сидит спиной» — одежда сзади: без принта и пуговиц, с капюшоном и фалдами', async () => {
+    const r = await ev(async () => {
+      const H = await import('/js/art/hamster.js'),
+        D = await import('/js/data/index.js');
+      const C = D.CLOTHES;
+      const pix = (body, back) => {
+        const c = document.createElement('canvas');
+        c.width = c.height = 120;
+        const x = c.getContext('2d');
+        const look = { fur: '#f5d6b0', belly: '#fff3e6', ear: '#ffb3c6', outfit: { body }, beauty: {} };
+        H.drawHamster(x, 60, 110, 1, look, { sit: true, shadow: false, back });
+        return c.toDataURL();
+      };
+      const out = {};
+      // принт (майка, свитер) и пуговицы-молния-карманы (куртка, пижама, смокинг) со спины не видны
+      for (const it of C.filter((q) => q.slot === 'body' && q.print)) {
+        const plain = { ...it, print: undefined };
+        out[it.id] = {
+          back: pix(it, true) === pix(plain, true),
+          front: pix(it, false) !== pix(plain, false),
+        };
+      }
+      // капюшон и фалды — видны: спина кофты с капюшоном и смокинга не такая, как у свитера того же цвета
+      const hood = C.find((q) => q.slot === 'body' && q.kind === 'hoodie'),
+        tux = C.find((q) => q.slot === 'body' && q.kind === 'tuxedo');
+      out.hood = pix(hood, true) !== pix({ ...hood, kind: 'sweater', print: undefined }, true);
+      out.tux = pix(tux, true) !== pix({ ...tux, kind: 'sweater', print: undefined }, true);
+      return out;
+    });
+    const prints = Object.entries(r).filter(([k]) => k !== 'hood' && k !== 'tux');
+    expect(prints.length >= 3, 'вещей с принтом мало', r);
+    expect(
+      prints.every(([, v]) => v.back && v.front),
+      'принт виден со спины (или не виден спереди)',
+      r,
+    );
+    expect(r.hood && r.tux, 'со спины не видно капюшона или фалд', r);
+  });
 };

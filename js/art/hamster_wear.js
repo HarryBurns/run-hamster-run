@@ -102,7 +102,8 @@ export function sleevesOf(item) {
   }
 }
 
-export function drawLegs(ctx, item) {
+/** Штаны, юбка, хвост русалки. back — вид со спины (поза «сидит спиной»): без шва спереди, с кармашками сзади. */
+export function drawLegs(ctx, item, back = false) {
   if (!item) return;
   ctx.save();
   if (item.kind === 'tutu') {
@@ -207,7 +208,8 @@ export function drawLegs(ctx, item) {
     pattern(ctx, item, -30, top, 60, 30);
     ctx.fillStyle = shade(item.c, -0.25);
     ctx.fillRect(-30, top, 60, 2.5);
-    ctx.fillRect(-1, top + 8, 2, 20);
+    if (!back) ctx.fillRect(-1, top + 8, 2, 20);
+    else for (const sx of [-1, 1]) fillRR(ctx, sx * 12 - 5, top + 5, 10, 8, 2.5, null, shade(item.c, -0.3), 1.2); // кармашки
     bodyPath(ctx, 0);
     ctx.strokeStyle = OUT;
     ctx.lineWidth = 2;
@@ -216,7 +218,12 @@ export function drawLegs(ctx, item) {
   ctx.restore();
 }
 
-export function drawBody(ctx, item) {
+/**
+ * Одежда на тело. back — вид со спины (поза «сидит спиной», П20-8): то, что спереди (принт, пуговицы, молния,
+ * карманы, манишка, бабочка, звезда на платье, ворот ципао), не рисуется; узор ткани, пояс и полоски — те же;
+ * у кофты с капюшоном — капюшон на спине, у комбинезона — лямки крест-накрест, у смокинга — фалды.
+ */
+export function drawBody(ctx, item, back = false) {
   if (!item) return;
   const c = item.c,
     dark = shade(c, -0.25);
@@ -230,7 +237,7 @@ export function drawBody(ctx, item) {
       pattern(ctx, item, -30, -50, 60, 33);
       ctx.fillStyle = dark;
       ctx.fillRect(-30, -19, 60, 2.5);
-      if (item.print) {
+      if (item.print && !back) {
         ctx.restore();
         ctx.save();
         printOn(ctx, item.print, 0, -30);
@@ -242,9 +249,18 @@ export function drawBody(ctx, item) {
       ctx.clip();
       ctx.fillStyle = c;
       ctx.beginPath();
-      ctx.moveTo(-16, -50);
-      ctx.lineTo(-9, -50);
-      ctx.quadraticCurveTo(0, -34, 9, -50);
+      if (back) {
+        // со спины: две бретельки и вырез на спине
+        ctx.moveTo(-16, -50);
+        ctx.lineTo(-11, -50);
+        ctx.lineTo(-9, -30);
+        ctx.quadraticCurveTo(0, -20, 9, -30);
+        ctx.lineTo(11, -50);
+      } else {
+        ctx.moveTo(-16, -50);
+        ctx.lineTo(-9, -50);
+        ctx.quadraticCurveTo(0, -34, 9, -50);
+      }
       ctx.lineTo(16, -50);
       ctx.lineTo(26, -30);
       ctx.lineTo(26, -8);
@@ -291,7 +307,7 @@ export function drawBody(ctx, item) {
       ctx.strokeStyle = OUT;
       ctx.lineWidth = 2;
       ctx.stroke();
-      if (long) {
+      if (long && !back) {
         star(ctx, 0, -31, 4, '#ffe066', OUT, 1);
       }
       if (item.trim === 'stitch') {
@@ -308,7 +324,7 @@ export function drawBody(ctx, item) {
           ctx.moveTo(x + 2.2, y - 2.2);
           ctx.lineTo(x - 2.2, y + 2.2);
         }
-        for (let i = -1; i <= 1; i++) {
+        for (let i = -1; i <= (back ? -2 : 1); i++) {
           const x = i * 6,
             y = -34;
           ctx.moveTo(x - 1.8, y - 1.8);
@@ -322,6 +338,7 @@ export function drawBody(ctx, item) {
         // платье-ципао: воротник-стойка, косая застёжка с золотыми пуговками-узелками
         const g = item.c2 || '#ffd43b';
         fillRR(ctx, -8, -45, 16, 6, 3, c, OUT, 1.4);
+        if (back) break; // со спины — только воротник-стойка
         ctx.strokeStyle = g;
         ctx.lineWidth = 1.6;
         ctx.beginPath();
@@ -356,8 +373,8 @@ export function drawBody(ctx, item) {
       if (item.kind === 'sweater') {
         ctx.fillStyle = dark;
         ctx.fillRect(-30, -12, 60, 4);
-        if (item.print) printOn(ctx, item.print, 0, -27);
-      } else {
+        if (item.print && !back) printOn(ctx, item.print, 0, -27);
+      } else if (!back) {
         ctx.fillStyle = '#fff';
         for (let i = 0; i < 3; i++) {
           ctx.beginPath();
@@ -379,8 +396,7 @@ export function drawBody(ctx, item) {
       ctx.fill();
       ctx.save();
       ctx.clip();
-      ctx.fillStyle = shade(c, 0.5);
-      poly(ctx, [-4, -50, 4, -50, 3, 0, -9, 0], shade(c, 0.5));
+      if (!back) poly(ctx, [-4, -50, 4, -50, 3, 0, -9, 0], shade(c, 0.5)); // запах халата
       ctx.fillStyle = dark;
       ctx.fillRect(-30, -24, 60, 4);
       ctx.restore();
@@ -409,16 +425,20 @@ export function drawBody(ctx, item) {
           ctx.stroke();
         }
       } else if (item.kind === 'jacketA') {
-        ctx.fillStyle = dark;
-        ctx.fillRect(-19, -14, 11, 2.5);
-        ctx.fillRect(8, -14, 11, 2.5);
+        if (!back) {
+          ctx.fillStyle = dark;
+          ctx.fillRect(-19, -14, 11, 2.5);
+          ctx.fillRect(8, -14, 11, 2.5);
+        }
       } else {
         ctx.fillStyle = item.c2 || '#fff'; // полоска поперёк груди — ниже воротника
         ctx.fillRect(-30, -16, 60, 5);
       }
       ctx.fillStyle = dark;
-      ctx.fillRect(-1, -50, 2, 52);
-      if (item.kind === 'jacketA') {
+      if (!back)
+        ctx.fillRect(-1, -50, 2, 52); // молния
+      else ctx.fillRect(-30, -4, 60, 3); // со спины — только низ куртки
+      if (item.kind === 'jacketA' && !back) {
         ctx.fillStyle = item.c2 || '#fff';
         for (let i = 0; i < 3; i++) {
           ctx.beginPath();
@@ -440,17 +460,24 @@ export function drawBody(ctx, item) {
       ctx.fillRect(-30, -50, 60, 30); // футболка под комбинезоном
       ctx.fillStyle = c;
       ctx.fillRect(-30, -22, 60, 30);
-      ctx.fillRect(-12, -40, 24, 20); // штаны и нагрудник
-      ctx.fillRect(-15, -50, 5, 14);
-      ctx.fillRect(10, -50, 5, 14); // лямки
-      ctx.fillStyle = dark;
-      ctx.fillRect(-30, -22, 60, 2.5);
-      ctx.fillRect(-1, -12, 2, 16);
-      ctx.fillStyle = '#ffd43b';
-      for (const bx of [-9, 9]) {
-        ctx.beginPath();
-        ctx.arc(bx, -37, 2.2, 0, TAU);
-        ctx.fill();
+      if (back) {
+        // со спины: лямки крест-накрест от плеч к поясу
+        for (const sx of [-1, 1]) poly(ctx, [sx * 15, -50, sx * 9, -50, sx * -11, -21, sx * -5, -21], c);
+        ctx.fillStyle = dark;
+        ctx.fillRect(-30, -22, 60, 2.5);
+      } else {
+        ctx.fillRect(-12, -40, 24, 20); // штаны и нагрудник
+        ctx.fillRect(-15, -50, 5, 14);
+        ctx.fillRect(10, -50, 5, 14); // лямки
+        ctx.fillStyle = dark;
+        ctx.fillRect(-30, -22, 60, 2.5);
+        ctx.fillRect(-1, -12, 2, 16);
+        ctx.fillStyle = '#ffd43b';
+        for (const bx of [-9, 9]) {
+          ctx.beginPath();
+          ctx.arc(bx, -37, 2.2, 0, TAU);
+          ctx.fill();
+        }
       }
       ctx.restore();
       ctx.save();
@@ -469,18 +496,36 @@ export function drawBody(ctx, item) {
       pattern(ctx, item, -30, -50, 60, 44);
       ctx.fillStyle = dark;
       ctx.fillRect(-30, -7, 60, 5);
-      fillRR(ctx, -13, -20, 26, 12, 5, dark);
+      if (!back) fillRR(ctx, -13, -20, 26, 12, 5, dark); // карман-кенгуру
       ctx.restore();
       bodyPath(ctx, 2.5);
       ctx.strokeStyle = OUT;
       ctx.lineWidth = 2;
       ctx.stroke();
-      line(ctx, -5, -40, -6, -27, '#fff', 1.8);
-      line(ctx, 5, -40, 6, -27, '#fff', 1.8);
+      if (back) {
+        // капюшон лежит на спине (верх прячется под затылком)
+        ell(ctx, 0, -31, 15, 11, shade(c, -0.12), OUT, 1.6);
+        ell(ctx, 0, -33, 9, 6, shade(c, -0.3));
+      } else {
+        line(ctx, -5, -40, -6, -27, '#fff', 1.8);
+        line(ctx, 5, -40, 6, -27, '#fff', 1.8);
+      }
       break;
     }
     case 'tuxedo': {
       // Подбородок закрывает тело до y ≈ -30, поэтому манишка, лацканы и бабочка — ниже, на груди.
+      if (back) {
+        // со спины: гладкая спинка и две фалды ниже пояса
+        for (const sx of [-1, 1]) poly(ctx, [sx * 2, -8, sx * 17, -8, sx * 13, 8, sx * 4, 5], c, OUT, 1.4);
+        bodyPath(ctx, 2);
+        ctx.fillStyle = c;
+        ctx.fill();
+        ctx.strokeStyle = OUT;
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        line(ctx, 0, -28, 0, -6, shade(c, isLight(c) ? -0.15 : 0.25), 1.3); // шов посередине спинки
+        break;
+      }
       bodyPath(ctx, 2);
       ctx.fillStyle = c;
       ctx.fill();
