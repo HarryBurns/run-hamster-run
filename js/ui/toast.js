@@ -12,6 +12,12 @@ import { G } from '../core/state.js';
 let toastBox = null;
 const MAX = 3; // на экране не больше трёх (при открытом окне видно две — style.css)
 const FADE = 400; // мс: тает (.toast.out)
+// Подсказка-указатель («Нажми на …», «нажимай», «жми») — живёт короче (не дольше POINT_MS) и тает, как только нажали
+// куда-нибудь мимо неё (туда, куда она звала, — П20-7): нажатия при открытом окне проходят сквозь подсказку, и висеть
+// над окном ещё 12 с ей незачем. Сразу после появления (POINT_MIN) нажатие не убирает её, а оставляет ещё 1,5 с.
+const POINT = /(^|[^а-яё])(нажм|нажим|жми)/i,
+  POINT_MS = 7000,
+  POINT_MIN = 1500;
 /**
  * Показать подсказку msg (kind: '' | 'good'). Висит столько, сколько нужно медленно читающему ребёнку 8–10 лет
  * (readSec: 3,5–12 с по длине текста); касание или щелчок — убрать раньше; пока на ней мышь или палец — не тает
@@ -37,16 +43,18 @@ export function toast(msg, kind = '') {
     setTimeout(() => t.remove(), 3100);
     return;
   }
-  const ms = readSec(msg) * 1000;
+  const point = POINT.test(msg),
+    ms = Math.min(readSec(msg) * 1000, point ? POINT_MS : 1e9);
   const same = live().find((t) => t._q.msg === msg && t._q.kind === kind);
   if (same) {
     toastBox.appendChild(same); // наверх стопки — как новая
+    same._q.born = performance.now();
     arm(same, ms);
     placeToasts();
     return;
   }
   const t = el('div', 'toast ' + kind, msg);
-  t._q = { msg, kind, held: 0, end: 0, left: 0, tm: 0, gone: false, down: 0 };
+  t._q = { msg, kind, held: 0, end: 0, left: 0, tm: 0, gone: false, down: 0, point, born: performance.now() };
   t.addEventListener('pointerdown', (e) => {
     e.stopPropagation();
     t._q.down = performance.now();
@@ -116,6 +124,19 @@ addEventListener(
     }
   },
   { passive: true },
+);
+// нажали мимо подсказки-указателя — она сделала своё дело (в автотесте, devToasts.fast, — как раньше)
+addEventListener(
+  'pointerdown',
+  (e) => {
+    if (!toastBox || !toastBox.firstChild) return;
+    for (const t of live()) {
+      if (!t._q.point || t.contains(e.target)) continue;
+      if (performance.now() - t._q.born >= POINT_MIN) fade(t);
+      else if (!t._q.held) arm(t, Math.min(left(t), POINT_MIN));
+    }
+  },
+  { capture: true, passive: true },
 );
 /** Для автотеста: подсказки на экране — текст, сколько ещё будут видны (мс) и придержаны ли. */
 export function toastsInfo() {

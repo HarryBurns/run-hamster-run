@@ -164,7 +164,7 @@ export function createTitleScene(canvas, o) {
     canvas.width = Math.round(W * dpr);
     canvas.height = Math.round(H * dpr);
     const f = (o.free && o.free()) || { x: 0, y: 0, w: W, h: H };
-    F = { x: f.x, y: f.y, w: Math.max(120, f.w), h: Math.max(120, f.h), open: f.open ?? H };
+    F = { x: f.x, y: f.y, w: Math.max(120, f.w), h: Math.max(120, f.h), open: f.open ?? H, keep: f.keep || [] };
     ham.s = clamp(Math.min(F.w / 250, F.h / 250), 0.8, 2.5);
     k = ham.s / 2;
     bot = F.y + F.h;
@@ -178,6 +178,13 @@ export function createTitleScene(canvas, o) {
     palms.forEach((p, i) => {
       [p.x, p.y] = at(narrow ? [0.07, 0.94][i] : p.fx, p.fy);
       p.h = Math.min(300 * k * p.size, p.y - F.y - 30 * k, narrow ? F.w * 0.56 * p.size : 1e9);
+      // верхние листья (до 0,33 высоты над макушкой, вширь ±0,35) — не под надписями заголовка (П20-7)
+      for (let n = 0; n < 2; n++)
+        for (const r of F.keep) {
+          const cx = p.x + p.lean * p.h * 0.18;
+          if (cx + p.h * 0.35 > r.x0 && cx - p.h * 0.35 < r.x1) p.h = Math.min(p.h, (p.y - r.y1 - 6 * k) / 1.34);
+        }
+      p.h = Math.max(p.h, 40);
     });
     [crab.hx, crab.hy] = at(0.74, 0.8);
     if (crab.st === 'walk') [crab.x, crab.y] = [crab.hx - 40 * k, crab.hy + 4 * k];
@@ -1295,6 +1302,7 @@ export function createTitleScene(canvas, o) {
     drawPlaneLights,
     drawIsleSmoke,
     drawIsleLights,
+    smokeClumps,
     drawBeam,
     drawMermaid,
     drawMermaidGlow,
@@ -1455,6 +1463,12 @@ export function createTitleScene(canvas, o) {
       return {
         env: { minutes: m, weather, force: o.force || 0, season, night, rain, snow, windy, winter, hard, storm },
         free: F,
+        // П20-7: клубы извержения и верхние листья крон (макушка, ±0,35 высоты вширь) — в пикселях окна
+        smoke: smokeClumps().map((c) => ({ ...P(c.x, c.y), r: Math.round(c.r) })),
+        crowns: palms.map((p) => {
+          const [cx, cy] = crown(p);
+          return { ...P(cx, cy - p.h * 0.33), hw: Math.round(p.h * 0.35) };
+        }),
         k,
         log: log.slice(),
         ham: {

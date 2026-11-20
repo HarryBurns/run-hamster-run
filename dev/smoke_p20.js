@@ -6,7 +6,7 @@ const lib = require('./lib.js');
 
 module.exports = async function p20(ctx) {
   const L = lib(ctx);
-  const { step, ev, expect, frames, untilScene } = L;
+  const { page, step, ev, expect, frames, untilScene } = L;
 
   await step('20н: аниматор Хлопушка в дождь — зарядка и дискотека в холле, в ясную погоду — у бассейна', async () => {
     await L.fresh({ day: 18, minutes: 8.5 * 60, weather: 'sun', flags: { hotelHint: 1 } });
@@ -138,6 +138,64 @@ module.exports = async function p20(ctx) {
           });
           expect(r.n >= 1 && !r.hit && r.inScreen, 'подсказка закрывает шапку или начало окна: ' + name, r);
         }
+      } finally {
+        await ev(() => {
+          window.__dev.fastToasts(true);
+          document.querySelectorAll('#toasts .toast').forEach((t) => t.remove());
+        });
+        await L.closeAll();
+      }
+    },
+  );
+
+  await step(
+    '20н: заставка — дым вулкана и кроны не под надписями; подсказка-указатель уходит после нажатия',
+    async () => {
+      await L.blank();
+      await L.until(() => !!window.__dev.title && !!window.__dev.title.debug().isle);
+      await ev(() => window.__dev.title.clearHorizon());
+      const isle = (await ev(() => window.__dev.title.debug())).isle;
+      await page.mouse.click(isle.x, isle.y);
+      await L.wait(700);
+      await page.mouse.click(isle.x, isle.y);
+      // клубы извержения поднимаются выше всего через 1,5–3 с: смотрим несколько раз
+      for (let i = 0; i < 6; i++) {
+        await L.wait(400);
+        const d = await ev(() => window.__dev.title.debug());
+        const keep = d.free.keep || [];
+        expect(keep.length === 3, 'нет надписей заголовка в free().keep', keep);
+        const bad = d.smoke.filter((c) =>
+          keep.some((r) => c.x + c.r > r.x0 && c.x - c.r < r.x1 && c.y - c.r < r.y1 - 1),
+        );
+        expect(!bad.length, 'дым вулкана заходит под надписи заголовка', { bad, keep });
+        if (i === 0) expect(d.smoke.length > 0, 'вулкан не извергается после нажатия', d.isle);
+        const crowns = d.crowns.filter((c) =>
+          keep.some((r) => c.x + c.hw > r.x0 && c.x - c.hw < r.x1 && c.y < r.y1 - 2),
+        );
+        expect(!crowns.length, 'крона пальмы заходит под надписи заголовка', { crowns: d.crowns, keep });
+      }
+      // подсказка-указатель («Нажми …») при открытом окне живёт не дольше 7 с и уходит, когда нажали мимо неё
+      await L.fresh();
+      await ev(() => window.__dev.fastToasts(false));
+      try {
+        await ev(() => window.__dev.F.openBackpack());
+        await L.untilPanel();
+        const LONG =
+          'Печенье лежит в рюкзаке на первой полке. Нажми на него, а потом на кнопку «Съесть» — и будет вкусно!';
+        await ev((t) => {
+          window.__dev.ui.toast(t);
+          window.__dev.ui.toast('Сегодня в парке распустились новые цветы, и пчёлы им очень рады. Загляни туда!');
+        }, LONG);
+        let q = await ev(() => window.__dev.ui.toastsInfo());
+        expect(q.length === 2 && q[0].left <= 7000 && q[1].left > 7000, 'указатель живёт как обычная подсказка', q);
+        await L.wait(1600);
+        const h = await ev(() =>
+          document.querySelector('.overlay .panel-head .title').getBoundingClientRect().toJSON(),
+        );
+        await page.mouse.click(h.left + 20, h.top + h.height / 2);
+        await L.wait(600);
+        q = await ev(() => window.__dev.ui.toastsInfo());
+        expect(q.length === 1 && !/Нажми/.test(q[0].text), 'нажали, а указатель висит (или ушла обычная)', q);
       } finally {
         await ev(() => {
           window.__dev.fastToasts(true);

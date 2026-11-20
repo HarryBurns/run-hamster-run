@@ -110,9 +110,19 @@ export function openTitle({ start }) {
       mn = menu.getBoundingClientRect();
     const side = mn.height > r.height * 0.6 || mn.left > r.width * 0.5; // кнопки сбоку (экран лежит)
     const top = Math.min(h.bottom - r.top, r.height * 0.4);
+    // надписи заголовка (название, подзаголовок, табличка): кроны пальм под них не заходят (П20-7). У h1 — рамка букв
+    const keep = [...head.children].map((c) => {
+      let b = c.getBoundingClientRect();
+      if (c.tagName === 'H1') {
+        const rg = document.createRange();
+        rg.selectNodeContents(c);
+        b = rg.getBoundingClientRect();
+      }
+      return { x0: b.left - r.left, x1: b.right - r.left, y1: b.bottom - r.top };
+    });
     return side
-      ? { x: 0, y: top, w: Math.max(160, mn.left - r.left - 8), h: r.height - top, open: mn.top - r.top - 8 }
-      : { x: 0, y: top, w: r.width, h: Math.max(160, mn.top - r.top - top - 6) };
+      ? { x: 0, y: top, w: Math.max(160, mn.left - r.left - 8), h: r.height - top, open: mn.top - r.top - 8, keep }
+      : { x: 0, y: top, w: r.width, h: Math.max(160, mn.top - r.top - top - 6), keep };
   };
   /** Сцена показывает время суток и погоду последней игры; игр нет — солнечный летний день. */
   function showScene() {

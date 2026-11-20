@@ -311,10 +311,23 @@ export function createTitleArt(S) {
   const ERUPT = 5.5,
     CLUMP = 3.6; // сколько живёт один клуб
   /** Для каждого клуба извержений сейчас: fn(x, y, r, a, ph) — середина, радиус, непрозрачность, доля жизни. */
+  /**
+   * Потолок для дыма над полосой x0..x1 (П20-7): ниже надписей заголовка (название, подзаголовок, табличка — S.F.keep,
+   * features/title.js) — дым под них не заходит, а стелется под ними. Над полосой нет надписей — без потолка.
+   */
+  const smokeCeil = (x0, x1) => {
+    let c = -1e9;
+    for (const r of S.F.keep || []) if (x1 > r.x0 && x0 < r.x1) c = Math.max(c, r.y1 + 4);
+    return c;
+  };
+  /** Облачко дыма (x, y, r) — не выше потолка: fn(x, y', r). */
+  const underCeil = (x, y, r) => Math.max(y, smokeCeil(x - r, x + r) + r);
+  // дым клонится влево — там над островом свободное небо (справа — табличка «Ореховая Гавань»); в ветер — по ветру
+  const smokeDir = () => (S.windy ? 1 : -1);
   function eruptClumps(fn) {
     const I = S.isle,
       s = I.s,
-      drift = S.windy ? 1.8 : 1;
+      drift = smokeDir() * (S.windy ? 1.8 : 2);
     for (const t0 of I.puffs) {
       const e = S.T - t0;
       if (e < 0 || e > ERUPT + CLUMP) continue;
@@ -323,23 +336,33 @@ export function createTitleArt(S) {
         if (ph < 0 || ph >= 1) continue;
         const rise = 1 - (1 - ph) * (1 - ph),
           side = ((i * 7) % 5) - 2;
+        const x = I.x + (-17 + rise * 70 * drift + Math.sin(ph * 5 + i) * 4 + side * 6 * rise) * s,
+          r = (6 + rise * 22) * s * (0.85 + (i % 3) * 0.12);
         fn(
-          I.x + (-17 + rise * 70 * drift + Math.sin(ph * 5 + i) * 4 + side * 6 * rise) * s,
-          S.hy + (-62 - rise * 80 + rise * rise * 6 * side) * s,
-          (6 + rise * 22) * s * (0.85 + (i % 3) * 0.12),
+          x,
+          underCeil(x, S.hy + (-62 - rise * 80 + rise * rise * 6 * side) * s, r),
+          r,
           clamp(ph * 7, 0, 1) * (1 - ph) ** 0.7 * 0.95,
           ph,
         );
       }
     }
   }
+  /** Для автотеста (П20-7): клубы извержения сейчас — [{ x, y, r }] в пикселях канвы. */
+  function smokeClumps() {
+    const out = [];
+    eruptClumps((x, y, r, a) => a > 0.05 && out.push({ x, y, r }));
+    return out;
+  }
   function drawIsleSmoke() {
     const I = S.isle,
       s = I.s,
-      drift = S.windy ? 2 : 1;
+      drift = smokeDir() * (S.windy ? 2 : 1);
     const puff = (ph) => {
-      const a = clamp(ph * 5, 0, 1) * (1 - ph) * 0.5;
-      circle(I.x + (-17 + ph * 26 * drift + Math.sin(ph * 6) * 3) * s, S.hy + (-60 - ph * 38) * s, (3 + ph * 7) * s, `rgba(236,236,240,${a.toFixed(3)})`); // prettier-ignore
+      const a = clamp(ph * 5, 0, 1) * (1 - ph) * 0.5,
+        x = I.x + (-17 + ph * 26 * drift + Math.sin(ph * 6) * 3) * s,
+        r = (3 + ph * 7) * s;
+      circle(x, underCeil(x, S.hy + (-60 - ph * 38) * s, r), r, `rgba(236,236,240,${a.toFixed(3)})`);
     };
     for (let i = 0; i < 4; i++) puff((S.T * 0.11 + i / 4) % 1);
     // клубы извержения: тень снизу-справа, светлый бок сверху-слева
@@ -2104,6 +2127,7 @@ export function createTitleArt(S) {
     drawMermaidGlow,
     drawIsleSmoke,
     drawIsleLights,
+    smokeClumps,
     drawBeam,
   };
 }
