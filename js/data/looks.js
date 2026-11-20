@@ -12,7 +12,8 @@ const NAME_BAD = /[^A-Za-zА-Яа-яЁё \-]/g;
 /**
  * Имя героя, пока его набирают: только буквы (русские и латинские), пробел и дефис; пробелы и дефисы не двоятся
  * и не стоят в начале; каждое слово и каждая часть через дефис — с заглавной буквы («анна-мария» → «Анна-Мария»);
- * не больше NAME_WORDS слов и NAME_MAX знаков. Пробел или дефис в конце остаётся — имя ещё дописывают.
+ * не больше NAME_WORDS слов и NAME_MAX знаков. Пробел или дефис в конце (и дефис рядом с пробелом
+ * посреди правки) остаётся — имя ещё дописывают; готовый вид даёт cleanName.
  */
 export function typeName(str) {
   let s = String(str == null ? '' : str)
@@ -21,7 +22,6 @@ export function typeName(str) {
     .replace(NAME_BAD, '')
     .replace(/ +/g, ' ')
     .replace(/-+/g, '-')
-    .replace(/( -|- )[ -]*/g, ' ')
     .replace(/^[ -]+/, '');
   const words = s.split(' ');
   if (words.length > NAME_WORDS) s = words.slice(0, NAME_WORDS).join(' ');
@@ -29,7 +29,12 @@ export function typeName(str) {
   return s.replace(/(^|[ -])([a-zа-яё])/g, (m, a, b) => a + b.toUpperCase());
 }
 /** Готовое имя героя: как typeName, без пробела и дефиса по краям. Пустая строка — имени нет. */
-export const cleanName = (str) => typeName(str).replace(/[ -]+$/, '');
+export const cleanName = (str) =>
+  typeName(
+    String(str == null ? '' : str)
+      .replace(/[\s\u00a0]+/g, ' ')
+      .replace(/( -|- )[ -]*/g, ' '), // дефис с пробелом рядом — просто пробел
+  ).replace(/[ -]+$/, '');
 /** Что не так с набранным (для мягкой подсказки): 'chars' — не буквы, 'words' — слов больше трёх, 'long' — длинно, null. */
 export function nameProblem(str) {
   const s = String(str == null ? '' : str)

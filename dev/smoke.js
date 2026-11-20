@@ -82,6 +82,7 @@ const fixes = require('./smoke_fixes.js'); // В-пункты BACKLOG: стре�
 const phantom = require('./smoke_phantom.js'); // баг от заказчика: до «Играть!» игра не записывается, пустые игры убираются
 const weatherSteps = require('./smoke_weather.js'); // «Погода по всему миру»: прогноз, связь мест, гроза, жители дома в ливень, зонтики
 const whereNpc = require('./smoke_where.js'); // баг от заказчика: житель в каждый момент ровно в одном месте (улица, дом, гости, отель)
+const genderSteps = require('./smoke_gender.js'); // пол героя: экран имени, род в текстах, старое сохранение — хомячка
 const zfix = require('./smoke_zfix.js'); // баги от заказчика: наряд после показа мод, звёздочка к жителю там, где он сейчас
 const holidaysWide = require('./smoke_holidays_wide.js'); // этап 15: праздники шире площади — наряды жителей, празднуют вместе, места, украшения за городом и в домах, полка в ТЦ, клумбы
 const pwa = require('./smoke_pwa.js'); // игра как приложение: манифест, значки, окно установки на iOS и Android, service worker
@@ -2903,6 +2904,7 @@ const runParallel = () => {
     await jobs({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
     await fixes({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
     await zfix({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
+    await genderSteps({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
     await whereNpc({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
     await weatherSteps({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
     await phantom({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });

@@ -12,6 +12,8 @@ export const EVENTS = {
   hud: 'пора обновить HUD (плашки и кнопки)',
   money: 'изменилось число монет { delta, source } — delta > 0 заработано, < 0 потрачено',
   look: 'изменилась внешность или наряд хомячка',
+  gender: 'сменили пол героя { gender } — меню ⚙️ (core/gender.js)',
+  name: 'сменили имя героя { name } — меню ⚙️',
   sticker: 'получена наклейка { id, delay, quiet }',
   scene: 'сменилась сцена { name, from }',
   step: 'шаг логики, мир не на паузе { dt }',

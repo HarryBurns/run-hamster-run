@@ -31,7 +31,7 @@ module.exports = async function phantom(ctx) {
   const noGames = async (when) => {
     const r = await look();
     expect(
-      r.play && r.input && r.text.includes('Как зовут') && !r.text.includes('С возвращением'),
+      r.play && r.input && r.text.includes('Как тебя зовут') && !r.text.includes('С возвращением'),
       `${when}: заставка не спрашивает имя`,
       r.text,
     );
