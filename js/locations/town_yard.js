@@ -40,9 +40,9 @@ const THINGS = {
 
 defineObjects({
   // теплица: стеклянный домик над четырьмя грядками (клетки грядок — вид «bg» в town.js; o — левая клетка ряда)
-  greenhouse: {
+  villaGreenhouse: {
     art: {
-      greenhouse: [
+      villaGreenhouse: [
         [-34, -92, 178, 30],
         (ctx, snow) => {
           const x0 = -28,
@@ -77,7 +77,7 @@ defineObjects({
       ],
     },
     draw(ctx, o, env) {
-      put('greenhouse', o.x, o.y, env.season === 'winter' ? 1 : 0);
+      put('villaGreenhouse', o.x, o.y, env.season === 'winter' ? 1 : 0);
     },
   },
 });
@@ -119,9 +119,9 @@ const APPLY = {
   green(m, on) {
     const [x0, y0, x1, y1] = GREEN_CLEAR;
     if (on) for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) m.clear(x, y);
-    for (const ob of m.objs.filter((q) => q.type === 'greenhouse')) m.remove(ob);
+    for (const ob of m.objs.filter((q) => q.type === 'villaGreenhouse')) m.remove(ob);
     for (const [x, y] of BED_CELLS.slice(10)) tile(m, x, y, on ? 'bg' : 'g');
-    if (on) m.add('greenhouse', GREEN_AT[0], GREEN_AT[1], {});
+    if (on) m.add('villaGreenhouse', GREEN_AT[0], GREEN_AT[1], {});
   },
 };
 
