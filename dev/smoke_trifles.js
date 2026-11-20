@@ -200,4 +200,34 @@ module.exports = async function trifles(ctx) {
     await toHoliday('mayday', 12 * 60, 'world');
     expect(await ev(() => window.__dev.World.map.foot(51, 33)), 'горка осталась после Нового года');
   });
+
+  await step('мелочи: садовник зимой — в оранжерее; спасатель и волейбол на телефоне стоя — крупнее', async () => {
+    const play = async (id, set) => {
+      await L.fresh(set ? { set } : {});
+      await ev((id) => {
+        window.__dev.run('minigame:' + id); // не ждём: обещание игры исполнится, только когда её закроют
+      }, id);
+      await L.mgGo();
+      await wait(300);
+    };
+    const phone = await ev(() => innerWidth < 560 && innerHeight > innerWidth * 1.25);
+    // садовник: зимой (январь) — оранжерея, летом — парк
+    await play('gardener', 's.day = 1;');
+    expect(await ev(() => document.querySelector('#mg .gd-canvas').__garden().winter), 'зимой садовник не в оранжерее');
+    await L.mgClose();
+    await play('gardener');
+    expect(!(await ev(() => document.querySelector('#mg .gd-canvas').__garden().winter)), 'летом садовник в оранжерее');
+    await L.mgClose();
+    // спасатель: на телефоне стоя мир уже и выше — всё крупнее
+    await play('lifeguard');
+    const g = await ev(() => document.querySelector('#mg .lg-canvas').__guard().view);
+    expect(phone ? g.W === 280 && g.k > 1.25 : g.W === 400, 'спасатель: размер мира', g);
+    await L.mgClose();
+    // волейбол: на телефоне стоя — половина корта во всю ширину, камера у нашей стороны
+    await play('volley');
+    const v = await ev(() => document.querySelector('#mg .vb-canvas').__volley());
+    expect(phone ? v.k > 0.8 && v.cam === 0 : v.cam === null, 'волейбол: масштаб и камера', v);
+    await L.mgClose();
+    await closeAll();
+  });
 };

@@ -12,23 +12,40 @@ import { DEV } from '../core/dev.js';
 
 export const CALLS = 8;
 const STARS = [5, 7]; // помогла сама ⭐⭐ / ⭐⭐⭐
-const W = 400,
-  H = 300,
-  SHORE = 236, // где начинается песок
-  TOWER = [58, 214]; // площадка вышки (здесь стоит хомячок)
+// Мир игры: W × H, SHORE — где начинается песок, TOWER — площадка вышки (здесь стоит хомячок), SLOTS — где плавают
+// жители. На телефоне стоя (В5) мир уже и выше (TALL): то же море, но всё крупнее.
+const WIDE = {
+  W: 400,
+  H: 300,
+  SHORE: 236,
+  TOWER: [58, 214],
+  SLOTS: [
+    [150, 96],
+    [250, 82],
+    [345, 108],
+    [205, 150],
+    [310, 172],
+  ],
+};
+const TALL = {
+  W: 280,
+  H: 420,
+  SHORE: 356,
+  TOWER: [50, 334],
+  SLOTS: [
+    [150, 104],
+    [238, 140],
+    [122, 190],
+    [222, 236],
+    [160, 286],
+  ],
+};
 const OUT = '#4a3728';
 const KINDS = [
   { id: 'tired', e: '😮‍💨', say: 'Устал плыть!', how: 'ring' },
   { id: 'ball', e: '🏐', say: 'Уронил мячик!', how: 'swim', item: 'ball' },
   { id: 'duck', e: '🦆', say: 'Уплыла уточка!', how: 'swim', item: 'duck' },
   { id: 'tired2', e: '🥱', say: 'Лапки устали!', how: 'ring' },
-];
-const SLOTS = [
-  [150, 96],
-  [250, 82],
-  [345, 108],
-  [205, 150],
-  [310, 172],
 ];
 
 const CSS = `
@@ -45,6 +62,8 @@ export default {
 
   start(host) {
     const root = host.root;
+    const tall = window.innerWidth < 560 && window.innerHeight > window.innerWidth * 1.25;
+    const { W, H, SHORE, TOWER, SLOTS } = tall ? TALL : WIDE;
     const level = host.level || 0;
     const patience = 8 - Math.min(4, level) * 0.6; // сколько секунд ждёт помощи
     const gap = 3.6 - Math.min(4, level) * 0.3; // как часто просят
@@ -110,7 +129,7 @@ export default {
       calls++;
       if (k.item) {
         // вещь уплывает от купальщика в сторону открытого моря
-        const dir = s.x > 250 ? -1 : 1;
+        const dir = s.x > W * 0.62 ? -1 : 1;
         s.item = { kind: k.item, x: s.x + dir * 14, y: s.y - 4, vx: dir * 9, vy: -6, s };
       }
       host.sfx('splash');
@@ -317,7 +336,7 @@ export default {
       ctx.fillStyle = g;
       ctx.fillRect(-2000, -2000, W + 4000, SHORE + 2000);
       // солнышко и облачко
-      ell(ctx, 360, 14, 14, 14, '#ffe066', null);
+      ell(ctx, W - 40, 14, 14, 14, '#ffe066', null);
       ell(ctx, 90, 16, 22, 7, '#fff', null);
       ell(ctx, 104, 12, 14, 7, '#fff', null);
       // буйки — граница, дальше которой не заплывают
@@ -354,8 +373,8 @@ export default {
       ctx.beginPath();
       for (let x = -200; x <= W + 200; x += 20) ctx.lineTo(x, SHORE + Math.sin(x * 0.05 + t * 1.2) * 2.5);
       ctx.stroke();
-      ell(ctx, 330, 268, 9, 4, '#ffa94d', null);
-      ell(ctx, 370, 282, 6, 3, '#f783ac', null);
+      ell(ctx, W - 70, SHORE + 32, 9, 4, '#ffa94d', null);
+      ell(ctx, W - 30, SHORE + 46, 6, 3, '#f783ac', null);
     }
     function drawTower() {
       const [x, y] = TOWER;

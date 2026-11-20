@@ -2311,7 +2311,8 @@ js/minigames/tug.js     канат: info.team — [{ id, name, look, hearts }], 
   (`relax:volley`, зимой нет). Пару собирает `volleyTeams()`: друг — житель города с самыми большими сердечками,
   соперники — двое других; строку «с кем играешь» на заставку пишет `volleyTeamNote()`. Правила и сила друга —
   `VOLLEY` (`data/relax.js`), приз за первые две игры в день — `RELAX_PRIZE` (`data/economy.js`, проверка
-  в `dev/balance.js`). Dev-хуки канвы: `__volley()` (счёт, фаза, мяч, зона друга), `__volleyBot(true)` — играет сама,
+  в `dev/balance.js`). На телефоне стоя (В5) поле крупнее: видна половина корта с сеткой (`VIS` единиц), камера
+  `cam` плавно едет к соперникам, когда мяч летит к ним. Dev-хуки канвы: `__volley()` (счёт, фаза, мяч, зона друга, k, cam), `__volleyBot(true)` — играет сама,
   `__volleyScreen(x, y)` — точка игры на экране.
 - Автотест: `node dev/smoke.js <url> "step:отдых 17а:"` (`dev/smoke_relax.js`).
 
@@ -2418,8 +2419,10 @@ js/minigames/hairdresser.js  «Парикмахер»: гость-житель �
                              подсказка сначала мягкая, потом прямая; без таймера. Канва: __hair(), __hairSolve(ошибкойСначала)
 js/minigames/lifeguard.js    «Спасатель»: CALLS просьб — «устал плыть» (круг с вышки) и «уронил мячик / уточку» (доплыть);
                              не успела — помогает Волна. __guard(), __guardHelp(), __guardTap(x, y) — точки мира 400 × 300
+                             (на телефоне стоя — мир TALL 280 × 420: то же море, всё крупнее, В5)
 js/minigames/gardener.js     «Садовник»: полить → куст по карточке (SHAPES; можно вести пальцем) → клумба по схеме.
-                             __garden() (todo — где нажать), __gardenDo(), __gardenTap(x, y)
+                             Зимой (host.season) — в оранжерее: стеклянная крыша и стены, снег за стёклами, цветы
+                             в горшках, куст в кадке (В5). __garden() (todo — где нажать, winter), __gardenDo(), __gardenTap(x, y)
 js/core/photos.js            фотоальбом: IndexedDB, ключ rhr-photos-<gid> на игру (НЕ в сохранении; запасной путь — localStorage, раздел 3), PHOTO.max снимков, JPEG
                              длинной стороной PHOTO.size; deleteGame (core/games.js) убирает снимки удалённой игры
 js/features/photo.js         фото-режим: кнопка 📷 «Фото» справа (main.js), openPhotoMode(); вкладка альбома «📷 Фото» — renderPhotos

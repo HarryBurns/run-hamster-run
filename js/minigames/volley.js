@@ -7,6 +7,7 @@
 // отбивают не всегда, и чем дольше розыгрыш — тем чаще промахиваются; если они далеко впереди, промахиваются чаще.
 // Матч до VOLLEY.points очков. Проигрыша «в ноль» нет: звёзды — по счёту (data/relax.js, VOLLEY.stars), за участие —
 // хотя бы одна. Монеты по звёздам выдаёт занятие (features/relax.js).
+// На телефоне стоя поле крупнее: видна половина корта с сеткой, камера ездит за мячом к соперникам и обратно.
 import { el, clamp } from '../core/util.js';
 import { ell, fillRR, line, poly } from '../core/draw.js';
 import { pic as kitPic } from './kit.js';
@@ -185,8 +186,15 @@ function start(host) {
   const b = { x: 200, y: 230, vx: 0, vy: 0, rot: 0, tx: 0, who: null, will: true, side: 'us', held: true };
   const puffs = [];
 
-  const K = () => Math.min(cv.w / W, (cv.h - 34) / H);
-  const OX = () => (cv.w - W * K()) / 2;
+  // телефон стоя (В5): поле во всю ширину было бы мелким — видна наша половина с сеткой (VIS единиц), камера
+  // плавно переезжает к соперникам, когда мяч летит к ним, и обратно
+  const VIS = 430;
+  const narrow = () => cv.w < 560 && cv.h > cv.w * 1.25;
+  const K = () => (narrow() ? Math.min(cv.w / VIS, (cv.h - 34) / H) : Math.min(cv.w / W, (cv.h - 34) / H));
+  const camGoal = () =>
+    (phase === 'serve' ? server === 'us' : phase === 'fly' ? b.side === 'us' : b.x < NET) ? 0 : W - VIS;
+  let cam = -1;
+  const OX = () => (narrow() ? -cam * K() : (cv.w - W * K()) / 2);
   const OY = () => Math.max(34, cv.h - H * K() - Math.max(0, (cv.h - H * K() - 34) * 0.35));
   const toGame = (sx, sy) => ({ x: (sx - OX()) / K(), y: (sy - OY()) / K() });
 
@@ -522,6 +530,7 @@ function start(host) {
   }
   host.loop((dt) => {
     if (!over || phase === 'point') update(dt);
+    cam = cam < 0 ? camGoal() : cam + (camGoal() - cam) * Math.min(1, dt * 3.5);
     drawScene();
     chips();
   });
@@ -577,6 +586,8 @@ function start(host) {
       me: me.x,
       zone: NET - zone0,
       over2: sk.over,
+      k: K(), // масштаб поля (на телефоне стоя — крупнее, с камерой) и куда она сейчас смотрит
+      cam: narrow() ? cam : null,
       ball: {
         x: b.x,
         y: b.y,

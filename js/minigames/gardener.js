@@ -4,6 +4,8 @@
 //   ✂️ подстричь куст по шаблону — на карточке фигура (сердечко, шарик, зайчик, звёздочка): нажимай или веди
 //      пальцем по лишним веточкам; лист из фигуры срезать нельзя — «это оставим!», он сразу отрастает;
 //   🌷 посадить цветы по схеме — выбери цвет внизу и нажми на лунку; не тот цвет — «по схеме здесь …».
+// Зимой (В5) смена — в оранжерее парка: стеклянные стены и крыша, за стёклами идёт снег; цветы — в горшках на столе,
+// куст — в кадке, клумба — горшки на стеллаже. Дела те же.
 // Без таймера и проигрыша; звёзды — по числу подсказок. Dev-хуки на канве: __garden() — что сейчас и где нажать
 // (точки мира), __gardenDo() — сделать одно верное действие, __gardenTap(x, y) — нажать в точку мира.
 import { el, clamp, pick, shuffle } from '../core/util.js';
@@ -53,6 +55,8 @@ export default {
   start(host) {
     const root = host.root;
     const level = host.level || 0;
+    const winter = host.season === 'winter'; // зимой — в оранжерее (В5)
+    const BG = winter ? '#e9dcc3' : '#b2f2bb';
     const top = el('div', 'gd-top');
     const tStage = el('div', 'gd-chip'),
       tSay = el('div', 'gd-chip');
@@ -60,7 +64,7 @@ export default {
     const pal = el('div', 'gd-pal hide');
     host.css(CSS);
     root.append(top, pal);
-    root.style.background = '#b2f2bb';
+    root.style.background = BG;
     const cv = host.canvas();
     cv.canvas.classList.add('gd-canvas');
     const ctx = cv.ctx;
@@ -157,13 +161,13 @@ export default {
       if (STAGES[stage].id === 'plant') {
         pal.classList.remove('hide');
         buildPalette();
-        say('Выбери цвет внизу и нажми на лунку 🌱');
+        say(`Выбери цвет внизу и нажми на ${winter ? 'горшок' : 'лунку'} 🌱`);
       }
     }
     function finish() {
       over = true;
       pal.classList.add('hide');
-      say('Парк — как картинка! 🌳');
+      say(winter ? 'Оранжерея — как картинка! 🌿' : 'Парк — как картинка! 🌳');
       host.later(() => {
         const stars = hints <= STARS[0] ? 3 : hints <= STARS[1] ? 2 : 1;
         host.finish({
@@ -315,7 +319,78 @@ export default {
       }
       ell(ctx, hx, hy + (dry ? 3 : 0), 4 * k, 4 * k, dry ? '#bfa76f' : '#ffa94d', OUT, 1);
     }
+    /** Глиняный горшок: верх (край) — на высоте y, по центру x; w — ширина края. */
+    function pot(x, y, w = 26, soil = true) {
+      poly(
+        ctx,
+        [x - w / 2, y, x + w / 2, y, x + w * 0.36, y + w * 0.78, x - w * 0.36, y + w * 0.78],
+        '#e8590c',
+        OUT,
+        1.6,
+      );
+      fillRR(ctx, x - w / 2 - 2, y - 3, w + 4, 7, 2, '#f76707', OUT, 1.4);
+      if (soil) ell(ctx, x, y - 1, w / 2 - 1, 2.6, '#5a371f', null);
+      line(ctx, x - w * 0.26, y + 8, x - w * 0.22, y + w * 0.66, 'rgba(255,255,255,.3)', 2);
+    }
+    /** Зимняя оранжерея (В5): стеклянная крыша сверху, стена из стёкол со снегом снаружи, плиточный пол. */
+    function drawGreenhouse() {
+      const X0 = -900,
+        X1 = W + 900,
+        WALL = 56; // низ стеклянной стены
+      // за стёклами: зимнее небо, сугробы, ёлочки в снегу
+      const g = ctx.createLinearGradient(0, -300, 0, WALL);
+      g.addColorStop(0, '#b9d7ee');
+      g.addColorStop(1, '#eaf4fb');
+      ctx.fillStyle = g;
+      ctx.fillRect(X0, -400, X1 - X0, WALL + 400);
+      for (let i = 0; i < 18; i++) {
+        const x = -560 + i * 86;
+        poly(ctx, [x - 14, WALL - 8, x, WALL - 44, x + 14, WALL - 8], '#9fc5b0', null);
+        poly(ctx, [x - 8, WALL - 24, x, WALL - 44, x + 8, WALL - 24], '#fff', null);
+      }
+      for (let i = 0; i < 28; i++) ell(ctx, -620 + i * 60, WALL - 4, 46, 12, '#fff', null);
+      // снег за стёклами
+      ctx.fillStyle = 'rgba(255,255,255,.95)';
+      for (let i = 0; i < 90; i++) {
+        const x = ((i * 89.7 + Math.sin(t * 0.7 + i) * 9) % 1400) - 500,
+          y = ((i * 47.3 + t * (16 + (i % 4) * 5)) % 360) - 300;
+        if (y < WALL - 6) ctx.fillRect(x, y, 2.6, 2.6);
+      }
+      // стеклянная крыша: рёбра сходятся к коньку, на стёклах — снег
+      ctx.lineCap = 'round';
+      for (let dx = -960; dx <= 960; dx += 64) line(ctx, W / 2 + dx * 0.35, -300, W / 2 + dx, 0, '#f8f9fa', 5);
+      for (const y of [-220, -140, -64]) {
+        line(ctx, X0, y, X1, y, '#f8f9fa', 5);
+        for (let i = 0; i < 12; i++)
+          ell(ctx, -180 + i * 74 + (y % 3) * 12, y - 4, 22, 5, 'rgba(255,255,255,.85)', null);
+      }
+      // стена: белые рамы, блики на стекле, снег в уголках
+      line(ctx, X0, 0, X1, 0, '#f1f3f5', 8);
+      line(ctx, X0, 22, X1, 22, '#f8f9fa', 3);
+      for (let x = -616; x <= W + 616; x += 44) {
+        line(ctx, x, 0, x, WALL, '#f8f9fa', 4);
+        ell(ctx, x + 22, WALL - 3, 12, 4, '#fff', null);
+        line(ctx, x + 10, 30, x + 22, 8, 'rgba(255,255,255,.45)', 3);
+      }
+      // подоконник и плиточный пол
+      ctx.fillStyle = '#f2e3c6';
+      ctx.fillRect(X0, WALL, X1 - X0, 500);
+      ctx.strokeStyle = 'rgba(160,120,70,.25)';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      for (let y = WALL + 30; y < H + 300; y += 34) {
+        ctx.moveTo(X0, y);
+        ctx.lineTo(X1, y);
+      }
+      for (let x = -598; x < W + 600; x += 46) {
+        ctx.moveTo(x, WALL + 8);
+        ctx.lineTo(x, H + 300);
+      }
+      ctx.stroke();
+      fillRR(ctx, X0, WALL - 2, X1 - X0, 10, 0, '#ced4da', OUT, 1.5);
+    }
     function drawGround() {
+      if (winter) return drawGreenhouse();
       ctx.fillStyle = '#b2f2bb';
       ctx.fillRect(-200, -200, W + 400, H + 400);
       ctx.fillStyle = '#8ce99a';
@@ -327,8 +402,17 @@ export default {
       }
     }
     function drawWater() {
-      fillRR(ctx, 50, 104, 300, 150, 30, '#a47148', OUT, 2.5);
-      fillRR(ctx, 58, 112, 284, 134, 24, '#8d5a35', null);
+      if (winter) {
+        // зимой — горшки на двух длинных полках стеллажа
+        for (const y of [150, 222]) {
+          fillRR(ctx, 50, y + 14, 330, 12, 4, '#c08552', OUT, 2);
+          for (const x of [62, 368]) fillRR(ctx, x - 4, y + 24, 8, 34, 2, '#a47148', OUT, 1.5);
+        }
+        for (const p of plants) pot(p.x, p.y - 2, 28);
+      } else {
+        fillRR(ctx, 50, 104, 300, 150, 30, '#a47148', OUT, 2.5);
+        fillRR(ctx, 58, 112, 284, 134, 24, '#8d5a35', null);
+      }
       for (const p of plants) flower(p.x, p.y, p.c, p.dry, 1.1, t - p.wet < 0.5 ? Math.sin((t - p.wet) * 30) * 3 : 0);
       if (can) {
         const k = clamp((t - can.t0) / 0.9, 0, 1),
@@ -391,6 +475,16 @@ export default {
         }
       // ствол
       fillRR(ctx, BX + (BC * CELL) / 2 - 6, BY + BR * CELL - 4, 12, 18, 3, '#8d5a35', OUT, 1.5);
+      if (winter) {
+        // зимой куст растёт в деревянной кадке
+        const cx = BX + (BC * CELL) / 2,
+          y = BY + BR * CELL + 10;
+        poly(ctx, [cx - 34, y, cx + 34, y, cx + 26, y + 34, cx - 26, y + 34], '#c08552', OUT, 2);
+        for (const yy of [y + 9, y + 24])
+          line(ctx, cx - 32 + (yy - y) * 0.2, yy, cx + 32 - (yy - y) * 0.2, yy, '#868e96', 3);
+        fillRR(ctx, cx - 37, y - 4, 74, 7, 3, '#a47148', OUT, 1.6);
+        ell(ctx, cx, y - 1, 32, 2.6, '#5a371f', null);
+      }
     }
     function drawPlant() {
       // схема
@@ -412,15 +506,25 @@ export default {
           ),
         ),
       );
-      // клумба
-      fillRR(ctx, FX - 8, FY - 8, FC * FCELL + 16, FR * FCELL + 16, 16, '#adb5bd', OUT, 2.5);
-      fillRR(ctx, FX - 2, FY - 2, FC * FCELL + 4, FR * FCELL + 4, 12, '#8d5a35', null);
+      // клумба (зимой — горшки на стеллаже в три полки)
+      if (winter)
+        for (let y = 0; y < FR; y++) {
+          const yy = FY + (y + 1) * FCELL - 6;
+          fillRR(ctx, FX - 10, yy, FC * FCELL + 20, 8, 3, '#c08552', OUT, 1.8);
+        }
+      else {
+        fillRR(ctx, FX - 8, FY - 8, FC * FCELL + 16, FR * FCELL + 16, 16, '#adb5bd', OUT, 2.5);
+        fillRR(ctx, FX - 2, FY - 2, FC * FCELL + 4, FR * FCELL + 4, 12, '#8d5a35', null);
+      }
       bed.forEach((r, y) =>
         r.forEach((b, x) => {
           const cx = FX + (x + 0.5) * FCELL,
             cy = FY + (y + 0.5) * FCELL;
           const sh = t - b.shake < 0.4 ? Math.sin((t - b.shake) * 40) * 3 : 0;
-          if (b.got === null) {
+          if (winter) {
+            pot(cx + sh, cy + 6, 24);
+            if (b.got !== null) flower(cx, cy + 6, cols[b.got].c, false, 0.8);
+          } else if (b.got === null) {
             ell(ctx, cx + sh, cy + 6, 12, 6, '#6b4226', null);
             ell(ctx, cx + sh, cy + 5, 9, 4, '#5a371f', null);
           } else flower(cx, cy + 14, cols[b.got].c, false, 0.9);
@@ -444,7 +548,7 @@ export default {
       view.ox = (cv.w - W * k) / 2;
       view.oy = Math.max(0, (cv.h - palH - H * k) / 2);
       ctx.setTransform(cv.dpr, 0, 0, cv.dpr, 0, 0);
-      ctx.fillStyle = '#b2f2bb';
+      ctx.fillStyle = BG;
       ctx.fillRect(0, 0, cv.w, cv.h);
       ctx.setTransform(cv.dpr * k, 0, 0, cv.dpr * k, cv.dpr * view.ox, cv.dpr * view.oy);
       drawGround();
@@ -487,6 +591,7 @@ export default {
         busy: !!can || t - stageAt < 0.3,
         todo: todo(),
         shape: shapeId,
+        winter, // зимой — в оранжерее
         view: { ...view, W, H },
       });
     if (DEV)
