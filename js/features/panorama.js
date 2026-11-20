@@ -55,7 +55,7 @@ export function openPanorama() {
           ctx.drawImage(imgs[i].c, 0, imgs[i].top - dy);
           if (l.live) {
             ctx.setTransform(k, 0, 0, k, 0, -dy);
-            paintViewLive(ctx, l, L, env, t, ZOOM[l.id]);
+            paintViewLive(ctx, l, L, env, t, ZOOM[l.id], TOP); // салют — ниже срезанного верха неба
           }
         });
         ctx.setTransform(canvas.width / W, 0, 0, canvas.width / W, 0, 0);

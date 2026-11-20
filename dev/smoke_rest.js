@@ -149,4 +149,23 @@ module.exports = async function rest(ctx) {
       }
     },
   );
+
+  await step('отдых 20н: мелочи — «Садовник» на телефоне стоя крупнее (мир 280 × 420)', async () => {
+    await L.fresh();
+    await ev(() => {
+      window.__dev.run('minigame:gardener'); // не ждём: обещание игры исполнится, только когда её закроют
+    });
+    await L.mgGo();
+    await wait(300);
+    const phone = await ev(() => innerWidth < 560 && innerHeight > innerWidth * 1.25);
+    const g = await ev(() => document.querySelector('#mg .gd-canvas').__garden());
+    expect(phone ? g.view.W === 280 && g.view.k > 1.25 : g.view.W === 400, 'садовник: размер мира', g.view);
+    // все цели — внутри мира
+    expect(
+      g.todo.every((q) => q.x > 0 && q.x < g.view.W && q.y > 0 && q.y < g.view.H),
+      'садовник: цветок за краем',
+      g.todo,
+    );
+    await L.mgClose();
+  });
 };

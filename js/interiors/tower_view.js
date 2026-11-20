@@ -883,8 +883,10 @@ export function fireworksPops(t) {
 /**
  * Салют с площадки башни и в подзорную трубу (Пр7, Пр22): залпы над городом у горизонта — шары искр раскрываются,
  * падают и гаснут; ракета-точка взлетает снизу. Залпы считаются от времени (без состояния), режим lighter.
+ * top — верх видимой части неба (подзорная труба срезает верх, TOP): залпы ниже и поменьше — шар искр раскрывается
+ * между срезом и горизонтом.
  */
-function paintFireworks(ctx, L, t) {
+function paintFireworks(ctx, L, t, top = 0) {
   ctx.save();
   ctx.globalCompositeOperation = 'lighter';
   for (let i = 0; i < FW_N; i++) {
@@ -893,7 +895,7 @@ function paintFireworks(ctx, L, t) {
       q = u % 1,
       seed = (n * 7 + i * 13) % 17,
       x = ((seed / 17) * 0.8 + 0.1) * L,
-      y = 40 + ((seed * 5) % 9) * 8,
+      y = top ? top + 52 + ((seed * 5) % 9) * 2 : 40 + ((seed * 5) % 9) * 8,
       col = FW[(n + i * 2) % FW.length];
     if (q < 0.2) {
       // ракета взлетает от крыш
@@ -901,8 +903,9 @@ function paintFireworks(ctx, L, t) {
       continue;
     }
     const k = (q - 0.2) / 0.8,
-      rad = 8 + k * 54,
-      fall = k * k * 16;
+      sc = top ? 0.7 : 1, // в трубу неба видно меньше (между срезом и горизонтом) — залпы поменьше
+      rad = (8 + k * 54) * sc,
+      fall = k * k * 16 * sc;
     ctx.globalAlpha = Math.max(0, 1 - k * k);
     if (k < 0.18) ell(ctx, x, y, 22, 22, 'rgba(255,243,191,.8)');
     ell(ctx, x, y + fall * 0.5, rad * 1.15, rad * 1.15, col + '33');
@@ -931,10 +934,13 @@ function paintFireworks(ctx, L, t) {
   }
   ctx.restore();
 }
-/** Что в слое шевелится (рисуется каждый кадр поверх картинки слоя): облака в небе, кораблики и кит в море; салют. */
-export function paintViewLive(ctx, l, L, env, t, zoomX = 1) {
+/**
+ * Что в слое шевелится (рисуется каждый кадр поверх картинки слоя): облака в небе, кораблики и кит в море; салют.
+ * top — сколько неба срезано сверху (подзорная труба): салют раскрывается ниже, в кадре.
+ */
+export function paintViewLive(ctx, l, L, env, t, zoomX = 1, top = 0) {
   if (l.id === 'sky') {
-    if (viewFireworks()) paintFireworks(ctx, L, t);
+    if (viewFireworks()) paintFireworks(ctx, L, t, top);
     for (let i = 0; i < 6; i++)
       cloud(
         ctx,

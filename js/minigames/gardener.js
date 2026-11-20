@@ -6,6 +6,8 @@
 //   🌷 посадить цветы по схеме — выбери цвет внизу и нажми на лунку; не тот цвет — «по схеме здесь …».
 // Зимой (В5) смена — в оранжерее парка: стеклянные стены и крыша, за стёклами идёт снег; цветы — в горшках на столе,
 // куст — в кадке, клумба — горшки на стеллаже. Дела те же.
+// На телефоне стоя (как «Спасатель», В5) мир уже и выше (280 × 420 вместо 400 × 300): цветы в три ряда, карточка
+// с фигурой и схема — над кустом и клумбой; всё на ~40 % крупнее.
 // Без таймера и проигрыша; звёзды — по числу подсказок. Dev-хуки на канве: __garden() — что сейчас и где нажать
 // (точки мира), __gardenDo() — сделать одно верное действие, __gardenTap(x, y) — нажать в точку мира.
 import { el, clamp, pick, shuffle } from '../core/util.js';
@@ -13,9 +15,7 @@ import { ell, fillRR, line, poly } from '../core/draw.js';
 import { CLOTHES_BY_ID } from '../data/index.js';
 import { DEV } from '../core/dev.js';
 
-const W = 400,
-  H = 300,
-  OUT = '#4a3728';
+const OUT = '#4a3728';
 const STARS = [1, 4]; // подсказок не больше: ⭐⭐⭐ / ⭐⭐
 export const SHAPES = {
   heart: { name: 'сердечко', rows: ['.XX.XX.', 'XXXXXXX', 'XXXXXXX', '.XXXXX.', '..XXX..', '...X...'] },
@@ -56,6 +56,9 @@ export default {
     const root = host.root;
     const level = host.level || 0;
     const winter = host.season === 'winter'; // зимой — в оранжерее (В5)
+    const tall = window.innerWidth < 560 && window.innerHeight > window.innerWidth * 1.25; // телефон стоя
+    const W = tall ? 280 : 400,
+      H = tall ? 420 : 300;
     const BG = winter ? '#e9dcc3' : '#b2f2bb';
     const top = el('div', 'gd-top');
     const tStage = el('div', 'gd-chip'),
@@ -90,9 +93,11 @@ export default {
 
     // ---------- 1. полить ----------
     const PLANTS = 8;
+    // клумба с цветами: два ряда по четыре (стоя — три ряда: 3, 3, 2); ряды — по высоте ROWS
+    const ROWS = tall ? [150, 230, 310] : [150, 222];
     const plants = Array.from({ length: PLANTS }, (_, i) => ({
-      x: 88 + (i % 4) * 72 + (Math.floor(i / 4) ? 26 : 0),
-      y: 150 + Math.floor(i / 4) * 72,
+      x: tall ? 60 + (i % 3) * 80 + (i >= 6 ? 40 : 0) : 88 + (i % 4) * 72 + (Math.floor(i / 4) ? 26 : 0),
+      y: tall ? ROWS[Math.floor(i / 3)] : ROWS[Math.floor(i / 4)],
       c: COLORS[i % 3].c,
       dry: false,
       wet: -9, // когда полили
@@ -108,8 +113,8 @@ export default {
     const BC = 7,
       BR = 6,
       CELL = 26,
-      BX = 140 - (BC * CELL) / 2 + 40,
-      BY = 70;
+      BX = tall ? W / 2 - (BC * CELL) / 2 : 140 - (BC * CELL) / 2 + 40,
+      BY = tall ? 180 : 70;
     const bush = shape.map((r) => [...r].map((ch) => ({ keep: ch === 'X', cut: false, shake: -9 })));
     const cellAt = (x, y) => {
       const cx = Math.floor((x - BX) / CELL),
@@ -121,8 +126,10 @@ export default {
     const FC = level >= 2 ? 5 : 4,
       FR = 3,
       FCELL = 46,
-      FX = Math.min(70, 284 - FC * FCELL),
-      FY = 92;
+      FX = tall ? W / 2 - (FC * FCELL) / 2 : Math.min(70, 284 - FC * FCELL),
+      FY = tall ? 170 : 92;
+    // карточка «Как надо» и «Схема»: справа (стоя — сверху, посередине)
+    const CARD = tall ? [W / 2 - 46, 70] : [300, 70];
     const ncol = level >= 1 ? 3 : 2;
     const cols = shuffle(COLORS.slice(0, 4)).slice(0, ncol);
     const patterns = [
@@ -404,14 +411,16 @@ export default {
     function drawWater() {
       if (winter) {
         // зимой — горшки на двух длинных полках стеллажа
-        for (const y of [150, 222]) {
-          fillRR(ctx, 50, y + 14, 330, 12, 4, '#c08552', OUT, 2);
-          for (const x of [62, 368]) fillRR(ctx, x - 4, y + 24, 8, 34, 2, '#a47148', OUT, 1.5);
+        const [x0, x1] = tall ? [26, 254] : [50, 380];
+        for (const y of ROWS) {
+          fillRR(ctx, x0, y + 14, x1 - x0, 12, 4, '#c08552', OUT, 2);
+          for (const x of [x0 + 12, x1 - 12]) fillRR(ctx, x - 4, y + 24, 8, 34, 2, '#a47148', OUT, 1.5);
         }
         for (const p of plants) pot(p.x, p.y - 2, 28);
       } else {
-        fillRR(ctx, 50, 104, 300, 150, 30, '#a47148', OUT, 2.5);
-        fillRR(ctx, 58, 112, 284, 134, 24, '#8d5a35', null);
+        const [bx, bw, bh] = tall ? [22, 236, 236] : [50, 300, 150];
+        fillRR(ctx, bx, 104, bw, bh, 30, '#a47148', OUT, 2.5);
+        fillRR(ctx, bx + 8, 112, bw - 16, bh - 16, 24, '#8d5a35', null);
       }
       for (const p of plants) flower(p.x, p.y, p.c, p.dry, 1.1, t - p.wet < 0.5 ? Math.sin((t - p.wet) * 30) * 3 : 0);
       if (can) {
@@ -446,8 +455,7 @@ export default {
     }
     function drawTrim() {
       // карточка с фигурой
-      const cx = 300,
-        cy = 70,
+      const [cx, cy] = CARD,
         s = 11;
       drawCard(cx, cy - 6, 90, 92, '📋 Как надо');
       shape.forEach((r, yy) =>
@@ -488,8 +496,8 @@ export default {
     }
     function drawPlant() {
       // схема
-      const sx = 300,
-        sy = 64,
+      const sx = CARD[0],
+        sy = CARD[1] - 6,
         s = 15;
       drawCard(sx, sy - 6, 92, 28 + FR * s, '📋 Схема');
       bed.forEach((r, y) =>
@@ -558,7 +566,13 @@ export default {
       else drawPlant();
       drawFx();
       // садовник — хомячок в уголке
-      host.drawHamster(ctx, 34, 282, 0.7, me, { time: t, blink: t % 3.2 < 0.13, dir: 1, happy: over, armsUp: over });
+      host.drawHamster(ctx, tall ? W - 30 : 34, H - 18, 0.7, me, {
+        time: t,
+        blink: t % 3.2 < 0.13,
+        dir: 1,
+        happy: over,
+        armsUp: over,
+      });
     });
     updTop();
     say(`Поникших цветов: ${plants.filter((p) => p.dry).length} 💧`);
