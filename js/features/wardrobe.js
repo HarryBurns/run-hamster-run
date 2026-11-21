@@ -6,7 +6,7 @@ import { register } from '../core/registry.js';
 import { G, cal, hasClothes } from '../core/state.js';
 import { el } from '../core/util.js';
 import { blinkAt } from '../art/hamster.js';
-import { CLOTHES, CLOTHES_BY_ID, SLOTS, vendorLook, resolveLook, isSunHat } from '../data/index.js';
+import { CLOTHES, CLOTHES_BY_ID, SLOTS, vendorLook, resolveLook, isSunHat, FULL_BODY_KINDS } from '../data/index.js';
 import { clothesIcon, hamsterStage } from '../ui/icons.js';
 import { openPanel } from '../ui/panel.js';
 import { buy, buyBtn } from './purchase.js';
@@ -166,7 +166,7 @@ export function scoreOutfit(theme, outfit) {
   const o = outfit || S().look.outfit;
   let score = 0;
   const body = o.body && CLOTHES_BY_ID[o.body];
-  const fullBody = body && ['dress', 'princess', 'swim', 'pajama', 'robe'].includes(body.kind);
+  const fullBody = body && FULL_BODY_KINDS.includes(body.kind);
   for (const slot of ['head', 'body', 'legs', 'feet', 'acc']) {
     let it = o[slot] && CLOTHES_BY_ID[o[slot]];
     if (slot === 'legs' && !it && fullBody) it = body;

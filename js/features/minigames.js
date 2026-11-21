@@ -28,14 +28,43 @@ import {
   BIZ_RULES,
   HOTEL,
   resolveLook,
+  fashionReady,
+  FASHION_FEW,
 } from '../data/index.js';
 import { runMinigame } from '../minigames/host.js';
 import { openLayer } from '../ui/modals.js';
+import { message } from '../ui/panel.js';
 import { toast } from '../ui/toast.js';
 import { clothesPanel, scoreOutfit } from './wardrobe.js';
 import { isJobGame, sickRefusal } from './health.js';
 
 const S = () => G.state;
+
+// ---------- показ мод: открыт, когда в шкафу хватает нарядов (data/fashion.js — fashionReady) ----------
+/** Чуть подробнее, чем FASHION_FEW: что именно нужно в шкафу. */
+export const FASHION_FEW_MORE = `${FASHION_FEW} Для подиума нужно хотя бы по две вещи: верх, низ и обувь (платье — это и верх, и низ).`;
+/** Хватает ли нарядов для показа мод (в шкафу — по две вещи на верх, низ и обувь). */
+export const fashionOpen = () => fashionReady(S().clothes);
+/** Мягкий отказ показа мод: нарядов в шкафу пока мало. */
+function fashionRefusal() {
+  sfx('pop');
+  return message({
+    title: 'Показ мод',
+    icon: '👠',
+    html: `<p class="center big-emoji">👗👟</p><p class="center">${FASHION_FEW_MORE}</p>`,
+    buttons: [{ text: 'Хорошо 💛' }],
+  });
+}
+/**
+ * Модельер спрашивает «выйдешь на показ?», а нарядов мало: вместо подиума — добрый совет заглянуть в ТЦ «Модный».
+ * Возвращает { text, options } без показа или null, если показ тут ни при чём или нарядов хватает.
+ */
+export function fashionAsk(p) {
+  const show = (o) => o.do === 'minigame:fashion';
+  if (!p.options.some(show) || fashionOpen()) return null;
+  const rest = p.options.filter((o) => !show(o));
+  return { text: FASHION_FEW_MORE, options: rest.length > 1 ? rest : [{ text: 'Хорошо 💛' }] };
+}
 
 register(
   'minigame',
@@ -240,6 +269,11 @@ export async function playMinigame(id, extra = {}) {
   // простуженная не работает (Ф1): вежливый отказ; рыбалка и прочее «не работа» — можно
   if (s.sick && isJobGame(id)) {
     await sickRefusal(id);
+    return null;
+  }
+  // показ мод с пустым шкафом бедный: открывается, когда есть из чего выбрать (решение заказчика 20 ноября)
+  if (id === 'fashion' && !fashionReady(s.clothes)) {
+    await fashionRefusal();
     return null;
   }
   const plays = s.plays[id] || 0;

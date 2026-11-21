@@ -3,7 +3,7 @@ import { go } from '../core/loop.js';
 import { register, run } from '../core/registry.js';
 import { vendorLook, VENDORS, npcLook, NPC_BY_ID } from '../data/index.js';
 import { dialog } from '../ui/dialog.js';
-import { jobNote } from './minigames.js';
+import { jobNote, fashionAsk } from './minigames.js';
 import { bizByVendor, bizAskOption, bizAskText } from './business.js';
 import { sickAsk } from './health.js';
 
@@ -22,8 +22,9 @@ register(
     // Если среди ответов есть работа (мини-игра с зарплатой), сразу говорим, сколько заплатят
     // и сколько оплачиваемых смен осталось на сегодня.
     // Простыла (Ф1) — работы нет: продавец говорит «сначала выздоровей», остальные ответы остаются.
-    const sick = sickAsk(p);
-    const asked = sick ? sick.options : p.options;
+    // Показ мод, а нарядов в шкафу мало: модельер советует заглянуть в ТЦ «Модный» (features/minigames.js).
+    const no = sickAsk(p) || fashionAsk(p);
+    const asked = no ? no.options : p.options;
     const notes = asked
       .map((o) => (typeof o.do === 'string' && o.do.startsWith('minigame:') ? jobNote(o.do.slice(9)) : ''))
       .join('');
@@ -34,7 +35,7 @@ register(
     const i = await dialog({
       look: p.npc ? npcLook(p.npc) : vendorLook(p.vendor),
       name: p.npc ? NPC_BY_ID[p.npc].name : VENDORS[p.vendor].name,
-      text: (sick ? sick.text : bizAskText(biz, p.text)) + notes,
+      text: (no ? no.text : bizAskText(biz, p.text)) + notes,
       options,
     });
     const o = options[i];

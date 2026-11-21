@@ -51,6 +51,7 @@ module.exports = async function zfix(ctx) {
     await ev(() => {
       const a = window.__dev.actions;
       a.addClothes('sunhat');
+      for (const id of ['dress_red', 'sn_red']) a.addClothes(id); // показ мод — когда нарядов хватает (data/fashion.js)
       a.wear('head', null);
     });
     return outfit();

@@ -1172,6 +1172,9 @@ export default createTopDownScene({
    не меняет «понарошку»: у «Показа мод» свой наряд подиума — копия надетого (`clothesPanel(…, { outfit })`,
    `scoreOutfit(тема, outfit)`), одежда хомячка не трогается, и после показа (крестик, итог, ошибка, перезагрузка)
    на ней то, что было до него.
+   Показ открыт, когда в шкафу хватает нарядов (`fashionReady(clothes)` в `data/fashion.js`: по `FASHION_MIN` = 2 вещи
+   на верх, низ и обувь); иначе — мягкий отказ: в диалоге Дома моды (`fashionAsk`, как `sickAsk`), в `playMinigame`,
+   письмо дня `fashion` не выбирается (`features/mail.js`).
 4. Запуск: `act: 'minigame:<id>'` у здания или `do` у ответа в диалоге. Проверка отдельно от игры:
    `dev/minigame.html?g=<id>`.
 

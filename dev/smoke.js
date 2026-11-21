@@ -2496,6 +2496,8 @@ const runParallel = () => {
     for (const g of ['swim', 'fishing', 'teacher', 'doctor', 'chef', 'fashion']) {
       await step('мини-игра ' + g, async () => {
         await ev((g) => {
+          // показ мод открывается, когда в шкафу по две вещи на верх, низ и обувь (data/fashion.js)
+          if (g === 'fashion') for (const id of ['dress_red', 'sn_red']) window.__dev.actions.addClothes(id);
           window.__dev.F.playMinigame(g, { spot: 'pier' });
         }, g);
         await wait(700);

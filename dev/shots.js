@@ -694,6 +694,8 @@ const HOOKS = `window.__T = () => window.__dev;`;
       await start();
       for (const g of ['swim', 'fishing', 'teacher', 'doctor', 'chef', 'fashion']) {
         await ev((g) => {
+          // показ мод открывается, когда в шкафу по две вещи на верх, низ и обувь (data/fashion.js)
+          if (g === 'fashion') for (const id of ['dress_red', 'sn_red']) window.__T().actions.addClothes(id);
           window.__T().F.playMinigame(g, { spot: 'pier' });
         }, g);
         await real(300);

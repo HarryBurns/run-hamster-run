@@ -12,6 +12,7 @@ import {
   DISHES,
   ING_BY_ID,
   TASKS,
+  fashionReady,
   TASK_BY_ID,
   PLACES,
   TASK_COINS,
@@ -62,6 +63,8 @@ export function newDayMail() {
     // «Вилла растёт»: спа-день — когда на вилле есть сауна и джакузи (третий этаж), каток — когда есть пруд
     (t.type !== 'spa' || villaStage() >= 3) &&
     (t.type !== 'skate' || yardHas('pond')) &&
+    // показ мод — когда в шкафу хватает нарядов (data/fashion.js): с пустым шкафом письмо на подиум не зовёт
+    (t.id !== 'fashion' || fashionReady(s.clothes)) &&
     (!s.sick || !taskNeedsHealth(t, JOBS));
   let id;
   const played = s.day - (s.startDay || 0); // сколько дней идёт игра (новая начинается 1 июня)
