@@ -45,8 +45,14 @@ import {
   LAND_HOME,
   SEED_BY_ID,
   ING_BY_ID,
+  GUEST_ROOM,
+  HOTEL_DOORS,
 } from '../data/index.js';
 import { homeLocation, currentLocation, getLocation, setTargetHook } from '../engine/topdown/index.js';
+import { addSidePart } from '../engine/side/scene.js';
+import { actorHere } from '../engine/side/actors.js';
+import { HX } from '../interiors/hotel.js';
+import { star } from '../core/draw.js';
 import { celebrate } from '../ui/celebrate.js';
 import { dialog } from '../ui/dialog.js';
 import { enqueue } from '../ui/modals.js';
@@ -105,8 +111,8 @@ function questGoal(w) {
   const step = w.status === 'active' ? w.q.steps[w.i] : null,
     where = questPoint(w),
     spot = where && where.startsWith('npc:') ? npcSpot(where.slice(4)) : null;
-  if (spot) return { where: spot.where, scene: spot.scene, spot };
-  return { where, scene: (step && step.loc) || w.q.loc || HOME_SCENE, spot: null };
+  if (spot) return { where: spot.where, scene: spot.scene, spot, npc: where.slice(4) };
+  return { where, scene: (step && step.loc) || w.q.loc || HOME_SCENE, spot: null, npc: null };
 }
 /** Задание, которое показывает звёздочка, — { w, where, scene } или null (сделано — звёздочка снова свободна). */
 function trackedNow() {
@@ -133,6 +139,32 @@ setTargetHook((sc) => {
   if (!p) return null;
   // над жителем — повыше, над значком «!» / «?»
   return { x: p.x, y: tr.where.startsWith('npc:') ? p.y - 62 : p.y, icon: '⭐' };
+});
+/**
+ * Звёздочка ВНУТРИ ДОМОВ (engine/side): задание ведёт к жителю — над ним, если он здесь (у себя дома, в гостях
+ * у хомячка, у бассейна отеля, в номере 203); в отеле, когда он гостит в номере 203, — над дверью этого номера
+ * в коридоре 2-го этажа (самого его из коридора не видно). Точка { x, y } в единицах дома или null.
+ */
+export function sideStar(sc) {
+  const tr = S() && !G.photo ? trackedNow() : null;
+  if (!tr || !tr.npc || !sc.actors) return null;
+  const a = sc.actors.find((g) => g.id === tr.npc && actorHere(g));
+  if (a) return { x: a.x, y: sc.geo.fy(a.f) - 222 };
+  if (sc.name === 'hotel' && tr.spot.at === 'room') {
+    const x = HX.doors[HOTEL_DOORS.indexOf(GUEST_ROOM)];
+    return { x, y: sc.geo.fy(1) - 226 };
+  }
+  return null;
+}
+addSidePart({
+  draw(ctx, sc, t) {
+    const p = sideStar(sc);
+    if (!p) return;
+    // дом показан мелко (весь отель на экране) — звёздочка крупнее, чтобы её было видно (примерно 20 точек экрана)
+    const k = Math.max(1, 0.9 / (sc.cam.zoom || 1)),
+      r = 22 * k;
+    star(ctx, p.x, p.y - r + 20 + Math.sin(t * 4) * 6, r, '#ffd43b', '#4a3728', 2.5 * k);
+  },
 });
 /** В каком месте (имя сцены) сейчас цель звёздочки — задание журнала, праздник или предметы письма; null — цели нет. */
 export function starScene() {

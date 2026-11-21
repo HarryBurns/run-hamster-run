@@ -7,7 +7,7 @@
 import { clamp } from '../core/util.js';
 import { ell, fillRR, line, poly, emoji } from '../core/draw.js';
 import { NPCS, ING_BY_ID, SEED_BY_ID, TASK_BY_ID, LAND_BY_ID, BIZ_BY_ID } from '../data/index.js';
-import { G, cal, ownsHome, landOpen, guestsWaiting, stepWaits, bedOwned, yardHas, villaWords } from '../core/state.js';
+import { G, cal, ownsHome, landOpen, guestsWaiting, npcPlace, stepWaits, bedOwned, yardHas, villaWords } from '../core/state.js';
 import { T, OUT, SP, put, defineTiles, defineObjects } from '../engine/topdown/kinds.js';
 import { createTopDownScene } from '../engine/topdown/scene.js';
 import { run } from '../core/registry.js';
@@ -891,7 +891,9 @@ function target(sc) {
   const wh = t.where;
   if (t.hosts) {
     // «день гостей»: к двери ближайшего хозяина, который сегодня ждёт (письмо назвало их по именам)
+    // (только к тем, кто сейчас у себя дома, — npcPlace: хозяин может быть у хомячка в гостях или уже спать)
     const doors = guestsWaiting()
+      .filter((id) => ['home', 'door'].includes((npcPlace(id) || {}).at))
       .map((id) => sc.map.buildings.find((b) => b.npc === id))
       .filter(Boolean)
       .map((b) => sc.map.doorPx(b))

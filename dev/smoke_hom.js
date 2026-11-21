@@ -121,4 +121,81 @@ module.exports = async function hom(ctx) {
     const m1 = await mails();
     expect(m1.fashion, 'с нарядами письмо на показ мод тоже бывает', Object.keys(m1));
   });
+
+  await step('хом: звёздочка к жителю в отеле — у отеля, внутри над ним на крыше и над дверью номера 203', async () => {
+    await L.fresh({ weather: 'sun', dayFlags: true });
+    // Сеня отдыхает у бассейна отеля, а его задание «На вершину» на шаге «оденься тепло» — звёздочка ведёт к нему
+    // (на этом шаге над ним нет «?», поэтому из отеля он не уходит — npcPlace в core/queries.js)
+    const g = await ev(async () => {
+      const St = await import('/js/core/state.js'),
+        Q = await import('/js/features/quests.js'),
+        d = window.__dev;
+      d.actions.mutate((s) => {
+        s.guests = [];
+        s.flags.hotelHint = 1;
+        s.flags.metZvezdochka = 1;
+        for (const slot of ['head', 'body', 'acc']) s.look.outfit[slot] = null; // не в тёплом: шаг не сделан
+        s.look.outfit.body = 'tee_white';
+      });
+      for (let day = 20; day < 400; day++) {
+        d.actions.mutate((s) => {
+          s.day = day;
+          s.minutes = 15 * 60 + 10;
+          s.weather = 'sun';
+          s.wxStrong = false;
+          s.quests.summit = { day, n: { 0: 1 }, got: {}, done: null };
+        });
+        if (St.hotelPoolGuests().includes('senya')) {
+          Q.trackQuest('summit');
+          const w = St.questNow('summit');
+          return { day, at: St.npcPlace('senya').at, i: w.i, where: w.q.steps[w.i].where };
+        }
+      }
+      return null;
+    });
+    expect(g && g.at === 'pool' && g.where === 'npc:senya', 'Сеня у бассейна отеля с заданием (проверка не годится)', g);
+    // в городе: звёздочка — у двери отеля, а не на улице и не у домика Сени
+    await L.go('world');
+    const town = await ev(() => {
+      const sc = window.__dev.scene;
+      return { t: sc.target(), h: sc.whereIs('hotel') };
+    });
+    expect(town.t && town.h && town.t.x === town.h.x && town.t.y === town.h.y, 'в городе звёздочка не у отеля', town);
+    // в отеле: над Сеней у бассейна на крыше
+    await ev(() => window.__dev.enterBuilding('hotel'));
+    await L.untilScene('hotel');
+    await L.frames(3);
+    const roof = await ev(async () => {
+      const Q = await import('/js/features/quests.js'),
+        sc = window.__dev.scene,
+        a = sc.actors.find((q) => q.id === 'senya' && (!q.when || q.when()));
+      return { p: Q.sideStar(sc), x: a && a.x, f: a && a.f, top: a && sc.geo.fy(a.f) };
+    });
+    expect(roof.p && roof.p.x === roof.x && roof.f === 2 && roof.p.y < roof.top - 150, 'в отеле звёздочка не над Сеней', roof);
+    // житель в номере 203 (с ним только что говорили — он остаётся там, G.talkPin): звёздочка — над дверью 203
+    const door = await ev(async () => {
+      const D = await import('/js/data/index.js'),
+        St = await import('/js/core/state.js'),
+        Q = await import('/js/features/quests.js'),
+        H = await import('/js/interiors/hotel.js'),
+        d = window.__dev,
+        s = d.G.state,
+        min = D.HOTEL.roomGuest.from * 60 + 30;
+      for (let day = s.day; day < s.day + 400; day++) {
+        d.actions.mutate((q) => {
+          q.day = day;
+          q.minutes = min;
+        });
+        if (St.hotelRoomGuest() === 'prof') break;
+      }
+      if (St.hotelRoomGuest() !== 'prof') return null;
+      d.G.talkPin = { id: 'prof', place: St.npcPlace('prof'), day: s.day, until: s.minutes + 30 };
+      d.actions.mutate((q) => (q.quests.cave_light = { day: q.day, n: { 0: 1, 1: 1 }, got: {}, done: null }));
+      Q.trackQuest('cave_light');
+      const sc = d.scene;
+      return { at: St.npcPlace('prof').at, p: Q.sideStar(sc), door: H.HX.doors[2], floor: sc.geo.fy(1) };
+    });
+    expect(door && door.at === 'room', 'Профессор в номере 203 (проверка не годится)', door);
+    expect(door.p && door.p.x === door.door && door.p.y < door.floor - 186, 'в отеле звёздочка не над дверью 203', door);
+  });
 };
