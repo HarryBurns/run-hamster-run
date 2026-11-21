@@ -138,6 +138,12 @@ export function installDevHooks({ F }) {
     ui: { ...modals, message, openPanel, dialog, toast, toastsInfo },
     /** Занятия (features): F.openWardrobe(), F.playMinigame('swim') … */
     F,
+    /**
+     * Квесты и звёздочка (features/goals.js): goal.set('mail' | 'holiday' | 'quest:<id>' | '<id задания>') — сделать
+     * квест активным, goal.now(), goal.list() — id по порядку, goal.place(), goal.star() — звёздочка в этом месте,
+     * goal.jumps() — нарушения «активный квест сменился сам» (сторож автотестов).
+     */
+    goal: F.debugGoal,
     /** Город (сцена-локация) вместе с функциями его моря: World.debugTeleport(x, y), World.leaveBoat()… */
     World,
     /** «Движок локаций»: locations — все локации по имени сцены, getLocation(name), currentLocation(). */

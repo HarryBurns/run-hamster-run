@@ -152,6 +152,8 @@ export function newGame(name, gender = 'f') {
     sick: null, // простыла (Ф1): { since: день, когда заболела, cause: 'cold' | 'sea' | 'rain' | 'none' } или null
     immuneUntil: START_DAY + HEALTH.grace, // с какого дня снова можно заболеть (в новой игре — не в первые дни)
     quests: {}, // сюжетные задания (журнал): id → { day: когда взято, n: { шаг: сколько }, got: { шаг: [что] }, done: день | null }
+    // активный квест — к нему ведёт звёздочка: 'quest:<id>', 'holiday', 'mail' или null (features/goals.js)
+    goal: null,
     lands: {}, // открытые новые места (лес, гора…): id → день, когда открылось
     finds: {}, // находки (не еда): id → сколько (data/finds.js)
     parrots: {}, // чему научили попугаев в джунглях (Дж6): номер попугая → [id слов из PARROT_WORDS], до PARROT_MEMORY

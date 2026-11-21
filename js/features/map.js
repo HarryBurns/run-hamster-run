@@ -16,13 +16,8 @@ import { T, currentLocation, homeLocation } from '../engine/topdown/index.js';
 import { fadeTo } from '../ui/fade.js';
 import { openPanel } from '../ui/panel.js';
 import { toast } from '../ui/toast.js';
+import { goalPlace } from './goals.js';
 
-// «Карта мира» (этап 11): в каком месте сейчас цель звёздочки — говорит журнал (features/quests.js, starScene)
-let mapGoal = () => null;
-/** Кто знает, в каком месте (имя сцены) цель звёздочки: fn() → имя сцены | null. */
-export function setMapGoal(fn) {
-  mapGoal = fn;
-}
 /** Как пройти из места from в место to — словами: «🌲 Лес → ⛰️ Гора: сначала по тропе в лес». '' — дороги нет. */
 export function routeText(from, to) {
   const r = routeTo(from, to, landOpen);
@@ -140,7 +135,8 @@ export function openMap() {
 function landsRow(panel, loc, walk) {
   const box = el('div', 'lands'),
     home = loc === homeLocation(),
-    goal = mapGoal();
+    pl = goalPlace(),
+    goal = pl ? pl.scene : null; // «карта мира»: в каком месте цель активного квеста (features/goals.js)
   box.appendChild(el('div', 'lands-h', home ? '🗝️ Тайные места' : '🗺️ Карта мира'));
   if (goal && goal !== loc.name && landOf(goal)) {
     const way = routeText(loc.name, goal);

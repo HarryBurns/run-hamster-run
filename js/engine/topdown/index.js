@@ -22,7 +22,7 @@ export {
   getLocation,
   homeLocation,
   currentLocation,
-  setTargetHook,
+  setStar,
   addWorldPart,
 } from './scene.js';
 export { walkOutWith } from './actors.js';

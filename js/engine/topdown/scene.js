@@ -69,7 +69,6 @@
 //                                ёлка, фонарики, фейерверк — locations/holidays.js); зовётся, только когда темно
 //   sky(c, sc, lw, lh)           дорисовать в маленький слой неба (тени облаков, темнота; lw × lh точек на весь экран):
 //                                крупное и мягкое почти даром — его растягивает страница (лучи солнца в лесу)
-//   target(sc)                   куда показывать звёздочку задания: { x, y, icon } или null
 //   where(sc, имя)               точка по имени, которую знает только эта часть (места для гербария: 'herb') — для
 //                                sc.whereIs; { x, y } или null
 //   goTo(sc, имя)                дойти по имени, которое знает эта часть, по-своему (морской путь 'sea:<место>' —
@@ -85,8 +84,8 @@
 // sc.pass(), sc.spot(id), sc.walkToPlace(id), sc.randomSpots(зона, n, seed), sc.drops, sc.exit(id),
 // sc.heroLook() — как сейчас нарисован герой (на пляже — в шлёпанцах), sc.whereIs(имя) — точка по имени для
 // звёздочки задания: место, точка, здание, 'npc:<житель>' или имя, которое знает крюк where.
-// Звёздочку сюжетного задания (журнал) подставляет занятие: setTargetHook(fn) — fn(sc) → { x, y, icon } | null;
-// если она есть, она важнее звёздочки письма.
+// Куда показывает звёздочка, движок не решает: sc.target() спрашивает единственного «хозяина звёздочки» —
+// setStar(fn), fn(sc) → { x, y, icon, of?, to?, next?, via? } | null (features/goals.js: активный квест).
 // pending — «что сделать, когда дойдём»: { fn(sc) } | { place } | { b: здание } | { npc } | { obj } | { spot: id }.
 // Дошла до здания, места или точки — они «посещены» (state.visited, Ф4): карта потом переносит к ним быстро —
 // sc.skipAlong() переносит героя вперёд по его пути, последние шаги — пешком (всё, что ждёт «дошла», срабатывает).
@@ -102,7 +101,6 @@ import {
   walkK,
   canSwim,
   landOpen,
-  homesWith,
   weatherAt,
 } from '../../core/state.js';
 import { addItem, setFlag, setDayFlag, collectMailItem, markVisited } from '../../core/actions.js';
@@ -114,7 +112,7 @@ import { Camera } from '../../core/camera.js';
 import { clamp, dist, seeded } from '../../core/util.js';
 import { sfx } from '../../core/audio.js';
 import { toast } from '../../ui/toast.js';
-import { TASK_BY_ID, SICK_TEXT, routeTo, landOf, HOME_BY_ID } from '../../data/index.js';
+import { SICK_TEXT, routeTo, landOf } from '../../data/index.js';
 import { T, SP, TILES, OBJECTS, BUILDING_KINDS, tileOf } from './kinds.js';
 import { createMap, mapSize } from './map.js';
 import { moveAlong, faceTo, canStand, makeResidents, settleResidents, updateResidents, hitResident } from './actors.js';
@@ -137,10 +135,10 @@ export function currentLocation() {
 }
 
 const NONE = [];
-let targetHook = null;
-/** Звёздочка, которая важнее письма (сюжетное задание из журнала): fn(sc) → { x, y, icon } | null. */
-export function setTargetHook(fn) {
-  targetHook = fn;
+let starFn = null;
+/** Кто решает, куда показывает звёздочка (активный квест — features/goals.js): fn(sc) → { x, y, icon… } | null. */
+export function setStar(fn) {
+  starFn = fn;
 }
 /**
  * Общие части всех локаций: объекты с теми же крюками, что и части описания (things, tap, update, buttons…).
@@ -226,28 +224,8 @@ export function createTopDownScene(desc) {
     },
     darkness: () =>
       desc.dark === undefined ? darkness() : typeof desc.dark === 'function' ? desc.dark(sc) : desc.dark,
-    /** Куда показывает звёздочка задания: что скажет крюк target, а иначе — ближайший несобранный предмет задания. */
-    target() {
-      const hk = targetHook && targetHook(sc);
-      if (hk) return hk;
-      const th = thingTarget();
-      if (th) return th;
-      const tg = sc.first('target', sc);
-      if (tg) return tg;
-      let away = null;
-      for (const it of sc.taskItems()) {
-        if (it.got) continue;
-        if (sc.itemHere(it))
-          return {
-            x: (it.x + 0.5) * T,
-            y: (it.y + 0.5) * T,
-            icon: (TASK_BY_ID[G.state.mail.task] || {}).sticker || '⭐',
-          };
-        away = away || it.loc || homeLocation().name;
-      }
-      // предметы письма лежат в другом месте — звёздочка ведёт к дороге туда («карта мира»)
-      return away ? sc.wayTo(away) : null;
-    },
+    /** Куда показывает звёздочка (над целью, у края экрана, на мини-карте): решает активный квест — setStar. */
+    target: () => (starFn ? starFn(sc) : null),
     /**
      * «Карта мира»: звёздочка к выходу или транспорту, который ведёт отсюда в место to (имя сцены) — по графу
      * ROUTES (data/places.js). { x, y, icon: '⭐', to: значок места, куда ведёт дорога, next, via } или null —
@@ -863,30 +841,6 @@ export function createTopDownScene(desc) {
     // не больше 14 клеток по короткой стороне и 26 по длинной.
     z = Math.max(z, Math.min(w, h) / (T * 14), Math.max(w, h) / (T * 26));
     sc.cam.setTileZoom(z, T); // клетка — целое чётное число пикселей устройства: спрайты из кэша ложатся 1:1
-  }
-  /**
-   * Письмо «сделай вещью у себя дома» (thing задания: колесо, пианино): звёздочка к двери ближайшего своего дома
-   * в этом месте, где вещь стоит (город — квартира или вилла, лес — лесной домик), а если такие дома в других
-   * местах — к дороге туда («карта мира»). null — письма такого нет, оно не прочитано или вещи нет ни в одном доме.
-   */
-  function thingTarget() {
-    const m = G.state.mail,
-      t = m && m.read && !m.done && TASK_BY_ID[m.task];
-    if (!t || !t.thing) return null;
-    const homes = homesWith(t.thing).map((h) => HOME_BY_ID[h]);
-    if (!homes.length) return null;
-    const mp = ensure(),
-      doors = homes
-        .filter((h) => (h.loc || homeLocation().name) === sc.name && mp.bById[h.building])
-        .map((h) => mp.doorPx(mp.bById[h.building]))
-        .sort((a, b) => dist(a.x, a.y, sc.p.x, sc.p.y) - dist(b.x, b.y, sc.p.x, sc.p.y));
-    if (doors.length) return { x: doors[0].x, y: doors[0].y - T, icon: '⭐' };
-    // дома в других местах: к тому, куда дорога короче
-    const ways = homes
-      .map((h) => routeTo(sc.name, h.loc || homeLocation().name, landOpen))
-      .filter(Boolean)
-      .sort((a, b) => a.path.length - b.path.length);
-    return ways.length ? sc.wayTo(ways[0].path[ways[0].path.length - 1]) : null;
   }
   /** Идти к особому месту: на его stand, а если его нет — к клетке рядом с нажатой. */
   function toPlace(pl, tx, ty) {

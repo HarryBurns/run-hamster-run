@@ -6,7 +6,7 @@
 // заданий, точки входа и выхода — и свои виды клеток и предметов (грядка, почтовый ящик, лунка, табличка).
 import { clamp } from '../core/util.js';
 import { ell, fillRR, line, poly, emoji } from '../core/draw.js';
-import { NPCS, ING_BY_ID, SEED_BY_ID, TASK_BY_ID, LAND_BY_ID, BIZ_BY_ID } from '../data/index.js';
+import { NPCS, ING_BY_ID, SEED_BY_ID, LAND_BY_ID, BIZ_BY_ID } from '../data/index.js';
 import { G, cal, ownsHome, landOpen, guestsWaiting, npcPlace, stepWaits, bedOwned, yardHas, villaWords } from '../core/state.js';
 import { T, OUT, SP, put, defineTiles, defineObjects } from '../engine/topdown/kinds.js';
 import { createTopDownScene } from '../engine/topdown/scene.js';
@@ -868,47 +868,31 @@ function sealPockets(m) {
   return m.sealFrom([[Math.floor(d.x / T), Math.floor(d.y / T)]], { ok, rows: 50 });
 }
 
-/** Куда идти по заданию из письма (единицы мира) или null. */
-function target(sc) {
-  const m = G.state.mail;
-  if (!m) return null;
-  if (!m.read) return { ...sc.spot('mailbox'), icon: '✉️' };
-  if (m.done) return null;
-  const t = TASK_BY_ID[m.task];
-  if (!t) return null;
-  if (t.type === 'collect' && m.items) {
-    const it = m.items.find((i) => !i.got && sc.itemHere(i));
-    return it ? { x: (it.x + 0.5) * T, y: (it.y + 0.5) * T, icon: t.sticker } : null;
-  }
-  if (t.type === 'coconut') {
-    // «Кокосовый день»: к ближайшей кокосовой пальме, на которой ещё есть орехи (сначала те, что на суше)
+/**
+ * Точки, которые знает только город, — для звёздочки письма (features/mail.js, через sc.whereIs):
+ *   'mail:coco'  — «Кокосовый день»: ближайшая кокосовая пальма, на которой ещё есть орехи (сначала те, что на суше);
+ *   'mail:hosts' — «день гостей»: дверь ближайшего хозяина, который сегодня ждёт (письмо назвало их по именам)
+ *                  и сейчас у себя дома.
+ */
+function where(sc, name) {
+  const near = (o) => Math.hypot(o.x - sc.p.x, o.y - sc.p.y);
+  if (name === 'mail:coco') {
     const palms = plants.plants().filter((o) => o.type === 'cocoPalm' && hasFruit(o)),
       land = palms.filter((o) => o.ty < WORLD_SEA.shallowY),
-      near = (o) => Math.hypot(o.x - sc.p.x, o.y - sc.p.y),
       palm = (land.length ? land : palms).sort((a, b) => near(a) - near(b))[0];
-    if (palm) return { x: palm.x, y: palm.y - 46, icon: '⭐' };
+    return palm ? { x: palm.x, y: palm.y - 46 } : null;
   }
-  const wh = t.where;
-  if (t.hosts) {
-    // «день гостей»: к двери ближайшего хозяина, который сегодня ждёт (письмо назвало их по именам)
-    // (только к тем, кто сейчас у себя дома, — npcPlace: хозяин может быть у хомячка в гостях или уже спать)
-    const doors = guestsWaiting()
+  if (name === 'mail:hosts') {
+    // только к тем, кто сейчас у себя дома, — npcPlace: хозяин может быть у хомячка в гостях или уже спать
+    const door = guestsWaiting()
       .filter((id) => ['home', 'door'].includes((npcPlace(id) || {}).at))
       .map((id) => sc.map.buildings.find((b) => b.npc === id))
       .filter(Boolean)
       .map((b) => sc.map.doorPx(b))
-      .sort((a, b) => Math.hypot(a.x - sc.p.x, a.y - sc.p.y) - Math.hypot(b.x - sc.p.x, b.y - sc.p.y));
-    return doors.length ? { x: doors[0].x, y: doors[0].y - T, icon: '⭐' } : null;
+      .sort((a, b) => near(a) - near(b))[0];
+    return door ? { x: door.x, y: door.y - T } : null;
   }
-  if (wh === 'town') return null;
-  // колесо, пианино (thing задания) — к дому, где вещь стоит: общая звёздочка движка (thingTarget в engine/topdown/scene.js)
-  const b = sc.map.bById[wh];
-  if (b) {
-    const d = sc.map.doorPx(b);
-    return { x: d.x, y: d.y - T, icon: '⭐' };
-  }
-  const s = sc.spot(wh); // пирс, пляж
-  return s ? { ...s, icon: '⭐' } : null;
+  return null;
 }
 
 /** Выход из города в тайное место: в его сцену и ко входу из LANDS (data/places.js) — и только когда место открыто. */
@@ -963,7 +947,7 @@ const town = createTopDownScene({
     town: { y: [3, 49], tiles: ['r', 'g', 'k', 'y'], avoid: [[0, 0, 28, 25]], reach: { from: [15, 26], tiles: ['g'] } },
   },
   parts: [sea, plants, herbs, holidayDecor, doorman],
-  target,
+  where,
   /** Таблички «моё» у купленных заведений и жилья — сразу после здания в порядке «дальше → ближе». */
   things(sc, add, v) {
     const own = (id, draw) => {

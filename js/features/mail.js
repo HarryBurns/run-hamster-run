@@ -1,10 +1,11 @@
-// Почта: письмо с заданием дня, его выполнение и награда.
+// Почта: письмо с заданием дня, его выполнение и награда. Письмо дня — квест-рутина (features/goals.js): здесь его
+// описание для общего списка — плашка, карточка журнала и где его цель (mailPlace).
 import { award, earn, setMail, readMail, mailCount, mailGot, finishTask } from '../core/actions.js';
 import { sfx } from '../core/audio.js';
 import { on, emit } from '../core/events.js';
 import { register } from '../core/registry.js';
-import { G, cal, hasClothes, homesWith, villaStage, yardHas } from '../core/state.js';
-import { esc, fmtMoney, pick } from '../core/util.js';
+import { G, cal, hasClothes, homesWith, villaStage, yardHas, landOpen } from '../core/state.js';
+import { el, esc, fmtMoney, pick } from '../core/util.js';
 import {
   CLOTHES_BY_ID,
   SEED_BY_ID,
@@ -25,11 +26,14 @@ import {
   NPC_BY_ID,
   guestHosts,
   HOME_BY_ID,
+  HOME_SCENE,
+  routeTo,
 } from '../data/index.js';
-import { getLocation, homeLocation } from '../engine/topdown/index.js';
+import { T, getLocation, homeLocation, currentLocation } from '../engine/topdown/index.js';
 import { celebrate } from '../ui/celebrate.js';
 import { message } from '../ui/panel.js';
 import { toast } from '../ui/toast.js';
+import { registerGoalSource, leadButtons, leadNow } from './goals.js';
 import { grantSurprise, showSurprise } from './gifts.js';
 import { waresHere, wareOrder } from './wares.js';
 
@@ -89,15 +93,137 @@ function taskProgress() {
   return '';
 }
 
-export function taskChip() {
-  const m = S().mail;
-  if (!m) return { text: '📭 Писем нет', cls: '' };
-  if (!m.read) return { text: '✉️ В почтовом ящике письмо!', cls: '' };
-  const t = TASK_BY_ID[m.task];
-  if (!t) return { text: '📭 Писем нет', cls: '' };
-  if (m.done) return { text: `✅ ${t.title}`, cls: 'done' };
-  return { text: `${t.sticker} ${t.title}${taskProgress()}`, cls: '' };
+// ---------- письмо дня — квест (features/goals.js) ----------
+const nearest = (sc, pts) =>
+  pts.sort((a, b) => Math.hypot(a.x - sc.p.x, a.y - sc.p.y) - Math.hypot(b.x - sc.p.x, b.y - sc.p.y))[0] || null;
+/**
+ * Где цель письма сейчас (описание места квеста — features/goals.js): не прочитано — почтовый ящик; «собери» —
+ * несобранный предмет (там, где они лежат); «сделай вещью у себя дома» (thing: колесо, пианино) — дверь своего дома,
+ * где вещь стоит: в этом месте — ближайшего, иначе — того, куда дорога короче; «Кокосовый день» и «день гостей» —
+ * точки, которые знает город (locations/town.js); остальное — здание или место из поля where. null — идти некуда
+ * («поговори с тремя жителями»: where 'town').
+ */
+function mailPlace() {
+  const m = S().mail,
+    t = TASK_BY_ID[m.task];
+  if (!m.read) return { scene: HOME_SCENE, where: 'mailbox', icon: '✉️' };
+  if (t.type === 'collect' && m.items) {
+    const left = m.items.filter((it) => !it.got);
+    if (!left.length) return null;
+    return {
+      scene: left[0].loc || HOME_SCENE,
+      icon: t.sticker,
+      point: (sc) => {
+        const it = left.find((q) => sc.itemHere(q));
+        return it ? { x: (it.x + 0.5) * T, y: (it.y + 0.5) * T } : null;
+      },
+    };
+  }
+  const homes = t.thing ? homesWith(t.thing).map((h) => HOME_BY_ID[h]) : [];
+  if (homes.length) {
+    const at = (h) => h.loc || HOME_SCENE,
+      here = currentLocation().name,
+      ways = homes
+        .map((h) => routeTo(here, at(h), landOpen))
+        .filter(Boolean)
+        .sort((a, b) => a.path.length - b.path.length);
+    const scene = homes.some((h) => at(h) === here)
+      ? here
+      : ways.length
+        ? ways[0].path[ways[0].path.length - 1]
+        : at(homes[0]);
+    return {
+      scene,
+      point: (sc) => {
+        const d = nearest(
+          sc,
+          homes.filter((h) => at(h) === sc.name && sc.map.bById[h.building]).map((h) => sc.map.doorPx(sc.map.bById[h.building])),
+        );
+        return d ? { x: d.x, y: d.y - T } : null;
+      },
+    };
+  }
+  const wh = t.where;
+  if (t.type === 'coconut')
+    return { scene: HOME_SCENE, point: (sc) => sc.whereIs('mail:coco') || mailSpot(sc, wh) };
+  if (t.hosts) return { scene: HOME_SCENE, where: 'mail:hosts' };
+  if (!wh || wh === 'town') return null;
+  return { scene: HOME_SCENE, point: (sc) => mailSpot(sc, wh) };
 }
+/** Здание (над дверью) или место города из поля where письма. */
+function mailSpot(sc, wh) {
+  const b = sc.map.bById[wh];
+  if (b) {
+    const d = sc.map.doorPx(b);
+    return { x: d.x, y: d.y - T };
+  }
+  return sc.spot(wh); // пирс, пляж
+}
+/** Карточка письма в журнале. */
+function mailCard() {
+  const m = S().mail,
+    t = TASK_BY_ID[m.task],
+    card = el('div', 'quest mail');
+  if (!m.read) {
+    card.appendChild(
+      el(
+        'div',
+        'q-head',
+        '<span class="q-ic">📬</span><div><div class="ttl">Тебе письмо!</div><div class="sub">Оно ждёт в почтовом ящике у двери дома</div></div>',
+      ),
+    );
+    return card;
+  }
+  card.appendChild(
+    el(
+      'div',
+      'q-head',
+      `<span class="q-ic">${t.sticker}</span><div><div class="ttl">${t.title}${taskProgress()}</div><div class="sub">Письмо дня · награда 🪙 ${fmtMoney(taskCoins(t.id))} и наклейка</div></div>`,
+    ),
+  );
+  card.appendChild(el('p', 'q-story', t.text));
+  const b = el('button', 'btn small blue', '✉️ Прочитать письмо');
+  b.onclick = () => showLetter();
+  card.appendChild(b);
+  return card;
+}
+registerGoalSource({
+  list() {
+    const m = S().mail,
+      t = m && TASK_BY_ID[m.task];
+    if (!t || m.done) return [];
+    const prog = taskProgress();
+    return [
+      {
+        id: 'mail',
+        group: 'routine',
+        // начато — когда по письму уже что-то сделано (собрано, с кем-то поговорили)
+        started: m.read && (m.n > 0 || Object.keys(m.got).length > 0),
+        unread: !m.read,
+        icon: m.read ? t.sticker : '✉️',
+        title: m.read ? t.title : 'Письмо в почтовом ящике',
+        chip: m.read
+          ? { text: `${t.sticker} ${t.title}${prog}`, short: `${t.sticker}${prog || ' Письмо'}`, cls: 'mail' }
+          : { text: '✉️ В почтовом ящике письмо!', short: '✉️ Письмо!', cls: 'mail new' },
+        place: mailPlace,
+        nowhere: `${t.sticker} У этого письма нет одного места — перечитай письмо: там сказано, что делать ✉️`,
+        card: mailCard,
+      },
+    ];
+  },
+  done(body) {
+    const m = S().mail,
+      t = m && m.done && TASK_BY_ID[m.task];
+    if (t)
+      body.appendChild(
+        el(
+          'div',
+          'list-item q-done',
+          `<div class="grow"><div class="ttl">${t.sticker} ${t.title}</div><div class="sub">Письмо дня — готово! Новое придёт завтра утром.</div></div>`,
+        ),
+      );
+  },
+});
 
 /** Одежда, которую сегодня можно купить в магазинах города (и которой у игрока ещё нет): витрина дня, wares.js. */
 const newClothesToday = () =>
@@ -207,12 +333,18 @@ export function showLetter() {
     return;
   }
   sfx('paper');
+  // письмо — новый квест: звёздочка занята другим — спросить «Покажи дорогу?», свободна — она уже ведёт по письму
+  const { ask, buttons } = m.done
+    ? { ask: false, buttons: [{ text: 'Отлично!' }] }
+    : leadButtons('mail', [{ text: 'Вперёд!' }]);
   message({
     title: 'Письмо',
     icon: '✉️',
     cls: '',
     html: letterHtml(),
-    buttons: [{ text: m.done ? 'Отлично!' : 'Вперёд!' }],
+    buttons,
+  }).then((i) => {
+    if (ask && i === 0) leadNow('mail');
   });
 }
 

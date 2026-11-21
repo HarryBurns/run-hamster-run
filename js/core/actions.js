@@ -619,6 +619,22 @@ export const openLand = act((id) => {
   return true;
 });
 
+// ---------- активный квест (звёздочка) ----------
+/**
+ * Сделать квест активным: к нему ведёт звёздочка, он на плашке HUD. id — 'quest:<задание>', 'holiday', 'mail' или
+ * null (квестов нет). Зовёт ТОЛЬКО features/goals.js (там единственное правило, когда квест меняется); why — почему:
+ * 'player' — выбрал игрок, 'next' — прежний квест закончен или его не было, 'dev' — автотест.
+ */
+export const setGoal = act((id, why = 'player') => {
+  const s = S(),
+    from = s.goal;
+  if (from === id) return false;
+  s.goal = id;
+  touch();
+  emit('goal', { from, to: id, why });
+  return true;
+});
+
 // ---------- отметки ----------
 /** Отметка навсегда (flags) — «подсказку уже показывали», «сундук уже открывали». */
 export const setFlag = act((name, value = 1) => {

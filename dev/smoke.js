@@ -1647,6 +1647,12 @@ const runParallel = () => {
       try {
         await fn();
         await alive();
+        // сторож квестов: активный квест (звёздочка) меняется только по выбору игрока или когда прежний закончен
+        // (js/features/goals.js записывает каждую смену; set в шагах — __dev.goal.set)
+        const jumps = await page
+          .evaluate(() => (window.__dev && window.__dev.goal ? window.__dev.goal.jumps() : []))
+          .catch(() => []);
+        if (jumps.length) throw new Error('звёздочка сменила квест сама: ' + jumps.join('; '));
       } catch (e) {
         // строка шага в dev/*.js, где упало (с SMOKE_VERBOSE) — чтобы не перезапускать ради неё
         const lines = (e.stack || '').split('\n');

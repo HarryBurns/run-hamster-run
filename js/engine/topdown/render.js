@@ -866,7 +866,7 @@ export function drawFrame(ctx, sc) {
       ctx.rotate(a);
       poly(ctx, [24, -9, 38, 0, 24, 9], '#ff6b9d', OUT, 2);
       ctx.rotate(-a);
-      emoji(ctx, tg.icon, 0, 0, 24);
+      emoji(ctx, tg.of || tg.icon, 0, 0, 24); // значок квеста, к которому ведёт звёздочка
       ctx.restore();
     }
   }

@@ -9,7 +9,7 @@ import { DISH_BY_ID, NPCS, npcLook, TASKS, EXTRA_STICKERS } from '../data/index.
 import { openPanel } from '../ui/panel.js';
 import { toast } from '../ui/toast.js';
 import { MG_NAMES } from './minigames.js';
-import { renderJournal } from './quests.js';
+import { renderJournal } from './journal.js';
 import { renderPhotos } from './photo.js';
 
 const S = () => G.state;

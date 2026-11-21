@@ -1,5 +1,7 @@
-// ЖУРНАЛ СЮЖЕТНЫХ ЗАДАНИЙ (этап 5): ход заданий по событиям, разговор с жителем о задании, журнал (вкладка альбома),
-// плашка в HUD, звёздочка-указатель, праздничное окно и входы в тайные места (действие way).
+// СЮЖЕТНЫЕ ЗАДАНИЯ ЖИТЕЛЕЙ (этап 5): ход заданий по событиям, разговор с жителем о задании, праздничное окно и входы
+// в тайные места (действие way). Задания — квесты общего списка (features/goals.js): здесь их описание для него —
+// плашка, карточка журнала и где цель текущего шага (questGoal). Какой квест активен и куда ведёт звёздочка,
+// решает только features/goals.js.
 //
 // Описания заданий — data/quests.js, места — LANDS в data/places.js. Состояние — state.quests и state.lands; меняют
 // его только действия takeQuest, questCount, finishQuest, openLand (core/actions.js); читать — questNow, questBadge,
@@ -48,7 +50,6 @@ import {
   GUEST_ROOM,
   HOTEL_DOORS,
 } from '../data/index.js';
-import { homeLocation, currentLocation, getLocation, setTargetHook } from '../engine/topdown/index.js';
 import { addSidePart } from '../engine/side/scene.js';
 import { actorHere } from '../engine/side/actors.js';
 import { HX } from '../interiors/hotel.js';
@@ -58,7 +59,8 @@ import { dialog } from '../ui/dialog.js';
 import { enqueue } from '../ui/modals.js';
 import { message } from '../ui/panel.js';
 import { toast } from '../ui/toast.js';
-import { openMap, setMapGoal, routeText } from './map.js';
+import { registerGoalSource, leadButtons, leadNow, goalPlace, LOC_WORDS } from './goals.js';
+import { leadTo } from './journal.js';
 import { taleTalk } from './tales.js';
 
 const S = () => G.state;
@@ -67,32 +69,7 @@ const her = (npc) => (NPC_BY_ID[npc].fem ? 'ней' : 'ним'); // «с ней 
 const hisOf = (npc) => (NPC_BY_ID[npc].fem ? 'неё' : 'него'); // «у неё / у него»
 const toHim = (npc) => (NPC_BY_ID[npc].fem ? 'ней' : 'нему'); // «к ней / к нему»
 
-// ---------- звёздочка-указатель ----------
-// К какому заданию показывает звёздочка (та же, что у письма; важнее письма). Берут задание — звёздочка ведёт
-// к первому шагу; «Показать на карте» в журнале — к текущему шагу; нажали на плашку письма — снова к письму.
-// «Карта мира» (этап 11): цель может быть в другом месте, чем хомячок. Тогда звёздочка встаёт у выхода или
-// транспорта, который ведёт в нужную сторону (sc.wayTo — граф ROUTES в data/places.js), а в месте цели — у самой цели.
-let tracked = null,
-  extraTarget = null,
-  extraScene = null,
-  journalTop = null;
-/**
- * Звёздочка не задания из журнала, а чего-то ещё (праздник — features/holidays.js): fn(sc) → { x, y, icon } | null —
- * зовётся в месте цели; sceneFn() → имя сцены, где эта цель сейчас (null — показывать нечего): в других местах
- * звёздочка ведёт к дороге туда. Спрашивается, только пока ни одно задание из журнала не показывается звёздочкой.
- */
-export function setExtraTarget(fn, sceneFn) {
-  extraTarget = fn;
-  extraScene = sceneFn || null;
-}
-/** Своя карточка в начале журнала (праздник сегодня — features/holidays.js): fn(body, panel). */
-export function setJournalTop(fn) {
-  journalTop = fn;
-}
-/** Показывать звёздочкой задание id (null — снова письмо). */
-export function trackQuest(id) {
-  tracked = id;
-}
+// ---------- где цель задания (для звёздочки) ----------
 /** Куда ведёт задание по описанию: имя точки для sc.whereIs (житель, место, здание…) или null. */
 function questPoint(w) {
   if (w.status === 'ready') return w.q.npcAt || 'npc:' + w.q.npc; // лифтёр стоит в башне: звёздочка — к её двери
@@ -114,43 +91,17 @@ function questGoal(w) {
   if (spot) return { where: spot.where, scene: spot.scene, spot, npc: where.slice(4) };
   return { where, scene: (step && step.loc) || w.q.loc || HOME_SCENE, spot: null, npc: null };
 }
-/** Задание, которое показывает звёздочка, — { w, where, scene } или null (сделано — звёздочка снова свободна). */
-function trackedNow() {
-  if (!tracked) return null;
-  const w = questNow(tracked);
-  if (w.status === 'done') {
-    tracked = null;
-    return null;
-  }
-  return { w, ...questGoal(w) };
-}
-setTargetHook((sc) => {
-  if (!S()) return null;
-  const tr = trackedNow();
-  if (!tr) {
-    if (!extraTarget) return null;
-    const at = extraScene ? extraScene() : sc.name;
-    return at && at !== sc.name ? sc.wayTo(at) : extraTarget(sc);
-  }
-  if (!tr.where) return null;
-  const at = tr.scene;
-  if (at !== sc.name) return sc.wayTo(at); // цель в другом месте — к выходу или транспорту в ту сторону
-  const p = sc.whereIs(tr.where);
-  if (!p) return null;
-  // над жителем — повыше, над значком «!» / «?»
-  return { x: p.x, y: tr.where.startsWith('npc:') ? p.y - 62 : p.y, icon: '⭐' };
-});
 /**
- * Звёздочка ВНУТРИ ДОМОВ (engine/side): задание ведёт к жителю — над ним, если он здесь (у себя дома, в гостях
- * у хомячка, у бассейна отеля, в номере 203); в отеле, когда он гостит в номере 203, — над дверью этого номера
- * в коридоре 2-го этажа (самого его из коридора не видно). Точка { x, y } в единицах дома или null.
+ * Звёздочка ВНУТРИ ДОМОВ (engine/side): активный квест (features/goals.js) ведёт к жителю — над ним, если он здесь
+ * (у себя дома, в гостях у хомячка, у бассейна отеля, в номере 203); в отеле, когда он гостит в номере 203, — над
+ * дверью этого номера в коридоре 2-го этажа (самого его из коридора не видно). Точка { x, y } в единицах дома или null.
  */
 export function sideStar(sc) {
-  const tr = S() && !G.photo ? trackedNow() : null;
-  if (!tr || !tr.npc || !sc.actors) return null;
-  const a = sc.actors.find((g) => g.id === tr.npc && actorHere(g));
+  const pl = S() && !G.photo ? goalPlace() : null;
+  if (!pl || !pl.npc || !sc.actors) return null;
+  const a = sc.actors.find((g) => g.id === pl.npc && actorHere(g));
   if (a) return { x: a.x, y: sc.geo.fy(a.f) - 222 };
-  if (sc.name === 'hotel' && tr.spot.at === 'room') {
+  if (sc.name === 'hotel' && pl.spot.at === 'room') {
     const x = HX.doors[HOTEL_DOORS.indexOf(GUEST_ROOM)];
     return { x, y: sc.geo.fy(1) - 226 };
   }
@@ -166,35 +117,6 @@ addSidePart({
     star(ctx, p.x, p.y - r + 20 + Math.sin(t * 4) * 6, r, '#ffd43b', '#4a3728', 2.5 * k);
   },
 });
-/** В каком месте (имя сцены) сейчас цель звёздочки — задание журнала, праздник или предметы письма; null — цели нет. */
-export function starScene() {
-  if (!S()) return null;
-  const tr = trackedNow();
-  if (tr) return tr.where ? tr.scene : null;
-  const ex = extraScene && extraScene();
-  if (ex) return ex;
-  const m = S().mail,
-    it = m && m.items && !m.done && m.items.find((q) => !q.got);
-  return it ? it.loc || HOME_SCENE : null;
-}
-setMapGoal(starScene);
-/**
- * Компас (О5, features/compass.js): какое задание журнала он показывает и где его цель. Звёздочка ни к чему
- * не ведёт, а в журнале есть начатые задания — компас берёт первое из них (как «Показать на карте»), праздник
- * не перебивает. → { q — задание или null, fest — цель — праздник, scene — место цели или null }.
- */
-export function compassGoal() {
-  if (!S()) return { q: null, scene: null };
-  let tr = trackedNow();
-  if (!tr && !(extraScene && extraScene())) {
-    const w = QUESTS.map((q) => questNow(q.id)).find((x) => x.status === 'active' && questGoal(x).where);
-    if (w) {
-      trackQuest(w.q.id);
-      tr = trackedNow();
-    }
-  }
-  return { q: tr ? tr.w.q : null, fest: !tr && !!(extraScene && extraScene()), scene: starScene() };
-}
 /** Где искать того, кто дал задание: «в городе» или «в лесу» (поле loc задания — локация, где оно идёт). */
 const placeOf = (q) => (q.loc ? LOC_WORDS[q.loc] || 'в другом месте' : 'в городе');
 /** Карточка «Новое задание!»: где искать того, кто его даёт, — «найди её в городе…» или «сейчас она у тебя в гостях…». */
@@ -204,18 +126,6 @@ function readyWhere(q) {
   if (away) return `сейчас ${npc.fem ? 'она' : 'он'} ${away}. Над головой у ${hisOf(q.npc)} «!».`;
   return `найди ${npc.fem ? 'её' : 'его'} ${placeOf(q)}. Над головой у ${hisOf(q.npc)} «!».`;
 }
-/** Где место — словами: «в лесу», «на секретном пляже» (журнал, компас). */
-export const LOC_WORDS = {
-  world: 'в городе',
-  forest: 'в лесу',
-  mountain: 'в горах',
-  caves: 'в пещерах',
-  desert: 'в пустыне',
-  jungle: 'в джунглях',
-  cove: 'на секретном пляже',
-  island: 'на удалённом острове',
-  deep: 'у подземной реки',
-};
 /**
  * Где житель города сейчас, если не там, где обычно (не на улице и не у своего домика), — словами после имени или
  * «она / он»: «у тебя в гостях, на вилле 🏡», «в отеле «Морская звезда» у бассейна 🏨», «… в номере 203 🏨».
@@ -268,40 +178,6 @@ function lookFor(id, badge) {
   const away = whereWords(id);
   return away ? `${NPC_BY_ID[id].fem ? 'она' : 'он'} ${away}` : `у ${hisOf(id)} над головой «${badge}»`;
 }
-/** Показать задание на карте (звёздочкой). false — сейчас показать нечего (сегодня всё собрано и т. п.). */
-export function showQuestOnMap(id) {
-  const w = questNow(id),
-    { where, scene: at } = questGoal(w),
-    q = QUEST_BY_ID[id];
-  // задание в другом месте, чем хомячок («карта мира»): звёздочка ведёт к дороге туда — подсказать, как идти
-  const here = currentLocation().name;
-  if (where && at !== here && getLocation(at)) {
-    const way = routeText(here, at);
-    trackQuest(id);
-    sfx('ok');
-    toast(
-      way
-        ? `${q.icon} Это задание — ${LOC_WORDS[at] || 'в другом месте'}. Звёздочка ⭐ покажет дорогу — ${way}.`
-        : `${q.icon} Это задание — ${LOC_WORDS[at] || 'в другом месте'}. Туда пока нет дороги.`,
-    );
-    openMap();
-    return true;
-  }
-  const p = where && (getLocation(at) || homeLocation()).whereIs(where);
-  if (!p) {
-    toast(
-      where === 'herb'
-        ? 'Сегодня все находки для гербария уже собраны. Завтра распустится что-то новое! 🌱'
-        : 'Сейчас это место на карте не показать',
-    );
-    return false;
-  }
-  trackQuest(id);
-  sfx('ok');
-  openMap();
-  return true;
-}
-
 // ---------- ход заданий по событиям ----------
 const STEP_EVENTS = new Set(QUESTS.flatMap((q) => q.steps.filter((st) => st.on).map((st) => st.on)));
 // после этих событий задание могло сдвинуться (шаг «принести» — что-то появилось в рюкзаке или пропало)
@@ -374,19 +250,28 @@ for (const ev of WATCH)
     refresh();
   });
 on('quest', () => refresh());
-// новое задание стало можно взять (утром второго дня или при входе в игру) — подсказать один раз
+// Новые задания стало можно взять (утром или при входе в игру) — подсказать один раз. Сразу несколько (открылся
+// лес — пять жителей с «!») — ОДНА подсказка, а не пять подряд: остальные тихо ждут в журнале.
 function hintNew() {
   const s = S();
   if (!s) return;
   refresh(true);
-  for (const q of QUESTS) {
-    if (q.intro || s.flags['questHint:' + q.id] || questNow(q.id).status !== 'ready') continue; // вводное приносят домой
-    setFlag('questHint:' + q.id);
-    const npc = NPC_BY_ID[q.npc];
-    enqueue(() => toast(`❗ ${npc.name} хочет о чём-то тебя попросить — ${lookFor(q.npc, '!')}`, 'good'), {
-      delay: 2500,
-    });
-  }
+  // вводное приносят домой
+  const fresh = QUESTS.filter((q) => !q.intro && !s.flags['questHint:' + q.id] && questNow(q.id).status === 'ready');
+  if (!fresh.length) return;
+  for (const q of fresh) setFlag('questHint:' + q.id);
+  const q = fresh[0],
+    npc = NPC_BY_ID[q.npc];
+  enqueue(
+    () =>
+      toast(
+        fresh.length > 1
+          ? `❗ У жителей появились новые просьбы (${fresh.length}) — загляни в журнал 📖`
+          : `❗ ${npc.name} хочет о чём-то тебя попросить — ${lookFor(q.npc, '!')}`,
+        'good',
+      ),
+    { delay: 2500 },
+  );
 }
 on('wake', hintNew);
 on('scene', ({ from }) => {
@@ -436,20 +321,17 @@ async function offer(q) {
   q.steps.forEach((step, i) => {
     if (step.on && step.already && step.already(S())) questCount(q.id, i);
   });
-  trackQuest(q.id);
   sfx('bell');
-  const j = await say(
-    npc,
-    q.lines.accept,
-    [
-      { text: 'Хорошо!', cls: 'green' },
-      { text: '📖 Открыть журнал', cls: 'blue' },
-    ],
-    true,
-  );
-  toast(`📖 Новое задание в журнале: ${q.icon} ${q.title}`, 'good');
   emit('hud');
-  if (j === 1) run('journal');
+  // новый квест: звёздочка занята другим — спросить «Покажи дорогу?», свободна — она уже ведёт сюда
+  const { ask, buttons } = leadButtons('quest:' + q.id, [
+    { text: 'Хорошо!', cls: 'green' },
+    { text: '📖 Открыть журнал', cls: 'blue' },
+  ]);
+  const j = await say(npc, q.lines.accept, buttons, true);
+  toast(`📖 Новое задание в журнале: ${q.icon} ${q.title}`, 'good');
+  if (ask && j === 0) leadNow('quest:' + q.id);
+  if (!ask && j === 1) run('journal');
   return { end: true };
 }
 
@@ -522,11 +404,10 @@ function itemName(bag, id) {
 }
 /**
  * Взять задание без разговора «Поможешь?» (вводная цепочка: житель сам пришёл в гости — features/welcome.js):
- * задание в журнале, звёздочка ведёт к первому шагу.
+ * задание в журнале; вести ли к нему звёздочку, сосед спросит сам (leadButtons).
  */
 export function startQuest(id) {
   if (!takeQuest(id)) return false;
-  trackQuest(id);
   emit('hud');
   return true;
 }
@@ -563,7 +444,6 @@ function complete(q) {
     got.recipe = DISH_BY_ID[r.recipe];
   }
   got.hint = r.hint || null;
-  if (tracked === q.id) tracked = null;
   emit('hud');
   return got;
 }
@@ -586,89 +466,107 @@ function questDone(q, got) {
   celebrate({ title: 'Задание выполнено!', icon: '🎉', sticker: st && st.sticker, head, lines, delay: 500 });
 }
 
-// ---------- журнал (вкладка альбома) ----------
-/** Нарисовать журнал в тело окна альбома. panel — окно (закрыть, когда идём к карте). */
-export function renderJournal(body, panel) {
-  if (journalTop) journalTop(body, panel);
-  const all = QUESTS.map((q) => questNow(q.id));
-  const active = all.filter((w) => w.status === 'active'),
-    ready = all.filter((w) => w.status === 'ready' && !w.q.intro),
-    done = all.filter((w) => w.status === 'done');
-  const mapBtn = (w) => {
-    const b = el('button', 'btn small yellow', '🗺️ Показать на карте');
-    b.onclick = () => {
-      if (showQuestOnMap(w.q.id)) panel.close();
-    };
-    return b;
-  };
-  if (!active.length && !ready.length)
-    body.appendChild(
-      el(
-        'p',
-        'muted center',
-        done.length
-          ? 'Новых заданий пока нет. Загляни сюда позже!'
-          : 'Пока заданий нет. Жители города иногда просят о помощи: у кого над головой «!», у того есть задание.',
-      ),
+// ---------- задания в общем списке квестов (features/goals.js) ----------
+/** Карточка взятого задания в журнале: рассказ, шаги с ходом, подсказка «где житель сейчас». */
+function activeCard(w) {
+  const q = w.q,
+    npc = NPC_BY_ID[q.npc];
+  const card = el('div', 'quest');
+  card.appendChild(
+    el(
+      'div',
+      'q-head',
+      `<span class="q-ic">${q.icon}</span><div><div class="ttl">${q.title}</div><div class="sub">Просит ${npc.name}</div></div>`,
+    ),
+  );
+  card.appendChild(el('p', 'q-story', q.story));
+  const ol = el('ol', 'q-steps');
+  q.steps.forEach((step, i) => {
+    const x = w.steps[i],
+      cur = i === w.i;
+    const prog = x.need > 1 ? ` <b>${x.have}/${x.need}</b>` : '';
+    const hint = cur && ((step.talk && npcHint(step.talk)) || step.hint);
+    const li = el(
+      'li',
+      x.ok ? 'ok' : cur ? 'cur' : 'todo',
+      `${x.ok ? '✅' : cur ? '👉' : '▫️'} ${step.text}${prog}${hint ? `<div class="q-hint">📍 ${hint}</div>` : ''}`,
     );
-  for (const w of active) {
-    const q = w.q,
-      npc = NPC_BY_ID[q.npc];
-    const card = el('div', 'quest');
-    card.appendChild(
-      el(
-        'div',
-        'q-head',
-        `<span class="q-ic">${q.icon}</span><div><div class="ttl">${q.title}</div><div class="sub">Просит ${npc.name}</div></div>`,
-      ),
-    );
-    card.appendChild(el('p', 'q-story', q.story));
-    const ol = el('ol', 'q-steps');
-    q.steps.forEach((step, i) => {
-      const x = w.steps[i],
-        cur = i === w.i;
-      const prog = x.need > 1 ? ` <b>${x.have}/${x.need}</b>` : '';
-      const hint = cur && ((step.talk && npcHint(step.talk)) || step.hint);
-      const li = el(
-        'li',
-        x.ok ? 'ok' : cur ? 'cur' : 'todo',
-        `${x.ok ? '✅' : cur ? '👉' : '▫️'} ${step.text}${prog}${hint ? `<div class="q-hint">📍 ${hint}</div>` : ''}`,
-      );
-      if (cur && step.bring && step.bring.kind) li.appendChild(findsRow(step.bring.kind));
-      ol.appendChild(li);
-    });
-    card.appendChild(ol);
-    card.appendChild(mapBtn(w));
-    body.appendChild(card);
+    if (cur && step.bring && step.bring.kind) li.appendChild(findsRow(step.bring.kind));
+    ol.appendChild(li);
+  });
+  card.appendChild(ol);
+  return card;
+}
+/** Карточка задания, которое можно взять: у кого и где его искать. */
+function readyCard(q) {
+  const card = el('div', 'quest new');
+  card.appendChild(
+    el(
+      'div',
+      'q-head',
+      `<span class="q-ic">❗</span><div><div class="ttl">Новое задание!</div><div class="sub">${NPC_BY_ID[q.npc].name} хочет о чём-то попросить — ${readyWhere(q)}</div></div>`,
+    ),
+  );
+  return card;
+}
+/** Плашка HUD для задания (short — коротко, для телефона). */
+function questChip(w) {
+  const q = w.q;
+  if (w.status === 'ready') {
+    const name = NPC_BY_ID[q.npc].name;
+    return { text: `❗ ${name} просит о помощи`, short: `❗ ${name}`, cls: 'new' };
   }
-  for (const w of ready) {
-    const q = w.q,
-      npc = NPC_BY_ID[q.npc];
-    const card = el('div', 'quest new');
-    card.appendChild(
-      el(
-        'div',
-        'q-head',
-        `<span class="q-ic">❗</span><div><div class="ttl">Новое задание!</div><div class="sub">${npc.name} хочет о чём-то попросить — ${readyWhere(q)}</div></div>`,
-      ),
-    );
-    card.appendChild(mapBtn(w));
-    body.appendChild(card);
-  }
-  if (done.length) {
-    body.appendChild(el('h4', 'q-done-h', '✅ Выполнено'));
-    for (const w of done) {
-      const land = w.q.reward && w.q.reward.open && LAND_BY_ID[w.q.reward.open];
+  const step = q.steps[w.i],
+    x = w.steps[w.i];
+  if (step && step.talk) return { text: `❓ ${step.text}`, short: `❓ ${NPC_BY_ID[step.talk].name}`, cls: 'ready' };
+  const prog = x && x.need > 1 ? `${x.have}/${x.need}` : `шаг ${w.i + 1}`;
+  return { text: `${q.icon} ${q.title} · ${prog}`, short: `${q.icon} ${prog}`, cls: '' };
+}
+registerGoalSource({
+  /** Квесты: взятые задания и те, что можно взять у жителя с «!» (вводное сосед приносит домой сам — его тут нет). */
+  list() {
+    const out = [];
+    for (const q of QUESTS) {
+      const w = questNow(q.id);
+      if (w.status !== 'active' && (w.status !== 'ready' || q.intro)) continue;
+      const taken = w.status === 'active',
+        npc = NPC_BY_ID[q.npc];
+      out.push({
+        id: 'quest:' + q.id,
+        group: 'story',
+        started: taken,
+        since: taken ? S().quests[q.id].day : 0,
+        icon: taken ? q.icon : '❗',
+        title: taken ? q.title : `${npc.name} просит о помощи`,
+        far: 'Это задание',
+        chip: questChip(w),
+        place: () => {
+          const g = questGoal(questNow(q.id));
+          return g.where ? g : null;
+        },
+        nowhere:
+          questPoint(w) === 'herb'
+            ? 'Сегодня все находки для гербария уже собраны. Завтра распустится что-то новое! 🌱'
+            : `${q.icon} У этого шага нет места на карте — что делать, написано в журнале 📖`,
+        card: () => (taken ? activeCard(questNow(q.id)) : readyCard(q)),
+      });
+    }
+    return out;
+  },
+  done(body) {
+    for (const q of QUESTS) {
+      if (questNow(q.id).status !== 'done') continue;
+      const land = q.reward && q.reward.open && LAND_BY_ID[q.reward.open];
       body.appendChild(
         el(
           'div',
           'list-item q-done',
-          `<div class="grow"><div class="ttl">${w.q.icon} ${w.q.title}</div><div class="sub">${land ? `Открыто новое место: ${land.icon} ${land.name}` : 'Готово!'}</div></div>`,
+          `<div class="grow"><div class="ttl">${q.icon} ${q.title}</div><div class="sub">${land ? `Открыто новое место: ${land.icon} ${land.name}` : 'Готово!'}</div></div>`,
         ),
       );
     }
-  }
-}
+  },
+});
 /** Что уже собрано для задания «принеси разные находки»: значки из рюкзака. */
 function findsRow(kind) {
   const have = Object.keys(S().finds).filter(
@@ -683,36 +581,11 @@ function findsRow(kind) {
   );
 }
 
-// ---------- плашка в HUD ----------
-/**
- * Плашка задания из журнала: { text, short, cls } или null — показывать нечего. short — коротко, для телефона.
- * Сначала задание, к которому сейчас звёздочка, потом любое взятое, потом то, которое можно взять.
- */
-export function questChip() {
-  if (!S()) return null;
-  const all = QUESTS.map((q) => questNow(q.id));
-  const w =
-    all.find((x) => x.q.id === tracked && x.status === 'active') ||
-    all.find((x) => x.status === 'active') ||
-    all.find((x) => x.status === 'ready' && !x.q.intro);
-  if (!w) return null;
-  const q = w.q;
-  if (w.status === 'ready') {
-    const name = NPC_BY_ID[q.npc].name;
-    return { text: `❗ ${name} просит о помощи`, short: `❗ ${name}`, cls: 'new' };
-  }
-  const step = q.steps[w.i],
-    x = w.steps[w.i];
-  if (step && step.talk) return { text: `❓ ${step.text}`, short: `❓ ${NPC_BY_ID[step.talk].name}`, cls: 'ready' };
-  const prog = x && x.need > 1 ? `${x.have}/${x.need}` : `шаг ${w.i + 1}`;
-  return { text: `${q.icon} ${q.title} · ${prog}`, short: `${q.icon} ${prog}`, cls: '' };
-}
-
 // ---------- закрытый проход: «поговори с …» ----------
 // Задание с полем door (гербарий Мяты — тропа в лес) появляется, когда хомячок наткнулась на закрытый вход: подошла
 // к воротам в городе или нажала на них (openWay) — отметка door:<место>. Как только задание можно взять (и вводная
-// цепочка позади — when в data/quests.js), один раз: подсказка «поговори с Мятой» и звёздочка к ней (туда, где она
-// сейчас, — npcSpot).
+// цепочка позади — when в data/quests.js), один раз: подсказка «поговори с Мятой». Звёздочку подсказка не трогает:
+// задание — новый квест в журнале, а вести к Мяте звёздочку решает игрок («⭐ Где Мята?» в окне ворот, журнал).
 const DOOR_QUESTS = QUESTS.filter((q) => q.door),
   DOOR_NEAR = 2.5 * 48, // «подошла»: столько пикселей до ворот
   DOOR_EVERY = 0.3; // как часто проверять, секунды
@@ -721,22 +594,17 @@ let doorT = 0;
 function markDoor(id) {
   if (DOOR_QUESTS.some((q) => q.door === id) && !S().flags['door:' + id]) setFlag('door:' + id);
 }
-/** Задание «за закрытым входом» стало можно взять — подсказать и повести звёздочку к жителю. quiet — без подсказки. */
+/** Задание «за закрытым входом» стало можно взять — подсказать (один раз). quiet — без подсказки. */
 function doorHints(quiet = false) {
   const s = S();
   for (const q of DOOR_QUESTS) {
     if (!s.flags['door:' + q.door] || s.flags['doorHint:' + q.id] || questNow(q.id).status !== 'ready') continue;
     setFlag('doorHint:' + q.id);
     setFlag('questHint:' + q.id); // общая подсказка «хочет о чём-то попросить» уже не нужна
-    trackQuest(q.id);
     emit('hud');
-    const land = LAND_BY_ID[q.door],
-      npc = NPC_BY_ID[q.npc];
+    const land = LAND_BY_ID[q.door];
     if (!quiet)
-      toast(
-        `${land.icon} ${land.door} ${land.who} знает дорогу — поговори с ${her(q.npc)}! ⭐ Звёздочка покажет, где ${npc.name}.`,
-        'good',
-      );
+      toast(`${land.icon} ${land.door} ${land.who} знает дорогу — поговори с ${her(q.npc)}! Задание — в журнале 📖`, 'good');
   }
 }
 on('step', ({ dt = 0 } = {}) => {
@@ -790,7 +658,7 @@ export function openWay(id) {
       { text: `⭐ Где ${npc.name}?`, cls: 'yellow' },
       { text: 'Хорошо', cls: 'ghost' },
     ];
-    act = () => showQuestOnMap(q.id);
+    act = () => leadTo('quest:' + q.id); // выбор игрока: звёздочка — к жителю, который знает дорогу
   } else {
     text = `${door} ${land.who} уже ${npc.fem ? 'рассказала' : 'рассказал'}, что нужно сделать, — всё записано в журнале 📖`;
     buttons = [

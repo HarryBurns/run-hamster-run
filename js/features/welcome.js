@@ -5,8 +5,8 @@
 //   хомячок на вилле, окон нет, день (7:00–21:00), следующее вводное задание можно взять → житель входит в дверь
 //   (как гость: его можно угостить, вечером он уйдёт), несёт в лапках коробочку или рассаду (carry — engine/side/
 //   actors.js), подходит, вручает — и рассказывает. Хомячок на другом этаже (новая игра начинается в спальне на
-//   втором) — сосед идёт к лифту, едет (его не видно, g.hide) и выходит на её этаже. Задание попадает в журнал,
-//   звёздочка ведёт к первому шагу.
+//   втором) — сосед идёт к лифту, едет (его не видно, g.hide) и выходит на её этаже. Задание попадает в журнал;
+//   звёздочка занята другим квестом (письмом) — сосед спрашивает «⭐ Покажи дорогу!» / «Потом» (features/goals.js).
 // Следующий сосед приходит, когда прошлое задание сдано. Ничего не блокируется: задания можно не делать, а на первой
 // встрече сказать «Я уже всё умею» — тогда цепочка выключается (flags.intro = 2). У старых игр отметки flags.intro
 // нет — к ним никто не приходит.
@@ -18,6 +18,7 @@ import { G, questNow } from '../core/state.js';
 import { QUESTS, NPC_BY_ID, npcLook } from '../data/index.js';
 import { dialog } from '../ui/dialog.js';
 import { toast } from '../ui/toast.js';
+import { leadButtons, leadNow } from './goals.js';
 import { startQuest } from './quests.js';
 
 const S = () => G.state;
@@ -77,8 +78,11 @@ async function talk(q) {
   for (const [text, btn] of q.lines.more || []) await say(text, [{ text: btn, cls: 'green' }], true);
   if (!startQuest(q.id)) return;
   sfx('bell');
-  await say(q.lines.accept, [{ text: 'Хорошо!', cls: 'green' }], true);
+  // новый квест: звёздочка занята другим — спросить «Покажи дорогу?», свободна — она уже ведёт сюда
+  const { ask, buttons } = leadButtons('quest:' + q.id, [{ text: 'Хорошо!', cls: 'green' }]);
+  const j = await say(q.lines.accept, buttons, true);
   toast(`📖 Новое задание в журнале: ${q.icon} ${q.title}`, 'good');
+  if (ask && j === 0) leadNow('quest:' + q.id);
 }
 /** Сценка кончилась (или хомячок ушла из дома): коробочку убрать. */
 function endVisit() {

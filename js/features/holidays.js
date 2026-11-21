@@ -1,5 +1,6 @@
-// ПРАЗДНИКИ (П.13): ОБЩИЙ МЕХАНИЗМ — какой сегодня праздник, утреннее объявление, праздничное задание в журнале,
-// плашка и значок в HUD, праздничный календарь, ход праздничных занятий, подарок раз в год, звёздочка-указатель.
+// ПРАЗДНИКИ (П.13): ОБЩИЙ МЕХАНИЗМ — какой сегодня праздник, утреннее объявление, значок в HUD, праздничный
+// календарь, ход праздничных занятий, подарок раз в год. Праздник сегодня — квест (features/goals.js): здесь его
+// описание для общего списка (плашка, карточка журнала, где цель текущего шага).
 //
 // Таблица праздников — data/holidays.js (HOLIDAYS), числа — HOLIDAY в economy.js, украшения города —
 // locations/holidays.js. Сами занятия праздников (нарядить ёлку, колядки, фонарики, блины, канат…) — в своих файлах:
@@ -40,15 +41,14 @@ import {
   decorsOn,
   HOME_SCENE,
 } from '../data/index.js';
-import { currentLocation } from '../engine/topdown/index.js';
 import { celebrate } from '../ui/celebrate.js';
 import { enqueue } from '../ui/modals.js';
 import { message, openPanel } from '../ui/panel.js';
 import { toast } from '../ui/toast.js';
 import { talkHooks } from './friends.js';
 import { doorHooks } from './visits.js';
-import { setExtraTarget, setJournalTop, trackQuest } from './quests.js';
-import { openMap, routeText } from './map.js';
+import { registerGoalSource, leadButtons, leadNow, findGoal } from './goals.js';
+import { leadRow } from './journal.js';
 import '../locations/holidays_lands.js'; // этап 15 (Пр2): украшения в других местах
 import { setupRoomDecor } from '../interiors/holidays_rooms.js';
 import { decorNow } from '../locations/holidays.js';
@@ -219,7 +219,6 @@ function finishHoliday(h) {
   }
   if (got.coins) earn(got.coins, 'gift');
   const isNew = h.sticker ? award(h.sticker, { quiet: true }) : false;
-  if (tracking) tracking = false;
   emit('holiday', { id: h.id, what: 'done' });
   emit('hud');
   holidayDone(h, got, isNew);
@@ -281,13 +280,15 @@ export function announceHoliday(quiet = false) {
     enqueue(
       () => {
         sfx('fanfare');
+        // праздник — новый квест: звёздочка занята другим — спросить «Покажи дорогу?», свободна — она уже ведёт сюда
+        const { ask, buttons } = leadButtons('holiday', [{ text: 'Ура! 🎉' }]);
         return message({
           title: `${h.name}!`,
           icon: h.icon,
           html: `<div class="center big-emoji">${h.icon}</div><p class="center">Сегодня <b>${h.name}</b>! ${h.story}</p>${stepsHtml(h)}<p class="center">🎁 Подарок праздника: <b>${giftLabel(h)}</b>${holidayRewarded(h) ? ' — в этом году уже получен ✅' : ''}</p>${more}`,
-          buttons: [{ text: 'Ура! 🎉' }, { text: '⭐ Показать на карте', cls: 'yellow' }],
+          buttons,
         }).then((i) => {
-          if (i === 1) showHolidayOnMap();
+          if (ask && i === 0) leadNow('holiday');
         });
       },
       { delay: 1300 },
@@ -353,12 +354,7 @@ register(
   'праздники (П.13): holiday:<что> — tree, iceslide, crib, lanterns, envelope, dragon, carousel, effigy, blini, tug (features/holidays_winter.js); plant, parade, wreath, bonfire, splash, pumpkins, ghost (features/holidays_summer.js); cake (features/holidays_bday.js)',
 );
 
-// ---------- звёздочка-указатель ----------
-let tracking = false;
-/** Вести звёздочкой к празднику (true) или перестать (false). */
-export function trackHoliday(onOff) {
-  tracking = !!onOff;
-}
+// ---------- где цель праздника (для звёздочки) ----------
 const WHERE = {};
 /** Свой поиск места для шага: where-имя → fn(sc, h, x) → { x, y } | null (друзья, двери, конверты — ниже). */
 export function holidayWhere(name, fn) {
@@ -414,38 +410,9 @@ function holidayTarget(sc) {
   if (w.startsWith('place:')) return sc.whereIs(w.slice(6));
   return WHERE[w] ? WHERE[w](sc, st.h, x) : null;
 }
-setExtraTarget(
-  (sc) => {
-    if (!tracking) return null;
-    const p = holidayTarget(sc);
-    return p ? { x: p.x, y: p.y, icon: '⭐' } : null;
-  },
-  // «карта мира»: праздник идёт в городе — в других местах звёздочка ведёт к дороге в город
-  () => {
-    const st = tracking ? holidayState() : null;
-    return st && !st.done && st.steps[st.i].step.where ? HOME_SCENE : null;
-  },
-);
-/** «Показать на карте»: звёздочка — к текущему шагу праздника, окно карты города. */
-export function showHolidayOnMap() {
-  const st = holidayState();
-  if (!st || st.done) return false;
-  trackQuest(null);
-  tracking = true;
-  sfx('ok');
-  if (!currentLocation().desc.home) {
-    const way = routeText(currentLocation().name, HOME_SCENE);
-    toast(
-      `${st.h.icon} Праздник — в городе. ${st.steps[st.i].step.where && way ? `Звёздочка ⭐ покажет дорогу — ${way}.` : 'Возвращайся в город!'}`,
-    );
-  }
-  openMap();
-  return true;
-}
-
 // ---------- журнал, плашка, календарь ----------
 /** Карточка праздника: шаги с ходом, подсказка, подарок. */
-function holidayCard(h, panel) {
+function holidayCard(h) {
   const st = holidayState(h),
     card = el('div', 'quest holiday');
   card.appendChild(
@@ -472,42 +439,61 @@ function holidayCard(h, panel) {
   card.appendChild(
     el('p', 'hol-gift', `🎁 Подарок: <b>${giftLabel(h)}</b>${st.rewarded ? ' — в этом году уже получен ✅' : ''}`),
   );
-  if (!st.done) {
-    const b = el('button', 'btn small yellow', '🗺️ Показать на карте');
-    b.onclick = () => {
-      if (showHolidayOnMap() && panel) panel.close();
-    };
-    card.appendChild(b);
-  }
   return card;
 }
-setJournalTop((body, panel) => {
-  const h = holidayToday();
-  if (h) return void body.appendChild(holidayCard(h, panel));
-  const t = holidayTomorrow();
-  if (t)
-    body.appendChild(
-      el(
-        'div',
-        'quest holiday soon',
-        `<div class="q-head"><span class="q-ic">${t.icon}</span><div><div class="ttl">Завтра — ${t.name}!</div><div class="sub">Город уже украшают. Завтра — праздничные занятия и подарок.</div></div></div>`,
-      ),
-    );
+/** Праздник сегодня — квест: пока не всё сделано. Идёт в городе: цель текущего шага — holidayTarget. */
+registerGoalSource({
+  list() {
+    const st = holidayState();
+    if (!st || st.done) return [];
+    const h = st.h,
+      n = st.steps.filter((x) => x.ok).length;
+    return [
+      {
+        id: 'holiday',
+        group: 'holiday',
+        started: st.steps.some((x) => x.have > 0),
+        icon: h.icon,
+        title: h.name,
+        far: 'Праздник',
+        chip: {
+          text: `${h.icon} ${h.short || h.name} · ${n}/${st.steps.length}`,
+          short: `${h.icon} ${n}/${st.steps.length}`,
+          cls: 'holiday',
+        },
+        place: () => {
+          const now = holidayState();
+          return now && !now.done && now.steps[now.i].step.where ? { scene: HOME_SCENE, point: holidayTarget } : null;
+        },
+        nowhere: `${h.icon} У этого праздничного занятия нет одного места — что делать, написано в журнале 📖`,
+        card: () => holidayCard(h),
+      },
+    ];
+  },
+  /** Завтра праздник — заметка над списком журнала. */
+  note(body) {
+    const t = !holidayToday() && holidayTomorrow();
+    if (t)
+      body.appendChild(
+        el(
+          'div',
+          'quest holiday soon',
+          `<div class="q-head"><span class="q-ic">${t.icon}</span><div><div class="ttl">Завтра — ${t.name}!</div><div class="sub">Город уже украшают. Завтра — праздничные занятия и подарок.</div></div></div>`,
+        ),
+      );
+  },
+  done(body) {
+    const st = holidayState();
+    if (st && st.done)
+      body.appendChild(
+        el(
+          'div',
+          'list-item q-done',
+          `<div class="grow"><div class="ttl">${st.h.icon} ${st.h.name}</div><div class="sub">Все праздничные занятия сделаны!</div></div>`,
+        ),
+      );
+  },
 });
-/**
- * Плашка праздника в HUD вместо плашки журнала — только когда у журнала нечего показать (ни взятого задания, ни нового
- * «!»): иначе ход праздника виден на плашке даты (holidayBadge).
- */
-export function holidayChip(questInfo) {
-  const st = holidayState();
-  if (!st || st.done || questInfo) return null;
-  const n = st.steps.filter((x) => x.ok).length;
-  return {
-    text: `${st.h.icon} ${st.h.short || st.h.name} · ${n}/${st.steps.length}`,
-    short: `${st.h.icon} ${n}/${st.steps.length}`,
-    cls: 'holiday',
-  };
-}
 /** Значок праздника на плашке даты: сегодня — ярко и с ходом занятий («🎄 1/2»), завтра — бледнее. */
 export function holidayBadge() {
   const st = holidayState();
@@ -530,7 +516,12 @@ export function openHolidays() {
       const c = cal(),
         h = holidayToday();
       body.appendChild(el('p', 'center', `Сегодня: <b>${c.monthName}, день ${c.dom}</b> · год ${c.year}`));
-      if (h) body.appendChild(holidayCard(h, panel));
+      if (h) {
+        const card = holidayCard(h),
+          g = findGoal('holiday');
+        if (g) card.appendChild(leadRow(g, panel)); // «⭐ Веди меня» — как в журнале
+        body.appendChild(card);
+      }
       const nx = nextHoliday(s.day + (h ? 1 : 0), START());
       if (!h && nx)
         body.appendChild(
@@ -584,6 +575,5 @@ export function debugHoliday() {
     year: s ? holidayYear(s.day) : 0,
     flags: s ? Object.fromEntries(Object.entries(s.flags).filter(([k]) => k.startsWith('hol:'))) : {},
     day: HF(),
-    tracking,
   };
 }

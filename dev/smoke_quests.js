@@ -109,7 +109,7 @@ module.exports = async function quests(ctx) {
       await frames(2);
       expect((await status()) === 'locked', 'задание можно взять, не побывав у ворот', await status());
       expect((await badge('myata')) === null, 'над Мятой значок', await badge('myata'));
-      expect((await chip()) === null, 'плашка задания', await chip());
+      expect(!/Мят/.test((await chip()).text), 'плашка — про Мяту до ворот', await chip());
       // сбора для гербария нет, пока задание не взято
       expect(!(await ev(() => window.__dev.QuestState.findsWanted('herb'))), 'находки нужны без задания');
       expect(!(await pick(33, 33)), 'сорвали для гербария без задания');
@@ -122,7 +122,7 @@ module.exports = async function quests(ctx) {
       await noon();
       await frames(2);
       expect((await status()) === 'locked', 'на второй день задание без ворот', await status());
-      // подошла к воротам леса (не нажимая) — подсказка «поговори с Мятой» и звёздочка к ней
+      // подошла к воротам леса (не нажимая) — подсказка «поговори с Мятой»; звёздочка сама не уходит от письма
       await clearToasts();
       await ev(() => window.__dev.World.debugTeleport(3, 4));
       await L.until(() => window.__dev.QuestState.questNow('herbarium').status === 'ready', undefined, {
@@ -131,14 +131,12 @@ module.exports = async function quests(ctx) {
       await wait(300);
       expect((await status()) === 'ready', 'у ворот задание не появилось', await status());
       expect(/поговори с ней/.test(await toasts()), 'нет подсказки «поговори с Мятой»', await toasts());
-      const star = await ev(() => {
-        const W = window.__dev.World,
-          t = W.target(),
-          n = W.npcs.find((q) => q.id === 'myata');
-        return t && n ? { d: Math.hypot(t.x - n.x, t.y + 62 - n.y) } : null; // звёздочка — над её головой
-      });
-      expect(star && star.d < 60, 'звёздочка не к Мяте', star);
-      // ворота: «поговори с Мятой»
+      expect((await ev(() => window.__dev.goal.now())) === 'mail', 'у ворот звёздочка ушла от письма сама');
+      expect(
+        (await ev(() => window.__dev.goal.list())).includes('quest:herbarium'),
+        'задания Мяты нет в списке квестов',
+      );
+      // ворота: «поговори с Мятой» и кнопка «⭐ Где Мята?» — звёздочку к Мяте ведёт сам игрок
       await ev(() => {
         window.__dev.run('way:forest');
       });
@@ -148,9 +146,18 @@ module.exports = async function quests(ctx) {
         'ворота: «поговори»',
         await panelText(),
       );
+      await page.click('.overlay .btn.yellow'); // «⭐ Где Мята?»
+      await wait(400);
       await closeAll();
       await noon();
       await frames(2);
+      const star = await ev(() => {
+        const W = window.__dev.World,
+          t = W.target(),
+          n = W.npcs.find((q) => q.id === 'myata');
+        return t && n ? { d: Math.hypot(t.x - n.x, t.y + 62 - n.y) } : null; // звёздочка — над её головой
+      });
+      expect(star && star.d < 60, 'после «⭐ Где Мята?» звёздочка не к Мяте', star);
       expect((await badge('myata')) === '!', 'нет «!» над Мятой', await badge('myata'));
       expect((await badge('plusha')) === null, '«!» над другим жителем');
       const c = await chip();
@@ -196,7 +203,9 @@ module.exports = async function quests(ctx) {
       expect(/гербарий/.test(await dialogText()), 'Мята не предлагает задание', await dialogText());
       await page.click('.dialog .btn.green');
       await nextDialog();
-      await page.click('.dialog .btn.green'); // «Хорошо!»
+      // звёздочка занята письмом — Мята спрашивает: «⭐ Покажи дорогу!» / «Потом»
+      expect(/Покажи дорогу/.test(await ev(() => document.querySelector('.dialog').textContent)), 'нет кнопки «⭐ Покажи дорогу!»');
+      await page.click('.dialog .btn.yellow');
       await L.until(() => !document.querySelector('.dialog'), undefined, { timeout: 2000 }).catch(() => {});
       let w = await now();
       expect(w.status === 'active' && w.i === 0, 'задание не взято', w);

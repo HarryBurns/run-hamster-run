@@ -229,6 +229,51 @@ const eq = (a, b, msg) => ok(JSON.stringify(a) === JSON.stringify(b), msg, { got
       const once = ls.getItem(KEY);
       ok(Gm.openActive().ok && S.save() && ls.getItem(KEY) === once, 'повторное открытие изменило сохранение');
     });
+  await test('активный квест (поле goal): в старых сохранениях — пусто, первый берётся по порядку; выбор переживает перезагрузку; мусор чинится', () => {
+    for (const v of [1, 2, 3, 4, 5]) {
+      ls.clear();
+      ls.setItem(KEY, sample(v));
+      ok(Gm.openActive().ok, 'не открылось');
+      eq(G.state.goal, null, `образец v${v}: поля goal не было — активного квеста нет`);
+    }
+    // старая игра с тремя начатыми заданиями: ничего не потеряно, активным станет взятое раньше всех (data/goals.js)
+    const old = JSON.parse(sample(5));
+    delete old.goal;
+    old.quests = {
+      lost_mitten: { day: 9, n: {}, got: {}, done: null },
+      herbarium: { day: 3, n: { 0: 2 }, got: {}, done: null },
+      squirrel_kit: { day: 5, n: {}, got: {}, done: null },
+    };
+    ls.clear();
+    ls.setItem(KEY, JSON.stringify(old));
+    ok(Gm.openActive().ok, 'не открылось');
+    eq(Object.keys(G.state.quests).sort(), ['herbarium', 'lost_mitten', 'squirrel_kit'], 'начатые задания');
+    eq(G.state.goal, null, 'активный квест до первого выбора');
+    const list = [
+      { id: 'mail', group: 'routine', started: false },
+      ...Object.entries(G.state.quests).map(([id, q]) => ({ id: 'quest:' + id, group: 'story', started: true, since: q.day })),
+    ];
+    eq(D.nextGoal(G.state.goal, list), 'quest:herbarium', 'первый по порядку — не пустой');
+    // выбор игрока — действие setGoal: записывается и переживает перезагрузку
+    ok(A.setGoal('quest:lost_mitten', 'player'), 'действие setGoal не сработало');
+    ok(S.save() && Gm.openActive().ok, 'не открылось после записи');
+    eq(G.state.goal, 'quest:lost_mitten', 'выбор после перезагрузки');
+    eq(D.nextGoal(G.state.goal, list), 'quest:lost_mitten', 'выбранный квест остаётся активным');
+    // мусор и задание, которого больше нет, — пусто; известные виды остаются
+    for (const bad of [undefined, 5, {}, [], 'quest:нет_такого']) {
+      const s = JSON.parse(sample(5));
+      s.goal = bad;
+      S.repair(s);
+      eq(s.goal, null, 'мусор в поле goal');
+    }
+    for (const good of ['mail', 'holiday', 'quest:herbarium']) {
+      const s = JSON.parse(sample(5));
+      s.goal = good;
+      S.repair(s);
+      eq(s.goal, good, 'известный квест в поле goal');
+    }
+    eq(S.newGame('Тест').goal, null, 'новая игра: активного квеста нет, пока игра не возьмёт первый');
+  });
   await test('пол героя: старые сохранения и список игр — хомячка; «хомячок» сохраняется; мусор чинится', () => {
     for (const v of [1, 5]) {
       ls.clear();

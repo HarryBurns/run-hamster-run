@@ -154,6 +154,9 @@ export function repair(s) {
     for (const i of Object.keys(q.got)) if (!Array.isArray(q.got[i])) delete q.got[i];
     if (!Number.isFinite(q.done)) q.done = null;
   }
+  // активный квест (звёздочка): в старом сохранении поля нет — null, игра сама возьмёт первый по порядку
+  // (features/goals.js); задание, которого больше нет, — тоже null
+  if (typeof s.goal !== 'string' || (s.goal.startsWith('quest:') && !QUEST_BY_ID[s.goal.slice(6)])) s.goal = null;
   for (const id of Object.keys(s.lands)) if (!LAND_BY_ID[id] || !Number.isFinite(s.lands[id])) delete s.lands[id];
   // место, которое открывает уже сданное задание, открыто — даже если награду добавили позже (нижний ярус пещер
   // за «Счастливую кирку», этап 17в)

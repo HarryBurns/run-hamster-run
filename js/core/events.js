@@ -33,6 +33,7 @@ export const EVENTS = {
   health: 'хомячок простыла или выздоровела { sick, cause, how } (features/health.js)',
   // --- сюжетные задания (features/quests.js) ---
   quest: 'задание из журнала взяли, оно продвинулось или выполнено { id, done }',
+  goal: 'активный квест (к нему ведёт звёздочка) сменился { from, to, why: player | next | dev } — features/goals.js',
   land: 'открылось новое место { id } (data/places.js, LANDS)',
   tale: 'хомячок рассказала жителю о том, что видела { id, npc } (features/tales.js)',
   // --- то, что считают ежедневные задания (features/mail.js) и сюжетные задания (features/quests.js) ---

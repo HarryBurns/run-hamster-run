@@ -1,13 +1,14 @@
-// HUD: плашки сверху (дата, монеты, задание) и круглые кнопки по бокам.
+// HUD: плашки сверху (дата, монеты, активный квест) и круглые кнопки по бокам.
 //
-// Кнопки справа и плашку задания задаёт main.js (ui/ не знает про занятия из features/).
+// Кнопки справа и плашку квеста задаёт main.js (ui/ не знает про занятия из features/).
 // Левый столбик зависит от сцены. Сцена сама говорит, что показать, — метод hud():
 //   { buttons: [{ id, icon, label, on, fn }],   // её кнопки (сойти с кораблика, нырнуть…) — над «Картой»
 //     main: { icon, label, on, fn },            // главная кнопка вместо «Домой» («Обустроить», «Всплыть»)
 //     noMap: true,                              // спрятать «Карту»
 //     cls: 'decor' }                            // класс на весь HUD (в режиме обустройства кнопки прячутся)
 // Рядом с датой — значок 🤒, пока хомячок простыла (Ф1); по нажатию — config.sick.fn.
-// После плашки письма — плашка задания из журнала (config.quest; на телефоне — коротко: значок и «3/5»).
+// ОДНА плашка дела — активный квест, к которому ведёт звёздочка (config.quest; на телефоне — коротко: значок
+// и «3/5»), рядом кружок «+3» — сколько ещё квестов ждёт в журнале (с ✉️ — среди них непрочитанное письмо).
 // На плашке даты — значок праздника, когда он сегодня или завтра (config.date.badge(); П.13); по нажатию на дату —
 // config.date.fn (праздничный календарь).
 import { G, cal, spaBoostOn } from '../core/state.js';
@@ -19,7 +20,7 @@ import { moneyAnchor } from './coins.js';
 
 let root = null,
   cfg = null;
-let chipDate, chipSick, chipBoost, chipMoney, chipTask, chipQuest, leftBox;
+let chipDate, chipSick, chipBoost, chipMoney, chipQuest, chipMore, leftBox;
 let leftSig = ''; // что сейчас показано в левом столбике (чтобы не пересобирать его зря)
 let dropAnchor = null; // плашка монет — место, где всплывает «+350» (ui/coins.js)
 
@@ -36,12 +37,13 @@ function rbtn(icon, label, fn) {
 /**
  * Подключить HUD. config:
  *   right: [{ icon, label, fn }]      кнопки справа (рюкзак, альбом, …)
- *   task: { info(), fn }              плашка задания: info() → { text, cls }, fn — по нажатию
  *   map: { icon, label, fn }          кнопка «Карта»
  *   home: { icon, label, fn }         главная кнопка по умолчанию — «Домой»
  *   sick: { fn }                      значок 🤒 «простыла» рядом с датой — по нажатию
  *   boost: { fn }                     значок 💆 «бодрость после спа» (От7) рядом с датой — по нажатию
- *   quest: { info(), fn }             плашка задания из журнала: info() → { text, short, cls } или null (не показывать)
+ *   quest: { info(), fn }             плашка активного квеста: info() → { text, short, cls, more, mail } или null
+ *                                     (не показывать); more — сколько ещё квестов (кружок «+3»), mail — среди них
+ *                                     непрочитанное письмо; fn — по нажатию на плашку или кружок
  *   date: { badge(), fn }             плашка даты: badge() → HTML значка праздника ('' — нет), fn — по нажатию
  */
 export function initHud(rootEl, config) {
@@ -78,18 +80,16 @@ export function buildHud() {
   chipMoney = el('div', 'chip money');
   if (dropAnchor) dropAnchor();
   dropAnchor = moneyAnchor(chipMoney);
-  chipTask = el('div', 'chip task');
-  chipTask.onclick = () => {
-    sfx('tap');
-    cfg.task.fn();
-  };
   chipQuest = el('div', 'chip quest');
   chipQuest.hidden = true;
-  chipQuest.onclick = () => {
+  chipMore = el('div', 'chip more');
+  chipMore.hidden = true;
+  chipMore.title = 'Другие дела — в журнале';
+  chipQuest.onclick = chipMore.onclick = () => {
     sfx('tap');
     if (cfg.quest) cfg.quest.fn();
   };
-  top.append(chipDate, chipSick, chipBoost, chipMoney, chipTask, chipQuest);
+  top.append(chipDate, chipSick, chipBoost, chipMoney, chipQuest, chipMore);
   const right = el('div', 'hud-btns');
   right.append(...cfg.right.map((b) => rbtn(b.icon, b.label, b.fn)));
   leftBox = el('div', 'hud-btns left');
@@ -106,15 +106,15 @@ export function updateHud() {
   chipSick.hidden = !G.state.sick;
   chipBoost.hidden = !spaBoostOn();
   chipMoney.innerHTML = `🪙 <b>${fmtMoney(G.state.money)}</b>`;
-  const t = cfg.task.info();
-  chipTask.textContent = t.text;
-  chipTask.className = 'chip task ' + t.cls;
   const q = cfg.quest && cfg.quest.info();
   chipQuest.hidden = !q;
+  chipMore.hidden = !q || !q.more;
   if (q) {
     const html = `<span class="long">${q.text}</span><span class="short">${q.short}</span>`;
     if (chipQuest.innerHTML !== html) chipQuest.innerHTML = html;
     chipQuest.className = 'chip quest ' + (q.cls || '');
+    const more = `${q.mail ? '✉️' : ''}+${q.more}`;
+    if (chipMore.textContent !== more) chipMore.textContent = more;
   }
   // левый столбик: кнопки сцены, карта, главная кнопка
   const sc = scene(),

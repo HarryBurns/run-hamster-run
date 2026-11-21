@@ -72,23 +72,8 @@ initHud(hud, {
     { icon: '📱', label: 'Гости', fn: F.openPhone },
     { icon: '⚙️', label: 'Меню', fn: F.openSettings },
   ],
-  // плашка письма: по нажатию — письмо, и звёздочка снова ведёт к заданию из письма (а не из журнала)
-  task: {
-    info: F.taskChip,
-    fn: () => {
-      F.trackQuest(null);
-      F.trackHoliday(false);
-      F.showLetter();
-    },
-  },
-  // плашка журнала: задание из журнала, а если его нет — ход праздника сегодня (П.13)
-  quest: {
-    info: () => {
-      const q = F.questChip();
-      return q || F.holidayChip(q);
-    },
-    fn: () => F.openAlbum('quests'),
-  },
+  // одна плашка — активный квест (к нему ведёт звёздочка) и счётчик остальных; по нажатию — журнал (features/goals.js)
+  quest: { info: F.goalChip, fn: () => F.openAlbum('quests') },
   // плашка даты: значок праздника сегодня и завтра; по нажатию — праздничный календарь (П.13)
   date: { badge: F.holidayBadge, fn: F.openHolidays },
   map: { icon: '🗺️', label: 'Карта', fn: F.openMap },

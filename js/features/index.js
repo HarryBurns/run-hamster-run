@@ -15,7 +15,9 @@ import * as shops from './shops.js';
 import * as market from './market.js';
 import * as bank from './bank.js';
 import * as places from './places.js';
+import * as goals from './goals.js';
 import * as map from './map.js';
+import * as journal from './journal.js';
 import * as panorama from './panorama.js';
 import * as minigames from './minigames.js';
 import * as cooking from './cooking.js';
@@ -69,10 +71,10 @@ export { openMap } from './map.js';
 export { showSickHelp } from './health.js';
 export { openPhone } from './friends.js';
 export { askGoHome } from './homes.js';
-export { taskChip, showLetter, newDayMail, initEvents } from './mail.js';
-export { trackQuest, questChip } from './quests.js';
+export { newDayMail, initEvents } from './mail.js';
+export { goalChip, debugGoal } from './goals.js';
 export { showBoostHelp } from './hotel.js';
-export { trackHoliday, holidayChip, holidayBadge, openHolidays } from './holidays.js';
+export { holidayBadge, openHolidays } from './holidays.js';
 export { playIntro } from './intro.js';
 export { openBackpack } from './backpack.js';
 export { openAlbum } from './album.js';
@@ -96,7 +98,9 @@ export const devAll = () =>
     market,
     bank,
     places,
+    goals,
     map,
+    journal,
     panorama,
     minigames,
     cooking,
