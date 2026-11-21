@@ -168,7 +168,7 @@ module.exports = async function holidaysWide(ctx) {
       expect(PARK(await at('balloons')), 'тележка с шариками — в парке', await at('balloons'));
       // звёздочка: клумбы посажены — ведёт к тележке в парке
       await ev(() => window.__dev.actions.setDayFlag('plant', [0, 1, 2], 'holiday'));
-      await ev(() => window.__dev.F.showHolidayOnMap());
+      await ev(() => window.__dev.F.leadTo('holiday'));
       await wait(400);
       await closeAll();
       const t = await ev(() => {

@@ -107,6 +107,7 @@ const tabsSteps = require('./smoke_tabs.js'); // вкладки окон: в н�
 const toastsSteps = require('./smoke_toasts.js'); // подсказки вверху: по длине текста, придержать мышью, убрать нажатием, не копятся
 const p20 = require('./smoke_p20.js'); // «Замечено в пачке 20 ноября»: аниматор в дождь, столик, телевизор, заставка, спиной, рамки ART
 const homSteps = require('./smoke_hom.js'); // решения заказчика 20 ноября: «хомяшка», белая майка, показ мод по шкафу, звёздочка к жителю в отеле
+const goalSteps = require('./smoke_goals.js'); // квесты и звёздочка: один активный квест, «⭐ Веди меня», «⭐ Покажи дорогу!», следующий по порядку, сторож
 const holidays = require('./smoke_holidays.js'); // П.13: праздники — Новый год, Рождество, Китайский Новый год, Масленица
 
 // Размер (этап 8): переменная SMOKE_SIZE=desktop|phone или аргумент size:desktop / size:phone — только этот размер
@@ -2350,16 +2351,15 @@ const runParallel = () => {
         if (!t.includes(who) || t.includes('Скоро открытие')) throw new Error(key + ': окно тайного места: ' + t);
         await closeAll();
       }
-      // задание «Базарный день» ведёт к рынку на площади. Окно ворот леса выше отметило «наткнулась на заросшую
-      // тропу» — звёздочка ведёт к Мяте (задание журнала важнее письма); нажатие на плашку письма возвращает её к письму
+      // задание «Базарный день» ведёт к рынку на площади: письмо — активный квест (окно ворот леса выше звёздочку
+      // не трогает)
       const tg = await ev(() => {
         const d = window.__dev,
           was = d.G.state.mail;
         d.actions.setMail('market');
         d.F.openMailbox();
         document.querySelectorAll('.overlay .xbtn').forEach((x) => x.click());
-        d.F.trackQuest(null); // как плашка письма в HUD (js/main.js, task.fn)
-        d.F.trackHoliday(false);
+        d.goal.set('mail');
         const t = d.World.target(),
           door = d.World.doorOf('market');
         return { t, door, was: !!was };
@@ -2951,6 +2951,7 @@ const runParallel = () => {
     await tabsSteps({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
     await p20({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
     await homSteps({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
+    await goalSteps({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
     await buildSteps({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
     await pwa({ page, step: (n, f, o) => step(n, f, { ...o, extra: true }), ev, wait, closeAll });
     await estate({ page, step: (n, f, o) => step(n, f, { ...o, extra: true, estate: true }), ev, wait, closeAll });

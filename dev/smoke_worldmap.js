@@ -96,9 +96,9 @@ module.exports = async function worldmap(ctx) {
       await ev(() => {
         const d = window.__dev;
         d.actions.takeQuest('lost_mitten');
-        d.F.trackQuest('lost_mitten');
+        d.goal.set('lost_mitten');
       });
-      expect((await ev(() => window.__dev.F.starScene())) === 'mountain', 'цель задания — не на горе');
+      expect((await ev(() => window.__dev.goal.place().scene)) === 'mountain', 'цель задания — не на горе');
       await leads('world', 'forest', 'forest', 'задание на горе');
       await leads('forest', 'station', 'mountain', 'задание на горе');
       await leads('caves', 'exit:mountain', 'mountain', 'задание на горе');
@@ -113,7 +113,7 @@ module.exports = async function worldmap(ctx) {
       await ev(() => {
         const d = window.__dev;
         d.actions.takeQuest('lost_notebook');
-        d.F.trackQuest('lost_notebook');
+        d.goal.set('lost_notebook');
         d.go('world');
       });
       const s = await state();
@@ -144,7 +144,7 @@ module.exports = async function worldmap(ctx) {
       await ev(() => {
         const d = window.__dev;
         d.actions.takeQuest('squirrel_kit');
-        d.F.trackQuest('squirrel_kit');
+        d.goal.set('squirrel_kit');
       });
       r = await starIn('world');
       expect(!r.tg || !r.tg.next, 'звёздочка ведёт в закрытый лес', r);
@@ -160,21 +160,20 @@ module.exports = async function worldmap(ctx) {
       await ev(() => {
         const d = window.__dev;
         d.holiday.to('newyear');
-        d.F.trackQuest(null);
-        d.F.trackHoliday(true);
+        d.goal.set('holiday');
       });
       await closeAll();
-      expect((await ev(() => window.__dev.F.starScene())) === 'world', 'цель праздника — не в городе');
+      expect((await ev(() => window.__dev.goal.place().scene)) === 'world', 'цель праздника — не в городе');
       await leads('forest', 'exit:town', 'world', 'праздник');
       await leads('caves', 'exit:mountain', 'mountain', 'праздник');
       await leads('jungle', 'dock', 'world', 'праздник');
       const r = await starIn('world');
       expect(r.tg && !r.tg.to, 'в городе звёздочка праздника не у цели', r);
-      // «Показать на карте» из леса: подсказка с дорогой, окно карты с отметкой ⭐ у города
+      // «⭐ Веди меня» из леса: подсказка с дорогой, окно карты с отметкой ⭐ у города
       await ev(() => window.__dev.go('forest'));
       await closeAll();
       await clearToasts();
-      await ev(() => window.__dev.F.showHolidayOnMap());
+      await ev(() => window.__dev.F.leadTo('holiday'));
       await untilPanel();
       expect(
         /Праздник — в городе.*по тропе в город/.test(await toasts()),
@@ -199,12 +198,11 @@ module.exports = async function worldmap(ctx) {
       // задание на горе — на карте леса ⭐ у горы; кнопка ведёт к станции канатной дороги
       await ev(() => {
         const d = window.__dev;
-        d.F.trackHoliday(false);
         d.actions.takeQuest('lost_mitten');
         d.locations.forest.debugTeleport(10, 36);
       });
       await clearToasts();
-      await ev(() => window.__dev.F.showQuestOnMap('lost_mitten'));
+      await ev(() => window.__dev.F.leadTo('quest:lost_mitten'));
       await untilPanel();
       expect(/в горах.*по канатной дороге/.test(await toasts()), 'нет подсказки с дорогой на гору', await toasts());
       row = await ev(() =>

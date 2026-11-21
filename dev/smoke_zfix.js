@@ -109,7 +109,7 @@ module.exports = async function zfix(ctx) {
         w.q.steps.forEach((st, i) => {
           if (!st.talk && i < w.q.steps.length - 1) a.questCount(qid, i);
         });
-        d.F.trackQuest(qid);
+        d.goal.set(qid);
         return d.QuestState.questNow(qid).i;
       },
       [qid, min, set || ''],

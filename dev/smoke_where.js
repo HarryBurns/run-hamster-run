@@ -203,7 +203,7 @@ module.exports = async function where(ctx) {
       expect(await hostInside('barkhan'), 'Бархан исчез из шатра посреди визита');
       expect(await onStreet('desert', 'barkhan'), 'вышла из шатра в 9:30 — Бархана нет на улице');
       // звёздочка задания Бархана вечером ведёт к двери шатра, днём — к нему самому
-      await ev(() => window.__dev.F.trackQuest('camel_bell'));
+      await ev(() => window.__dev.goal.set('camel_bell'));
       await mutate('s.minutes = 20 * 60;');
       await go('desert');
       await frames(3);

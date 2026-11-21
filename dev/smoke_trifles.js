@@ -8,20 +8,20 @@ module.exports = async function trifles(ctx) {
   const L = lib(ctx);
   const { step, ev, wait, closeAll, norm, expect, untilPanel, frames } = L;
   const ALL = ['forest', 'mountain', 'caves', 'desert', 'jungle', 'cove', 'island'];
-  /** Полдень тёплого дня, места открыты, компас в рюкзаке. */
-  const setup = () =>
+  /** Полдень тёплого дня, места ids открыты (по умолчанию все), компас в рюкзаке. */
+  const setup = (open = ALL) =>
     ev((ids) => {
       const d = window.__dev;
       for (const id of ids) if (!d.QuestState.landOpen(id)) d.actions.openLand(id);
       d.actions.mutate((s) => {
-        s.day = 18;
+        s.day = 16; // не праздник: квестов нет, пока шаг не возьмёт задание
         s.minutes = 12 * 60;
         s.weather = 'sun';
         s.dayFlags = {};
-        if (s.mail) s.mail.read = s.mail.done = true; // письмо дня сделано — звёздочка ему не нужна
+        if (s.mail) s.mail.read = s.mail.done = true; // письмо дня сделано: квестов нет, пока шаг не возьмёт задание
       });
-      d.actions.addItem('finds', 'compass', 1);
-    }, ALL);
+      if (!d.state.finds.compass) d.actions.addItem('finds', 'compass', 1);
+    }, open);
   /** Нажать на компас в рюкзаке: что сказал компас, и куда должна смотреть стрелка (сторона света от хомячка к звёздочке). */
   const compass = async () => {
     await closeAll();
@@ -63,14 +63,16 @@ module.exports = async function trifles(ctx) {
     'мелочи: компас в рюкзаке — к цели задания, к дороге в другое место, на кораблике — на юг, без цели — на север',
     async () => {
       await L.fresh();
-      await setup();
+      await setup([]); // тайные места закрыты: ни у кого из жителей нет «!», письмо сделано — квестов нет
       await L.go('world');
-      // заданий нет — компас смотрит на север
+      // квестов нет — компас смотрит на север
       let r = await compass();
-      expect(/смотрит на север/.test(r.text), 'без задания — не «на север»', r);
-      // задание на горе: из города — к тропе в лес («сначала»), сторона — та, где звёздочка
+      expect(/смотрит на север/.test(r.text), 'без задания — не «на север»', [r, await ev(() => window.__dev.goal.list())]);
+      // задание на горе — активный квест: из города — к тропе в лес («сначала»), сторона — та, где звёздочка
+      await setup();
       await ev(() => {
         window.__dev.actions.takeQuest('lost_mitten');
+        window.__dev.goal.set('lost_mitten');
       });
       r = await compass();
       expect(
@@ -81,7 +83,7 @@ module.exports = async function trifles(ctx) {
         'задание на горе из города',
         r,
       );
-      expect((await ev(() => window.__dev.F.starScene())) === 'mountain', 'компас не показал задание звёздочкой');
+      expect((await ev(() => window.__dev.goal.place().scene)) === 'mountain', 'компас не показал задание звёздочкой');
       // на горе: к самой варежке; хомячок к западу от неё — «на востоке», к востоку — «на западе»
       await L.go('mountain');
       const at = await ev(() => {
@@ -109,7 +111,7 @@ module.exports = async function trifles(ctx) {
       expect(ok, 'на горе не нашлось клетки западнее варежки', at);
       // на кораблике без задания — на юг, к острову
       await L.fresh();
-      await setup();
+      await setup([]);
       await L.go('world');
       await ev(() => {
         const d = window.__dev;

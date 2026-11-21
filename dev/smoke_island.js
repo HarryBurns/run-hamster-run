@@ -123,7 +123,7 @@ module.exports = async function island(ctx) {
       await closeAll();
       expect((await where()).scene === 'world', 'закрытая отметка увезла на остров');
       // звёздочка задания (пока его можно взять) — к двери Хомяк-Тауэра
-      await ev(() => window.__dev.F.trackQuest('far_island'));
+      await ev(() => window.__dev.goal.set('far_island'));
       const door = await ev(() => window.__dev.World.doorOf('tower'));
       let tg = await ev(() => window.__dev.World.target());
       expect(tg && Math.abs(tg.x - door.x) < 60 && Math.abs(tg.y - door.y) < 80, 'звёздочка не ведёт к башне', [

@@ -146,7 +146,7 @@ module.exports = async function hom(ctx) {
           s.quests.summit = { day, n: { 0: 1 }, got: {}, done: null };
         });
         if (St.hotelPoolGuests().includes('senya')) {
-          Q.trackQuest('summit');
+          d.goal.set('summit');
           const w = St.questNow('summit');
           return { day, at: St.npcPlace('senya').at, i: w.i, where: w.q.steps[w.i].where };
         }
@@ -191,7 +191,7 @@ module.exports = async function hom(ctx) {
       if (St.hotelRoomGuest() !== 'prof') return null;
       d.G.talkPin = { id: 'prof', place: St.npcPlace('prof'), day: s.day, until: s.minutes + 30 };
       d.actions.mutate((q) => (q.quests.cave_light = { day: q.day, n: { 0: 1, 1: 1 }, got: {}, done: null }));
-      Q.trackQuest('cave_light');
+      d.goal.set('cave_light');
       const sc = d.scene;
       return { at: St.npcPlace('prof').at, p: Q.sideStar(sc), door: H.HX.doors[2], floor: sc.geo.fy(1) };
     });

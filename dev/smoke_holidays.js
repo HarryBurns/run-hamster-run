@@ -39,9 +39,7 @@ module.exports = async function holidays(ctx) {
   /** Действие из реестра; ждём отклика (окно, диалог, сцена, подсказка), но не дольше ms. */
   const run = (a, ms = 450) => L.run(a, ms);
   /** Новая игра (1 июня, без вводной цепочки), 20 000 монет. */
-  // door:forest — хомячок была у заросшей тропы в лес: без неё задание Мяты (гербарий) не появляется;
-  // doorHint — подсказка «поговори с Мятой» уже была (без лишнего сообщения посреди шагов)
-  const fresh = () => L.fresh({ money: 20000, flags: { questsEarly: 0, 'door:forest': 1, 'doorHint:herbarium': 1 } });
+  const fresh = () => L.fresh({ money: 20000, flags: { questsEarly: 0 } });
   /** Перейти к празднику (when: eve | day | after; год), в город. */
   const toHoliday = async (id, when = 'day', year = 1, minutes = 600) => {
     await closeAll();
@@ -202,13 +200,13 @@ module.exports = async function holidays(ctx) {
       await ev(() => window.__dev.emit('hud'));
       chip = await ev(() => document.querySelector('.chip.date').innerHTML);
       expect(/hol-badge"/.test(chip) && chip.includes('🎄 0/2'), 'значок и ход праздника на дате', chip);
-      // плашка журнала: есть «!» у Мяты — она про Мяту; заданий нет — про праздник
-      let q = norm(await ev(() => document.querySelector('.chip.quest').textContent));
-      expect(q.includes('Мята'), 'плашка журнала при задании', q);
-      await mutate('s.quests.herbarium = { day: 0, n: {}, got: {}, done: 1 };');
-      await ev(() => window.__dev.emit('hud'));
-      q = norm(await ev(() => document.querySelector('.chip.quest').textContent));
-      expect(q.includes('Новый год') && q.includes('0/2'), 'плашка праздника, когда заданий нет', q);
+      // праздник — квест в общем списке: раньше письма дня; звёздочка сама к нему не уходит — её ведёт игрок
+      const order = await ev(() => window.__dev.goal.list());
+      expect(order.join() === 'holiday,mail', 'порядок квестов в праздник', order);
+      expect((await ev(() => window.__dev.goal.now())) === 'mail', 'праздник забрал звёздочку у письма сам');
+      await ev(() => window.__dev.goal.set('holiday'));
+      const q = norm(await ev(() => document.querySelector('.chip.quest').textContent));
+      expect(q.includes('Новый год') && q.includes('0/2'), 'плашка праздника — активного квеста', q);
       await tap('.chip.date', 400);
       const cal = await panelText();
       expect(
