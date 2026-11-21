@@ -32,8 +32,7 @@ export const G = {
   view: { w: 0, h: 0, dpr: 1 }, // размер экрана в CSS-пикселях и сколько пикселей канвы в одном CSS-пикселе
   photo: false, // открыт фото-режим (features/photo.js): подсказки на канве (стрелка к цели у края, звёздочка) не рисуем
   sneezeAt: null, // когда простуженная хомячок последний раз чихнула (по G.time; features/health.js)
-  hostVisit: null, // у кого из жителей хомячок сейчас в гостях (в его доме): пока она там, он дома (npcPlace, features/visits.js)
-  talkPin: null, // с кем хомячок говорит (или только что говорила): он остаётся, где был (pinnedPlace, features/friends.js)
+  npcHold: {}, // удержания жителей (core/npc.js: holdNpc): договаривает с хомячком, она у него дома, сидит рядом, идёт к выходу
   still: false, // часы игры стоят: давно ничего не нажимали (features/pause.js) — мир идёт, игровое время нет
 };
 bindGender(() => (G.state ? G.state.gender : 'f')); // род героя в текстах — core/gender.js

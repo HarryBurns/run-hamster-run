@@ -28,6 +28,7 @@ import town, { sea, BUILDINGS } from './locations/town.js';
 import * as topdown from './engine/topdown/index.js';
 import { pixStats } from './core/pixcache.js';
 import { weatherNow, weatherAt, forecast } from './core/queries.js';
+import * as npc from './core/npc.js';
 import { devGames, devToasts } from './core/dev.js';
 import { PLANTS, hasFruit, plantInSeason, gather } from './locations/common/plants.js';
 import * as Tower from './interiors/tower.js';
@@ -261,6 +262,36 @@ export function installDevHooks({ F }) {
     /** Поставить хомячка на вилле: этаж и x. */
     villaAt: (floor, x) => loop.go('villa', { pos: { scene: 'villa', floor, x } }),
     openPiano: () => registry.run('piano'),
+    /**
+     * Движок поведения жителей (core/npc.js, data/schedule.js): npc.now('plusha') — где житель сейчас (Place),
+     * npc.plan(id) — по расписанию без удержаний, npc.in('hotel') — кто в сцене, npc.table(id) — его день строками,
+     * npc.put(id, вид, { until }) — отладочное удержание: поставить жителя в место вида 'home' | 'post' | 'pool' |
+     * 'room' | 'door' (вместо перебора дней в автотесте), npc.free(id) — снять его.
+     */
+    npc: {
+      now: npc.npcNow,
+      plan: npc.npcPlan,
+      due: npc.npcDue,
+      held: npc.npcHeld,
+      in: npc.npcsIn,
+      hold: npc.holdNpc,
+      release: npc.releaseNpc,
+      put(id, kind, o = {}) {
+        npc.releaseNpc(id, 'put');
+        npc.holdNpc(id, 'put', { until: o.until, place: npc.npcPlaceAs(id, kind, { rule: 'put', ...o }) });
+        return npc.npcNow(id);
+      },
+      free: (id) => npc.releaseNpc(id, 'put'),
+      table(id) {
+        const hhmm = (m) => `${Math.floor(m / 60)}:${String(m % 60).padStart(2, '0')}`;
+        return npc
+          .npcToday(id, 450)
+          .map(
+            (q) =>
+              `${hhmm(q.from)}–${hhmm(q.to)} ${q.place.scene} · ${q.place.spot} · ${q.place.act} (${q.place.rule})`,
+          );
+      },
+    },
     /**
      * Праздники (П.13): перескочить к празднику и посмотреть, что с ним.
      *   holiday.to('newyear')               — утро самого праздника (год 1; отметки дня чистые, погода — снег зимой,

@@ -27,7 +27,8 @@ import {
   ownedHomes,
   invitedToday,
   npcWhere,
-  npcPlace,
+  holdNpc,
+  releaseHolds,
   npcLookNow,
   villaStage,
   villaWords,
@@ -384,23 +385,24 @@ export function openPhone() {
   });
 }
 
-/** Сколько игровых минут после разговора житель ещё остаётся, где был (чтобы не пропал на глазах — pinnedPlace). */
+/** Сколько игровых минут после разговора житель ещё остаётся, где был (чтобы не пропал на глазах). */
 const TALK_HOLD = 30;
-/** Разговор с жителем: пока он идёт и TALK_HOLD минут после, житель остаётся там, где был (core/queries.js). */
-async function talkHeld(id) {
-  const s = S();
-  G.talkPin = { id, place: npcPlace(id), day: s.day, until: Infinity };
+/**
+ * Разговор с жителем: пока он идёт и TALK_HOLD минут после, житель остаётся там, где был (удержание 'talk' —
+ * core/npc.js). Иначе место менялось прямо в разговоре: позвал к себе — и ушёл домой; сдала задание — и он пропал.
+ */
+export async function talkHeld(id, talk) {
+  holdNpc(id, 'talk');
   try {
-    await npcDialog(id);
+    await talk();
   } finally {
-    const p = G.talkPin;
-    if (p && p.id === id) G.talkPin = { ...p, until: S().minutes + TALK_HOLD };
+    holdNpc(id, 'talk', { until: S().minutes + TALK_HOLD });
   }
 }
-// ушла в другое место — держать жителя на месте незачем
-on('scene', () => (G.talkPin = null));
+// ушла в другое место — держать жителей на месте незачем
+on('scene', releaseHolds);
 
-register('npc', (p) => talkHeld(p.arg), 'поговорить с жителем в городе: npc:<житель>');
+register('npc', (p) => talkHeld(p.arg, () => npcDialog(p.arg)), 'поговорить с жителем в городе: npc:<житель>');
 
 register('guest', (p) => guestDialog(p.arg), 'поговорить с гостем дома: guest:<житель>');
 

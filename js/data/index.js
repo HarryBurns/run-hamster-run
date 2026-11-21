@@ -27,6 +27,7 @@ export * from './goals.js';
 export * from './tales.js';
 export * from './hotel.js';
 export * from './holidays.js';
+export * from './schedule.js';
 export * from './credits.js';
 export * from './relax.js';
 export * from './buddy.js';

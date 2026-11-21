@@ -13,7 +13,17 @@ import { makeCanvas } from '../core/draw.js';
 import { emit, on } from '../core/events.js';
 import { go } from '../core/loop.js';
 import { register, run } from '../core/registry.js';
-import { G, darkness, npcPlace, npcWhere, playerLook, guestsWaiting } from '../core/state.js';
+import {
+  G,
+  darkness,
+  npcPlace,
+  npcWhere,
+  npcAtHome,
+  holdNpc,
+  npcPlaceAs,
+  playerLook,
+  guestsWaiting,
+} from '../core/state.js';
 import { el, esc, pick } from '../core/util.js';
 import { DISH_BY_ID, NPCS, NPC_BY_ID, NPC_HOME, VISIT, npcLook } from '../data/index.js';
 import { npcHomeScene, HOUSE_BY_ID } from '../interiors/houses.js';
@@ -97,11 +107,12 @@ export async function visitHome(id, ctx = {}) {
 }
 
 // Хомячок в доме жителя (город или тайное место): пока она там, хозяин дома — не уходит гулять, в отель или спать
-// посреди разговора (G.hostVisit — npcPlace в core/queries.js). Только если он был дома, когда она вошла.
+// посреди разговора (удержание 'host' — core/npc.js). Только если он был дома (или встречал у двери), когда она вошла.
+// Подписка стоит после «ушла в другое место — удержания сняты» (features/friends.js загружается раньше).
 on('scene', ({ name }) => {
   const owner = (HOUSE_BY_ID[name] || {}).owner || null;
-  G.hostVisit = null;
-  if (owner && ['home', 'door'].includes((npcPlace(owner) || {}).at)) G.hostVisit = owner;
+  if (owner && npcAtHome(owner))
+    holdNpc(owner, 'host', { place: npcPlaceAs(owner, 'home', { rule: 'host', act: 'host' }) });
 });
 
 register(

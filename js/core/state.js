@@ -4,9 +4,11 @@
 //   core/repair.js    миграции MIGRATIONS и починка repair — чистые функции над объектом сохранения
 //   core/calendar.js  календарь: cal, season, darkness
 //   core/queries.js   чтение состояния: внешность, болезнь, жильё и гости, отель, задания
+//   core/npc.js       где житель сейчас: npcPlan / npcNow, удержания (движок поведения жителей)
 // Здесь состояние только создаётся, читается и сохраняется. МЕНЯТЬ его во время игры можно только через
 // функции из core/actions.js — так все деньги, предметы и наклейки проходят через одно место.
 export * from './save.js';
 export * from './repair.js';
 export * from './calendar.js';
 export * from './queries.js';
+export * from './npc.js';

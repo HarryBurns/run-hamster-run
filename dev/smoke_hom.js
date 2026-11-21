@@ -172,7 +172,7 @@ module.exports = async function hom(ctx) {
       return { p: Q.sideStar(sc), x: a && a.x, f: a && a.f, top: a && sc.geo.fy(a.f) };
     });
     expect(roof.p && roof.p.x === roof.x && roof.f === 2 && roof.p.y < roof.top - 150, 'в отеле звёздочка не над Сеней', roof);
-    // житель в номере 203 (с ним только что говорили — он остаётся там, G.talkPin): звёздочка — над дверью 203
+    // житель в номере 203 (с ним только что говорили — он остаётся там — удержание 'talk'): звёздочка — над дверью 203
     const door = await ev(async () => {
       const D = await import('/js/data/index.js'),
         St = await import('/js/core/state.js'),
@@ -189,7 +189,7 @@ module.exports = async function hom(ctx) {
         if (St.hotelRoomGuest() === 'prof') break;
       }
       if (St.hotelRoomGuest() !== 'prof') return null;
-      d.G.talkPin = { id: 'prof', place: St.npcPlace('prof'), day: s.day, until: s.minutes + 30 };
+      St.holdNpc('prof', 'talk', { until: s.minutes + 30 });
       d.actions.mutate((q) => (q.quests.cave_light = { day: q.day, n: { 0: 1, 1: 1 }, got: {}, done: null }));
       d.goal.set('cave_light');
       const sc = d.scene;

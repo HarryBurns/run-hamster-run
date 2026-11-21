@@ -6,9 +6,6 @@ import {
   CLOTHES_BY_ID,
   TASK_BY_ID,
   guestHosts,
-  poolGuestsOn,
-  roomGuestOn,
-  VISIT,
   HEALTH,
   FIND_BY_ID,
   QUESTS,
@@ -19,23 +16,16 @@ import {
   holidayOn,
   npcLook,
   HOME_BY_ID,
-  HOME_SCENE,
   VILLA_UPS,
   VILLA_UP_BY_ID,
   VILLA_WORDS,
   PLACES,
   bedsOf,
-  NPC_HOME,
   JUNGLE,
   BAD_FORCE,
   weatherOfDay,
   placeWeather,
   RAIN_GEAR,
-  NPC_BY_ID,
-  LAND_HOME,
-  LAND_VISIT,
-  gatherOn,
-  dayRoll,
 } from '../data/index.js';
 
 // ---------- внешность игрока ----------
@@ -167,112 +157,6 @@ export function weatherAt(place) {
 export const forecast = (day = G.state.day) => weatherOfDay(day, G.state.startDay || 0);
 
 /**
- * ОДНО ПРАВИЛО «ГДЕ ЖИТЕЛЬ СЕЙЧАС» — для жителей города и хозяев тайных мест (у каждого в каждый момент одно место).
- * Его слушаются все, кто показывает жителя: улица и места (engine/topdown/actors.js — кого не видно, кто идёт домой),
- * его дом изнутри (жилец с when: npcAtHome — interiors/home_*.js и дома тайных мест), гости у хомячка (state.guests),
- * отель (hotelPoolGuests, hotelRoomGuest), праздничные сборища (locations/holidays_crowd.js), скамейка рядом
- * (features/relax.js — только тех, кого видно), дверь домика (features/visits.js), звёздочка и журнал (features/quests.js).
- * { at, scene, where, home, house, fest }:
- *   at    — 'guest' (в гостях у хомячка — в доме state.guestsAt), 'pool' (у бассейна отеля), 'room' (в номере 203),
- *           'fest' (на празднике в городе — HOLIDAY_GATHER), 'door' (праздник: стоит у своей двери и встречает гостей —
- *           дверь открыта, зайдёшь — он с тобой), 'home' (у себя дома, рад гостям), 'asleep' (дома и спит — жители
- *           города с VISIT.sleep), 'out' (на улице: днём у своего места, у хозяина тайного места — у своего дела);
- *   scene — локация, где его искать (имя сцены: город, место, где стоит дом, где он в гостях, — лесной домик в лесу);
- *   where — точка для sc.whereIs в этой локации: здание дома, где он в гостях (вилла, квартира, бунгало…), отель или
- *           сам житель 'npc:<id>' (на улице — где он сейчас идёт; дома — у двери его дома);
- *   home  — id своего дома хомячка, где он в гостях (HOME_BY_ID), иначе null;
- *   house — сцена его собственного дома (home_<id> или дом тайного места — LAND_HOME);
- *   fest  — где празднуют (слова из HOLIDAY_GATHER: «хоровод у ёлки»), когда at 'fest' / 'door'.
- * Порядок у жителя города: в гостях у хомячка → хомячок сейчас у него дома (хозяин гостью не бросит: G.hostVisit —
- * features/visits.js) → поздно, спит → позвал к себе (дома весь день) → отель → праздник (и под дождём) → плохая
- * погода (ливень, гроза, метель — badWeather: дома) → часы VISIT (утром и вечером дома, днём на улице). У хозяина тайного места: хомячок у него → часы LAND_HOME / LAND_VISIT (data/visits.js).
- * null — житель без дома и расписания (Камушкин, Жемчужинка, работники отеля и башни): всегда на своём месте.
- */
-export function npcPlace(id) {
-  const s = G.state;
-  if (!s) return null;
-  const pin = G.talkPin,
-    key = `${stateStamp()}|${Math.floor(s.minutes)}|${G.hostVisit}|${s.weather}${s.wxStrong}|${pin ? pin.id + pin.until : ''}`;
-  if (placeState !== s || placeKey !== key) {
-    placeState = s;
-    placeKey = key;
-    placeCache = {};
-  }
-  if (!(id in placeCache)) placeCache[id] = NPC_HOME[id] ? townPlace(id) : LAND_HOME[id] ? landPlace(id) : null;
-  return placeCache[id];
-}
-let placeState = null,
-  placeKey = '',
-  placeCache = {};
-/**
- * ЖИТЕЛЬ НЕ ПРОПАДАЕТ ПОСРЕДИ РАЗГОВОРА. Пока хомячок говорит с жителем (действие npc:<id> — features/friends.js,
- * talkHold) и ещё немного после, его место — то, где он был, когда разговор начался: G.talkPin = { id, place, day,
- * until } (until — минута игры, до которой держится; Infinity — разговор идёт). Иначе место менялось прямо
- * в разговоре: взял задание — над ним «?», а с «?» к бассейну отеля не ходят — и он пропадал от бассейна; сдал
- * задание — и уходил из парка в отель; позвал к себе — и уходил домой. Хомячок ушла в другое место — держать
- * незачем (talkPin снимается при смене сцены). Гости у хомячка и «хомячок у него дома» — важнее.
- */
-export function pinnedPlace(id) {
-  const p = G.talkPin,
-    s = G.state;
-  if (!p || p.id !== id || !s || p.day !== s.day || s.minutes >= p.until) return null;
-  return p.place;
-}
-function townPlace(id) {
-  const s = G.state,
-    m = s.minutes,
-    house = 'home_' + id,
-    out = (at, fest = null) => ({ at, scene: HOME_SCENE, where: 'npc:' + id, home: null, house, fest });
-  if (s.guests.includes(id)) {
-    const h = HOME_BY_ID[s.guestsAt] || HOME_BY_ID.villa;
-    return { at: 'guest', scene: h.loc || HOME_SCENE, where: h.building, home: h.id, house, fest: null };
-  }
-  if (G.hostVisit === id) return out('home');
-  const pin = pinnedPlace(id);
-  if (pin) return pin;
-  if (m >= VISIT.sleep) return out('asleep');
-  if (invitedToday(id)) return out('home');
-  if (hotelPoolGuests().includes(id)) return { ...out('pool'), where: 'hotel' };
-  if (hotelRoomGuest() === id) return { ...out('room'), where: 'hotel' };
-  const hol = holidayOn(s.day, s.startDay || 0),
-    g = hol && gatherOn(hol.id, m);
-  if (g) return out(g.kind === 'doors' ? 'door' : 'fest', g.where);
-  // плохая погода (ливень, гроза, метель) — жители сидят по домам; в лёгкую планы не меняются
-  if (badWeather()) return out('home');
-  return out(m < VISIT.morningEnd || m >= VISIT.eveningStart ? 'home' : 'out');
-}
-function landPlace(id) {
-  const s = G.state,
-    m = s.minutes,
-    L = LAND_HOME[id],
-    lunch = LAND_VISIT.lunch;
-  const pin = G.hostVisit !== id && pinnedPlace(id);
-  if (pin) return pin;
-  const home =
-    G.hostVisit === id ||
-    m < LAND_VISIT.morningEnd ||
-    m >= L.evening * 60 ||
-    (m >= lunch.from && m < lunch.to && dayRoll(s.day, 'lunch:' + id) < lunch.p);
-  return { at: home ? 'home' : 'out', scene: NPC_BY_ID[id].land, where: 'npc:' + id, home: null, house: L.house };
-}
-/** Где житель — то же, что npcPlace (так звали его раньше: звёздочка заданий, журнал). */
-export const npcSpot = npcPlace;
-/** Дома ли житель и рад гостям (его видно в его доме изнутри): 'home' или праздничное «у своей двери». */
-export function npcAtHome(id) {
-  const p = npcPlace(id);
-  return !!p && (p.at === 'home' || p.at === 'door');
-}
-/**
- * Коротко для двери домика и разговоров: 'guest' — в гостях у героини, 'asleep' — спит, 'home' — дома и рад гостям
- * (и праздничное «у своей двери»), 'out' — не дома (на улице, в отеле, на празднике). Подробно — npcPlace.
- */
-export function npcWhere(id) {
-  const p = npcPlace(id),
-    at = p ? p.at : 'out';
-  return at === 'door' ? 'home' : at === 'guest' || at === 'asleep' || at === 'home' ? at : 'out';
-}
-
-/**
  * В чей праздничный наряд жители города одеты сегодня (этап 15, Пр4): id праздника или null. Наряды — HOLIDAY_DRESS
  * (data/holidays.js), только в сам праздник; внешность — npcLook(id, npcDress()).
  */
@@ -294,14 +178,6 @@ export function npcRain(id) {
 export const npcLookNow = (id) => npcLook(id, npcDress());
 
 /**
- * Кто из жителей сейчас отдыхает у бассейна курортного отеля (П.17) — id или null. Расписание — poolGuestOn
- * (data/hotel.js); кого ждут в гостях, кто сам позвал к себе или у кого есть дело по журналу заданий («!» / «?»), —
- * тот остаётся в городе. Пока житель у бассейна, в городе его не видно (locations/town.js, поле away).
- */
-export function hotelPoolGuest() {
-  return hotelPoolGuests()[0] || null;
-}
-/**
  * Бодрость после спа (От7): день спа — в flags.spaBoost; действует в этот день и весь следующий, пока не потрачена на
  * смену работы (+HOTEL.spaBoost к оплате). Без штрафов: бодрость только добавляет.
  */
@@ -310,62 +186,11 @@ export function spaBoostOn() {
     d = s && s.flags.spaBoost;
   return typeof d === 'number' && s.day >= d && s.day - d <= 1;
 }
-/** Все жители, что сейчас отдыхают у бассейна отеля (От4: несколько, в разное время) — с теми же оговорками. */
 /**
  * Мокро ли на открытой террасе отеля (на крыше): любой дождь, а также ливень, гроза, метель. Тогда у бассейна
  * никого, а аниматор Хлопушка проводит зарядку и дискотеку в холле (interiors/hotel.js).
  */
 export const hotelRoofWet = () => !!G.state && (badWeather() || weatherNow().kind === 'rain');
-
-export function hotelPoolGuests() {
-  const s = G.state;
-  if (!s) return [];
-  // бассейн на открытой террасе на крыше: в любой дождь (и в ливень, грозу, метель) у него никого — гуляют в городе
-  if (hotelRoofWet()) return [];
-  const list = poolGuestsOn(s.day, s.minutes).filter((id) => {
-    const pin = !s.guests.includes(id) && pinnedPlace(id); // с ним говорят — остаётся, где был (и с «?» тоже)
-    if (pin) return pin.at === 'pool';
-    return !(
-      s.guests.includes(id) ||
-      G.hostVisit === id ||
-      invitedToday(id) ||
-      guestsWaiting().includes(id) ||
-      questBadge(id)
-    );
-  });
-  // говорили у бассейна, а смена у бассейна тем временем кончилась — договорит и уйдёт потом
-  const tp = talking('pool');
-  if (tp && !list.includes(tp)) list.push(tp);
-  return list;
-}
-/** С кем сейчас говорят (или только что говорили) там, где at ('pool', 'room'), — id или null. */
-function talking(at) {
-  const p = G.talkPin,
-    s = G.state;
-  if (!p || s.guests.includes(p.id)) return null;
-  const pl = pinnedPlace(p.id);
-  return pl && pl.at === at ? p.id : null;
-}
-
-/** Кто из жителей сейчас гостит в номере 203 отеля (От1) — с теми же оговорками, что и у бассейна. */
-export function hotelRoomGuest() {
-  const s = G.state;
-  if (!s) return null;
-  const tp = talking('room');
-  if (tp) return tp; // с ним говорят в номере — он там, пока не договорят
-  const id = roomGuestOn(s.day, s.minutes);
-  if (id && pinnedPlace(id)) return null; // говорит с хомячком в другом месте
-  if (
-    !id ||
-    s.guests.includes(id) ||
-    G.hostVisit === id ||
-    invitedToday(id) ||
-    guestsWaiting().includes(id) ||
-    questBadge(id)
-  )
-    return null;
-  return id;
-}
 
 // ---------- «Вилла растёт» (data/estate.js; только чтение) ----------
 /** Ступень дома: 0 — маленький домик, 1 — с пристройкой, 2 — два этажа, 3 — три, 4 — с мансардой и террасой. */
