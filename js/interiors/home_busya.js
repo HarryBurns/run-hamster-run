@@ -1,6 +1,5 @@
 // Дом Буси: будуар с туалетным столиком и целая гардеробная — шкафы, вешалка с нарядами, манекен, зеркала.
 // Дом жителя: мебель из описания, хозяйка внутри; вход — 'home-of:busya'.
-import { npcAtHome } from '../core/state.js'; // дома ли хозяин сейчас (одно правило «где житель» — core/queries.js)
 export default {
   id: 'home_busya',
   name: 'Домик Буси',
@@ -41,5 +40,5 @@ export default {
       ['beanbag', 0, 1365],
     ],
   },
-  actors: [{ npc: 'busya', f: 0, x: 520, roam: [200, 1320], act: 'host:busya', when: () => npcAtHome('busya') }],
+  actors: [{ npc: 'busya', f: 0, x: 520, roam: [200, 1320], act: 'host:busya' }],
 };

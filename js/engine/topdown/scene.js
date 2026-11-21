@@ -22,7 +22,7 @@
 //                   key: false      с клавиши E не срабатывает;  shy: 0.6 — с клавиши только если совсем рядом;
 //                   reach: 1.5      с клавиши срабатывает всегда, если ближе стольких клеток
 //   spots         просто точки с именем: { beach: { at: [x, y], mark: [x, y], label: '🏖️ Пляж' } }
-//   actors        жители: [{ npc, at, home, act, always }] — см. actors.js
+//   actors        жители: [{ npc, at, home, act }] — см. actors.js
 //   entries       ТОЧКИ ВХОДА: { имя: { at: [x, y] } | { building: id }, from: 'сцена' } — from: кто пришёл из
 //                 этой сцены без точного места, появляется здесь;  start — имя входа «по умолчанию»
 //   exits         ВЫХОДЫ: [{ id, area: [x0, y0, x1, y1], to: 'сцена', entry: 'имя входа', off, when() }] —
@@ -115,7 +115,16 @@ import { toast } from '../../ui/toast.js';
 import { SICK_TEXT, routeTo, landOf } from '../../data/index.js';
 import { T, SP, TILES, OBJECTS, BUILDING_KINDS, tileOf } from './kinds.js';
 import { createMap, mapSize } from './map.js';
-import { moveAlong, faceTo, canStand, makeResidents, settleResidents, updateResidents, hitResident } from './actors.js';
+import {
+  moveAlong,
+  faceTo,
+  canStand,
+  makeResidents,
+  settleResidents,
+  updateResidents,
+  hitResident,
+  residentOn,
+} from './actors.js';
 import { drawFrame, drawMiniMapBase, drawMiniMapPlayer, initWeather, updateWeather, hideSky } from './render.js';
 import { groundStats, layersUnder } from './ground.js';
 
@@ -603,7 +612,7 @@ export function createTopDownScene(desc) {
           }
         }
       for (const n of sc.npcs) {
-        if (n.hidden) continue;
+        if (!residentOn(n)) continue;
         const d = dist(p.x, p.y, n.x, n.y);
         if (d < bd) {
           bd = d;

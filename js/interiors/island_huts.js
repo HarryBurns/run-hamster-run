@@ -5,7 +5,6 @@
 //    фонарик из кокоса.
 //  - Домики Бума и Лагуны (на сваях): хозяева гуляют (Бум стучит в барабан у костра, Лагуна плетёт гирлянды у пляжа) —
 //    на столе записка, где их найти; барабаны Бума и ракушки, корзинки и цветы Лагуны можно потрогать.
-import { npcAtHome } from '../core/state.js'; // дома ли хозяин сейчас (одно правило «где житель» — core/queries.js)
 import { ell, fillRR, line, poly } from '../core/draw.js';
 import { wob, flame } from './inside_art.js';
 
@@ -193,7 +192,7 @@ export const chief = {
       ['plant_palm', 0, 220],
     ],
   },
-  actors: [{ npc: 'kokos', f: 0, x: 560, roam: [240, 960], act: 'chief', when: () => npcAtHome('kokos') }],
+  actors: [{ npc: 'kokos', f: 0, x: 560, roam: [240, 960], act: 'chief' }],
 };
 
 // ---------- хижина для гостей ----------
@@ -309,7 +308,7 @@ export const bum = {
   ],
   furniture: { fixed: [['hammock', 0, 560]] },
   // Бум дома — утром, в обед и после праздника огней (LAND_HOME в data/visits.js)
-  actors: [{ npc: 'bum', f: 0, x: 620, roam: [240, 700], act: 'islander:bum', when: () => npcAtHome('bum') }],
+  actors: [{ npc: 'bum', f: 0, x: 620, roam: [240, 700], act: 'islander:bum' }],
 };
 
 export const laguna = {
@@ -387,5 +386,5 @@ export const laguna = {
     ],
   },
   // Лагуна дома — утром, в обед и после праздника огней (LAND_HOME в data/visits.js)
-  actors: [{ npc: 'laguna', f: 0, x: 720, roam: [240, 900], act: 'islander:laguna', when: () => npcAtHome('laguna') }],
+  actors: [{ npc: 'laguna', f: 0, x: 720, roam: [240, 900], act: 'islander:laguna' }],
 };

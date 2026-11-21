@@ -3,15 +3,18 @@
 //
 // В описании дома:
 //   guests: { f, enterX, gap, first: [x0, x1], roam: [x0, x1] }   дом принимает гостей; где они появляются и гуляют
-//   actors: [{ npc, f, x, roam: [x0, x1] | null, act, when }]    жильцы: кто, где стоит, где бродит,
+//   actors: [{ npc, f, x, roam: [x0, x1] | null, act, spot }]    жильцы: кто, где стоит, где бродит,
 //                                                                 act — действие из реестра по нажатию,
-//                                                                 when() — когда он здесь (нет — его не видно и не
-//                                                                 нажать: аниматор по расписанию, житель у бассейна)
+//                                                                 spot — имя точки из расписания жителя (по умолчанию
+//                                                                 'in' — «у себя дома»): жилец здесь тогда и только
+//                                                                 тогда, когда его место сейчас (npcNow, core/npc.js) —
+//                                                                 эта сцена и эта точка; free: true — всегда здесь
+//                                                                 (пробный дом)
 // У гостя действие всегда 'guest:<житель>'.
 // Гость может нести что-то в лапках: g.carry = { c, c2, give } — коробочка с лентой (подарок на «Год в городе»,
 // рассада во вводном задании). give = { x, y, a } — коробочку вручают: она летит дугой к точке (x, y), a — 0…1
 // (двигает тот, кто вручает: features/holidays_bday.js, features/welcome.js).
-import { G, questBadge, npcDress } from '../../core/state.js';
+import { G, questBadge, npcDress, npcNow } from '../../core/state.js';
 import { rnd } from '../../core/util.js';
 import { fillRR, ell } from '../../core/draw.js';
 import { sfx } from '../../core/audio.js';
@@ -33,11 +36,19 @@ export function makeResidents(desc) {
     walkT: 0,
     happy: 0,
     roam: a.roam || null,
-    when: a.when || null,
+    scene: desc.id,
+    spot: a.spot || 'in',
+    free: !!a.free,
   }));
 }
-/** Здесь ли сейчас жилец (у кого есть when — только когда when() даёт «да»; g.hide — едет в лифте, его не видно). */
-export const actorHere = (g) => !g.hide && (!g.when || !!g.when());
+/** Пора ли жильцу быть здесь: его место сейчас (npcNow) — эта сцена и эта точка, и его видно. */
+function due(g) {
+  if (g.guest || g.free) return true;
+  const p = npcNow(g.id);
+  return !p || (p.scene === g.scene && p.spot === g.spot && p.visible);
+}
+/** Здесь ли сейчас жилец (g.hide — едет в лифте, его не видно). */
+export const actorHere = (g) => !g.hide && due(g);
 
 /**
  * Привести гостей в соответствие со списком в сохранении: ушедших убрать, новых впустить.

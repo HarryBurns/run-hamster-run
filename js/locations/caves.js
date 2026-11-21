@@ -348,7 +348,7 @@ const caves = createTopDownScene({
   dark: 0,
   season: 'summer', // сезонов под землёй нет
   build,
-  actors: [{ npc: 'kamushkin', at: [28.5, 19.5], always: true, act: 'miner' }],
+  actors: [{ npc: 'kamushkin', at: [28.5, 19.5], act: 'miner' }],
   places: [
     {
       id: 'paint',

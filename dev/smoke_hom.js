@@ -168,7 +168,7 @@ module.exports = async function hom(ctx) {
     const roof = await ev(async () => {
       const Q = await import('/js/features/quests.js'),
         sc = window.__dev.scene,
-        a = sc.actors.find((q) => q.id === 'senya' && (!q.when || q.when()));
+        a = sc.here().find((q) => q.id === 'senya');
       return { p: Q.sideStar(sc), x: a && a.x, f: a && a.f, top: a && sc.geo.fy(a.f) };
     });
     expect(roof.p && roof.p.x === roof.x && roof.f === 2 && roof.p.y < roof.top - 150, 'в отеле звёздочка не над Сеней', roof);

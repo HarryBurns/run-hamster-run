@@ -23,7 +23,7 @@ import { sfx } from '../core/audio.js';
 import { on, emit } from '../core/events.js';
 import { sceneName } from '../core/loop.js';
 import { register, run } from '../core/registry.js';
-import { G, darkness, ownsHome, canSwim, isSick, hotelRoomGuest } from '../core/state.js';
+import { G, darkness, ownsHome, canSwim, isSick, hotelRoomGuest, npcNow } from '../core/state.js';
 import { el, esc, pick, fmtMoney } from '../core/util.js';
 import {
   NPC_BY_ID,
@@ -37,7 +37,7 @@ import {
   animatorNow,
   npcLook,
 } from '../data/index.js';
-import { HX, rentedRoom, animatorAt } from '../interiors/hotel.js';
+import { HX, rentedRoom } from '../interiors/hotel.js';
 import { DOORMAN } from '../locations/town_buildings.js';
 import { go } from '../core/loop.js';
 import { dialog } from '../ui/dialog.js';
@@ -373,7 +373,7 @@ async function animator() {
     return;
   }
   const morning = now === 'morning',
-    hall = animatorAt() === 'hall'; // на террасе дождик — Хлопушка в холле (П20-3)
+    hall = npcNow('hlopushka').spot === 'hall'; // на террасе дождик — Хлопушка в холле (П20-3)
   const text = hall
     ? morning
       ? 'Доброе утро! Сегодня зарядка в холле — на улице дождик! Лапки вверх, хвостик вбок — повторяй за мной!'
@@ -415,7 +415,7 @@ async function animator() {
 }
 function schedule() {
   const now = animatorNow(S().minutes),
-    where = animatorAt() === 'hall' ? 'на улице дождик, поэтому сегодня — в холле, внизу' : 'у сцены справа';
+    where = npcNow('hlopushka').spot === 'hall' ? 'на улице дождик, поэтому сегодня — в холле, внизу' : 'у сцены справа';
   sfx('pop');
   toast(
     now === 'morning'

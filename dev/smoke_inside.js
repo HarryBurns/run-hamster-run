@@ -557,7 +557,7 @@ module.exports = async function inside(ctx) {
       await untilToast(/Заходи/).catch(() => {});
       const here = await ev(() => {
         const sc = window.__dev.scene;
-        return { scene: window.__dev.sceneName, guests: sc.actors.filter((a) => !a.when || a.when()).map((a) => a.id) };
+        return { scene: window.__dev.sceneName, guests: sc.here().map((a) => a.id) };
       });
       expect(here.scene === 'hotel_203' && here.guests.length === 1, 'номер 203: житель внутри', [here, who]);
       expect(/Заходи/.test(await toasts()), 'приглашение войти', await toasts());

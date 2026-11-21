@@ -10,7 +10,7 @@
 // дверей, горки и шезлонгов — крюки art (back — позади всех, mid — стойки перед работниками, но позади хомячка);
 // он неподвижен и рисуется один раз в кэш (sc.still, engine/side/cache.js — От12), живое — огоньки свечей и диско-шар.
 // Своя позиция в сохранении (persist): уснула в номере — утро в отеле, и после перезагрузки тоже.
-import { G, ownsHome, hotelPoolGuests, hotelRoofWet } from '../core/state.js';
+import { G, ownsHome, npcNow } from '../core/state.js';
 import { ell, fillRR, line, poly, star, shade, emoji } from '../core/draw.js';
 import { TAU } from '../core/util.js';
 import { HOTEL_DOORS, HOTEL_ROOM, HOTEL_ROOMS, POOL_GUESTS, ROOM_GUESTS, animatorNow } from '../data/index.js';
@@ -44,8 +44,6 @@ export const rentedRoom = () => {
   return r === 1 || r === 'std' ? 'std' : r === 'eco' || r === 'balcony' ? r : null;
 };
 const evening = () => G.state && animatorNow(G.state.minutes) === 'evening';
-/** Где сейчас аниматор Хлопушка: 'roof' — у бассейна, 'hall' — в холле (на террасе мокро), null — его нет. */
-export const animatorAt = () => (G.state && animatorNow(G.state.minutes) ? (hotelRoofWet() ? 'hall' : 'roof') : null);
 
 /** Видна ли на экране полоса x0..x1 этажа f (v — sc.view; нет — видно всё). */
 function seen(v, f, x0, x1) {
@@ -319,13 +317,14 @@ function drawBoard(ctx) {
   label(ctx, 'дискотека', bx, y - 90, 10, '#495057');
 }
 /** Вечером над сценой аниматора — диско-шар и цветные лучи (живые, крутятся). */
-function drawDisco(ctx, t, at = 'roof') {
+function drawDisco(ctx, t, at = 'stage') {
   const hall = at === 'hall',
     y = hall ? 0 : -552,
     sx = hall ? 260 : HX.stage, // в холле лучи — от люстры (П20-3)
     oy = hall ? y - 205 : y - 196,
     r = hall ? 160 : 220;
-  if (evening() && animatorAt() === at) {
+  // где аниматор Хлопушка сейчас (у сцены на террасе или в холле) — её место по расписанию: npcNow (core/npc.js)
+  if (evening() && npcNow('hlopushka').spot === at) {
     // диско-шар (в холле — люстра) и цветные лучи
     if (!hall) {
       line(ctx, sx, y - 250, sx, y - 210, OUT, 2);
@@ -465,9 +464,10 @@ export default {
     ],
   },
   actors: [
-    { npc: 'zvezdochka', f: 0, x: HX.desk, act: 'hotel:reception' },
-    { npc: 'telezhkin', f: 0, x: HX.cart - 100, roam: [600, 660], act: 'hotel:porter' },
-    { npc: 'penka', f: 0, x: 1560, act: 'hotel:spa' },
+    // spot — имя точки из расписания жителя (data/schedule.js): жилец здесь, когда его место сейчас — эта точка
+    { npc: 'zvezdochka', f: 0, x: HX.desk, act: 'hotel:reception', spot: 'desk' },
+    { npc: 'telezhkin', f: 0, x: HX.cart - 100, roam: [600, 660], act: 'hotel:porter', spot: 'cart' },
+    { npc: 'penka', f: 0, x: 1560, act: 'hotel:spa', spot: 'spa' },
     // аниматор: в хорошую погоду — у сцены на террасе, в дождь — в холле (терраса открытая, П20-3)
     {
       npc: 'hlopushka',
@@ -475,7 +475,7 @@ export default {
       x: HX.stage,
       roam: [HX.stage - 70, HX.stage + 70],
       act: 'hotel:animator',
-      when: () => animatorAt() === 'roof',
+      spot: 'stage',
     },
     {
       npc: 'hlopushka',
@@ -483,12 +483,12 @@ export default {
       x: HX.hall,
       roam: [HX.hall - 40, HX.hall + 40],
       act: 'hotel:animator',
-      when: () => animatorAt() === 'hall',
+      spot: 'hall',
     },
     // друзья у бассейна (От4): утром и днём — одни, вечером — другие, иногда вдвоём; у каждого своё место у воды
     ...[...POOL_GUESTS, ...ROOM_GUESTS].map((id, i) => {
       const x = [HX.loungers[1] - 60, HX.loungers[0] - 70, 1460, 1290][i % 4];
-      return { npc: id, f: 2, x, roam: [x - 50, x + 50], act: 'npc:' + id, when: () => hotelPoolGuests().includes(id) };
+      return { npc: id, f: 2, x, roam: [x - 50, x + 50], act: 'npc:' + id, spot: 'pool' };
     }),
   ],
   // рисуем только то, что видно на экране (sc.view — scene.js): этаж и полоса по x. Неподвижное — из кэша

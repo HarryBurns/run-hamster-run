@@ -50,10 +50,7 @@ module.exports = async function where(ctx) {
         for (const n of sc.npcs) {
           const p = Q.npcPlace(n.id);
           if (!p) continue; // без дома и расписания (Камушкин, Жемчужинка) — всегда на своём месте
-          const inHouse = (desc) => {
-            const a = desc && (desc.actors || []).find((q) => q.npc === n.id);
-            return !!a && (!a.when || !!a.when());
-          };
+          const inHouse = (desc) => !!desc && d.scenes[desc.id].here().some((q) => q.id === n.id);
           res[n.id] = {
             at: p.at,
             street: !n.hidden,
@@ -167,8 +164,7 @@ module.exports = async function where(ctx) {
   /** Внутри ли (виден) хозяин в доме, где сейчас хомячок. */
   const hostInside = (id) =>
     ev((id) => {
-      const g = window.__dev.scene.actors.find((q) => q.id === id);
-      return !!g && (!g.when || !!g.when());
+      return window.__dev.scene.here().some((q) => q.id === id);
     }, id);
   /** Виден ли житель id на улице локации loc (после выхода туда). */
   const onStreet = async (loc, id) => {

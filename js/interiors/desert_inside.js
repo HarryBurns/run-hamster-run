@@ -4,7 +4,6 @@
 //    (действие 'desert:pairs', как раньше у двери снаружи). Хозяина нет, днём тут полутемно (dim).
 //  - Шатёр: ковры на стенах и на полу, подушки, низкий столик с чаем и финиками, медная лампа; Бархан внутри —
 //    'nomad' (задание, окаменелости, обмен).
-import { npcAtHome } from '../core/state.js'; // дома ли хозяин сейчас (одно правило «где житель» — core/queries.js)
 import { ell, fillRR, line, poly, star } from '../core/draw.js';
 import { wob, torch, cushion, carpet } from './inside_art.js';
 
@@ -400,5 +399,5 @@ export const tent = {
     },
   ],
   furniture: { fixed: [['fossil_box', 0, 1080]] },
-  actors: [{ npc: 'barkhan', f: 0, x: 760, roam: [250, 900], act: 'nomad', when: () => npcAtHome('barkhan') }],
+  actors: [{ npc: 'barkhan', f: 0, x: 760, roam: [250, 900], act: 'nomad' }],
 };

@@ -1,6 +1,5 @@
 // Дом Профессора Орешкина: внизу кабинет с книгами и доской, наверху (на лифте) — обсерватория под стеклянной
 // крышей: телескоп и глобус. Дом жителя: мебель из описания, хозяин внутри; вход — 'home-of:prof'.
-import { npcAtHome } from '../core/state.js'; // дома ли хозяин сейчас (одно правило «где житель» — core/queries.js)
 export default {
   id: 'home_prof',
   name: 'Домик Профессора Орешкина',
@@ -57,5 +56,5 @@ export default {
       ['bed_green', 1, 700],
     ],
   },
-  actors: [{ npc: 'prof', f: 0, x: 640, roam: [200, 960], act: 'host:prof', when: () => npcAtHome('prof') }],
+  actors: [{ npc: 'prof', f: 0, x: 640, roam: [200, 960], act: 'host:prof' }],
 };

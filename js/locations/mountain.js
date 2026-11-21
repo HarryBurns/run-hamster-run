@@ -412,7 +412,7 @@ const mountain = createTopDownScene({
     },
   ],
   // Вершинкин — внизу трассы для санок, справа от шале; гуляет рядом (roam), не уходит за ёлки ниже по склону
-  actors: [{ npc: 'vershinkin', at: [30.5, 19.5], roam: 2, home: 'chalet', always: true, act: 'instructor' }],
+  actors: [{ npc: 'vershinkin', at: [30.5, 19.5], roam: 2, home: 'chalet', act: 'instructor' }],
   places: [
     {
       id: 'lookout',

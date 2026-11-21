@@ -15,7 +15,7 @@ module.exports = async function p20(ctx) {
     const here = (f) =>
       ev(
         (f) =>
-          window.__dev.scenes.hotel.actors.filter((a) => a.id === 'hlopushka' && a.f === f && (!a.when || a.when()))
+          window.__dev.scenes.hotel.here().filter((a) => a.id === 'hlopushka' && a.f === f)
             .length,
         f,
       );

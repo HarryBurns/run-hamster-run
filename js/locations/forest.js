@@ -381,7 +381,7 @@ const forest = createTopDownScene({
       running: () => landOpen('mountain'),
     },
   ],
-  actors: [{ npc: 'shishkin', at: [9, 31], home: 'hut', always: true, act: 'forester' }],
+  actors: [{ npc: 'shishkin', at: [9, 31], home: 'hut', act: 'forester' }],
   places: [
     {
       id: 'campfire',

@@ -186,12 +186,6 @@ export function spaBoostOn() {
     d = s && s.flags.spaBoost;
   return typeof d === 'number' && s.day >= d && s.day - d <= 1;
 }
-/**
- * Мокро ли на открытой террасе отеля (на крыше): любой дождь, а также ливень, гроза, метель. Тогда у бассейна
- * никого, а аниматор Хлопушка проводит зарядку и дискотеку в холле (interiors/hotel.js).
- */
-export const hotelRoofWet = () => !!G.state && (badWeather() || weatherNow().kind === 'rain');
-
 // ---------- «Вилла растёт» (data/estate.js; только чтение) ----------
 /** Ступень дома: 0 — маленький домик, 1 — с пристройкой, 2 — два этажа, 3 — три, 4 — с мансардой и террасой. */
 export const villaStage = () => (G.state && G.state.villaUp ? G.state.villaUp.house : 3);

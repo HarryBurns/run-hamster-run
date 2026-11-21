@@ -1,6 +1,5 @@
 // Дом Зефирки: игровая (ящик с игрушками, кукольный домик, лошадка-качалка, шарики) и детская спальня.
 // Дом жителя: мебель из описания, хозяйка внутри; вход — 'home-of:zefirka'.
-import { npcAtHome } from '../core/state.js'; // дома ли хозяин сейчас (одно правило «где житель» — core/queries.js)
 export default {
   id: 'home_zefirka',
   name: 'Домик Зефирки',
@@ -32,5 +31,5 @@ export default {
       ['lamp_pink', 0, 1250],
     ],
   },
-  actors: [{ npc: 'zefirka', f: 0, x: 620, roam: [200, 1200], act: 'host:zefirka', when: () => npcAtHome('zefirka') }],
+  actors: [{ npc: 'zefirka', f: 0, x: 620, roam: [200, 1200], act: 'host:zefirka' }],
 };

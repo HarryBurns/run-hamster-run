@@ -34,7 +34,7 @@ const house = {
       ['chair', 0, 850],
     ],
   },
-  actors: [{ npc: 'plusha', f: 0, x: 430, roam: [230, 1040] }],
+  actors: [{ npc: 'plusha', f: 0, x: 430, roam: [230, 1040], free: true }],
 };
 export default house;
 

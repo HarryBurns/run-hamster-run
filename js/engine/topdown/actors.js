@@ -1,11 +1,10 @@
 // «Движок локаций»: движение по пути и ЖИТЕЛИ локации (гуляют возле своего места, вечером идут домой).
 //
-// В описании локации:  actors: [{ npc, at: [x, y], home, act, always }]
+// В описании локации:  actors: [{ npc, at: [x, y], home, act }]
 //   npc     кто (id из data/npcs.js)
 //   at      клетка, возле которой житель гуляет днём
 //   home    его дом: id здания (встанет у двери) или клетка [x, y]; без home — всегда гуляет у своего места
 //   act     действие из реестра, когда хомячок подошёл (по умолчанию 'npc:<id>' — разговор)
-//   always  true — не уходит спать ночью (иначе с 22:00 до 6:30 жителя на улице нет)
 //   still   true — не гуляет, всегда на своём месте (русалочка на камне в воде — секретный пляж)
 //   roam    гуляет не дальше стольких клеток от at (по умолчанию 3.5) — чтобы не заходил за ёлки и дома
 // Где житель — одно правило для всех мест, npcPlace (core/queries.js; часы — VISIT и LAND_HOME в data/visits.js):
@@ -14,8 +13,7 @@
 //   до двери — и на улице его нет, пока он дома (внутри его дома он есть — interiors/, when: npcAtHome);
 //   хомячок пришла в локацию (или вышла из его дома) — кто дома, тот уже внутри (settleResidents);
 //   в гостях у хомячка, в отеле — на улице его нет; праздник в городе — locations/holidays_crowd.js (n.hold);
-//   ночью (с 22:00 до 6:30) на улице нет никого, кроме always.
-import { G, npcPlace, questBadge, npcDress, npcRain } from '../../core/state.js';
+import { G, npcNow, questBadge, npcDress, npcRain } from '../../core/state.js';
 import { rnd, dist } from '../../core/util.js';
 import { ell } from '../../core/draw.js';
 import { NPC_BY_ID, npcLook } from '../../data/index.js';
@@ -113,15 +111,19 @@ export function makeResidents(m) {
   });
 }
 
-/** Где житель сейчас по общему правилу (npcPlace, core/queries.js): 'out' — у кого нет расписания (всегда на месте). */
-const placeOf = (n) => {
-  const p = npcPlace(n.id);
-  return p ? p.at : 'out';
+/**
+ * Где житель сейчас для этой локации — по его месту (npcNow, core/npc.js): 'out' — здесь, на улице; 'door' — здесь,
+ * у своей двери (праздник); 'home' — у себя дома (идёт к своей двери и заходит); 'away' — в другом месте (в гостях
+ * у хомячка, в отеле). Житель без расписания (free — пробная локация) — всегда 'out'.
+ */
+const placeOf = (sc, n) => {
+  const p = n.def.free ? null : npcNow(n.id);
+  if (!p) return 'out';
+  if (p.scene === sc.name) return p.spot === 'door' ? 'door' : 'out';
+  return p.scene === p.house ? 'home' : 'away';
 };
-/** Дома (зашёл к себе или спит): на улице его нет — если есть дом, он идёт к своей двери и заходит. */
-const atHome = (at) => at === 'home' || at === 'asleep';
-/** Не здесь вовсе: в гостях у хомячка, в отеле. */
-const awayNow = (at) => at === 'guest' || at === 'pool' || at === 'room';
+const atHome = (at) => at === 'home';
+const awayNow = (at) => at === 'away';
 const cellDist = (n, c) => dist(n.x, n.y, (c[0] + 0.5) * T, (c[1] + 0.5) * T);
 
 /**
@@ -132,7 +134,7 @@ const cellDist = (n, c) => dist(n.x, n.y, (c[0] + 0.5) * T, (c[1] + 0.5) * T);
 export function settleResidents(sc) {
   for (const n of sc.npcs) {
     if (!n.home) continue;
-    const at = placeOf(n);
+    const at = placeOf(sc, n);
     n.inside = atHome(at);
     n.goingHome = false;
     const c = (n.inside && !n.def.still) || at === 'door' ? n.home : n.hang; // still — всегда на своём месте
@@ -146,21 +148,14 @@ export function settleResidents(sc) {
 
 /** Шаг логики жителей: кто спрятан, кто идёт, кому пора выбрать новую точку. */
 export function updateResidents(sc, dt) {
-  const m = sc.map,
-    min = G.state.minutes,
-    night = min >= 22 * 60 || min < 6.5 * 60;
+  const m = sc.map;
   for (const n of sc.npcs) {
     // дома (утро, вечер, позвал в гости, обедает): идёт домой, у двери «заходит» — и на улице его нет, пока он дома
-    const at = placeOf(n),
+    const at = placeOf(sc, n),
       waits = !!n.home && atHome(at);
     if (!waits) n.inside = n.goingHome = false;
     else if (!n.inside && (n.def.still || cellDist(n, n.home) < T * 1.2)) n.inside = true;
-    n.hidden =
-      (night && !n.def.always) ||
-      awayNow(at) ||
-      n.inside ||
-      (atHome(at) && !n.home) ||
-      (!!n.def.away && n.def.away(n.id)); // away(id) в описании жителя — своё «сейчас не здесь» у локации
+    n.hidden = awayNow(at) || n.inside || (atHome(at) && !n.home);
     // hold — житель занят своим (присел рядом с хомячком на скамейку — features/relax.js, празднует —
     // locations/holidays_crowd.js): стоит на месте или его водят там
     if (n.hidden || G.modal || n.def.still || n.hold) continue;
@@ -227,7 +222,10 @@ export function walkOutWith(sc, id, to = null) {
 }
 
 /** Под пальцем ли житель (точка мира w). */
-export const hitResident = (n, w) => !n.hidden && Math.abs(w.x - n.x) < 30 && w.y > n.y - 70 && w.y < n.y + 14;
+/** На месте ли житель — виден и можно подойти (hold.off — занят вдали от своего места: русалочка уплыла с камня). */
+export const residentOn = (n) => !n.hidden && !(n.hold && n.hold.off);
+export const hitResident = (n, w) =>
+  residentOn(n) && Math.abs(w.x - n.x) < 30 && w.y > n.y - 70 && w.y < n.y + 14;
 
 // Житель из кэша спрайтов. Вместо плавной анимации — готовые кадры: 8 кадров шага или 4 кадра «дыхания»,
 // глаза открыты или закрыты (моргание), смотрит влево или вправо. Игрок рисуется «вживую» (render.js).

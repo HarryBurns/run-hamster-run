@@ -88,7 +88,7 @@ export default createTopDownScene({
     S: ['g', 'boulder'],
   },
   // житель: гуляет возле своего места и никуда не уходит
-  actors: [{ npc: 'myata', at: [6, 5] }],
+  actors: [{ npc: 'myata', at: [6, 5], free: true }],
   // особое место: нажми на валун — хомячок подойдёт и посмотрит вдаль (действие 'panorama' из реестра)
   places: [
     {

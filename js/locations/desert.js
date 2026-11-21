@@ -572,7 +572,7 @@ const desert = createTopDownScene({
     // пирамида: внутри — загадка «Пары»
     { id: 'pyramid', kind: 'pyramid', ...AT.pyramid, name: 'Пирамида', icon: '🔺', act: 'inside:pyramid_hall' },
   ],
-  actors: [{ npc: 'barkhan', at: [27.5, 19.6], home: 'tent', always: true, act: 'nomad' }],
+  actors: [{ npc: 'barkhan', at: [27.5, 19.6], home: 'tent', act: 'nomad' }],
   places: [
     {
       id: 'dig',

@@ -640,9 +640,9 @@ const island = createTopDownScene({
   ],
   actors: [
     // дома (утром, обедают, после праздника огней) — у себя в хижинах: LAND_HOME (data/visits.js), npcPlace
-    { npc: 'kokos', at: [18, 18], home: 'chief', always: true, act: 'chief' },
-    { npc: 'bum', at: [23, 15], home: 'bumhut', still: true, always: true, act: 'islander:bum' },
-    { npc: 'laguna', at: [11, 27], home: 'laguna', always: true, act: 'islander:laguna' },
+    { npc: 'kokos', at: [18, 18], home: 'chief', act: 'chief' },
+    { npc: 'bum', at: [23, 15], home: 'bumhut', still: true, act: 'islander:bum' },
+    { npc: 'laguna', at: [11, 27], home: 'laguna', act: 'islander:laguna' },
   ],
   places: [
     {

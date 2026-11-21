@@ -18,7 +18,7 @@ import { ell, fillRR, poly, rr, shade, star, emoji } from '../../core/draw.js';
 import { drawHamster, blinkAt } from '../../art/hamster.js';
 import { NPC_BY_ID, TASK_BY_ID } from '../../data/index.js';
 import { T, OUT, PS, SP, TILES, OBJECTS, BUILDING_KINDS, tileOf, label, hash } from './kinds.js';
-import { drawResident, drawBadge, faceDir, umbrellaLift } from './actors.js';
+import { drawResident, drawBadge, faceDir, umbrellaLift, residentOn } from './actors.js';
 import { drawGround, buildShore, paintGroundMap, CH } from './ground.js';
 
 // ---------- погода ----------
@@ -711,7 +711,7 @@ export function drawFrame(ctx, sc) {
     if ((b.x + b.w) * T > mx0 - 100 && b.x * T < mx1 + 100 && b.y * T < my1 && (b.y + b.h) * T > my0 - 100)
       list.push({ y: (b.y + b.h) * T, z: 1, k: K_BUILDING, v: b, f: null });
   for (const n of sc.npcs)
-    if (!n.hidden && n.x > mx0 && n.x < mx1 && n.y > my0 && n.y < my1)
+    if (residentOn(n) && n.x > mx0 && n.x < mx1 && n.y > my0 && n.y < my1)
       list.push({ y: n.y + 10, z: 2, k: K_NPC, v: n, f: null });
   // «своё» локации: add(глубина y, fn(ctx, v, t, sc), v, late) — late: при равной глубине рисовать после героя
   const view = { x0: mx0, y0: my0, x1: mx1, y1: my1 };

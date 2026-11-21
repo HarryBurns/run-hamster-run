@@ -22,7 +22,7 @@
 //                 и место снаружи, откуда в дом вошли (поле out); иначе в сохранении остаётся место снаружи, у двери
 //   owner         чей это дом (id жителя) — для занятий: реплики хозяина, «изюминки» дома
 //   guests        { f, enterX, gap, first, roam } — сюда приходят приглашённые друзья (см. actors.js)
-//   actors        [{ npc, f, x, roam, act, when }] — кто здесь живёт или работает (when() — когда он здесь)
+//   actors        [{ npc, f, x, roam, act, spot }] — кто здесь живёт или работает (spot — точка из его расписания)
 //   shell         { wall, roof, chimneyX, bushes, flat, ground, trees } — дом снаружи (см. rooms.js)
 //   variant       () => описание, которое действует сейчас (дом достраивается — вилла, interiors/villa.js): сцена
 //                 пересобирается при входе и по событию villaUp (sc.regrow)
@@ -298,6 +298,8 @@ export function createSideScene(desc0) {
     setDecor: (on) => setDecor(sc, on),
     isDecor: () => sc.decor.on,
     syncGuests: () => syncGuests(sc),
+    /** Кто из жильцов и гостей сейчас здесь (виден): объекты жильцов — для занятий и тестов. */
+    here: () => sc.actors.filter(actorHere),
     /** Для тестов: где на экране точка дома. */
     debugScreen: (wx, wy) => sc.cam.toScreen(wx, wy),
     /**

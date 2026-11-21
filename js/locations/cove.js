@@ -349,7 +349,10 @@ function showDolphins(sc, tx, ty, dir) {
 // ---------- Жемчужинка плавает (С3): иногда, пока хомячок далеко, соскальзывает с камня, плавает по лагуне и ныряет ----------
 const ROCK_PX = { x: (AT.rock[0] + 0.5) * T, y: (AT.rock[1] + 0.46) * T };
 const swim = { on: false, t0: 0, dur: 14, next: 0 };
+/** Пока плавает, на камне её нет: рисует её сама локация (things), нажать нельзя (hold.off — engine/topdown/actors.js). */
+const PEARL_SWIMS = { off: true, draw() {} };
 function updatePearl(sc) {
+  sc.npcs[0].hold = swim.on ? PEARL_SWIMS : null;
   const near = Math.hypot(sc.p.x - ROCK_PX.x, sc.p.y - ROCK_PX.y) < T * 3.2;
   if (swim.on) {
     // подошла поближе — Жемчужинка возвращается на камень (поговорить можно всегда)
@@ -474,10 +477,8 @@ const cove = createTopDownScene({
     {
       npc: 'pearl',
       at: [AT.rock[0], AT.rock[1] - 0.04],
-      always: true,
       still: true,
       act: 'mermaid',
-      away: () => swim.on,
     },
   ],
   places: [

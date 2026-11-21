@@ -558,7 +558,7 @@ const jungle = createTopDownScene({
     // руины храма: загадка «Узор храма»
     { id: 'temple', kind: 'temple', ...AT.temple, name: 'Руины храма', icon: '🗿', act: 'inside:temple_hall' },
   ],
-  actors: [{ npc: 'liana', at: [31.5, 25.6], home: 'camp', always: true, act: 'explorer' }],
+  actors: [{ npc: 'liana', at: [31.5, 25.6], home: 'camp', act: 'explorer' }],
   places: [
     {
       id: 'vines',

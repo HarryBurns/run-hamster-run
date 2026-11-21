@@ -3,7 +3,6 @@
 //  - Храм: зал во мху и лианах, факелы, идол-обезьянка, алтарь с сокровищем; стена со знаками — вход в загадку
 //    «Узор храма» (действие 'jungle:temple', как раньше у входа снаружи). Хозяина нет, днём полутемно (dim).
 //  - Палатка: стол с картами, гербарий бабочек, походная раскладушка, фонарь, бинокль; Лиана внутри — 'explorer'.
-import { npcAtHome } from '../core/state.js'; // дома ли хозяин сейчас (одно правило «где житель» — core/queries.js)
 import { ell, fillRR, line, poly, star } from '../core/draw.js';
 import { wob, torch } from './inside_art.js';
 
@@ -340,5 +339,5 @@ export const camp = {
       ['feather_frame', 0, 230, 190],
     ],
   },
-  actors: [{ npc: 'liana', f: 0, x: 560, roam: [240, 760], act: 'explorer', when: () => npcAtHome('liana') }],
+  actors: [{ npc: 'liana', f: 0, x: 560, roam: [240, 760], act: 'explorer' }],
 };

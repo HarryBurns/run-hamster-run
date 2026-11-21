@@ -5,7 +5,6 @@
 //   hotel_203 — номер, где гостит кто-то из жителей (От1, data/hotel.js: roomGuestOn): к нему можно зайти в гости —
 //               житель внутри (обычный разговор 'npc:<id>'), его чемодан и сувениры.
 // Стандарт 207 — сама комната отеля справа от коридора (interiors/hotel.js).
-import { G, hotelRoomGuest } from '../core/state.js';
 import { ell, fillRR, line, poly, star } from '../core/draw.js';
 import { ROOM_GUESTS } from '../data/index.js';
 import { wob } from './inside_art.js';
@@ -252,6 +251,6 @@ export const roomGuest = {
     x: 470,
     roam: [220, 560],
     act: 'npc:' + id,
-    when: () => !!G.state && hotelRoomGuest() === id,
+    spot: 'room',
   })),
 };

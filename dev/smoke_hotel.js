@@ -320,7 +320,7 @@ module.exports = async function hotel(ctx) {
     await ev(() => window.__dev.actions.recoverSick('doctor'));
     // аниматор: днём его нет — подсказка с расписанием; утром — зарядка, вечером — дискотека
     const here = () =>
-      ev(() => window.__dev.scenes.hotel.actors.filter((a) => a.id === 'hlopushka' && (!a.when || a.when())).length);
+      ev(() => window.__dev.scenes.hotel.here().filter((a) => a.id === 'hlopushka').length);
     await toHotel(2, 1600);
     expect((await here()) === 0, 'аниматор днём у бассейна');
     await clearToasts();
@@ -621,7 +621,7 @@ module.exports = async function hotel(ctx) {
         r,
       ]);
       await toHotel(2, 1300);
-      r = await ev((id) => window.__dev.scene.actors.filter((a) => !a.when || a.when()).map((a) => a.id), pick.id);
+      r = await ev((id) => window.__dev.scene.here().map((a) => a.id), pick.id);
       expect(r.includes(pick.id) && !r.includes('hlopushka'), 'у бассейна отеля нет жителя', [pick, r]);
       // вечером житель снова в городе
       await mutate('s.minutes = 18 * 60;');
