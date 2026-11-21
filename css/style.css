@@ -765,7 +765,8 @@ h4 { margin: 4px 0; font-size: 16px; }
 /* журнал: активный квест и кнопка «⭐ Веди меня» */
 .quest.lead { outline: 3px solid #ffd43b; outline-offset: -1px; }
 .q-lead { display: inline-block; background: #ffe066; border-radius: 999px; padding: 5px 12px; font-weight: 900; font-size: 14px; }
-.quest .btn.small + .btn.small { margin-left: 8px; }
+.quest > .q-lead, .quest > .q-lead-btn { margin-top: 8px; }
+.quest .btn.small + .btn.small, .quest .btn.small + .q-lead { margin-left: 8px; }
 .chip.quest.new { background: #ffe066; animation: quest-pulse 1.8s ease-in-out infinite; }
 .chip.quest.ready { background: #b2f2bb; animation: quest-pulse 1.8s ease-in-out infinite; }
 .chip.quest .short { display: none; }

@@ -205,7 +205,7 @@ module.exports = async function quests(ctx) {
       await nextDialog();
       // звёздочка занята письмом — Мята спрашивает: «⭐ Покажи дорогу!» / «Потом»
       expect(/Покажи дорогу/.test(await ev(() => document.querySelector('.dialog').textContent)), 'нет кнопки «⭐ Покажи дорогу!»');
-      await page.click('.dialog .btn.yellow');
+      await page.click('.dialog .btn.lead');
       await L.until(() => !document.querySelector('.dialog'), undefined, { timeout: 2000 }).catch(() => {});
       let w = await now();
       expect(w.status === 'active' && w.i === 0, 'задание не взято', w);

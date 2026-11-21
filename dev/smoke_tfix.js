@@ -55,6 +55,7 @@ module.exports = async function tfix(ctx) {
             });
             d.actions.setMail(task);
             d.actions.readMail();
+            d.goal.set('mail');
             const W = d.World,
               t = W.target(),
               flat = W.doorOf('home_apartment'),
@@ -101,6 +102,7 @@ module.exports = async function tfix(ctx) {
             });
             d.actions.setMail(task);
             d.actions.readMail();
+            d.goal.set('mail');
             const f = d.locations.forest,
               door = f.map.doorPx(f.map.bById.cabin);
             return { scene: d.sceneName, t: f.target(), door, town: d.World.target() };
@@ -124,6 +126,7 @@ module.exports = async function tfix(ctx) {
         });
         d.actions.setMail('wheel');
         d.actions.readMail();
+        d.goal.set('mail');
         return d.locations.forest.target();
       });
       expect(!!r && r.next === 'world', 'колесо на вилле: в лесу звёздочка не к дороге в город', r);

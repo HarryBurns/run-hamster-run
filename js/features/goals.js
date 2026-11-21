@@ -116,7 +116,7 @@ export function goalBusy(id) {
  */
 export function leadButtons(id, ok) {
   return goalBusy(id)
-    ? { ask: true, buttons: [{ text: '⭐ Покажи дорогу!', cls: 'yellow' }, { text: 'Потом' }] }
+    ? { ask: true, buttons: [{ text: '⭐ Покажи дорогу!', cls: 'green lead' }, { text: 'Потом' }] }
     : { ask: false, buttons: ok };
 }
 /** «⭐ Покажи дорогу!»: квест id — активный, коротко сказать об этом. */

@@ -646,6 +646,7 @@ module.exports = async function hotel(ctx) {
         d.go('world');
         d.actions.setMail('porter');
         d.actions.readMail();
+        d.goal.set('mail');
       });
       await untilScene('world');
       await frames(3);

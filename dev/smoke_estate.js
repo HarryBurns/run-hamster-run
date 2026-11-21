@@ -576,6 +576,7 @@ module.exports = async function estate(ctx) {
       const d = window.__dev;
       d.actions.nextDay();
       d.actions.setMail('teatime');
+      d.goal.set('mail');
     });
     await closeAll();
     await reenter(12);

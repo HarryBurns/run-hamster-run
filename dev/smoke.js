@@ -939,6 +939,7 @@ async function extra({ page, step, ev, wait, closeAll, hold }) {
       d.go('world');
       d.actions.setMail('snow');
       d.F.openMailbox();
+      d.goal.set('mail'); // письмо — активный квест (от прошлых шагов мог остаться другой)
     });
     await wait(300);
     await closeAll();
@@ -965,7 +966,7 @@ async function extra({ page, step, ev, wait, closeAll, hold }) {
       d.locations.demo_meadow.debugTeleport(it.x, it.y);
     }, items[0]);
     await wait(300);
-    const r = await loc('const m = d.G.state.mail; return { n: m.n, got: m.items[0].got, target: sc.target() }');
+    const r = await loc('const m = d.G.state.mail; return { n: m.n, got: m.items[0].got, target: sc.target(), goal: d.goal.now(), list: d.goal.list() }');
     if (r.n !== 1 || !r.got || !r.target || r.target.icon !== '❄️')
       throw new Error('предмет задания в своей локации: ' + JSON.stringify(r));
     // находки можно менять на ходу (каждый день в новых местах): места даёт та же зона

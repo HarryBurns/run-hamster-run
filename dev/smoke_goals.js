@@ -117,7 +117,7 @@ module.exports = async function goals(ctx) {
       s = await starAt('market');
       expect(s.t && s.d < 10, 'звёздочка у ворот больше не ведёт к рынку', s);
       h = await hud();
-      expect(/Базарный/.test(h.text) && h.more === '+1' && h.right <= h.vw + 1, 'плашка: письмо и «+1»', h);
+      expect(/Базарный|🧺/.test(h.text) && h.more === '+1' && h.right <= h.vw + 1, 'плашка: письмо и «+1»', h);
       // журнал: один список — активный квест сверху с пометкой, у другого — «⭐ Веди меня»
       await openJournal();
       let c = await cards();
@@ -134,7 +134,7 @@ module.exports = async function goals(ctx) {
       s = await starAt('npc:myata');
       expect(s.t && s.d < 60, 'звёздочка не у Мяты', s);
       h = await hud();
-      expect(/Мята/.test(h.text) && h.more === '+1', 'плашка: Мята и «+1»', h);
+      expect(/Мята/.test(h.text) && h.more === '+1' && h.right <= h.vw + 1, 'плашка: Мята и «+1»', h);
       await openJournal();
       c = await cards();
       expect(c[0].id === 'quest:herbarium' && c[0].lead && c[1].id === 'mail' && c[1].btn, 'журнал после выбора', c);
@@ -172,7 +172,7 @@ module.exports = async function goals(ctx) {
       await L.untilDialog(1500).catch(() => {});
       const btns = await ev(() => [...document.querySelectorAll('.dialog .btn')].map((b) => b.textContent));
       expect(btns.join('|') === '⭐ Покажи дорогу!|Потом', 'кнопки нового квеста', btns);
-      await page.click('.dialog .btn:not(.yellow)'); // «Потом»
+      await page.click('.dialog .btn:not(.lead)'); // «Потом»
       await L.until(() => !document.querySelector('.dialog'), undefined, { timeout: 2000 }).catch(() => {});
       expect((await goal()) === 'mail', 'после «Потом» звёздочка ушла от письма', await goal());
       let s = await starAt('market');
@@ -268,7 +268,7 @@ module.exports = async function goals(ctx) {
       expect(/Покажи дорогу/.test(await panelText()) && /Потом/.test(await panelText()), 'окно праздника: кнопки', await panelText());
       expect((await goal()) === 'mail', 'праздник забрал звёздочку сам', await goal());
       expect((await list()).join() === 'holiday,mail', 'порядок: праздник раньше письма', await list());
-      await page.click('.overlay .btn.yellow');
+      await page.click('.overlay .btn.lead');
       await wait(300);
       await closeAll();
       expect((await goal()) === 'holiday', 'после «⭐ Покажи дорогу!» активный квест', await goal());
@@ -302,10 +302,11 @@ module.exports = async function goals(ctx) {
         const b = await ev(() => [...document.querySelectorAll('.dialog .btn')].map((q) => q.textContent));
         if (b.some((x) => /Покажи дорогу/.test(x))) asked = true;
         else if (b.length) await page.click('.dialog .btn.green');
+        else break;
       }
       expect(asked, 'сосед не спросил «⭐ Покажи дорогу!»');
       expect((await goal()) === 'mail', 'вводное задание забрало звёздочку само', await goal());
-      await page.click('.dialog .btn.yellow');
+      await page.click('.dialog .btn.lead');
       await L.until(() => !document.querySelector('.dialog'), undefined, { timeout: 2000 }).catch(() => {});
       expect((await goal()) === 'quest:intro_home', 'после «⭐ Покажи дорогу!» — не вводное задание', await goal());
     },

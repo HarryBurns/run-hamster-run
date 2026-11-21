@@ -44,7 +44,7 @@ register('lead', (p) => leadTo(p.arg), 'звёздочка: lead:<квест> �
 /** Кнопка «⭐ Веди меня» для квеста g, а у активного — пометка «⭐ Звёздочка ведёт сюда». panel — закрыть, когда идём к карте. */
 export function leadRow(g, panel) {
   if (goalNow() === g) return el('div', 'q-lead', '⭐ Звёздочка ведёт сюда');
-  const b = el('button', 'btn small yellow q-lead-btn', '⭐ Веди меня');
+  const b = el('button', 'btn small green lead q-lead-btn', '⭐ Веди меня');
   b.onclick = () => {
     if (leadTo(g.id)) panel.close();
     else panel.refresh();
